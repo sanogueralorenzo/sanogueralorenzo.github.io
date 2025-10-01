@@ -1,0 +1,4 @@
+/* Hide site title in header while keeping it available for metadata */
+.header .logo {
+  display: none;
+}
