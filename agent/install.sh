@@ -36,7 +36,7 @@ install_tailscale() {
 }
 
 install_opencode() {
-  # Install or update the OpenCode CLI.
+  # Install the OpenCode CLI to enable an AI first terminal.
   curl -fsSL https://opencode.ai/install | bash
 }
 
