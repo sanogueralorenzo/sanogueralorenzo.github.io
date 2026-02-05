@@ -2,8 +2,7 @@
 set -euo pipefail
 
 USER_NAME="$(id -un)"
-HOME_DIR="$HOME"
-OPENCODE_BIN="$HOME_DIR/.opencode/bin/opencode"
+OPENCODE_BIN="$HOME/.opencode/bin/opencode"
 SERVICE_FILE="/etc/systemd/system/opencode-web.service"
 
 sudo -v
@@ -25,7 +24,7 @@ sudo tailscale up
 curl -fsSL https://opencode.ai/install | bash
 
 # Agent skills
-mkdir -p "$HOME_DIR/.agents/skills"
+mkdir -p "$HOME/.agents/skills"
 
 # OpenCode web service
 sudo tee "$SERVICE_FILE" >/dev/null <<EOF
@@ -38,8 +37,8 @@ Wants=network-online.target
 Type=simple
 User=$USER_NAME
 Group=$USER_NAME
-Environment=HOME=$HOME_DIR
-WorkingDirectory=$HOME_DIR
+Environment=HOME=$HOME
+WorkingDirectory=$HOME
 ExecStart=$OPENCODE_BIN web --hostname 0.0.0.0 --port 4096
 Restart=on-failure
 
@@ -56,8 +55,7 @@ sudo tee /usr/local/bin/auto-update.sh >/dev/null <<EOF
 set -euo pipefail
 
 USER_NAME="$USER_NAME"
-HOME_DIR="$HOME_DIR"
-AGENTS_SKILLS_DIR="\$HOME_DIR/.agents/skills"
+AGENTS_SKILLS_DIR="$HOME/.agents/skills"
 
 export DEBIAN_FRONTEND=noninteractive
 
