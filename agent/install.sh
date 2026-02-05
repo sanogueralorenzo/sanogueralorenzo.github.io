@@ -83,6 +83,20 @@ if [ -d "\$AGENTS_SKILLS_DIR" ]; then
   done
 fi
 
+for repo in "$HOME"/*; do
+  if [ -d "\$repo/.git" ]; then
+    if command -v runuser >/dev/null 2>&1; then
+      if ! runuser -u "\$USER_NAME" -- git -C "\$repo" pull --ff-only; then
+        echo "WARN: failed to update \$repo" >&2
+      fi
+    else
+      if ! su - "\$USER_NAME" -c "git -C \"\$repo\" pull --ff-only"; then
+        echo "WARN: failed to update \$repo" >&2
+      fi
+    fi
+  fi
+done
+
 systemctl try-restart opencode-web.service
 
 if [ -f /var/run/reboot-required ]; then
