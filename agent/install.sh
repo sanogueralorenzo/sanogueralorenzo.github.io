@@ -84,6 +84,10 @@ if [ -d "\$AGENTS_SKILLS_DIR" ]; then
 fi
 
 for repo in "$HOME"/*; do
+  base="$(basename "\$repo")"
+  if [[ "\$base" == .* && "\$base" != ".agents" ]]; then
+    continue
+  fi
   if [ -d "\$repo/.git" ]; then
     if command -v runuser >/dev/null 2>&1; then
       if ! runuser -u "\$USER_NAME" -- git -C "\$repo" pull --ff-only; then
