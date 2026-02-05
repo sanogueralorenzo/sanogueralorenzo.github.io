@@ -4,7 +4,7 @@ set -euo pipefail
 USER_NAME="$(id -un)"
 HOME_DIR="$HOME"
 OPENCODE_BIN="$HOME_DIR/.opencode/bin/opencode"
-WORKDIR="$HOME_DIR/workspaces"
+WORKDIR="$HOME_DIR"
 SERVICE_FILE="/etc/systemd/system/opencode-web.service"
 
 sudo -v
@@ -24,9 +24,6 @@ sudo tailscale up
 
 # OpenCode
 curl -fsSL https://opencode.ai/install | bash
-
-# Workspace
-mkdir -p "$WORKDIR"
 
 # Agent skills
 mkdir -p "$HOME_DIR/.agents/skills"
