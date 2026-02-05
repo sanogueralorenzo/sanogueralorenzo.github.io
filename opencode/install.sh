@@ -44,6 +44,57 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now opencode-web.service
 
+sudo tee /usr/local/bin/opencode-auto-update.sh >/dev/null <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get upgrade -y
+apt-get install -y --only-upgrade git git-lfs gh tailscale
+
+git lfs install --skip-repo
+
+curl -fsSL https://opencode.ai/install | bash
+
+systemctl try-restart opencode-web.service
+
+if [ -f /var/run/reboot-required ]; then
+  systemctl reboot
+fi
+EOF
+
+sudo chmod +x /usr/local/bin/opencode-auto-update.sh
+
+sudo tee /etc/systemd/system/opencode-auto-update.service >/dev/null <<'EOF'
+[Unit]
+Description=Auto-update OpenCode dependencies
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/bin/opencode-auto-update.sh
+EOF
+
+sudo tee /etc/systemd/system/opencode-auto-update.timer >/dev/null <<'EOF'
+[Unit]
+Description=Nightly OpenCode auto-update
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now opencode-auto-update.timer
+
 echo
 echo "=============================================="
 echo "One-time manual steps (required):"
@@ -58,6 +109,7 @@ echo "     /connect"
 echo "=============================================="
 echo
 echo "OpenCode Web will start automatically on boot."
+echo "Auto-updates run daily at 06:00."
 echo
 echo "Access from any Tailscale device:"
 echo "  http://<tailscale-ip>:4096"
