@@ -4,30 +4,50 @@ set -euo pipefail
 USER_NAME="$(id -un)"
 OPENCODE_BIN="$HOME/.opencode/bin/opencode"
 SERVICE_FILE="/etc/systemd/system/opencode-web.service"
+AUTO_UPDATE_SCRIPT="/usr/local/bin/auto-update.sh"
+AUTO_UPDATE_SERVICE="/etc/systemd/system/auto-update.service"
+AUTO_UPDATE_TIMER="/etc/systemd/system/auto-update.timer"
+AGENTS_SKILLS_DIR="$HOME/.agents/skills"
+AUTO_UPDATE_TIME="*-*-* 06:00:00"
+OPENCODE_PORT="4096"
 
-sudo -v
+require_sudo() {
+  # Validate sudo access early to avoid mid-install prompts.
+  sudo -v
+}
 
-# Core packages
-sudo apt update
-sudo apt upgrade -y
-sudo apt install -y curl ca-certificates
+install_core_packages() {
+  # Base OS updates and utilities required by installers.
+  sudo apt update
+  sudo apt upgrade -y
+  sudo apt install -y curl ca-certificates
+}
 
-# Git
-sudo apt install -y git git-lfs gh
-git lfs install
+install_git_tools() {
+  # Git tooling for repo access and large file support.
+  sudo apt install -y git git-lfs gh
+  git lfs install
+}
 
-# Tailscale
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
+install_tailscale() {
+  # Secure networking for remote access to the OpenCode web UI.
+  curl -fsSL https://tailscale.com/install.sh | sh
+  sudo tailscale up
+}
 
-# OpenCode
-curl -fsSL https://opencode.ai/install | bash
+install_opencode() {
+  # Install or update the OpenCode CLI.
+  curl -fsSL https://opencode.ai/install | bash
+}
 
-# Agent skills
-mkdir -p "$HOME/.agents/skills"
+setup_agent_dirs() {
+  # Home for external skills cloned outside this repo.
+  mkdir -p "$AGENTS_SKILLS_DIR"
+}
 
-# OpenCode web service
-sudo tee "$SERVICE_FILE" >/dev/null <<EOF
+setup_opencode_service() {
+  # Systemd unit to keep OpenCode web running on boot.
+  sudo tee "$SERVICE_FILE" >/dev/null <<EOF
 [Unit]
 Description=OpenCode Web
 After=network-online.target
@@ -39,18 +59,20 @@ User=$USER_NAME
 Group=$USER_NAME
 Environment=HOME=$HOME
 WorkingDirectory=$HOME
-ExecStart=$OPENCODE_BIN web --hostname 0.0.0.0 --port 4096
+ExecStart=$OPENCODE_BIN web --hostname 0.0.0.0 --port $OPENCODE_PORT
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now opencode-web.service
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now opencode-web.service
+}
 
-# Auto-update script
-sudo tee /usr/local/bin/auto-update.sh >/dev/null <<EOF
+write_auto_update_script() {
+  # Nightly updates for packages, OpenCode, and local git clones.
+  sudo tee "$AUTO_UPDATE_SCRIPT" >/dev/null <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -108,10 +130,12 @@ if [ -f /var/run/reboot-required ]; then
 fi
 EOF
 
-sudo chmod +x /usr/local/bin/auto-update.sh
+  sudo chmod +x "$AUTO_UPDATE_SCRIPT"
+}
 
-# Auto-update service and timer
-sudo tee /etc/systemd/system/auto-update.service >/dev/null <<'EOF'
+setup_auto_update_units() {
+  # Systemd units to run the nightly auto-update script.
+  sudo tee "$AUTO_UPDATE_SERVICE" >/dev/null <<'EOF'
 [Unit]
 Description=Auto-update dependencies
 After=network-online.target
@@ -124,37 +148,55 @@ Group=root
 ExecStart=/usr/local/bin/auto-update.sh
 EOF
 
-sudo tee /etc/systemd/system/auto-update.timer >/dev/null <<'EOF'
+  sudo tee "$AUTO_UPDATE_TIMER" >/dev/null <<EOF
 [Unit]
 Description=Nightly auto-update
 
 [Timer]
-OnCalendar=*-*-* 06:00:00
+OnCalendar=$AUTO_UPDATE_TIME
 Persistent=true
 
 [Install]
 WantedBy=timers.target
 EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now auto-update.timer
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now auto-update.timer
+}
 
-# Post-install notes
-echo
-echo "=============================================="
-echo "One-time manual steps (required):"
-echo
-echo "1) Authenticate GitHub for access to your repo:"
-echo "     gh auth login"
-echo
-echo "2) Attach OpenCode to your model/provider:"
-echo "   Run:"
-echo "     opencode"
-echo "     /connect"
-echo "=============================================="
-echo
-echo "OpenCode Web will start automatically on boot."
-echo "Auto-updates run daily at 06:00."
-echo
-echo "Access from any Tailscale device:"
-echo "  http://<tailscale-ip>:4096"
+print_post_install() {
+  # Human-friendly reminders for first-time setup.
+  echo
+  echo "=============================================="
+  echo "One-time manual steps (required):"
+  echo
+  echo "1) Authenticate GitHub for access to your repo:"
+  echo "     gh auth login"
+  echo
+  echo "2) Attach OpenCode to your model/provider:"
+  echo "   Run:"
+  echo "     opencode"
+  echo "     /connect"
+  echo "=============================================="
+  echo
+  echo "OpenCode Web will start automatically on boot."
+  echo "Auto-updates run daily at 06:00."
+  echo
+  echo "Access from any Tailscale device:"
+  echo "  http://<tailscale-ip>:$OPENCODE_PORT"
+}
+
+main() {
+  require_sudo
+  install_core_packages
+  install_git_tools
+  install_tailscale
+  install_opencode
+  setup_agent_dirs
+  setup_opencode_service
+  write_auto_update_script
+  setup_auto_update_units
+  print_post_install
+}
+
+main "$@"
