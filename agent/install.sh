@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-USER_NAME="$(id -un)"
-OPENCODE_BIN="$HOME/.opencode/bin/opencode"
+RUN_USER="${SUDO_USER:-$(id -un)}"
+RUN_HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)"
+if [ -z "$RUN_HOME" ]; then
+  RUN_HOME="$HOME"
+fi
+
+OPENCODE_BIN="$RUN_HOME/.opencode/bin/opencode"
 SERVICE_FILE="/etc/systemd/system/opencode-web.service"
 AUTO_UPDATE_SCRIPT="/usr/local/bin/auto-update.sh"
 AUTO_UPDATE_SERVICE="/etc/systemd/system/auto-update.service"
 AUTO_UPDATE_TIMER="/etc/systemd/system/auto-update.timer"
-AGENTS_SKILLS_DIR="$HOME/.agents/skills"
+AGENTS_SKILLS_DIR="$RUN_HOME/.agents/skills"
 AUTO_UPDATE_TIME="*-*-* 06:00:00"
 OPENCODE_PORT="4096"
 SKILL_PRESETS=(
@@ -17,6 +22,16 @@ SKILL_PRESETS=(
 require_sudo() {
   # Validate sudo access early to avoid mid-install prompts.
   sudo -v
+}
+
+run_as_user() {
+  local cmd="$1"
+
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u "$RUN_USER" -- env HOME="$RUN_HOME" USER="$RUN_USER" bash -lc "$cmd"
+  else
+    su - "$RUN_USER" -c "HOME=\"$RUN_HOME\" USER=\"$RUN_USER\" bash -lc \"$cmd\""
+  fi
 }
 
 install_core_packages() {
@@ -29,7 +44,7 @@ install_core_packages() {
 install_git_tools() {
   # Git tooling for repo access and large file support.
   sudo apt install -y git git-lfs gh
-  git lfs install
+  run_as_user "git lfs install"
 }
 
 install_tailscale() {
@@ -40,12 +55,12 @@ install_tailscale() {
 
 install_opencode() {
   # Install OpenCode CLI to enable an AI first terminal.
-  curl -fsSL https://opencode.ai/install | bash
+  run_as_user "curl -fsSL https://opencode.ai/install | bash"
 }
 
 setup_agent_dirs() {
   # Home for external skills cloned outside this repo.
-  mkdir -p "$AGENTS_SKILLS_DIR"
+  run_as_user "mkdir -p \"$AGENTS_SKILLS_DIR\""
 }
 
 clone_skill_presets() {
@@ -54,7 +69,7 @@ clone_skill_presets() {
     return
   fi
 
-  mkdir -p "$AGENTS_SKILLS_DIR"
+  run_as_user "mkdir -p \"$AGENTS_SKILLS_DIR\""
 
   for repo_url in "${SKILL_PRESETS[@]}"; do
     repo_name="${repo_url##*/}"
@@ -62,11 +77,11 @@ clone_skill_presets() {
     dest="$AGENTS_SKILLS_DIR/$repo_name"
 
     if [ -d "$dest/.git" ]; then
-      if ! git -C "$dest" pull --ff-only; then
+      if ! run_as_user "git -C \"$dest\" pull --ff-only"; then
         echo "WARN: failed to update $dest" >&2
       fi
     else
-      if ! git clone "$repo_url" "$dest"; then
+      if ! run_as_user "git clone \"$repo_url\" \"$dest\""; then
         echo "WARN: failed to clone $repo_url" >&2
       fi
     fi
@@ -83,10 +98,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=$USER_NAME
-Group=$USER_NAME
-Environment=HOME=$HOME
-WorkingDirectory=$HOME
+User=$RUN_USER
+Group=$RUN_USER
+Environment=HOME=$RUN_HOME
+WorkingDirectory=$RUN_HOME
 ExecStart=$OPENCODE_BIN web --hostname 0.0.0.0 --port $OPENCODE_PORT
 Restart=on-failure
 
@@ -104,8 +119,9 @@ write_auto_update_script() {
 #!/usr/bin/env bash
 set -euo pipefail
 
-USER_NAME="$USER_NAME"
-AGENTS_SKILLS_DIR="$HOME/.agents/skills"
+USER_NAME="$RUN_USER"
+USER_HOME="$RUN_HOME"
+AGENTS_SKILLS_DIR="$RUN_HOME/.agents/skills"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -133,7 +149,7 @@ if [ -d "\$AGENTS_SKILLS_DIR" ]; then
   done
 fi
 
-for repo in "$HOME"/*; do
+for repo in "\$USER_HOME"/*; do
   base="$(basename "\$repo")"
   if [[ "\$base" == .* && "\$base" != ".agents" ]]; then
     continue
