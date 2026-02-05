@@ -10,6 +10,9 @@ AUTO_UPDATE_TIMER="/etc/systemd/system/auto-update.timer"
 AGENTS_SKILLS_DIR="$HOME/.agents/skills"
 AUTO_UPDATE_TIME="*-*-* 06:00:00"
 OPENCODE_PORT="4096"
+SKILL_PRESETS=(
+  "https://github.com/blader/humanizer"
+)
 
 require_sudo() {
   # Validate sudo access early to avoid mid-install prompts.
@@ -43,6 +46,31 @@ install_opencode() {
 setup_agent_dirs() {
   # Home for external skills cloned outside this repo.
   mkdir -p "$AGENTS_SKILLS_DIR"
+}
+
+clone_skill_presets() {
+  # Clone or update a curated set of skills.
+  if [ "${#SKILL_PRESETS[@]}" -eq 0 ]; then
+    return
+  fi
+
+  mkdir -p "$AGENTS_SKILLS_DIR"
+
+  for repo_url in "${SKILL_PRESETS[@]}"; do
+    repo_name="${repo_url##*/}"
+    repo_name="${repo_name%.git}"
+    dest="$AGENTS_SKILLS_DIR/$repo_name"
+
+    if [ -d "$dest/.git" ]; then
+      if ! git -C "$dest" pull --ff-only; then
+        echo "WARN: failed to update $dest" >&2
+      fi
+    else
+      if ! git clone "$repo_url" "$dest"; then
+        echo "WARN: failed to clone $repo_url" >&2
+      fi
+    fi
+  done
 }
 
 setup_opencode_service() {
@@ -190,6 +218,7 @@ main() {
   require_sudo
   install_core_packages
   install_git_tools
+  clone_skill_presets
   install_tailscale
   install_opencode
   setup_agent_dirs
