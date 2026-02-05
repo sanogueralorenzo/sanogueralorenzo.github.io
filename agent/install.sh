@@ -28,6 +28,9 @@ curl -fsSL https://opencode.ai/install | bash
 # Workspace
 mkdir -p "$WORKDIR"
 
+# Agent skills
+mkdir -p "$HOME_DIR/.agents/skills"
+
 # OpenCode web service
 sudo tee "$SERVICE_FILE" >/dev/null <<EOF
 [Unit]
@@ -52,9 +55,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now opencode-web.service
 
 # Auto-update script
-sudo tee /usr/local/bin/auto-update.sh >/dev/null <<'EOF'
+sudo tee /usr/local/bin/auto-update.sh >/dev/null <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
+
+USER_NAME="$USER_NAME"
+HOME_DIR="$HOME_DIR"
+AGENTS_SKILLS_DIR="\$HOME_DIR/.agents/skills"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -65,6 +72,22 @@ apt-get install -y --only-upgrade git git-lfs gh tailscale
 git lfs install --skip-repo
 
 curl -fsSL https://opencode.ai/install | bash
+
+if [ -d "\$AGENTS_SKILLS_DIR" ]; then
+  for repo in "\$AGENTS_SKILLS_DIR"/*; do
+    if [ -d "\$repo/.git" ]; then
+      if command -v runuser >/dev/null 2>&1; then
+        if ! runuser -u "\$USER_NAME" -- git -C "\$repo" pull --ff-only; then
+          echo "WARN: failed to update \$repo" >&2
+        fi
+      else
+        if ! su - "\$USER_NAME" -c "git -C \"\$repo\" pull --ff-only"; then
+          echo "WARN: failed to update \$repo" >&2
+        fi
+      fi
+    fi
+  done
+fi
 
 systemctl try-restart opencode-web.service
 
