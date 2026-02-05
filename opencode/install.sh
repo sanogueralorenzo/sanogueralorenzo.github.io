@@ -9,19 +9,26 @@ SERVICE_FILE="/etc/systemd/system/opencode-web.service"
 
 sudo -v
 
+# Core packages
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y curl ca-certificates git git-lfs gh
+sudo apt install -y curl ca-certificates
 
+# Git
+sudo apt install -y git git-lfs gh
 git lfs install
 
+# Tailscale
 curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 
+# OpenCode
 curl -fsSL https://opencode.ai/install | bash
 
+# Workspace
 mkdir -p "$WORKDIR"
 
+# OpenCode web service
 sudo tee "$SERVICE_FILE" >/dev/null <<EOF
 [Unit]
 Description=OpenCode Web
@@ -44,7 +51,8 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now opencode-web.service
 
-sudo tee /usr/local/bin/opencode-auto-update.sh >/dev/null <<'EOF'
+# Auto-update script
+sudo tee /usr/local/bin/auto-update.sh >/dev/null <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -65,11 +73,12 @@ if [ -f /var/run/reboot-required ]; then
 fi
 EOF
 
-sudo chmod +x /usr/local/bin/opencode-auto-update.sh
+sudo chmod +x /usr/local/bin/auto-update.sh
 
-sudo tee /etc/systemd/system/opencode-auto-update.service >/dev/null <<'EOF'
+# Auto-update service and timer
+sudo tee /etc/systemd/system/auto-update.service >/dev/null <<'EOF'
 [Unit]
-Description=Auto-update OpenCode dependencies
+Description=Auto-update dependencies
 After=network-online.target
 Wants=network-online.target
 
@@ -77,12 +86,12 @@ Wants=network-online.target
 Type=oneshot
 User=root
 Group=root
-ExecStart=/usr/local/bin/opencode-auto-update.sh
+ExecStart=/usr/local/bin/auto-update.sh
 EOF
 
-sudo tee /etc/systemd/system/opencode-auto-update.timer >/dev/null <<'EOF'
+sudo tee /etc/systemd/system/auto-update.timer >/dev/null <<'EOF'
 [Unit]
-Description=Nightly OpenCode auto-update
+Description=Nightly auto-update
 
 [Timer]
 OnCalendar=*-*-* 06:00:00
@@ -93,8 +102,9 @@ WantedBy=timers.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now opencode-auto-update.timer
+sudo systemctl enable --now auto-update.timer
 
+# Post-install notes
 echo
 echo "=============================================="
 echo "One-time manual steps (required):"
