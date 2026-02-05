@@ -4,7 +4,6 @@ set -euo pipefail
 USER_NAME="$(id -un)"
 HOME_DIR="$HOME"
 OPENCODE_BIN="$HOME_DIR/.opencode/bin/opencode"
-WORKDIR="$HOME_DIR"
 SERVICE_FILE="/etc/systemd/system/opencode-web.service"
 
 sudo -v
@@ -40,7 +39,7 @@ Type=simple
 User=$USER_NAME
 Group=$USER_NAME
 Environment=HOME=$HOME_DIR
-WorkingDirectory=$WORKDIR
+WorkingDirectory=$HOME_DIR
 ExecStart=$OPENCODE_BIN web --hostname 0.0.0.0 --port 4096
 Restart=on-failure
 
