@@ -98,7 +98,7 @@ print_post_install() {
   echo
   echo "1) Authenticate Tailscale for remote access:"
   echo "     sudo tailscale up"
-  echo "     sudo tailscale serve http:4096 http://127.0.0.1:4096"
+  echo "     sudo tailscale serve --http=4096 http://127.0.0.1:4096"
   echo
   echo "2) Authenticate GitHub for repo access:"
   echo "     gh auth login"
