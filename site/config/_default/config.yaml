@@ -19,7 +19,7 @@ params:
   # We extended the stock template to also render an avatar from these keys.
   homeInfoParams:
     Title: "Mario Sanoguera de Lorenzo"
-    Content: "Writing down my thoughts, tech and recommendations."
+    Content: "Thoughts, tech and recommendations."
     ImageURL: "https://avatars.githubusercontent.com/u/5630683"
     ImageWidth: 160
     ImageHeight: 160
