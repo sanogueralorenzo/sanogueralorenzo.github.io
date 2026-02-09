@@ -15,13 +15,14 @@ params:
   disableAnchoredHeadings: true
   ShowPostNavLinks: true
   hideFooter: true
-  profileMode:
-    enabled: true
-    title: "Mario Sanoguera de Lorenzo"
-    subtitle: "Senior Staff Android Engineer & Manager at Tonal"
-    imageUrl: "https://avatars.githubusercontent.com/u/5630683"
-    imageWidth: 180
-    imageHeight: 180
+  # PaperMod "Home Info" block shown at the top of the home page.
+  # We extended the stock template to also render an avatar from these keys.
+  homeInfoParams:
+    Title: "Mario Sanoguera de Lorenzo"
+    Content: "Writing down my thoughts, tech and recommendations."
+    ImageURL: "https://avatars.githubusercontent.com/u/5630683"
+    ImageWidth: 160
+    ImageHeight: 160
   socialIcons:
     - name: "linkedin"
       url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/"
