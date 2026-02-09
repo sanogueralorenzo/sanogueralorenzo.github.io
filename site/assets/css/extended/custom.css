@@ -87,3 +87,9 @@ Keep selectors scoped and avoid changing global theme variables where possible.
     display: none;
   }
 }
+
+/* Keep scrollbar sizing consistent so layout doesn't re-center at 768px. */
+::-webkit-scrollbar {
+  width: 18px;
+  height: 10px;
+}
