@@ -12,6 +12,7 @@ params:
   defaultTheme: light
   disableThemeToggle: true
   ShowReadingTime: true
+  ShowBreadCrumbs: true
   disableAnchoredHeadings: true
   ShowPostNavLinks: true
   hideFooter: true
