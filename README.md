@@ -1,1 +1,1 @@
-![GitHub contributions chart](https://ghchart.rshah.org/sanogueralorenzo)
+<img src="https://ghchart.rshah.org/sanogueralorenzo" alt="GitHub contributions chart" width="100%" />
