@@ -1,0 +1,6 @@
+/* -------------------- Scrollbar -------------------- */
+/* Keep scrollbar sizing consistent so layout doesn't re-center at 768px. */
+::-webkit-scrollbar {
+  width: 18px;
+  height: 10px;
+}
