@@ -3,7 +3,6 @@ package com.sanogueralorenzo.overlay.tiles
 import android.app.StatusBarManager
 import android.content.ComponentName
 import android.graphics.drawable.Icon
-import android.os.Build
 import androidx.activity.ComponentActivity
 
 fun ComponentActivity.requestQuickSettingsTile(
@@ -12,9 +11,6 @@ fun ComponentActivity.requestQuickSettingsTile(
     iconRes: Int,
     onAdded: () -> Unit
 ) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-        return
-    }
     val statusBarManager = getSystemService(StatusBarManager::class.java) ?: return
     val icon = Icon.createWithResource(this, iconRes)
     statusBarManager.requestAddTileService(

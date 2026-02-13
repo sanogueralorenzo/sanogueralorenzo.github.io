@@ -8,7 +8,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -76,16 +75,11 @@ class AutoTimeoutService : Service() {
             buildAutoTimeoutNotification(this, stopPendingIntent)
         )
         val screenOffFilter = IntentFilter(Intent.ACTION_SCREEN_OFF)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                screenOffReceiver,
-                screenOffFilter,
-                Context.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            registerReceiver(screenOffReceiver, screenOffFilter)
-        }
+        registerReceiver(
+            screenOffReceiver,
+            screenOffFilter,
+            Context.RECEIVER_NOT_EXPORTED
+        )
         receiverRegistered = true
         isRunning = true
         requestTileUpdate(this)
@@ -116,11 +110,6 @@ class AutoTimeoutService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun stopForegroundNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 }

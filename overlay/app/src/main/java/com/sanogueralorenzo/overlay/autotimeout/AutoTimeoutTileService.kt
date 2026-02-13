@@ -4,7 +4,6 @@ import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Intent
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.widget.Toast
@@ -33,11 +32,7 @@ class AutoTimeoutTileService : TileService() {
         if (isRunning) {
             stopService(intent)
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
+            startForegroundService(intent)
         }
         AutoTimeoutService.requestTileUpdate(this)
     }

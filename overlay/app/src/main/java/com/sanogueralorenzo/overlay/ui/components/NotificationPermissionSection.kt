@@ -3,7 +3,6 @@ package com.sanogueralorenzo.overlay.ui.components
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
@@ -20,9 +19,6 @@ import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.overlay.R
 
 fun hasNotificationPermission(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-        return true
-    }
     return ContextCompat.checkSelfPermission(
         context,
         Manifest.permission.POST_NOTIFICATIONS
@@ -31,13 +27,6 @@ fun hasNotificationPermission(context: Context): Boolean {
 
 @Composable
 fun rememberNotificationPermissionState(): NotificationPermissionState {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-        return NotificationPermissionState(
-            hasPermission = true,
-            refresh = {},
-            requestPermission = {}
-        )
-    }
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(hasNotificationPermission(context)) }
     val launcher = rememberLauncherForActivityResult(
@@ -63,9 +52,6 @@ fun NotificationPermissionSection(
     hasPermission: Boolean,
     onRequestPermission: () -> Unit
 ) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-        return
-    }
     StatusSection(
         icon = Icons.Outlined.Notifications,
         label = stringResource(R.string.notification_permission_label),

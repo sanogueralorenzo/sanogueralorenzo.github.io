@@ -2,7 +2,6 @@ package com.sanogueralorenzo.overlay.overlay
 
 import android.app.ActivityManager
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -31,11 +30,7 @@ class OverlayTileService : TileService() {
         if (isRunning) {
             stopService(intent)
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
+            startForegroundService(intent)
         }
         OverlayService.requestTileUpdate(this)
     }

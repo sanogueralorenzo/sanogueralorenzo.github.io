@@ -59,7 +59,6 @@ import com.sanogueralorenzo.overlay.ui.components.rememberNotificationPermission
 
 fun NavGraphBuilder.autoTimeoutRoute(
     route: String,
-    canRequestTile: Boolean,
     onBack: () -> Unit
 ) {
     composable(route) {
@@ -67,7 +66,6 @@ fun NavGraphBuilder.autoTimeoutRoute(
         val state by autoTimeoutViewModel.mavericksCollectAsState()
         val activity = LocalContext.current as? ComponentActivity
         AutoTimeoutScreen(
-            canRequestTile = canRequestTile,
             state = state,
             onSaveMinutes = { minutes -> autoTimeoutViewModel.setAutoLockMinutes(minutes) },
             onEnableDeviceAdmin = { activity?.requestDeviceAdmin() },
@@ -81,7 +79,6 @@ fun NavGraphBuilder.autoTimeoutRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AutoTimeoutScreen(
-    canRequestTile: Boolean,
     state: AutoTimeoutState,
     onSaveMinutes: (Int) -> Unit,
     onEnableDeviceAdmin: () -> Unit,
@@ -200,17 +197,12 @@ fun AutoTimeoutScreen(
                         } else {
                             null
                         },
-                        actionLabel = if (!state.isTileAdded && canRequestTile) {
+                        actionLabel = if (!state.isTileAdded) {
                             stringResource(R.string.request_tile_button)
                         } else {
                             null
                         },
-                        onAction = if (!state.isTileAdded && canRequestTile) onRequestTile else null,
-                        helperText = if (!state.isTileAdded && !canRequestTile) {
-                            stringResource(R.string.tile_manual_hint)
-                        } else {
-                            null
-                        }
+                        onAction = if (!state.isTileAdded) onRequestTile else null
                     )
                     NotificationPermissionSection(
                         hasPermission = notificationPermission.hasPermission,
