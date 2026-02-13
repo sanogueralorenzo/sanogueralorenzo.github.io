@@ -56,16 +56,14 @@ import com.sanogueralorenzo.overlay.ui.components.rememberNotificationPermission
 
 fun NavGraphBuilder.overlayRoute(
     route: String,
-    canRequestTile: Boolean,
     onOpenAutoTimeout: () -> Unit,
-    onOpenInformation: () -> Unit,
+    onOpenAbout: () -> Unit
 ) {
     composable(route) {
         val overlayViewModel: OverlayViewModel = mavericksViewModel()
         val state by overlayViewModel.mavericksCollectAsState()
         val activity = LocalContext.current as? ComponentActivity
         OverlayScreen(
-            canRequestTile = canRequestTile,
             state = state,
             onOpenOverlaySettings = { activity?.openOverlaySettings() },
             onRequestTile = {
@@ -73,7 +71,7 @@ fun NavGraphBuilder.overlayRoute(
             },
             onOpenAutoTimeout = onOpenAutoTimeout,
             onRefreshOverlay = { overlayViewModel.refreshOverlay() },
-            onOpenInformation = onOpenInformation,
+            onOpenAbout = onOpenAbout,
             onSetLongPressDismissEnabled = { enabled ->
                 overlayViewModel.setLongPressDismissEnabled(enabled)
             }
@@ -84,13 +82,12 @@ fun NavGraphBuilder.overlayRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverlayScreen(
-    canRequestTile: Boolean,
     state: OverlayState,
     onOpenOverlaySettings: () -> Unit,
     onRequestTile: () -> Unit,
     onOpenAutoTimeout: () -> Unit,
     onRefreshOverlay: () -> Unit,
-    onOpenInformation: () -> Unit,
+    onOpenAbout: () -> Unit,
     onSetLongPressDismissEnabled: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -109,10 +106,10 @@ fun OverlayScreen(
             TopAppBar(
                 title = { Text(text = stringResource(R.string.overlay_title)) },
                 actions = {
-                    IconButton(onClick = onOpenInformation) {
+                    IconButton(onClick = onOpenAbout) {
                         Icon(
                             imageVector = Icons.Outlined.Info,
-                            contentDescription = stringResource(R.string.open_information_button)
+                            contentDescription = stringResource(R.string.open_about_button)
                         )
                     }
                 }
@@ -185,17 +182,12 @@ fun OverlayScreen(
                         } else {
                             null
                         },
-                        actionLabel = if (!state.isTileAdded && canRequestTile) {
+                        actionLabel = if (!state.isTileAdded) {
                             stringResource(R.string.request_tile_button)
                         } else {
                             null
                         },
-                        onAction = if (!state.isTileAdded && canRequestTile) onRequestTile else null,
-                        helperText = if (!state.isTileAdded && !canRequestTile) {
-                            stringResource(R.string.tile_manual_hint)
-                        } else {
-                            null
-                        }
+                        onAction = if (!state.isTileAdded) onRequestTile else null
                     )
                     NotificationPermissionSection(
                         hasPermission = notificationPermission.hasPermission,
@@ -262,7 +254,6 @@ fun OverlayScreen(
 private fun OverlayScreenPreview() {
     OverlayTheme {
         OverlayScreen(
-            canRequestTile = true,
             state = OverlayState(
                 isOverlayGranted = false,
                 isTileAdded = false
@@ -271,7 +262,7 @@ private fun OverlayScreenPreview() {
             onRequestTile = {},
             onOpenAutoTimeout = {},
             onRefreshOverlay = {},
-            onOpenInformation = {},
+            onOpenAbout = {},
             onSetLongPressDismissEnabled = {}
         )
     }

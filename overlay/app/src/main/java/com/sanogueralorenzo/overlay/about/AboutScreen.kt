@@ -22,9 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.sanogueralorenzo.overlay.R
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import com.sanogueralorenzo.overlay.R
 
 fun NavGraphBuilder.aboutRoute(
     route: String,
@@ -50,6 +50,7 @@ fun AboutScreen(
             .versionName
             ?: "1.0"
     }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -73,14 +74,10 @@ fun AboutScreen(
         ) {
             Text(
                 text = stringResource(R.string.open_source_description),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = {
-                    uriHandler.openUri(openSourceUrl)
-                }
-            ) {
+            Button(onClick = { uriHandler.openUri(openSourceUrl) }) {
                 Text(text = stringResource(R.string.open_source_link_label))
             }
             Text(
