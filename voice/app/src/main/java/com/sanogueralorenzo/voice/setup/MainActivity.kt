@@ -460,10 +460,13 @@ private fun VoiceKeyboardSetupRoot() {
             }
 
             composable(MainRoute.ONBOARDING) {
-                OnboardingScreen(
-                    onOpenSetup = { navController.navigate(MainRoute.SETUP) },
-                    onOpenModels = { navController.navigate(MainRoute.MODELS) },
-                    onShowImePicker = { showImePicker(context) }
+                OnboardingTutorialScreen(
+                    onDone = {
+                        navController.navigate(MainRoute.HOME) {
+                            popUpTo(MainRoute.HOME) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
 
@@ -722,52 +725,6 @@ private fun SetupScreen(
         }
         OutlinedButton(onClick = onShowImePicker) {
             Text(text = stringResource(R.string.setup_select_keyboard))
-        }
-    }
-}
-
-@Composable
-private fun OnboardingScreen(
-    onOpenSetup: () -> Unit,
-    onOpenModels: () -> Unit,
-    onShowImePicker: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.onboarding_section_title),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Text(
-            text = stringResource(R.string.onboarding_intro),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = stringResource(R.string.onboarding_step_setup),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = stringResource(R.string.onboarding_step_models),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = stringResource(R.string.onboarding_step_keyboard),
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Button(onClick = onOpenSetup) {
-            Text(text = stringResource(R.string.onboarding_action_open_setup))
-        }
-        Button(onClick = onOpenModels) {
-            Text(text = stringResource(R.string.onboarding_action_open_models))
-        }
-        OutlinedButton(onClick = onShowImePicker) {
-            Text(text = stringResource(R.string.onboarding_action_open_picker))
         }
     }
 }

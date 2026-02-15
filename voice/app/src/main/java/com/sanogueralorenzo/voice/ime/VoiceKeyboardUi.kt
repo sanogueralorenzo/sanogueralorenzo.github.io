@@ -90,6 +90,7 @@ fun VoiceKeyboardImeContent(
     onSendTap: () -> Unit,
     onDebugToggle: () -> Unit,
     onDebugLongPress: () -> Unit,
+    showDebugButton: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -239,11 +240,13 @@ fun VoiceKeyboardImeContent(
                     visible = state.canEditCurrentInput,
                     onTap = onEditTap
                 )
-                IdleDebugButton(
-                    active = state.inlineDebugEnabled,
-                    onTap = onDebugToggle,
-                    onLongPress = onDebugLongPress
-                )
+                if (showDebugButton) {
+                    IdleDebugButton(
+                        active = state.inlineDebugEnabled,
+                        onTap = onDebugToggle,
+                        onLongPress = onDebugLongPress
+                    )
+                }
             }
         }
     }
