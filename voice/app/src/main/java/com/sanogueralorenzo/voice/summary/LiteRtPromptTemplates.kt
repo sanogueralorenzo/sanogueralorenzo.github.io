@@ -49,6 +49,28 @@ internal object LiteRtPromptTemplates {
         return "$EDIT_SYSTEM_INSTRUCTION $customRule"
     }
 
+    fun benchmarkInstructionSnapshot(customInstructions: String): String {
+        val normalizedCustom = customInstructions.trim()
+        val customDisplay = if (normalizedCustom.isBlank()) "none" else normalizedCustom
+        val rewriteInstruction = buildRewriteSystemInstruction(
+            directive = RewriteDirective.DEFAULT,
+            bulletMode = false,
+            allowStrongTransform = false,
+            customInstructions = customInstructions
+        )
+        val editInstruction = buildEditSystemInstruction(customInstructions)
+        return buildString {
+            appendLine("rewrite_system_instruction:")
+            appendLine(rewriteInstruction)
+            appendLine()
+            appendLine("edit_system_instruction:")
+            appendLine(editInstruction)
+            appendLine()
+            appendLine("custom_instructions:")
+            append(customDisplay)
+        }
+    }
+
     fun buildEditUserPrompt(
         originalText: String,
         instructionText: String,

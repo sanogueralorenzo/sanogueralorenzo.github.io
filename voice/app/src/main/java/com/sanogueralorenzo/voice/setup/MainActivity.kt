@@ -92,7 +92,7 @@ private object MainRoute {
     const val SETUP = "setup"
     const val MODELS = "models"
     const val ONBOARDING = "onboarding"
-    const val CALIBRATION = "calibration"
+    const val PROMPT_BENCHMARKING = "prompt_benchmarking"
     const val SETTINGS = "settings"
 }
 
@@ -372,7 +372,7 @@ private fun VoiceKeyboardSetupRoot() {
         MainRoute.SETUP -> stringResource(R.string.setup_section_title)
         MainRoute.MODELS -> stringResource(R.string.models_section_title)
         MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
-        MainRoute.CALIBRATION -> stringResource(R.string.calibration_section_title)
+        MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
         MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
@@ -427,7 +427,7 @@ private fun VoiceKeyboardSetupRoot() {
                     onOpenSetup = { navController.navigate(MainRoute.SETUP) },
                     onOpenModels = { navController.navigate(MainRoute.MODELS) },
                     onOpenOnboarding = { navController.navigate(MainRoute.ONBOARDING) },
-                    onOpenCalibration = { navController.navigate(MainRoute.CALIBRATION) },
+                    onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
                     onOpenSettings = { navController.navigate(MainRoute.SETTINGS) }
                 )
             }
@@ -470,12 +470,9 @@ private fun VoiceKeyboardSetupRoot() {
                 )
             }
 
-            composable(MainRoute.CALIBRATION) {
-                CalibrationScreen(
-                    micGranted = micGranted,
-                    modelsReady = liteRtReady && moonshineReady,
-                    onShowImePicker = { showImePicker(context) },
-                    onOpenImeSettings = { openImeSettings(context) }
+            composable(MainRoute.PROMPT_BENCHMARKING) {
+                PromptBenchmarkingScreen(
+                    onOpenModels = { navController.navigate(MainRoute.MODELS) }
                 )
             }
 
@@ -535,7 +532,7 @@ private fun HomeScreen(
     onOpenSetup: () -> Unit,
     onOpenModels: () -> Unit,
     onOpenOnboarding: () -> Unit,
-    onOpenCalibration: () -> Unit,
+    onOpenPromptBenchmarking: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     Column(
@@ -560,9 +557,9 @@ private fun HomeScreen(
             onClick = onOpenOnboarding
         )
         SectionCard(
-            title = stringResource(R.string.home_section_calibration_title),
-            description = stringResource(R.string.home_section_calibration_description),
-            onClick = onOpenCalibration
+            title = stringResource(R.string.home_section_prompt_benchmarking_title),
+            description = stringResource(R.string.home_section_prompt_benchmarking_description),
+            onClick = onOpenPromptBenchmarking
         )
         SectionCard(
             title = stringResource(R.string.home_section_settings_title),
@@ -730,65 +727,6 @@ private fun SetupScreen(
 }
 
 @Composable
-private fun CalibrationScreen(
-    micGranted: Boolean,
-    modelsReady: Boolean,
-    onShowImePicker: () -> Unit,
-    onOpenImeSettings: () -> Unit
-) {
-    val micStatus = if (micGranted) {
-        stringResource(R.string.setup_mic_granted)
-    } else {
-        stringResource(R.string.setup_mic_missing)
-    }
-    val modelsStatusText = if (modelsReady) {
-        stringResource(R.string.calibration_models_ready)
-    } else {
-        stringResource(R.string.calibration_models_missing)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.calibration_section_title),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Text(
-            text = stringResource(R.string.calibration_intro),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = micStatus,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = modelsStatusText,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = stringResource(R.string.calibration_tip_environment),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = stringResource(R.string.calibration_tip_speech),
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Button(onClick = onShowImePicker) {
-            Text(text = stringResource(R.string.calibration_action_open_picker))
-        }
-        OutlinedButton(onClick = onOpenImeSettings) {
-            Text(text = stringResource(R.string.calibration_action_open_settings))
-        }
-    }
-}
-
-@Composable
 private fun ModelsScreen(
     liteRtReady: Boolean,
     moonshineReady: Boolean,
@@ -905,7 +843,7 @@ private fun VoiceKeyboardSetupRootPreview() {
             onOpenSetup = {},
             onOpenModels = {},
             onOpenOnboarding = {},
-            onOpenCalibration = {},
+            onOpenPromptBenchmarking = {},
             onOpenSettings = {}
         )
     }

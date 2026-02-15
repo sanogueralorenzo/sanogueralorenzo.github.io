@@ -11,8 +11,8 @@
     <string name="home_section_models_description">Download or validate Moonshine and LiteRT models.</string>
     <string name="home_section_onboarding_title">Onboarding</string>
     <string name="home_section_onboarding_description">Run the interactive tutorial for the Voice pill flow.</string>
-    <string name="home_section_calibration_title">Calibration</string>
-    <string name="home_section_calibration_description">Verify microphone, model readiness, and keyboard behavior.</string>
+    <string name="home_section_prompt_benchmarking_title">Prompt Benchmarking</string>
+    <string name="home_section_prompt_benchmarking_description">Measure LiteRT quality, consistency, and speed on a fixed suite.</string>
     <string name="home_section_settings_title">Settings</string>
     <string name="home_section_settings_description">Control LiteRT rewrite behavior and custom instructions.</string>
     <string name="home_keyboard_test_title">Test keyboard input</string>
@@ -21,7 +21,33 @@
     <string name="setup_section_title">Setup</string>
     <string name="models_section_title">Download Models</string>
     <string name="onboarding_section_title">Onboarding</string>
-    <string name="calibration_section_title">Calibration</string>
+    <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
+    <string name="prompt_benchmark_intro">Run fixed compose and edit prompts to compare output quality, consistency, and speed.</string>
+    <string name="prompt_benchmark_suite_stats">Suite: %1$d cases, %2$d runs total (%3$d repeats each).</string>
+    <string name="prompt_benchmark_model_missing">LiteRT model missing. Download it from Models before running benchmark.</string>
+    <string name="prompt_benchmark_open_models">Open Models</string>
+    <string name="prompt_benchmark_rewrite_disabled_warning">Rewrite setting is currently disabled. Benchmark runs still execute direct LiteRT calls for prompt evaluation.</string>
+    <string name="prompt_benchmark_run_action">Run Benchmark</string>
+    <string name="prompt_benchmark_cancel_action">Cancel</string>
+    <string name="prompt_benchmark_share_action">Share</string>
+    <string name="prompt_benchmark_progress">Running case %1$d/%2$d, run %3$d/%4$d.</string>
+    <string name="prompt_benchmark_status_cancelled">Benchmark cancelled.</string>
+    <string name="prompt_benchmark_status_failed">Benchmark failed.</string>
+    <string name="prompt_benchmark_share_subject">Prompt Benchmark Report</string>
+    <string name="prompt_benchmark_share_chooser">Share benchmark report</string>
+    <string name="prompt_benchmark_summary_title">Benchmark summary</string>
+    <string name="prompt_benchmark_summary_runs">cases=%1$d | runs=%2$d | failures=%3$d</string>
+    <string name="prompt_benchmark_summary_latency">latency avg=%1$dms | min=%2$dms | max=%3$dms</string>
+    <string name="prompt_benchmark_summary_consistency">stable cases=%1$d / %2$d</string>
+    <string name="prompt_benchmark_case_meta">category: %1$s | type: %2$s</string>
+    <string name="prompt_benchmark_before_label">Before input</string>
+    <string name="prompt_benchmark_before_original_label">Before original</string>
+    <string name="prompt_benchmark_before_instruction_label">Before instruction</string>
+    <string name="prompt_benchmark_run_title">Run %1$d</string>
+    <string name="prompt_benchmark_run_meta">latency=%1$dms | backend=%2$s | status=%3$s</string>
+    <string name="prompt_benchmark_run_error">error_type=%1$s | error=%2$s</string>
+    <string name="prompt_benchmark_run_failed_output">(failed)</string>
+    <string name="prompt_benchmark_case_summary">unique outputs=%1$d | avg=%2$dms | min=%3$dms | max=%4$dms</string>
     <string name="models_check_updates_action">Check for updates</string>
     <string name="models_check_updates_section_title">Model checks</string>
     <string name="models_check_updates_section_description">Verify local files and check upstream model metadata.</string>
@@ -57,13 +83,6 @@
     <string name="onboarding_tutorial_speech_edit">Actually I already have eggs and I am missing milk.</string>
     <string name="onboarding_tutorial_output_initial">Hey Mia, can you go to the supermarket and buy:\n- apple\n- eggs\n- avocado</string>
     <string name="onboarding_tutorial_output_final">Hey Mia, can you go to the supermarket and buy:\n- apple\n- milk\n- avocado</string>
-    <string name="calibration_intro">Check current readiness before recording.</string>
-    <string name="calibration_models_ready">Models: ready</string>
-    <string name="calibration_models_missing">Models: missing</string>
-    <string name="calibration_tip_environment">Tip: test in a quiet room for best transcription quality.</string>
-    <string name="calibration_tip_speech">Tip: speak clearly at a steady pace, then verify the pasted text.</string>
-    <string name="calibration_action_open_picker">Open keyboard picker</string>
-    <string name="calibration_action_open_settings">Open keyboard settings</string>
     <string name="settings_section_title">Settings</string>
     <string name="settings_section_description">Customize how LiteRT rewrites transcripts and edits.</string>
     <string name="settings_rewrite_toggle_title">LiteRT rewrite</string>
