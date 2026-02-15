@@ -7,78 +7,46 @@ import org.junit.Test
 
 class OnboardingTutorialStateMachineTest {
     @Test
-    fun cannotAdvancePillStepUntilPillIsTapped() {
+    fun composeStepRequiresNonBlankInputToAdvance() {
         var state = OnboardingTutorialStateMachine.initialState()
-        assertEquals(OnboardingTutorialStep.WAIT_FOR_PILL_TAP, state.step)
-        assertFalse(state.nextEnabled)
 
-        val blocked = OnboardingTutorialStateMachine.onNext(state)
-        assertEquals(OnboardingTutorialStep.WAIT_FOR_PILL_TAP, blocked.step)
+        assertEquals(OnboardingTutorialStep.WRITE_WITH_VOICE, state.step)
+        assertFalse(OnboardingTutorialStateMachine.canAdvance(state))
 
-        state = OnboardingTutorialStateMachine.onPillTap(state)
-        assertEquals(OnboardingTutorialStep.FAKE_RECORDING_COMPOSE, state.step)
+        state = OnboardingTutorialStateMachine.onNext(state)
+        assertEquals(OnboardingTutorialStep.WRITE_WITH_VOICE, state.step)
+
+        state = OnboardingTutorialStateMachine.onInputChanged(state, "Hey Mia buy apples eggs")
+        assertTrue(OnboardingTutorialStateMachine.canAdvance(state))
+
+        state = OnboardingTutorialStateMachine.onNext(state)
+        assertEquals(OnboardingTutorialStep.EDIT_WITH_VOICE, state.step)
+        assertEquals("Hey Mia buy apples eggs", state.composeSnapshot)
     }
 
     @Test
-    fun composeFlowProducesInitialListOutput() {
+    fun editStepRequiresChangedTextAndThenTransitionsToSentPreview() {
         var state = OnboardingTutorialStateMachine.initialState()
-        state = OnboardingTutorialStateMachine.onPillTap(state)
+        state = OnboardingTutorialStateMachine.onInputChanged(state, "Initial draft")
+        state = OnboardingTutorialStateMachine.onNext(state)
 
-        state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
-        assertEquals(OnboardingSpeechCue.COMPOSE_REQUEST, state.speechCue)
-        assertTrue(state.nextEnabled)
+        assertEquals(OnboardingTutorialStep.EDIT_WITH_VOICE, state.step)
+        assertFalse(OnboardingTutorialStateMachine.canAdvance(state))
+
+        state = OnboardingTutorialStateMachine.onInputChanged(state, "Initial draft with milk")
+        assertTrue(OnboardingTutorialStateMachine.canAdvance(state))
 
         state = OnboardingTutorialStateMachine.onNext(state)
-        assertEquals(OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE, state.step)
-
-        state = OnboardingTutorialStateMachine.onFakeProcessingCompleted(state)
-        assertTrue(state.nextEnabled)
-        assertEquals(OnboardingOutputVariant.INITIAL_LIST, state.outputVariant)
-
-        state = OnboardingTutorialStateMachine.onNext(state)
-        assertEquals(OnboardingTutorialStep.WAIT_FOR_EDIT_TAP, state.step)
-        assertTrue(state.showEditButton)
+        assertEquals(OnboardingTutorialStep.SENT_PREVIEW, state.step)
+        assertEquals("Initial draft with milk", state.sentMessage)
     }
 
     @Test
-    fun editFlowReplacesEggsWithMilkInFinalOutputVariant() {
-        var state = OnboardingTutorialStateMachine.initialState()
-        state = OnboardingTutorialStateMachine.onPillTap(state)
-        state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
-        state = OnboardingTutorialStateMachine.onNext(state)
-        state = OnboardingTutorialStateMachine.onFakeProcessingCompleted(state)
-        state = OnboardingTutorialStateMachine.onNext(state)
-
-        state = OnboardingTutorialStateMachine.onEditTap(state)
-        assertEquals(OnboardingTutorialStep.FAKE_RECORDING_EDIT, state.step)
-
-        state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
-        assertEquals(OnboardingSpeechCue.EDIT_REQUEST, state.speechCue)
-        assertTrue(state.nextEnabled)
-
-        state = OnboardingTutorialStateMachine.onNext(state)
-        state = OnboardingTutorialStateMachine.onFakeProcessingCompleted(state)
-        assertEquals(OnboardingOutputVariant.FINAL_LIST, state.outputVariant)
-        assertTrue(state.nextEnabled)
-
-        state = OnboardingTutorialStateMachine.onNext(state)
-        assertEquals(OnboardingTutorialStep.WAIT_FOR_SEND_TAP, state.step)
-        assertFalse(state.showEditButton)
-
-        val blocked = OnboardingTutorialStateMachine.onNext(state)
-        assertEquals(OnboardingTutorialStep.WAIT_FOR_SEND_TAP, blocked.step)
-
-        state = OnboardingTutorialStateMachine.onSendTap(state)
-        assertEquals(OnboardingTutorialStep.FINAL_REVIEW, state.step)
-        assertFalse(state.showEditButton)
-    }
-
-    @Test
-    fun doneIsAllowedOnlyOnFinalStep() {
+    fun doneAllowedOnlyOnSentPreview() {
         var state = OnboardingTutorialStateMachine.initialState()
         assertFalse(OnboardingTutorialStateMachine.onDone(state))
 
-        state = state.copy(step = OnboardingTutorialStep.FINAL_REVIEW)
+        state = state.copy(step = OnboardingTutorialStep.SENT_PREVIEW)
         assertTrue(OnboardingTutorialStateMachine.onDone(state))
     }
 }

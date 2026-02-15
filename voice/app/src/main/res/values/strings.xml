@@ -62,6 +62,16 @@
     <string name="onboarding_tutorial_step_counter">Step %1$d of %2$d</string>
     <string name="onboarding_tutorial_next">Next</string>
     <string name="onboarding_tutorial_done">Done</string>
+    <string name="onboarding_tutorial_open_picker">Keyboard picker</string>
+    <string name="onboarding_tutorial_open_settings">IME settings</string>
+    <string name="onboarding_tutorial_input_label">Message draft</string>
+    <string name="onboarding_tutorial_input_placeholder">Tap here, then use the Voice keyboard pill to dictate.</string>
+    <string name="onboarding_tutorial_real_instruction_compose">Use the real Voice keyboard and dictate your message.</string>
+    <string name="onboarding_tutorial_real_instruction_edit">Use the real Edit action to update the message.</string>
+    <string name="onboarding_tutorial_real_instruction_sent">Message sent.</string>
+    <string name="onboarding_tutorial_real_hint_compose">Record a first version, then continue.</string>
+    <string name="onboarding_tutorial_real_hint_edit">Modify the draft so it is clearly different from the first version.</string>
+    <string name="onboarding_tutorial_real_hint_sent">This is how the sent message will look.</string>
     <string name="onboarding_tutorial_instruction_tap_pill">Start with the onboarding keyboard.</string>
     <string name="onboarding_tutorial_instruction_recording_compose">Simulating recording your first message.</string>
     <string name="onboarding_tutorial_instruction_processing_compose">Processing simulated recording and rewrite.</string>

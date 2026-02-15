@@ -1,220 +1,69 @@
 package com.sanogueralorenzo.voice.setup
 
-import com.sanogueralorenzo.voice.ime.VoiceKeyboardMode
-import com.sanogueralorenzo.voice.ime.VoiceKeyboardState
-import com.sanogueralorenzo.voice.ime.VoiceProcessingStage
-
 enum class OnboardingTutorialStep {
-    WAIT_FOR_PILL_TAP,
-    FAKE_RECORDING_COMPOSE,
-    FAKE_PROCESSING_COMPOSE,
-    WAIT_FOR_EDIT_TAP,
-    FAKE_RECORDING_EDIT,
-    FAKE_PROCESSING_EDIT,
-    WAIT_FOR_SEND_TAP,
-    FINAL_REVIEW
-}
-
-enum class OnboardingSpeechCue {
-    NONE,
-    COMPOSE_REQUEST,
-    EDIT_REQUEST
-}
-
-enum class OnboardingOutputVariant {
-    NONE,
-    INITIAL_LIST,
-    FINAL_LIST
+    WRITE_WITH_VOICE,
+    EDIT_WITH_VOICE,
+    SENT_PREVIEW
 }
 
 data class OnboardingTutorialState(
     val step: OnboardingTutorialStep,
-    val nextEnabled: Boolean,
-    val keyboardMode: VoiceKeyboardMode,
-    val keyboardStage: VoiceProcessingStage,
-    val audioLevel: Float,
-    val showEditButton: Boolean,
-    val speechCue: OnboardingSpeechCue,
-    val outputVariant: OnboardingOutputVariant
+    val inputText: String,
+    val composeSnapshot: String,
+    val sentMessage: String
 )
 
 object OnboardingTutorialStateMachine {
     fun initialState(): OnboardingTutorialState {
         return OnboardingTutorialState(
-            step = OnboardingTutorialStep.WAIT_FOR_PILL_TAP,
-            nextEnabled = false,
-            keyboardMode = VoiceKeyboardMode.IDLE,
-            keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-            audioLevel = 0f,
-            showEditButton = false,
-            speechCue = OnboardingSpeechCue.NONE,
-            outputVariant = OnboardingOutputVariant.NONE
+            step = OnboardingTutorialStep.WRITE_WITH_VOICE,
+            inputText = "",
+            composeSnapshot = "",
+            sentMessage = ""
         )
+    }
+
+    fun onInputChanged(state: OnboardingTutorialState, text: String): OnboardingTutorialState {
+        return state.copy(inputText = text)
+    }
+
+    fun canAdvance(state: OnboardingTutorialState): Boolean {
+        val normalized = state.inputText.trim()
+        return when (state.step) {
+            OnboardingTutorialStep.WRITE_WITH_VOICE -> normalized.isNotBlank()
+            OnboardingTutorialStep.EDIT_WITH_VOICE -> {
+                normalized.isNotBlank() && normalized != state.composeSnapshot
+            }
+            OnboardingTutorialStep.SENT_PREVIEW -> true
+        }
     }
 
     fun onNext(state: OnboardingTutorialState): OnboardingTutorialState {
+        if (!canAdvance(state) && state.step != OnboardingTutorialStep.SENT_PREVIEW) return state
         return when (state.step) {
-            OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> state
-
-            OnboardingTutorialStep.FAKE_RECORDING_COMPOSE -> {
-                if (!state.nextEnabled) return state
+            OnboardingTutorialStep.WRITE_WITH_VOICE -> {
+                val snapshot = state.inputText.trim()
                 state.copy(
-                    step = OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE,
-                    nextEnabled = false,
-                    keyboardMode = VoiceKeyboardMode.PROCESSING,
-                    keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                    audioLevel = 0f,
-                    showEditButton = false
+                    step = OnboardingTutorialStep.EDIT_WITH_VOICE,
+                    composeSnapshot = snapshot,
+                    inputText = snapshot
                 )
             }
 
-            OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE -> {
-                if (!state.nextEnabled) return state
+            OnboardingTutorialStep.EDIT_WITH_VOICE -> {
+                val sent = state.inputText.trim()
                 state.copy(
-                    step = OnboardingTutorialStep.WAIT_FOR_EDIT_TAP,
-                    nextEnabled = false,
-                    keyboardMode = VoiceKeyboardMode.IDLE,
-                    keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                    audioLevel = 0f,
-                    showEditButton = true,
-                    outputVariant = OnboardingOutputVariant.INITIAL_LIST
+                    step = OnboardingTutorialStep.SENT_PREVIEW,
+                    sentMessage = sent,
+                    inputText = sent
                 )
             }
 
-            OnboardingTutorialStep.WAIT_FOR_EDIT_TAP -> {
-                if (!state.nextEnabled) return state
-                state.copy(
-                    step = OnboardingTutorialStep.FAKE_RECORDING_EDIT,
-                    nextEnabled = false,
-                    keyboardMode = VoiceKeyboardMode.RECORDING,
-                    keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                    audioLevel = 0.2f,
-                    showEditButton = true
-                )
-            }
-
-            OnboardingTutorialStep.FAKE_RECORDING_EDIT -> {
-                if (!state.nextEnabled) return state
-                state.copy(
-                    step = OnboardingTutorialStep.FAKE_PROCESSING_EDIT,
-                    nextEnabled = false,
-                    keyboardMode = VoiceKeyboardMode.PROCESSING,
-                    keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                    audioLevel = 0f,
-                    showEditButton = true
-                )
-            }
-
-            OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> {
-                if (!state.nextEnabled) return state
-                state.copy(
-                    step = OnboardingTutorialStep.WAIT_FOR_SEND_TAP,
-                    nextEnabled = false,
-                    keyboardMode = VoiceKeyboardMode.RECORDING,
-                    keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                    audioLevel = 0.24f,
-                    showEditButton = false,
-                    outputVariant = OnboardingOutputVariant.FINAL_LIST
-                )
-            }
-
-            OnboardingTutorialStep.WAIT_FOR_SEND_TAP -> state
-
-            OnboardingTutorialStep.FINAL_REVIEW -> state.copy(
-                nextEnabled = true,
-                keyboardMode = VoiceKeyboardMode.IDLE,
-                keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                audioLevel = 0f,
-                showEditButton = false,
-                outputVariant = OnboardingOutputVariant.FINAL_LIST
-            )
-        }
-    }
-
-    fun onSendTap(state: OnboardingTutorialState): OnboardingTutorialState {
-        if (state.step != OnboardingTutorialStep.WAIT_FOR_SEND_TAP) return state
-        return state.copy(
-            step = OnboardingTutorialStep.FINAL_REVIEW,
-            nextEnabled = true,
-            keyboardMode = VoiceKeyboardMode.IDLE,
-            keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-            audioLevel = 0f,
-            showEditButton = false,
-            outputVariant = OnboardingOutputVariant.FINAL_LIST
-        )
-    }
-
-    fun onPillTap(state: OnboardingTutorialState): OnboardingTutorialState {
-        if (state.step != OnboardingTutorialStep.WAIT_FOR_PILL_TAP) return state
-        return state.copy(
-            step = OnboardingTutorialStep.FAKE_RECORDING_COMPOSE,
-            nextEnabled = false,
-            keyboardMode = VoiceKeyboardMode.RECORDING,
-            keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-            audioLevel = 0.2f,
-            showEditButton = false,
-            speechCue = OnboardingSpeechCue.NONE
-        )
-    }
-
-    fun onEditTap(state: OnboardingTutorialState): OnboardingTutorialState {
-        if (state.step != OnboardingTutorialStep.WAIT_FOR_EDIT_TAP) return state
-        return state.copy(
-            step = OnboardingTutorialStep.FAKE_RECORDING_EDIT,
-            nextEnabled = false,
-            keyboardMode = VoiceKeyboardMode.RECORDING,
-            keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-            audioLevel = 0.2f,
-            showEditButton = true,
-            speechCue = OnboardingSpeechCue.NONE
-        )
-    }
-
-    fun onFakeRecordingCompleted(state: OnboardingTutorialState): OnboardingTutorialState {
-        return when (state.step) {
-            OnboardingTutorialStep.FAKE_RECORDING_COMPOSE -> state.copy(
-                nextEnabled = true,
-                audioLevel = 0.35f,
-                speechCue = OnboardingSpeechCue.COMPOSE_REQUEST
-            )
-
-            OnboardingTutorialStep.FAKE_RECORDING_EDIT -> state.copy(
-                nextEnabled = true,
-                audioLevel = 0.35f,
-                speechCue = OnboardingSpeechCue.EDIT_REQUEST
-            )
-
-            else -> state
-        }
-    }
-
-    fun onFakeProcessingCompleted(state: OnboardingTutorialState): OnboardingTutorialState {
-        return when (state.step) {
-            OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE -> state.copy(
-                nextEnabled = true,
-                outputVariant = OnboardingOutputVariant.INITIAL_LIST
-            )
-
-            OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> state.copy(
-                nextEnabled = true,
-                outputVariant = OnboardingOutputVariant.FINAL_LIST
-            )
-
-            else -> state
+            OnboardingTutorialStep.SENT_PREVIEW -> state
         }
     }
 
     fun onDone(state: OnboardingTutorialState): Boolean {
-        return state.step == OnboardingTutorialStep.FINAL_REVIEW
-    }
-
-    fun toKeyboardState(state: OnboardingTutorialState): VoiceKeyboardState {
-        return VoiceKeyboardState(
-            mode = state.keyboardMode,
-            stage = state.keyboardStage,
-            audioLevel = state.audioLevel,
-            canEditCurrentInput = state.showEditButton,
-            inlineDebugEnabled = false
-        )
+        return state.step == OnboardingTutorialStep.SENT_PREVIEW
     }
 }
