@@ -45,6 +45,7 @@ private object MainRoute {
     const val MODELS = "models"
     const val ONBOARDING = "onboarding"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
+    const val RESPONSE_STYLE = "response_style"
     const val SETTINGS = "settings"
 }
 
@@ -60,6 +61,7 @@ fun SetupNavHost() {
             initialState = SetupUiState(
                 micGranted = false,
                 liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled(),
+                responseStyleLevel = appGraph.settingsStore.responseStyleLevel(),
                 customInstructions = appGraph.settingsStore.customInstructions()
             ),
             context = appContext,
@@ -104,6 +106,7 @@ fun SetupNavHost() {
         MainRoute.MODELS -> stringResource(R.string.models_section_title)
         MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
         MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
+        MainRoute.RESPONSE_STYLE -> stringResource(R.string.response_style_section_title)
         MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
@@ -113,6 +116,7 @@ fun SetupNavHost() {
         onOpenModels = { navController.navigate(MainRoute.MODELS) },
         onOpenOnboarding = { navController.navigate(MainRoute.ONBOARDING) },
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
+        onOpenResponseStyle = { navController.navigate(MainRoute.RESPONSE_STYLE) },
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
@@ -174,6 +178,7 @@ fun SetupNavHost() {
                     onOpenModels = actions.onOpenModels,
                     onOpenOnboarding = actions.onOpenOnboarding,
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
+                    onOpenResponseStyle = actions.onOpenResponseStyle,
                     onOpenSettings = actions.onOpenSettings
                 )
             }
@@ -219,6 +224,15 @@ fun SetupNavHost() {
             composable(MainRoute.PROMPT_BENCHMARKING) {
                 PromptBenchmarkingScreen(
                     onOpenModels = actions.onOpenModels
+                )
+            }
+
+            composable(MainRoute.RESPONSE_STYLE) {
+                ResponseStyleScreen(
+                    responseStyleLevel = uiState.responseStyleLevel,
+                    onResponseStyleLevelChange = { level ->
+                        setupViewModel.setResponseStyleLevel(level)
+                    }
                 )
             }
 

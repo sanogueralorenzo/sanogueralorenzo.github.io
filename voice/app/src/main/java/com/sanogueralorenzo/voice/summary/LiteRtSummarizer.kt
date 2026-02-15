@@ -24,6 +24,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import kotlin.random.Random
 import java.util.concurrent.atomic.AtomicReference
 
 class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
@@ -206,12 +207,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                     customInstructions = currentRuntimeCustomInstructions()
                 )
             ),
-            samplerConfig = SamplerConfig(
-                topK = 1,
-                topP = 1.0,
-                temperature = 0.0,
-                seed = 42
-            )
+            samplerConfig = currentRuntimeSamplerConfig()
         )
         val output = runConversation(
             localEngine = localEngine,
@@ -285,12 +281,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                     customInstructions = currentRuntimeCustomInstructions()
                 )
             ),
-            samplerConfig = SamplerConfig(
-                topK = 1,
-                topP = 1.0,
-                temperature = 0.0,
-                seed = 42
-            )
+            samplerConfig = currentRuntimeSamplerConfig()
         )
         val userPrompt = LiteRtPromptTemplates.buildEditUserPrompt(
             originalText = request.originalText,
@@ -555,6 +546,17 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
     private fun currentRuntimeCustomInstructions(): String {
         return LiteRtRewritePolicy.clipCustomInstructions(settingsStore.customInstructions())
+    }
+
+    private fun currentRuntimeSamplerConfig(): SamplerConfig {
+        val profile = LiteRtSamplingProfiles.profileForLevel(settingsStore.responseStyleLevel())
+        val seed = if (profile.useDynamicSeed) Random.nextInt() else LiteRtSamplingProfiles.DEFAULT_SEED
+        return SamplerConfig(
+            topK = profile.topK,
+            topP = profile.topP,
+            temperature = profile.temperature,
+            seed = seed
+        )
     }
 
     companion object {

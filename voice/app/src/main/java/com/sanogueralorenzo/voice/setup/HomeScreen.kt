@@ -55,6 +55,7 @@ fun HomeScreen(
     onOpenModels: () -> Unit,
     onOpenOnboarding: () -> Unit,
     onOpenPromptBenchmarking: () -> Unit,
+    onOpenResponseStyle: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     Column(
@@ -82,6 +83,11 @@ fun HomeScreen(
             title = stringResource(R.string.home_section_prompt_benchmarking_title),
             description = stringResource(R.string.home_section_prompt_benchmarking_description),
             onClick = onOpenPromptBenchmarking
+        )
+        SectionCard(
+            title = stringResource(R.string.home_section_response_style_title),
+            description = stringResource(R.string.home_section_response_style_description),
+            onClick = onOpenResponseStyle
         )
         SectionCard(
             title = stringResource(R.string.home_section_settings_title),

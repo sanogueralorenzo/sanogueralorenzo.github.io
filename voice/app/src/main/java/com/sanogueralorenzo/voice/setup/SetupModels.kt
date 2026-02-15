@@ -17,6 +17,7 @@ data class SetupUiState(
     val updatesMessage: String? = null,
     val keyboardTestInput: String = "",
     val liteRtRewriteEnabled: Boolean = true,
+    val responseStyleLevel: Int = 0,
     val customInstructions: String = "",
     val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
     val updatesAsync: Async<ModelUpdatesOutcome> = Uninitialized
@@ -27,6 +28,7 @@ data class SetupActions(
     val onOpenModels: () -> Unit,
     val onOpenOnboarding: () -> Unit,
     val onOpenPromptBenchmarking: () -> Unit,
+    val onOpenResponseStyle: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onGrantMic: () -> Unit,
     val onOpenImeSettings: () -> Unit,
