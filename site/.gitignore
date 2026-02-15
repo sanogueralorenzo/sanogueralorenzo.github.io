@@ -1,0 +1,13 @@
+# -------------------- IDE --------------------
+.idea/
+.vscode/
+
+# -------------------- OS --------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# -------------------- Website --------------------
+/public/
+/resources/
+.hugo_build.lock
