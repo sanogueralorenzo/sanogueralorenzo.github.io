@@ -1,0 +1,94 @@
+<resources>
+    <!-- App / manifest / tile labels -->
+    <string name="app_name">Overlay</string>
+    <string name="quick_settings_tile_label">Overlay</string>
+    <string name="auto_timeout_tile_label">Auto Timeout</string>
+    <string name="auto_timeout_requirements_message">Enable device admin to use the auto lock timer.</string>
+
+    <!-- Shared statuses, actions, and common controls -->
+    <string name="permission_status_granted">Granted</string>
+    <string name="permission_status_required">Required</string>
+    <string name="request_tile_button">Add tile</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="back_button">Back</string>
+
+    <!-- Overlay screen -->
+    <string name="overlay_title">Overlay</string>
+    <string name="overlay_setup_title">Required permissions</string>
+    <string name="overlay_settings_title">Settings</string>
+    <string name="open_settings_button">Open settings</string>
+    <string name="open_about_button">Open about</string>
+    <string name="overlay_permission_label">Display over other apps</string>
+    <string name="overlay_permission_needed">Enable "Display over other apps" in app settings.</string>
+    <string name="quick_settings_tile_section_label">Quick Settings tile</string>
+    <string name="tile_manual_hint">Add the tile from Quick Settings edit.</string>
+    <string name="setup_overlay_body">Allows the black screen to sit on top of any app without stopping playback.</string>
+    <string name="setup_tile_body">Start the overlay from the tile so streaming apps keep playing.</string>
+    <string name="long_press_dismiss_title">Long-press to dismiss</string>
+    <string name="long_press_dismiss_body">When enabled, press and hold the overlay to stop it and return to your app.</string>
+    <string name="auto_timeout_section_title">Auto timeout</string>
+    <string name="auto_timeout_setup_button">Setup</string>
+    <string name="auto_timeout_setup_description">Set up extra permissions to use auto timeout with the overlay or as a standalone timer.</string>
+
+    <!-- Auto timeout screen -->
+    <string name="timer_section_title">Auto lock timer</string>
+    <string name="auto_timeout_tile_body">Start the timer from Quick Settings.</string>
+    <string name="setup_device_admin_body">Enables the sleep timer to auto lock the screen after X minutes.</string>
+    <string name="device_admin_label">Device admin</string>
+    <string name="enable_device_admin_button">Enable device admin</string>
+    <string name="device_admin_explanation">Allows the app to lock your screen after the configured timer.</string>
+    <string name="auto_timeout_settings_title">Settings</string>
+    <string name="auto_timeout_timer_setting_title">Timer duration</string>
+    <string name="auto_timeout_timer_setting_body">Set how long before your phone locks.</string>
+    <string name="auto_timeout_timer_requires_admin">Enable device admin to edit the timer.</string>
+    <string name="auto_lock_minutes_label">Minutes (0 = off)</string>
+    <string name="auto_lock_minutes_value_format">%1$d minutes</string>
+    <string name="auto_lock_off_label">Off</string>
+    <string name="auto_lock_dialog_title">Auto lock timer</string>
+    <string name="auto_lock_dialog_description">Your device will lock after this time, stopping video playback and removing the black overlay.</string>
+    <string name="save_timer_button">Save timer</string>
+    <string name="edit_timer_button">Edit timer</string>
+
+    <!-- Shared step-by-step guide (overlay + auto timeout) -->
+    <string name="how_it_works_label">How does it work</string>
+    <string name="step_one_chip">Step 1</string>
+    <string name="step_two_chip">Step 2</string>
+    <string name="step_three_chip">Step 3</string>
+    <string name="step_four_chip">Step 4</string>
+    <string name="step_one_title">Play Media</string>
+    <string name="step_one_body">Play from the app that doesn\'t support background play.</string>
+    <string name="step_two_title">Swipe down</string>
+    <string name="step_two_body">Pull down the status bar to see Quick Settings.</string>
+    <string name="step_three_title">Tap Overlay</string>
+    <string name="step_three_body">Tap the tile to cover the screen with black.</string>
+    <string name="step_four_title">Press power to stop</string>
+    <string name="step_four_body">Your phone locks, playback stops and the overlay goes away.</string>
+    <string name="auto_timeout_step_one_title">Set a timer</string>
+    <string name="auto_timeout_step_one_body">Choose how long before your phone locks.</string>
+    <string name="auto_timeout_step_three_title">Tap Auto Timeout</string>
+    <string name="auto_timeout_step_three_body">Tap the tile to start the timer.</string>
+    <string name="auto_timeout_step_four_body">Pressing power stops the timer and locks your phone.</string>
+
+    <!-- Notification permission component -->
+    <string name="notification_permission_label">Notifications</string>
+    <string name="notification_permission_body">Allow notifications so the overlay or timer can show its foreground status and stop action.</string>
+    <string name="request_notifications_button">Allow notifications</string>
+
+    <!-- Foreground service notifications -->
+    <string name="foreground_channel_name">Foreground service</string>
+    <string name="foreground_channel_description">Shows status when the overlay or timer is running.</string>
+    <string name="overlay_notification_title">Overlay active</string>
+    <string name="overlay_notification_body">Tap the tile or power button to stop.</string>
+    <string name="auto_timeout_notification_title">Auto lock timer active</string>
+    <string name="auto_timeout_notification_body">Your device will lock when the timer ends.</string>
+    <string name="stop_overlay_action">Stop overlay</string>
+    <string name="stop_auto_timeout_action">Stop timer</string>
+
+    <!-- About screen -->
+    <string name="open_source_title">About</string>
+    <string name="open_source_description">View the source code for Overlay on GitHub.</string>
+    <string name="open_source_link_label">Open GitHub source</string>
+    <string name="open_source_url">https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/overlay</string>
+    <string name="version_label_format">Version %1$s</string>
+
+</resources>
