@@ -1,0 +1,38 @@
+# -------------------- IDE --------------------
+.idea/
+.vscode/
+*.iml
+
+# -------------------- OS --------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# -------------------- Environment / Secrets --------------------
+.env
+.env.*
+!.env.example
+!example.env
+
+# -------------------- Android / Gradle Generated --------------------
+
+# Gradle / Kotlin local caches
+.gradle/
+.kotlin/
+
+# Android build outputs
+build/
+**/build/
+
+# Native build intermediates
+.externalNativeBuild/
+.cxx/
+
+# Android Studio captures
+captures/
+
+# Project-local download/cache artifacts
+.cache/
+
+# Machine-local config
+local.properties
