@@ -139,23 +139,10 @@ fun OnboardingTutorialScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = stringResource(instructionResId(tutorialState.step)),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = stringResource(helperResId(tutorialState.step, tutorialState.nextEnabled)),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            Text(
+                text = stringResource(instructionResId(tutorialState.step)),
+                style = MaterialTheme.typography.titleLarge
+            )
 
             AnimatedVisibility(
                 visible = showSpeechCard && speechText != null,
@@ -276,40 +263,5 @@ private fun instructionResId(step: OnboardingTutorialStep): Int {
         OnboardingTutorialStep.FAKE_RECORDING_EDIT -> R.string.onboarding_tutorial_instruction_recording_edit
         OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> R.string.onboarding_tutorial_instruction_processing_edit
         OnboardingTutorialStep.FINAL_REVIEW -> R.string.onboarding_tutorial_instruction_final
-    }
-}
-
-private fun helperResId(step: OnboardingTutorialStep, nextEnabled: Boolean): Int {
-    return when (step) {
-        OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> R.string.onboarding_tutorial_hint_tap_pill
-
-        OnboardingTutorialStep.FAKE_RECORDING_COMPOSE,
-        OnboardingTutorialStep.FAKE_RECORDING_EDIT -> {
-            if (nextEnabled) {
-                R.string.onboarding_tutorial_hint_tap_next
-            } else {
-                R.string.onboarding_tutorial_hint_recording
-            }
-        }
-
-        OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE -> {
-            if (nextEnabled) {
-                R.string.onboarding_tutorial_hint_tap_next
-            } else {
-                R.string.onboarding_tutorial_hint_processing_compose
-            }
-        }
-
-        OnboardingTutorialStep.WAIT_FOR_EDIT_TAP -> R.string.onboarding_tutorial_hint_tap_edit
-
-        OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> {
-            if (nextEnabled) {
-                R.string.onboarding_tutorial_hint_tap_next
-            } else {
-                R.string.onboarding_tutorial_hint_processing_edit
-            }
-        }
-
-        OnboardingTutorialStep.FINAL_REVIEW -> R.string.onboarding_tutorial_hint_done
     }
 }

@@ -69,13 +69,6 @@
     <string name="onboarding_tutorial_instruction_recording_edit">Simulating recording your edit instruction.</string>
     <string name="onboarding_tutorial_instruction_processing_edit">Applying your simulated edit.</string>
     <string name="onboarding_tutorial_instruction_final">Final simulated output is ready.</string>
-    <string name="onboarding_tutorial_hint_tap_next">Tap the arrow to continue.</string>
-    <string name="onboarding_tutorial_hint_tap_pill">Tap the onboarding pill to unlock the next step.</string>
-    <string name="onboarding_tutorial_hint_recording">Fake recording is running...</string>
-    <string name="onboarding_tutorial_hint_processing_compose">Simulating transcription and rewrite...</string>
-    <string name="onboarding_tutorial_hint_tap_edit">Tap edit to start the simulated correction flow.</string>
-    <string name="onboarding_tutorial_hint_processing_edit">Simulating edit application...</string>
-    <string name="onboarding_tutorial_hint_done">Tap Done to return to Home.</string>
     <string name="onboarding_tutorial_speech_label">Simulated speech</string>
     <string name="onboarding_tutorial_output_label">Simulated output</string>
     <string name="onboarding_tutorial_speech_compose">Hey Mia, can you go to the supermarket and buy apple, eggs and avocado.</string>
