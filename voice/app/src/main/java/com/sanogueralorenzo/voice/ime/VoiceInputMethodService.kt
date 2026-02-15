@@ -38,7 +38,6 @@ import com.sanogueralorenzo.voice.setup.MainActivity
 import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.summary.RewriteResult
-import com.sanogueralorenzo.voice.summary.SummaryPolicy
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -530,10 +529,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             )
         }
 
-        val budget = SummaryPolicy.budgetForText(transcript)
         val result = liteRtSummarizer.summarizeBlocking(
-            text = transcript,
-            maxTokens = budget.maxTokens
+            text = transcript
         )
         return when (result) {
             is RewriteResult.RewriteSuccess -> RewriteStageResult(
@@ -660,11 +657,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             }
 
             mainHandler.post { keyboardViewModel.showRewriting() }
-            val editBudget = SummaryPolicy.budgetForText(sourceText).maxTokens.coerceAtLeast(128)
             val result = liteRtSummarizer.applyEditInstructionBlocking(
                 originalText = sourceText,
-                instructionText = normalizedInstruction,
-                maxTokens = editBudget
+                instructionText = normalizedInstruction
             )
             return when (result) {
                 is RewriteResult.RewriteSuccess -> RewriteStageResult(
@@ -753,11 +748,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }
 
         mainHandler.post { keyboardViewModel.showRewriting() }
-        val editBudget = SummaryPolicy.budgetForText(sourceText).maxTokens.coerceAtLeast(128)
         val result = liteRtSummarizer.applyEditInstructionBlocking(
             originalText = sourceText,
-            instructionText = normalizedInstruction,
-            maxTokens = editBudget
+            instructionText = normalizedInstruction
         )
         return when (result) {
             is RewriteResult.RewriteSuccess -> RewriteStageResult(

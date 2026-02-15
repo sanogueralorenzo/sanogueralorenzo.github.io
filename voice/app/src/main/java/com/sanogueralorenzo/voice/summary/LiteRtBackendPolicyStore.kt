@@ -21,7 +21,8 @@ class LiteRtBackendPolicyStore(context: Context) {
     }
 
     fun preferredBackends(modelSha: String): List<Backend> {
-        return listOf(Backend.GPU)
+        // Keep fallback deterministic and broad-device friendly.
+        return listOf(Backend.GPU, Backend.CPU)
     }
 
     fun markGpuFailed(modelSha: String) {

@@ -215,10 +215,7 @@ class LiteRtSummarizer(context: Context) {
         }
     }
 
-    fun summarizeBlocking(
-        text: String,
-        maxTokens: Int
-    ): RewriteResult {
+    fun summarizeBlocking(text: String): RewriteResult {
         val startedAt = System.currentTimeMillis()
         if (text.isBlank()) {
             return RewriteResult.RewriteFallback(
@@ -241,15 +238,14 @@ class LiteRtSummarizer(context: Context) {
 
         return runBlocking(Dispatchers.Default) {
             operationMutex.withLock {
-                summarizeInternal(text, maxTokens, startedAt)
+                summarizeInternal(text, startedAt)
             }
         }
     }
 
     fun applyEditInstructionBlocking(
         originalText: String,
-        instructionText: String,
-        maxTokens: Int
+        instructionText: String
     ): RewriteResult {
         val startedAt = System.currentTimeMillis()
         if (originalText.isBlank() || instructionText.isBlank()) {
@@ -276,7 +272,6 @@ class LiteRtSummarizer(context: Context) {
                 applyEditInstructionInternal(
                     originalText = originalText,
                     instructionText = instructionText,
-                    maxTokens = maxTokens,
                     startedAtMs = startedAt
                 )
             }
@@ -310,7 +305,6 @@ class LiteRtSummarizer(context: Context) {
 
     private suspend fun summarizeInternal(
         text: String,
-        maxTokens: Int,
         startedAtMs: Long
     ): RewriteResult {
         val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
@@ -589,7 +583,6 @@ class LiteRtSummarizer(context: Context) {
     private suspend fun applyEditInstructionInternal(
         originalText: String,
         instructionText: String,
-        maxTokens: Int,
         startedAtMs: Long
     ): RewriteResult {
         val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
