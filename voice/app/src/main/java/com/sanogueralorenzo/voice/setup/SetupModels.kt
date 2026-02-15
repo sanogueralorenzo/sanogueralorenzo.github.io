@@ -1,5 +1,9 @@
 package com.sanogueralorenzo.voice.setup
 
+import com.airbnb.mvrx.Async
+import com.airbnb.mvrx.MavericksState
+import com.airbnb.mvrx.Uninitialized
+
 data class SetupUiState(
     val micGranted: Boolean = false,
     val liteRtReady: Boolean = false,
@@ -13,8 +17,10 @@ data class SetupUiState(
     val updatesMessage: String? = null,
     val keyboardTestInput: String = "",
     val liteRtRewriteEnabled: Boolean = true,
-    val customInstructions: String = ""
-)
+    val customInstructions: String = "",
+    val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
+    val updatesAsync: Async<ModelUpdatesOutcome> = Uninitialized
+) : MavericksState
 
 data class SetupActions(
     val onOpenSetup: () -> Unit,

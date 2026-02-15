@@ -20,12 +20,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.ime.VoiceKeyboardImeContent
 import com.sanogueralorenzo.voice.ime.VoiceProcessingStage
@@ -36,9 +35,11 @@ fun OnboardingTutorialScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var tutorialState by remember {
-        mutableStateOf(OnboardingTutorialStateMachine.initialState())
+    val viewModel = remember {
+        OnboardingTutorialViewModel(OnboardingTutorialUiState())
     }
+    val uiState by viewModel.collectAsStateWithLifecycle()
+    val tutorialState = uiState.tutorialState
 
     LaunchedEffect(tutorialState.step) {
         val startedStep = tutorialState.step
@@ -47,24 +48,24 @@ fun OnboardingTutorialScreen(
             OnboardingTutorialStep.FAKE_RECORDING_EDIT -> {
                 val levels = floatArrayOf(0.12f, 0.4f, 0.72f, 0.35f, 0.61f, 0.28f, 0.66f, 0.32f)
                 for (level in levels) {
-                    if (tutorialState.step != startedStep) return@LaunchedEffect
-                    tutorialState = tutorialState.copy(audioLevel = level)
+                    if (viewModel.currentStep() != startedStep) return@LaunchedEffect
+                    viewModel.setAudioLevel(level)
                     delay(130L)
                 }
-                if (tutorialState.step == startedStep) {
-                    tutorialState = OnboardingTutorialStateMachine.onFakeRecordingCompleted(tutorialState)
+                if (viewModel.currentStep() == startedStep) {
+                    viewModel.onFakeRecordingCompleted()
                 }
             }
 
             OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE,
             OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> {
-                tutorialState = tutorialState.copy(keyboardStage = VoiceProcessingStage.TRANSCRIBING)
+                viewModel.setProcessingStage(VoiceProcessingStage.TRANSCRIBING)
                 delay(700L)
-                if (tutorialState.step != startedStep) return@LaunchedEffect
-                tutorialState = tutorialState.copy(keyboardStage = VoiceProcessingStage.REWRITING)
+                if (viewModel.currentStep() != startedStep) return@LaunchedEffect
+                viewModel.setProcessingStage(VoiceProcessingStage.REWRITING)
                 delay(700L)
-                if (tutorialState.step == startedStep) {
-                    tutorialState = OnboardingTutorialStateMachine.onFakeProcessingCompleted(tutorialState)
+                if (viewModel.currentStep() == startedStep) {
+                    viewModel.onFakeProcessingCompleted()
                 }
             }
 
@@ -94,12 +95,8 @@ fun OnboardingTutorialScreen(
         bottomBar = {
             VoiceKeyboardImeContent(
                 state = keyboardState,
-                onIdleTap = {
-                    tutorialState = OnboardingTutorialStateMachine.onPillTap(tutorialState)
-                },
-                onEditTap = {
-                    tutorialState = OnboardingTutorialStateMachine.onEditTap(tutorialState)
-                },
+                onIdleTap = { viewModel.onPillTap() },
+                onEditTap = { viewModel.onEditTap() },
                 onDeleteTap = {},
                 onSendTap = {},
                 onDebugToggle = {},
@@ -182,7 +179,7 @@ fun OnboardingTutorialScreen(
                     if (isFinalStep) {
                         Button(
                             onClick = {
-                                if (OnboardingTutorialStateMachine.onDone(tutorialState)) {
+                                if (viewModel.canFinish()) {
                                     onDone()
                                 }
                             },
@@ -192,9 +189,7 @@ fun OnboardingTutorialScreen(
                         }
                     } else {
                         FilledIconButton(
-                            onClick = {
-                                tutorialState = OnboardingTutorialStateMachine.onNext(tutorialState)
-                            },
+                            onClick = { viewModel.onNext() },
                             enabled = nextEnabled
                         ) {
                             Icon(

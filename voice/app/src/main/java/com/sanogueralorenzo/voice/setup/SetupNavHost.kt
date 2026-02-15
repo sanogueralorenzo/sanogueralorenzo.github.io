@@ -7,6 +7,7 @@ import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -21,8 +22,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -53,33 +54,36 @@ fun SetupNavHost() {
     val context = LocalContext.current
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
-    val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val coordinator = remember(appContext, scope, appGraph) {
-        SetupCoordinator(
+    val setupViewModel = remember(appContext, appGraph) {
+        SetupViewModel(
+            initialState = SetupUiState(
+                micGranted = false,
+                liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled(),
+                customInstructions = appGraph.settingsStore.customInstructions()
+            ),
             context = appContext,
-            scope = scope,
             settingsStore = appGraph.settingsStore,
             updateChecker = appGraph.modelUpdateChecker
         )
     }
-    val uiState = coordinator.uiState
+    val uiState by setupViewModel.collectAsStateWithLifecycle()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        coordinator.onMicPermissionResult(granted)
+        setupViewModel.onMicPermissionResult(granted)
     }
 
-    DisposableEffect(coordinator) {
-        onDispose { coordinator.shutdown() }
+    DisposableEffect(setupViewModel) {
+        onDispose { setupViewModel.shutdown() }
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                coordinator.refreshMicPermission()
-                coordinator.refreshModelReadiness()
+                setupViewModel.refreshMicPermission()
+                setupViewModel.refreshModelReadiness()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -87,7 +91,8 @@ fun SetupNavHost() {
     }
 
     LaunchedEffect(Unit) {
-        coordinator.refreshModelReadiness()
+        setupViewModel.refreshMicPermission()
+        setupViewModel.refreshModelReadiness()
     }
 
     val navController = rememberNavController()
@@ -112,10 +117,10 @@ fun SetupNavHost() {
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = { showImePicker(context) },
-        onDownloadAll = { coordinator.downloadAllModels() },
-        onDownloadLiteRt = { coordinator.startLiteRtDownload() },
-        onDownloadMoonshine = { coordinator.startMoonshineDownload() },
-        onCheckUpdates = { coordinator.checkForModelUpdates() }
+        onDownloadAll = { setupViewModel.downloadAllModels() },
+        onDownloadLiteRt = { setupViewModel.startLiteRtDownload() },
+        onDownloadMoonshine = { setupViewModel.startMoonshineDownload() },
+        onCheckUpdates = { setupViewModel.checkForModelUpdates() }
     )
 
     Scaffold(
@@ -151,7 +156,7 @@ fun SetupNavHost() {
             if (currentRoute == MainRoute.HOME) {
                 KeyboardTestBar(
                     value = uiState.keyboardTestInput,
-                    onValueChange = { coordinator.setKeyboardTestInput(it) }
+                    onValueChange = { setupViewModel.setKeyboardTestInput(it) }
                 )
             }
         }
@@ -196,7 +201,7 @@ fun SetupNavHost() {
                     onDownloadLiteRt = actions.onDownloadLiteRt,
                     onDownloadMoonshine = actions.onDownloadMoonshine,
                     onCheckUpdates = actions.onCheckUpdates,
-                    actionsEnabled = !coordinator.isAnyDownloading()
+                    actionsEnabled = !setupViewModel.isAnyDownloading()
                 )
             }
 
@@ -222,10 +227,10 @@ fun SetupNavHost() {
                     rewriteEnabled = uiState.liteRtRewriteEnabled,
                     customInstructions = uiState.customInstructions,
                     onRewriteEnabledChange = { enabled ->
-                        coordinator.setLiteRtRewriteEnabled(enabled)
+                        setupViewModel.setLiteRtRewriteEnabled(enabled)
                     },
                     onCustomInstructionsChange = { value ->
-                        coordinator.setCustomInstructions(
+                        setupViewModel.setCustomInstructions(
                             value.take(VoiceSettingsStore.MAX_CUSTOM_INSTRUCTIONS_CHARS)
                         )
                     }

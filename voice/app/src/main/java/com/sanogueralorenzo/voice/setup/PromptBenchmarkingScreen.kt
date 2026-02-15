@@ -17,12 +17,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -30,14 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
-import com.sanogueralorenzo.voice.models.ModelCatalog
-import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 
 @Composable
 fun PromptBenchmarkingScreen(
@@ -48,44 +40,36 @@ fun PromptBenchmarkingScreen(
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
-    val settingsStore = remember(appGraph) { appGraph.settingsStore }
-    val gateway = remember(appContext) { LiteRtPromptBenchmarkGateway(appContext) }
     val cases = remember { PromptBenchmarkSuite.defaultCases() }
-
-    DisposableEffect(gateway) {
-        onDispose {
-            gateway.release()
-        }
-    }
-
-    var runnerState by remember {
-        mutableStateOf(
-            PromptBenchmarkRunnerState(
-                isRunning = false,
-                currentCaseIndex = 0,
-                totalCases = cases.size,
-                currentRunIndex = 0,
-                repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
-                errorMessage = null
-            )
+    val gateway = remember(appContext) { LiteRtPromptBenchmarkGateway(appContext) }
+    val viewModel = remember(appContext, appGraph, gateway, cases) {
+        PromptBenchmarkingViewModel(
+            initialState = PromptBenchmarkingUiState(
+                runnerState = PromptBenchmarkRunnerState(
+                    isRunning = false,
+                    currentCaseIndex = 0,
+                    totalCases = cases.size,
+                    currentRunIndex = 0,
+                    repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
+                    errorMessage = null
+                )
+            ),
+            appContext = appContext,
+            settingsStore = appGraph.settingsStore,
+            gateway = gateway,
+            cases = cases
         )
     }
-    var sessionResult by remember { mutableStateOf<PromptBenchmarkSessionResult?>(null) }
-    var runJob by remember { mutableStateOf<Job?>(null) }
+    val uiState by viewModel.collectAsStateWithLifecycle()
 
-    val modelAvailable = remember { mutableStateOf(false) }
-    val rewriteEnabled = remember { mutableStateOf(false) }
-
-    fun refreshBenchmarkPrerequisites() {
-        modelAvailable.value = ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
-        rewriteEnabled.value = settingsStore.isLiteRtRewriteEnabled()
+    DisposableEffect(gateway) {
+        onDispose { gateway.release() }
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                refreshBenchmarkPrerequisites()
+                viewModel.refreshPrerequisites()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -93,61 +77,7 @@ fun PromptBenchmarkingScreen(
     }
 
     LaunchedEffect(Unit) {
-        refreshBenchmarkPrerequisites()
-    }
-
-    fun runBenchmark() {
-        if (runnerState.isRunning || !modelAvailable.value) return
-        sessionResult = null
-        runnerState = runnerState.copy(
-            isRunning = true,
-            currentCaseIndex = 0,
-            currentRunIndex = 0,
-            errorMessage = null
-        )
-
-        val customInstructions = settingsStore.customInstructions()
-        val instructionSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot(customInstructions)
-
-        runJob = scope.launch {
-            try {
-                val result = PromptBenchmarkRunner.runAll(
-                    gateway = gateway,
-                    cases = cases,
-                    suiteVersion = PromptBenchmarkSuite.SUITE_VERSION,
-                    repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
-                    modelId = ModelCatalog.liteRtLm.id,
-                    customInstructions = customInstructions,
-                    promptInstructionsSnapshot = instructionSnapshot,
-                    onProgress = { progress ->
-                        runnerState = runnerState.copy(
-                            currentCaseIndex = progress.caseIndex,
-                            totalCases = progress.totalCases,
-                            currentRunIndex = progress.runIndex,
-                            repeats = progress.repeats,
-                            errorMessage = null
-                        )
-                    }
-                )
-                sessionResult = result
-                runnerState = runnerState.copy(isRunning = false)
-            } catch (_: CancellationException) {
-                runnerState = runnerState.copy(
-                    isRunning = false,
-                    errorMessage = context.getString(R.string.prompt_benchmark_status_cancelled)
-                )
-            } catch (t: Throwable) {
-                runnerState = runnerState.copy(
-                    isRunning = false,
-                    errorMessage = t.message ?: context.getString(R.string.prompt_benchmark_status_failed)
-                )
-            }
-        }
-    }
-
-    fun cancelBenchmark() {
-        runJob?.cancel()
-        runJob = null
+        viewModel.refreshPrerequisites()
     }
 
     fun shareResult(result: PromptBenchmarkSessionResult) {
@@ -165,11 +95,13 @@ fun PromptBenchmarkingScreen(
         )
     }
 
-    val totalRuns = cases.size * PromptBenchmarkRunner.DEFAULT_REPEATS
+    val runnerState = uiState.runnerState
+    val sessionResult = uiState.sessionResult
+    val totalRuns = runnerState.totalCases * runnerState.repeats
     val completedRuns = if (runnerState.currentCaseIndex <= 0 || runnerState.currentRunIndex <= 0) {
         0
     } else {
-        ((runnerState.currentCaseIndex - 1) * PromptBenchmarkRunner.DEFAULT_REPEATS) + runnerState.currentRunIndex
+        ((runnerState.currentCaseIndex - 1) * runnerState.repeats) + runnerState.currentRunIndex
     }
     val progress = if (totalRuns == 0) {
         0f
@@ -202,7 +134,7 @@ fun PromptBenchmarkingScreen(
                     text = stringResource(
                         R.string.prompt_benchmark_suite_stats,
                         cases.size,
-                        totalRuns,
+                        cases.size * PromptBenchmarkRunner.DEFAULT_REPEATS,
                         PromptBenchmarkRunner.DEFAULT_REPEATS
                     ),
                     style = MaterialTheme.typography.bodySmall
@@ -210,7 +142,7 @@ fun PromptBenchmarkingScreen(
             }
         }
 
-        if (!modelAvailable.value) {
+        if (!uiState.modelAvailable) {
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
@@ -229,7 +161,7 @@ fun PromptBenchmarkingScreen(
             }
         }
 
-        if (!rewriteEnabled.value) {
+        if (!uiState.rewriteEnabled) {
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = stringResource(R.string.prompt_benchmark_rewrite_disabled_warning),
@@ -244,15 +176,15 @@ fun PromptBenchmarkingScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
-                onClick = { runBenchmark() },
-                enabled = !runnerState.isRunning && modelAvailable.value,
+                onClick = { viewModel.runBenchmark() },
+                enabled = !runnerState.isRunning && uiState.modelAvailable,
                 modifier = Modifier.weight(1f)
             ) {
                 Text(text = stringResource(R.string.prompt_benchmark_run_action))
             }
 
             OutlinedButton(
-                onClick = { cancelBenchmark() },
+                onClick = { viewModel.cancelBenchmark() },
                 enabled = runnerState.isRunning,
                 modifier = Modifier.weight(1f)
             ) {
