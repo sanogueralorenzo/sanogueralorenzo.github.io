@@ -3,49 +3,27 @@ package com.sanogueralorenzo.voice.summary
 import com.google.ai.edge.litertlm.Backend
 
 sealed interface RewriteResult {
-    data class RewriteSuccess(
+    data class Success(
         val text: String,
         val latencyMs: Long,
-        val backend: Backend,
-        val listFormattingHintUsed: Boolean = false,
-        val editIntent: String? = null,
-        val runtimeTier: String? = null,
-        val runtimeLimits: String? = null,
-        val availMemMb: Long? = null,
-        val lowMemory: Boolean = false,
-        val memoryGuardTriggered: Boolean = false,
-        val suspectedNativeAbortPreviousRun: Boolean = false,
-        val suspectedNativeAbortCount: Int = 0
+        val backend: Backend
     ) : RewriteResult
 
-    data class RewriteFallback(
-        val reason: RewriteFallbackReason,
+    data class Failure(
         val latencyMs: Long,
-        val listFormattingHintUsed: Boolean = false,
-        val editIntent: String? = null,
-        val runtimeError: String? = null,
-        val runtimeTier: String? = null,
-        val runtimeLimits: String? = null,
-        val availMemMb: Long? = null,
-        val lowMemory: Boolean = false,
-        val memoryGuardTriggered: Boolean = false,
-        val suspectedNativeAbortPreviousRun: Boolean = false,
-        val suspectedNativeAbortCount: Int = 0
+        val backend: Backend?,
+        val error: LiteRtFailureException
     ) : RewriteResult
 }
 
-enum class RewriteFallbackReason {
-    EMPTY_INPUT,
-    MODEL_UNAVAILABLE,
-    UNSUPPORTED_MODEL,
-    ENGINE_INIT_FAILED,
-    COMPATIBILITY_DISABLED,
-    TIMEOUT,
-    INVALID_ARGUMENT,
-    MEMORY_GUARD,
-    RUNTIME_TIER_LIMIT,
-    INPUT_TOO_LONG,
-    EMPTY_OUTPUT,
-    SAFETY_REJECTED,
-    ERROR
+class LiteRtFailureException(
+    val type: String,
+    val litertError: String,
+    cause: Throwable? = null
+) : RuntimeException(litertError, cause) {
+    companion object {
+        const val TYPE_INVALID_ARGUMENT = "invalid_argument"
+        const val TYPE_INPUT_TOO_LONG = "input_too_long"
+        const val TYPE_UNKNOWN = "unknown"
+    }
 }

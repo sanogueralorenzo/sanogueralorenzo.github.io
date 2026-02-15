@@ -43,24 +43,10 @@ data class VoiceDebugMetrics(
     val rewriteAttempted: Boolean,
     val rewriteApplied: Boolean,
     val rewriteBackend: String?,
-    val rewriteFallbackReason: String?,
-    val rewriteRuntimeError: String?,
+    val rewriteErrorType: String?,
+    val rewriteError: String?,
     val committed: Boolean,
-    val editIntent: String?,
-    val listFormattingHintUsed: Boolean,
-    val blankEditCommitPath: Boolean,
-    val localRuleDetected: Boolean,
-    val localRuleKind: String?,
-    val localRuleScope: String?,
-    val localMatches: Int,
-    val localNoMatchFallbackLiteRt: Boolean,
-    val runtimeTier: String? = null,
-    val runtimeLimits: String? = null,
-    val runtimeAvailMemMb: Long? = null,
-    val runtimeLowMemory: Boolean = false,
-    val memoryGuardTriggered: Boolean = false,
-    val suspectedNativeAbortPreviousRun: Boolean = false,
-    val suspectedNativeAbortCount: Int = 0
+    val editIntent: String?
 )
 
 data class VoiceKeyboardState(

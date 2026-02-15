@@ -366,24 +366,10 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 rewriteAttempted = rewrite.attempted,
                 rewriteApplied = rewrite.applied,
                 rewriteBackend = rewrite.backend,
-                rewriteFallbackReason = rewrite.fallbackReason,
-                rewriteRuntimeError = rewrite.runtimeError,
+                rewriteErrorType = rewrite.errorType,
+                rewriteError = rewrite.errorMessage,
                 committed = false,
-                editIntent = rewrite.editIntent,
-                listFormattingHintUsed = rewrite.listFormattingHintUsed,
-                blankEditCommitPath = false,
-                localRuleDetected = rewrite.localRuleDetected,
-                localRuleKind = rewrite.localRuleKind,
-                localRuleScope = rewrite.localRuleScope,
-                localMatches = rewrite.localMatches,
-                localNoMatchFallbackLiteRt = rewrite.localNoMatchFallbackLiteRt,
-                runtimeTier = rewrite.runtimeTier,
-                runtimeLimits = rewrite.runtimeLimits,
-                runtimeAvailMemMb = rewrite.runtimeAvailMemMb,
-                runtimeLowMemory = rewrite.runtimeLowMemory,
-                memoryGuardTriggered = rewrite.memoryGuardTriggered,
-                suspectedNativeAbortPreviousRun = rewrite.suspectedNativeAbortPreviousRun,
-                suspectedNativeAbortCount = rewrite.suspectedNativeAbortCount
+                editIntent = rewrite.editIntent
             )
             postSendResult(request, rewrite.output, metrics)
         } catch (t: Throwable) {
@@ -517,15 +503,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 attempted = false,
                 applied = false,
                 backend = null,
-                fallbackReason = if (!rewriteEnabled) "disabled_by_setting" else null,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null,
-                listFormattingHintUsed = false,
-                localRuleDetected = false,
-                localRuleKind = null,
-                localRuleScope = null,
-                localMatches = 0,
-                localNoMatchFallbackLiteRt = false
+                editIntent = null
             )
         }
 
@@ -533,57 +512,24 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             text = transcript
         )
         return when (result) {
-            is RewriteResult.RewriteSuccess -> RewriteStageResult(
+            is RewriteResult.Success -> RewriteStageResult(
                 output = result.text,
                 attempted = true,
-                applied = true,
+                applied = result.text != transcript,
                 backend = result.backend.name,
-                fallbackReason = null,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = result.editIntent,
-                listFormattingHintUsed = result.listFormattingHintUsed,
-                localRuleDetected = false,
-                localRuleKind = null,
-                localRuleScope = null,
-                localMatches = 0,
-                localNoMatchFallbackLiteRt = false,
-                runtimeTier = result.runtimeTier,
-                runtimeLimits = result.runtimeLimits,
-                runtimeAvailMemMb = result.availMemMb,
-                runtimeLowMemory = result.lowMemory,
-                memoryGuardTriggered = result.memoryGuardTriggered,
-                suspectedNativeAbortPreviousRun = result.suspectedNativeAbortPreviousRun,
-                suspectedNativeAbortCount = result.suspectedNativeAbortCount
+                editIntent = null
             )
-            is RewriteResult.RewriteFallback -> {
-                Log.i(
-                    TAG,
-                    "Rewrite fallback reason=${result.reason} latencyMs=${result.latencyMs}"
-                )
-                RewriteStageResult(
-                    output = transcript,
-                    attempted = true,
-                    applied = false,
-                    backend = null,
-                    fallbackReason = result.reason.name,
-                    runtimeError = result.runtimeError,
-                    elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                    editIntent = result.editIntent,
-                    listFormattingHintUsed = result.listFormattingHintUsed,
-                    localRuleDetected = false,
-                    localRuleKind = null,
-                    localRuleScope = null,
-                    localMatches = 0,
-                    localNoMatchFallbackLiteRt = false,
-                    runtimeTier = result.runtimeTier,
-                    runtimeLimits = result.runtimeLimits,
-                    runtimeAvailMemMb = result.availMemMb,
-                    runtimeLowMemory = result.lowMemory,
-                    memoryGuardTriggered = result.memoryGuardTriggered,
-                    suspectedNativeAbortPreviousRun = result.suspectedNativeAbortPreviousRun,
-                    suspectedNativeAbortCount = result.suspectedNativeAbortCount
-                )
-            }
+            is RewriteResult.Failure -> RewriteStageResult(
+                output = transcript,
+                attempted = true,
+                applied = false,
+                backend = result.backend?.name,
+                errorType = result.error.type,
+                errorMessage = result.error.litertError,
+                elapsedMs = SystemClock.uptimeMillis() - startedAt,
+                editIntent = null
+            )
         }
     }
 
@@ -600,113 +546,26 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 attempted = false,
                 applied = false,
                 backend = null,
-                fallbackReason = if (normalizedInstruction.isBlank()) "empty_instruction" else "empty_source",
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null,
-                listFormattingHintUsed = false,
-                localRuleDetected = false,
-                localRuleKind = null,
-                localRuleScope = null,
-                localMatches = 0,
-                localNoMatchFallbackLiteRt = false
+                editIntent = null
             )
         }
+        val instructionAnalysis = LiteRtEditHeuristics.analyzeInstruction(normalizedInstruction)
+        val editIntent = instructionAnalysis.intent.name
 
         val deterministicEdit = LiteRtEditHeuristics.tryApplyDeterministicEdit(
             sourceText = sourceText,
             instructionText = normalizedInstruction
         )
         if (deterministicEdit != null) {
-            val localKind = deterministicEdit.commandKind.name
-            val localScope = deterministicEdit.scope.name
             if (!deterministicEdit.noMatchDetected) {
                 return RewriteStageResult(
                     output = deterministicEdit.output,
                     attempted = false,
-                    applied = false,
+                    applied = deterministicEdit.output != sourceText,
                     backend = null,
-                    fallbackReason = "local_${localKind.lowercase()}_${localScope.lowercase()}",
                     elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                    editIntent = deterministicEdit.intent.name,
-                    listFormattingHintUsed = false,
-                    localRuleDetected = true,
-                    localRuleKind = localKind,
-                    localRuleScope = localScope,
-                    localMatches = deterministicEdit.matchedCount,
-                    localNoMatchFallbackLiteRt = false
-                )
-            }
-
-            val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
-            if (!rewriteEnabled || !liteRtSummarizer.isModelAvailable()) {
-                return RewriteStageResult(
-                    output = sourceText,
-                    attempted = false,
-                    applied = false,
-                    backend = null,
-                    fallbackReason = "local_no_match_fallback_litert_unavailable",
-                    elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                    editIntent = deterministicEdit.intent.name,
-                    listFormattingHintUsed = false,
-                    localRuleDetected = true,
-                    localRuleKind = localKind,
-                    localRuleScope = localScope,
-                    localMatches = deterministicEdit.matchedCount,
-                    localNoMatchFallbackLiteRt = false
-                )
-            }
-
-            mainHandler.post { keyboardViewModel.showRewriting() }
-            val result = liteRtSummarizer.applyEditInstructionBlocking(
-                originalText = sourceText,
-                instructionText = normalizedInstruction
-            )
-            return when (result) {
-                is RewriteResult.RewriteSuccess -> RewriteStageResult(
-                    output = result.text,
-                    attempted = true,
-                    applied = result.text != sourceText,
-                    backend = result.backend.name,
-                    fallbackReason = "local_no_match_fallback_litert",
-                    elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                    editIntent = result.editIntent ?: deterministicEdit.intent.name,
-                    listFormattingHintUsed = result.listFormattingHintUsed,
-                    localRuleDetected = true,
-                    localRuleKind = localKind,
-                    localRuleScope = localScope,
-                    localMatches = deterministicEdit.matchedCount,
-                    localNoMatchFallbackLiteRt = true,
-                    runtimeTier = result.runtimeTier,
-                    runtimeLimits = result.runtimeLimits,
-                    runtimeAvailMemMb = result.availMemMb,
-                    runtimeLowMemory = result.lowMemory,
-                    memoryGuardTriggered = result.memoryGuardTriggered,
-                    suspectedNativeAbortPreviousRun = result.suspectedNativeAbortPreviousRun,
-                    suspectedNativeAbortCount = result.suspectedNativeAbortCount
-                )
-
-                is RewriteResult.RewriteFallback -> RewriteStageResult(
-                    output = sourceText,
-                    attempted = true,
-                    applied = false,
-                    backend = null,
-                    fallbackReason = result.reason.name,
-                    runtimeError = result.runtimeError,
-                    elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                    editIntent = result.editIntent ?: deterministicEdit.intent.name,
-                    listFormattingHintUsed = result.listFormattingHintUsed,
-                    localRuleDetected = true,
-                    localRuleKind = localKind,
-                    localRuleScope = localScope,
-                    localMatches = deterministicEdit.matchedCount,
-                    localNoMatchFallbackLiteRt = true,
-                    runtimeTier = result.runtimeTier,
-                    runtimeLimits = result.runtimeLimits,
-                    runtimeAvailMemMb = result.availMemMb,
-                    runtimeLowMemory = result.lowMemory,
-                    memoryGuardTriggered = result.memoryGuardTriggered,
-                    suspectedNativeAbortPreviousRun = result.suspectedNativeAbortPreviousRun,
-                    suspectedNativeAbortCount = result.suspectedNativeAbortCount
+                    editIntent = deterministicEdit.intent.name
                 )
             }
         }
@@ -718,15 +577,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 attempted = false,
                 applied = false,
                 backend = null,
-                fallbackReason = "disabled_by_setting",
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null,
-                listFormattingHintUsed = false,
-                localRuleDetected = false,
-                localRuleKind = null,
-                localRuleScope = null,
-                localMatches = 0,
-                localNoMatchFallbackLiteRt = false
+                editIntent = editIntent
             )
         }
         if (!liteRtSummarizer.isModelAvailable()) {
@@ -735,15 +587,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 attempted = false,
                 applied = false,
                 backend = null,
-                fallbackReason = "model_unavailable",
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null,
-                listFormattingHintUsed = false,
-                localRuleDetected = false,
-                localRuleKind = null,
-                localRuleScope = null,
-                localMatches = 0,
-                localNoMatchFallbackLiteRt = false
+                editIntent = editIntent
             )
         }
 
@@ -753,51 +598,24 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             instructionText = normalizedInstruction
         )
         return when (result) {
-            is RewriteResult.RewriteSuccess -> RewriteStageResult(
+            is RewriteResult.Success -> RewriteStageResult(
                 output = result.text,
                 attempted = true,
                 applied = result.text != sourceText,
                 backend = result.backend.name,
-                fallbackReason = null,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = result.editIntent,
-                listFormattingHintUsed = result.listFormattingHintUsed,
-                localRuleDetected = false,
-                localRuleKind = null,
-                localRuleScope = null,
-                localMatches = 0,
-                localNoMatchFallbackLiteRt = false,
-                runtimeTier = result.runtimeTier,
-                runtimeLimits = result.runtimeLimits,
-                runtimeAvailMemMb = result.availMemMb,
-                runtimeLowMemory = result.lowMemory,
-                memoryGuardTriggered = result.memoryGuardTriggered,
-                suspectedNativeAbortPreviousRun = result.suspectedNativeAbortPreviousRun,
-                suspectedNativeAbortCount = result.suspectedNativeAbortCount
+                editIntent = editIntent
             )
 
-            is RewriteResult.RewriteFallback -> RewriteStageResult(
+            is RewriteResult.Failure -> RewriteStageResult(
                 output = sourceText,
                 attempted = true,
                 applied = false,
-                backend = null,
-                fallbackReason = result.reason.name,
-                runtimeError = result.runtimeError,
+                backend = result.backend?.name,
+                errorType = result.error.type,
+                errorMessage = result.error.litertError,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = result.editIntent,
-                listFormattingHintUsed = result.listFormattingHintUsed,
-                localRuleDetected = false,
-                localRuleKind = null,
-                localRuleScope = null,
-                localMatches = 0,
-                localNoMatchFallbackLiteRt = false,
-                runtimeTier = result.runtimeTier,
-                runtimeLimits = result.runtimeLimits,
-                runtimeAvailMemMb = result.availMemMb,
-                runtimeLowMemory = result.lowMemory,
-                memoryGuardTriggered = result.memoryGuardTriggered,
-                suspectedNativeAbortPreviousRun = result.suspectedNativeAbortPreviousRun,
-                suspectedNativeAbortCount = result.suspectedNativeAbortCount
+                editIntent = editIntent
             )
         }
     }
@@ -811,17 +629,22 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 refreshEditableInputState()
                 return@post
             }
-            val blankEditCommitPath = request.mode == SendMode.EDIT_EXISTING && output.isBlank()
-            val metricsWithCommitContext = metrics.copy(blankEditCommitPath = blankEditCommitPath)
             val outputForCommit = appendInlineDebugIfEnabled(
                 output = output,
-                metrics = metricsWithCommitContext,
+                metrics = metrics,
                 mode = request.mode
             )
+            val shouldPreserveBlankEdit = request.mode == SendMode.EDIT_EXISTING &&
+                outputForCommit.isBlank() &&
+                metrics.editIntent != LiteRtEditHeuristics.EditIntent.DELETE_ALL.name
 
             val committed = if (outputForCommit.isBlank()) {
                 if (request.mode == SendMode.EDIT_EXISTING) {
-                    replaceCurrentInputText("")
+                    if (shouldPreserveBlankEdit) {
+                        true
+                    } else {
+                        replaceCurrentInputText("")
+                    }
                 } else {
                     false
                 }
@@ -843,7 +666,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 }
             }
             keyboardViewModel.setDebugMetrics(
-                metricsWithCommitContext.copy(
+                metrics.copy(
                     committed = committed,
                     outputChars = outputForCommit.length
                 )
@@ -864,8 +687,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     private fun formatInlineDebugFooter(metrics: VoiceDebugMetrics, mode: SendMode): String {
-        val compatibilityStatus = liteRtSummarizerIfInitialized()?.latestCompatibilityStatus()
-        val hardAbortStatus = liteRtSummarizerIfInitialized()?.latestHardAbortStatus()
         val postProcessingMs = (metrics.totalMs - metrics.transcribeMs - metrics.rewriteMs).coerceAtLeast(0L)
         return buildString {
             appendLine("----- VOICE DEBUG -----")
@@ -891,23 +712,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             appendLine("litert_attempted: ${yesNo(metrics.rewriteAttempted)}")
             appendLine("litert_applied: ${yesNo(metrics.rewriteApplied)}")
             appendLine("litert_backend: ${metrics.rewriteBackend ?: "n/a"}")
-            appendLine("fallback_reason: ${metrics.rewriteFallbackReason ?: "none"}")
-            appendLine("litert_error: ${metrics.rewriteRuntimeError ?: "none"}")
+            appendLine("litert_error_type: ${metrics.rewriteErrorType ?: "none"}")
+            appendLine("litert_error: ${metrics.rewriteError ?: "none"}")
             appendLine("edit_intent: ${metrics.editIntent ?: "none"}")
-            appendLine("list_hint_used: ${yesNo(metrics.listFormattingHintUsed)}")
-            appendLine("blank_edit_commit_path: ${yesNo(metrics.blankEditCommitPath)}")
-            appendLine("local_rule_detected: ${yesNo(metrics.localRuleDetected)}")
-            appendLine("local_rule_kind: ${metrics.localRuleKind ?: "none"}")
-            appendLine("local_rule_scope: ${metrics.localRuleScope ?: "none"}")
-            appendLine("local_matches: ${metrics.localMatches}")
-            appendLine("local_no_match_fallback_litert: ${yesNo(metrics.localNoMatchFallbackLiteRt)}")
-            appendLine("runtime_tier: ${metrics.runtimeTier ?: "n/a"}")
-            appendLine("runtime_limits: ${metrics.runtimeLimits ?: "n/a"}")
-            appendLine("runtime_avail_mem_mb: ${metrics.runtimeAvailMemMb ?: -1}")
-            appendLine("runtime_low_memory: ${yesNo(metrics.runtimeLowMemory)}")
-            appendLine("memory_guard_triggered: ${yesNo(metrics.memoryGuardTriggered)}")
-            appendLine("suspected_native_abort_previous_run: ${yesNo(metrics.suspectedNativeAbortPreviousRun)}")
-            appendLine("suspected_native_abort_count: ${metrics.suspectedNativeAbortCount}")
             appendLine()
             appendLine("[payload]")
             appendLine("input_samples: ${metrics.inputSamples}")
@@ -920,22 +727,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             appendLine()
             appendLine("post_litert_text:")
             appendLine(metrics.postLiteRtText)
-            if (compatibilityStatus != null) {
-                appendLine()
-                appendLine("[litert_compatibility]")
-                appendLine("backend: ${compatibilityStatus.backendName}")
-                appendLine("healthy: ${yesNo(compatibilityStatus.healthy)}")
-                appendLine("disabled: ${yesNo(compatibilityStatus.disabled)}")
-                appendLine("failure_count: ${compatibilityStatus.failureCount}")
-                appendLine("last_error: ${compatibilityStatus.lastError ?: "none"}")
-            }
-            if (hardAbortStatus != null) {
-                appendLine()
-                appendLine("[litert_abort_marker]")
-                appendLine("suspected_previous_run_abort: ${yesNo(hardAbortStatus.suspectedPreviousRunAbort)}")
-                appendLine("suspected_abort_count: ${hardAbortStatus.suspectedAbortCount}")
-                appendLine("last_detected_at_ms: ${hardAbortStatus.lastDetectedAtMs}")
-            }
             append("----- END DEBUG -----")
         }
     }
@@ -1344,23 +1135,10 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val attempted: Boolean,
         val applied: Boolean,
         val backend: String?,
-        val fallbackReason: String?,
-        val runtimeError: String? = null,
+        val errorType: String? = null,
+        val errorMessage: String? = null,
         val elapsedMs: Long,
-        val editIntent: String?,
-        val listFormattingHintUsed: Boolean,
-        val localRuleDetected: Boolean,
-        val localRuleKind: String?,
-        val localRuleScope: String?,
-        val localMatches: Int,
-        val localNoMatchFallbackLiteRt: Boolean,
-        val runtimeTier: String? = null,
-        val runtimeLimits: String? = null,
-        val runtimeAvailMemMb: Long? = null,
-        val runtimeLowMemory: Boolean = false,
-        val memoryGuardTriggered: Boolean = false,
-        val suspectedNativeAbortPreviousRun: Boolean = false,
-        val suspectedNativeAbortCount: Int = 0
+        val editIntent: String?
     )
 
     private enum class SendMode {

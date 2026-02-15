@@ -43,6 +43,15 @@ Deterministic local command families:
 - Delete term (`all`, `first`, `last` scope).
 - Replace term (`all`, `first`, `last` scope).
 
+LiteRT rewrite/edit execution:
+
+- One-shot request per operation (no retries).
+- Fixed timeout cap: `30_000ms`.
+- Failures use a single exception payload with:
+  - `type`: `invalid_argument`, `input_too_long`, or `unknown`
+  - `litertError`: sanitized LiteRT/runtime message
+- Local bypasses (rewrite disabled/model unavailable) are handled in IME orchestration, not as LiteRT failures.
+
 ## Architecture Summary
 
 Main runtime modules:
@@ -76,9 +85,17 @@ Threading model:
 
 - Commit only when session/package still matches.
 - Cancel in-flight work on teardown and input changes.
-- LiteRT memory guards and runtime limits protect lower-end devices.
 - LiteRT backend tries GPU first, then CPU.
 - Model files must pass expected size checks and strict SHA-256 when hash is configured.
+
+## Debug Footer
+
+Inline debug keeps only core rewrite diagnostics:
+
+- `litert_attempted`, `litert_applied`, `litert_backend`
+- `litert_error_type`, `litert_error`
+- `edit_intent`
+- Timings, input/output sizes, transcript/output samples, and commit status
 
 ## Models and Configuration
 
