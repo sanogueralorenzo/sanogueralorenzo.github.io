@@ -108,7 +108,9 @@ fun OnboardingTutorialScreen(
     val isFinalStep = tutorialState.step == OnboardingTutorialStep.FINAL_REVIEW
     val nextEnabled = if (isFinalStep) true else tutorialState.nextEnabled
     val showNextControl = tutorialState.step != OnboardingTutorialStep.WAIT_FOR_PILL_TAP &&
-        tutorialState.step != OnboardingTutorialStep.WAIT_FOR_EDIT_TAP
+        tutorialState.step != OnboardingTutorialStep.WAIT_FOR_EDIT_TAP &&
+        tutorialState.step != OnboardingTutorialStep.WAIT_FOR_SEND_TAP
+    val showInstructionTitle = tutorialState.step != OnboardingTutorialStep.FINAL_REVIEW
 
     val actionPrompt = when (tutorialState.step) {
         OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> KeyboardActionPrompt(
@@ -119,6 +121,11 @@ fun OnboardingTutorialScreen(
         OnboardingTutorialStep.WAIT_FOR_EDIT_TAP -> KeyboardActionPrompt(
             text = stringResource(R.string.onboarding_tutorial_action_edit),
             target = KeyboardActionTarget.LEFT_EDIT
+        )
+
+        OnboardingTutorialStep.WAIT_FOR_SEND_TAP -> KeyboardActionPrompt(
+            text = stringResource(R.string.onboarding_tutorial_action_send),
+            target = KeyboardActionTarget.RIGHT_SEND
         )
 
         else -> null
@@ -162,7 +169,7 @@ fun OnboardingTutorialScreen(
                 onIdleTap = { viewModel.onPillTap() },
                 onEditTap = { viewModel.onEditTap() },
                 onDeleteTap = {},
-                onSendTap = {},
+                onSendTap = { viewModel.onSendTap() },
                 onDebugToggle = {},
                 onDebugLongPress = {},
                 showDebugButton = false
@@ -181,10 +188,12 @@ fun OnboardingTutorialScreen(
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = stringResource(instructionResId(tutorialState.step)),
-                    style = MaterialTheme.typography.titleLarge
-                )
+                if (showInstructionTitle) {
+                    Text(
+                        text = stringResource(instructionResId(tutorialState.step)),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
 
                 AnimatedVisibility(
                     visible = showSpeechCard && speechText != null,
@@ -295,7 +304,8 @@ data class KeyboardActionPrompt(
 
 enum class KeyboardActionTarget {
     CENTER_PILL,
-    LEFT_EDIT
+    LEFT_EDIT,
+    RIGHT_SEND
 }
 
 @Composable
@@ -311,12 +321,16 @@ private fun KeyboardActionOverlay(prompt: KeyboardActionPrompt) {
         label = "action_prompt_bob_y"
     )
 
-    val bubbleAlignment = if (prompt.target == KeyboardActionTarget.CENTER_PILL) {
-        Alignment.BottomCenter
-    } else {
-        Alignment.BottomStart
+    val bubbleAlignment = when (prompt.target) {
+        KeyboardActionTarget.CENTER_PILL -> Alignment.BottomCenter
+        KeyboardActionTarget.LEFT_EDIT -> Alignment.BottomStart
+        KeyboardActionTarget.RIGHT_SEND -> Alignment.BottomEnd
     }
-    val bubbleOffsetX = if (prompt.target == KeyboardActionTarget.CENTER_PILL) 0.dp else 10.dp
+    val bubbleOffsetX = when (prompt.target) {
+        KeyboardActionTarget.CENTER_PILL -> 0.dp
+        KeyboardActionTarget.LEFT_EDIT -> 10.dp
+        KeyboardActionTarget.RIGHT_SEND -> (-10).dp
+    }
 
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -326,10 +340,10 @@ private fun KeyboardActionOverlay(prompt: KeyboardActionPrompt) {
             modifier = Modifier
                 .offset(x = bubbleOffsetX, y = bobOffsetY.dp)
                 .widthIn(max = 260.dp),
-            horizontalAlignment = if (prompt.target == KeyboardActionTarget.CENTER_PILL) {
-                Alignment.CenterHorizontally
-            } else {
-                Alignment.Start
+            horizontalAlignment = when (prompt.target) {
+                KeyboardActionTarget.CENTER_PILL -> Alignment.CenterHorizontally
+                KeyboardActionTarget.LEFT_EDIT -> Alignment.Start
+                KeyboardActionTarget.RIGHT_SEND -> Alignment.End
             }
         ) {
             Surface(
@@ -366,11 +380,23 @@ private fun CurvedHandDrawnArrow(
     modifier: Modifier = Modifier
 ) {
     Canvas(modifier = modifier) {
-        val startX = if (target == KeyboardActionTarget.CENTER_PILL) size.width * 0.56f else size.width * 0.28f
+        val startX = when (target) {
+            KeyboardActionTarget.CENTER_PILL -> size.width * 0.56f
+            KeyboardActionTarget.LEFT_EDIT -> size.width * 0.28f
+            KeyboardActionTarget.RIGHT_SEND -> size.width * 0.72f
+        }
         val startY = 8f
-        val endX = if (target == KeyboardActionTarget.CENTER_PILL) size.width * 0.54f else size.width * 0.08f
+        val endX = when (target) {
+            KeyboardActionTarget.CENTER_PILL -> size.width * 0.54f
+            KeyboardActionTarget.LEFT_EDIT -> size.width * 0.08f
+            KeyboardActionTarget.RIGHT_SEND -> size.width * 0.94f
+        }
         val endY = size.height * 0.88f
-        val controlX = if (target == KeyboardActionTarget.CENTER_PILL) size.width * 0.74f else size.width * 0.12f
+        val controlX = when (target) {
+            KeyboardActionTarget.CENTER_PILL -> size.width * 0.74f
+            KeyboardActionTarget.LEFT_EDIT -> size.width * 0.12f
+            KeyboardActionTarget.RIGHT_SEND -> size.width * 0.88f
+        }
         val controlY = size.height * 0.56f
 
         val primary = Path().apply {
@@ -457,6 +483,7 @@ private fun instructionResId(step: OnboardingTutorialStep): Int {
         OnboardingTutorialStep.WAIT_FOR_EDIT_TAP -> R.string.onboarding_tutorial_instruction_tap_edit
         OnboardingTutorialStep.FAKE_RECORDING_EDIT -> R.string.onboarding_tutorial_instruction_recording_edit
         OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> R.string.onboarding_tutorial_instruction_processing_edit
+        OnboardingTutorialStep.WAIT_FOR_SEND_TAP -> R.string.onboarding_tutorial_instruction_tap_send
         OnboardingTutorialStep.FINAL_REVIEW -> R.string.onboarding_tutorial_instruction_final
     }
 }

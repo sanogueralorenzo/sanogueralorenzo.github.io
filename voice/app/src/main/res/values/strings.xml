@@ -66,8 +66,10 @@
     <string name="onboarding_tutorial_instruction_recording_compose">Simulating recording your first message.</string>
     <string name="onboarding_tutorial_instruction_processing_compose">Processing simulated recording and rewrite.</string>
     <string name="onboarding_tutorial_instruction_tap_edit">Now update the generated message.</string>
+    <string name="onboarding_tutorial_instruction_tap_send">Send the final result.</string>
     <string name="onboarding_tutorial_action_pill">Tap the pill to start recording</string>
     <string name="onboarding_tutorial_action_edit">Tap edit to apply your correction</string>
+    <string name="onboarding_tutorial_action_send">Tap send to finish</string>
     <string name="onboarding_tutorial_instruction_recording_edit">Simulating recording your edit instruction.</string>
     <string name="onboarding_tutorial_instruction_processing_edit">Applying your simulated edit.</string>
     <string name="onboarding_tutorial_instruction_final">Final simulated output is ready.</string>

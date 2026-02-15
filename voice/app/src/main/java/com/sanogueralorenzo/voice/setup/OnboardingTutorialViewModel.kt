@@ -31,6 +31,12 @@ class OnboardingTutorialViewModel(
         }
     }
 
+    fun onSendTap() {
+        setState {
+            copy(tutorialState = OnboardingTutorialStateMachine.onSendTap(tutorialState))
+        }
+    }
+
     fun onFakeRecordingCompleted() {
         setState {
             copy(

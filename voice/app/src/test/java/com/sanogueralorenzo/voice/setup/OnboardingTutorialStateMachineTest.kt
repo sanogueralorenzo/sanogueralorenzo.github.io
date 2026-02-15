@@ -62,7 +62,15 @@ class OnboardingTutorialStateMachineTest {
         assertTrue(state.nextEnabled)
 
         state = OnboardingTutorialStateMachine.onNext(state)
+        assertEquals(OnboardingTutorialStep.WAIT_FOR_SEND_TAP, state.step)
+        assertFalse(state.showEditButton)
+
+        val blocked = OnboardingTutorialStateMachine.onNext(state)
+        assertEquals(OnboardingTutorialStep.WAIT_FOR_SEND_TAP, blocked.step)
+
+        state = OnboardingTutorialStateMachine.onSendTap(state)
         assertEquals(OnboardingTutorialStep.FINAL_REVIEW, state.step)
+        assertFalse(state.showEditButton)
     }
 
     @Test

@@ -11,6 +11,7 @@ enum class OnboardingTutorialStep {
     WAIT_FOR_EDIT_TAP,
     FAKE_RECORDING_EDIT,
     FAKE_PROCESSING_EDIT,
+    WAIT_FOR_SEND_TAP,
     FINAL_REVIEW
 }
 
@@ -107,18 +108,40 @@ object OnboardingTutorialStateMachine {
             OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> {
                 if (!state.nextEnabled) return state
                 state.copy(
-                    step = OnboardingTutorialStep.FINAL_REVIEW,
-                    nextEnabled = true,
-                    keyboardMode = VoiceKeyboardMode.IDLE,
+                    step = OnboardingTutorialStep.WAIT_FOR_SEND_TAP,
+                    nextEnabled = false,
+                    keyboardMode = VoiceKeyboardMode.RECORDING,
                     keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                    audioLevel = 0f,
-                    showEditButton = true,
+                    audioLevel = 0.24f,
+                    showEditButton = false,
                     outputVariant = OnboardingOutputVariant.FINAL_LIST
                 )
             }
 
-            OnboardingTutorialStep.FINAL_REVIEW -> state
+            OnboardingTutorialStep.WAIT_FOR_SEND_TAP -> state
+
+            OnboardingTutorialStep.FINAL_REVIEW -> state.copy(
+                nextEnabled = true,
+                keyboardMode = VoiceKeyboardMode.IDLE,
+                keyboardStage = VoiceProcessingStage.TRANSCRIBING,
+                audioLevel = 0f,
+                showEditButton = false,
+                outputVariant = OnboardingOutputVariant.FINAL_LIST
+            )
         }
+    }
+
+    fun onSendTap(state: OnboardingTutorialState): OnboardingTutorialState {
+        if (state.step != OnboardingTutorialStep.WAIT_FOR_SEND_TAP) return state
+        return state.copy(
+            step = OnboardingTutorialStep.FINAL_REVIEW,
+            nextEnabled = true,
+            keyboardMode = VoiceKeyboardMode.IDLE,
+            keyboardStage = VoiceProcessingStage.TRANSCRIBING,
+            audioLevel = 0f,
+            showEditButton = false,
+            outputVariant = OnboardingOutputVariant.FINAL_LIST
+        )
     }
 
     fun onPillTap(state: OnboardingTutorialState): OnboardingTutorialState {
