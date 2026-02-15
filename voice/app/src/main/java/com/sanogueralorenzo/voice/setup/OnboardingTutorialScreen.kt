@@ -3,12 +3,6 @@ package com.sanogueralorenzo.voice.setup
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
@@ -45,8 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -107,6 +99,7 @@ fun OnboardingTutorialScreen(
     val keyboardState = OnboardingTutorialStateMachine.toKeyboardState(tutorialState)
     val isFinalStep = tutorialState.step == OnboardingTutorialStep.FINAL_REVIEW
     val nextEnabled = if (isFinalStep) true else tutorialState.nextEnabled
+    var showSentPreview by remember { mutableStateOf(false) }
     val showNextControl = tutorialState.step != OnboardingTutorialStep.WAIT_FOR_PILL_TAP &&
         tutorialState.step != OnboardingTutorialStep.WAIT_FOR_EDIT_TAP &&
         tutorialState.step != OnboardingTutorialStep.WAIT_FOR_SEND_TAP
@@ -144,6 +137,19 @@ fun OnboardingTutorialScreen(
 
     var showSpeechCard by remember { mutableStateOf(false) }
     var showOutputCard by remember { mutableStateOf(false) }
+
+    LaunchedEffect(tutorialState.step) {
+        if (tutorialState.step != OnboardingTutorialStep.FINAL_REVIEW) {
+            showSentPreview = false
+        }
+    }
+
+    LaunchedEffect(showSentPreview) {
+        if (showSentPreview) {
+            delay(1000L)
+            onDone()
+        }
+    }
 
     LaunchedEffect(speechText) {
         showSpeechCard = false
@@ -196,7 +202,7 @@ fun OnboardingTutorialScreen(
                 }
 
                 AnimatedVisibility(
-                    visible = showSpeechCard && speechText != null,
+                    visible = !showSentPreview && showSpeechCard && speechText != null,
                     enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
                         expandVertically(animationSpec = tween(durationMillis = 220))
                 ) {
@@ -222,7 +228,7 @@ fun OnboardingTutorialScreen(
                 }
 
                 AnimatedVisibility(
-                    visible = showOutputCard && outputText != null,
+                    visible = !showSentPreview && showOutputCard && outputText != null,
                     enter = fadeIn(animationSpec = tween(durationMillis = 260)) +
                         expandVertically(animationSpec = tween(durationMillis = 260))
                 ) {
@@ -247,6 +253,17 @@ fun OnboardingTutorialScreen(
                     }
                 }
 
+                AnimatedVisibility(
+                    visible = showSentPreview && isFinalStep,
+                    enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
+                        expandVertically(animationSpec = tween(durationMillis = 220))
+                ) {
+                    SentPreviewBubble(
+                        text = outputText.orEmpty(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 if (showNextControl) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -256,12 +273,18 @@ fun OnboardingTutorialScreen(
                             Button(
                                 onClick = {
                                     if (viewModel.canFinish()) {
-                                        onDone()
+                                        showSentPreview = true
                                     }
                                 },
-                                enabled = nextEnabled
+                                enabled = nextEnabled && !showSentPreview
                             ) {
-                                Text(text = stringResource(R.string.onboarding_tutorial_done))
+                                Text(
+                                    text = if (showSentPreview) {
+                                        stringResource(R.string.onboarding_tutorial_sending)
+                                    } else {
+                                        stringResource(R.string.onboarding_tutorial_done)
+                                    }
+                                )
                             }
                         } else {
                             FilledIconButton(
@@ -283,11 +306,7 @@ fun OnboardingTutorialScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 18.dp, vertical = 4.dp),
-                enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
-                    slideInVertically(
-                        initialOffsetY = { it / 3 },
-                        animationSpec = tween(durationMillis = 220)
-                    )
+                enter = fadeIn(animationSpec = tween(durationMillis = 220))
             ) {
                 if (actionPrompt != null) {
                     KeyboardActionOverlay(prompt = actionPrompt)
@@ -310,17 +329,6 @@ enum class KeyboardActionTarget {
 
 @Composable
 private fun KeyboardActionOverlay(prompt: KeyboardActionPrompt) {
-    val bobTransition = rememberInfiniteTransition(label = "action_prompt_bob")
-    val bobOffsetY by bobTransition.animateFloat(
-        initialValue = -2f,
-        targetValue = 2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1100, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "action_prompt_bob_y"
-    )
-
     val bubbleAlignment = when (prompt.target) {
         KeyboardActionTarget.CENTER_PILL -> Alignment.BottomCenter
         KeyboardActionTarget.LEFT_EDIT -> Alignment.BottomStart
@@ -338,7 +346,7 @@ private fun KeyboardActionOverlay(prompt: KeyboardActionPrompt) {
     ) {
         Column(
             modifier = Modifier
-                .offset(x = bubbleOffsetX, y = bobOffsetY.dp)
+                .offset(x = bubbleOffsetX)
                 .widthIn(max = 260.dp),
             horizontalAlignment = when (prompt.target) {
                 KeyboardActionTarget.CENTER_PILL -> Alignment.CenterHorizontally
@@ -363,7 +371,7 @@ private fun KeyboardActionOverlay(prompt: KeyboardActionPrompt) {
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 )
             }
-            CurvedHandDrawnArrow(
+            CleanPointerArrow(
                 target = prompt.target,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -375,57 +383,30 @@ private fun KeyboardActionOverlay(prompt: KeyboardActionPrompt) {
 }
 
 @Composable
-private fun CurvedHandDrawnArrow(
+private fun CleanPointerArrow(
     target: KeyboardActionTarget,
     modifier: Modifier = Modifier
 ) {
     Canvas(modifier = modifier) {
-        val startX = when (target) {
-            KeyboardActionTarget.CENTER_PILL -> size.width * 0.56f
-            KeyboardActionTarget.LEFT_EDIT -> size.width * 0.28f
-            KeyboardActionTarget.RIGHT_SEND -> size.width * 0.72f
-        }
+        val startX = size.width * 0.5f
         val startY = 8f
         val endX = when (target) {
-            KeyboardActionTarget.CENTER_PILL -> size.width * 0.54f
+            KeyboardActionTarget.CENTER_PILL -> size.width * 0.5f
             KeyboardActionTarget.LEFT_EDIT -> size.width * 0.08f
-            KeyboardActionTarget.RIGHT_SEND -> size.width * 0.94f
+            KeyboardActionTarget.RIGHT_SEND -> size.width * 0.92f
         }
-        val endY = size.height * 0.88f
-        val controlX = when (target) {
-            KeyboardActionTarget.CENTER_PILL -> size.width * 0.74f
-            KeyboardActionTarget.LEFT_EDIT -> size.width * 0.12f
-            KeyboardActionTarget.RIGHT_SEND -> size.width * 0.88f
-        }
-        val controlY = size.height * 0.56f
+        val endY = size.height * 0.9f
 
-        val primary = Path().apply {
-            moveTo(startX, startY)
-            quadraticTo(controlX, controlY, endX, endY)
-        }
-
-        val secondary = Path().apply {
-            moveTo(startX - 1.5f, startY + 4f)
-            quadraticTo(controlX - 6f, controlY + 3f, endX - 2f, endY + 1.5f)
-        }
-
-        drawPath(
-            path = primary,
+        drawLine(
             color = Color.White,
-            style = Stroke(
-                width = 4.2f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(22f, 10f), 6f)
-            )
-        )
-        drawPath(
-            path = secondary,
-            color = Color.White.copy(alpha = 0.55f),
-            style = Stroke(width = 2.2f)
+            start = Offset(startX, startY),
+            end = Offset(endX, endY),
+            strokeWidth = 3.6f
         )
 
-        val angle = atan2((endY - controlY), (endX - controlX))
+        val angle = atan2((endY - startY), (endX - startX))
         val headLength = 14f
-        val spread = 0.62f
+        val spread = 0.56f
         val left = Offset(
             x = endX - (headLength * cos(angle - spread)).toFloat(),
             y = endY - (headLength * sin(angle - spread)).toFloat()
@@ -447,6 +428,45 @@ private fun CurvedHandDrawnArrow(
             end = right,
             strokeWidth = 4.2f
         )
+    }
+}
+
+@Composable
+private fun SentPreviewBubble(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.End
+    ) {
+        Surface(
+            color = Color(0xFFDCF8C6),
+            shape = RoundedCornerShape(
+                topStart = 18.dp,
+                topEnd = 6.dp,
+                bottomStart = 18.dp,
+                bottomEnd = 18.dp
+            ),
+            modifier = Modifier.widthIn(max = 320.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = text,
+                    color = Color(0xFF111B21),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = stringResource(R.string.onboarding_tutorial_sent_now),
+                    color = Color(0xFF4D5E66),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+        }
     }
 }
 

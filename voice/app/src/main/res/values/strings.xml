@@ -73,6 +73,8 @@
     <string name="onboarding_tutorial_instruction_recording_edit">Simulating recording your edit instruction.</string>
     <string name="onboarding_tutorial_instruction_processing_edit">Applying your simulated edit.</string>
     <string name="onboarding_tutorial_instruction_final">Final simulated output is ready.</string>
+    <string name="onboarding_tutorial_sending">Sending...</string>
+    <string name="onboarding_tutorial_sent_now">now</string>
     <string name="onboarding_tutorial_speech_label">Simulated speech</string>
     <string name="onboarding_tutorial_output_label">Simulated output</string>
     <string name="onboarding_tutorial_speech_compose">Hey Mia, can you go to the supermarket and buy apple, eggs and avocado.</string>
