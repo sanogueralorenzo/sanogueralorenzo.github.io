@@ -62,10 +62,12 @@
     <string name="onboarding_tutorial_step_counter">Step %1$d of %2$d</string>
     <string name="onboarding_tutorial_next">Next</string>
     <string name="onboarding_tutorial_done">Done</string>
-    <string name="onboarding_tutorial_instruction_tap_pill">This is a simulation of the Voice pill. Tap the pill to start recording.</string>
+    <string name="onboarding_tutorial_instruction_tap_pill">Start with the onboarding keyboard.</string>
     <string name="onboarding_tutorial_instruction_recording_compose">Simulating recording your first message.</string>
     <string name="onboarding_tutorial_instruction_processing_compose">Processing simulated recording and rewrite.</string>
-    <string name="onboarding_tutorial_instruction_tap_edit">Tap the edit button to change the grocery list.</string>
+    <string name="onboarding_tutorial_instruction_tap_edit">Now update the generated message.</string>
+    <string name="onboarding_tutorial_action_pill">Tap the pill to start recording</string>
+    <string name="onboarding_tutorial_action_edit">Tap edit to apply your correction</string>
     <string name="onboarding_tutorial_instruction_recording_edit">Simulating recording your edit instruction.</string>
     <string name="onboarding_tutorial_instruction_processing_edit">Applying your simulated edit.</string>
     <string name="onboarding_tutorial_instruction_final">Final simulated output is ready.</string>
