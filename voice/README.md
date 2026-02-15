@@ -1,70 +1,119 @@
 # Voice (Android IME)
 
-Voice is an Android keyboard (IME) focused on dictation:
+Voice is an Android keyboard (IME) for on-device dictation and lightweight text cleanup.
 
-1. Capture audio from the keyboard UI.
-2. Transcribe on-device with Moonshine.
-3. Optionally rewrite/edit on-device with LiteRT-LM (Gemma 3 1B IT).
+Core flow:
+
+1. Capture speech from the keyboard UI.
+2. Transcribe locally with Moonshine.
+3. Optionally rewrite or edit locally with LiteRT-LM.
 4. Commit final text to the active input field.
 
-No cloud inference is used during normal typing. Network is only used for model download and update checks.
+No cloud inference is used in normal runtime. Network is only used for model downloads and update checks.
 
-## Runtime Flow
+## Product Boundaries
 
-`tap` -> `AudioRecord (16kHz mono PCM)` -> `MoonshineTranscriber` -> `LiteRtSummarizer` -> `InputConnection.commitText(...)`
+- Android custom keyboard (IME) plus setup app.
+- On-device transcription and on-device rewrite/edit.
+- Session-safe final commit into current editor.
+- Graceful fallback when LiteRT or ASR substeps fail.
 
-## Core Behavior
+## Runtime Pipeline
 
-- Compose mode:
-  - transcribes speech
-  - applies LiteRT rewrite when enabled and available
-  - falls back to raw transcript if rewrite fails
-- Edit mode:
-  - starts from current input text
-  - first tries deterministic local edit commands (clear/delete/replace)
-  - falls back to LiteRT edit when needed
-  - if LiteRT edit fails, keeps original text
+`tap -> AudioRecord(16kHz mono PCM) -> MoonshineTranscriber -> LiteRtSummarizer(optional) -> InputConnection.commitText(...)`
 
-## Main Modules
+## Runtime Behavior
 
-- IME service: `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceInputMethodService.kt`
-- Keyboard UI and state:
+Compose mode:
+
+- Transcribe speech.
+- Rewrite with LiteRT only when enabled and model is available.
+- If LiteRT fails, commit raw transcript.
+
+Edit mode:
+
+- Start from current input text.
+- Run deterministic local edit commands first.
+- Fall back to LiteRT edit when needed.
+- If LiteRT edit fails, keep original text.
+
+Deterministic local command families:
+
+- Clear all.
+- Delete term (`all`, `first`, `last` scope).
+- Replace term (`all`, `first`, `last` scope).
+
+## Architecture Summary
+
+Main runtime modules:
+
+- IME orchestration:
+  - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceInputMethodService.kt`
+- Keyboard UI/state:
   - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceKeyboardUi.kt`
   - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceKeyboardViewModel.kt`
-- Audio recorder: `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/audio/VoiceAudioRecorder.kt`
-- Moonshine ASR: `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/audio/MoonshineTranscriber.kt`
-- LiteRT rewrite/edit: `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/summary/LiteRtSummarizer.kt`
-- Model catalog/download/storage:
+- Audio capture:
+  - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/audio/VoiceAudioRecorder.kt`
+- ASR:
+  - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/audio/MoonshineTranscriber.kt`
+- Rewrite/edit:
+  - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/summary/LiteRtSummarizer.kt`
+- Model lifecycle:
   - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/models/ModelCatalog.kt`
   - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/models/ModelDownloader.kt`
   - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/models/ModelStore.kt`
-- Setup app screen: `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/setup/MainActivity.kt`
+  - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/models/ModelUpdateChecker.kt`
+- Setup app:
+  - `/Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/voice/app/src/main/java/com/sanogueralorenzo/voice/setup/MainActivity.kt`
 
-## Models
+Threading model:
+
+- Main thread: IME lifecycle, UI updates, final commit.
+- `executor` single thread: send pipeline.
+- `chunkExecutor` single thread: Moonshine streaming tasks.
+
+## Reliability Invariants
+
+- Commit only when session/package still matches.
+- Cancel in-flight work on teardown and input changes.
+- LiteRT memory guards and runtime limits protect lower-end devices.
+- LiteRT backend tries GPU first, then CPU.
+- Model files must pass expected size checks and strict SHA-256 when hash is configured.
+
+## Models and Configuration
 
 Configured in `ModelCatalog`:
 
-- Moonshine medium-streaming English model pack (`.ort` + tokenizer/config files)
-- LiteRT-LM model (`.litertlm`) for rewrite/edit
+- Moonshine medium-streaming English model pack (`.ort` set + tokenizer/config files).
+- LiteRT-LM model (`.litertlm`) for rewrite/edit.
 
-Optional mirror setting:
+Optional mirror:
 
 ```bash
 # gradle.properties (project or user)
 VOICE_MODEL_MIRROR_BASE_URL=https://your-public-model-cdn.example.com
 ```
 
-Mirror resolution applies to LiteRT specs. Download order is mirror first, canonical URL second.
+Mirror resolution applies to LiteRT model specs. Download order is mirror first, canonical URL second.
 
-## Build
+## Setup App Capabilities
+
+- Microphone permission flow.
+- Open IME settings and IME picker.
+- Download required models with progress.
+- Check model updates.
+- Toggle LiteRT rewrite and set custom rewrite instructions.
+
+## Build and Test
 
 ```bash
 ./gradlew :app:assembleDebug
 ./gradlew :app:compileDebugKotlin
+./gradlew :app:testDebugUnitTest
 ./gradlew :app:lintDebug
 ```
 
-## Setup
+## Device Setup
 
 1. Install and open the app.
 2. Grant microphone permission.
@@ -72,7 +121,8 @@ Mirror resolution applies to LiteRT specs. Download order is mirror first, canon
 4. Enable `Voice Keyboard` in Android keyboard settings.
 5. Select `Voice Keyboard` in the IME picker.
 
-## Notes
+## Contributor Notes
 
-- Keep user-facing strings in `strings.xml`.
-- Keep `ModelCatalog` metadata aligned with actual model artifacts.
+- Keep user-facing text in `strings.xml`.
+- Keep `ModelCatalog` metadata aligned with real artifacts.
+- Keep this `README.md` as the single source for product behavior and architecture notes.
