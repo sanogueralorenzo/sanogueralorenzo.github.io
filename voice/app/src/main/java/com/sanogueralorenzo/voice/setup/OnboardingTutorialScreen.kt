@@ -138,7 +138,7 @@ fun OnboardingTutorialScreen(
     var showSpeechCard by remember { mutableStateOf(false) }
     var showOutputCard by remember { mutableStateOf(false) }
 
-    LaunchedEffect(speechText, tutorialState.step) {
+    LaunchedEffect(speechText) {
         showSpeechCard = false
         if (!speechText.isNullOrBlank()) {
             delay(220L)
@@ -146,7 +146,7 @@ fun OnboardingTutorialScreen(
         }
     }
 
-    LaunchedEffect(outputText, tutorialState.step) {
+    LaunchedEffect(outputText) {
         showOutputCard = false
         if (!outputText.isNullOrBlank()) {
             delay(300L)
