@@ -1,14 +1,12 @@
 package com.sanogueralorenzo.voice.summary
 
 import android.content.Context
-import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.sanogueralorenzo.voice.models.ModelCatalog
@@ -26,10 +24,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
-import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
-class LiteRtSummarizer(context: Context) {
+class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private data class RewriteRequest(
         val directive: LiteRtPromptTemplates.RewriteDirective,
         val content: String,
@@ -46,64 +43,34 @@ class LiteRtSummarizer(context: Context) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val operationMutex = Mutex()
-    private val initMutex = Mutex()
     private val conversationMutex = Mutex()
     private val activeConversation = AtomicReference<Conversation?>()
-    private val backendPolicyStore = LiteRtBackendPolicyStore(appContext)
+    private val engineManager = LiteRtEngineManager(appContext)
     private val settingsStore = VoiceSettingsStore(appContext)
 
-    @Volatile
-    private var engine: Engine? = null
-
-    @Volatile
-    private var initializedModelPath: String? = null
-
-    @Volatile
-    private var initializedModelStamp: String? = null
-
-    @Volatile
-    private var initializedBackend: Backend? = null
-
-    @Volatile
-    private var initializedMaxNumTokens: Int = 0
-
-    fun isModelAvailable(): Boolean {
+    override fun isModelAvailable(): Boolean {
         return ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
     }
 
     fun currentBackendPolicy(): LiteRtBackendPolicy {
-        return backendPolicyStore.currentPolicy(currentModelSha())
+        return engineManager.currentBackendPolicy(currentModelSha())
     }
 
-    fun warmupAsync() {
-        scope.launch {
-            operationMutex.withLock {
-                if (!isConfiguredModelSupported()) return@withLock
-                val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm) ?: return@withLock
-                runCatching {
-                    ensureEngine(modelFile)
-                }.onFailure { error ->
-                    Log.w(TAG, "LiteRT warmup failed", error)
-                }
-            }
-        }
-    }
-
-    fun summarizeBlocking(text: String): RewriteResult {
+    override fun summarizeBlocking(text: String): RewriteResult {
         val startedAt = System.currentTimeMillis()
         val normalizedInput = normalizeInput(text)
         if (normalizedInput.isBlank()) {
             return RewriteResult.Success(
                 text = "",
                 latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
+                backend = engineManager.initializedBackend() ?: Backend.GPU
             )
         }
         if (!isConfiguredModelSupported() || !isModelAvailable()) {
             return RewriteResult.Success(
                 text = normalizedInput,
                 latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
+                backend = engineManager.initializedBackend() ?: Backend.GPU
             )
         }
 
@@ -125,14 +92,14 @@ class LiteRtSummarizer(context: Context) {
             return RewriteResult.Success(
                 text = originalText,
                 latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
+                backend = engineManager.initializedBackend() ?: Backend.GPU
             )
         }
         if (!isConfiguredModelSupported() || !isModelAvailable()) {
             return RewriteResult.Success(
                 text = originalText,
                 latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
+                backend = engineManager.initializedBackend() ?: Backend.GPU
             )
         }
 
@@ -158,9 +125,7 @@ class LiteRtSummarizer(context: Context) {
             operationMutex.withLock {
                 cancelActiveConversation()
                 activeConversation.set(null)
-                initMutex.withLock {
-                    closeEngineLocked()
-                }
+                engineManager.release()
             }
         }
         scope.cancel()
@@ -180,7 +145,7 @@ class LiteRtSummarizer(context: Context) {
             ?: return RewriteResult.Success(
                 text = normalizedInput,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
+                backend = engineManager.initializedBackend() ?: Backend.GPU
             )
 
         val request = parseRewriteRequest(normalizedInput)
@@ -188,21 +153,21 @@ class LiteRtSummarizer(context: Context) {
             return RewriteResult.Success(
                 text = normalizedInput,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
+                backend = engineManager.initializedBackend() ?: Backend.GPU
             )
         }
 
         val localEngine = try {
-            ensureEngine(modelFile)
+            engineManager.ensureEngine(modelFile = modelFile, modelSha = currentModelSha())
         } catch (t: Throwable) {
             return RewriteResult.Failure(
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend,
+                backend = engineManager.initializedBackend(),
                 error = toLiteRtFailure(t, "LiteRT engine initialization failed")
             )
         }
 
-        val backend = initializedBackend ?: Backend.GPU
+        val backend = engineManager.initializedBackend() ?: Backend.GPU
         return try {
             val listMode = looksLikeList(request.content)
             val output = rewriteOnce(
@@ -266,7 +231,7 @@ class LiteRtSummarizer(context: Context) {
             ?: return RewriteResult.Success(
                 text = originalText,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
+                backend = engineManager.initializedBackend() ?: Backend.GPU
             )
 
         val instructionAnalysis = LiteRtEditHeuristics.analyzeInstruction(instructionText)
@@ -278,16 +243,16 @@ class LiteRtSummarizer(context: Context) {
         )
 
         val localEngine = try {
-            ensureEngine(modelFile)
+            engineManager.ensureEngine(modelFile = modelFile, modelSha = currentModelSha())
         } catch (t: Throwable) {
             return RewriteResult.Failure(
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend,
+                backend = engineManager.initializedBackend(),
                 error = toLiteRtFailure(t, "LiteRT engine initialization failed")
             )
         }
 
-        val backend = initializedBackend ?: Backend.GPU
+        val backend = engineManager.initializedBackend() ?: Backend.GPU
         return try {
             val output = editOnce(
                 localEngine = localEngine,
@@ -388,79 +353,8 @@ class LiteRtSummarizer(context: Context) {
         }
     }
 
-    private suspend fun ensureEngine(
-        modelFile: File,
-        forceReset: Boolean = false
-    ): Engine {
-        if (!modelFile.exists()) {
-            throw IllegalStateException("LiteRT model file unavailable")
-        }
-        return initMutex.withLock {
-            val current = engine
-            val path = modelFile.absolutePath
-            val modelStamp = "${modelFile.length()}:${modelFile.lastModified()}"
-            if (
-                !forceReset &&
-                current != null &&
-                current.isInitialized() &&
-                initializedModelPath == path &&
-                initializedModelStamp == modelStamp &&
-                initializedMaxNumTokens == DEFAULT_ENGINE_MAX_TOKENS
-            ) {
-                return@withLock current
-            }
-
-            closeEngineLocked()
-
-            val modelSha = currentModelSha()
-            val candidateBackends = backendPolicyStore.preferredBackends(modelSha)
-            var lastError: Throwable? = null
-
-            for (backend in candidateBackends) {
-                val config = EngineConfig(
-                    modelPath = path,
-                    backend = backend,
-                    maxNumTokens = DEFAULT_ENGINE_MAX_TOKENS,
-                    cacheDir = appContext.cacheDir.absolutePath
-                )
-                var fresh: Engine? = null
-                try {
-                    fresh = Engine(config)
-                    fresh.initialize()
-                    engine = fresh
-                    initializedModelPath = path
-                    initializedModelStamp = modelStamp
-                    initializedBackend = backend
-                    initializedMaxNumTokens = DEFAULT_ENGINE_MAX_TOKENS
-                    Log.i(TAG, "LiteRT engine initialized backend=$backend")
-                    return@withLock fresh
-                } catch (t: Throwable) {
-                    runCatching { fresh?.close() }
-                    lastError = t
-                    if (backend == Backend.GPU) {
-                        backendPolicyStore.markGpuFailed(modelSha)
-                    }
-                    Log.w(TAG, "LiteRT init failed for backend=$backend", t)
-                }
-            }
-
-            throw (lastError ?: IllegalStateException("LiteRT engine init failed on all backends"))
-        }
-    }
-
     private suspend fun resetEngineNow() {
-        initMutex.withLock {
-            closeEngineLocked()
-        }
-    }
-
-    private fun closeEngineLocked() {
-        runCatching { engine?.close() }
-        engine = null
-        initializedModelPath = null
-        initializedModelStamp = null
-        initializedBackend = null
-        initializedMaxNumTokens = 0
+        engineManager.resetEngineNow()
         activeConversation.set(null)
     }
 
@@ -664,10 +558,8 @@ class LiteRtSummarizer(context: Context) {
     }
 
     companion object {
-        private const val TAG = "LiteRtSummarizer"
         private const val REQUEST_TIMEOUT_MS = 30_000L
         private const val CONVERSATION_TIMEOUT_CANCEL_GRACE_MS = 120L
-        private const val DEFAULT_ENGINE_MAX_TOKENS = 224
         private const val MAX_ERROR_MESSAGE_CHARS = 320
         private val SUPPORTED_MODEL_HINTS = listOf(
             "gemma-3n",

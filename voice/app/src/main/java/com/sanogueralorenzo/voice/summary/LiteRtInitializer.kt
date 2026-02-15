@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 class LiteRtInitializer(
-    private val summarizer: LiteRtSummarizer
+    private val summarizer: LiteRtWarmupClient
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val warmupStarted = AtomicBoolean(false)
@@ -45,6 +45,6 @@ class LiteRtInitializer(
 
     private companion object {
         private const val TAG = "LiteRtInitializer"
-        private const val WARMUP_PLACEHOLDER_INPUT = "warmup placeholder"
+        private const val WARMUP_PLACEHOLDER_INPUT = "warmup"
     }
 }

@@ -27,7 +27,6 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
-import com.sanogueralorenzo.voice.asr.AsrEngine
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
@@ -35,10 +34,8 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.setup.MainActivity
-import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
 import com.sanogueralorenzo.voice.summary.LiteRtInitializer
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
-import com.sanogueralorenzo.voice.summary.RewriteResult
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -77,7 +74,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private var pendingCommit: PendingCommit? = null
 
     @Volatile
-    private var pendingSendMode: SendMode = SendMode.COMPOSE_NEW
+    private var pendingSendMode: ImeSendMode = ImeSendMode.COMPOSE_NEW
 
     @Volatile
     private var pendingEditSourceText: String = ""
@@ -98,6 +95,20 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val liteRtInitializer: LiteRtInitializer get() = liteRtInitializerLazy.value
     private val asrRuntimeStatusStore: AsrRuntimeStatusStore get() = asrRuntimeStatusStoreLazy.value
     private val settingsStore: VoiceSettingsStore get() = settingsStoreLazy.value
+    private val imePipeline by lazy {
+        VoiceImePipeline(
+            transcriptionCoordinator = ImeTranscriptionCoordinator(
+                moonshineTranscriber = moonshineTranscriber,
+                asrRuntimeStatusStore = asrRuntimeStatusStore,
+                logTag = TAG
+            ),
+            rewriteCoordinator = ImeRewriteCoordinator(
+                settingsStore = settingsStore,
+                liteRtSummarizer = liteRtSummarizer
+            ),
+            commitCoordinator = ImeCommitCoordinator()
+        )
+    }
     private val keyboardViewModel by lazy { VoiceKeyboardViewModel(VoiceKeyboardState()) }
 
     override val lifecycle: Lifecycle
@@ -229,7 +240,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             openAppForPermission()
             return
         }
-        startRecording(mode = SendMode.COMPOSE_NEW)
+        startRecording(mode = ImeSendMode.COMPOSE_NEW)
     }
 
     private fun onEditPillTap() {
@@ -248,7 +259,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             return
         }
         startRecording(
-            mode = SendMode.EDIT_EXISTING,
+            mode = ImeSendMode.EDIT_EXISTING,
             editSourceText = sourceText
         )
     }
@@ -263,10 +274,10 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         refreshEditableInputState()
     }
 
-    private fun startRecording(mode: SendMode, editSourceText: String = "") {
+    private fun startRecording(mode: ImeSendMode, editSourceText: String = "") {
         if (audioRecorder != null) return
         pendingSendMode = mode
-        pendingEditSourceText = if (mode == SendMode.EDIT_EXISTING) editSourceText else ""
+        pendingEditSourceText = if (mode == ImeSendMode.EDIT_EXISTING) editSourceText else ""
         val chunkSessionId = beginChunkSession()
         val recorder = VoiceAudioRecorder(
             onLevelChanged = { level ->
@@ -277,7 +288,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             }
         )
         if (!recorder.start()) {
-            pendingSendMode = SendMode.COMPOSE_NEW
+            pendingSendMode = ImeSendMode.COMPOSE_NEW
             pendingEditSourceText = ""
             endChunkSession(chunkSessionId, cancelPending = true)
             keyboardViewModel.showIdle()
@@ -291,7 +302,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun onDeleteTap() {
         if (inFlight != null) return
         stopRecordingDiscardAsync()
-        pendingSendMode = SendMode.COMPOSE_NEW
+        pendingSendMode = ImeSendMode.COMPOSE_NEW
         pendingEditSourceText = ""
         keyboardViewModel.showIdle()
         refreshEditableInputState()
@@ -304,7 +315,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         keyboardViewModel.showTranscribing()
         val mode = pendingSendMode
         val editSourceText = pendingEditSourceText
-        pendingSendMode = SendMode.COMPOSE_NEW
+        pendingSendMode = ImeSendMode.COMPOSE_NEW
         pendingEditSourceText = ""
 
         submitSendRequest(
@@ -336,19 +347,26 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun processSendRequest(request: SendRequest) {
         val pipelineStartedAt = SystemClock.uptimeMillis()
         try {
-            val transcribe = transcribeRequest(request)
+            val pipelineRequest = ImePipelineRequest(
+                recorder = request.recorder,
+                mode = request.mode,
+                editSourceText = request.editSourceText,
+                chunkSessionId = request.chunkSessionId
+            )
+            val transcribe = imePipeline.transcribe(
+                request = pipelineRequest,
+                awaitChunkSessionQuiescence = { awaitChunkSessionQuiescence(it) },
+                finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) }
+            )
             if (Thread.currentThread().isInterrupted) {
                 postIdleAfterBackgroundWork()
                 return
             }
-            val rewrite = if (request.mode == SendMode.EDIT_EXISTING) {
-                editCurrentTextWithInstruction(
-                    sourceText = request.editSourceText,
-                    instructionTranscript = transcribe.transcript
-                )
-            } else {
-                rewriteTranscriptIfNeeded(transcribe.transcript)
-            }
+            val rewrite = imePipeline.rewrite(
+                request = pipelineRequest,
+                transcript = transcribe.transcript,
+                onShowRewriting = { mainHandler.post { keyboardViewModel.showRewriting() } }
+            )
             if (Thread.currentThread().isInterrupted) {
                 postIdleAfterBackgroundWork()
                 return
@@ -386,286 +404,37 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }
     }
 
-    private fun transcribeRequest(request: SendRequest): TranscribeStageResult {
-        val startedAt = SystemClock.uptimeMillis()
-        val fullPcm = request.recorder.stopAndGetPcm()
-        val chunkWaitStartedAt = SystemClock.uptimeMillis()
-        awaitChunkSessionQuiescence(request.chunkSessionId)
-        val chunkWaitElapsedMs = SystemClock.uptimeMillis() - chunkWaitStartedAt
-
-        val moonshineStartedAt = SystemClock.uptimeMillis()
-        val streamingText = finalizeMoonshineTranscript(request.chunkSessionId)
-        val moonshineElapsedMs = SystemClock.uptimeMillis() - moonshineStartedAt
-        if (streamingText.isNotBlank()) {
-            asrRuntimeStatusStore.recordRun(engineUsed = AsrEngine.MOONSHINE)
-            val totalElapsedMs = SystemClock.uptimeMillis() - startedAt
-            if (totalElapsedMs >= SLOW_TRANSCRIBE_PIPELINE_MS) {
-                Log.i(
-                    TAG,
-                    "Moonshine transcribe pipeline slow: total=${totalElapsedMs}ms moonshine=${moonshineElapsedMs}ms chunkWait=${chunkWaitElapsedMs}ms samples=${fullPcm.size} finalChars=${streamingText.length}"
-                )
-            }
-            return TranscribeStageResult(
-                transcript = streamingText,
-                path = TranscriptionPath.STREAMING,
-                inputSamples = fullPcm.size,
-                chunkWaitMs = chunkWaitElapsedMs,
-                streamingFinalizeMs = moonshineElapsedMs,
-                oneShotMs = 0L,
-                elapsedMs = totalElapsedMs
-            )
-        }
-
-        if (fullPcm.isEmpty()) {
-            asrRuntimeStatusStore.recordRun(
-                engineUsed = AsrEngine.MOONSHINE,
-                reason = "no_audio"
-            )
-            return TranscribeStageResult(
-                transcript = "",
-                path = TranscriptionPath.EMPTY_AUDIO,
-                inputSamples = 0,
-                chunkWaitMs = chunkWaitElapsedMs,
-                streamingFinalizeMs = moonshineElapsedMs,
-                oneShotMs = 0L,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt
-            )
-        }
-
-        val oneShotStartedAt = SystemClock.uptimeMillis()
-        val oneShot = moonshineTranscriber.transcribeWithoutStreaming(
-            pcm = fullPcm,
-            sampleRateHz = VoiceAudioRecorder.SAMPLE_RATE_HZ
-        )
-        var oneShotElapsedMs = SystemClock.uptimeMillis() - oneShotStartedAt
-        var totalElapsedMs = SystemClock.uptimeMillis() - startedAt
-        if (oneShot.isNotBlank()) {
-            asrRuntimeStatusStore.recordRun(
-                engineUsed = AsrEngine.MOONSHINE,
-                reason = "streaming_empty_non_streaming_used"
-            )
-            return TranscribeStageResult(
-                transcript = oneShot,
-                path = TranscriptionPath.ONE_SHOT_FALLBACK,
-                inputSamples = fullPcm.size,
-                chunkWaitMs = chunkWaitElapsedMs,
-                streamingFinalizeMs = moonshineElapsedMs,
-                oneShotMs = oneShotElapsedMs,
-                elapsedMs = totalElapsedMs
-            )
-        }
-
-        // First-run/cold-start can occasionally return empty; reinitialize once and retry.
-        moonshineTranscriber.release()
-        moonshineTranscriber.warmup()
-        val retryStartedAt = SystemClock.uptimeMillis()
-        val retryOneShot = moonshineTranscriber.transcribeWithoutStreaming(
-            pcm = fullPcm,
-            sampleRateHz = VoiceAudioRecorder.SAMPLE_RATE_HZ
-        )
-        oneShotElapsedMs += (SystemClock.uptimeMillis() - retryStartedAt)
-        totalElapsedMs = SystemClock.uptimeMillis() - startedAt
-        if (retryOneShot.isNotBlank()) {
-            asrRuntimeStatusStore.recordRun(
-                engineUsed = AsrEngine.MOONSHINE,
-                reason = "streaming_empty_one_shot_retry_used"
-            )
-            return TranscribeStageResult(
-                transcript = retryOneShot,
-                path = TranscriptionPath.ONE_SHOT_RETRY,
-                inputSamples = fullPcm.size,
-                chunkWaitMs = chunkWaitElapsedMs,
-                streamingFinalizeMs = moonshineElapsedMs,
-                oneShotMs = oneShotElapsedMs,
-                elapsedMs = totalElapsedMs
-            )
-        }
-
-        asrRuntimeStatusStore.recordRun(
-            engineUsed = AsrEngine.MOONSHINE,
-            reason = "empty_after_all_paths_retry_failed"
-        )
-        return TranscribeStageResult(
-            transcript = "",
-            path = TranscriptionPath.EMPTY_AFTER_ALL_PATHS,
-            inputSamples = fullPcm.size,
-            chunkWaitMs = chunkWaitElapsedMs,
-            streamingFinalizeMs = moonshineElapsedMs,
-            oneShotMs = oneShotElapsedMs,
-            elapsedMs = totalElapsedMs
-        )
-    }
-
-    private fun rewriteTranscriptIfNeeded(transcript: String): RewriteStageResult {
-        val startedAt = SystemClock.uptimeMillis()
-        val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
-        val shouldRewrite = rewriteEnabled && transcript.isNotBlank() && liteRtSummarizer.isModelAvailable()
-        if (shouldRewrite) {
-            mainHandler.post { keyboardViewModel.showRewriting() }
-        }
-        if (!shouldRewrite) {
-            return RewriteStageResult(
-                output = transcript,
-                attempted = false,
-                applied = false,
-                backend = null,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
-            )
-        }
-
-        val result = liteRtSummarizer.summarizeBlocking(
-            text = transcript
-        )
-        return when (result) {
-            is RewriteResult.Success -> RewriteStageResult(
-                output = result.text,
-                attempted = true,
-                applied = result.text != transcript,
-                backend = result.backend.name,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
-            )
-            is RewriteResult.Failure -> RewriteStageResult(
-                output = transcript,
-                attempted = true,
-                applied = false,
-                backend = result.backend?.name,
-                errorType = result.error.type,
-                errorMessage = result.error.litertError,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
-            )
-        }
-    }
-
-    private fun editCurrentTextWithInstruction(
-        sourceText: String,
-        instructionTranscript: String
-    ): RewriteStageResult {
-        val startedAt = SystemClock.uptimeMillis()
-        val normalizedSource = sourceText.trim()
-        val normalizedInstruction = instructionTranscript.trim()
-        if (normalizedSource.isBlank() || normalizedInstruction.isBlank()) {
-            return RewriteStageResult(
-                output = sourceText,
-                attempted = false,
-                applied = false,
-                backend = null,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
-            )
-        }
-        val instructionAnalysis = LiteRtEditHeuristics.analyzeInstruction(normalizedInstruction)
-        val editIntent = instructionAnalysis.intent.name
-
-        val deterministicEdit = LiteRtEditHeuristics.tryApplyDeterministicEdit(
-            sourceText = sourceText,
-            instructionText = normalizedInstruction
-        )
-        if (deterministicEdit != null) {
-            if (!deterministicEdit.noMatchDetected) {
-                return RewriteStageResult(
-                    output = deterministicEdit.output,
-                    attempted = false,
-                    applied = deterministicEdit.output != sourceText,
-                    backend = null,
-                    elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                    editIntent = deterministicEdit.intent.name
-                )
-            }
-        }
-
-        val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
-        if (!rewriteEnabled) {
-            return RewriteStageResult(
-                output = sourceText,
-                attempted = false,
-                applied = false,
-                backend = null,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
-            )
-        }
-        if (!liteRtSummarizer.isModelAvailable()) {
-            return RewriteStageResult(
-                output = sourceText,
-                attempted = false,
-                applied = false,
-                backend = null,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
-            )
-        }
-
-        mainHandler.post { keyboardViewModel.showRewriting() }
-        val result = liteRtSummarizer.applyEditInstructionBlocking(
-            originalText = sourceText,
-            instructionText = normalizedInstruction
-        )
-        return when (result) {
-            is RewriteResult.Success -> RewriteStageResult(
-                output = result.text,
-                attempted = true,
-                applied = result.text != sourceText,
-                backend = result.backend.name,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
-            )
-
-            is RewriteResult.Failure -> RewriteStageResult(
-                output = sourceText,
-                attempted = true,
-                applied = false,
-                backend = result.backend?.name,
-                errorType = result.error.type,
-                errorMessage = result.error.litertError,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
-            )
-        }
-    }
-
     private fun postSendResult(request: SendRequest, output: String, metrics: VoiceDebugMetrics) {
         mainHandler.post {
             inFlight = null
-            if (!isSessionCurrent(request.sessionId, request.packageName)) {
-                keyboardViewModel.setDebugMetrics(metrics.copy(committed = false))
-                keyboardViewModel.showIdle()
-                refreshEditableInputState()
-                return@post
-            }
             val outputForCommit = appendInlineDebugIfEnabled(
                 output = output,
                 metrics = metrics,
                 mode = request.mode
             )
-            val shouldPreserveBlankEdit = request.mode == SendMode.EDIT_EXISTING &&
-                outputForCommit.isBlank() &&
-                metrics.editIntent != LiteRtEditHeuristics.EditIntent.DELETE_ALL.name
-
-            val committed = if (outputForCommit.isBlank()) {
-                if (request.mode == SendMode.EDIT_EXISTING) {
-                    if (shouldPreserveBlankEdit) {
-                        true
-                    } else {
-                        replaceCurrentInputText("")
-                    }
-                } else {
-                    false
-                }
-            } else if (request.mode == SendMode.EDIT_EXISTING) {
-                replaceCurrentInputText(outputForCommit)
-            } else {
-                enqueuePendingCommit(outputForCommit, request.sessionId, request.packageName)
-                true
+            val commitResult = imePipeline.commit(
+                mode = request.mode,
+                outputForCommit = outputForCommit,
+                editIntent = metrics.editIntent,
+                sessionId = request.sessionId,
+                packageName = request.packageName,
+                isSessionCurrent = ::isSessionCurrent,
+                replaceCurrentInputText = ::replaceCurrentInputText,
+                enqueuePendingCommit = ::enqueuePendingCommit
+            )
+            if (commitResult.sessionMismatch) {
+                keyboardViewModel.setDebugMetrics(metrics.copy(committed = false))
+                keyboardViewModel.showIdle()
+                refreshEditableInputState()
+                return@post
             }
+            val committed = commitResult.committed
             if (outputForCommit.isNotBlank()) {
                 if (!committed) {
                     Log.w(TAG, "Output generated but commit failed for session=${request.sessionId}")
                 }
             } else {
-                if (committed && request.mode == SendMode.EDIT_EXISTING) {
+                if (committed && request.mode == ImeSendMode.EDIT_EXISTING) {
                     Log.i(TAG, "Edit cleared input for session=${request.sessionId}")
                 } else {
                     Log.i(TAG, "No transcript text to commit for session=${request.sessionId}")
@@ -685,59 +454,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun appendInlineDebugIfEnabled(
         output: String,
         metrics: VoiceDebugMetrics,
-        mode: SendMode
+        mode: ImeSendMode
     ): String {
         if (!keyboardViewModel.isInlineDebugEnabled()) return output
         if (output.isBlank()) return output
-        return output.trimEnd() + "\n\n" + formatInlineDebugFooter(metrics, mode)
+        return output.trimEnd() + "\n\n" + VoiceDebugFooterFormatter.format(metrics, mode.name)
     }
-
-    private fun formatInlineDebugFooter(metrics: VoiceDebugMetrics, mode: SendMode): String {
-        val postProcessingMs = (metrics.totalMs - metrics.transcribeMs - metrics.rewriteMs).coerceAtLeast(0L)
-        return buildString {
-            appendLine("----- VOICE DEBUG -----")
-            appendLine("mode: ${mode.name}")
-            appendLine("session: ${metrics.sessionId}")
-            appendLine("path: ${metrics.transcriptionPath.name}")
-            appendLine()
-            appendLine("[timings_ms]")
-            appendLine("total: ${metrics.totalMs}")
-            appendLine("transcribe: ${metrics.transcribeMs}")
-            appendLine("chunk_wait: ${metrics.chunkWaitMs}")
-            appendLine("stream_finalize: ${metrics.streamingFinalizeMs}")
-            appendLine("one_shot: ${metrics.oneShotMs}")
-            appendLine("rewrite: ${metrics.rewriteMs}")
-            appendLine("post_processing: $postProcessingMs")
-            appendLine()
-            appendLine("[steps_ms]")
-            appendLine("step_1_transcribe: ${metrics.transcribeMs}")
-            appendLine("step_2_rewrite: ${metrics.rewriteMs}")
-            appendLine("step_3_post_processing: $postProcessingMs")
-            appendLine()
-            appendLine("[rewrite]")
-            appendLine("litert_attempted: ${yesNo(metrics.rewriteAttempted)}")
-            appendLine("litert_applied: ${yesNo(metrics.rewriteApplied)}")
-            appendLine("litert_backend: ${metrics.rewriteBackend ?: "n/a"}")
-            appendLine("litert_error_type: ${metrics.rewriteErrorType ?: "none"}")
-            appendLine("litert_error: ${metrics.rewriteError ?: "none"}")
-            appendLine("edit_intent: ${metrics.editIntent ?: "none"}")
-            appendLine()
-            appendLine("[payload]")
-            appendLine("input_samples: ${metrics.inputSamples}")
-            appendLine("transcript_chars: ${metrics.transcriptChars}")
-            appendLine("output_chars: ${metrics.outputChars}")
-            appendLine()
-            appendLine("[text]")
-            appendLine("moonshine_transcript:")
-            appendLine(metrics.moonshineTranscriptText)
-            appendLine()
-            appendLine("post_litert_text:")
-            appendLine(metrics.postLiteRtText)
-            append("----- END DEBUG -----")
-        }
-    }
-
-    private fun yesNo(value: Boolean): String = if (value) "yes" else "no"
 
     private fun debugTextSample(text: String): String {
         val normalized = text.replace("\r\n", "\n").trim()
@@ -962,7 +684,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun cancelInFlight() {
         sessionCounter.incrementAndGet()
         pendingCommit = null
-        pendingSendMode = SendMode.COMPOSE_NEW
+        pendingSendMode = ImeSendMode.COMPOSE_NEW
         pendingEditSourceText = ""
         mainHandler.removeCallbacks(pendingCommitRunnable)
         moonshineTranscriberIfInitialized()?.cancelActive()
@@ -985,7 +707,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun stopRecordingDiscardAsync() {
         val recorder = audioRecorder ?: return
         audioRecorder = null
-        pendingSendMode = SendMode.COMPOSE_NEW
+        pendingSendMode = ImeSendMode.COMPOSE_NEW
         pendingEditSourceText = ""
         moonshineTranscriberIfInitialized()?.cancelActive()
         val chunkSessionId = activeChunkSessionId
@@ -1122,7 +844,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val sessionId: Int,
         val packageName: String?,
         val chunkSessionId: Int,
-        val mode: SendMode,
+        val mode: ImeSendMode,
         val editSourceText: String
     )
 
@@ -1134,32 +856,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val createdAtMs: Long = SystemClock.uptimeMillis()
     )
 
-    private data class TranscribeStageResult(
-        val transcript: String,
-        val path: TranscriptionPath,
-        val inputSamples: Int,
-        val chunkWaitMs: Long,
-        val streamingFinalizeMs: Long,
-        val oneShotMs: Long,
-        val elapsedMs: Long
-    )
-
-    private data class RewriteStageResult(
-        val output: String,
-        val attempted: Boolean,
-        val applied: Boolean,
-        val backend: String?,
-        val errorType: String? = null,
-        val errorMessage: String? = null,
-        val elapsedMs: Long,
-        val editIntent: String?
-    )
-
-    private enum class SendMode {
-        COMPOSE_NEW,
-        EDIT_EXISTING
-    }
-
     companion object {
         private const val TAG = "VoiceIme"
         private const val INPUT_SNAPSHOT_MAX_CHARS = 4_000
@@ -1169,7 +865,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         private const val CHUNK_WAIT_TOTAL_MS = 7_000L
         private const val CHUNK_WAIT_SLICE_MS = 180L
         private const val MOONSHINE_FINALIZE_WAIT_MS = 4_500L
-        private const val SLOW_TRANSCRIBE_PIPELINE_MS = 900L
         private const val DEBUG_TEXT_SAMPLE_MAX_CHARS = 360
     }
 }
