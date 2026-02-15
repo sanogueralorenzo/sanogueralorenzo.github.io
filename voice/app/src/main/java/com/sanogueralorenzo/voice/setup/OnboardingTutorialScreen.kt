@@ -8,8 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -69,9 +73,10 @@ fun OnboardingTutorialScreen(
     }
 
     val keyboardState = OnboardingTutorialStateMachine.toKeyboardState(tutorialState)
-    val stepNumber = OnboardingTutorialStateMachine.currentStepNumber(tutorialState.step)
     val isFinalStep = tutorialState.step == OnboardingTutorialStep.FINAL_REVIEW
     val nextEnabled = if (isFinalStep) true else tutorialState.nextEnabled
+    val showNextControl = tutorialState.step != OnboardingTutorialStep.WAIT_FOR_PILL_TAP &&
+        tutorialState.step != OnboardingTutorialStep.WAIT_FOR_EDIT_TAP
 
     val speechText = when (tutorialState.speechCue) {
         OnboardingSpeechCue.NONE -> null
@@ -87,49 +92,20 @@ fun OnboardingTutorialScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            if (isFinalStep) {
-                                if (OnboardingTutorialStateMachine.onDone(tutorialState)) {
-                                    onDone()
-                                }
-                            } else {
-                                tutorialState = OnboardingTutorialStateMachine.onNext(tutorialState)
-                            }
-                        },
-                        enabled = nextEnabled,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = if (isFinalStep) {
-                                stringResource(R.string.onboarding_tutorial_done)
-                            } else {
-                                stringResource(R.string.onboarding_tutorial_next)
-                            }
-                        )
-                    }
-                }
-                VoiceKeyboardImeContent(
-                    state = keyboardState,
-                    onIdleTap = {
-                        tutorialState = OnboardingTutorialStateMachine.onPillTap(tutorialState)
-                    },
-                    onEditTap = {
-                        tutorialState = OnboardingTutorialStateMachine.onEditTap(tutorialState)
-                    },
-                    onDeleteTap = {},
-                    onSendTap = {},
-                    onDebugToggle = {},
-                    onDebugLongPress = {},
-                    showDebugButton = false
-                )
-            }
+            VoiceKeyboardImeContent(
+                state = keyboardState,
+                onIdleTap = {
+                    tutorialState = OnboardingTutorialStateMachine.onPillTap(tutorialState)
+                },
+                onEditTap = {
+                    tutorialState = OnboardingTutorialStateMachine.onEditTap(tutorialState)
+                },
+                onDeleteTap = {},
+                onSendTap = {},
+                onDebugToggle = {},
+                onDebugLongPress = {},
+                showDebugButton = false
+            )
         }
     ) { innerPadding ->
         Column(
@@ -147,22 +123,6 @@ fun OnboardingTutorialScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.onboarding_section_title),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.onboarding_tutorial_step_counter,
-                            stepNumber,
-                            OnboardingTutorialStateMachine.TOTAL_STEPS
-                        ),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = stringResource(R.string.onboarding_tutorial_badge),
-                        style = MaterialTheme.typography.labelMedium
-                    )
                     Text(
                         text = stringResource(instructionResId(tutorialState.step)),
                         style = MaterialTheme.typography.bodyLarge
@@ -213,6 +173,38 @@ fun OnboardingTutorialScreen(
                     }
                 }
             }
+
+            if (showNextControl) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    if (isFinalStep) {
+                        Button(
+                            onClick = {
+                                if (OnboardingTutorialStateMachine.onDone(tutorialState)) {
+                                    onDone()
+                                }
+                            },
+                            enabled = nextEnabled
+                        ) {
+                            Text(text = stringResource(R.string.onboarding_tutorial_done))
+                        }
+                    } else {
+                        FilledIconButton(
+                            onClick = {
+                                tutorialState = OnboardingTutorialStateMachine.onNext(tutorialState)
+                            },
+                            enabled = nextEnabled
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = stringResource(R.string.onboarding_tutorial_next)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -233,13 +225,7 @@ private fun instructionResId(step: OnboardingTutorialStep): Int {
 private fun helperResId(step: OnboardingTutorialStep, nextEnabled: Boolean): Int {
     return when (step) {
         OnboardingTutorialStep.INTRO -> R.string.onboarding_tutorial_hint_tap_next
-        OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> {
-            if (nextEnabled) {
-                R.string.onboarding_tutorial_hint_tap_next
-            } else {
-                R.string.onboarding_tutorial_hint_tap_pill
-            }
-        }
+        OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> R.string.onboarding_tutorial_hint_tap_pill
 
         OnboardingTutorialStep.FAKE_RECORDING_COMPOSE,
         OnboardingTutorialStep.FAKE_RECORDING_EDIT -> {
@@ -258,13 +244,7 @@ private fun helperResId(step: OnboardingTutorialStep, nextEnabled: Boolean): Int
             }
         }
 
-        OnboardingTutorialStep.WAIT_FOR_EDIT_TAP -> {
-            if (nextEnabled) {
-                R.string.onboarding_tutorial_hint_tap_next
-            } else {
-                R.string.onboarding_tutorial_hint_tap_edit
-            }
-        }
+        OnboardingTutorialStep.WAIT_FOR_EDIT_TAP -> R.string.onboarding_tutorial_hint_tap_edit
 
         OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> {
             if (nextEnabled) {

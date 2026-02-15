@@ -39,8 +39,6 @@ data class OnboardingTutorialState(
 )
 
 object OnboardingTutorialStateMachine {
-    const val TOTAL_STEPS = 8
-
     fun initialState(): OnboardingTutorialState {
         return OnboardingTutorialState(
             step = OnboardingTutorialStep.INTRO,
@@ -52,19 +50,6 @@ object OnboardingTutorialStateMachine {
             speechCue = OnboardingSpeechCue.NONE,
             outputVariant = OnboardingOutputVariant.NONE
         )
-    }
-
-    fun currentStepNumber(step: OnboardingTutorialStep): Int {
-        return when (step) {
-            OnboardingTutorialStep.INTRO -> 1
-            OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> 2
-            OnboardingTutorialStep.FAKE_RECORDING_COMPOSE -> 3
-            OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE -> 4
-            OnboardingTutorialStep.WAIT_FOR_EDIT_TAP -> 5
-            OnboardingTutorialStep.FAKE_RECORDING_EDIT -> 6
-            OnboardingTutorialStep.FAKE_PROCESSING_EDIT -> 7
-            OnboardingTutorialStep.FINAL_REVIEW -> 8
-        }
     }
 
     fun onNext(state: OnboardingTutorialState): OnboardingTutorialState {
@@ -160,12 +145,28 @@ object OnboardingTutorialStateMachine {
 
     fun onPillTap(state: OnboardingTutorialState): OnboardingTutorialState {
         if (state.step != OnboardingTutorialStep.WAIT_FOR_PILL_TAP) return state
-        return state.copy(nextEnabled = true)
+        return state.copy(
+            step = OnboardingTutorialStep.FAKE_RECORDING_COMPOSE,
+            nextEnabled = false,
+            keyboardMode = VoiceKeyboardMode.RECORDING,
+            keyboardStage = VoiceProcessingStage.TRANSCRIBING,
+            audioLevel = 0.2f,
+            showEditButton = false,
+            speechCue = OnboardingSpeechCue.NONE
+        )
     }
 
     fun onEditTap(state: OnboardingTutorialState): OnboardingTutorialState {
         if (state.step != OnboardingTutorialStep.WAIT_FOR_EDIT_TAP) return state
-        return state.copy(nextEnabled = true)
+        return state.copy(
+            step = OnboardingTutorialStep.FAKE_RECORDING_EDIT,
+            nextEnabled = false,
+            keyboardMode = VoiceKeyboardMode.RECORDING,
+            keyboardStage = VoiceProcessingStage.TRANSCRIBING,
+            audioLevel = 0.2f,
+            showEditButton = true,
+            speechCue = OnboardingSpeechCue.NONE
+        )
     }
 
     fun onFakeRecordingCompleted(state: OnboardingTutorialState): OnboardingTutorialState {

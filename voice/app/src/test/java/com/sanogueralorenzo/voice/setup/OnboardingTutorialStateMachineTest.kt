@@ -18,9 +18,6 @@ class OnboardingTutorialStateMachineTest {
         assertEquals(OnboardingTutorialStep.WAIT_FOR_PILL_TAP, blocked.step)
 
         state = OnboardingTutorialStateMachine.onPillTap(state)
-        assertTrue(state.nextEnabled)
-
-        state = OnboardingTutorialStateMachine.onNext(state)
         assertEquals(OnboardingTutorialStep.FAKE_RECORDING_COMPOSE, state.step)
     }
 
@@ -29,7 +26,6 @@ class OnboardingTutorialStateMachineTest {
         var state = OnboardingTutorialStateMachine.initialState()
         state = OnboardingTutorialStateMachine.onNext(state)
         state = OnboardingTutorialStateMachine.onPillTap(state)
-        state = OnboardingTutorialStateMachine.onNext(state)
 
         state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
         assertEquals(OnboardingSpeechCue.COMPOSE_REQUEST, state.speechCue)
@@ -52,14 +48,12 @@ class OnboardingTutorialStateMachineTest {
         var state = OnboardingTutorialStateMachine.initialState()
         state = OnboardingTutorialStateMachine.onNext(state)
         state = OnboardingTutorialStateMachine.onPillTap(state)
-        state = OnboardingTutorialStateMachine.onNext(state)
         state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
         state = OnboardingTutorialStateMachine.onNext(state)
         state = OnboardingTutorialStateMachine.onFakeProcessingCompleted(state)
         state = OnboardingTutorialStateMachine.onNext(state)
 
         state = OnboardingTutorialStateMachine.onEditTap(state)
-        state = OnboardingTutorialStateMachine.onNext(state)
         assertEquals(OnboardingTutorialStep.FAKE_RECORDING_EDIT, state.step)
 
         state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
