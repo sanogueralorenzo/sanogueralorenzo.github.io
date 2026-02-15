@@ -27,6 +27,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
+import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
@@ -88,8 +89,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val moonshineTranscriberLazy = lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
     private val liteRtSummarizerLazy = lazy(LazyThreadSafetyMode.NONE) { LiteRtSummarizer(this) }
     private val liteRtInitializerLazy = lazy(LazyThreadSafetyMode.NONE) { LiteRtInitializer(liteRtSummarizer) }
-    private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { AsrRuntimeStatusStore(this) }
-    private val settingsStoreLazy = lazy(LazyThreadSafetyMode.NONE) { VoiceSettingsStore(this) }
+    private val appGraphLazy = lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
+    private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }
+    private val settingsStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.settingsStore }
     private val moonshineTranscriber: MoonshineTranscriber get() = moonshineTranscriberLazy.value
     private val liteRtSummarizer: LiteRtSummarizer get() = liteRtSummarizerLazy.value
     private val liteRtInitializer: LiteRtInitializer get() = liteRtInitializerLazy.value

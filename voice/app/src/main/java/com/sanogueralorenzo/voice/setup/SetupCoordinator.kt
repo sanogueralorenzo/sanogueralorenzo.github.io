@@ -24,12 +24,12 @@ import kotlinx.coroutines.withContext
 
 class SetupCoordinator(
     context: Context,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val settingsStore: VoiceSettingsStore,
+    private val updateChecker: ModelUpdateChecker
 ) {
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
-    private val updateChecker = ModelUpdateChecker(appContext)
-    private val settingsStore = VoiceSettingsStore(appContext)
 
     var uiState by mutableStateOf(
         SetupUiState(

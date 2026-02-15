@@ -35,6 +35,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 
 private object MainRoute {
@@ -51,9 +52,17 @@ private object MainRoute {
 fun SetupNavHost() {
     val context = LocalContext.current
     val appContext = remember(context) { context.applicationContext }
+    val appGraph = remember(appContext) { appContext.appGraph() }
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val coordinator = remember(appContext, scope) { SetupCoordinator(appContext, scope) }
+    val coordinator = remember(appContext, scope, appGraph) {
+        SetupCoordinator(
+            context = appContext,
+            scope = scope,
+            settingsStore = appGraph.settingsStore,
+            updateChecker = appGraph.modelUpdateChecker
+        )
+    }
     val uiState = coordinator.uiState
 
     val permissionLauncher = rememberLauncherForActivityResult(

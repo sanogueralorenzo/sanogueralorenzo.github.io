@@ -31,9 +31,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -46,9 +46,10 @@ fun PromptBenchmarkingScreen(
 ) {
     val context = LocalContext.current
     val appContext = remember(context) { context.applicationContext }
+    val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
-    val settingsStore = remember(appContext) { VoiceSettingsStore(appContext) }
+    val settingsStore = remember(appGraph) { appGraph.settingsStore }
     val gateway = remember(appContext) { LiteRtPromptBenchmarkGateway(appContext) }
     val cases = remember { PromptBenchmarkSuite.defaultCases() }
 

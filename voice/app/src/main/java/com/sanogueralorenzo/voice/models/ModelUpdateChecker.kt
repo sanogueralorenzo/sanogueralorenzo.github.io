@@ -1,6 +1,9 @@
 package com.sanogueralorenzo.voice.models
 
 import android.content.Context
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -14,6 +17,8 @@ import java.util.concurrent.TimeUnit
  * This works with any HTTP(s) source used in [ModelSpec.url], including GitHub raw,
  * Hugging Face, or official vendor hosts.
  */
+@Inject
+@SingleIn(AppScope::class)
 class ModelUpdateChecker(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val appContext = context.applicationContext

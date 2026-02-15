@@ -2,6 +2,9 @@ package com.sanogueralorenzo.voice.asr
 
 import android.content.Context
 import androidx.core.content.edit
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 
 data class AsrLastRunStatus(
     val engineUsed: AsrEngine,
@@ -13,6 +16,8 @@ data class AsrLastRunStatus(
 /**
  * Persists lightweight ASR runtime diagnostics for the setup screen.
  */
+@Inject
+@SingleIn(AppScope::class)
 class AsrRuntimeStatusStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 

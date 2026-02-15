@@ -1,10 +1,15 @@
 package com.sanogueralorenzo.voice.settings
 
 import android.content.Context
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 
 /**
  * App-level persisted settings shared by setup UI and IME runtime.
  */
+@Inject
+@SingleIn(AppScope::class)
 class VoiceSettingsStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
