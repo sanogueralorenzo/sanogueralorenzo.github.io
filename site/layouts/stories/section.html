@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting…</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="refresh" content="0; url={{ "/" | relURL }}">
+    <link rel="canonical" href="{{ "/" | absURL }}">
+    <script>
+      window.location.replace("{{ "/" | relURL }}");
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to <a href="{{ "/" | relURL }}">home</a>…</p>
+  </body>
+</html>

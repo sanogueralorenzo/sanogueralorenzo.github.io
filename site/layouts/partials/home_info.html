@@ -1,0 +1,76 @@
+{{- /*
+PaperMod `home_info.html` partial override.
+- Adds an optional avatar (homeInfoParams.ImageURL) on the left.
+- Title/subtitle/socials on the right (stacks on mobile via custom.css).
+*/ -}}
+{{- with site.Params.homeInfoParams -}}
+{{- $imgURL := (index . "ImageURL") | default "" -}}
+{{- $imgW := (index . "ImageWidth") | default 160 | int -}}
+{{- $imgH := (index . "ImageHeight") | default 160 | int -}}
+{{- $imgSrc := "" -}}
+
+{{- if $imgURL -}}
+  {{- $img := "" -}}
+  {{- if not (urls.Parse $imgURL).IsAbs -}}
+    {{- /* Local image path: allow Hugo's image pipeline. */ -}}
+    {{- $img = resources.Get $imgURL -}}
+  {{- end -}}
+
+  {{- if $img -}}
+    {{- $processableFormats := (slice "jpg" "jpeg" "png" "tif" "bmp" "gif") -}}
+    {{- if hugo.IsExtended -}}
+      {{- $processableFormats = $processableFormats | append "webp" -}}
+    {{- end -}}
+    {{- if in $processableFormats $img.MediaType.SubType -}}
+      {{- $img = $img.Resize (printf "%dx%d" $imgW $imgH) -}}
+    {{- end -}}
+    {{- $imgSrc = $img.Permalink -}}
+  {{- else -}}
+    {{- /* Remote image URL: no processing, just render as-is. */ -}}
+    {{- $imgSrc = $imgURL | absURL -}}
+  {{- end -}}
+{{- end -}}
+
+<article
+  class="home-info home-info--hero"
+>
+  <div class="home-info-inner">
+    {{- if $imgSrc -}}
+      <img
+        class="home-info-avatar"
+        draggable="false"
+        src="{{ $imgSrc }}"
+        alt="profile image"
+        height="{{ $imgH }}"
+        width="{{ $imgW }}"
+        loading="eager"
+        decoding="async"
+      />
+    {{- end -}}
+
+    <div class="home-info-text">
+      <header class="entry-header">
+        {{- /* Split title for deterministic mobile wrapping (see custom.css). */ -}}
+        {{- $title := .Title | default "" -}}
+        {{- $parts := split ($title | plainify) " " -}}
+        {{- if ge (len $parts) 2 -}}
+          {{- $first := index $parts 0 -}}
+          {{- $rest := delimit (after 1 $parts) " " -}}
+          <h1>
+            <span class="hero-title-first">{{ $first }}</span>
+            <span class="hero-title-rest">{{ $rest }}</span>
+          </h1>
+        {{- else -}}
+          <h1>{{ .Title | markdownify }}</h1>
+        {{- end -}}
+      </header>
+      <div class="entry-content">
+        {{ .Content | markdownify }}
+      </div>
+      <footer class="entry-footer">
+        {{ partial "social_icons.html" (dict "align" site.Params.homeInfoParams.AlignSocialIconsTo) }}
+      </footer>
+    </div>
+  </div>
+</article>
+{{- end -}}

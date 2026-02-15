@@ -1,0 +1,49 @@
+/* -------------------- Post Breadcrumb Back Link -------------------- */
+/*
+Override "back" link:
+PaperMod breadcrumbs render as: Home » Section.
+We restyle that into a small "← Home" pill above the title.
+*/
+
+/* Hide » separator from Home » Section */
+.post-header .breadcrumbs {
+  /* Breadcrumb separators are text nodes; collapsing font-size hides them cleanly. */
+  font-size: 0;
+}
+
+/* Hide Section from Home » Section */
+.post-header .breadcrumbs a:not(:first-child) {
+  display: none;
+}
+
+/* Restyle font of Home from Home » Section */
+.post-header .breadcrumbs a {
+  /* Ensure links remain clickable even when parent font-size is 0. */
+  font-size: 16px;
+  /* Add space between the back pill and the post title. */
+  margin-bottom: 16px;
+}
+
+/* Restyle background of Home */
+.post-header .breadcrumbs a:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--code-bg);
+  color: var(--secondary);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+/* Add ← to Home label */
+.post-header .breadcrumbs a:first-child::before {
+  content: "←";
+}
+
+/* Add Home hover */
+.post-header .breadcrumbs a:first-child:hover {
+  background: var(--border);
+  color: var(--primary);
+}

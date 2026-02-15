@@ -1,0 +1,13 @@
+/* -------------------- Social Icons -------------------- */
+/* Social icons padding increases tap target size. */
+.social-icons a {
+  padding: 6px;
+  /* Keep icon links in the site's accent blue. */
+  color: rgb(50, 100, 220);
+}
+
+/* Social icons SVG size controls the visual glyph size. */
+.social-icons a svg {
+  width: 22px;
+  height: 22px;
+}

@@ -1,0 +1,44 @@
+baseURL: "https://sanogueralorenzo.github.io/"
+title: "Mario Sanoguera de Lorenzo"
+module:
+  imports:
+    - path: github.com/adityatelange/hugo-PaperMod
+languageCode: "en-us"
+enableRobotsTXT: true
+enableGitInfo: true
+
+params:
+  env: production
+  defaultTheme: light
+  disableThemeToggle: true
+  ShowReadingTime: true
+  ShowBreadCrumbs: true
+  disableAnchoredHeadings: true
+  ShowPostNavLinks: true
+  hideFooter: true
+  # PaperMod "Home Info" block shown at the top of the home page.
+  # We extended the stock template to also render an avatar from these keys.
+  homeInfoParams:
+    Title: "Mario Sanoguera de Lorenzo"
+    Content: "Thoughts, tech and recommendations."
+    ImageURL: "https://avatars.githubusercontent.com/u/5630683"
+    ImageWidth: 160
+    ImageHeight: 160
+  socialIcons:
+    - name: "linkedin"
+      url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/"
+    - name: "CV"
+      url: "https://docs.google.com/document/d/1EPTrdfhl943lO1M98AZua6YlP5cUxEex3BngMLOuMKA/"
+    - name: "medium"
+      url: "https://medium.com/@sanogueralorenzo/"
+    - name: "x"
+      url: "https://x.com/MarioSanoguera/"
+    - name: "github"
+      url: "https://github.com/sanogueralorenzo/"
+  assets:
+    favicon: "/favicon.ico"
+    favicon16x16: "/favicon-16x16.png"
+    favicon32x32: "/favicon-32x32.png"
+    appleTouchIcon: "/apple-touch-icon.png"
+    androidChrome192x192: "/android-chrome-192x192.png"
+    androidChrome512x512: "/android-chrome-512x512.png"

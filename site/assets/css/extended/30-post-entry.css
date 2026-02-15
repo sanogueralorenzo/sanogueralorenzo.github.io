@@ -1,0 +1,15 @@
+/* -------------------- Post Entry -------------------- */
+/* Keep post list cards compact and consistent across pages. */
+.post-entry {
+  padding: 20px;
+  /* Only animate border color for a subtle interaction cue. */
+  transition: border-color 160ms ease;
+}
+
+/* Apply hover treatment only on devices with real hover support. */
+@media (hover: hover) and (pointer: fine) {
+  .post-entry:hover {
+    /* Slight border shift to signal clickability without extra motion. */
+    border-color: var(--tertiary);
+  }
+}
