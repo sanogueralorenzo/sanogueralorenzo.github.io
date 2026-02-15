@@ -64,7 +64,7 @@ class OnboardingTutorialViewModel(
     }
 
     fun currentStep(): OnboardingTutorialStep {
-        var step = OnboardingTutorialStep.INTRO
+        var step = OnboardingTutorialStep.WAIT_FOR_PILL_TAP
         withState(this) { state ->
             step = state.tutorialState.step
         }

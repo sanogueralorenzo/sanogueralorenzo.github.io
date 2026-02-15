@@ -5,7 +5,6 @@ import com.sanogueralorenzo.voice.ime.VoiceKeyboardState
 import com.sanogueralorenzo.voice.ime.VoiceProcessingStage
 
 enum class OnboardingTutorialStep {
-    INTRO,
     WAIT_FOR_PILL_TAP,
     FAKE_RECORDING_COMPOSE,
     FAKE_PROCESSING_COMPOSE,
@@ -41,8 +40,8 @@ data class OnboardingTutorialState(
 object OnboardingTutorialStateMachine {
     fun initialState(): OnboardingTutorialState {
         return OnboardingTutorialState(
-            step = OnboardingTutorialStep.INTRO,
-            nextEnabled = true,
+            step = OnboardingTutorialStep.WAIT_FOR_PILL_TAP,
+            nextEnabled = false,
             keyboardMode = VoiceKeyboardMode.IDLE,
             keyboardStage = VoiceProcessingStage.TRANSCRIBING,
             audioLevel = 0f,
@@ -54,28 +53,7 @@ object OnboardingTutorialStateMachine {
 
     fun onNext(state: OnboardingTutorialState): OnboardingTutorialState {
         return when (state.step) {
-            OnboardingTutorialStep.INTRO -> state.copy(
-                step = OnboardingTutorialStep.WAIT_FOR_PILL_TAP,
-                nextEnabled = false,
-                keyboardMode = VoiceKeyboardMode.IDLE,
-                audioLevel = 0f,
-                showEditButton = false,
-                speechCue = OnboardingSpeechCue.NONE,
-                outputVariant = OnboardingOutputVariant.NONE
-            )
-
-            OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> {
-                if (!state.nextEnabled) return state
-                state.copy(
-                    step = OnboardingTutorialStep.FAKE_RECORDING_COMPOSE,
-                    nextEnabled = false,
-                    keyboardMode = VoiceKeyboardMode.RECORDING,
-                    keyboardStage = VoiceProcessingStage.TRANSCRIBING,
-                    audioLevel = 0.2f,
-                    showEditButton = false,
-                    speechCue = OnboardingSpeechCue.NONE
-                )
-            }
+            OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> state
 
             OnboardingTutorialStep.FAKE_RECORDING_COMPOSE -> {
                 if (!state.nextEnabled) return state

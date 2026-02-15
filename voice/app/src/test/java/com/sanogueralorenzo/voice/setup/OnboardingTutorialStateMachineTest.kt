@@ -9,8 +9,6 @@ class OnboardingTutorialStateMachineTest {
     @Test
     fun cannotAdvancePillStepUntilPillIsTapped() {
         var state = OnboardingTutorialStateMachine.initialState()
-
-        state = OnboardingTutorialStateMachine.onNext(state)
         assertEquals(OnboardingTutorialStep.WAIT_FOR_PILL_TAP, state.step)
         assertFalse(state.nextEnabled)
 
@@ -24,7 +22,6 @@ class OnboardingTutorialStateMachineTest {
     @Test
     fun composeFlowProducesInitialListOutput() {
         var state = OnboardingTutorialStateMachine.initialState()
-        state = OnboardingTutorialStateMachine.onNext(state)
         state = OnboardingTutorialStateMachine.onPillTap(state)
 
         state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
@@ -46,7 +43,6 @@ class OnboardingTutorialStateMachineTest {
     @Test
     fun editFlowReplacesEggsWithMilkInFinalOutputVariant() {
         var state = OnboardingTutorialStateMachine.initialState()
-        state = OnboardingTutorialStateMachine.onNext(state)
         state = OnboardingTutorialStateMachine.onPillTap(state)
         state = OnboardingTutorialStateMachine.onFakeRecordingCompleted(state)
         state = OnboardingTutorialStateMachine.onNext(state)

@@ -1,5 +1,9 @@
 package com.sanogueralorenzo.voice.setup
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,9 +24,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.sanogueralorenzo.voice.R
@@ -90,6 +97,25 @@ fun OnboardingTutorialScreen(
         OnboardingOutputVariant.FINAL_LIST -> stringResource(R.string.onboarding_tutorial_output_final)
     }
 
+    var showSpeechCard by remember { mutableStateOf(false) }
+    var showOutputCard by remember { mutableStateOf(false) }
+
+    LaunchedEffect(speechText, tutorialState.step) {
+        showSpeechCard = false
+        if (!speechText.isNullOrBlank()) {
+            delay(220L)
+            showSpeechCard = true
+        }
+    }
+
+    LaunchedEffect(outputText, tutorialState.step) {
+        showOutputCard = false
+        if (!outputText.isNullOrBlank()) {
+            delay(300L)
+            showOutputCard = true
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
@@ -131,7 +157,11 @@ fun OnboardingTutorialScreen(
                 }
             }
 
-            if (speechText != null) {
+            AnimatedVisibility(
+                visible = showSpeechCard && speechText != null,
+                enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
+                    expandVertically(animationSpec = tween(durationMillis = 220))
+            ) {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier
@@ -143,15 +173,21 @@ fun OnboardingTutorialScreen(
                             text = stringResource(R.string.onboarding_tutorial_speech_label),
                             style = MaterialTheme.typography.titleSmall
                         )
-                        Text(
-                            text = speechText,
-                            style = MaterialTheme.typography.bodyMedium
+                        AnimatedTypewriterText(
+                            text = speechText.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            startDelayMs = 100L,
+                            charDelayMs = 12L
                         )
                     }
                 }
             }
 
-            if (outputText != null) {
+            AnimatedVisibility(
+                visible = showOutputCard && outputText != null,
+                enter = fadeIn(animationSpec = tween(durationMillis = 260)) +
+                    expandVertically(animationSpec = tween(durationMillis = 260))
+            ) {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier
@@ -163,9 +199,11 @@ fun OnboardingTutorialScreen(
                             text = stringResource(R.string.onboarding_tutorial_output_label),
                             style = MaterialTheme.typography.titleSmall
                         )
-                        Text(
-                            text = outputText,
-                            style = MaterialTheme.typography.bodyMedium
+                        AnimatedTypewriterText(
+                            text = outputText.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            startDelayMs = 120L,
+                            charDelayMs = 8L
                         )
                     }
                 }
@@ -204,9 +242,33 @@ fun OnboardingTutorialScreen(
     }
 }
 
+@Composable
+private fun AnimatedTypewriterText(
+    text: String,
+    style: TextStyle,
+    startDelayMs: Long,
+    charDelayMs: Long
+) {
+    var visibleChars by remember(text) { mutableStateOf(0) }
+
+    LaunchedEffect(text) {
+        visibleChars = 0
+        if (text.isBlank()) return@LaunchedEffect
+        delay(startDelayMs)
+        while (visibleChars < text.length) {
+            visibleChars += 1
+            delay(charDelayMs)
+        }
+    }
+
+    Text(
+        text = text.take(visibleChars),
+        style = style
+    )
+}
+
 private fun instructionResId(step: OnboardingTutorialStep): Int {
     return when (step) {
-        OnboardingTutorialStep.INTRO -> R.string.onboarding_tutorial_instruction_intro
         OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> R.string.onboarding_tutorial_instruction_tap_pill
         OnboardingTutorialStep.FAKE_RECORDING_COMPOSE -> R.string.onboarding_tutorial_instruction_recording_compose
         OnboardingTutorialStep.FAKE_PROCESSING_COMPOSE -> R.string.onboarding_tutorial_instruction_processing_compose
@@ -219,7 +281,6 @@ private fun instructionResId(step: OnboardingTutorialStep): Int {
 
 private fun helperResId(step: OnboardingTutorialStep, nextEnabled: Boolean): Int {
     return when (step) {
-        OnboardingTutorialStep.INTRO -> R.string.onboarding_tutorial_hint_tap_next
         OnboardingTutorialStep.WAIT_FOR_PILL_TAP -> R.string.onboarding_tutorial_hint_tap_pill
 
         OnboardingTutorialStep.FAKE_RECORDING_COMPOSE,
