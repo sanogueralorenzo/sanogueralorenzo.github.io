@@ -27,7 +27,7 @@
     <string name="prompt_benchmark_model_missing">LiteRT model missing. Download it from Models before running benchmark.</string>
     <string name="prompt_benchmark_open_models">Open Models</string>
     <string name="prompt_benchmark_rewrite_disabled_warning">Rewrite setting is currently disabled. Benchmark runs still execute direct LiteRT calls for prompt evaluation.</string>
-    <string name="prompt_benchmark_run_action">Run Benchmark</string>
+    <string name="prompt_benchmark_run_action">Run</string>
     <string name="prompt_benchmark_cancel_action">Cancel</string>
     <string name="prompt_benchmark_share_action">Share</string>
     <string name="prompt_benchmark_progress">Running case %1$d/%2$d, run %3$d/%4$d.</string>

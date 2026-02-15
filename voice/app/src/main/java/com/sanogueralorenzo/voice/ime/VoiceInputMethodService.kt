@@ -36,6 +36,7 @@ import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.setup.MainActivity
 import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
+import com.sanogueralorenzo.voice.summary.LiteRtInitializer
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.summary.RewriteResult
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
@@ -89,10 +90,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     private val moonshineTranscriberLazy = lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
     private val liteRtSummarizerLazy = lazy(LazyThreadSafetyMode.NONE) { LiteRtSummarizer(this) }
+    private val liteRtInitializerLazy = lazy(LazyThreadSafetyMode.NONE) { LiteRtInitializer(liteRtSummarizer) }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { AsrRuntimeStatusStore(this) }
     private val settingsStoreLazy = lazy(LazyThreadSafetyMode.NONE) { VoiceSettingsStore(this) }
     private val moonshineTranscriber: MoonshineTranscriber get() = moonshineTranscriberLazy.value
     private val liteRtSummarizer: LiteRtSummarizer get() = liteRtSummarizerLazy.value
+    private val liteRtInitializer: LiteRtInitializer get() = liteRtInitializerLazy.value
     private val asrRuntimeStatusStore: AsrRuntimeStatusStore get() = asrRuntimeStatusStoreLazy.value
     private val settingsStore: VoiceSettingsStore get() = settingsStoreLazy.value
     private val keyboardViewModel by lazy { VoiceKeyboardViewModel(VoiceKeyboardState()) }
@@ -112,7 +115,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onCreateInputView(): View {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
-        liteRtSummarizer.warmupAsync()
+        warmupLiteRtAsync()
         warmupMoonshineAsync()
         val container = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -169,12 +172,14 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val recorderToRelease = audioRecorder
         audioRecorder = null
         val moonshineToRelease = moonshineTranscriberIfInitialized()
+        val liteRtInitializerToRelease = liteRtInitializerIfInitialized()
         val liteRtSummarizerToRelease = liteRtSummarizerIfInitialized()
         executor.shutdownNow()
         chunkExecutor.shutdownNow()
         Thread({
             recorderToRelease?.release()
             moonshineToRelease?.release()
+            liteRtInitializerToRelease?.cancel()
             liteRtSummarizerToRelease?.release()
         }, "voice-ime-release").start()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
@@ -183,6 +188,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        warmupLiteRtAsync()
         attachOwnersToWindowTree(null)
         imeInputRootView?.let { view ->
             updateBottomInsetFromInsets(ViewCompat.getRootWindowInsets(view))
@@ -1059,12 +1065,20 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }
     }
 
+    private fun warmupLiteRtAsync() {
+        liteRtInitializer.warmupAsyncIfNeeded()
+    }
+
     private fun moonshineTranscriberIfInitialized(): MoonshineTranscriber? {
         return if (moonshineTranscriberLazy.isInitialized()) moonshineTranscriberLazy.value else null
     }
 
     private fun liteRtSummarizerIfInitialized(): LiteRtSummarizer? {
         return if (liteRtSummarizerLazy.isInitialized()) liteRtSummarizerLazy.value else null
+    }
+
+    private fun liteRtInitializerIfInitialized(): LiteRtInitializer? {
+        return if (liteRtInitializerLazy.isInitialized()) liteRtInitializerLazy.value else null
     }
 
     private fun cancelPendingChunkWork(sessionId: Int) {
