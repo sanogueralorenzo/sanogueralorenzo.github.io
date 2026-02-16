@@ -17,13 +17,12 @@ internal object LiteRtPromptTemplates {
         allowStrongTransform: Boolean,
         customInstructions: String
     ): String {
-        val formatRule = if (bulletMode) {
-            "If source is list-like, preserve list structure and line order."
-        } else {
-            "Keep prose structure unchanged."
-        }
         val customRule = customInstructionsRule(customInstructions)
-        return "$BASE_REWRITE_INSTRUCTIONS $formatRule $REWRITE_SAFETY_INSTRUCTIONS $customRule"
+        return if (customRule.isBlank()) {
+            REWRITE_SYSTEM_INSTRUCTION
+        } else {
+            "$REWRITE_SYSTEM_INSTRUCTION $customRule"
+        }
     }
 
     fun buildEditSystemInstruction(customInstructions: String): String {
@@ -77,17 +76,16 @@ internal object LiteRtPromptTemplates {
         "Reply with exactly OK. No markdown, no punctuation, no extra words."
     const val PROBE_USER_MESSAGE: String = "Reply with OK."
 
-    private const val BASE_REWRITE_INSTRUCTIONS =
-        "Clean dictated text with minimal edits. " +
+    private const val REWRITE_SYSTEM_INSTRUCTION =
+        "Clean this dictated message with minimal edits. " +
             "Allowed edits: remove spoken fillers, remove immediate duplicate words, " +
             "fix obvious transcription mistakes, and normalize min/mins to minutes. " +
             "If input has digits, keep digits in output. " +
-            "If input has numbers written in words, convert them to digits."
-    private const val REWRITE_SAFETY_INSTRUCTIONS =
-        "Do not paraphrase, summarize, reorder, or change meaning, tone, person, or intent. " +
-            "If no allowed edit applies, return the input unchanged. " +
-            "If uncertain, return the input unchanged. " +
-            "Output only the cleaned text."
+            "If input has numbers written in words, always convert them to digits. " +
+            "Do not paraphrase, summarize, reorder, or change meaning, tone, person, or intent. " +
+            "If no allowed edit applies, return input unchanged. " +
+            "If uncertain, return input unchanged. " +
+            "Return only the cleaned message after the label \"Cleaned:\"."
     private const val EDIT_SYSTEM_INSTRUCTION =
         "Apply EDIT_INSTRUCTION to ORIGINAL_MESSAGE exactly. " +
             "If EDIT_INTENT indicates delete-all, return an empty final message. " +
