@@ -121,6 +121,39 @@ Configured in `ModelCatalog`:
 ./gradlew :app:lintDebug
 ```
 
+## Prompt Evaluation on macOS
+
+Use `scripts/prompt_eval.sh` to benchmark prompts against expected outputs on a local macOS LiteRT-LM runtime.
+
+What it does:
+
+- Downloads the Gemma `.litertlm` model (if missing).
+- Clones/builds LiteRT-LM CLI (if missing).
+- Runs cases sequentially (not in parallel).
+- Writes both text and JSON reports.
+
+Example:
+
+```bash
+scripts/prompt_eval.sh \
+  --prompt-file examples/prompt_eval/prompt.txt \
+  --cases-file examples/prompt_eval/cases.jsonl \
+  --report-file .cache/prompt_eval/report.txt \
+  --json-report-file .cache/prompt_eval/report.json
+```
+
+Case format (`jsonl` or `json` array):
+
+- `id`: string case identifier.
+- `input`: test input text.
+- `expected`: expected output string.
+- `match`: `exact`, `contains`, or `regex`.
+
+Notes:
+
+- This workflow currently uses LiteRT-LM runtime default sampling (no explicit sampler overrides).
+- Prompt templates can use `{{input}}` (or `{input}`) placeholder.
+
 ## Device Setup
 
 1. Install and open the app.
