@@ -144,15 +144,9 @@ absl::StatusOr<std::string> RunSingleInference(const std::string& model_path,
     preface.tools = json::array();
     preface.extra_context = json::object();
 
-    json system_content = json::array();
-    json system_text_part = json::object();
-    system_text_part["type"] = "text";
-    system_text_part["text"] = system_instruction;
-    system_content.push_back(system_text_part);
-
     json system_message = json::object();
     system_message["role"] = "system";
-    system_message["content"] = system_content;
+    system_message["content"] = system_instruction;
     preface.messages[0] = system_message;
 
     builder.SetPreface(preface);
@@ -162,12 +156,9 @@ absl::StatusOr<std::string> RunSingleInference(const std::string& model_path,
   ASSIGN_OR_RETURN(auto conversation,
                    Conversation::Create(*engine, conversation_config));
 
-  json user_content = json::array();
-  user_content.push_back(json::object({{"type", "text"}, {"text", input_prompt}}));
-
   ASSIGN_OR_RETURN(auto model_message,
                    conversation->SendMessage(
-                       json::object({{"role", "user"}, {"content", user_content}})));
+                       json::object({{"role", "user"}, {"content", input_prompt}})));
 
   return ExtractText(model_message);
 }
