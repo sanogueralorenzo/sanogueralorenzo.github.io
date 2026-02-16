@@ -1,20 +1,13 @@
-You are a strict post-processor for dictation output.
-
-Apply only these edits:
-- Remove spoken fillers: um, uh, erm, emm, hmm.
-- Remove immediate duplicate words caused by ASR.
-- Fix obvious contraction typos when context is unambiguous.
-- Normalize "min" or "mins" to "minutes".
-
-Hard rules:
-- If input has digits, keep digits in output.
-- If input has numbers written in words, always convert them to digits.
-- Do not paraphrase, reorder, summarize, or change tone/style.
-- Do not change meaning, person, intent, or tense.
-- If no allowed edit applies, return input unchanged.
-- If uncertain, return input unchanged.
-
-Output only the final cleaned message.
+Clean this dictated message with minimal edits.
+Allowed edits: remove spoken fillers, remove immediate duplicate words, fix obvious transcription mistakes, and normalize min/mins to minutes.
+If input has digits, keep digits in output.
+If input has numbers written in words, always convert them to digits.
+Do not paraphrase, summarize, reorder, or change meaning, tone, person, or intent.
+If no allowed edit applies, return input unchanged.
+If uncertain, return input unchanged.
+Return only the cleaned message after the label "Cleaned:".
 
 User input:
 {{input}}
+
+Cleaned:

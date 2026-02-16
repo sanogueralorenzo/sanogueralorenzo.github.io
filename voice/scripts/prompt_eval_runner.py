@@ -21,6 +21,7 @@ PREFIX_LABEL_REGEX = re.compile(
     r"^(rewritten|rewrite|cleaned|output|result)\s*:\s*",
     re.IGNORECASE,
 )
+CLEANED_ANCHOR_REGEX = re.compile(r"(?im)^cleaned\s*:\s*")
 
 
 @dataclass
@@ -139,6 +140,11 @@ def clean_model_output(text: str, bullet_mode: bool = False) -> str:
     cleaned = text.strip()
     if not cleaned:
         return ''
+
+    # Prefer explicit anchored output if the model echoes prompt scaffolding.
+    anchor_matches = list(CLEANED_ANCHOR_REGEX.finditer(cleaned))
+    if anchor_matches:
+        cleaned = cleaned[anchor_matches[-1].end():].strip()
 
     cleaned = PREFIX_LABEL_REGEX.sub('', cleaned).strip()
     cleaned = cleaned.strip('`').strip()
