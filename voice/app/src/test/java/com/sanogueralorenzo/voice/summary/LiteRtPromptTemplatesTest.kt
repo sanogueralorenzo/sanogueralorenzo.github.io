@@ -8,8 +8,7 @@ class LiteRtPromptTemplatesTest {
     @Test
     fun rewriteSystemInstruction_isStrictMinimalChange() {
         val instruction = LiteRtPromptTemplates.buildRewriteSystemInstruction(
-            bulletMode = false,
-            customInstructions = ""
+            bulletMode = false
         )
 
         assertTrue(instruction.contains("remove only spoken disfluencies", ignoreCase = true))
@@ -23,18 +22,16 @@ class LiteRtPromptTemplatesTest {
     @Test
     fun rewriteSystemInstruction_includesCustomRuleWhenProvided() {
         val instruction = LiteRtPromptTemplates.buildRewriteSystemInstruction(
-            bulletMode = true,
-            customInstructions = "Keep abbreviations untouched"
+            bulletMode = true
         )
 
         assertTrue(instruction.contains("Preserve existing list formatting", ignoreCase = true))
-        assertTrue(instruction.contains("Secondary user preference", ignoreCase = true))
-        assertTrue(instruction.contains("Keep abbreviations untouched"))
+        assertFalse(instruction.contains("Secondary user preference", ignoreCase = true))
     }
 
     @Test
     fun editSystemInstruction_enforcesExplicitOnlyEdit() {
-        val instruction = LiteRtPromptTemplates.buildEditSystemInstruction("")
+        val instruction = LiteRtPromptTemplates.buildEditSystemInstruction()
 
         assertTrue(instruction.contains("Apply only the explicit EDIT_INSTRUCTION"))
         assertTrue(instruction.contains("Allowed operations", ignoreCase = true))

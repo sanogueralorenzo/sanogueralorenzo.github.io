@@ -5,31 +5,27 @@ package com.sanogueralorenzo.voice.summary
  */
 internal object LiteRtPromptTemplates {
     fun buildRewriteSystemInstruction(
-        bulletMode: Boolean,
-        customInstructions: String
+        bulletMode: Boolean
     ): String {
         val formatRule = if (bulletMode) {
             "Preserve existing list formatting and list order exactly."
         } else {
             "Do not convert prose into bullets or change line structure."
         }
-        val customRule = customInstructionsRule(customInstructions)
-        return "$BASE_REWRITE_INSTRUCTION $formatRule $REWRITE_SAFETY_INSTRUCTION $customRule"
+        return "$BASE_REWRITE_INSTRUCTION $formatRule $REWRITE_SAFETY_INSTRUCTION"
     }
 
-    fun buildEditSystemInstruction(customInstructions: String): String {
-        val customRule = customInstructionsRule(customInstructions)
-        return "$EDIT_SYSTEM_INSTRUCTION $customRule"
+    fun buildEditSystemInstruction(): String {
+        return EDIT_SYSTEM_INSTRUCTION
     }
 
     fun benchmarkInstructionSnapshot(customInstructions: String): String {
         val normalizedCustom = customInstructions.trim()
         val customDisplay = if (normalizedCustom.isBlank()) "none" else normalizedCustom
         val rewriteInstruction = buildRewriteSystemInstruction(
-            bulletMode = false,
-            customInstructions = customInstructions
+            bulletMode = false
         )
-        val editInstruction = buildEditSystemInstruction(customInstructions)
+        val editInstruction = buildEditSystemInstruction()
         return buildString {
             appendLine("rewrite_system_instruction:")
             appendLine(rewriteInstruction)
@@ -62,10 +58,6 @@ internal object LiteRtPromptTemplates {
         }
     }
 
-    const val PROBE_SYSTEM_INSTRUCTION: String =
-        "Reply with exactly OK. No markdown, no punctuation, no extra words."
-    const val PROBE_USER_MESSAGE: String = "Reply with OK."
-
     private const val BASE_REWRITE_INSTRUCTION =
         "Clean dictated text with strict minimal edits: remove only spoken disfluencies and " +
             "filler tokens such as um, uh, erm, emm, and hmm, including repeated filler runs."
@@ -84,10 +76,4 @@ internal object LiteRtPromptTemplates {
             "When PREFER_LIST_FORMAT is yes, preserve list formatting. " +
             "If instruction is ambiguous, return ORIGINAL_MESSAGE unchanged. " +
             "Return only the final edited message."
-
-    private fun customInstructionsRule(customInstructions: String): String {
-        val trimmed = customInstructions.trim()
-        if (trimmed.isBlank()) return ""
-        return "Secondary user preference (only if it does not conflict with rules above): $trimmed"
-    }
 }

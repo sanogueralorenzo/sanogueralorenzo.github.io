@@ -199,8 +199,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         val config = ConversationConfig(
             systemInstruction = Contents.of(
                 LiteRtPromptTemplates.buildRewriteSystemInstruction(
-                    bulletMode = listMode,
-                    customInstructions = currentRuntimeCustomInstructions()
+                    bulletMode = listMode
                 )
             ),
             samplerConfig = currentRuntimeSamplerConfig()
@@ -273,9 +272,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     ): String {
         val config = ConversationConfig(
             systemInstruction = Contents.of(
-                LiteRtPromptTemplates.buildEditSystemInstruction(
-                    customInstructions = currentRuntimeCustomInstructions()
-                )
+                LiteRtPromptTemplates.buildEditSystemInstruction()
             ),
             samplerConfig = currentRuntimeSamplerConfig()
         )
@@ -458,10 +455,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
     private fun looksLikeList(text: String): Boolean {
         return LiteRtEditHeuristics.looksLikeList(text)
-    }
-
-    private fun currentRuntimeCustomInstructions(): String {
-        return LiteRtRewritePolicy.clipCustomInstructions(settingsStore.customInstructions())
     }
 
     private fun currentRuntimeSamplerConfig(): SamplerConfig {
