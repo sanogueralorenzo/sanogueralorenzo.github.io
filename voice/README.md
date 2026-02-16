@@ -167,6 +167,12 @@ scripts/prompt_ab_optimize.sh \
   --patience 2
 ```
 
+Shortcut:
+
+```bash
+scripts/pab --max-rounds 6 --patience 2
+```
+
 What this loop enforces:
 
 - Fixed evaluation protocol across rounds (same model/backend/dataset/timeout).
