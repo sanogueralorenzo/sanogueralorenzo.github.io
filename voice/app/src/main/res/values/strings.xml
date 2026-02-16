@@ -17,8 +17,6 @@
     <string name="home_section_response_style_description">Choose how consistent or creative LiteRT should be while rewriting text.</string>
     <string name="home_section_settings_title">Settings</string>
     <string name="home_section_settings_description">Control LiteRT rewrite behavior and custom instructions.</string>
-    <string name="home_keyboard_test_title">Test keyboard input</string>
-    <string name="home_keyboard_test_placeholder">Tap here to open and test Voice Keyboard.</string>
 
     <string name="setup_section_title">Setup</string>
     <string name="models_section_title">Download Models</string>
@@ -78,8 +76,6 @@
     <string name="onboarding_tutorial_done">Done</string>
     <string name="onboarding_tutorial_open_picker">Keyboard picker</string>
     <string name="onboarding_tutorial_open_settings">IME settings</string>
-    <string name="onboarding_tutorial_input_label">Message draft</string>
-    <string name="onboarding_tutorial_input_placeholder">Message</string>
     <string name="onboarding_tutorial_real_instruction_compose">Use the real Voice keyboard and dictate your message.</string>
     <string name="onboarding_tutorial_real_instruction_edit">Use the real Edit action to update the message.</string>
     <string name="onboarding_tutorial_real_instruction_sent">Message sent.</string>
