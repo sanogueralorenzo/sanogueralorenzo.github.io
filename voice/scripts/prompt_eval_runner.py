@@ -344,14 +344,7 @@ def main() -> int:
         'cases_file': os.path.abspath(args.cases_file),
         'timeout_sec': args.timeout_sec,
         'max_cases': args.max_cases,
-        'pipeline': 'android_compose_like',
-        'max_num_tokens': ANDROID_DEFAULT_MAX_NUM_TOKENS,
-        'sampling': {
-            'top_k': ANDROID_DEFAULT_TOP_K,
-            'top_p': ANDROID_DEFAULT_TOP_P,
-            'temperature': ANDROID_DEFAULT_TEMPERATURE,
-            'seed': ANDROID_DEFAULT_SEED,
-        },
+        'pipeline': 'litert_lm_main',
     }
 
     report_dir = os.path.dirname(os.path.abspath(args.report_file))
