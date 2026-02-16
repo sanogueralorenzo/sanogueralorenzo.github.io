@@ -24,8 +24,9 @@ data class PromptBenchmarkingUiState(
     val rewriteEnabled: Boolean = false,
     val runnerState: PromptBenchmarkRunnerState = PromptBenchmarkRunnerState(
         isRunning = false,
+        phase = PromptBenchmarkRunPhase.IDLE,
         currentCaseIndex = 0,
-        totalCases = PromptBenchmarkSuite.defaultCases().size,
+        totalCases = 0,
         currentRunIndex = 0,
         repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
         errorMessage = null
@@ -44,8 +45,7 @@ class PromptBenchmarkingViewModel(
     initialState: PromptBenchmarkingUiState,
     private val appContext: Context,
     private val settingsStore: VoiceSettingsStore,
-    private val gateway: PromptBenchmarkGateway,
-    private val cases: List<PromptBenchmarkCase> = PromptBenchmarkSuite.defaultCases()
+    private val gateway: PromptBenchmarkGateway
 ) : MavericksViewModel<PromptBenchmarkingUiState>(initialState) {
     private var runJob: Job? = null
 
@@ -89,7 +89,9 @@ class PromptBenchmarkingViewModel(
                 sessionResult = null,
                 runnerState = runnerState.copy(
                     isRunning = true,
+                    phase = PromptBenchmarkRunPhase.DOWNLOADING_DATASET,
                     currentCaseIndex = 0,
+                    totalCases = 0,
                     currentRunIndex = 0,
                     errorMessage = null
                 )
@@ -97,10 +99,23 @@ class PromptBenchmarkingViewModel(
         }
 
         runJob = suspend {
+            val downloadedCases = PromptBenchmarkDatasetLoader.loadCases()
+            setState {
+                copy(
+                    runnerState = runnerState.copy(
+                        phase = PromptBenchmarkRunPhase.RUNNING,
+                        totalCases = downloadedCases.size,
+                        currentCaseIndex = 0,
+                        currentRunIndex = 0,
+                        repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
+                        errorMessage = null
+                    )
+                )
+            }
             PromptBenchmarkRunner.runAll(
                 gateway = gateway,
-                cases = cases,
-                suiteVersion = PromptBenchmarkSuite.SUITE_VERSION,
+                cases = downloadedCases,
+                suiteVersion = "${PromptBenchmarkSuite.SUITE_VERSION}+remote_dataset",
                 repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
                 modelId = ModelCatalog.liteRtLm.id,
                 customInstructions = customInstructions,
@@ -109,6 +124,7 @@ class PromptBenchmarkingViewModel(
                     setState {
                         copy(
                             runnerState = runnerState.copy(
+                                phase = PromptBenchmarkRunPhase.RUNNING,
                                 currentCaseIndex = progress.caseIndex,
                                 totalCases = progress.totalCases,
                                 currentRunIndex = progress.runIndex,
@@ -125,6 +141,11 @@ class PromptBenchmarkingViewModel(
                     benchmarkRunAsync = async,
                     runnerState = runnerState.copy(
                         isRunning = true,
+                        phase = if (runnerState.phase == PromptBenchmarkRunPhase.IDLE) {
+                            PromptBenchmarkRunPhase.DOWNLOADING_DATASET
+                        } else {
+                            runnerState.phase
+                        },
                         errorMessage = null
                     )
                 )
@@ -134,6 +155,9 @@ class PromptBenchmarkingViewModel(
                     sessionResult = async(),
                     runnerState = runnerState.copy(
                         isRunning = false,
+                        phase = PromptBenchmarkRunPhase.COMPLETED,
+                        totalCases = async().totalCases,
+                        currentCaseIndex = async().totalCases,
                         errorMessage = null
                     )
                 )
@@ -148,6 +172,11 @@ class PromptBenchmarkingViewModel(
                         benchmarkRunAsync = async,
                         runnerState = runnerState.copy(
                             isRunning = false,
+                            phase = if (async.error is CancellationException) {
+                                PromptBenchmarkRunPhase.IDLE
+                            } else {
+                                PromptBenchmarkRunPhase.ERROR
+                            },
                             errorMessage = message
                         )
                     )

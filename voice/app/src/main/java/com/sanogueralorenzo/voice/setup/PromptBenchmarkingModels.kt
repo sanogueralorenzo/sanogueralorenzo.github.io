@@ -108,8 +108,17 @@ data class PromptBenchmarkProgress(
     val caseId: String
 )
 
+enum class PromptBenchmarkRunPhase {
+    IDLE,
+    DOWNLOADING_DATASET,
+    RUNNING,
+    ERROR,
+    COMPLETED
+}
+
 data class PromptBenchmarkRunnerState(
     val isRunning: Boolean = false,
+    val phase: PromptBenchmarkRunPhase = PromptBenchmarkRunPhase.IDLE,
     val currentCaseIndex: Int = 0,
     val totalCases: Int = 0,
     val currentRunIndex: Int = 0,

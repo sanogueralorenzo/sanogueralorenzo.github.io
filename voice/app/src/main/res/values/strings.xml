@@ -26,7 +26,11 @@
     <string name="prompt_benchmark_run_action">Run</string>
     <string name="prompt_benchmark_cancel_action">Cancel</string>
     <string name="prompt_benchmark_share_action">Share</string>
-    <string name="prompt_benchmark_progress">Running case %1$d/%2$d, run %3$d/%4$d.</string>
+    <string name="prompt_benchmark_progress_idle">Ready to run benchmark.</string>
+    <string name="prompt_benchmark_progress_downloading">Downloading dataset from GitHub…</string>
+    <string name="prompt_benchmark_progress_running">Running case %1$d/%2$d.</string>
+    <string name="prompt_benchmark_progress_error">Benchmark stopped with an error.</string>
+    <string name="prompt_benchmark_progress_complete">Benchmark completed.</string>
     <string name="prompt_benchmark_status_cancelled">Benchmark cancelled.</string>
     <string name="prompt_benchmark_status_failed">Benchmark failed.</string>
     <string name="prompt_benchmark_share_subject">Prompt Benchmark Report</string>
@@ -39,7 +43,6 @@
     <string name="prompt_benchmark_before_label">Before input</string>
     <string name="prompt_benchmark_before_original_label">Before original</string>
     <string name="prompt_benchmark_before_instruction_label">Before instruction</string>
-    <string name="prompt_benchmark_run_title">Run %1$d</string>
     <string name="prompt_benchmark_run_meta">latency=%1$dms | backend=%2$s | status=%3$s</string>
     <string name="prompt_benchmark_run_error">error_type=%1$s | error=%2$s</string>
     <string name="prompt_benchmark_run_failed_output">(failed)</string>

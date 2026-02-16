@@ -7,7 +7,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 object PromptBenchmarkRunner {
-    const val DEFAULT_REPEATS = 3
+    const val DEFAULT_REPEATS = 1
 
     suspend fun runAll(
         gateway: PromptBenchmarkGateway,

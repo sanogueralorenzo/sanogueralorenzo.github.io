@@ -40,15 +40,15 @@ fun PromptBenchmarkingScreen(
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val cases = remember { PromptBenchmarkSuite.defaultCases() }
     val gateway = remember(appContext) { LiteRtPromptBenchmarkGateway(appContext) }
-    val viewModel = remember(appContext, appGraph, gateway, cases) {
+    val viewModel = remember(appContext, appGraph, gateway) {
         PromptBenchmarkingViewModel(
             initialState = PromptBenchmarkingUiState(
                 runnerState = PromptBenchmarkRunnerState(
                     isRunning = false,
+                    phase = PromptBenchmarkRunPhase.IDLE,
                     currentCaseIndex = 0,
-                    totalCases = cases.size,
+                    totalCases = 0,
                     currentRunIndex = 0,
                     repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
                     errorMessage = null
@@ -56,8 +56,7 @@ fun PromptBenchmarkingScreen(
             ),
             appContext = appContext,
             settingsStore = appGraph.settingsStore,
-            gateway = gateway,
-            cases = cases
+            gateway = gateway
         )
     }
     val uiState by viewModel.collectAsStateWithLifecycle()
@@ -97,6 +96,7 @@ fun PromptBenchmarkingScreen(
 
     val runnerState = uiState.runnerState
     val sessionResult = uiState.sessionResult
+    val effectiveTotalCases = sessionResult?.totalCases ?: runnerState.totalCases
     val totalRuns = runnerState.totalCases * runnerState.repeats
     val completedRuns = if (runnerState.currentCaseIndex <= 0 || runnerState.currentRunIndex <= 0) {
         0
@@ -123,18 +123,14 @@ fun PromptBenchmarkingScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.prompt_benchmark_section_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
                     text = stringResource(R.string.prompt_benchmark_intro),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
                     text = stringResource(
                         R.string.prompt_benchmark_suite_stats,
-                        cases.size,
-                        cases.size * PromptBenchmarkRunner.DEFAULT_REPEATS,
+                        effectiveTotalCases,
+                        effectiveTotalCases * PromptBenchmarkRunner.DEFAULT_REPEATS,
                         PromptBenchmarkRunner.DEFAULT_REPEATS
                     ),
                     style = MaterialTheme.typography.bodySmall
@@ -200,7 +196,7 @@ fun PromptBenchmarkingScreen(
             }
         }
 
-        if (runnerState.isRunning) {
+        if (runnerState.isRunning || runnerState.phase == PromptBenchmarkRunPhase.ERROR) {
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
@@ -209,19 +205,17 @@ fun PromptBenchmarkingScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = stringResource(
-                            R.string.prompt_benchmark_progress,
-                            runnerState.currentCaseIndex,
-                            runnerState.totalCases,
-                            runnerState.currentRunIndex,
-                            runnerState.repeats
-                        ),
+                        text = benchmarkProgressLabel(runnerState),
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (runnerState.phase == PromptBenchmarkRunPhase.DOWNLOADING_DATASET) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
@@ -293,6 +287,26 @@ fun PromptBenchmarkingScreen(
 }
 
 @Composable
+private fun benchmarkProgressLabel(state: PromptBenchmarkRunnerState): String {
+    return when (state.phase) {
+        PromptBenchmarkRunPhase.DOWNLOADING_DATASET ->
+            stringResource(R.string.prompt_benchmark_progress_downloading)
+        PromptBenchmarkRunPhase.RUNNING ->
+            stringResource(
+                R.string.prompt_benchmark_progress_running,
+                state.currentCaseIndex,
+                state.totalCases
+            )
+        PromptBenchmarkRunPhase.ERROR ->
+            stringResource(R.string.prompt_benchmark_progress_error)
+        PromptBenchmarkRunPhase.COMPLETED ->
+            stringResource(R.string.prompt_benchmark_progress_complete)
+        else ->
+            stringResource(R.string.prompt_benchmark_progress_idle)
+    }
+}
+
+@Composable
 private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
     val caseDef = caseResult.caseDef
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -348,10 +362,6 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
             }
 
             caseResult.runs.forEach { run ->
-                Text(
-                    text = stringResource(R.string.prompt_benchmark_run_title, run.runIndex),
-                    style = MaterialTheme.typography.labelLarge
-                )
                 Text(
                     text = stringResource(
                         R.string.prompt_benchmark_run_meta,
