@@ -167,19 +167,18 @@ scripts/prompt_ab_optimize.sh \
   --prompt-a-file scripts/prompt_a.txt \
   --prompt-b-file scripts/prompt_b.txt \
   --dataset-file scripts/dataset.jsonl \
-  --max-rounds 6 \
-  --patience 2
+  --max-rounds 1 \
+  --patience 1
 ```
 
 What this loop enforces:
 
 - Fixed evaluation protocol across rounds (same model/backend/dataset/timeout).
-- Deterministic train/holdout split from one dataset (`id % 5 == 0` to holdout by default).
+- Primary recommendation threshold: prompt B must improve pass-rate by at least `3.0` percentage points over prompt A.
 - Winner metric and tie-break: pass count, then fail count, then latency.
-- Minimum improvement threshold before promotion (`--min-improvement-cases`, default `1`).
 - Guardrail: reject candidate if it regresses a critical category too much (`clean`/`noisy`, default max drop `3.0pp`).
-- Holdout promotion rule: only promote when challenger also wins holdout and meets holdout pass-rate threshold (`--min-holdout-pass-rate`, default `90%`).
-- Mutation rule: only mutate the loser prompt (next `prompt_b.txt`) from loser failures.
+- Recommendation-only mode: no prompt files are auto-modified.
+- Suggested next challenger prompt is generated from loser failures.
 - Full round logging with prompt text snapshots, reports, scores, and git head.
 - Early stopping when no improvement reaches patience limit.
 
@@ -187,9 +186,15 @@ Artifacts are written to:
 
 - `.cache/prompt_ab/run_<timestamp>/round_log.jsonl`
 - `.cache/prompt_ab/run_<timestamp>/summary.json`
+- `.cache/prompt_ab/run_<timestamp>/recommendation.md`
 - `.cache/prompt_ab/run_<timestamp>/splits/train.jsonl`
-- `.cache/prompt_ab/run_<timestamp>/splits/holdout.jsonl`
 - `.cache/prompt_ab/run_<timestamp>/round_*/loser_failure_pack.jsonl`
+- `.cache/prompt_ab/run_<timestamp>/round_*/suggested_next_prompt_b.txt`
+
+Optional holdout:
+
+- `--use-holdout` enables an unseen validation split (`id % 5 == 0` by default).
+- Use this when you start iterating multiple rounds and want overfitting protection.
 
 ## Device Setup
 
