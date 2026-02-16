@@ -9,17 +9,17 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.Button
@@ -31,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,56 +78,12 @@ fun OnboardingTutorialScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
-            if (isSentPreview) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(
-                        onClick = {
-                            if (viewModel.canFinish()) onDone()
-                        },
-                        enabled = viewModel.canFinish()
-                    ) {
-                        Text(text = stringResource(R.string.onboarding_tutorial_done))
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    TextField(
-                        value = tutorialState.inputText,
-                        onValueChange = { value -> viewModel.onInputChanged(value) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester),
-                        placeholder = {
-                            Text(text = stringResource(R.string.onboarding_tutorial_input_placeholder))
-                        },
-                        singleLine = true,
-                        maxLines = 1
-                    )
-
-                    FilledIconButton(
-                        onClick = { viewModel.onNext() },
-                        enabled = viewModel.canAdvance(),
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                            contentDescription = stringResource(R.string.onboarding_tutorial_next)
-                        )
-                    }
-                }
+            if (!isSentPreview) {
+                OnboardingInputBar(
+                    inputText = tutorialState.inputText,
+                    onInputChange = { value -> viewModel.onInputChanged(value) },
+                    focusRequester = focusRequester
+                )
             }
         }
     ) { innerPadding ->
@@ -134,7 +91,6 @@ fun OnboardingTutorialScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -142,6 +98,8 @@ fun OnboardingTutorialScreen(
                 text = stringResource(instructionResId(tutorialState.step)),
                 style = MaterialTheme.typography.titleLarge
             )
+
+            Spacer(modifier = Modifier.height(22.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -161,13 +119,6 @@ fun OnboardingTutorialScreen(
                 }
             }
 
-            if (!isSentPreview) {
-                Text(
-                    text = stringResource(helperResId(tutorialState.step)),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
             AnimatedVisibility(
                 visible = isSentPreview,
                 enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
@@ -178,8 +129,69 @@ fun OnboardingTutorialScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isSentPreview) {
+                    Button(
+                        onClick = {
+                            if (viewModel.canFinish()) onDone()
+                        },
+                        enabled = viewModel.canFinish()
+                    ) {
+                        Text(text = stringResource(R.string.onboarding_tutorial_done))
+                    }
+                } else {
+                    FilledIconButton(
+                        onClick = { viewModel.onNext() },
+                        enabled = viewModel.canAdvance()
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = stringResource(R.string.onboarding_tutorial_next)
+                        )
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun OnboardingInputBar(
+    inputText: String,
+    onInputChange: (String) -> Unit,
+    focusRequester: FocusRequester
+) {
+    TextField(
+        value = inputText,
+        onValueChange = onInputChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .imePadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .focusRequester(focusRequester),
+        placeholder = {
+            Text(text = stringResource(R.string.onboarding_tutorial_input_placeholder))
+        },
+        shape = RoundedCornerShape(24.dp),
+        minLines = 1,
+        maxLines = 5,
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        )
+    )
 }
 
 @Composable
@@ -226,14 +238,6 @@ private fun instructionResId(step: OnboardingTutorialStep): Int {
         OnboardingTutorialStep.WRITE_WITH_VOICE -> R.string.onboarding_tutorial_real_instruction_compose
         OnboardingTutorialStep.EDIT_WITH_VOICE -> R.string.onboarding_tutorial_real_instruction_edit
         OnboardingTutorialStep.SENT_PREVIEW -> R.string.onboarding_tutorial_real_instruction_sent
-    }
-}
-
-private fun helperResId(step: OnboardingTutorialStep): Int {
-    return when (step) {
-        OnboardingTutorialStep.WRITE_WITH_VOICE -> R.string.onboarding_tutorial_real_hint_compose
-        OnboardingTutorialStep.EDIT_WITH_VOICE -> R.string.onboarding_tutorial_real_hint_edit
-        OnboardingTutorialStep.SENT_PREVIEW -> R.string.onboarding_tutorial_real_hint_sent
     }
 }
 
