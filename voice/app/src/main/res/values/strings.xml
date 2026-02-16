@@ -29,9 +29,8 @@
     <string name="prompt_benchmark_share_subject">Prompt Benchmark Report</string>
     <string name="prompt_benchmark_share_chooser">Share benchmark report</string>
     <string name="prompt_benchmark_summary_title">Summary</string>
-    <string name="prompt_benchmark_summary_runs">cases=%1$d | runs=%2$d | failures=%3$d</string>
-    <string name="prompt_benchmark_summary_latency">latency avg=%1$dms | min=%2$dms | max=%3$dms</string>
-    <string name="prompt_benchmark_summary_consistency">stable cases=%1$d / %2$d</string>
+    <string name="prompt_benchmark_summary_pass">Pass: %1$d</string>
+    <string name="prompt_benchmark_summary_fail">Fail: %1$d</string>
     <string name="prompt_benchmark_case_pass">PASS</string>
     <string name="prompt_benchmark_case_fail">FAIL</string>
     <string name="prompt_benchmark_before_label">Input</string>

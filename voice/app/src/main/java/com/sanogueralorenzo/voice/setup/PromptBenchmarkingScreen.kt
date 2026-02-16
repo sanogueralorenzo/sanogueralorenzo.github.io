@@ -209,6 +209,7 @@ fun PromptBenchmarkingScreen(
             val result = sessionResult
             if (result != null) {
                 val displayedFailures = result.cases.count { !isCasePassed(it) }
+                val displayedPasses = result.totalCases - displayedFailures
                 item {
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
@@ -223,27 +224,15 @@ fun PromptBenchmarkingScreen(
                             )
                             Text(
                                 text = stringResource(
-                                    R.string.prompt_benchmark_summary_runs,
-                                    result.totalCases,
-                                    result.totalRuns,
+                                    R.string.prompt_benchmark_summary_pass,
+                                    displayedPasses
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.prompt_benchmark_summary_fail,
                                     displayedFailures
-                                ),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.prompt_benchmark_summary_latency,
-                                    result.avgLatencyMs,
-                                    result.minLatencyMs,
-                                    result.maxLatencyMs
-                                ),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.prompt_benchmark_summary_consistency,
-                                    result.stableCasesCount,
-                                    result.totalCases
                                 ),
                                 style = MaterialTheme.typography.bodySmall
                             )
