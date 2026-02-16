@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -207,6 +208,7 @@ fun PromptBenchmarkingScreen(
         ) {
             val result = sessionResult
             if (result != null) {
+                val displayedFailures = result.cases.count { !isCasePassed(it) }
                 item {
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(
@@ -224,7 +226,7 @@ fun PromptBenchmarkingScreen(
                                     R.string.prompt_benchmark_summary_runs,
                                     result.totalCases,
                                     result.totalRuns,
-                                    result.totalFailures
+                                    displayedFailures
                                 ),
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -280,7 +282,7 @@ private fun benchmarkProgressLabel(state: PromptBenchmarkRunnerState): String {
 @Composable
 private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
     val caseDef = caseResult.caseDef
-    val casePassed = caseResult.failureCount == 0
+    val casePassed = isCasePassed(caseResult)
     val backendLabel = backendLabel(caseResult.runs)
     val inputText = benchmarkInputText(caseDef)
     val expectedText = caseDef.expectedOutput ?: stringResource(R.string.prompt_benchmark_expected_missing)
@@ -302,6 +304,23 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Badge(
+                        containerColor = if (backendLabel == "GPU") {
+                            GpuBadgeGreen
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                        contentColor = if (backendLabel == "GPU") {
+                            Color.White
+                        } else {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        }
+                    ) {
+                        Text(
+                            text = backendLabel,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    Badge(
                         containerColor = if (casePassed) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
@@ -321,12 +340,6 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
                                     R.string.prompt_benchmark_case_fail
                                 }
                             ),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                    Badge {
-                        Text(
-                            text = backendLabel,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -382,3 +395,17 @@ private fun backendLabel(runs: List<PromptBenchmarkRunResult>): String {
     val backend = runs.firstOrNull { !it.backend.isNullOrBlank() }?.backend.orEmpty()
     return if (backend.contains("gpu", ignoreCase = true)) "GPU" else "CPU"
 }
+
+private fun isCasePassed(caseResult: PromptBenchmarkCaseResult): Boolean {
+    if (caseResult.runs.any { !it.success }) return false
+    val expected = caseResult.caseDef.expectedOutput?.trim().orEmpty()
+    if (expected.isBlank()) return true
+    val output = benchmarkOutputText(caseResult.runs)
+    return normalizeForMatch(output) == normalizeForMatch(expected)
+}
+
+private fun normalizeForMatch(value: String): String {
+    return value.replace("\r\n", "\n").trim()
+}
+
+private val GpuBadgeGreen = Color(0xFF2E7D32)
