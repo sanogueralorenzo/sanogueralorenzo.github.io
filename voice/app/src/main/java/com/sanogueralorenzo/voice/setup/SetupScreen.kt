@@ -1,11 +1,5 @@
 package com.sanogueralorenzo.voice.setup
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -147,16 +141,7 @@ fun SetupScreen(
 
 @Composable
 private fun SetupHeroAnimation() {
-    val transition = rememberInfiniteTransition(label = "setup_talking_level")
-    val level by transition.animateFloat(
-        initialValue = 0.08f,
-        targetValue = 0.92f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 760, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "setup_talking_level_value"
-    )
+    val level = 0.05f
 
     Column(
         modifier = Modifier
