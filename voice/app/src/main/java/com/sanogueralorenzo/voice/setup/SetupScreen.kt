@@ -250,14 +250,14 @@ private fun SetupTopIcon() {
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .padding(vertical = 24.dp),
+            .padding(vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Image(
             painter = painterResource(id = R.drawable.icon_app_logo),
             contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.size(120.dp)
+            modifier = Modifier.size(136.dp)
         )
     }
 }
