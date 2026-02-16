@@ -154,6 +154,39 @@ Notes:
 - This workflow currently uses LiteRT-LM runtime default sampling (no explicit sampler overrides).
 - Prompt templates can use `{{input}}` (or `{input}`) placeholder.
 
+### Prompt A/B Optimization Loop
+
+Use `scripts/prompt_ab_optimize.sh` to run a round-based A/B loop with a fixed protocol.
+
+```bash
+scripts/prompt_ab_optimize.sh \
+  --prompt-a-file scripts/prompt_a.txt \
+  --prompt-b-file scripts/prompt_b.txt \
+  --dataset-file scripts/dataset.jsonl \
+  --max-rounds 6 \
+  --patience 2
+```
+
+What this loop enforces:
+
+- Fixed evaluation protocol across rounds (same model/backend/dataset/timeout).
+- Deterministic train/holdout split from one dataset (`id % 5 == 0` to holdout by default).
+- Winner metric and tie-break: pass count, then fail count, then latency.
+- Minimum improvement threshold before promotion (`--min-improvement-cases`, default `1`).
+- Guardrail: reject candidate if it regresses a critical category too much (`clean`/`noisy`, default max drop `3.0pp`).
+- Holdout promotion rule: only promote when challenger also wins holdout and meets holdout pass-rate threshold (`--min-holdout-pass-rate`, default `90%`).
+- Mutation rule: only mutate the loser prompt (next `prompt_b.txt`) from loser failures.
+- Full round logging with prompt text snapshots, reports, scores, and git head.
+- Early stopping when no improvement reaches patience limit.
+
+Artifacts are written to:
+
+- `.cache/prompt_ab/run_<timestamp>/round_log.jsonl`
+- `.cache/prompt_ab/run_<timestamp>/summary.json`
+- `.cache/prompt_ab/run_<timestamp>/splits/train.jsonl`
+- `.cache/prompt_ab/run_<timestamp>/splits/holdout.jsonl`
+- `.cache/prompt_ab/run_<timestamp>/round_*/loser_failure_pack.jsonl`
+
 ## Device Setup
 
 1. Install and open the app.
