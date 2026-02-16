@@ -58,10 +58,12 @@ class SetupViewModel(
     }
 
     fun refreshKeyboardStatus() {
+        val enabled = isVoiceImeEnabled()
+        val selected = isVoiceImeSelectedAsDefault(enabledFallback = enabled)
         setState {
             copy(
-                voiceImeEnabled = isVoiceImeEnabled(),
-                voiceImeSelected = isVoiceImeSelectedAsDefault()
+                voiceImeEnabled = enabled,
+                voiceImeSelected = selected
             )
         }
     }
@@ -492,13 +494,17 @@ class SetupViewModel(
         }
     }
 
-    private fun isVoiceImeSelectedAsDefault(): Boolean {
+    private fun isVoiceImeSelectedAsDefault(enabledFallback: Boolean): Boolean {
         val selected = runCatching {
             Settings.Secure.getString(
                 appContext.contentResolver,
                 Settings.Secure.DEFAULT_INPUT_METHOD
             )
-        }.getOrNull()?.substringBefore(';')?.trim()
+        }.getOrNull()?.substringBefore(';')?.trim().orEmpty()
+        if (selected.isBlank()) {
+            // Some OEM builds do not surface DEFAULT_INPUT_METHOD reliably to regular apps.
+            return enabledFallback
+        }
         return isVoiceImeId(selected)
     }
 

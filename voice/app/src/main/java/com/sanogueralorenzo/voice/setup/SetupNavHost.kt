@@ -107,7 +107,7 @@ fun SetupNavHost() {
     val currentRoute = backStackEntry?.destination?.route
     val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && currentRoute != MainRoute.SETUP
     val topBarTitle = when (currentRoute) {
-        MainRoute.SETUP -> stringResource(R.string.setup_section_title)
+        MainRoute.SETUP -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.MODELS -> stringResource(R.string.models_section_title)
         MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
         MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
