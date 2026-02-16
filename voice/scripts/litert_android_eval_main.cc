@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <mutex>
 
 #include "absl/base/log_severity.h"  // from @com_google_absl
 #include "absl/flags/flag.h"  // from @com_google_absl
@@ -18,6 +19,7 @@
 #include "absl/log/globals.h"  // from @com_google_absl
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/status/statusor.h"  // from @com_google_absl
+#include "absl/time/time.h"  // from @com_google_absl
 #include "nlohmann/json.hpp"  // from @nlohmann_json
 #include "runtime/conversation/conversation.h"
 #include "runtime/conversation/io_types.h"
@@ -156,11 +158,46 @@ absl::StatusOr<std::string> RunSingleInference(const std::string& model_path,
   ASSIGN_OR_RETURN(auto conversation,
                    Conversation::Create(*engine, conversation_config));
 
-  ASSIGN_OR_RETURN(auto model_message,
-                   conversation->SendMessage(
-                       json::object({{"role", "user"}, {"content", input_prompt}})));
+  std::mutex callback_mutex;
+  absl::Status callback_status = absl::OkStatus();
+  std::string output_text;
 
-  return ExtractText(model_message);
+  RETURN_IF_ERROR(conversation->SendMessageAsync(
+      json::object({{"role", "user"}, {"content", input_prompt}}),
+      [&](absl::StatusOr<Message> message_or) {
+        std::lock_guard<std::mutex> lock(callback_mutex);
+        if (!message_or.ok()) {
+          callback_status = message_or.status();
+          return;
+        }
+
+        const auto* json_message = std::get_if<JsonMessage>(&*message_or);
+        if (json_message == nullptr || json_message->is_null() ||
+            !json_message->contains("content")) {
+          return;
+        }
+
+        const auto& content = (*json_message)["content"];
+        if (content.is_string()) {
+          output_text += content.get<std::string>();
+          return;
+        }
+        if (content.is_array()) {
+          for (const auto& part : content) {
+            if (part.contains("text") && part["text"].is_string()) {
+              output_text += part["text"].get<std::string>();
+            }
+          }
+        }
+      }));
+
+  RETURN_IF_ERROR(engine->WaitUntilDone(absl::Minutes(10)));
+
+  std::lock_guard<std::mutex> lock(callback_mutex);
+  if (!callback_status.ok()) {
+    return callback_status;
+  }
+  return output_text;
 }
 
 absl::Status MainHelper(int argc, char** argv) {
