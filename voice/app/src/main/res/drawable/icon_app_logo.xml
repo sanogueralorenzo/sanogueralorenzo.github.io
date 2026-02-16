@@ -8,6 +8,12 @@
         android:fillColor="#111820"
         android:pathData="M30,6L78,6A24,24 0,0 1,102 30L102,78A24,24 0,0 1,78 102L30,102A24,24 0,0 1,6 78L6,30A24,24 0,0 1,30 6z" />
     <path
+        android:fillColor="#00000000"
+        android:pathData="M30,6L78,6A24,24 0,0 1,102 30L102,78A24,24 0,0 1,78 102L30,102A24,24 0,0 1,6 78L6,30A24,24 0,0 1,30 6z"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.5" />
+    <path
         android:fillColor="#FFFFFF"
         android:pathData="M25,40L25,40A5,5 0,0 1,30 45L30,63A5,5 0,0 1,25 68L25,68A5,5 0,0 1,20 63L20,45A5,5 0,0 1,25 40z" />
     <path
