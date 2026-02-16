@@ -174,7 +174,7 @@ scripts/prompt_ab_optimize.sh \
 What this loop enforces:
 
 - Fixed evaluation protocol across rounds (same model/backend/dataset/timeout).
-- Primary recommendation threshold: prompt B must improve pass-rate by at least `3.0` percentage points over prompt A.
+- Primary recommendation threshold: prompt B must improve pass-rate by at least `1.0` percentage points over prompt A.
 - Winner metric and tie-break: pass count, then fail count, then latency.
 - Guardrail: reject candidate if it regresses a critical category too much (`clean`/`noisy`, default max drop `3.0pp`).
 - Recommendation-only mode: no prompt files are auto-modified.

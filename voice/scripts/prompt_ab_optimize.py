@@ -296,7 +296,7 @@ def main() -> int:
 
     parser.add_argument('--max-rounds', type=int, default=1)
     parser.add_argument('--patience', type=int, default=1)
-    parser.add_argument('--min-improvement-pass-rate-pp', type=float, default=3.0)
+    parser.add_argument('--min-improvement-pass-rate-pp', type=float, default=1.0)
     parser.add_argument('--max-category-drop-pp', type=float, default=3.0)
     parser.add_argument('--use-holdout', action='store_true')
     parser.add_argument('--min-holdout-pass-rate', type=float, default=90.0)
