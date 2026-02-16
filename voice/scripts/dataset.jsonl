@@ -1,62 +1,62 @@
-{"id": 1, "input": "hey are you still coming tonight i might be 10 mins late", "expected": "hey are you still coming tonight?", "match": "exact"}
+{"id": 1, "input": "hey are you still coming tonight i might be 10 mins late", "expected": "hey are you still coming tonight i might be 10 mins late", "match": "exact"}
 {"id": 2, "input": "running 10 mins late, traffic is awful", "expected": "running 10 mins late, traffic is awful", "match": "exact"}
-{"id": 3, "input": "can you pick up milk on your way home home", "expected": "can you grab milk on your way home?", "match": "exact"}
+{"id": 3, "input": "can you pick up milk on your way home home", "expected": "can you pick up milk on your way home?", "match": "exact"}
 {"id": 4, "input": "i just got to the office", "expected": "i just got to the office", "match": "exact"}
-{"id": 5, "input": "call me when your free", "expected": "call me when you have a sec", "match": "exact"}
+{"id": 5, "input": "call me when your free", "expected": "call me when you're free", "match": "exact"}
 {"id": 6, "input": "i'll text you after my meeting", "expected": "i'll text you after my meeting", "match": "exact"}
 {"id": 7, "input": "made it home save", "expected": "made it home safe", "match": "exact"}
 {"id": 8, "input": "what time should we leave tomorrow?", "expected": "what time should we leave tomorrow?", "match": "exact"}
-{"id": 9, "input": "sorry i missed your call call me back", "expected": "sorry i missed your call", "match": "exact"}
+{"id": 9, "input": "sorry i missed your call call me back", "expected": "sorry i missed your call, call me back", "match": "exact"}
 {"id": 10, "input": "i'm outside your building", "expected": "i'm outside your building", "match": "exact"}
-{"id": 11, "input": "can we move lunch to 1 no 130", "expected": "can we move lunch to 1?", "match": "exact"}
+{"id": 11, "input": "can we move lunch to 1 no 130", "expected": "can we move lunch to 1, no, 1:30?", "match": "exact"}
 {"id": 12, "input": "did you feed the dog?", "expected": "did you feed the dog?", "match": "exact"}
-{"id": 13, "input": "where did you park at", "expected": "where did you park?", "match": "exact"}
+{"id": 13, "input": "where did you park at", "expected": "where did you park at?", "match": "exact"}
 {"id": 14, "input": "thanks again for helping today", "expected": "thanks again for helping today", "match": "exact"}
-{"id": 15, "input": "im at back table by window", "expected": "i'm at the back table", "match": "exact"}
+{"id": 15, "input": "im at back table by window", "expected": "i'm at back table by window", "match": "exact"}
 {"id": 16, "input": "can you send me that link again?", "expected": "can you send me that link again?", "match": "exact"}
-{"id": 17, "input": "i forgot my charger at your place i think i did", "expected": "i forgot my charger at your place", "match": "exact"}
+{"id": 17, "input": "i forgot my charger at your place i think i did", "expected": "i forgot my charger at your place i think i did", "match": "exact"}
 {"id": 18, "input": "on my way now", "expected": "on my way now", "match": "exact"}
 {"id": 19, "input": "want me to order for you to", "expected": "want me to order for you too?", "match": "exact"}
 {"id": 20, "input": "meeting ran over, be there soon", "expected": "meeting ran over, be there soon", "match": "exact"}
-{"id": 21, "input": "is the store still open right now right now", "expected": "is the store still open?", "match": "exact"}
+{"id": 21, "input": "is the store still open right now right now", "expected": "is the store still open right now right now?", "match": "exact"}
 {"id": 22, "input": "i sent the payment just now", "expected": "i sent the payment just now", "match": "exact"}
-{"id": 23, "input": "can you check your email i send it already", "expected": "can you check your email?", "match": "exact"}
+{"id": 23, "input": "can you check your email i send it already", "expected": "can you check your email i send it already?", "match": "exact"}
 {"id": 24, "input": "let's do friday instead", "expected": "let's do friday instead", "match": "exact"}
-{"id": 25, "input": "my phone is about to die if i disappear thats why", "expected": "my phone is about to die", "match": "exact"}
+{"id": 25, "input": "my phone is about to die if i disappear thats why", "expected": "my phone is about to die if i disappear thats why", "match": "exact"}
 {"id": 26, "input": "don't wait for me, start without me", "expected": "don't wait for me, start without me", "match": "exact"}
-{"id": 27, "input": "can you pick up the package from front desk", "expected": "can you pick up the package?", "match": "exact"}
+{"id": 27, "input": "can you pick up the package from front desk", "expected": "can you pick up the package from front desk?", "match": "exact"}
 {"id": 28, "input": "what's the wifi password again?", "expected": "what's the wifi password again?", "match": "exact"}
-{"id": 29, "input": "ill be there in five ish maybe", "expected": "i'll be there in 5", "match": "exact"}
+{"id": 29, "input": "ill be there in five ish maybe", "expected": "i'll be there in five ish maybe", "match": "exact"}
 {"id": 30, "input": "just finished, heading out", "expected": "just finished, heading out", "match": "exact"}
-{"id": 31, "input": "can we talk later tonight im kinda tired", "expected": "can we talk later tonight?", "match": "exact"}
+{"id": 31, "input": "can we talk later tonight im kinda tired", "expected": "can we talk later tonight i'm kinda tired?", "match": "exact"}
 {"id": 32, "input": "i'm stuck in line at the pharmacy", "expected": "i'm stuck in line at the pharmacy", "match": "exact"}
-{"id": 33, "input": "did you see my last message or no", "expected": "did you see my last message?", "match": "exact"}
+{"id": 33, "input": "did you see my last message or no", "expected": "did you see my last message or no?", "match": "exact"}
 {"id": 34, "input": "that works for me", "expected": "that works for me", "match": "exact"}
 {"id": 35, "input": "can we do a quick call at 4 uh", "expected": "can we do a quick call at 4?", "match": "exact"}
 {"id": 36, "input": "i left the keys under the mat", "expected": "i left the keys under the mat", "match": "exact"}
-{"id": 37, "input": "im in the lobby near elevater", "expected": "i'm in the lobby", "match": "exact"}
+{"id": 37, "input": "im in the lobby near elevater", "expected": "i'm in the lobby near elevator", "match": "exact"}
 {"id": 38, "input": "please remind me at 6", "expected": "please remind me at 6", "match": "exact"}
 {"id": 39, "input": "can you watch the kids for a hour", "expected": "can you watch the kids for an hour?", "match": "exact"}
 {"id": 40, "input": "i'm grabbing coffee, want anything?", "expected": "i'm grabbing coffee, want anything?", "match": "exact"}
 {"id": 41, "input": "let me no when you land", "expected": "let me know when you land", "match": "exact"}
 {"id": 42, "input": "happy birthday, hope you have a good one", "expected": "happy birthday, hope you have a good one", "match": "exact"}
-{"id": 43, "input": "i cant find my wallet any where", "expected": "i can't find my wallet", "match": "exact"}
+{"id": 43, "input": "i cant find my wallet any where", "expected": "i can't find my wallet anywhere", "match": "exact"}
 {"id": 44, "input": "could you send the address?", "expected": "could you send the address?", "match": "exact"}
-{"id": 45, "input": "were at table 12 in the back back", "expected": "we're at table 12", "match": "exact"}
+{"id": 45, "input": "were at table 12 in the back back", "expected": "we're at table 12 in the back", "match": "exact"}
 {"id": 46, "input": "just sent you the doc", "expected": "just sent you the doc", "match": "exact"}
-{"id": 47, "input": "ill circle back tomorrow morning first thing thing", "expected": "i'll circle back tomorrow morning", "match": "exact"}
+{"id": 47, "input": "ill circle back tomorrow morning first thing thing", "expected": "i'll circle back tomorrow morning first thing", "match": "exact"}
 {"id": 48, "input": "can you proofread this before i send it?", "expected": "can you proofread this before i send it?", "match": "exact"}
-{"id": 49, "input": "the app keeps crashing on my phone phone", "expected": "the app keeps crashing for me", "match": "exact"}
+{"id": 49, "input": "the app keeps crashing on my phone phone", "expected": "the app keeps crashing on my phone", "match": "exact"}
 {"id": 50, "input": "i'm already in bed, talk tomorrow", "expected": "i'm already in bed, talk tomorrow", "match": "exact"}
-{"id": 51, "input": "can you call mom today i forgot again again", "expected": "can you call mom today?", "match": "exact"}
+{"id": 51, "input": "can you call mom today i forgot again again", "expected": "can you call mom today i forgot again?", "match": "exact"}
 {"id": 52, "input": "it's raining hard here, drive safe", "expected": "it's raining hard here, drive safe", "match": "exact"}
-{"id": 53, "input": "im at gate c4 now by the coffee place", "expected": "i'm at gate c4 now", "match": "exact"}
+{"id": 53, "input": "im at gate c4 now by the coffee place", "expected": "i'm at gate c4 now by the coffee place", "match": "exact"}
 {"id": 54, "input": "let's skip tonight, i'm exhausted", "expected": "let's skip tonight, i'm exhausted", "match": "exact"}
-{"id": 55, "input": "can you bring an umbrella i forgot mine mine", "expected": "can you bring an umbrella?", "match": "exact"}
+{"id": 55, "input": "can you bring an umbrella i forgot mine mine", "expected": "can you bring an umbrella i forgot mine?", "match": "exact"}
 {"id": 56, "input": "please don't forget the prescription", "expected": "please don't forget the prescription", "match": "exact"}
 {"id": 57, "input": "my train got delayed again again", "expected": "my train got delayed again", "match": "exact"}
 {"id": 58, "input": "what do you want for dinner?", "expected": "what do you want for dinner?", "match": "exact"}
-{"id": 59, "input": "ill make pasta if that works for you", "expected": "i'll make pasta if that works", "match": "exact"}
+{"id": 59, "input": "ill make pasta if that works for you", "expected": "i'll make pasta if that works for you", "match": "exact"}
 {"id": 60, "input": "can you lock up when you leave?", "expected": "can you lock up when you leave?", "match": "exact"}
 {"id": 61, "input": "ill pay you back this weekend weak end", "expected": "i'll pay you back this weekend", "match": "exact"}
 {"id": 62, "input": "just got your voicemail", "expected": "just got your voicemail", "match": "exact"}
@@ -64,37 +64,37 @@
 {"id": 64, "input": "i'm in the checkout line", "expected": "i'm in the checkout line", "match": "exact"}
 {"id": 65, "input": "can we reschedule for monday monday", "expected": "can we reschedule for monday?", "match": "exact"}
 {"id": 66, "input": "i'll be working from home tomorrow", "expected": "i'll be working from home tomorrow", "match": "exact"}
-{"id": 67, "input": "did you update the shared sheet yet yet", "expected": "did you update the shared sheet?", "match": "exact"}
+{"id": 67, "input": "did you update the shared sheet yet yet", "expected": "did you update the shared sheet yet?", "match": "exact"}
 {"id": 68, "input": "please add eggs to the list", "expected": "please add eggs to the list", "match": "exact"}
-{"id": 69, "input": "im almost there two blocks away away", "expected": "i'm almost there, two blocks away", "match": "exact"}
+{"id": 69, "input": "im almost there two blocks away away", "expected": "i'm almost there two blocks away", "match": "exact"}
 {"id": 70, "input": "can you turn the oven off?", "expected": "can you turn the oven off?", "match": "exact"}
-{"id": 71, "input": "the kids are asleep finally finally", "expected": "the kids are asleep now", "match": "exact"}
+{"id": 71, "input": "the kids are asleep finally finally", "expected": "the kids are asleep finally", "match": "exact"}
 {"id": 72, "input": "let's meet by the main entrance", "expected": "let's meet by the main entrance", "match": "exact"}
-{"id": 73, "input": "im at terminal 2 near gate 18 eighteen", "expected": "i'm at terminal 2", "match": "exact"}
+{"id": 73, "input": "im at terminal 2 near gate 18 eighteen", "expected": "i'm at terminal 2 near gate 18", "match": "exact"}
 {"id": 74, "input": "can you take out the trash tonight?", "expected": "can you take out the trash tonight?", "match": "exact"}
 {"id": 75, "input": "just got off the bus buss", "expected": "just got off the bus", "match": "exact"}
 {"id": 76, "input": "thanks, that fixed it", "expected": "thanks, that fixed it", "match": "exact"}
-{"id": 77, "input": "where are you i dont see you any where", "expected": "where are you? i don't see you", "match": "exact"}
+{"id": 77, "input": "where are you i dont see you any where", "expected": "where are you i don't see you anywhere?", "match": "exact"}
 {"id": 78, "input": "i'll wait by the front desk", "expected": "i'll wait by the front desk", "match": "exact"}
 {"id": 79, "input": "can you forward that message to me me", "expected": "can you forward that message to me?", "match": "exact"}
 {"id": 80, "input": "i think i left my jacket in your car", "expected": "i think i left my jacket in your car", "match": "exact"}
-{"id": 81, "input": "we can split the bill fifty fifty", "expected": "we can split the bill", "match": "exact"}
+{"id": 81, "input": "we can split the bill fifty fifty", "expected": "we can split the bill fifty fifty", "match": "exact"}
 {"id": 82, "input": "i'll send the notes after class", "expected": "i'll send the notes after class", "match": "exact"}
-{"id": 83, "input": "can you pick me up at 7 no 730", "expected": "can you pick me up at 7?", "match": "exact"}
+{"id": 83, "input": "can you pick me up at 7 no 730", "expected": "can you pick me up at 7, no, 7:30?", "match": "exact"}
 {"id": 84, "input": "i'm not feeling great today", "expected": "i'm not feeling great today", "match": "exact"}
-{"id": 85, "input": "did the landlord reply yet about the leak leak", "expected": "did the landlord reply yet?", "match": "exact"}
+{"id": 85, "input": "did the landlord reply yet about the leak leak", "expected": "did the landlord reply yet about the leak?", "match": "exact"}
 {"id": 86, "input": "i'll drop it off after work", "expected": "i'll drop it off after work", "match": "exact"}
 {"id": 87, "input": "can you check if the door is locked locked", "expected": "can you check if the door is locked?", "match": "exact"}
 {"id": 88, "input": "i'm cooking now, call you in 20", "expected": "i'm cooking now, call you in 20", "match": "exact"}
-{"id": 89, "input": "just woke up sorry slept through alarm", "expected": "just woke up, sorry", "match": "exact"}
-{"id": 90, "input": "can you mute your mic? lots of echo", "expected": "can you mute your mic? lots of echo", "match": "exact"}
-{"id": 91, "input": "were out of detergent and paper towels towels", "expected": "we're out of detergent", "match": "exact"}
+{"id": 89, "input": "just woke up sorry slept through alarm", "expected": "just woke up sorry slept through alarm", "match": "exact"}
+{"id": 90, "input": "can you mute your mic? lots of echo", "expected": "can you mute your mic? lots of echo.", "match": "exact"}
+{"id": 91, "input": "were out of detergent and paper towels towels", "expected": "we're out of detergent and paper towels", "match": "exact"}
 {"id": 92, "input": "please text me when you're close", "expected": "please text me when you're close", "match": "exact"}
-{"id": 93, "input": "im heading to the airport now security looks long", "expected": "i'm heading to the airport now", "match": "exact"}
+{"id": 93, "input": "im heading to the airport now security looks long", "expected": "i'm heading to the airport now security looks long", "match": "exact"}
 {"id": 94, "input": "can we keep this between us?", "expected": "can we keep this between us?", "match": "exact"}
 {"id": 95, "input": "lets book it before prices go up up", "expected": "let's book it before prices go up", "match": "exact"}
 {"id": 96, "input": "i can cover this month if you need", "expected": "i can cover this month if you need", "match": "exact"}
 {"id": 97, "input": "send me your eta when you can can", "expected": "send me your eta when you can", "match": "exact"}
 {"id": 98, "input": "i'm at the dentist, might be slow to reply", "expected": "i'm at the dentist, might be slow to reply", "match": "exact"}
-{"id": 99, "input": "can you bring the laptop charger mine disappeared", "expected": "can you bring the laptop charger?", "match": "exact"}
+{"id": 99, "input": "can you bring the laptop charger mine disappeared", "expected": "can you bring the laptop charger mine disappeared?", "match": "exact"}
 {"id": 100, "input": "i'll take care of it tonight", "expected": "i'll take care of it tonight", "match": "exact"}
