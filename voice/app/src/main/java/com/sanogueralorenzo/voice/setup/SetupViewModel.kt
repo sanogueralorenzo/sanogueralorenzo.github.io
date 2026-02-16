@@ -18,7 +18,6 @@ import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
-import com.sanogueralorenzo.voice.settings.ResponseStyle
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -70,12 +69,6 @@ class SetupViewModel(
         val normalized = value.take(VoiceSettingsStore.MAX_CUSTOM_INSTRUCTIONS_CHARS)
         settingsStore.setCustomInstructions(normalized)
         setState { copy(customInstructions = normalized) }
-    }
-
-    fun setResponseStyleLevel(level: Int) {
-        val normalized = ResponseStyle.normalize(level)
-        settingsStore.setResponseStyleLevel(normalized)
-        setState { copy(responseStyleLevel = normalized) }
     }
 
     fun isAnyDownloading(): Boolean {

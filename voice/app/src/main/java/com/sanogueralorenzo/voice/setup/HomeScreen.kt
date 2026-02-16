@@ -30,7 +30,6 @@ fun HomeScreen(
     onOpenModels: () -> Unit,
     onOpenOnboarding: () -> Unit,
     onOpenPromptBenchmarking: () -> Unit,
-    onOpenResponseStyle: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     LazyColumn(
@@ -65,13 +64,6 @@ fun HomeScreen(
                 title = stringResource(R.string.home_section_prompt_benchmarking_title),
                 description = stringResource(R.string.home_section_prompt_benchmarking_description),
                 onClick = onOpenPromptBenchmarking
-            )
-        }
-        item {
-            SectionCard(
-                title = stringResource(R.string.home_section_response_style_title),
-                description = stringResource(R.string.home_section_response_style_description),
-                onClick = onOpenResponseStyle
             )
         }
         item {

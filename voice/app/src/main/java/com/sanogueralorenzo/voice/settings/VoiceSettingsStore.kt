@@ -33,22 +33,10 @@ class VoiceSettingsStore(context: Context) {
         prefs.edit().putString(KEY_CUSTOM_INSTRUCTIONS, normalized).apply()
     }
 
-    fun responseStyleLevel(): Int {
-        val stored = prefs.getInt(KEY_RESPONSE_STYLE_LEVEL, ResponseStyle.DEFAULT_LEVEL)
-        return ResponseStyle.normalize(stored)
-    }
-
-    fun setResponseStyleLevel(level: Int) {
-        prefs.edit()
-            .putInt(KEY_RESPONSE_STYLE_LEVEL, ResponseStyle.normalize(level))
-            .apply()
-    }
-
     companion object {
         private const val PREFS_NAME = "voice_settings"
         private const val KEY_LITERT_REWRITE_ENABLED = "litert_rewrite_enabled"
         private const val KEY_CUSTOM_INSTRUCTIONS = "custom_instructions"
-        private const val KEY_RESPONSE_STYLE_LEVEL = "response_style_level"
         private const val DEFAULT_LITERT_REWRITE_ENABLED = true
         const val MAX_CUSTOM_INSTRUCTIONS_CHARS = 600
     }

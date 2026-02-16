@@ -13,8 +13,6 @@
     <string name="home_section_onboarding_description">Run the interactive tutorial for the Voice pill flow.</string>
     <string name="home_section_prompt_benchmarking_title">Prompt Benchmarking</string>
     <string name="home_section_prompt_benchmarking_description">Measure LiteRT quality, consistency, and speed on a fixed suite.</string>
-    <string name="home_section_response_style_title">Response Style</string>
-    <string name="home_section_response_style_description">Choose how consistent or creative LiteRT should be while rewriting text.</string>
     <string name="home_section_settings_title">Settings</string>
     <string name="home_section_settings_description">Control LiteRT rewrite behavior and custom instructions.</string>
 
@@ -22,18 +20,6 @@
     <string name="models_section_title">Download Models</string>
     <string name="onboarding_section_title">Onboarding</string>
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
-    <string name="response_style_section_title">Response Style</string>
-    <string name="response_style_section_description">Tune sampler behavior from highly consistent to more creative output.</string>
-    <string name="response_style_slider_title">Consistency vs creativity</string>
-    <string name="response_style_consistent">Consistent</string>
-    <string name="response_style_creative">Creative</string>
-    <string name="response_style_hint">Applied to both compose and edit LiteRT calls via sampler settings.</string>
-    <string name="response_style_level_0">Level 1/6: Very consistent</string>
-    <string name="response_style_level_1">Level 2/6: Mostly consistent</string>
-    <string name="response_style_level_2">Level 3/6: Balanced (leaning consistent)</string>
-    <string name="response_style_level_3">Level 4/6: Balanced (leaning creative)</string>
-    <string name="response_style_level_4">Level 5/6: Mostly creative</string>
-    <string name="response_style_level_5">Level 6/6: Very creative</string>
     <string name="prompt_benchmark_intro">Run fixed compose and edit prompts to compare output quality, consistency, and speed.</string>
     <string name="prompt_benchmark_suite_stats">Suite: %1$d cases, %2$d runs total (%3$d repeats each).</string>
     <string name="prompt_benchmark_model_missing">LiteRT model missing. Download it from Models before running benchmark.</string>
