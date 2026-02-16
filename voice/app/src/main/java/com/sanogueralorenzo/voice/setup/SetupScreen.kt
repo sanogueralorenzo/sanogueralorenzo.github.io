@@ -250,7 +250,7 @@ private fun SetupTopIcon() {
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.mipmap.ic_launcher),
+            painter = painterResource(id = R.drawable.ic_launcher_foreground),
             contentDescription = stringResource(R.string.app_name),
             modifier = Modifier.size(72.dp)
         )
