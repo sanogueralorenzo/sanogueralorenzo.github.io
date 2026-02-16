@@ -23,11 +23,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
@@ -58,7 +59,6 @@ fun SetupNavHost() {
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val windowInfo = LocalWindowInfo.current
     val setupViewModel = remember(appContext, appGraph) {
         SetupViewModel(
             initialState = SetupUiState(
@@ -74,6 +74,7 @@ fun SetupNavHost() {
         )
     }
     val uiState by setupViewModel.collectAsStateWithLifecycle()
+    var keyboardSelectionAssumed by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -103,7 +104,11 @@ fun SetupNavHost() {
         setupViewModel.refreshModelReadiness()
     }
 
-    val accessReady = uiState.micGranted && uiState.voiceImeSelected
+    LaunchedEffect(uiState.micGranted) {
+        if (!uiState.micGranted) keyboardSelectionAssumed = false
+    }
+
+    val accessReady = uiState.micGranted && (uiState.voiceImeSelected || keyboardSelectionAssumed)
     val startDestination = if (accessReady) MainRoute.HOME else MainRoute.SETUP
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
@@ -121,19 +126,7 @@ fun SetupNavHost() {
     LaunchedEffect(accessReady, currentRoute) {
         if (!accessReady && currentRoute != null && currentRoute != MainRoute.SETUP) {
             navController.navigateClearingBackStack(MainRoute.SETUP)
-        } else if (accessReady && currentRoute == MainRoute.SETUP) {
-            navController.navigateClearingBackStack(MainRoute.HOME)
         }
-    }
-
-    LaunchedEffect(currentRoute) {
-        if (currentRoute != MainRoute.SETUP) return@LaunchedEffect
-        snapshotFlow { windowInfo.isWindowFocused }
-            .collect { focused ->
-                if (focused) {
-                    setupViewModel.refreshKeyboardStatus()
-                }
-            }
     }
 
     val actions = SetupActions(
@@ -145,7 +138,7 @@ fun SetupNavHost() {
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = {
             showImePicker(context)
-            setupViewModel.refreshKeyboardStatus()
+            keyboardSelectionAssumed = true
         },
         onDownloadAll = { setupViewModel.downloadAllModels() },
         onDownloadLiteRt = { setupViewModel.startLiteRtDownload() },
@@ -213,10 +206,11 @@ fun SetupNavHost() {
                 SetupScreen(
                     micGranted = uiState.micGranted,
                     voiceImeEnabled = uiState.voiceImeEnabled,
-                    voiceImeSelected = uiState.voiceImeSelected,
+                    keyboardSelectionConfirmed = uiState.voiceImeSelected || keyboardSelectionAssumed,
                     onGrantMic = actions.onGrantMic,
                     onOpenImeSettings = actions.onOpenImeSettings,
-                    onShowImePicker = actions.onShowImePicker
+                    onShowImePicker = actions.onShowImePicker,
+                    onDone = { navController.navigateClearingBackStack(MainRoute.HOME) }
                 )
             }
 

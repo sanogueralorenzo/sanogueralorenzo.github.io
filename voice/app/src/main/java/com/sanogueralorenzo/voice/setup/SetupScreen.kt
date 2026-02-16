@@ -31,13 +31,12 @@ import com.sanogueralorenzo.voice.ui.VoiceVisualizerMode
 fun SetupScreen(
     micGranted: Boolean,
     voiceImeEnabled: Boolean,
-    voiceImeSelected: Boolean,
+    keyboardSelectionConfirmed: Boolean,
     onGrantMic: () -> Unit,
     onOpenImeSettings: () -> Unit,
-    onShowImePicker: () -> Unit
+    onShowImePicker: () -> Unit,
+    onDone: () -> Unit
 ) {
-    val needsKeyboardSelection = voiceImeEnabled && !voiceImeSelected
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -87,17 +86,18 @@ fun SetupScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = stringResource(R.string.setup_keyboard_intro),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = stringResource(R.string.setup_keyboard_button_recommendation),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        if (needsKeyboardSelection) {
+                        if (keyboardSelectionConfirmed) {
                             Text(
-                                text = stringResource(R.string.setup_keyboard_select_required),
+                                text = stringResource(R.string.setup_keyboard_welcome),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.setup_keyboard_intro),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = stringResource(R.string.setup_keyboard_button_recommendation),
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -118,19 +118,28 @@ fun SetupScreen(
                     Text(text = stringResource(R.string.setup_grant_mic))
                 }
             } else {
-                if (!voiceImeEnabled) {
+                if (keyboardSelectionConfirmed) {
                     Button(
-                        onClick = onOpenImeSettings,
+                        onClick = onDone,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(text = stringResource(R.string.setup_enable_keyboard))
+                        Text(text = stringResource(R.string.setup_done))
                     }
-                }
-                Button(
-                    onClick = onShowImePicker,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.setup_choose_keyboard))
+                } else {
+                    if (!voiceImeEnabled) {
+                        Button(
+                            onClick = onOpenImeSettings,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = stringResource(R.string.setup_enable_keyboard))
+                        }
+                    }
+                    Button(
+                        onClick = onShowImePicker,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = stringResource(R.string.setup_choose_keyboard))
+                    }
                 }
             }
         }
