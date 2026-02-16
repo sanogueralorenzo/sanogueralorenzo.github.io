@@ -126,7 +126,8 @@ fun SetupNavHost() {
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != MainRoute.SETUP) return@LaunchedEffect
         snapshotFlow { windowInfo.isWindowFocused }
             .collect { focused ->
                 if (focused) {
