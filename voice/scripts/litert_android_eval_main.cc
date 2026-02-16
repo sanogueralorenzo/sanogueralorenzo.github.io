@@ -153,7 +153,7 @@ absl::StatusOr<std::string> RunSingleInference(const std::string& model_path,
     json system_message = json::object();
     system_message["role"] = "system";
     system_message["content"] = system_content;
-    preface.messages.push_back(static_cast<const json&>(system_message));
+    preface.messages[0] = system_message;
 
     builder.SetPreface(preface);
   }
