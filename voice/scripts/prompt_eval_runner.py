@@ -149,6 +149,12 @@ def clean_model_output(text: str, bullet_mode: bool = False) -> str:
     if not cleaned:
         return ''
 
+    # Some prompt templates are echoed back by the model; keep the final answer line.
+    if cleaned.lower().startswith('user input:'):
+        non_empty_lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+        if len(non_empty_lines) >= 2:
+            cleaned = non_empty_lines[-1]
+
     if not bullet_mode and cleaned.startswith('- '):
         parts = []
         for line in cleaned.splitlines():
