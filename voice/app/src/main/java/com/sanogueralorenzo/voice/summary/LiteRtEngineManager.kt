@@ -118,6 +118,6 @@ internal class LiteRtEngineManager(context: Context) {
 
     private companion object {
         private const val TAG = "LiteRtEngineManager"
-        private const val DEFAULT_ENGINE_MAX_TOKENS = 224
+        private const val DEFAULT_ENGINE_MAX_TOKENS = 4096
     }
 }

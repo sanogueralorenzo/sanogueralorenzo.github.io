@@ -659,10 +659,10 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         private const val REQUEST_TIMEOUT_MS = 30_000L
         private const val CONVERSATION_TIMEOUT_CANCEL_GRACE_MS = 120L
         private const val DEFAULT_TOP_K = 1
-        private const val DEFAULT_TOP_P = 1.0
-        private const val DEFAULT_TEMPERATURE = 0.0
-        private const val DEFAULT_SEED = 42
-        private const val DEFAULT_ENGINE_MAX_TOKENS = 224
+        private const val DEFAULT_TOP_P = 0.95
+        private const val DEFAULT_TEMPERATURE = 1.0
+        private const val DEFAULT_SEED = 0
+        private const val DEFAULT_ENGINE_MAX_TOKENS = 4096
         private const val MAX_ERROR_MESSAGE_CHARS = 320
         private val SUPPORTED_MODEL_HINTS = listOf(
             "gemma-3n",
