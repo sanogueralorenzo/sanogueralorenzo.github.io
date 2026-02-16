@@ -1,8 +1,10 @@
 package com.sanogueralorenzo.voice.setup
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.airbnb.mvrx.Fail
 import com.airbnb.mvrx.Loading
@@ -17,6 +19,7 @@ import com.sanogueralorenzo.voice.models.ModelDownloader
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
+import com.sanogueralorenzo.voice.ime.VoiceInputMethodService
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +46,8 @@ class SetupViewModel(
 ) : MavericksViewModel<SetupUiState>(initialState) {
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
+    private val voiceImeIdShort = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToShortString()
+    private val voiceImeIdLong = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToString()
 
     fun shutdown() {
         downloader.shutdown()
@@ -52,8 +57,18 @@ class SetupViewModel(
         setState { copy(micGranted = hasMicPermission()) }
     }
 
+    fun refreshKeyboardStatus() {
+        setState {
+            copy(
+                voiceImeEnabled = isVoiceImeEnabled(),
+                voiceImeSelected = isVoiceImeSelectedAsDefault()
+            )
+        }
+    }
+
     fun onMicPermissionResult(granted: Boolean) {
         setState { copy(micGranted = granted) }
+        refreshKeyboardStatus()
     }
 
     fun setKeyboardTestInput(value: String) {
@@ -462,5 +477,33 @@ class SetupViewModel(
             appContext,
             Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isVoiceImeEnabled(): Boolean {
+        val raw = runCatching {
+            Settings.Secure.getString(
+                appContext.contentResolver,
+                Settings.Secure.ENABLED_INPUT_METHODS
+            )
+        }.getOrNull().orEmpty()
+        if (raw.isBlank()) return false
+        return raw.split(':').any { entry ->
+            isVoiceImeId(entry.substringBefore(';').trim())
+        }
+    }
+
+    private fun isVoiceImeSelectedAsDefault(): Boolean {
+        val selected = runCatching {
+            Settings.Secure.getString(
+                appContext.contentResolver,
+                Settings.Secure.DEFAULT_INPUT_METHOD
+            )
+        }.getOrNull()?.substringBefore(';')?.trim()
+        return isVoiceImeId(selected)
+    }
+
+    private fun isVoiceImeId(id: String?): Boolean {
+        if (id.isNullOrBlank()) return false
+        return id == voiceImeIdShort || id == voiceImeIdLong
     }
 }

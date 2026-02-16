@@ -35,13 +35,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavHostController
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 
 private object MainRoute {
     const val HOME = "home"
-    const val SETUP = "setup"
+    const val SETUP = "setup_gate"
     const val MODELS = "models"
     const val ONBOARDING = "onboarding"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
@@ -59,6 +60,8 @@ fun SetupNavHost() {
         SetupViewModel(
             initialState = SetupUiState(
                 micGranted = false,
+                voiceImeEnabled = false,
+                voiceImeSelected = false,
                 liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled(),
                 customInstructions = appGraph.settingsStore.customInstructions()
             ),
@@ -83,6 +86,7 @@ fun SetupNavHost() {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 setupViewModel.refreshMicPermission()
+                setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
             }
         }
@@ -92,13 +96,16 @@ fun SetupNavHost() {
 
     LaunchedEffect(Unit) {
         setupViewModel.refreshMicPermission()
+        setupViewModel.refreshKeyboardStatus()
         setupViewModel.refreshModelReadiness()
     }
 
+    val accessReady = uiState.micGranted && uiState.voiceImeSelected
+    val startDestination = if (accessReady) MainRoute.HOME else MainRoute.SETUP
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
-    val canGoBack = currentRoute != MainRoute.HOME
+    val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && currentRoute != MainRoute.SETUP
     val topBarTitle = when (currentRoute) {
         MainRoute.SETUP -> stringResource(R.string.setup_section_title)
         MainRoute.MODELS -> stringResource(R.string.models_section_title)
@@ -108,13 +115,21 @@ fun SetupNavHost() {
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
 
+    LaunchedEffect(accessReady, currentRoute) {
+        if (!accessReady && currentRoute != null && currentRoute != MainRoute.SETUP) {
+            navController.navigateClearingBackStack(MainRoute.SETUP)
+        } else if (accessReady && currentRoute == MainRoute.SETUP) {
+            navController.navigateClearingBackStack(MainRoute.HOME)
+        }
+    }
+
     val actions = SetupActions(
-        onOpenSetup = { navController.navigate(MainRoute.SETUP) },
         onOpenModels = { navController.navigate(MainRoute.MODELS) },
         onOpenOnboarding = { navController.navigate(MainRoute.ONBOARDING) },
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+        onOpenKeyboardButtonSettings = { openKeyboardButtonSettings(context) },
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = { showImePicker(context) },
         onDownloadAll = { setupViewModel.downloadAllModels() },
@@ -163,14 +178,13 @@ fun SetupNavHost() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = MainRoute.HOME,
+            startDestination = startDestination,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
             composable(MainRoute.HOME) {
                 HomeScreen(
-                    onOpenSetup = actions.onOpenSetup,
                     onOpenModels = actions.onOpenModels,
                     onOpenOnboarding = actions.onOpenOnboarding,
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
@@ -181,7 +195,10 @@ fun SetupNavHost() {
             composable(MainRoute.SETUP) {
                 SetupScreen(
                     micGranted = uiState.micGranted,
+                    voiceImeEnabled = uiState.voiceImeEnabled,
+                    voiceImeSelected = uiState.voiceImeSelected,
                     onGrantMic = actions.onGrantMic,
+                    onOpenKeyboardButtonSettings = actions.onOpenKeyboardButtonSettings,
                     onOpenImeSettings = actions.onOpenImeSettings,
                     onShowImePicker = actions.onShowImePicker
                 )
@@ -245,7 +262,32 @@ private fun openImeSettings(context: Context) {
     context.startActivity(intent)
 }
 
+private fun openKeyboardButtonSettings(context: Context) {
+    val candidateActions = listOf(
+        "android.settings.SYSTEM_NAVIGATION_SETTINGS",
+        "android.settings.NAVIGATION_BAR_SETTINGS"
+    )
+    for (action in candidateActions) {
+        val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (intent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intent)
+            return
+        }
+    }
+    val fallback = Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(fallback)
+}
+
 private fun showImePicker(context: Context) {
     val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     imm.showInputMethodPicker()
+}
+
+private fun NavHostController.navigateClearingBackStack(route: String) {
+    while (popBackStack()) {
+        // Keep popping until the stack is empty so setup/home can be enforced after runtime changes.
+    }
+    navigate(route) {
+        launchSingleTop = true
+    }
 }

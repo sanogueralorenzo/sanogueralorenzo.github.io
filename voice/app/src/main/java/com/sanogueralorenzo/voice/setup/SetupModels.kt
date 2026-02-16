@@ -6,6 +6,8 @@ import com.airbnb.mvrx.Uninitialized
 
 data class SetupUiState(
     val micGranted: Boolean = false,
+    val voiceImeEnabled: Boolean = false,
+    val voiceImeSelected: Boolean = false,
     val liteRtReady: Boolean = false,
     val moonshineReady: Boolean = false,
     val liteRtProgress: Int = 0,
@@ -23,12 +25,12 @@ data class SetupUiState(
 ) : MavericksState
 
 data class SetupActions(
-    val onOpenSetup: () -> Unit,
     val onOpenModels: () -> Unit,
     val onOpenOnboarding: () -> Unit,
     val onOpenPromptBenchmarking: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onGrantMic: () -> Unit,
+    val onOpenKeyboardButtonSettings: () -> Unit,
     val onOpenImeSettings: () -> Unit,
     val onShowImePicker: () -> Unit,
     val onDownloadAll: () -> Unit,

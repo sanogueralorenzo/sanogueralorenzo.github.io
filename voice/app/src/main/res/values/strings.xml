@@ -5,8 +5,6 @@
     <string name="main_title_voice_keyboard">Voice Keyboard</string>
     <string name="main_back">Back</string>
 
-    <string name="home_section_setup_title">Setup</string>
-    <string name="home_section_setup_description">Grant mic permission and enable Voice Keyboard.</string>
     <string name="home_section_models_title">Download Models</string>
     <string name="home_section_models_description">Download or validate Moonshine and LiteRT models.</string>
     <string name="home_section_onboarding_title">Onboarding</string>
@@ -98,9 +96,15 @@
     <string name="settings_custom_instructions_placeholder">Example: Keep contractions. Avoid changing names. Keep bullet lists when present.</string>
     <string name="settings_custom_instructions_counter">%1$d / %2$d</string>
 
-    <string name="setup_mic_granted">Mic permission: granted</string>
-    <string name="setup_mic_missing">Mic permission: not granted</string>
     <string name="setup_grant_mic">Grant microphone permission</string>
+    <string name="setup_mic_intro">Voice Keyboard needs microphone permission to transcribe your speech.</string>
+    <string name="setup_mic_bullet_while_using">• Select \"While using the app\" when Android asks for permission.</string>
+    <string name="setup_mic_bullet_local">• Voice transcription and rewrite run locally on your phone.</string>
+    <string name="setup_mic_bullet_offline_after_download">• After models are downloaded, dictation works without internet.</string>
+    <string name="setup_keyboard_intro">Enable Voice Keyboard and set it as your active keyboard to continue.</string>
+    <string name="setup_keyboard_button_recommendation">For faster keyboard switching, we recommend: General &gt; Keyboard &gt; Keyboard button on navigation bar &gt; Show button to hide keyboard.</string>
+    <string name="setup_keyboard_select_required">Voice Keyboard is enabled, but not currently selected as default input method.</string>
+    <string name="setup_open_keyboard_button_settings">Keyboard button settings</string>
     <string name="setup_download_all">Download all models</string>
     <string name="setup_download_all_already_ready">All models are already ready.</string>
     <string name="setup_download_all_completed">All model downloads completed.</string>
