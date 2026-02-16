@@ -79,7 +79,7 @@
     <string name="onboarding_tutorial_open_picker">Keyboard picker</string>
     <string name="onboarding_tutorial_open_settings">IME settings</string>
     <string name="onboarding_tutorial_input_label">Message draft</string>
-    <string name="onboarding_tutorial_input_placeholder">Tap here, then use the Voice keyboard pill to dictate.</string>
+    <string name="onboarding_tutorial_input_placeholder">Message</string>
     <string name="onboarding_tutorial_real_instruction_compose">Use the real Voice keyboard and dictate your message.</string>
     <string name="onboarding_tutorial_real_instruction_edit">Use the real Edit action to update the message.</string>
     <string name="onboarding_tutorial_real_instruction_sent">Message sent.</string>
