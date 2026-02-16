@@ -12,12 +12,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-ANDROID_DEFAULT_TOP_K = 1
-ANDROID_DEFAULT_TOP_P = 1.0
-ANDROID_DEFAULT_TEMPERATURE = 0.0
-ANDROID_DEFAULT_SEED = 42
-ANDROID_DEFAULT_MAX_NUM_TOKENS = 224
-
 WHITESPACE_REGEX = re.compile(r"\s+")
 REPEATED_FILLER_REGEX = re.compile(
     r"\b(um+|uh+|erm+|emm+|hmm+)(?:\s+\1\b)+",
@@ -97,26 +91,41 @@ def load_cases(path: str) -> list[Case]:
     return cases
 
 
-def extract_system_instruction(template: str) -> str:
-    text = template.replace('\r\n', '\n').strip()
+def render_prompt(template: str, input_text: str) -> str:
+    rendered = template.replace('{{input}}', input_text).replace('{input}', input_text)
+    if rendered == template:
+        return f"{template.rstrip()}\n\n{input_text}"
+    return rendered
 
-    text = re.sub(
-        r"\n*User input:\n\{\{input\}\}\s*$",
-        "",
-        text,
-        flags=re.IGNORECASE,
-    )
-    text = re.sub(
-        r"\n*User input:\n\{input\}\s*$",
-        "",
-        text,
-        flags=re.IGNORECASE,
-    )
 
-    text = text.replace('{{input}}', '').replace('{input}', '').strip()
-    if not text:
-        raise ValueError('System instruction resolved to empty text')
-    return text
+def extract_main_output_text(raw_output: str) -> str:
+    pre_benchmark = raw_output.split('BenchmarkInfo:', 1)[0]
+    lines = [line.rstrip() for line in pre_benchmark.splitlines()]
+
+    response_lines: list[str] = []
+    saw_input_prompt = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('input_prompt:'):
+            saw_input_prompt = True
+            continue
+        if not saw_input_prompt:
+            continue
+        if stripped.startswith('INFO:') or stripped.startswith('WARNING:'):
+            continue
+        response_lines.append(line)
+
+    if not response_lines:
+        filtered = [
+            line for line in lines
+            if line.strip()
+            and not line.strip().startswith('INFO:')
+            and not line.strip().startswith('WARNING:')
+            and not line.strip().startswith('input_prompt:')
+        ]
+        return '\n'.join(filtered).strip()
+
+    return '\n'.join(response_lines).strip()
 
 
 def normalize_input(text: str) -> str:
@@ -170,7 +179,6 @@ def run_model_once(
     binary_path: str,
     backend: str,
     model_path: str,
-    system_instruction: str,
     input_prompt: str,
     timeout_sec: int,
 ) -> tuple[str, int]:
@@ -178,21 +186,11 @@ def run_model_once(
         tmp_input.write(input_prompt)
         input_file = tmp_input.name
 
-    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as tmp_system:
-        tmp_system.write(system_instruction)
-        system_file = tmp_system.name
-
     cmd = [
         binary_path,
         f'--backend={backend}',
         f'--model_path={model_path}',
         f'--input_prompt_file={input_file}',
-        f'--system_instruction_file={system_file}',
-        f'--max_num_tokens={ANDROID_DEFAULT_MAX_NUM_TOKENS}',
-        f'--top_k={ANDROID_DEFAULT_TOP_K}',
-        f'--top_p={ANDROID_DEFAULT_TOP_P}',
-        f'--temperature={ANDROID_DEFAULT_TEMPERATURE}',
-        f'--seed={ANDROID_DEFAULT_SEED}',
     ]
 
     started = time.perf_counter()
@@ -205,7 +203,7 @@ def run_model_once(
             timeout=timeout_sec,
         )
     finally:
-        for tmp_path in (input_file, system_file):
+        for tmp_path in (input_file,):
             try:
                 os.unlink(tmp_path)
             except FileNotFoundError:
@@ -219,7 +217,7 @@ def run_model_once(
         detail = stderr or stdout or f'process exited with code {completed.returncode}'
         raise RuntimeError(detail)
 
-    return completed.stdout.strip(), latency_ms
+    return extract_main_output_text(completed.stdout), latency_ms
 
 
 def write_text_report(
@@ -236,11 +234,8 @@ def write_text_report(
         f.write(f"binary: {run_config['binary_path']}\n")
         f.write(f"model_path: {run_config['model_path']}\n")
         f.write(f"backend: {run_config['backend']}\n")
-        f.write(
-            'sampling: Android level-0 profile '
-            '(topK=1, topP=1.0, temperature=0.0, seed=42)\n'
-        )
-        f.write('max_num_tokens: 224\n')
+        f.write('sampling: LiteRT-LM CLI defaults\n')
+        f.write('max_num_tokens: LiteRT-LM CLI default\n')
         f.write(f"cases_file: {run_config['cases_file']}\n")
         f.write(f"prompt_file: {run_config['prompt_file']}\n")
         f.write('\n')
@@ -287,8 +282,6 @@ def main() -> int:
     if not prompt_template:
         raise ValueError(f'Prompt file is empty: {args.prompt_file}')
 
-    system_instruction = extract_system_instruction(prompt_template)
-
     cases = load_cases(args.cases_file)
     if args.max_cases > 0:
         cases = cases[:args.max_cases]
@@ -309,12 +302,12 @@ def main() -> int:
 
         try:
             if normalized_input:
+                rendered_prompt = render_prompt(prompt_template, normalized_input)
                 raw_output, latency_ms = run_model_once(
                     binary_path=args.binary_path,
                     backend=args.backend,
                     model_path=args.model_path,
-                    system_instruction=system_instruction,
-                    input_prompt=normalized_input,
+                    input_prompt=rendered_prompt,
                     timeout_sec=args.timeout_sec,
                 )
                 actual = clean_model_output(raw_output, bullet_mode=False)

@@ -47,10 +47,8 @@ Options:
   --no-update                Do not run git pull when LiteRT-LM already exists
   -h, --help                 Show this help
 
-This script runs an Android-like compose config:
-- max_num_tokens=224
-- sampler topK=1, topP=1.0, temperature=0.0, seed=42
-- input/output normalization aligned with app compose path
+This script runs prompt evaluation against LiteRT-LM's reference CLI
+(`litert_lm_main`) with deterministic default sampler behavior.
 EOF
 }
 
@@ -60,63 +58,6 @@ require_cmd() {
     echo "Missing dependency: $name" >&2
     exit 1
   fi
-}
-
-ensure_android_eval_target() {
-  local build_file="${LITERTLM_DIR}/runtime/engine/BUILD"
-  local src_file="${LITERTLM_DIR}/runtime/engine/litert_android_eval_main.cc"
-
-  cp "${SCRIPT_DIR}/litert_android_eval_main.cc" "${src_file}"
-
-  if grep -q 'name = "litert_android_eval_main"' "${build_file}"; then
-    return
-  fi
-
-  cat >> "${build_file}" <<'EOF'
-
-cc_binary(
-    name = "litert_android_eval_main",
-    srcs = ["litert_android_eval_main.cc"],
-    additional_linker_inputs = select({
-        "@platforms//os:windows": [
-            "@litert//litert/c:windows_exported_symbols.def",
-        ],
-        "@platforms//os:linux": [":litert_lm_main.exported_symbols"],
-        "//conditions:default": [],
-    }),
-    linkopts = select({
-        "@litert//litert:litert_link_capi_so": [],
-        "@platforms//os:ios": ["-Wl,-exported_symbol,_LiteRt*"],
-        "@platforms//os:macos": ["-Wl,-exported_symbol,_LiteRt*"],
-        "@platforms//os:windows": [
-            "/DEF:$(location @litert//litert/c:windows_exported_symbols.def)",
-        ],
-        "@platforms//os:linux": ["-Wl,--dynamic-list=$(location :litert_lm_main.exported_symbols)"],
-        "//conditions:default": ["-Wl,--export-dynamic-symbol=LiteRt*"],
-    }) + select({
-        "@platforms//os:android": ["-lEGL", "-lGLESv3"],
-        "//conditions:default": [],
-    }),
-    deps = [
-        ":engine_factory",
-        ":engine_settings",
-        ":io_types",
-        "@com_google_absl//absl/base:log_severity",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/log:absl_check",
-        "@com_google_absl//absl/log:absl_log",
-        "@com_google_absl//absl/log:globals",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@nlohmann_json//:json",
-        "//runtime/conversation",
-        "//runtime/conversation:io_types",
-        "//runtime/proto:sampler_params_cc_proto",
-        "//runtime/util:litert_status_util",
-    ],
-)
-EOF
 }
 
 while [[ $# -gt 0 ]]; do
@@ -226,7 +167,7 @@ if [[ "${SKIP_DOWNLOAD}" -eq 0 ]]; then
 fi
 
 if [[ -z "${BINARY_PATH}" ]]; then
-  BINARY_PATH="${LITERTLM_DIR}/bazel-bin/runtime/engine/litert_android_eval_main"
+  BINARY_PATH="${LITERTLM_DIR}/bazel-bin/runtime/engine/litert_lm_main"
 fi
 
 if [[ "${SKIP_SETUP}" -eq 0 ]]; then
@@ -239,8 +180,6 @@ if [[ "${SKIP_SETUP}" -eq 0 ]]; then
     git -C "${LITERTLM_DIR}" pull --ff-only
   fi
 
-  ensure_android_eval_target
-
   if command -v bazelisk >/dev/null 2>&1; then
     BAZEL_BIN="bazelisk"
   elif command -v bazel >/dev/null 2>&1; then
@@ -250,7 +189,7 @@ if [[ "${SKIP_SETUP}" -eq 0 ]]; then
     exit 1
   fi
 
-  echo "Building LiteRT-LM Android-like eval CLI"
+  echo "Building LiteRT-LM eval CLI"
   MACOS_SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version 2>/dev/null || true)"
   MACOS_MIN_VERSION="$(sw_vers -productVersion 2>/dev/null | awk -F. '{print $1 "." $2}' || true)"
   if [[ -z "${MACOS_SDK_VERSION}" ]]; then
@@ -261,7 +200,7 @@ if [[ "${SKIP_SETUP}" -eq 0 ]]; then
   fi
   (
     cd "${LITERTLM_DIR}"
-    "${BAZEL_BIN}" build //runtime/engine:litert_android_eval_main \
+    "${BAZEL_BIN}" build //runtime/engine:litert_lm_main \
       --macos_sdk_version="${MACOS_SDK_VERSION}" \
       --macos_minimum_os="${MACOS_MIN_VERSION}" \
       --host_macos_minimum_os="${MACOS_MIN_VERSION}" \
@@ -278,7 +217,7 @@ fi
 mkdir -p "$(dirname "${REPORT_FILE}")"
 mkdir -p "$(dirname "${JSON_REPORT_FILE}")"
 
-echo "Running prompt evaluation with Android-like compose configuration"
+echo "Running prompt evaluation"
 python3 "${SCRIPT_DIR}/prompt_eval_runner.py" \
   --binary-path "${BINARY_PATH}" \
   --model-path "${MODEL_PATH}" \
