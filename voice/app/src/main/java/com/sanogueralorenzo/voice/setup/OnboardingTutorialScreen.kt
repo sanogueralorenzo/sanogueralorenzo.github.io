@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -98,6 +99,8 @@ fun OnboardingTutorialScreen(
                 text = stringResource(instructionResId(tutorialState.step)),
                 style = MaterialTheme.typography.titleLarge
             )
+
+            Spacer(modifier = Modifier.height(22.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
