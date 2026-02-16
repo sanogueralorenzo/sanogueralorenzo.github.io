@@ -104,15 +104,6 @@ Configured in `ModelCatalog`:
 - Moonshine medium-streaming English model pack (`.ort` set + tokenizer/config files).
 - LiteRT-LM model (`.litertlm`) for rewrite/edit.
 
-Optional mirror:
-
-```bash
-# gradle.properties (project or user)
-VOICE_MODEL_MIRROR_BASE_URL=https://your-public-model-cdn.example.com
-```
-
-Mirror resolution applies to LiteRT model specs. Download order is mirror first, canonical URL second.
-
 ## Setup App Capabilities
 
 - Microphone permission flow.
