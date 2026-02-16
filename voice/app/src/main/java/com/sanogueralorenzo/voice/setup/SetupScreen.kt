@@ -141,6 +141,14 @@ fun SetupDownloadModelsScreen(
                 text = stringResource(R.string.setup_models_intro),
                 style = MaterialTheme.typography.bodyMedium
             )
+            Text(
+                text = stringResource(R.string.setup_models_intro_bullet_asr),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.setup_models_intro_bullet_it),
+                style = MaterialTheme.typography.bodySmall
+            )
             if (!updatesMessage.isNullOrBlank()) {
                 Text(
                     text = updatesMessage,
@@ -163,10 +171,6 @@ fun SetupDownloadModelsScreen(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = stringResource(R.string.setup_model_moonshine_note),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
                 text = stringResource(
                     R.string.setup_model_row,
                     stringResource(R.string.setup_model_litert),
@@ -174,10 +178,6 @@ fun SetupDownloadModelsScreen(
                     modelStatus(context, liteRtReady, liteRtDownloading, liteRtProgress)
                 ),
                 style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = ModelCatalog.liteRtLm.notes,
-                style = MaterialTheme.typography.bodySmall
             )
             if (modelsReady) {
                 Text(

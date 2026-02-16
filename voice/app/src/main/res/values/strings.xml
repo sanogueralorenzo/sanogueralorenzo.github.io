@@ -106,7 +106,9 @@
     <string name="setup_enable_keyboard_intro">Open Android input settings and turn this keyboard on.</string>
     <string name="setup_choose_keyboard_intro">Set Voice Keyboard as your active input method so dictation can start here.</string>
     <string name="setup_keyboard_button_recommendation">For faster keyboard switching, we recommend: General &gt; Keyboard &gt; Keyboard button on navigation bar &gt; Show button to hide keyboard.</string>
-    <string name="setup_models_intro">Voice Keyboard uses a local Automatic Speech Recognition (ASR) model to convert spoken language into text from audio signals, and an Instruction Tuned (IT) model to enhance dictation and correct text on the fly.</string>
+    <string name="setup_models_intro">Voice Keyboard uses:</string>
+    <string name="setup_models_intro_bullet_asr">• ASR (Automatic Speech Recognition) model to convert spoken language into text from audio signals.</string>
+    <string name="setup_models_intro_bullet_it">• IT (Instruction Tuned) model to enhance dictation and correct text on the fly.</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_step_choose_keyboard">Choose Voice Keyboard</string>
@@ -120,8 +122,8 @@
     <string name="setup_download_all_already_ready">All models are already ready.</string>
     <string name="setup_download_all_completed">All model downloads completed.</string>
     <string name="setup_model_row">%1$s model (%2$s): %3$s</string>
-    <string name="setup_model_litert">LiteRT</string>
-    <string name="setup_model_moonshine">Moonshine</string>
+    <string name="setup_model_litert">IT Model</string>
+    <string name="setup_model_moonshine">ASR Model</string>
     <string name="setup_model_moonshine_note">Medium streaming English ASR model components (maximum accuracy).</string>
     <string name="setup_download_litert">Download LiteRT model</string>
     <string name="setup_download_moonshine">Download Moonshine model</string>
