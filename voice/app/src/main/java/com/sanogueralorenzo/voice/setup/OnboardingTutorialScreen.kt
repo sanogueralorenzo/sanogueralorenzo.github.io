@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -169,32 +168,30 @@ private fun OnboardingInputBar(
     onInputChange: (String) -> Unit,
     focusRequester: FocusRequester
 ) {
-    ElevatedCard(
+    TextField(
+        value = inputText,
+        onValueChange = onInputChange,
         modifier = Modifier
             .fillMaxWidth()
             .imePadding()
             .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp)
-    ) {
-        TextField(
-            value = inputText,
-            onValueChange = onInputChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester),
-            placeholder = {
-                Text(text = stringResource(R.string.onboarding_tutorial_input_placeholder))
-            },
-            shape = RoundedCornerShape(24.dp),
-            minLines = 1,
-            maxLines = 5,
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent
-            )
+            .focusRequester(focusRequester),
+        placeholder = {
+            Text(text = stringResource(R.string.onboarding_tutorial_input_placeholder))
+        },
+        shape = RoundedCornerShape(24.dp),
+        minLines = 1,
+        maxLines = 5,
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         )
-    }
+    )
 }
 
 @Composable
