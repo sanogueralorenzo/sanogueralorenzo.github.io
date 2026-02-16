@@ -119,6 +119,7 @@
     <string name="setup_status_missing">missing</string>
     <string name="setup_enable_keyboard">Enable Voice keyboard</string>
     <string name="setup_select_keyboard">Select Voice keyboard</string>
+    <string name="setup_choose_keyboard">Choose Voice Keyboard</string>
     <string name="setup_download_error_http">Failed downloading %1$s (HTTP %2$d).</string>
     <string name="setup_download_error_hash">Failed downloading %1$s (hash mismatch).</string>
     <string name="setup_download_error_size">Failed downloading %1$s (size mismatch).</string>

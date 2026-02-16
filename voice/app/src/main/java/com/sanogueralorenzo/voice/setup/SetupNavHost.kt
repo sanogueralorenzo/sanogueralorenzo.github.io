@@ -158,11 +158,13 @@ fun SetupNavHost() {
                     }
                 },
                 actions = {
-                    IconButton(onClick = actions.onShowImePicker) {
-                        Icon(
-                            imageVector = Icons.Rounded.Keyboard,
-                            contentDescription = stringResource(R.string.setup_select_keyboard)
-                        )
+                    if (currentRoute != MainRoute.SETUP) {
+                        IconButton(onClick = actions.onShowImePicker) {
+                            Icon(
+                                imageVector = Icons.Rounded.Keyboard,
+                                contentDescription = stringResource(R.string.setup_select_keyboard)
+                            )
+                        }
                     }
                 }
             )

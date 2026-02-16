@@ -39,12 +39,6 @@ fun SetupScreen(
     onShowImePicker: () -> Unit
 ) {
     val needsKeyboardSelection = voiceImeEnabled && !voiceImeSelected
-    val keyboardActionLabel = if (voiceImeEnabled) {
-        stringResource(R.string.setup_select_keyboard)
-    } else {
-        stringResource(R.string.setup_enable_keyboard)
-    }
-    val keyboardAction = if (voiceImeEnabled) onShowImePicker else onOpenImeSettings
 
     Column(
         modifier = Modifier
@@ -132,11 +126,19 @@ fun SetupScreen(
                 ) {
                     Text(text = stringResource(R.string.setup_open_keyboard_button_settings))
                 }
+                if (!voiceImeEnabled) {
+                    Button(
+                        onClick = onOpenImeSettings,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = stringResource(R.string.setup_enable_keyboard))
+                    }
+                }
                 Button(
-                    onClick = keyboardAction,
+                    onClick = onShowImePicker,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = keyboardActionLabel)
+                    Text(text = stringResource(R.string.setup_choose_keyboard))
                 }
             }
         }
