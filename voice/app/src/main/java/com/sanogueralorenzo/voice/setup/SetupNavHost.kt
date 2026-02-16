@@ -39,6 +39,7 @@ import androidx.navigation.NavHostController
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
+import kotlinx.coroutines.delay
 
 private object MainRoute {
     const val HOME = "home"
@@ -120,6 +121,14 @@ fun SetupNavHost() {
             navController.navigateClearingBackStack(MainRoute.SETUP)
         } else if (accessReady && currentRoute == MainRoute.SETUP) {
             navController.navigateClearingBackStack(MainRoute.HOME)
+        }
+    }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != MainRoute.SETUP) return@LaunchedEffect
+        while (true) {
+            setupViewModel.refreshKeyboardStatus()
+            delay(800L)
         }
     }
 

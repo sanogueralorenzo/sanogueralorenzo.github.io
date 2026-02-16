@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
 import com.airbnb.mvrx.Fail
 import com.airbnb.mvrx.Loading
@@ -482,6 +483,13 @@ class SetupViewModel(
     }
 
     private fun isVoiceImeEnabled(): Boolean {
+        val imm = appContext.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        val enabledViaImm = imm
+            ?.enabledInputMethodList
+            ?.any { info -> isVoiceImeId(info.id.substringBefore(';').trim()) }
+            ?: false
+        if (enabledViaImm) return true
+
         val raw = runCatching {
             Settings.Secure.getString(
                 appContext.contentResolver,
