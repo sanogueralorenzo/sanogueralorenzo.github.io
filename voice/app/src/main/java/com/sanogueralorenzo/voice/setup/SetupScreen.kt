@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,7 +33,6 @@ fun SetupScreen(
     voiceImeEnabled: Boolean,
     voiceImeSelected: Boolean,
     onGrantMic: () -> Unit,
-    onOpenKeyboardButtonSettings: () -> Unit,
     onOpenImeSettings: () -> Unit,
     onShowImePicker: () -> Unit
 ) {
@@ -120,12 +118,6 @@ fun SetupScreen(
                     Text(text = stringResource(R.string.setup_grant_mic))
                 }
             } else {
-                OutlinedButton(
-                    onClick = onOpenKeyboardButtonSettings,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = stringResource(R.string.setup_open_keyboard_button_settings))
-                }
                 if (!voiceImeEnabled) {
                     Button(
                         onClick = onOpenImeSettings,

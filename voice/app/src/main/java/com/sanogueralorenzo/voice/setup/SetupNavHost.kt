@@ -129,7 +129,6 @@ fun SetupNavHost() {
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-        onOpenKeyboardButtonSettings = { openKeyboardButtonSettings(context) },
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = { showImePicker(context) },
         onDownloadAll = { setupViewModel.downloadAllModels() },
@@ -200,7 +199,6 @@ fun SetupNavHost() {
                     voiceImeEnabled = uiState.voiceImeEnabled,
                     voiceImeSelected = uiState.voiceImeSelected,
                     onGrantMic = actions.onGrantMic,
-                    onOpenKeyboardButtonSettings = actions.onOpenKeyboardButtonSettings,
                     onOpenImeSettings = actions.onOpenImeSettings,
                     onShowImePicker = actions.onShowImePicker
                 )
@@ -262,22 +260,6 @@ fun SetupNavHost() {
 private fun openImeSettings(context: Context) {
     val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     context.startActivity(intent)
-}
-
-private fun openKeyboardButtonSettings(context: Context) {
-    val candidateActions = listOf(
-        "android.settings.SYSTEM_NAVIGATION_SETTINGS",
-        "android.settings.NAVIGATION_BAR_SETTINGS"
-    )
-    for (action in candidateActions) {
-        val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (intent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(intent)
-            return
-        }
-    }
-    val fallback = Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    context.startActivity(fallback)
 }
 
 private fun showImePicker(context: Context) {

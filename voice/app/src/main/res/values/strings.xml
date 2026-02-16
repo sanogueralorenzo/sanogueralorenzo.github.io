@@ -107,7 +107,6 @@
     <string name="setup_keyboard_intro">Enable Voice Keyboard and set it as your active keyboard to continue.</string>
     <string name="setup_keyboard_button_recommendation">For faster keyboard switching, we recommend: General &gt; Keyboard &gt; Keyboard button on navigation bar &gt; Show button to hide keyboard.</string>
     <string name="setup_keyboard_select_required">Voice Keyboard is enabled, but not currently selected as default input method.</string>
-    <string name="setup_open_keyboard_button_settings">Keyboard button settings</string>
     <string name="setup_download_all">Download all models</string>
     <string name="setup_download_all_already_ready">All models are already ready.</string>
     <string name="setup_download_all_completed">All model downloads completed.</string>
