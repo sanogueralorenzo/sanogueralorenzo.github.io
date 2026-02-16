@@ -1,0 +1,100 @@
+{"id": "clean_001", "input": "hey are you still coming tonight?", "expected": "hey are you still coming tonight?", "match": "exact"}
+{"id": "clean_002", "input": "running 10 mins late, traffic is awful", "expected": "running 10 mins late, traffic is awful", "match": "exact"}
+{"id": "clean_003", "input": "can you grab milk on your way home?", "expected": "can you grab milk on your way home?", "match": "exact"}
+{"id": "clean_004", "input": "i just got to the office", "expected": "i just got to the office", "match": "exact"}
+{"id": "clean_005", "input": "call me when you have a sec", "expected": "call me when you have a sec", "match": "exact"}
+{"id": "clean_006", "input": "i'll text you after my meeting", "expected": "i'll text you after my meeting", "match": "exact"}
+{"id": "clean_007", "input": "made it home safe", "expected": "made it home safe", "match": "exact"}
+{"id": "clean_008", "input": "what time should we leave tomorrow?", "expected": "what time should we leave tomorrow?", "match": "exact"}
+{"id": "clean_009", "input": "sorry i missed your call", "expected": "sorry i missed your call", "match": "exact"}
+{"id": "clean_010", "input": "i'm outside your building", "expected": "i'm outside your building", "match": "exact"}
+{"id": "clean_011", "input": "can we move lunch to 1?", "expected": "can we move lunch to 1?", "match": "exact"}
+{"id": "clean_012", "input": "did you feed the dog?", "expected": "did you feed the dog?", "match": "exact"}
+{"id": "clean_013", "input": "where did you park?", "expected": "where did you park?", "match": "exact"}
+{"id": "clean_014", "input": "thanks again for helping today", "expected": "thanks again for helping today", "match": "exact"}
+{"id": "clean_015", "input": "i'm at the back table", "expected": "i'm at the back table", "match": "exact"}
+{"id": "clean_016", "input": "can you send me that link again?", "expected": "can you send me that link again?", "match": "exact"}
+{"id": "clean_017", "input": "i forgot my charger at your place", "expected": "i forgot my charger at your place", "match": "exact"}
+{"id": "clean_018", "input": "on my way now", "expected": "on my way now", "match": "exact"}
+{"id": "clean_019", "input": "want me to order for you too?", "expected": "want me to order for you too?", "match": "exact"}
+{"id": "clean_020", "input": "meeting ran over, be there soon", "expected": "meeting ran over, be there soon", "match": "exact"}
+{"id": "clean_021", "input": "is the store still open?", "expected": "is the store still open?", "match": "exact"}
+{"id": "clean_022", "input": "i sent the payment just now", "expected": "i sent the payment just now", "match": "exact"}
+{"id": "clean_023", "input": "can you check your email?", "expected": "can you check your email?", "match": "exact"}
+{"id": "clean_024", "input": "let's do friday instead", "expected": "let's do friday instead", "match": "exact"}
+{"id": "clean_025", "input": "my phone is about to die", "expected": "my phone is about to die", "match": "exact"}
+{"id": "clean_026", "input": "don't wait for me, start without me", "expected": "don't wait for me, start without me", "match": "exact"}
+{"id": "clean_027", "input": "can you pick up the package?", "expected": "can you pick up the package?", "match": "exact"}
+{"id": "clean_028", "input": "what's the wifi password again?", "expected": "what's the wifi password again?", "match": "exact"}
+{"id": "clean_029", "input": "i'll be there in 5", "expected": "i'll be there in 5", "match": "exact"}
+{"id": "clean_030", "input": "just finished, heading out", "expected": "just finished, heading out", "match": "exact"}
+{"id": "clean_031", "input": "can we talk later tonight?", "expected": "can we talk later tonight?", "match": "exact"}
+{"id": "clean_032", "input": "i'm stuck in line at the pharmacy", "expected": "i'm stuck in line at the pharmacy", "match": "exact"}
+{"id": "clean_033", "input": "did you see my last message?", "expected": "did you see my last message?", "match": "exact"}
+{"id": "clean_034", "input": "that works for me", "expected": "that works for me", "match": "exact"}
+{"id": "clean_035", "input": "can we do a quick call at 4?", "expected": "can we do a quick call at 4?", "match": "exact"}
+{"id": "clean_036", "input": "i left the keys under the mat", "expected": "i left the keys under the mat", "match": "exact"}
+{"id": "clean_037", "input": "i'm in the lobby", "expected": "i'm in the lobby", "match": "exact"}
+{"id": "clean_038", "input": "please remind me at 6", "expected": "please remind me at 6", "match": "exact"}
+{"id": "clean_039", "input": "can you watch the kids for an hour?", "expected": "can you watch the kids for an hour?", "match": "exact"}
+{"id": "clean_040", "input": "i'm grabbing coffee, want anything?", "expected": "i'm grabbing coffee, want anything?", "match": "exact"}
+{"id": "clean_041", "input": "let me know when you land", "expected": "let me know when you land", "match": "exact"}
+{"id": "clean_042", "input": "happy birthday, hope you have a good one", "expected": "happy birthday, hope you have a good one", "match": "exact"}
+{"id": "clean_043", "input": "i can't find my wallet", "expected": "i can't find my wallet", "match": "exact"}
+{"id": "clean_044", "input": "could you send the address?", "expected": "could you send the address?", "match": "exact"}
+{"id": "clean_045", "input": "we're at table 12", "expected": "we're at table 12", "match": "exact"}
+{"id": "clean_046", "input": "just sent you the doc", "expected": "just sent you the doc", "match": "exact"}
+{"id": "clean_047", "input": "i'll circle back tomorrow morning", "expected": "i'll circle back tomorrow morning", "match": "exact"}
+{"id": "clean_048", "input": "can you proofread this before i send it?", "expected": "can you proofread this before i send it?", "match": "exact"}
+{"id": "clean_049", "input": "the app keeps crashing for me", "expected": "the app keeps crashing for me", "match": "exact"}
+{"id": "clean_050", "input": "i'm already in bed, talk tomorrow", "expected": "i'm already in bed, talk tomorrow", "match": "exact"}
+{"id": "clean_051", "input": "can you call mom today?", "expected": "can you call mom today?", "match": "exact"}
+{"id": "clean_052", "input": "it's raining hard here, drive safe", "expected": "it's raining hard here, drive safe", "match": "exact"}
+{"id": "clean_053", "input": "i'm at gate c4 now", "expected": "i'm at gate c4 now", "match": "exact"}
+{"id": "clean_054", "input": "let's skip tonight, i'm exhausted", "expected": "let's skip tonight, i'm exhausted", "match": "exact"}
+{"id": "clean_055", "input": "can you bring an umbrella?", "expected": "can you bring an umbrella?", "match": "exact"}
+{"id": "clean_056", "input": "please don't forget the prescription", "expected": "please don't forget the prescription", "match": "exact"}
+{"id": "clean_057", "input": "my train got delayed again", "expected": "my train got delayed again", "match": "exact"}
+{"id": "clean_058", "input": "what do you want for dinner?", "expected": "what do you want for dinner?", "match": "exact"}
+{"id": "clean_059", "input": "i'll make pasta if that works", "expected": "i'll make pasta if that works", "match": "exact"}
+{"id": "clean_060", "input": "can you lock up when you leave?", "expected": "can you lock up when you leave?", "match": "exact"}
+{"id": "clean_061", "input": "i'll pay you back this weekend", "expected": "i'll pay you back this weekend", "match": "exact"}
+{"id": "clean_062", "input": "just got your voicemail", "expected": "just got your voicemail", "match": "exact"}
+{"id": "clean_063", "input": "can you send me a photo of it?", "expected": "can you send me a photo of it?", "match": "exact"}
+{"id": "clean_064", "input": "i'm in the checkout line", "expected": "i'm in the checkout line", "match": "exact"}
+{"id": "clean_065", "input": "can we reschedule for monday?", "expected": "can we reschedule for monday?", "match": "exact"}
+{"id": "clean_066", "input": "i'll be working from home tomorrow", "expected": "i'll be working from home tomorrow", "match": "exact"}
+{"id": "clean_067", "input": "did you update the shared sheet?", "expected": "did you update the shared sheet?", "match": "exact"}
+{"id": "clean_068", "input": "please add eggs to the list", "expected": "please add eggs to the list", "match": "exact"}
+{"id": "clean_069", "input": "i'm almost there, two blocks away", "expected": "i'm almost there, two blocks away", "match": "exact"}
+{"id": "clean_070", "input": "can you turn the oven off?", "expected": "can you turn the oven off?", "match": "exact"}
+{"id": "clean_071", "input": "the kids are asleep now", "expected": "the kids are asleep now", "match": "exact"}
+{"id": "clean_072", "input": "let's meet by the main entrance", "expected": "let's meet by the main entrance", "match": "exact"}
+{"id": "clean_073", "input": "i'm at terminal 2", "expected": "i'm at terminal 2", "match": "exact"}
+{"id": "clean_074", "input": "can you take out the trash tonight?", "expected": "can you take out the trash tonight?", "match": "exact"}
+{"id": "clean_075", "input": "just got off the bus", "expected": "just got off the bus", "match": "exact"}
+{"id": "clean_076", "input": "thanks, that fixed it", "expected": "thanks, that fixed it", "match": "exact"}
+{"id": "clean_077", "input": "where are you? i don't see you", "expected": "where are you? i don't see you", "match": "exact"}
+{"id": "clean_078", "input": "i'll wait by the front desk", "expected": "i'll wait by the front desk", "match": "exact"}
+{"id": "clean_079", "input": "can you forward that message to me?", "expected": "can you forward that message to me?", "match": "exact"}
+{"id": "clean_080", "input": "i think i left my jacket in your car", "expected": "i think i left my jacket in your car", "match": "exact"}
+{"id": "clean_081", "input": "we can split the bill", "expected": "we can split the bill", "match": "exact"}
+{"id": "clean_082", "input": "i'll send the notes after class", "expected": "i'll send the notes after class", "match": "exact"}
+{"id": "clean_083", "input": "can you pick me up at 7?", "expected": "can you pick me up at 7?", "match": "exact"}
+{"id": "clean_084", "input": "i'm not feeling great today", "expected": "i'm not feeling great today", "match": "exact"}
+{"id": "clean_085", "input": "did the landlord reply yet?", "expected": "did the landlord reply yet?", "match": "exact"}
+{"id": "clean_086", "input": "i'll drop it off after work", "expected": "i'll drop it off after work", "match": "exact"}
+{"id": "clean_087", "input": "can you check if the door is locked?", "expected": "can you check if the door is locked?", "match": "exact"}
+{"id": "clean_088", "input": "i'm cooking now, call you in 20", "expected": "i'm cooking now, call you in 20", "match": "exact"}
+{"id": "clean_089", "input": "just woke up, sorry", "expected": "just woke up, sorry", "match": "exact"}
+{"id": "clean_090", "input": "can you mute your mic? lots of echo", "expected": "can you mute your mic? lots of echo", "match": "exact"}
+{"id": "clean_091", "input": "we're out of detergent", "expected": "we're out of detergent", "match": "exact"}
+{"id": "clean_092", "input": "please text me when you're close", "expected": "please text me when you're close", "match": "exact"}
+{"id": "clean_093", "input": "i'm heading to the airport now", "expected": "i'm heading to the airport now", "match": "exact"}
+{"id": "clean_094", "input": "can we keep this between us?", "expected": "can we keep this between us?", "match": "exact"}
+{"id": "clean_095", "input": "let's book it before prices go up", "expected": "let's book it before prices go up", "match": "exact"}
+{"id": "clean_096", "input": "i can cover this month if you need", "expected": "i can cover this month if you need", "match": "exact"}
+{"id": "clean_097", "input": "send me your eta when you can", "expected": "send me your eta when you can", "match": "exact"}
+{"id": "clean_098", "input": "i'm at the dentist, might be slow to reply", "expected": "i'm at the dentist, might be slow to reply", "match": "exact"}
+{"id": "clean_099", "input": "can you bring the laptop charger?", "expected": "can you bring the laptop charger?", "match": "exact"}
+{"id": "clean_100", "input": "i'll take care of it tonight", "expected": "i'll take care of it tonight", "match": "exact"}
