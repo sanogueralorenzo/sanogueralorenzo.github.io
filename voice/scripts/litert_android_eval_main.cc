@@ -123,22 +123,11 @@ absl::StatusOr<std::string> RunSingleInference(const std::string& model_path,
   ASSIGN_OR_RETURN(EngineSettings engine_settings,
                    EngineSettings::CreateDefault(std::move(model_assets), backend));
 
-  engine_settings.GetMutableMainExecutorSettings().SetMaxNumTokens(
-      absl::GetFlag(FLAGS_max_num_tokens));
-
   ASSIGN_OR_RETURN(auto engine,
                    litert::lm::EngineFactory::CreateAny(std::move(engine_settings)));
 
-  auto session_config = litert::lm::SessionConfig::CreateDefault();
-  auto& sampler = session_config.GetMutableSamplerParams();
-  sampler.set_type(litert::lm::proto::SamplerParameters::TOP_P);
-  sampler.set_k(absl::GetFlag(FLAGS_top_k));
-  sampler.set_p(static_cast<float>(absl::GetFlag(FLAGS_top_p)));
-  sampler.set_temperature(static_cast<float>(absl::GetFlag(FLAGS_temperature)));
-  sampler.set_seed(absl::GetFlag(FLAGS_seed));
-
   auto builder = ConversationConfig::Builder();
-  builder.SetSessionConfig(session_config);
+  builder.SetSessionConfig(litert::lm::SessionConfig::CreateDefault());
 
   if (!system_instruction.empty()) {
     JsonPreface preface;
