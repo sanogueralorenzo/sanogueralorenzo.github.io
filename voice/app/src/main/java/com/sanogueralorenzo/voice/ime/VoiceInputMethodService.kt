@@ -61,8 +61,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val chunkSessionCounter = AtomicInteger(0)
     private val chunkLock = Any()
-    @Volatile
-    private var serviceDestroyed = false
 
     @Volatile
     private var inFlight: Future<*>? = null
@@ -124,12 +122,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         super.onCreate()
         savedStateRegistryController.performAttach()
         savedStateRegistryController.performRestore(null)
-        setLifecycleState(Lifecycle.State.CREATED)
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
         attachOwnersToWindowTree(null)
     }
 
     override fun onCreateInputView(): View {
-        setLifecycleState(Lifecycle.State.STARTED)
+        lifecycleRegistry.currentState = Lifecycle.State.STARTED
         warmupLiteRtAsync()
         warmupMoonshineAsync()
         val container = FrameLayout(this).apply {
@@ -182,7 +180,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     override fun onDestroy() {
-        serviceDestroyed = true
         cancelInFlight()
         imeInputRootView = null
         val recorderToRelease = audioRecorder
@@ -198,8 +195,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             liteRtInitializerToRelease?.cancel()
             liteRtSummarizerToRelease?.release()
         }, "voice-ime-release").start()
+        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
-        setLifecycleState(Lifecycle.State.DESTROYED)
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -210,7 +207,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             updateBottomInsetFromInsets(ViewCompat.getRootWindowInsets(view))
             ViewCompat.requestApplyInsets(view)
         }
-        setLifecycleState(Lifecycle.State.RESUMED)
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         schedulePendingCommitFlush(delayMs = 0L)
         refreshEditableInputState()
     }
@@ -225,13 +222,13 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onFinishInputView(finishingInput: Boolean) {
         cancelSessionWork(cancelProcessing = false)
-        setLifecycleState(Lifecycle.State.STARTED)
+        lifecycleRegistry.currentState = Lifecycle.State.STARTED
         super.onFinishInputView(finishingInput)
     }
 
     override fun onFinishInput() {
         cancelSessionWork(cancelProcessing = true)
-        setLifecycleState(Lifecycle.State.CREATED)
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
         super.onFinishInput()
     }
 
@@ -839,24 +836,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             bottom = max(bottom, insets.getInsets(type).bottom)
         }
         keyboardViewModel.setBottomInsetPx(bottom)
-    }
-
-    private fun setLifecycleState(targetState: Lifecycle.State) {
-        val currentState = lifecycleRegistry.currentState
-        if (currentState == targetState) return
-        if (serviceDestroyed && targetState != Lifecycle.State.DESTROYED) {
-            Log.d(TAG, "Ignoring lifecycle transition after destroy: $currentState -> $targetState")
-            return
-        }
-        if (currentState == Lifecycle.State.DESTROYED && targetState != Lifecycle.State.DESTROYED) {
-            Log.d(TAG, "Ignoring invalid lifecycle transition: $currentState -> $targetState")
-            return
-        }
-        runCatching {
-            lifecycleRegistry.currentState = targetState
-        }.onFailure { error ->
-            Log.w(TAG, "Failed lifecycle transition: $currentState -> $targetState", error)
-        }
     }
 
     private data class SendRequest(
