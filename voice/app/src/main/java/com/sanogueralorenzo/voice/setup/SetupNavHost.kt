@@ -49,7 +49,6 @@ private object MainRoute {
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
     const val SETUP_CHOOSE_KEYBOARD = "setup_choose_keyboard"
     const val SETUP_MODELS = "setup_models"
-    const val MODELS = "models"
     const val ONBOARDING = "onboarding"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
     const val SETTINGS = "settings"
@@ -146,7 +145,6 @@ fun SetupNavHost() {
         MainRoute.SETUP_ENABLE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.SETUP_CHOOSE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.SETUP_MODELS -> stringResource(R.string.main_title_voice_keyboard)
-        MainRoute.MODELS -> stringResource(R.string.models_section_title)
         MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
         MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
         MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
@@ -164,7 +162,6 @@ fun SetupNavHost() {
     }
 
     val actions = SetupActions(
-        onOpenModels = { navController.navigate(MainRoute.MODELS) },
         onOpenOnboarding = { navController.navigate(MainRoute.ONBOARDING) },
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
@@ -173,11 +170,7 @@ fun SetupNavHost() {
         onShowImePicker = {
             showImePicker(context)
             keyboardSelectionAssumed = true
-        },
-        onDownloadAll = { setupViewModel.downloadAllModels() },
-        onDownloadLiteRt = { setupViewModel.startLiteRtDownload() },
-        onDownloadMoonshine = { setupViewModel.startMoonshineDownload() },
-        onCheckUpdates = { setupViewModel.checkForModelUpdates() }
+        }
     )
 
     Scaffold(
@@ -229,7 +222,6 @@ fun SetupNavHost() {
         ) {
             composable(MainRoute.HOME) {
                 HomeScreen(
-                    onOpenModels = actions.onOpenModels,
                     onOpenOnboarding = actions.onOpenOnboarding,
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenSettings = actions.onOpenSettings
@@ -271,24 +263,6 @@ fun SetupNavHost() {
                 )
             }
 
-            composable(MainRoute.MODELS) {
-                ModelsScreen(
-                    liteRtReady = uiState.liteRtReady,
-                    moonshineReady = uiState.moonshineReady,
-                    liteRtDownloading = uiState.liteRtDownloading,
-                    moonshineDownloading = uiState.moonshineDownloading,
-                    liteRtProgress = uiState.liteRtProgress,
-                    moonshineProgress = uiState.moonshineProgress,
-                    downloadMessage = uiState.modelMessage,
-                    updatesMessage = uiState.updatesMessage,
-                    onDownloadAll = actions.onDownloadAll,
-                    onDownloadLiteRt = actions.onDownloadLiteRt,
-                    onDownloadMoonshine = actions.onDownloadMoonshine,
-                    onCheckUpdates = actions.onCheckUpdates,
-                    actionsEnabled = !setupViewModel.isAnyDownloading()
-                )
-            }
-
             composable(MainRoute.ONBOARDING) {
                 OnboardingTutorialScreen(
                     onDone = {
@@ -301,9 +275,7 @@ fun SetupNavHost() {
             }
 
             composable(MainRoute.PROMPT_BENCHMARKING) {
-                PromptBenchmarkingScreen(
-                    onOpenModels = actions.onOpenModels
-                )
+                PromptBenchmarkingScreen()
             }
 
             composable(MainRoute.SETTINGS) {

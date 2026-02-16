@@ -33,7 +33,6 @@ import com.sanogueralorenzo.voice.di.appGraph
 
 @Composable
 fun PromptBenchmarkingScreen(
-    onOpenModels: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -135,25 +134,6 @@ fun PromptBenchmarkingScreen(
                     ),
                     style = MaterialTheme.typography.bodySmall
                 )
-            }
-        }
-
-        if (!uiState.modelAvailable) {
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.prompt_benchmark_model_missing),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    OutlinedButton(onClick = onOpenModels) {
-                        Text(text = stringResource(R.string.prompt_benchmark_open_models))
-                    }
-                }
             }
         }
 
