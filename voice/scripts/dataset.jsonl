@@ -1,10 +1,10 @@
-{"id": 1, "input": "hey are you still coming tonight? i might be 10 mins late", "expected": "Hey, are you still coming tonight? I might be 10 mins late.", "match": "exact"}
-{"id": 2, "input": "running 10 mins late, traffic is awful", "expected": "Running 10 mins late, traffic is awful.", "match": "exact"}
-{"id": 3, "input": "can you send me that link again?", "expected": "Can you send me that link again?", "match": "exact"}
-{"id": 4, "input": "i'll text you after my meeting", "expected": "I'll text you after my meeting.", "match": "exact"}
-{"id": 5, "input": "sorry i missed your call, call me back", "expected": "Sorry I missed your call, call me back.", "match": "exact"}
-{"id": 6, "input": "what time should we leave tomorrow?", "expected": "What time should we leave tomorrow?", "match": "exact"}
-{"id": 7, "input": "can we do a quick call at 4 uh", "expected": "Can we do a quick call at 4?", "match": "exact"}
-{"id": 8, "input": "were at table 12 in the back", "expected": "We're at table 12 in the back.", "match": "exact"}
-{"id": 9, "input": "i cant find my wallet anywhere", "expected": "I can't find my wallet anywhere.", "match": "exact"}
-{"id": 10, "input": "send me your eta when you can", "expected": "Send me your ETA when you can.", "match": "exact"}
+{"id": 1, "input": "Hey, are you still coming tonight? I might be 10 minutes late.", "expected": "Hey, are you still coming tonight? I might be 10 minutes late.", "match": "exact"}
+{"id": 2, "input": "Running 10 mins late, traffic is awful.", "expected": "Running 10 minutes late, traffic is awful.", "match": "exact"}
+{"id": 3, "input": "Can you send me that link again?", "expected": "Can you send me that link again?", "match": "exact"}
+{"id": 4, "input": "I'll text you after my meeting.", "expected": "I'll text you after my meeting.", "match": "exact"}
+{"id": 5, "input": "Sorry I missed your call, call me back.", "expected": "Sorry I missed your call, call me back.", "match": "exact"}
+{"id": 6, "input": "What time should we leave tomorrow?", "expected": "What time should we leave tomorrow?", "match": "exact"}
+{"id": 7, "input": "Can we do a quick call at 4?", "expected": "Can we do a quick call at 4?", "match": "exact"}
+{"id": 8, "input": "We're at table 12 in the back.", "expected": "We're at table 12 in the back.", "match": "exact"}
+{"id": 9, "input": "I can't find my wallet anywhere.", "expected": "I can't find my wallet anywhere.", "match": "exact"}
+{"id": 10, "input": "Send me your ETA when you can.", "expected": "Send me your ETA when you can.", "match": "exact"}
