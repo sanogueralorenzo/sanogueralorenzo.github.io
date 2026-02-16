@@ -250,9 +250,9 @@ private fun SetupTopIcon() {
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            painter = painterResource(id = R.drawable.icon_app_logo),
             contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.size(72.dp)
+            modifier = Modifier.size(120.dp)
         )
     }
 }
