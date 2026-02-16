@@ -108,7 +108,7 @@
     <string name="setup_keyboard_button_recommendation">For faster keyboard switching, we recommend: General &gt; Keyboard &gt; Keyboard button on navigation bar &gt; Show button to hide keyboard.</string>
     <string name="setup_models_intro">Voice Keyboard uses:</string>
     <string name="setup_models_intro_bullet_asr">• ASR (Automatic Speech Recognition) model to convert spoken language into text from audio signals.</string>
-    <string name="setup_models_intro_bullet_it">• IT (Instruction Tuned) model to enhance dictation and correct text on the fly.</string>
+    <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_step_choose_keyboard">Choose Voice Keyboard</string>
