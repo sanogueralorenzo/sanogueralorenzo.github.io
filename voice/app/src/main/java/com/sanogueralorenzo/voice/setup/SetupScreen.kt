@@ -54,6 +54,11 @@ fun SetupScreen(
     val canStartDownload = !downloadInProgress &&
         !modelsReady &&
         (!requiresMobileDataApproval || allowMobileDataDownloads)
+    val setupStepTitle = when {
+        !micGranted -> stringResource(R.string.setup_step_microphone)
+        !keyboardSelectionConfirmed -> stringResource(R.string.setup_step_keyboard)
+        else -> stringResource(R.string.setup_step_models)
+    }
 
     Column(
         modifier = Modifier
@@ -67,7 +72,7 @@ fun SetupScreen(
         ) {
             SetupTopIcon()
             Text(
-                text = stringResource(R.string.setup_section_title),
+                text = setupStepTitle,
                 style = MaterialTheme.typography.titleLarge
             )
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
