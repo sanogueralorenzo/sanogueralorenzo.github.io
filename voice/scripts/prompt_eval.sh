@@ -14,9 +14,9 @@ MODEL_URL="${MODEL_URL_DEFAULT}"
 MODEL_PATH="${CACHE_DIR}/models/Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm"
 LITERTLM_DIR="${CACHE_DIR}/LiteRT-LM"
 BINARY_PATH=""
-BACKEND="cpu"
+BACKEND="auto"
 MAX_CASES=0
-TIMEOUT_SEC=240
+TIMEOUT_SEC=30
 REPORT_FILE="${CACHE_DIR}/report.txt"
 JSON_REPORT_FILE="${CACHE_DIR}/report.json"
 SKIP_SETUP=0
@@ -29,13 +29,13 @@ Usage:
   scripts/prompt_eval.sh --prompt-file <path> --cases-file <path> [options]
 
 Required:
-  --prompt-file <path>       Prompt template file. Use {{input}} placeholder if needed.
+  --prompt-file <path>       Prompt template/system instruction file.
   --cases-file <path>        JSONL/JSON cases with: id,input,expected,match.
 
 Options:
-  --backend <cpu|gpu>        Runtime backend (default: cpu)
+  --backend <auto|cpu|gpu>   Runtime backend policy (default: auto = GPU->CPU fallback)
   --max-cases <N>            Run only first N cases (default: 0 = all)
-  --timeout-sec <N>          Per-case timeout in seconds (default: 240)
+  --timeout-sec <N>          Per-case timeout in seconds (default: 30)
   --report-file <path>       Text report path (default: .cache/prompt_eval/report.txt)
   --json-report-file <path>  JSON report path (default: .cache/prompt_eval/report.json)
   --model-path <path>        Model path (default inside .cache)
@@ -46,6 +46,11 @@ Options:
   --skip-download            Skip model download step
   --no-update                Do not run git pull when LiteRT-LM already exists
   -h, --help                 Show this help
+
+This script runs an Android-like compose config:
+- max_num_tokens=224
+- sampler topK=1, topP=1.0, temperature=0.0, seed=42
+- input/output normalization aligned with app compose path
 EOF
 }
 
@@ -55,6 +60,63 @@ require_cmd() {
     echo "Missing dependency: $name" >&2
     exit 1
   fi
+}
+
+ensure_android_eval_target() {
+  local build_file="${LITERTLM_DIR}/runtime/engine/BUILD"
+  local src_file="${LITERTLM_DIR}/runtime/engine/litert_android_eval_main.cc"
+
+  cp "${SCRIPT_DIR}/litert_android_eval_main.cc" "${src_file}"
+
+  if grep -q 'name = "litert_android_eval_main"' "${build_file}"; then
+    return
+  fi
+
+  cat >> "${build_file}" <<'EOF'
+
+cc_binary(
+    name = "litert_android_eval_main",
+    srcs = ["litert_android_eval_main.cc"],
+    additional_linker_inputs = select({
+        "@platforms//os:windows": [
+            "@litert//litert/c:windows_exported_symbols.def",
+        ],
+        "@platforms//os:linux": [":litert_lm_main.exported_symbols"],
+        "//conditions:default": [],
+    }),
+    linkopts = select({
+        "@litert//litert:litert_link_capi_so": [],
+        "@platforms//os:ios": ["-Wl,-exported_symbol,_LiteRt*"],
+        "@platforms//os:macos": ["-Wl,-exported_symbol,_LiteRt*"],
+        "@platforms//os:windows": [
+            "/DEF:$(location @litert//litert/c:windows_exported_symbols.def)",
+        ],
+        "@platforms//os:linux": ["-Wl,--dynamic-list=$(location :litert_lm_main.exported_symbols)"],
+        "//conditions:default": ["-Wl,--export-dynamic-symbol=LiteRt*"],
+    }) + select({
+        "@platforms//os:android": ["-lEGL", "-lGLESv3"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":engine_factory",
+        ":engine_settings",
+        ":io_types",
+        "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/log:globals",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@nlohmann_json//:json",
+        "//runtime/conversation",
+        "//runtime/conversation:io_types",
+        "//runtime/proto:sampler_params_cc_proto",
+        "//runtime/util:litert_status_util",
+    ],
+)
+EOF
 }
 
 while [[ $# -gt 0 ]]; do
@@ -143,6 +205,11 @@ if [[ ! -f "${CASES_FILE}" ]]; then
   exit 1
 fi
 
+if [[ "${BACKEND}" != "auto" && "${BACKEND}" != "cpu" && "${BACKEND}" != "gpu" ]]; then
+  echo "Invalid --backend value: ${BACKEND}. Use auto|cpu|gpu" >&2
+  exit 1
+fi
+
 require_cmd python3
 require_cmd git
 require_cmd curl
@@ -159,7 +226,7 @@ if [[ "${SKIP_DOWNLOAD}" -eq 0 ]]; then
 fi
 
 if [[ -z "${BINARY_PATH}" ]]; then
-  BINARY_PATH="${LITERTLM_DIR}/bazel-bin/runtime/engine/litert_lm_advanced_main"
+  BINARY_PATH="${LITERTLM_DIR}/bazel-bin/runtime/engine/litert_android_eval_main"
 fi
 
 if [[ "${SKIP_SETUP}" -eq 0 ]]; then
@@ -172,6 +239,8 @@ if [[ "${SKIP_SETUP}" -eq 0 ]]; then
     git -C "${LITERTLM_DIR}" pull --ff-only
   fi
 
+  ensure_android_eval_target
+
   if command -v bazelisk >/dev/null 2>&1; then
     BAZEL_BIN="bazelisk"
   elif command -v bazel >/dev/null 2>&1; then
@@ -181,10 +250,10 @@ if [[ "${SKIP_SETUP}" -eq 0 ]]; then
     exit 1
   fi
 
-  echo "Building LiteRT-LM advanced CLI"
+  echo "Building LiteRT-LM Android-like eval CLI"
   (
     cd "${LITERTLM_DIR}"
-    "${BAZEL_BIN}" build //runtime/engine:litert_lm_advanced_main
+    "${BAZEL_BIN}" build //runtime/engine:litert_android_eval_main
   )
 fi
 
@@ -196,7 +265,7 @@ fi
 mkdir -p "$(dirname "${REPORT_FILE}")"
 mkdir -p "$(dirname "${JSON_REPORT_FILE}")"
 
-echo "Running prompt evaluation with runtime default sampling"
+echo "Running prompt evaluation with Android-like compose configuration"
 python3 "${SCRIPT_DIR}/prompt_eval_runner.py" \
   --binary-path "${BINARY_PATH}" \
   --model-path "${MODEL_PATH}" \

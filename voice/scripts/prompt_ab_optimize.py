@@ -329,8 +329,8 @@ def main() -> int:
     parser.add_argument('--holdout-mod', type=int, default=5)
     parser.add_argument('--holdout-remainder', type=int, default=0)
 
-    parser.add_argument('--backend', default='cpu')
-    parser.add_argument('--timeout-sec', type=int, default=240)
+    parser.add_argument('--backend', default='auto')
+    parser.add_argument('--timeout-sec', type=int, default=30)
     parser.add_argument('--max-cases-train', type=int, default=0)
     parser.add_argument('--max-cases-holdout', type=int, default=0)
 

@@ -12,6 +12,22 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+ANDROID_DEFAULT_TOP_K = 1
+ANDROID_DEFAULT_TOP_P = 1.0
+ANDROID_DEFAULT_TEMPERATURE = 0.0
+ANDROID_DEFAULT_SEED = 42
+ANDROID_DEFAULT_MAX_NUM_TOKENS = 224
+
+WHITESPACE_REGEX = re.compile(r"\s+")
+REPEATED_FILLER_REGEX = re.compile(
+    r"\b(um+|uh+|erm+|emm+|hmm+)(?:\s+\1\b)+",
+    re.IGNORECASE,
+)
+PREFIX_LABEL_REGEX = re.compile(
+    r"^(rewritten|rewrite|cleaned|output|result)\s*:\s*",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class Case:
@@ -81,12 +97,58 @@ def load_cases(path: str) -> list[Case]:
     return cases
 
 
-def compose_prompt(template: str, input_text: str) -> str:
-    if '{{input}}' in template:
-        return template.replace('{{input}}', input_text)
-    if '{input}' in template:
-        return template.replace('{input}', input_text)
-    return f"{template.rstrip()}\n\n{input_text}"
+def extract_system_instruction(template: str) -> str:
+    text = template.replace('\r\n', '\n').strip()
+
+    text = re.sub(
+        r"\n*User input:\n\{\{input\}\}\s*$",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\n*User input:\n\{input\}\s*$",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    text = text.replace('{{input}}', '').replace('{input}', '').strip()
+    if not text:
+        raise ValueError('System instruction resolved to empty text')
+    return text
+
+
+def normalize_input(text: str) -> str:
+    collapsed = WHITESPACE_REGEX.sub(' ', text).strip()
+    if not collapsed:
+        return ''
+    return REPEATED_FILLER_REGEX.sub(r'\1', collapsed).strip()
+
+
+def clean_model_output(text: str, bullet_mode: bool = False) -> str:
+    cleaned = text.strip()
+    if not cleaned:
+        return ''
+
+    cleaned = PREFIX_LABEL_REGEX.sub('', cleaned).strip()
+    cleaned = cleaned.strip('`').strip()
+
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in ('"', "'"):
+        cleaned = cleaned[1:-1].strip()
+
+    if not cleaned:
+        return ''
+
+    if not bullet_mode and cleaned.startswith('- '):
+        parts = []
+        for line in cleaned.splitlines():
+            line_clean = line.removeprefix('- ').strip()
+            if line_clean:
+                parts.append(line_clean)
+        cleaned = ' '.join(parts).strip()
+
+    return cleaned
 
 
 def normalize_for_exact(value: str) -> str:
@@ -108,22 +170,29 @@ def run_model_once(
     binary_path: str,
     backend: str,
     model_path: str,
-    prompt: str,
+    system_instruction: str,
+    input_prompt: str,
     timeout_sec: int,
 ) -> tuple[str, int]:
-    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as tmp:
-        tmp.write(prompt)
-        prompt_file = tmp.name
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as tmp_input:
+        tmp_input.write(input_prompt)
+        input_file = tmp_input.name
+
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as tmp_system:
+        tmp_system.write(system_instruction)
+        system_file = tmp_system.name
 
     cmd = [
         binary_path,
         f'--backend={backend}',
         f'--model_path={model_path}',
-        f'--input_prompt_file={prompt_file}',
-        '--async=false',
-        '--benchmark=false',
-        '--minloglevel=2',
-        '--stderrthreshold=3',
+        f'--input_prompt_file={input_file}',
+        f'--system_instruction_file={system_file}',
+        f'--max_num_tokens={ANDROID_DEFAULT_MAX_NUM_TOKENS}',
+        f'--top_k={ANDROID_DEFAULT_TOP_K}',
+        f'--top_p={ANDROID_DEFAULT_TOP_P}',
+        f'--temperature={ANDROID_DEFAULT_TEMPERATURE}',
+        f'--seed={ANDROID_DEFAULT_SEED}',
     ]
 
     started = time.perf_counter()
@@ -136,10 +205,11 @@ def run_model_once(
             timeout=timeout_sec,
         )
     finally:
-        try:
-            os.unlink(prompt_file)
-        except FileNotFoundError:
-            pass
+        for tmp_path in (input_file, system_file):
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
 
     latency_ms = int((time.perf_counter() - started) * 1000)
 
@@ -166,7 +236,11 @@ def write_text_report(
         f.write(f"binary: {run_config['binary_path']}\n")
         f.write(f"model_path: {run_config['model_path']}\n")
         f.write(f"backend: {run_config['backend']}\n")
-        f.write('sampling: runtime default (no overrides)\n')
+        f.write(
+            'sampling: Android level-0 profile '
+            '(topK=1, topP=1.0, temperature=0.0, seed=42)\n'
+        )
+        f.write('max_num_tokens: 224\n')
         f.write(f"cases_file: {run_config['cases_file']}\n")
         f.write(f"prompt_file: {run_config['prompt_file']}\n")
         f.write('\n')
@@ -199,10 +273,10 @@ def main() -> int:
     parser.add_argument('--model-path', required=True)
     parser.add_argument('--prompt-file', required=True)
     parser.add_argument('--cases-file', required=True)
-    parser.add_argument('--backend', default='cpu')
+    parser.add_argument('--backend', default='auto')
     parser.add_argument('--report-file', required=True)
     parser.add_argument('--json-report-file', required=True)
-    parser.add_argument('--timeout-sec', type=int, default=240)
+    parser.add_argument('--timeout-sec', type=int, default=30)
     parser.add_argument('--max-cases', type=int, default=0)
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
@@ -212,6 +286,8 @@ def main() -> int:
 
     if not prompt_template:
         raise ValueError(f'Prompt file is empty: {args.prompt_file}')
+
+    system_instruction = extract_system_instruction(prompt_template)
 
     cases = load_cases(args.cases_file)
     if args.max_cases > 0:
@@ -225,21 +301,25 @@ def main() -> int:
         if args.verbose:
             print(f'[{idx}/{len(cases)}] running {case.id}', flush=True)
 
-        final_prompt = compose_prompt(prompt_template, case.input_text)
-
+        normalized_input = normalize_input(case.input_text)
         actual = ''
         passed = False
         latency_ms = 0
         error: str | None = None
 
         try:
-            actual, latency_ms = run_model_once(
-                binary_path=args.binary_path,
-                backend=args.backend,
-                model_path=args.model_path,
-                prompt=final_prompt,
-                timeout_sec=args.timeout_sec,
-            )
+            if normalized_input:
+                raw_output, latency_ms = run_model_once(
+                    binary_path=args.binary_path,
+                    backend=args.backend,
+                    model_path=args.model_path,
+                    system_instruction=system_instruction,
+                    input_prompt=normalized_input,
+                    timeout_sec=args.timeout_sec,
+                )
+                actual = clean_model_output(raw_output, bullet_mode=False)
+            else:
+                actual = ''
             passed = compare_output(case.expected, actual, case.match)
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
@@ -271,12 +351,13 @@ def main() -> int:
         'cases_file': os.path.abspath(args.cases_file),
         'timeout_sec': args.timeout_sec,
         'max_cases': args.max_cases,
+        'pipeline': 'android_compose_like',
+        'max_num_tokens': ANDROID_DEFAULT_MAX_NUM_TOKENS,
         'sampling': {
-            'mode': 'runtime_default',
-            'top_k': None,
-            'top_p': None,
-            'temperature': None,
-            'seed': None,
+            'top_k': ANDROID_DEFAULT_TOP_K,
+            'top_p': ANDROID_DEFAULT_TOP_P,
+            'temperature': ANDROID_DEFAULT_TEMPERATURE,
+            'seed': ANDROID_DEFAULT_SEED,
         },
     }
 

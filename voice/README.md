@@ -151,8 +151,12 @@ Case format (`jsonl` or `json` array):
 
 Notes:
 
-- This workflow currently uses LiteRT-LM runtime default sampling (no explicit sampler overrides).
-- Prompt templates can use `{{input}}` (or `{input}`) placeholder.
+- This workflow uses an Android-like compose configuration by default:
+  - sampler profile level 0 (`topK=1`, `topP=1.0`, `temperature=0.0`, `seed=42`)
+  - `max_num_tokens=224`
+  - backend policy `auto` (GPU then CPU fallback)
+  - Android-like input/output normalization in the evaluator
+- Prompt templates can include a trailing `User input` block with `{{input}}` (or `{input}`); it is stripped and treated as system instruction.
 
 ### Prompt A/B Optimization Loop
 
@@ -165,12 +169,6 @@ scripts/prompt_ab_optimize.sh \
   --dataset-file scripts/dataset.jsonl \
   --max-rounds 6 \
   --patience 2
-```
-
-Shortcut:
-
-```bash
-scripts/pab --max-rounds 6 --patience 2
 ```
 
 What this loop enforces:
