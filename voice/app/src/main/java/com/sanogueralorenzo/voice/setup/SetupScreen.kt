@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.setup
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,10 +27,92 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import java.util.Locale
 
 @Composable
-fun SetupScreen(
-    micGranted: Boolean,
-    voiceImeEnabled: Boolean,
-    keyboardSelectionConfirmed: Boolean,
+fun SetupMicPermissionScreen(
+    onGrantMic: () -> Unit
+) {
+    SetupStepScaffold(
+        title = stringResource(R.string.setup_step_microphone),
+        body = {
+            Text(
+                text = stringResource(R.string.setup_mic_intro),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = stringResource(R.string.setup_mic_bullet_while_using),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.setup_mic_bullet_local),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.setup_mic_bullet_offline_after_download),
+                style = MaterialTheme.typography.bodySmall
+            )
+        },
+        actions = {
+            Button(
+                onClick = onGrantMic,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = stringResource(R.string.setup_grant_mic))
+            }
+        }
+    )
+}
+
+@Composable
+fun SetupEnableKeyboardScreen(
+    onOpenImeSettings: () -> Unit
+) {
+    SetupStepScaffold(
+        title = stringResource(R.string.setup_step_enable_keyboard),
+        body = {
+            Text(
+                text = stringResource(R.string.setup_enable_keyboard_intro),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        actions = {
+            Button(
+                onClick = onOpenImeSettings,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = stringResource(R.string.setup_enable_keyboard))
+            }
+        }
+    )
+}
+
+@Composable
+fun SetupChooseKeyboardScreen(
+    onShowImePicker: () -> Unit
+) {
+    SetupStepScaffold(
+        title = stringResource(R.string.setup_step_choose_keyboard),
+        body = {
+            Text(
+                text = stringResource(R.string.setup_choose_keyboard_intro),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = stringResource(R.string.setup_keyboard_button_recommendation),
+                style = MaterialTheme.typography.bodySmall
+            )
+        },
+        actions = {
+            Button(
+                onClick = onShowImePicker,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = stringResource(R.string.setup_choose_keyboard))
+            }
+        }
+    )
+}
+
+@Composable
+fun SetupDownloadModelsScreen(
     connectedToWifi: Boolean,
     allowMobileDataDownloads: Boolean,
     liteRtReady: Boolean,
@@ -40,12 +123,8 @@ fun SetupScreen(
     moonshineProgress: Int,
     modelMessage: String?,
     updatesMessage: String?,
-    onGrantMic: () -> Unit,
-    onOpenImeSettings: () -> Unit,
-    onShowImePicker: () -> Unit,
     onAllowMobileDataChange: (Boolean) -> Unit,
-    onDownloadModels: () -> Unit,
-    onDone: () -> Unit
+    onDownloadModels: () -> Unit
 ) {
     val context = LocalContext.current
     val modelsReady = liteRtReady && moonshineReady
@@ -54,12 +133,99 @@ fun SetupScreen(
     val canStartDownload = !downloadInProgress &&
         !modelsReady &&
         (!requiresMobileDataApproval || allowMobileDataDownloads)
-    val setupStepTitle = when {
-        !micGranted -> stringResource(R.string.setup_step_microphone)
-        !keyboardSelectionConfirmed -> stringResource(R.string.setup_step_keyboard)
-        else -> stringResource(R.string.setup_step_models)
-    }
 
+    SetupStepScaffold(
+        title = stringResource(R.string.setup_step_models),
+        body = {
+            Text(
+                text = stringResource(R.string.setup_models_intro),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (!updatesMessage.isNullOrBlank()) {
+                Text(
+                    text = updatesMessage,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (!modelMessage.isNullOrBlank()) {
+                Text(
+                    text = modelMessage,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Text(
+                text = stringResource(
+                    R.string.setup_model_row,
+                    stringResource(R.string.setup_model_moonshine),
+                    humanReadableSize(context, ModelCatalog.moonshineMediumStreamingTotalBytes),
+                    modelStatus(context, moonshineReady, moonshineDownloading, moonshineProgress)
+                ),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = stringResource(R.string.setup_model_moonshine_note),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(
+                    R.string.setup_model_row,
+                    stringResource(R.string.setup_model_litert),
+                    humanReadableSize(context, ModelCatalog.liteRtLm.sizeBytes),
+                    modelStatus(context, liteRtReady, liteRtDownloading, liteRtProgress)
+                ),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = ModelCatalog.liteRtLm.notes,
+                style = MaterialTheme.typography.bodySmall
+            )
+            if (modelsReady) {
+                Text(
+                    text = stringResource(R.string.setup_models_ready),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (requiresMobileDataApproval && !modelsReady) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = allowMobileDataDownloads,
+                        onCheckedChange = onAllowMobileDataChange
+                    )
+                    Text(
+                        text = stringResource(R.string.setup_allow_mobile_data),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        actions = {
+            if (requiresMobileDataApproval) {
+                Text(
+                    text = stringResource(R.string.setup_models_mobile_data_warning),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Button(
+                onClick = onDownloadModels,
+                enabled = canStartDownload,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = stringResource(R.string.setup_download_models))
+            }
+        }
+    )
+}
+
+@Composable
+private fun SetupStepScaffold(
+    title: String,
+    body: @Composable () -> Unit,
+    actions: @Composable () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -72,7 +238,7 @@ fun SetupScreen(
         ) {
             SetupTopIcon()
             Text(
-                text = setupStepTitle,
+                text = title,
                 style = MaterialTheme.typography.titleLarge
             )
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -82,104 +248,7 @@ fun SetupScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    when {
-                        !micGranted -> {
-                            Text(
-                                text = stringResource(R.string.setup_mic_intro),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = stringResource(R.string.setup_mic_bullet_while_using),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = stringResource(R.string.setup_mic_bullet_local),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = stringResource(R.string.setup_mic_bullet_offline_after_download),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-
-                        !keyboardSelectionConfirmed -> {
-                            Text(
-                                text = stringResource(R.string.setup_keyboard_intro),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = stringResource(R.string.setup_keyboard_button_recommendation),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-
-                        else -> {
-                            Text(
-                                text = stringResource(R.string.setup_models_intro),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            if (!updatesMessage.isNullOrBlank()) {
-                                Text(
-                                    text = updatesMessage,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            if (!modelMessage.isNullOrBlank()) {
-                                Text(
-                                    text = modelMessage,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            Text(
-                                text = stringResource(
-                                    R.string.setup_model_row,
-                                    stringResource(R.string.setup_model_moonshine),
-                                    humanReadableSize(context, ModelCatalog.moonshineMediumStreamingTotalBytes),
-                                    modelStatus(context, moonshineReady, moonshineDownloading, moonshineProgress)
-                                ),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = stringResource(R.string.setup_model_moonshine_note),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.setup_model_row,
-                                    stringResource(R.string.setup_model_litert),
-                                    humanReadableSize(context, ModelCatalog.liteRtLm.sizeBytes),
-                                    modelStatus(context, liteRtReady, liteRtDownloading, liteRtProgress)
-                                ),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = ModelCatalog.liteRtLm.notes,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            if (modelsReady) {
-                                Text(
-                                    text = stringResource(R.string.setup_models_ready),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            if (requiresMobileDataApproval && !modelsReady) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Checkbox(
-                                        checked = allowMobileDataDownloads,
-                                        onCheckedChange = onAllowMobileDataChange
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.setup_allow_mobile_data),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    body()
                 }
             }
         }
@@ -188,58 +257,7 @@ fun SetupScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            when {
-                !micGranted -> {
-                    Button(
-                        onClick = onGrantMic,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(text = stringResource(R.string.setup_grant_mic))
-                    }
-                }
-
-                !keyboardSelectionConfirmed -> {
-                    if (!voiceImeEnabled) {
-                        Button(
-                            onClick = onOpenImeSettings,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = stringResource(R.string.setup_enable_keyboard))
-                        }
-                    }
-                    Button(
-                        onClick = onShowImePicker,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(text = stringResource(R.string.setup_choose_keyboard))
-                    }
-                }
-
-                modelsReady -> {
-                    Button(
-                        onClick = onDone,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(text = stringResource(R.string.setup_done))
-                    }
-                }
-
-                else -> {
-                    if (requiresMobileDataApproval) {
-                        Text(
-                            text = stringResource(R.string.setup_models_mobile_data_warning),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Button(
-                        onClick = onDownloadModels,
-                        enabled = canStartDownload,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(text = stringResource(R.string.setup_download_models))
-                    }
-                }
-            }
+            actions()
         }
     }
 }
@@ -263,7 +281,7 @@ private fun SetupTopIcon() {
 }
 
 private fun modelStatus(
-    context: android.content.Context,
+    context: Context,
     ready: Boolean,
     downloading: Boolean,
     progress: Int
@@ -275,7 +293,7 @@ private fun modelStatus(
     }
 }
 
-private fun humanReadableSize(context: android.content.Context, bytes: Long): String {
+private fun humanReadableSize(context: Context, bytes: Long): String {
     if (bytes <= 0L) return context.getString(R.string.setup_unknown_value)
     val mb = bytes / (1024.0 * 1024.0)
     return String.format(Locale.US, "%.0f MB", mb)

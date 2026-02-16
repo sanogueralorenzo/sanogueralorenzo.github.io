@@ -14,7 +14,6 @@
     <string name="home_section_settings_title">Settings</string>
     <string name="home_section_settings_description">Control LiteRT rewrite behavior and custom instructions.</string>
 
-    <string name="setup_section_title">Setup</string>
     <string name="models_section_title">Download Models</string>
     <string name="onboarding_section_title">Onboarding</string>
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
@@ -104,11 +103,13 @@
     <string name="setup_mic_bullet_while_using">• Select \"While using the app\" when Android asks for permission.</string>
     <string name="setup_mic_bullet_local">• Voice transcription and rewrite run locally on your phone.</string>
     <string name="setup_mic_bullet_offline_after_download">• After models are downloaded, dictation works without internet.</string>
-    <string name="setup_keyboard_intro">Enable Voice Keyboard and set it as your active keyboard to continue.</string>
+    <string name="setup_enable_keyboard_intro">Open Android input settings and turn this keyboard on.</string>
+    <string name="setup_choose_keyboard_intro">Set Voice Keyboard as your active input method so dictation can start here.</string>
     <string name="setup_keyboard_button_recommendation">For faster keyboard switching, we recommend: General &gt; Keyboard &gt; Keyboard button on navigation bar &gt; Show button to hide keyboard.</string>
     <string name="setup_models_intro">Voice Keyboard uses a local Automatic Speech Recognition (ASR) model to convert spoken language into text from audio signals, and an Instruction Tuned (IT) model to enhance dictation and correct text on the fly.</string>
     <string name="setup_step_microphone">Microphone Permission</string>
-    <string name="setup_step_keyboard">Enable Voice Keyboard</string>
+    <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
+    <string name="setup_step_choose_keyboard">Choose Voice Keyboard</string>
     <string name="setup_step_models">Download Models</string>
     <string name="setup_models_mobile_data_warning">You are not on Wi‑Fi. Allow mobile data to continue downloading models.</string>
     <string name="setup_allow_mobile_data">Allow using mobile data</string>
@@ -130,8 +131,6 @@
     <string name="setup_enable_keyboard">Enable Voice keyboard</string>
     <string name="setup_select_keyboard">Select Voice keyboard</string>
     <string name="setup_choose_keyboard">Choose Voice Keyboard</string>
-    <string name="setup_keyboard_welcome">Welcome to Voice Keyboard. Tap Done to continue.</string>
-    <string name="setup_done">Done</string>
     <string name="setup_download_error_http">Failed downloading %1$s (HTTP %2$d).</string>
     <string name="setup_download_error_hash">Failed downloading %1$s (hash mismatch).</string>
     <string name="setup_download_error_size">Failed downloading %1$s (size mismatch).</string>

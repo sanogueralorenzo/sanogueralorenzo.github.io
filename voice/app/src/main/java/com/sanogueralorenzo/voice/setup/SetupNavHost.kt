@@ -45,11 +45,20 @@ import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 
 private object MainRoute {
     const val HOME = "home"
-    const val SETUP = "setup_gate"
+    const val SETUP_MIC = "setup_mic"
+    const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
+    const val SETUP_CHOOSE_KEYBOARD = "setup_choose_keyboard"
+    const val SETUP_MODELS = "setup_models"
     const val MODELS = "models"
     const val ONBOARDING = "onboarding"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
     const val SETTINGS = "settings"
+    val SETUP_ROUTES = setOf(
+        SETUP_MIC,
+        SETUP_ENABLE_KEYBOARD,
+        SETUP_CHOOSE_KEYBOARD,
+        SETUP_MODELS
+    )
 }
 
 @Composable
@@ -110,21 +119,33 @@ fun SetupNavHost() {
     LaunchedEffect(uiState.micGranted) {
         if (!uiState.micGranted) keyboardSelectionAssumed = false
     }
+    LaunchedEffect(uiState.voiceImeEnabled) {
+        if (!uiState.voiceImeEnabled) keyboardSelectionAssumed = false
+    }
     LaunchedEffect(uiState.connectedToWifi) {
         if (uiState.connectedToWifi) allowMobileDataDownloads = false
     }
 
+    val keyboardSelected = uiState.voiceImeSelected || keyboardSelectionAssumed
     val modelsReady = uiState.liteRtReady && uiState.moonshineReady
-    val accessReady = uiState.micGranted &&
-        (uiState.voiceImeSelected || keyboardSelectionAssumed) &&
-        modelsReady
-    val startDestination = if (accessReady) MainRoute.HOME else MainRoute.SETUP
+    val requiredSetupRoute = when {
+        !uiState.micGranted -> MainRoute.SETUP_MIC
+        !uiState.voiceImeEnabled -> MainRoute.SETUP_ENABLE_KEYBOARD
+        !keyboardSelected -> MainRoute.SETUP_CHOOSE_KEYBOARD
+        !modelsReady -> MainRoute.SETUP_MODELS
+        else -> null
+    }
+    val startDestination = requiredSetupRoute ?: MainRoute.HOME
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
-    val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && currentRoute != MainRoute.SETUP
+    val isSetupRoute = currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES
+    val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && !isSetupRoute
     val topBarTitle = when (currentRoute) {
-        MainRoute.SETUP -> stringResource(R.string.main_title_voice_keyboard)
+        MainRoute.SETUP_MIC -> stringResource(R.string.main_title_voice_keyboard)
+        MainRoute.SETUP_ENABLE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
+        MainRoute.SETUP_CHOOSE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
+        MainRoute.SETUP_MODELS -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.MODELS -> stringResource(R.string.models_section_title)
         MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
         MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
@@ -132,9 +153,13 @@ fun SetupNavHost() {
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
 
-    LaunchedEffect(accessReady, currentRoute) {
-        if (!accessReady && currentRoute != null && currentRoute != MainRoute.SETUP) {
-            navController.navigateClearingBackStack(MainRoute.SETUP)
+    LaunchedEffect(requiredSetupRoute, currentRoute) {
+        if (requiredSetupRoute != null && currentRoute != requiredSetupRoute) {
+            navController.navigateClearingBackStack(requiredSetupRoute)
+            return@LaunchedEffect
+        }
+        if (requiredSetupRoute == null && currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES) {
+            navController.navigateClearingBackStack(MainRoute.HOME)
         }
     }
 
@@ -175,7 +200,7 @@ fun SetupNavHost() {
                     }
                 },
                 actions = {
-                    if (currentRoute != MainRoute.SETUP) {
+                    if (!isSetupRoute) {
                         IconButton(onClick = actions.onShowImePicker) {
                             Icon(
                                 imageVector = Icons.Rounded.Keyboard,
@@ -211,11 +236,26 @@ fun SetupNavHost() {
                 )
             }
 
-            composable(MainRoute.SETUP) {
-                SetupScreen(
-                    micGranted = uiState.micGranted,
-                    voiceImeEnabled = uiState.voiceImeEnabled,
-                    keyboardSelectionConfirmed = uiState.voiceImeSelected || keyboardSelectionAssumed,
+            composable(MainRoute.SETUP_MIC) {
+                SetupMicPermissionScreen(
+                    onGrantMic = actions.onGrantMic
+                )
+            }
+
+            composable(MainRoute.SETUP_ENABLE_KEYBOARD) {
+                SetupEnableKeyboardScreen(
+                    onOpenImeSettings = actions.onOpenImeSettings
+                )
+            }
+
+            composable(MainRoute.SETUP_CHOOSE_KEYBOARD) {
+                SetupChooseKeyboardScreen(
+                    onShowImePicker = actions.onShowImePicker
+                )
+            }
+
+            composable(MainRoute.SETUP_MODELS) {
+                SetupDownloadModelsScreen(
                     connectedToWifi = uiState.connectedToWifi,
                     allowMobileDataDownloads = allowMobileDataDownloads,
                     liteRtReady = uiState.liteRtReady,
@@ -226,12 +266,8 @@ fun SetupNavHost() {
                     moonshineProgress = uiState.moonshineProgress,
                     modelMessage = uiState.modelMessage,
                     updatesMessage = uiState.updatesMessage,
-                    onGrantMic = actions.onGrantMic,
-                    onOpenImeSettings = actions.onOpenImeSettings,
-                    onShowImePicker = actions.onShowImePicker,
                     onAllowMobileDataChange = { allowMobileDataDownloads = it },
-                    onDownloadModels = { setupViewModel.downloadAllModels() },
-                    onDone = { navController.navigateClearingBackStack(MainRoute.HOME) }
+                    onDownloadModels = { setupViewModel.downloadAllModels() }
                 )
             }
 
