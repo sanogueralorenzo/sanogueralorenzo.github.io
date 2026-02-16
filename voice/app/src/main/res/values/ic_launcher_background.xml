@@ -2,5 +2,5 @@
 <resources>
     <color name="ic_launcher_background">#1A2026</color>
     <color name="splash_background">#FFFFFF</color>
-    <color name="setup_logo_stroke">#111820</color>
+    <color name="logo_stroke">#111820</color>
 </resources>
