@@ -191,9 +191,11 @@ private fun dotJumpPhase(phase: Float, index: Int): Float {
     return sin(local * PI).toFloat().coerceIn(0f, 1f)
 }
 
+val VoicePillVisualizerWidth = 106.dp
+
 private const val BarCount = 5
 private val VisualizerHeight = 34.dp
-private val VisualizerWidth = 106.dp
+private val VisualizerWidth = VoicePillVisualizerWidth
 private val BarSlotWidth = 10.dp
 private val BarSpacing = 5.dp
 private val BarWidth = 6.dp

@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.ui.VoicePillVisualizer
+import com.sanogueralorenzo.voice.ui.VoicePillVisualizerWidth
 import com.sanogueralorenzo.voice.ui.VoiceVisualizerMode
 import kotlinx.coroutines.delay
 
@@ -96,7 +97,7 @@ fun VoiceKeyboardImeContent(
             contentAlignment = Alignment.Center
         ) {
             val targetWidth = when (state.mode) {
-                VoiceKeyboardMode.IDLE -> (maxWidth * 0.38f).coerceInDp(120.dp, 220.dp)
+                VoiceKeyboardMode.IDLE -> VoicePillVisualizerWidth
                 VoiceKeyboardMode.RECORDING -> (maxWidth * 0.92f).coerceAtMost(420.dp)
                 VoiceKeyboardMode.PROCESSING -> (maxWidth * 0.84f).coerceInDp(230.dp, 380.dp)
             }
