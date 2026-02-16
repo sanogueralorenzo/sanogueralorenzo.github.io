@@ -20,7 +20,6 @@ data class SetupUiState(
     val updatesMessage: String? = null,
     val keyboardTestInput: String = "",
     val liteRtRewriteEnabled: Boolean = true,
-    val customInstructions: String = "",
     val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
     val updatesAsync: Async<ModelUpdatesOutcome> = Uninitialized
 ) : MavericksState

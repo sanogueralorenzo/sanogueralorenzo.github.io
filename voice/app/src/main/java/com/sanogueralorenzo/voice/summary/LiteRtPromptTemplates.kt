@@ -14,41 +14,28 @@ internal object LiteRtPromptTemplates {
     fun buildRewriteSystemInstruction(
         directive: RewriteDirective,
         bulletMode: Boolean,
-        allowStrongTransform: Boolean,
-        customInstructions: String
+        allowStrongTransform: Boolean
     ): String {
-        val customRule = customInstructionsRule(customInstructions)
-        return if (customRule.isBlank()) {
-            REWRITE_SYSTEM_INSTRUCTION
-        } else {
-            "$REWRITE_SYSTEM_INSTRUCTION $customRule"
-        }
+        return REWRITE_SYSTEM_INSTRUCTION
     }
 
-    fun buildEditSystemInstruction(customInstructions: String): String {
-        val customRule = customInstructionsRule(customInstructions)
-        return "$EDIT_SYSTEM_INSTRUCTION $customRule"
+    fun buildEditSystemInstruction(): String {
+        return EDIT_SYSTEM_INSTRUCTION
     }
 
-    fun benchmarkInstructionSnapshot(customInstructions: String): String {
-        val normalizedCustom = customInstructions.trim()
-        val customDisplay = if (normalizedCustom.isBlank()) "none" else normalizedCustom
+    fun benchmarkInstructionSnapshot(): String {
         val rewriteInstruction = buildRewriteSystemInstruction(
             directive = RewriteDirective.DEFAULT,
             bulletMode = false,
-            allowStrongTransform = false,
-            customInstructions = customInstructions
+            allowStrongTransform = false
         )
-        val editInstruction = buildEditSystemInstruction(customInstructions)
+        val editInstruction = buildEditSystemInstruction()
         return buildString {
             appendLine("rewrite_system_instruction:")
             appendLine(rewriteInstruction)
             appendLine()
             appendLine("edit_system_instruction:")
             appendLine(editInstruction)
-            appendLine()
-            appendLine("custom_instructions:")
-            append(customDisplay)
         }
     }
 
@@ -93,10 +80,4 @@ internal object LiteRtPromptTemplates {
             "When PREFER_LIST_FORMAT is yes and content is list-like, keep clean '- ' bullets. " +
             "Keep untouched content faithful. Do not invent facts or add social filler. " +
             "Return only the fully edited final message, with no explanations."
-
-    private fun customInstructionsRule(customInstructions: String): String {
-        val trimmed = customInstructions.trim()
-        if (trimmed.isBlank()) return ""
-        return "Additional user rewrite preference: $trimmed"
-    }
 }

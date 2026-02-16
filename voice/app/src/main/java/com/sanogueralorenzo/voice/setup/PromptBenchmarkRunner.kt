@@ -15,7 +15,6 @@ object PromptBenchmarkRunner {
         suiteVersion: String,
         repeats: Int = DEFAULT_REPEATS,
         modelId: String,
-        customInstructions: String,
         promptInstructionsSnapshot: String,
         onProgress: ((PromptBenchmarkProgress) -> Unit)? = null
     ): PromptBenchmarkSessionResult {
@@ -62,7 +61,6 @@ object PromptBenchmarkRunner {
             timestampMs = System.currentTimeMillis(),
             totalElapsedMs = totalElapsedMs,
             modelId = modelId,
-            customInstructions = customInstructions,
             promptInstructionsSnapshot = promptInstructionsSnapshot,
             cases = caseResults
         )

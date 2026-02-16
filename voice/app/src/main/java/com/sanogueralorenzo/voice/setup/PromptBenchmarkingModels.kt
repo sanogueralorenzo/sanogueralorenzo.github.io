@@ -57,7 +57,6 @@ data class PromptBenchmarkSessionResult(
     val timestampMs: Long,
     val totalElapsedMs: Long,
     val modelId: String,
-    val customInstructions: String,
     val promptInstructionsSnapshot: String,
     val cases: List<PromptBenchmarkCaseResult>
 ) {

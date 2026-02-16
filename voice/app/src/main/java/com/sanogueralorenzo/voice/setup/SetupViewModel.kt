@@ -93,12 +93,6 @@ class SetupViewModel(
         setState { copy(liteRtRewriteEnabled = enabled) }
     }
 
-    fun setCustomInstructions(value: String) {
-        val normalized = value.take(VoiceSettingsStore.MAX_CUSTOM_INSTRUCTIONS_CHARS)
-        settingsStore.setCustomInstructions(normalized)
-        setState { copy(customInstructions = normalized) }
-    }
-
     fun isAnyDownloading(): Boolean {
         return withState(this) { state ->
             isAnyDownloading(state)

@@ -41,7 +41,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 
 private object MainRoute {
     const val HOME = "home"
@@ -73,8 +72,7 @@ fun SetupNavHost() {
                 micGranted = false,
                 voiceImeEnabled = false,
                 voiceImeSelected = false,
-                liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled(),
-                customInstructions = appGraph.settingsStore.customInstructions()
+                liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled()
             ),
             context = appContext,
             settingsStore = appGraph.settingsStore,
@@ -281,14 +279,8 @@ fun SetupNavHost() {
             composable(MainRoute.SETTINGS) {
                 SettingsScreen(
                     rewriteEnabled = uiState.liteRtRewriteEnabled,
-                    customInstructions = uiState.customInstructions,
                     onRewriteEnabledChange = { enabled ->
                         setupViewModel.setLiteRtRewriteEnabled(enabled)
-                    },
-                    onCustomInstructionsChange = { value ->
-                        setupViewModel.setCustomInstructions(
-                            value.take(VoiceSettingsStore.MAX_CUSTOM_INSTRUCTIONS_CHARS)
-                        )
                     }
                 )
             }

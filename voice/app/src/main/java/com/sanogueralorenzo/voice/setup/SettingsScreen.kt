@@ -10,7 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,14 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 
 @Composable
 fun SettingsScreen(
     rewriteEnabled: Boolean,
-    customInstructions: String,
-    onRewriteEnabledChange: (Boolean) -> Unit,
-    onCustomInstructionsChange: (String) -> Unit
+    onRewriteEnabledChange: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -75,42 +71,6 @@ fun SettingsScreen(
                         onCheckedChange = onRewriteEnabledChange
                     )
                 }
-            }
-        }
-
-        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_custom_instructions_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = stringResource(R.string.settings_custom_instructions_description),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                OutlinedTextField(
-                    value = customInstructions,
-                    onValueChange = onCustomInstructionsChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 4,
-                    maxLines = 8,
-                    placeholder = {
-                        Text(text = stringResource(R.string.settings_custom_instructions_placeholder))
-                    }
-                )
-                Text(
-                    text = stringResource(
-                        R.string.settings_custom_instructions_counter,
-                        customInstructions.length,
-                        VoiceSettingsStore.MAX_CUSTOM_INSTRUCTIONS_CHARS
-                    ),
-                    style = MaterialTheme.typography.bodySmall
-                )
             }
         }
     }

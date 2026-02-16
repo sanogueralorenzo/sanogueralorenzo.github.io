@@ -81,8 +81,7 @@ class PromptBenchmarkingViewModel(
         }
         if (!canRun) return
 
-        val customInstructions = settingsStore.customInstructions()
-        val instructionSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot(customInstructions)
+        val instructionSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot()
 
         setState {
             copy(
@@ -118,7 +117,6 @@ class PromptBenchmarkingViewModel(
                 suiteVersion = "${PromptBenchmarkSuite.SUITE_VERSION}+remote_dataset",
                 repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
                 modelId = ModelCatalog.liteRtLm.id,
-                customInstructions = customInstructions,
                 promptInstructionsSnapshot = instructionSnapshot,
                 onProgress = { progress ->
                     setState {

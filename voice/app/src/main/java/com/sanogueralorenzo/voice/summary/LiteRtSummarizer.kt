@@ -13,7 +13,6 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,7 +49,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private val conversationMutex = Mutex()
     private val activeConversation = AtomicReference<Conversation?>()
     private val backendPolicyStore = LiteRtBackendPolicyStore(appContext)
-    private val settingsStore = VoiceSettingsStore(appContext)
 
     @Volatile
     private var engine: Engine? = null
@@ -237,8 +235,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 LiteRtPromptTemplates.buildRewriteSystemInstruction(
                     directive = request.directive,
                     bulletMode = listMode,
-                    allowStrongTransform = request.allowStrongTransform,
-                    customInstructions = currentRuntimeCustomInstructions()
+                    allowStrongTransform = request.allowStrongTransform
                 )
             ),
             samplerConfig = SamplerConfig(
@@ -316,9 +313,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     ): String {
         val config = ConversationConfig(
             systemInstruction = Contents.of(
-                LiteRtPromptTemplates.buildEditSystemInstruction(
-                    customInstructions = currentRuntimeCustomInstructions()
-                )
+                LiteRtPromptTemplates.buildEditSystemInstruction()
             ),
             samplerConfig = SamplerConfig(
                 topK = DEFAULT_TOP_K,
@@ -657,10 +652,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         val intro = text.trim().take(INTRO_SCAN_MAX_CHARS)
         if (intro.isBlank()) return false
         return HIGH_INTENSITY_REGEX.containsMatchIn(intro)
-    }
-
-    private fun currentRuntimeCustomInstructions(): String {
-        return LiteRtRewritePolicy.clipCustomInstructions(settingsStore.customInstructions())
     }
 
     companion object {
