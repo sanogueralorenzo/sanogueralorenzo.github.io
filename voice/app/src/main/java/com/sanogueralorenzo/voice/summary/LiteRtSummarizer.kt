@@ -29,7 +29,7 @@ import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
-class LiteRtSummarizer(context: Context) {
+class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private data class RewriteRequest(
         val directive: LiteRtPromptTemplates.RewriteDirective,
         val content: String,
@@ -67,7 +67,7 @@ class LiteRtSummarizer(context: Context) {
     @Volatile
     private var initializedMaxNumTokens: Int = 0
 
-    fun isModelAvailable(): Boolean {
+    override fun isModelAvailable(): Boolean {
         return ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
     }
 
@@ -89,7 +89,7 @@ class LiteRtSummarizer(context: Context) {
         }
     }
 
-    fun summarizeBlocking(text: String): RewriteResult {
+    override fun summarizeBlocking(text: String): RewriteResult {
         val startedAt = System.currentTimeMillis()
         val normalizedInput = normalizeInput(text)
         if (normalizedInput.isBlank()) {
