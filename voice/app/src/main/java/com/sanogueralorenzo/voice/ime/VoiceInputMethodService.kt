@@ -828,10 +828,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }
         val types = intArrayOf(
             WindowInsetsCompat.Type.navigationBars(),
-            WindowInsetsCompat.Type.tappableElement(),
-            WindowInsetsCompat.Type.mandatorySystemGestures(),
-            WindowInsetsCompat.Type.systemGestures(),
-            WindowInsetsCompat.Type.systemBars()
+            WindowInsetsCompat.Type.tappableElement()
         )
         var bottom = 0
         for (type in types) {
