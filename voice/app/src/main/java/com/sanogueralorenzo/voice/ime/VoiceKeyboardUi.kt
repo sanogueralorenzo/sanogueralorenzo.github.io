@@ -69,6 +69,7 @@ private val ActiveColor = Color(0xFF1A2026)
 private val ActionColor = Color(0x33FFFFFF)
 private val KeyboardBarColor = Color.Black
 private val KeyboardBarHeight = 84.dp
+private val KeyboardParentVerticalTrim = 8.dp
 
 private data class ActivePillVisualState(
     val mode: VoiceKeyboardMode,
@@ -95,7 +96,8 @@ fun VoiceKeyboardImeContent(
 ) {
     val density = LocalDensity.current
     val bottomSystemInset = with(density) { state.bottomInsetPx.toDp() }
-    val keyboardContainerHeight = KeyboardBarHeight + bottomSystemInset
+    val keyboardVisibleHeight = KeyboardBarHeight - (KeyboardParentVerticalTrim * 2)
+    val keyboardContainerHeight = keyboardVisibleHeight + bottomSystemInset
 
     Box(
         modifier = modifier
@@ -107,7 +109,7 @@ fun VoiceKeyboardImeContent(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(KeyboardBarHeight),
+                .height(keyboardVisibleHeight),
             contentAlignment = Alignment.Center
         ) {
             val targetWidth = when (state.mode) {
