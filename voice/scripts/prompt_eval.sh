@@ -251,9 +251,22 @@ if [[ "${SKIP_SETUP}" -eq 0 ]]; then
   fi
 
   echo "Building LiteRT-LM Android-like eval CLI"
+  MACOS_SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version 2>/dev/null || true)"
+  MACOS_MIN_VERSION="$(sw_vers -productVersion 2>/dev/null | awk -F. '{print $1 "." $2}' || true)"
+  if [[ -z "${MACOS_SDK_VERSION}" ]]; then
+    MACOS_SDK_VERSION="${MACOS_MIN_VERSION:-12.0}"
+  fi
+  if [[ -z "${MACOS_MIN_VERSION}" ]]; then
+    MACOS_MIN_VERSION="12.0"
+  fi
   (
     cd "${LITERTLM_DIR}"
-    "${BAZEL_BIN}" build //runtime/engine:litert_android_eval_main
+    "${BAZEL_BIN}" build //runtime/engine:litert_android_eval_main \
+      --macos_sdk_version="${MACOS_SDK_VERSION}" \
+      --macos_minimum_os="${MACOS_MIN_VERSION}" \
+      --host_macos_minimum_os="${MACOS_MIN_VERSION}" \
+      --repo_env=MACOSX_DEPLOYMENT_TARGET="${MACOS_MIN_VERSION}" \
+      --action_env=MACOSX_DEPLOYMENT_TARGET="${MACOS_MIN_VERSION}"
   )
 fi
 
