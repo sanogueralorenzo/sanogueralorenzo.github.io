@@ -23,6 +23,15 @@ internal object LiteRtPromptTemplates {
         return EDIT_SYSTEM_INSTRUCTION
     }
 
+    fun buildRewriteUserPrompt(inputText: String): String {
+        return buildString(REWRITE_SYSTEM_INSTRUCTION.length + inputText.length + 32) {
+            append(REWRITE_SYSTEM_INSTRUCTION)
+            append("\n\nUser input:\n")
+            append(inputText)
+            append("\n\nCleaned:")
+        }
+    }
+
     fun benchmarkInstructionSnapshot(): String {
         val rewriteInstruction = buildRewriteSystemInstruction(
             directive = RewriteDirective.DEFAULT,

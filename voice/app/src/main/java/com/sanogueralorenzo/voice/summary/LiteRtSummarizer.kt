@@ -230,14 +230,9 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         request: RewriteRequest,
         listMode: Boolean
     ): String {
+        val userPrompt = LiteRtPromptTemplates.buildRewriteUserPrompt(request.content)
         val config = ConversationConfig(
-            systemInstruction = Contents.of(
-                LiteRtPromptTemplates.buildRewriteSystemInstruction(
-                    directive = request.directive,
-                    bulletMode = listMode,
-                    allowStrongTransform = request.allowStrongTransform
-                )
-            ),
+            systemInstruction = Contents.of(""),
             samplerConfig = SamplerConfig(
                 topK = DEFAULT_TOP_K,
                 topP = DEFAULT_TOP_P,
@@ -248,7 +243,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         val output = runConversation(
             localEngine = localEngine,
             config = config,
-            userPrompt = request.content,
+            userPrompt = userPrompt,
             timeoutMs = REQUEST_TIMEOUT_MS
         )
         return cleanModelOutput(output, bulletMode = listMode)
@@ -625,6 +620,10 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     ): String {
         var cleaned = text.trim()
         if (cleaned.isBlank()) return ""
+        val anchorMatches = CLEANED_ANCHOR_REGEX.findAll(cleaned).toList()
+        if (anchorMatches.isNotEmpty()) {
+            cleaned = cleaned.substring(anchorMatches.last().range.last + 1).trim()
+        }
         cleaned = cleaned
             .replace(PREFIX_LABEL_REGEX, "")
             .trim()
@@ -634,6 +633,16 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             .removeSurrounding("'")
             .trim()
         if (cleaned.isBlank()) return ""
+        if (cleaned.startsWith("user input:", ignoreCase = true)) {
+            val nonEmptyLines = cleaned
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toList()
+            if (nonEmptyLines.size >= 2) {
+                cleaned = nonEmptyLines.last()
+            }
+        }
         if (!bulletMode && cleaned.startsWith("- ")) {
             cleaned = cleaned
                 .lineSequence()
@@ -683,6 +692,10 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         private val PREFIX_LABEL_REGEX = Regex(
             "^(rewritten|rewrite|cleaned|output|result)\\s*:\\s*",
             RegexOption.IGNORE_CASE
+        )
+        private val CLEANED_ANCHOR_REGEX = Regex(
+            "^cleaned\\s*:\\s*",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)
         )
         private val HIGH_INTENSITY_REGEX = Regex(
             "\\b(very|extremely|heavily|drastically|significantly|major\\s+rewrite|substantially)\\b",
