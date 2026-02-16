@@ -15,13 +15,12 @@
     <string name="onboarding_section_title">Onboarding</string>
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
     <string name="prompt_benchmark_intro">Run fixed compose and edit cases to compare quality, consistency, and latency.</string>
-    <string name="prompt_benchmark_suite_stats">Suite: %1$d cases, %2$d runs (%3$d repeats each).</string>
     <string name="prompt_benchmark_rewrite_disabled_warning">Rewrite is off in Settings. This benchmark still calls LiteRT directly.</string>
     <string name="prompt_benchmark_run_action">Run</string>
     <string name="prompt_benchmark_cancel_action">Cancel</string>
     <string name="prompt_benchmark_share_action">Share</string>
     <string name="prompt_benchmark_progress_idle">Ready to run.</string>
-    <string name="prompt_benchmark_progress_downloading">Downloading dataset from GitHub…</string>
+    <string name="prompt_benchmark_progress_downloading">Preparing benchmark…</string>
     <string name="prompt_benchmark_progress_running">Running case %1$d/%2$d.</string>
     <string name="prompt_benchmark_progress_error">Stopped due to an error.</string>
     <string name="prompt_benchmark_progress_complete">Benchmark completed.</string>
@@ -34,6 +33,9 @@
     <string name="prompt_benchmark_summary_latency">latency avg=%1$dms | min=%2$dms | max=%3$dms</string>
     <string name="prompt_benchmark_summary_consistency">stable cases=%1$d / %2$d</string>
     <string name="prompt_benchmark_case_meta">category: %1$s | type: %2$s</string>
+    <string name="prompt_benchmark_case_pass">PASS</string>
+    <string name="prompt_benchmark_case_fail">FAIL</string>
+    <string name="prompt_benchmark_case_result_summary">runs: %1$d success | %2$d failed</string>
     <string name="prompt_benchmark_before_label">Input</string>
     <string name="prompt_benchmark_before_original_label">Original text</string>
     <string name="prompt_benchmark_before_instruction_label">Edit instruction</string>

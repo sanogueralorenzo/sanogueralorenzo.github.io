@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.LinearProgressIndicator
@@ -95,7 +96,6 @@ fun PromptBenchmarkingScreen(
 
     val runnerState = uiState.runnerState
     val sessionResult = uiState.sessionResult
-    val effectiveTotalCases = sessionResult?.totalCases ?: runnerState.totalCases
     val totalRuns = runnerState.totalCases * runnerState.repeats
     val completedRuns = if (runnerState.currentCaseIndex <= 0 || runnerState.currentRunIndex <= 0) {
         0
@@ -124,15 +124,6 @@ fun PromptBenchmarkingScreen(
                 Text(
                     text = stringResource(R.string.prompt_benchmark_intro),
                     style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = stringResource(
-                        R.string.prompt_benchmark_suite_stats,
-                        effectiveTotalCases,
-                        effectiveTotalCases * PromptBenchmarkRunner.DEFAULT_REPEATS,
-                        PromptBenchmarkRunner.DEFAULT_REPEATS
-                    ),
-                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -289,6 +280,8 @@ private fun benchmarkProgressLabel(state: PromptBenchmarkRunnerState): String {
 @Composable
 private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
     val caseDef = caseResult.caseDef
+    val casePassed = caseResult.failureCount == 0
+    val successCount = caseResult.runs.size - caseResult.failureCount
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -296,15 +289,51 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(
-                text = "${caseDef.id} - ${caseDef.title}",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${caseDef.id} - ${caseDef.title}",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Badge(
+                    containerColor = if (casePassed) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.errorContainer
+                    },
+                    contentColor = if (casePassed) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onErrorContainer
+                    }
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (casePassed) {
+                                R.string.prompt_benchmark_case_pass
+                            } else {
+                                R.string.prompt_benchmark_case_fail
+                            }
+                        ),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
             Text(
                 text = stringResource(
                     R.string.prompt_benchmark_case_meta,
                     caseDef.category,
                     caseDef.type.name
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(
+                    R.string.prompt_benchmark_case_result_summary,
+                    successCount,
+                    caseResult.failureCount
                 ),
                 style = MaterialTheme.typography.bodySmall
             )
