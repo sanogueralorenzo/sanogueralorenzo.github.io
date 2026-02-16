@@ -24,8 +24,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
@@ -56,6 +58,7 @@ fun SetupNavHost() {
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val windowInfo = LocalWindowInfo.current
     val setupViewModel = remember(appContext, appGraph) {
         SetupViewModel(
             initialState = SetupUiState(
@@ -84,7 +87,7 @@ fun SetupNavHost() {
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
+            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
@@ -123,6 +126,16 @@ fun SetupNavHost() {
         }
     }
 
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != MainRoute.SETUP) return@LaunchedEffect
+        snapshotFlow { windowInfo.isWindowFocused }
+            .collect { focused ->
+                if (focused) {
+                    setupViewModel.refreshKeyboardStatus()
+                }
+            }
+    }
+
     val actions = SetupActions(
         onOpenModels = { navController.navigate(MainRoute.MODELS) },
         onOpenOnboarding = { navController.navigate(MainRoute.ONBOARDING) },
@@ -130,7 +143,10 @@ fun SetupNavHost() {
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
-        onShowImePicker = { showImePicker(context) },
+        onShowImePicker = {
+            showImePicker(context)
+            setupViewModel.refreshKeyboardStatus()
+        },
         onDownloadAll = { setupViewModel.downloadAllModels() },
         onDownloadLiteRt = { setupViewModel.startLiteRtDownload() },
         onDownloadMoonshine = { setupViewModel.startMoonshineDownload() },
