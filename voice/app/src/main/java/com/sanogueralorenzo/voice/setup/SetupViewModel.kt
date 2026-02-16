@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
@@ -65,6 +67,14 @@ class SetupViewModel(
             copy(
                 voiceImeEnabled = enabled,
                 voiceImeSelected = selected
+            )
+        }
+    }
+
+    fun refreshNetworkStatus() {
+        setState {
+            copy(
+                connectedToWifi = isConnectedToWifi()
             )
         }
     }
@@ -292,11 +302,11 @@ class SetupViewModel(
             }
             return
         }
-        fun runMoonshine() {
-            val moonshineReady = withState(this) { state ->
-                state.moonshineReady
+        fun runLiteRt() {
+            val liteRtReady = withState(this) { state ->
+                state.liteRtReady
             }
-            if (moonshineReady) {
+            if (liteRtReady) {
                 setState {
                     copy(
                         modelMessage = appContext.getString(R.string.setup_download_all_completed)
@@ -305,8 +315,8 @@ class SetupViewModel(
                 refreshModelReadiness()
                 return
             }
-            startMoonshineDownload { success ->
-                if (!success) return@startMoonshineDownload
+            startLiteRtDownload { success ->
+                if (!success) return@startLiteRtDownload
                 setState {
                     copy(
                         modelMessage = appContext.getString(R.string.setup_download_all_completed)
@@ -316,17 +326,21 @@ class SetupViewModel(
             }
         }
 
-        val liteRtReady = withState(this) { state ->
-            state.liteRtReady
-        }
-        if (liteRtReady) {
-            runMoonshine()
-        } else {
-            startLiteRtDownload { success ->
-                if (!success) return@startLiteRtDownload
-                runMoonshine()
+        fun runMoonshine() {
+            val moonshineReady = withState(this) { state ->
+                state.moonshineReady
+            }
+            if (moonshineReady) {
+                runLiteRt()
+                return
+            }
+            startMoonshineDownload { success ->
+                if (!success) return@startMoonshineDownload
+                runLiteRt()
             }
         }
+
+        runMoonshine()
     }
 
     private fun startModelPackDownload(
@@ -519,5 +533,13 @@ class SetupViewModel(
     private fun isVoiceImeId(id: String?): Boolean {
         if (id.isNullOrBlank()) return false
         return id == voiceImeIdShort || id == voiceImeIdLong
+    }
+
+    private fun isConnectedToWifi(): Boolean {
+        val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 }

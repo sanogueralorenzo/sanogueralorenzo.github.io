@@ -75,6 +75,7 @@ fun SetupNavHost() {
     }
     val uiState by setupViewModel.collectAsStateWithLifecycle()
     var keyboardSelectionAssumed by rememberSaveable { mutableStateOf(false) }
+    var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -91,6 +92,7 @@ fun SetupNavHost() {
             if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
+                setupViewModel.refreshNetworkStatus()
                 setupViewModel.refreshModelReadiness()
             }
         }
@@ -101,14 +103,21 @@ fun SetupNavHost() {
     LaunchedEffect(Unit) {
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
+        setupViewModel.refreshNetworkStatus()
         setupViewModel.refreshModelReadiness()
     }
 
     LaunchedEffect(uiState.micGranted) {
         if (!uiState.micGranted) keyboardSelectionAssumed = false
     }
+    LaunchedEffect(uiState.connectedToWifi) {
+        if (uiState.connectedToWifi) allowMobileDataDownloads = false
+    }
 
-    val accessReady = uiState.micGranted && (uiState.voiceImeSelected || keyboardSelectionAssumed)
+    val modelsReady = uiState.liteRtReady && uiState.moonshineReady
+    val accessReady = uiState.micGranted &&
+        (uiState.voiceImeSelected || keyboardSelectionAssumed) &&
+        modelsReady
     val startDestination = if (accessReady) MainRoute.HOME else MainRoute.SETUP
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
@@ -207,9 +216,21 @@ fun SetupNavHost() {
                     micGranted = uiState.micGranted,
                     voiceImeEnabled = uiState.voiceImeEnabled,
                     keyboardSelectionConfirmed = uiState.voiceImeSelected || keyboardSelectionAssumed,
+                    connectedToWifi = uiState.connectedToWifi,
+                    allowMobileDataDownloads = allowMobileDataDownloads,
+                    liteRtReady = uiState.liteRtReady,
+                    moonshineReady = uiState.moonshineReady,
+                    liteRtDownloading = uiState.liteRtDownloading,
+                    moonshineDownloading = uiState.moonshineDownloading,
+                    liteRtProgress = uiState.liteRtProgress,
+                    moonshineProgress = uiState.moonshineProgress,
+                    modelMessage = uiState.modelMessage,
+                    updatesMessage = uiState.updatesMessage,
                     onGrantMic = actions.onGrantMic,
                     onOpenImeSettings = actions.onOpenImeSettings,
                     onShowImePicker = actions.onShowImePicker,
+                    onAllowMobileDataChange = { allowMobileDataDownloads = it },
+                    onDownloadModels = { setupViewModel.downloadAllModels() },
                     onDone = { navController.navigateClearingBackStack(MainRoute.HOME) }
                 )
             }
