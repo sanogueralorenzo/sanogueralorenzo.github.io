@@ -52,12 +52,14 @@ internal object PromptBenchmarkDatasetLoader {
             val input = json.optString("input").trim()
             if (input.isBlank()) return null
             val id = json.optInt("id", fallbackIndex)
+            val expected = json.optString("expected").trim().ifBlank { null }
             PromptBenchmarkCase(
-                id = "D$id",
-                title = "Dataset $id",
+                id = id.toString(),
+                title = "Case $id",
                 category = "compose",
                 type = PromptBenchmarkCaseType.COMPOSE,
-                composeInput = input
+                composeInput = input,
+                expectedOutput = expected
             )
         }.getOrNull()
     }

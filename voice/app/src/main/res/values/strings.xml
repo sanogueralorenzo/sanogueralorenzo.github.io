@@ -32,17 +32,12 @@
     <string name="prompt_benchmark_summary_runs">cases=%1$d | runs=%2$d | failures=%3$d</string>
     <string name="prompt_benchmark_summary_latency">latency avg=%1$dms | min=%2$dms | max=%3$dms</string>
     <string name="prompt_benchmark_summary_consistency">stable cases=%1$d / %2$d</string>
-    <string name="prompt_benchmark_case_meta">category: %1$s | type: %2$s</string>
     <string name="prompt_benchmark_case_pass">PASS</string>
     <string name="prompt_benchmark_case_fail">FAIL</string>
-    <string name="prompt_benchmark_case_result_summary">runs: %1$d success | %2$d failed</string>
     <string name="prompt_benchmark_before_label">Input</string>
-    <string name="prompt_benchmark_before_original_label">Original text</string>
-    <string name="prompt_benchmark_before_instruction_label">Edit instruction</string>
-    <string name="prompt_benchmark_run_meta">latency=%1$dms | backend=%2$s | status=%3$s</string>
-    <string name="prompt_benchmark_run_error">error_type=%1$s | error=%2$s</string>
-    <string name="prompt_benchmark_run_failed_output">(error)</string>
-    <string name="prompt_benchmark_case_summary">unique outputs=%1$d | avg=%2$dms | min=%3$dms | max=%4$dms</string>
+    <string name="prompt_benchmark_expected_label">Expected</string>
+    <string name="prompt_benchmark_output_label">Output</string>
+    <string name="prompt_benchmark_expected_missing">(not provided)</string>
     <string name="models_check_updates_action">Check for updates</string>
     <string name="models_check_updates_section_title">Model checks</string>
     <string name="models_check_updates_section_description">Check local model files and remote metadata.</string>

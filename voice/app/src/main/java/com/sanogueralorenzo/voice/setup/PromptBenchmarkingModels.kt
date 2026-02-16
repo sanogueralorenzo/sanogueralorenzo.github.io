@@ -11,6 +11,7 @@ data class PromptBenchmarkCase(
     val category: String,
     val type: PromptBenchmarkCaseType,
     val composeInput: String? = null,
+    val expectedOutput: String? = null,
     val editOriginal: String? = null,
     val editInstruction: String? = null
 ) {

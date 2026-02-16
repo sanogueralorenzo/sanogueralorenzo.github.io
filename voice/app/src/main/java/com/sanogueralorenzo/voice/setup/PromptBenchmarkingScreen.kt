@@ -281,7 +281,10 @@ private fun benchmarkProgressLabel(state: PromptBenchmarkRunnerState): String {
 private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
     val caseDef = caseResult.caseDef
     val casePassed = caseResult.failureCount == 0
-    val successCount = caseResult.runs.size - caseResult.failureCount
+    val backendLabel = backendLabel(caseResult.runs)
+    val inputText = benchmarkInputText(caseDef)
+    val expectedText = caseDef.expectedOutput ?: stringResource(R.string.prompt_benchmark_expected_missing)
+    val outputText = benchmarkOutputText(caseResult.runs)
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -294,118 +297,88 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${caseDef.id} - ${caseDef.title}",
+                    text = caseDef.title,
                     style = MaterialTheme.typography.titleMedium
                 )
-                Badge(
-                    containerColor = if (casePassed) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.errorContainer
-                    },
-                    contentColor = if (casePassed) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onErrorContainer
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Badge(
+                        containerColor = if (casePassed) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                        contentColor = if (casePassed) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (casePassed) {
+                                    R.string.prompt_benchmark_case_pass
+                                } else {
+                                    R.string.prompt_benchmark_case_fail
+                                }
+                            ),
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
-                ) {
-                    Text(
-                        text = stringResource(
-                            if (casePassed) {
-                                R.string.prompt_benchmark_case_pass
-                            } else {
-                                R.string.prompt_benchmark_case_fail
-                            }
-                        ),
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                    Badge {
+                        Text(
+                            text = backendLabel,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
+
             Text(
-                text = stringResource(
-                    R.string.prompt_benchmark_case_meta,
-                    caseDef.category,
-                    caseDef.type.name
-                ),
+                text = stringResource(R.string.prompt_benchmark_before_label),
+                style = MaterialTheme.typography.labelLarge
+            )
+            Text(
+                text = inputText,
                 style = MaterialTheme.typography.bodySmall
             )
             Text(
-                text = stringResource(
-                    R.string.prompt_benchmark_case_result_summary,
-                    successCount,
-                    caseResult.failureCount
-                ),
+                text = stringResource(R.string.prompt_benchmark_expected_label),
+                style = MaterialTheme.typography.labelLarge
+            )
+            Text(
+                text = expectedText,
                 style = MaterialTheme.typography.bodySmall
             )
-
-            when (caseDef.type) {
-                PromptBenchmarkCaseType.COMPOSE -> {
-                    Text(
-                        text = stringResource(R.string.prompt_benchmark_before_label),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    Text(
-                        text = caseDef.composeInput.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                PromptBenchmarkCaseType.EDIT -> {
-                    Text(
-                        text = stringResource(R.string.prompt_benchmark_before_original_label),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    Text(
-                        text = caseDef.editOriginal.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = stringResource(R.string.prompt_benchmark_before_instruction_label),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    Text(
-                        text = caseDef.editInstruction.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-
-            caseResult.runs.forEach { run ->
-                Text(
-                    text = stringResource(
-                        R.string.prompt_benchmark_run_meta,
-                        run.latencyMs,
-                        run.backend ?: "n/a",
-                        if (run.success) "success" else "failure"
-                    ),
-                    style = MaterialTheme.typography.bodySmall
-                )
-                if (!run.success) {
-                    Text(
-                        text = stringResource(
-                            R.string.prompt_benchmark_run_error,
-                            run.errorType ?: "unknown",
-                            run.errorMessage ?: "none"
-                        ),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Text(
-                    text = run.output ?: stringResource(R.string.prompt_benchmark_run_failed_output),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
             Text(
-                text = stringResource(
-                    R.string.prompt_benchmark_case_summary,
-                    caseResult.uniqueOutputsCount,
-                    caseResult.avgLatencyMs,
-                    caseResult.minLatencyMs,
-                    caseResult.maxLatencyMs
-                ),
+                text = stringResource(R.string.prompt_benchmark_output_label),
+                style = MaterialTheme.typography.labelLarge
+            )
+            Text(
+                text = outputText,
                 style = MaterialTheme.typography.bodySmall
             )
         }
     }
+}
+
+private fun benchmarkInputText(caseDef: PromptBenchmarkCase): String {
+    return when (caseDef.type) {
+        PromptBenchmarkCaseType.COMPOSE -> caseDef.composeInput.orEmpty()
+        PromptBenchmarkCaseType.EDIT -> {
+            val original = caseDef.editOriginal.orEmpty()
+            val instruction = caseDef.editInstruction.orEmpty()
+            "Original: $original\nInstruction: $instruction"
+        }
+    }
+}
+
+private fun benchmarkOutputText(runs: List<PromptBenchmarkRunResult>): String {
+    return runs.lastOrNull { !it.output.isNullOrBlank() }?.output
+        ?: runs.lastOrNull()?.output
+        ?: "(error)"
+}
+
+private fun backendLabel(runs: List<PromptBenchmarkRunResult>): String {
+    val backend = runs.firstOrNull { !it.backend.isNullOrBlank() }?.backend.orEmpty()
+    return if (backend.contains("gpu", ignoreCase = true)) "GPU" else "CPU"
 }
