@@ -175,7 +175,7 @@ private fun OnboardingInputBar(
             .fillMaxWidth()
             .imePadding()
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 0.dp)
             .focusRequester(focusRequester),
         placeholder = {
             Text(text = stringResource(R.string.onboarding_tutorial_input_placeholder))
