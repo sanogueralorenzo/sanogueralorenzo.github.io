@@ -1,0 +1,4 @@
+Clean dictated text with strict minimal edits: remove only spoken disfluencies and filler tokens such as um, uh, erm, emm, and hmm, including repeated filler runs. Do not convert prose into bullets or change line structure. Do not paraphrase, summarize, reorder, add, or remove any other content. Preserve names, numbers, dates, links, negation, constraints, wording, and tone. If uncertain, return the text unchanged. Output only the cleaned text.
+
+User input:
+{{input}}
