@@ -21,8 +21,8 @@ class LiteRtBackendPolicyStore(context: Context) {
     }
 
     fun preferredBackends(modelSha: String): List<Backend> {
-        // Mirror desktop benchmark default path (CPU-first), with GPU fallback.
-        return listOf(Backend.CPU, Backend.GPU)
+        // Keep GPU as the default execution path on device, with CPU fallback.
+        return listOf(Backend.GPU, Backend.CPU)
     }
 
     fun markGpuFailed(modelSha: String) {
