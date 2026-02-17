@@ -176,9 +176,10 @@ class LiteRtSummarizer(
         }
 
         val deterministicResult = deterministicComposeRewriter.rewrite(request.content)
+        val deterministicOutput = composePolicy.normalizeComposeOutputText(deterministicResult.text)
         if (!composeLlmGate.shouldUseLlm(request.content, deterministicResult)) {
             return RewriteResult.Success(
-                text = deterministicResult.text,
+                text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),
                 backend = initializedBackend ?: Backend.GPU
             )
@@ -186,7 +187,7 @@ class LiteRtSummarizer(
 
         if (!isConfiguredModelSupported() || !isModelAvailable()) {
             return RewriteResult.Success(
-                text = deterministicResult.text,
+                text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),
                 backend = initializedBackend ?: Backend.GPU
             )
@@ -197,14 +198,14 @@ class LiteRtSummarizer(
             ?.takeIf { it.isNotBlank() }
             ?: promptTemplateStore.currentPromptTemplate()?.takeIf { it.isNotBlank() }
             ?: return RewriteResult.Success(
-                text = deterministicResult.text,
+                text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),
                 backend = initializedBackend ?: Backend.GPU,
             )
 
         val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
             ?: return RewriteResult.Success(
-                text = deterministicResult.text,
+                text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),
                 backend = initializedBackend ?: Backend.GPU
             )
@@ -221,7 +222,7 @@ class LiteRtSummarizer(
 
         val backend = initializedBackend ?: Backend.GPU
         return try {
-            val llmInput = deterministicResult.text
+            val llmInput = deterministicOutput
             val listMode = looksLikeList(llmInput)
             val modelOutput = rewriteOnce(
                 localEngine = localEngine,

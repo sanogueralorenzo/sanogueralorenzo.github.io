@@ -55,7 +55,13 @@ class LiteRtComposePolicy {
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
         }
-        return capitalizeOutput(cleaned)
+        return normalizeComposeOutputText(cleaned)
+    }
+
+    fun normalizeComposeOutputText(text: String): String {
+        val trimmed = text.trim()
+        if (trimmed.isBlank()) return ""
+        return capitalizeOutput(trimmed)
     }
 
     fun finalizeComposeOutput(
@@ -83,11 +89,35 @@ class LiteRtComposePolicy {
                 chars[i] = current.uppercaseChar()
                 uppercaseNextLetter = false
             }
-            if (current == '.' || current == ',' || current == '?') {
+            if (current.isLetterOrDigit()) {
+                uppercaseNextLetter = false
+            }
+            if (isSentenceBoundary(chars = chars, index = i)) {
                 uppercaseNextLetter = true
             }
         }
-        return String(chars)
+        val sentenceCased = String(chars)
+        val withStandaloneI = STANDALONE_I_REGEX.replace(sentenceCased, "I")
+        return I_CONTRACTION_REGEX.replace(withStandaloneI) { match ->
+            "I'${match.groupValues[1].lowercase()}"
+        }
+    }
+
+    private fun isSentenceBoundary(
+        chars: CharArray,
+        index: Int
+    ): Boolean {
+        val current = chars[index]
+        if (current == '\n') return true
+        if (current == '!' || current == '?') return true
+        if (current != '.') return false
+
+        val prev = chars.getOrNull(index - 1)
+        val next = chars.getOrNull(index + 1)
+        if (prev != null && prev.isDigit() && next != null && next.isDigit()) {
+            return false
+        }
+        return next == null || next.isWhitespace()
     }
 
     private fun isExcessiveLengthShift(
@@ -164,5 +194,7 @@ class LiteRtComposePolicy {
             setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)
         )
         private val WORD_TOKEN_REGEX = Regex("\\b[\\p{L}\\p{N}']+\\b")
+        private val STANDALONE_I_REGEX = Regex("(?i)\\bi\\b")
+        private val I_CONTRACTION_REGEX = Regex("(?i)\\bi'([a-z]+)\\b")
     }
 }
