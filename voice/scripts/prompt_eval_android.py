@@ -230,7 +230,6 @@ def main() -> int:
     parser.add_argument("--poll-interval-sec", type=float, default=1.0)
     parser.add_argument("--report-file", default=".cache/prompt_eval_android/report.txt")
     parser.add_argument("--json-report-file", default=".cache/prompt_eval_android/report.json")
-    parser.add_argument("--allow-zero-latency", action="store_true")
     args = parser.parse_args()
 
     prompt_file = Path(args.prompt_file).resolve() if args.prompt_file else None
@@ -302,7 +301,7 @@ def main() -> int:
     total_cases = int(summary.get("total_cases", pass_count + fail_count))
     pass_rate = float(summary.get("pass_rate", 0.0))
     avg_latency_ms = int(summary.get("avg_latency_ms", 0))
-    if not args.allow_zero_latency and total_cases > 0 and avg_latency_ms == 0:
+    if total_cases > 0 and avg_latency_ms == 0:
         raise RuntimeError(
             "Suspicious benchmark result: avg_latency_ms is 0. "
             "This usually indicates a no-op path instead of real inference."
