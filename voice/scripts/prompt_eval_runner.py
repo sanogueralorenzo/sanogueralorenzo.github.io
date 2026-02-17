@@ -95,7 +95,7 @@ def load_cases(path: str) -> list[Case]:
 def render_prompt(template: str, input_text: str) -> str:
     rendered = template.replace('{{input}}', input_text).replace('{input}', input_text)
     if rendered == template:
-        return f"{template.rstrip()}\n\n{input_text}"
+        return f"{template.rstrip()}\n\nUser input:\n{input_text}\n\nCleaned:"
     return rendered
 
 

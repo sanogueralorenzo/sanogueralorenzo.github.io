@@ -146,6 +146,8 @@ if [[ ! -f "${CASES_FILE}" ]]; then
   exit 1
 fi
 
+echo "[NOTE] Host/Mac prompt_eval is smoke-only. Use scripts/prompt_eval_android.py for source-of-truth comparisons." >&2
+
 if [[ "${BACKEND}" != "auto" && "${BACKEND}" != "cpu" && "${BACKEND}" != "gpu" ]]; then
   echo "Invalid --backend value: ${BACKEND}. Use auto|cpu|gpu" >&2
   exit 1

@@ -316,6 +316,11 @@ def main() -> int:
     parser.add_argument('--always-skip-download', action='store_true')
 
     args = parser.parse_args()
+    print(
+        "[NOTE] Host/Mac A/B results are not source-of-truth. "
+        "Use scripts/prompt_ab_optimize_android.py for promotion decisions.",
+        flush=True,
+    )
 
     if args.max_rounds <= 0:
         raise ValueError('max-rounds must be > 0')
