@@ -5,14 +5,32 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.flow.Flow
 
 class LiteRtInitializer(
-    private val summarizer: LiteRtWarmupClient
+    private val summarizer: LiteRtWarmupClient,
+    private val modelReadyFlow: Flow<Boolean>
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val observerStarted = AtomicBoolean(false)
     private val warmupStarted = AtomicBoolean(false)
+
+    fun startWarmupObservation() {
+        if (!observerStarted.compareAndSet(false, true)) return
+        scope.launch {
+            modelReadyFlow
+                .distinctUntilChanged()
+                .filter { it }
+                .collect {
+                    warmupAsyncIfNeeded()
+                }
+        }
+    }
 
     fun warmupAsyncIfNeeded() {
         if (!summarizer.isModelAvailable()) return

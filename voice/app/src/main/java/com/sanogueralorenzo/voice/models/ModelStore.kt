@@ -4,6 +4,12 @@ import android.content.Context
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 
 /**
  * Resolves model files from either app-internal storage or bundled assets and verifies integrity.
@@ -14,6 +20,7 @@ object ModelStore {
     private const val HASH_MARKER_SUFFIX = ".sha256"
     private val verifyLock = Any()
     private val verifiedCache = HashMap<String, CacheEntry>()
+    private val readinessVersion = MutableStateFlow(0)
 
     private data class CacheEntry(
         val expectedHash: String,
@@ -45,6 +52,14 @@ object ModelStore {
         val target = modelFile(context, spec)
         if (target.exists()) return true
         return assetExists(context, spec)
+    }
+
+    fun observeModelReady(context: Context, spec: ModelSpec): Flow<Boolean> {
+        val appContext = context.applicationContext
+        return readinessVersion
+            .map { isModelReadyStrict(appContext, spec) }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.IO)
     }
 
     fun ensureModelFile(context: Context, spec: ModelSpec): File? {
@@ -85,10 +100,12 @@ object ModelStore {
     internal fun markModelVerified(target: File, spec: ModelSpec) {
         if (!target.exists()) return
         if (spec.sizeBytes > 0L && target.length() != spec.sizeBytes) return
-        if (spec.sha256.isBlank()) return
-        val hash = spec.sha256.trim().lowercase()
-        writeHashMarker(target, hash)
-        cacheVerified(target, hash)
+        if (spec.sha256.isNotBlank()) {
+            val hash = spec.sha256.trim().lowercase()
+            writeHashMarker(target, hash)
+            cacheVerified(target, hash)
+        }
+        notifyModelStateChanged()
     }
 
     private fun assetExists(context: Context, spec: ModelSpec): Boolean {
@@ -162,6 +179,11 @@ object ModelStore {
         target.delete()
         hashMarkerFile(target).delete()
         clearVerifiedCache(target)
+        notifyModelStateChanged()
+    }
+
+    private fun notifyModelStateChanged() {
+        readinessVersion.value = readinessVersion.value + 1
     }
 
     private fun hashMarkerFile(target: File): File {
