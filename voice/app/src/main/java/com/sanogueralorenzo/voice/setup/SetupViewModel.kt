@@ -153,100 +153,69 @@ class SetupViewModel(
                 addAll(ModelCatalog.moonshineMediumStreamingSpecs)
             }
             val check = withContext(Dispatchers.IO) { updateChecker.check(allSpecs) }
-            val promptCheck = withContext(Dispatchers.IO) { promptTemplateStore.checkForUpdates() }
             when (check) {
                 is ModelUpdateChecker.CheckResult.UpToDate -> {
-                    when (promptCheck) {
-                        PromptTemplateStore.UpdateCheck.UpToDate -> {
-                            buildModelUpdatesOutcome(
-                                updatesMessage = appContext.getString(R.string.models_check_updates_none),
-                                modelMessage = null
+                    setState {
+                        copy(
+                            updatesMessage = appContext.getString(
+                                R.string.models_check_updates_downloading,
+                                1
                             )
-                        }
-
-                        PromptTemplateStore.UpdateCheck.UpdateAvailable -> {
-                            setState {
-                                copy(
-                                    updatesMessage = appContext.getString(
-                                        R.string.models_check_updates_downloading,
-                                        1
-                                    )
-                                )
-                            }
-                            val promptResult = withContext(Dispatchers.IO) {
-                                promptTemplateStore.ensurePromptDownloaded(force = true)
-                            }
-                            val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
-                                promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
-                            val promptMessage = if (promptSuccess) {
-                                null
-                            } else {
-                                promptDownloadResultMessage(promptResult)
-                            }
-                            val updatesMessage = if (promptSuccess) {
-                                appContext.getString(R.string.models_check_updates_applied, 1)
-                            } else {
-                                appContext.getString(R.string.models_check_updates_partial, 0, 1)
-                            }
-                            buildModelUpdatesOutcome(
-                                updatesMessage = updatesMessage,
-                                modelMessage = promptMessage
-                            )
-                        }
-
-                        PromptTemplateStore.UpdateCheck.Unreachable -> {
-                            buildModelUpdatesOutcome(
-                                updatesMessage = appContext.getString(R.string.models_check_updates_unreachable),
-                                modelMessage = null
-                            )
-                        }
+                        )
                     }
+                    val promptResult = withContext(Dispatchers.IO) {
+                        promptTemplateStore.ensurePromptDownloaded(force = true)
+                    }
+                    val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
+                        promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
+                    val promptMessage = if (promptSuccess) {
+                        null
+                    } else {
+                        promptDownloadResultMessage(promptResult)
+                    }
+                    val updatesMessage = if (promptSuccess) {
+                        appContext.getString(R.string.models_check_updates_applied, 1)
+                    } else {
+                        appContext.getString(R.string.models_check_updates_partial, 0, 1)
+                    }
+                    buildModelUpdatesOutcome(
+                        updatesMessage = updatesMessage,
+                        modelMessage = promptMessage
+                    )
                 }
 
                 is ModelUpdateChecker.CheckResult.Unreachable -> {
-                    when (promptCheck) {
-                        PromptTemplateStore.UpdateCheck.UpdateAvailable -> {
-                            setState {
-                                copy(
-                                    updatesMessage = appContext.getString(
-                                        R.string.models_check_updates_downloading,
-                                        1
-                                    )
-                                )
-                            }
-                            val promptResult = withContext(Dispatchers.IO) {
-                                promptTemplateStore.ensurePromptDownloaded(force = true)
-                            }
-                            val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
-                                promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
-                            val promptMessage = if (promptSuccess) {
-                                null
-                            } else {
-                                promptDownloadResultMessage(promptResult)
-                            }
-                            val updatesMessage = if (promptSuccess) {
-                                appContext.getString(R.string.models_check_updates_applied, 1)
-                            } else {
-                                appContext.getString(R.string.models_check_updates_partial, 0, 1)
-                            }
-                            buildModelUpdatesOutcome(
-                                updatesMessage = updatesMessage,
-                                modelMessage = promptMessage
+                    setState {
+                        copy(
+                            updatesMessage = appContext.getString(
+                                R.string.models_check_updates_downloading,
+                                1
                             )
-                        }
-
-                        else -> {
-                            buildModelUpdatesOutcome(
-                                updatesMessage = appContext.getString(R.string.models_check_updates_unreachable),
-                                modelMessage = null
-                            )
-                        }
+                        )
                     }
+                    val promptResult = withContext(Dispatchers.IO) {
+                        promptTemplateStore.ensurePromptDownloaded(force = true)
+                    }
+                    val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
+                        promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
+                    val promptMessage = if (promptSuccess) {
+                        null
+                    } else {
+                        promptDownloadResultMessage(promptResult)
+                    }
+                    val updatesMessage = if (promptSuccess) {
+                        appContext.getString(R.string.models_check_updates_applied, 1)
+                    } else {
+                        appContext.getString(R.string.models_check_updates_unreachable)
+                    }
+                    buildModelUpdatesOutcome(
+                        updatesMessage = updatesMessage,
+                        modelMessage = promptMessage
+                    )
                 }
 
                 is ModelUpdateChecker.CheckResult.UpdatesAvailable -> {
-                    val promptUpdates = if (promptCheck == PromptTemplateStore.UpdateCheck.UpdateAvailable) 1 else 0
-                    val totalUpdates = check.updates.size + promptUpdates
+                    val totalUpdates = check.updates.size + 1
                     setState {
                         copy(
                             updatesMessage = appContext.getString(
@@ -271,17 +240,15 @@ class SetupViewModel(
                             firstFailure = downloadResultMessage(candidate.spec, result)
                         }
                     }
-                    if (promptCheck == PromptTemplateStore.UpdateCheck.UpdateAvailable) {
-                        val promptResult = withContext(Dispatchers.IO) {
-                            promptTemplateStore.ensurePromptDownloaded(force = true)
-                        }
-                        val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
-                            promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
-                        if (promptSuccess) {
-                            applied += 1
-                        } else if (firstFailure == null) {
-                            firstFailure = promptDownloadResultMessage(promptResult)
-                        }
+                    val promptResult = withContext(Dispatchers.IO) {
+                        promptTemplateStore.ensurePromptDownloaded(force = true)
+                    }
+                    val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
+                        promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
+                    if (promptSuccess) {
+                        applied += 1
+                    } else if (firstFailure == null) {
+                        firstFailure = promptDownloadResultMessage(promptResult)
                     }
                     val message = if (applied == totalUpdates) {
                         appContext.getString(
