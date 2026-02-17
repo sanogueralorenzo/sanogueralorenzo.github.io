@@ -1,5 +1,5 @@
 {"id": 1, "input": "Hey, are you still coming tonight? I might be 10 minutes late.", "expected": "Hey, are you still coming tonight? I might be 10 minutes late.", "match": "exact"}
-{"id": 2, "input": "Running 10 mins late, traffic is awful.", "expected": "Running 10 minutes late, traffic is awful.", "match": "exact"}
+{"id": 2, "input": "Running 10 minutes late, traffic is awful.", "expected": "Running 10 minutes late, traffic is awful.", "match": "exact"}
 {"id": 3, "input": "Can you send me that link again?", "expected": "Can you send me that link again?", "match": "exact"}
 {"id": 4, "input": "I'll text you after my meeting.", "expected": "I'll text you after my meeting.", "match": "exact"}
 {"id": 5, "input": "Sorry I missed your call, call me back.", "expected": "Sorry I missed your call, call me back.", "match": "exact"}
@@ -8,3 +8,23 @@
 {"id": 8, "input": "We're at table 12 in the back.", "expected": "We're at table 12 in the back.", "match": "exact"}
 {"id": 9, "input": "I can't find my wallet anywhere.", "expected": "I can't find my wallet anywhere.", "match": "exact"}
 {"id": 10, "input": "Send me your ETA when you can.", "expected": "Send me your ETA when you can.", "match": "exact"}
+{"id": 11, "input": "Thanks for picking that up, I owe you one.", "expected": "Thanks for picking that up, I owe you one.", "match": "exact"}
+{"id": 12, "input": "I'm at the gate now. Boarding starts in 15 minutes.", "expected": "I'm at the gate now. Boarding starts in 15 minutes.", "match": "exact"}
+{"id": 13, "input": "Can you grab oat milk on your way home?", "expected": "Can you grab oat milk on your way home?", "match": "exact"}
+{"id": 14, "input": "Let's move dinner to 7:30 if that works for you.", "expected": "Let's move dinner to 7:30 if that works for you.", "match": "exact"}
+{"id": 15, "input": "I just sent the file. Let me know if it opens.", "expected": "I just sent the file. Let me know if it opens.", "match": "exact"}
+{"id": 16, "input": "No rush, just reply when you have a minute.", "expected": "No rush, just reply when you have a minute.", "match": "exact"}
+{"id": 17, "input": "The meeting ended early, so I'm free now.", "expected": "The meeting ended early, so I'm free now.", "match": "exact"}
+{"id": 18, "input": "Can you share your location when you leave?", "expected": "Can you share your location when you leave?", "match": "exact"}
+{"id": 19, "input": "I'm outside by the blue door.", "expected": "I'm outside by the blue door.", "match": "exact"}
+{"id": 20, "input": "I'll be there in about 25 minutes.", "expected": "I'll be there in about 25 minutes.", "match": "exact"}
+{"id": 21, "input": "Please remind me to call Mom tonight.", "expected": "Please remind me to call Mom tonight.", "match": "exact"}
+{"id": 22, "input": "Could you resend the invite? I can't find it.", "expected": "Could you resend the invite? I can't find it.", "match": "exact"}
+{"id": 23, "input": "The address is 1428 Pine Street, Apt 3B.", "expected": "The address is 1428 Pine Street, Apt 3B.", "match": "exact"}
+{"id": 24, "input": "I'll call you after I park.", "expected": "I'll call you after I park.", "match": "exact"}
+{"id": 25, "input": "Can we push this to Monday morning?", "expected": "Can we push this to Monday morning?", "match": "exact"}
+{"id": 26, "input": "Everything looks good on my side.", "expected": "Everything looks good on my side.", "match": "exact"}
+{"id": 27, "input": "I left your package with the front desk.", "expected": "I left your package with the front desk.", "match": "exact"}
+{"id": 28, "input": "Let's keep this between us for now.", "expected": "Let's keep this between us for now.", "match": "exact"}
+{"id": 29, "input": "Do you want me to order for both of us?", "expected": "Do you want me to order for both of us?", "match": "exact"}
+{"id": 30, "input": "Perfect, see you at 6.", "expected": "Perfect, see you at 6.", "match": "exact"}
