@@ -17,11 +17,9 @@ class LiteRtInitializer(
     private val modelReadyFlow: Flow<Boolean>
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val observerStarted = AtomicBoolean(false)
     private val warmupStarted = AtomicBoolean(false)
 
     fun startWarmupObservation() {
-        if (!observerStarted.compareAndSet(false, true)) return
         scope.launch {
             modelReadyFlow
                 .distinctUntilChanged()
