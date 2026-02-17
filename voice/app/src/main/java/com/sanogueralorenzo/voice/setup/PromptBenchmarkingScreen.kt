@@ -208,7 +208,7 @@ fun PromptBenchmarkingScreen(
         ) {
             val result = sessionResult
             if (result != null) {
-                val displayedFailures = result.cases.count { !isCasePassed(it) }
+                val displayedFailures = result.cases.count { !PromptBenchmarkScoring.isCasePassed(it) }
                 val displayedPasses = result.totalCases - displayedFailures
                 item {
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -271,11 +271,11 @@ private fun benchmarkProgressLabel(state: PromptBenchmarkRunnerState): String {
 @Composable
 private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
     val caseDef = caseResult.caseDef
-    val casePassed = isCasePassed(caseResult)
+    val casePassed = PromptBenchmarkScoring.isCasePassed(caseResult)
     val backendLabel = backendLabel(caseResult.runs)
     val inputText = benchmarkInputText(caseDef)
     val expectedText = caseDef.expectedOutput ?: stringResource(R.string.prompt_benchmark_expected_missing)
-    val outputText = benchmarkOutputText(caseResult.runs)
+    val outputText = PromptBenchmarkScoring.benchmarkOutputText(caseResult.runs)
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -374,27 +374,9 @@ private fun benchmarkInputText(caseDef: PromptBenchmarkCase): String {
     }
 }
 
-private fun benchmarkOutputText(runs: List<PromptBenchmarkRunResult>): String {
-    return runs.lastOrNull { !it.output.isNullOrBlank() }?.output
-        ?: runs.lastOrNull()?.output
-        ?: "(error)"
-}
-
 private fun backendLabel(runs: List<PromptBenchmarkRunResult>): String {
     val backend = runs.firstOrNull { !it.backend.isNullOrBlank() }?.backend.orEmpty()
     return if (backend.contains("gpu", ignoreCase = true)) "GPU" else "CPU"
-}
-
-private fun isCasePassed(caseResult: PromptBenchmarkCaseResult): Boolean {
-    if (caseResult.runs.any { !it.success }) return false
-    val expected = caseResult.caseDef.expectedOutput?.trim().orEmpty()
-    if (expected.isBlank()) return true
-    val output = benchmarkOutputText(caseResult.runs)
-    return normalizeForMatch(output) == normalizeForMatch(expected)
-}
-
-private fun normalizeForMatch(value: String): String {
-    return value.replace("\r\n", "\n").trim()
 }
 
 private val GpuBadgeGreen = Color(0xFF2E7D32)
