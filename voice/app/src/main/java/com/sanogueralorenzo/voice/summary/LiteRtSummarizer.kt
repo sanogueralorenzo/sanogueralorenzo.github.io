@@ -214,6 +214,44 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 backend = backend
             )
         } catch (t: Throwable) {
+            if (shouldRetryOnCpu(backend = backend, error = t)) {
+                Log.w(TAG, "LiteRT rewrite failed on GPU; retrying on CPU", t)
+                runCatching { resetEngineNow() }
+                val cpuEngine = runCatching {
+                    ensureEngine(
+                        modelFile = modelFile,
+                        forceReset = true,
+                        preferredBackends = listOf(Backend.CPU)
+                    )
+                }.getOrNull()
+                if (cpuEngine != null) {
+                    return try {
+                        val listMode = looksLikeList(request.content)
+                        val retryOutput = rewriteOnce(
+                            localEngine = cpuEngine,
+                            request = request,
+                            listMode = listMode
+                        )
+                        RewriteResult.Success(
+                            text = retryOutput,
+                            latencyMs = elapsedSince(startedAtMs),
+                            backend = initializedBackend ?: Backend.CPU
+                        )
+                    } catch (retryError: Throwable) {
+                        if (LiteRtRewritePolicy.isInvalidArgumentError(retryError)) {
+                            resetEngineNow()
+                        }
+                        RewriteResult.Failure(
+                            latencyMs = elapsedSince(startedAtMs),
+                            backend = initializedBackend ?: Backend.CPU,
+                            error = toLiteRtFailure(
+                                retryError,
+                                timeoutFallbackMessage(retryError) ?: "LiteRT rewrite failed"
+                            )
+                        )
+                    }
+                }
+            }
             if (LiteRtRewritePolicy.isInvalidArgumentError(t)) {
                 resetEngineNow()
             }
@@ -291,6 +329,42 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 backend = backend
             )
         } catch (t: Throwable) {
+            if (shouldRetryOnCpu(backend = backend, error = t)) {
+                Log.w(TAG, "LiteRT edit failed on GPU; retrying on CPU", t)
+                runCatching { resetEngineNow() }
+                val cpuEngine = runCatching {
+                    ensureEngine(
+                        modelFile = modelFile,
+                        forceReset = true,
+                        preferredBackends = listOf(Backend.CPU)
+                    )
+                }.getOrNull()
+                if (cpuEngine != null) {
+                    return try {
+                        val retryOutput = editOnce(
+                            localEngine = cpuEngine,
+                            request = editRequest
+                        )
+                        RewriteResult.Success(
+                            text = retryOutput,
+                            latencyMs = elapsedSince(startedAtMs),
+                            backend = initializedBackend ?: Backend.CPU
+                        )
+                    } catch (retryError: Throwable) {
+                        if (LiteRtRewritePolicy.isInvalidArgumentError(retryError)) {
+                            resetEngineNow()
+                        }
+                        RewriteResult.Failure(
+                            latencyMs = elapsedSince(startedAtMs),
+                            backend = initializedBackend ?: Backend.CPU,
+                            error = toLiteRtFailure(
+                                retryError,
+                                timeoutFallbackMessage(retryError) ?: "LiteRT edit failed"
+                            )
+                        )
+                    }
+                }
+            }
             if (LiteRtRewritePolicy.isInvalidArgumentError(t)) {
                 resetEngineNow()
             }
@@ -380,7 +454,8 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
     private suspend fun ensureEngine(
         modelFile: File,
-        forceReset: Boolean = false
+        forceReset: Boolean = false,
+        preferredBackends: List<Backend>? = null
     ): Engine {
         if (!modelFile.exists()) {
             throw IllegalStateException("LiteRT model file unavailable")
@@ -403,7 +478,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             closeEngineLocked()
 
             val modelSha = currentModelSha()
-            val candidateBackends = backendPolicyStore.preferredBackends(modelSha)
+            val candidateBackends = preferredBackends ?: backendPolicyStore.preferredBackends(modelSha)
             var lastError: Throwable? = null
 
             for (backend in candidateBackends) {
@@ -497,6 +572,25 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private fun timeoutFallbackMessage(t: Throwable): String? {
         if (t !is TimeoutCancellationException) return null
         return "Timed out after ${REQUEST_TIMEOUT_MS}ms"
+    }
+
+    private fun shouldRetryOnCpu(
+        backend: Backend,
+        error: Throwable
+    ): Boolean {
+        if (backend != Backend.GPU) return false
+        var current: Throwable? = error
+        while (current != null) {
+            val message = current.message.orEmpty()
+            if (
+                message.contains("opencl", ignoreCase = true) ||
+                message.contains("gpu accelerator could not be loaded", ignoreCase = true)
+            ) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
     }
 
     private fun elapsedSince(startedAtMs: Long): Long {
