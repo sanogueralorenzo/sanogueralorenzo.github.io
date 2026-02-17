@@ -3,6 +3,10 @@ package com.sanogueralorenzo.voice.setup
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -104,6 +108,32 @@ fun SetupNavHost() {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    DisposableEffect(appContext) {
+        val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        if (connectivityManager == null) {
+            onDispose { }
+        } else {
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    setupViewModel.refreshNetworkStatus()
+                }
+
+                override fun onLost(network: Network) {
+                    setupViewModel.refreshNetworkStatus()
+                }
+
+                override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                    setupViewModel.refreshNetworkStatus()
+                }
+            }
+            val request = NetworkRequest.Builder().build()
+            runCatching { connectivityManager.registerNetworkCallback(request, callback) }
+            onDispose {
+                runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+            }
+        }
     }
 
     LaunchedEffect(Unit) {

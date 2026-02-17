@@ -228,9 +228,12 @@ class SetupViewModel(
         }
     }
 
-    fun startLiteRtDownload(onComplete: (Boolean) -> Unit = {}) {
+    fun startLiteRtDownload(
+        allowWhileAnotherDownloadActive: Boolean = false,
+        onComplete: (Boolean) -> Unit = {}
+    ) {
         val snapshot = withState(this) { it }
-        if (snapshot.liteRtReady || isAnyDownloading(snapshot)) {
+        if (snapshot.liteRtReady || (!allowWhileAnotherDownloadActive && isAnyDownloading(snapshot))) {
             onComplete(snapshot.liteRtReady)
             return
         }
@@ -309,7 +312,7 @@ class SetupViewModel(
                 refreshModelReadiness()
                 return
             }
-            startLiteRtDownload { success ->
+            startLiteRtDownload(allowWhileAnotherDownloadActive = true) { success ->
                 if (!success) return@startLiteRtDownload
                 setState {
                     copy(

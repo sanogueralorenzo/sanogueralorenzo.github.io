@@ -203,7 +203,7 @@ fun SetupDownloadModelsScreen(
             }
         },
         actions = {
-            if (requiresMobileDataApproval) {
+            if (requiresMobileDataApproval && !modelsReady) {
                 Text(
                     text = stringResource(R.string.setup_models_mobile_data_warning),
                     style = MaterialTheme.typography.bodySmall
