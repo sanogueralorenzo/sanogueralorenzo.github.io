@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.setup.LiteRtPromptBenchmarkGateway
@@ -250,7 +251,10 @@ class PromptBenchmarkAdbService : Service() {
             return
         }
 
-        val gateway = LiteRtPromptBenchmarkGateway(applicationContext)
+        val gateway = LiteRtPromptBenchmarkGateway(
+            context = applicationContext,
+            composePolicy = applicationContext.appGraph().liteRtComposePolicy
+        )
         val activePromptTemplate = if (promptTemplate.isNullOrBlank()) {
             PromptTemplateStore(applicationContext).currentPromptTemplate()
         } else {

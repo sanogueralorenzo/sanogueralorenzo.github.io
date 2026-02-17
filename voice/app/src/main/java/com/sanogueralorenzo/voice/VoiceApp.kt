@@ -21,7 +21,10 @@ class VoiceApp : Application() {
     }
     private val liteRtInitializer by lazy {
         LiteRtInitializer(
-            summarizer = LiteRtSummarizer(this),
+            summarizer = LiteRtSummarizer(
+                context = this,
+                composePolicy = appGraph.liteRtComposePolicy
+            ),
             modelReadyFlow = ModelStore.observeModelReady(this, ModelCatalog.liteRtLm),
             promptReadyFlow = promptTemplateStore.observePromptReady()
         )

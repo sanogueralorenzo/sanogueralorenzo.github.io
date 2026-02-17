@@ -86,8 +86,13 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val activeChunkFutures = ArrayList<Future<*>>()
 
     private val moonshineTranscriberLazy = lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
-    private val liteRtSummarizerLazy = lazy(LazyThreadSafetyMode.NONE) { LiteRtSummarizer(this) }
     private val appGraphLazy = lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
+    private val liteRtSummarizerLazy = lazy(LazyThreadSafetyMode.NONE) {
+        LiteRtSummarizer(
+            context = this,
+            composePolicy = appGraphLazy.value.liteRtComposePolicy
+        )
+    }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }
     private val settingsStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.settingsStore }
     private val moonshineTranscriber: MoonshineTranscriber get() = moonshineTranscriberLazy.value

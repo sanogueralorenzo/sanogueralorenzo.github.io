@@ -28,7 +28,10 @@ import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
-class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
+class LiteRtSummarizer(
+    context: Context,
+    private val composePolicy: LiteRtComposePolicy
+) : LiteRtWarmupClient {
     private data class RewriteRequest(
         val content: String
     )
@@ -78,7 +81,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         promptTemplateOverride: String? = null
     ): RewriteResult {
         val startedAt = System.currentTimeMillis()
-        val normalizedInput = normalizeInput(text)
+        val normalizedInput = composePolicy.normalizeComposeInput(text)
         if (normalizedInput.isBlank()) {
             return RewriteResult.Success(
                 text = "",
@@ -111,7 +114,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     ): RewriteResult {
         val startedAt = System.currentTimeMillis()
         val normalizedSource = originalText.trim()
-        val normalizedInstruction = normalizeInput(instructionText)
+        val normalizedInstruction = composePolicy.normalizeInstructionInput(instructionText)
         if (normalizedSource.isBlank() || normalizedInstruction.isBlank()) {
             return RewriteResult.Success(
                 text = originalText,
@@ -210,15 +213,15 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         val backend = initializedBackend ?: Backend.GPU
         return try {
             val listMode = looksLikeList(request.content)
-            val output = rewriteOnce(
+            val modelOutput = rewriteOnce(
                 localEngine = localEngine,
                 request = request,
-                listMode = listMode,
                 rewriteSystemInstruction = effectiveSystemInstruction
             )
-            val guardedOutput = applyComposeOutputGuard(
+            val guardedOutput = composePolicy.finalizeComposeOutput(
                 originalText = request.content,
-                candidateText = output
+                modelOutput = modelOutput,
+                listMode = listMode
             )
             RewriteResult.Success(
                 text = guardedOutput,
@@ -240,7 +243,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private suspend fun rewriteOnce(
         localEngine: Engine,
         request: RewriteRequest,
-        listMode: Boolean,
         rewriteSystemInstruction: String
     ): String {
         val userPrompt = LiteRtPromptTemplates.buildRewriteUserPrompt(
@@ -265,7 +267,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             userPrompt = userPrompt,
             timeoutMs = LiteRtRuntimeConfig.REQUEST_TIMEOUT_MS
         )
-        return cleanModelOutput(output, bulletMode = listMode)
+        return output
     }
 
     private suspend fun applyEditInstructionInternal(
@@ -348,7 +350,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             userPrompt = userPrompt,
             timeoutMs = LiteRtRuntimeConfig.REQUEST_TIMEOUT_MS
         )
-        return cleanModelOutput(text = output, bulletMode = request.listMode)
+        return composePolicy.cleanModelOutput(text = output, bulletMode = request.listMode)
     }
 
     private suspend fun runConversation(
@@ -542,92 +544,14 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         return RewriteRequest(content = text)
     }
 
-    private fun normalizeInput(text: String): String {
-        val collapsed = text.replace(WHITESPACE_REGEX, " ").trim()
-        if (collapsed.isBlank()) return ""
-        return collapsed
-            .replace(REPEATED_FILLER_REGEX, "$1")
-            .replace(SPACE_BEFORE_PUNCTUATION_REGEX, "$1")
-            .replace(REPEATED_PUNCTUATION_REGEX, "$1")
-            .trim()
-    }
-
-    private fun cleanModelOutput(
-        text: String,
-        bulletMode: Boolean
-    ): String {
-        var cleaned = text.trim()
-        if (cleaned.isBlank()) return ""
-        val anchorMatches = CLEANED_ANCHOR_REGEX.findAll(cleaned).toList()
-        if (anchorMatches.isNotEmpty()) {
-            cleaned = cleaned.substring(anchorMatches.last().range.last + 1).trim()
-        }
-        cleaned = cleaned
-            .replace(PREFIX_LABEL_REGEX, "")
-            .trim()
-            .trim('`')
-            .trim()
-            .removeSurrounding("\"")
-            .removeSurrounding("'")
-            .trim()
-        if (cleaned.isBlank()) return ""
-        if (cleaned.startsWith("user input:", ignoreCase = true)) {
-            val nonEmptyLines = cleaned
-                .lineSequence()
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-                .toList()
-            if (nonEmptyLines.size >= 2) {
-                cleaned = nonEmptyLines.last()
-            }
-        }
-        if (!bulletMode && cleaned.startsWith("- ")) {
-            cleaned = cleaned
-                .lineSequence()
-                .map { it.removePrefix("- ").trim() }
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
-        }
-        return cleaned
-    }
-
     private fun looksLikeList(text: String): Boolean {
         return LiteRtEditHeuristics.looksLikeList(text)
-    }
-
-    private fun applyComposeOutputGuard(
-        originalText: String,
-        candidateText: String
-    ): String {
-        val original = originalText.trim()
-        val candidate = candidateText.trim()
-        if (original.isBlank()) return candidate
-        if (candidate.isBlank()) return original
-
-        val originalChars = original.length
-        val candidateChars = candidate.length
-
-        val expandedTooMuch =
-            candidateChars > (originalChars * MAX_OUTPUT_EXPANSION_MULTIPLIER).toInt() &&
-                (candidateChars - originalChars) > MAX_OUTPUT_EXPANSION_DELTA_CHARS
-        if (expandedTooMuch) return original
-
-        val compressedTooMuch =
-            candidateChars < (originalChars * MIN_OUTPUT_COMPRESSION_MULTIPLIER).toInt() &&
-                (originalChars - candidateChars) > MAX_OUTPUT_COMPRESSION_DELTA_CHARS
-        if (compressedTooMuch) return original
-
-        return candidate
     }
 
     companion object {
         private const val TAG = "LiteRtSummarizer"
         private const val CONVERSATION_TIMEOUT_CANCEL_GRACE_MS = 120L
         private const val MAX_ERROR_MESSAGE_CHARS = 320
-        private const val MAX_OUTPUT_EXPANSION_MULTIPLIER = 1.5
-        private const val MIN_OUTPUT_COMPRESSION_MULTIPLIER = 0.5
-        private const val MAX_OUTPUT_EXPANSION_DELTA_CHARS = 20
-        private const val MAX_OUTPUT_COMPRESSION_DELTA_CHARS = 20
         private val SUPPORTED_MODEL_HINTS = listOf(
             "gemma-3n",
             "gemma3-1b",
@@ -637,19 +561,5 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             "tinygarden"
         )
         private val WHITESPACE_REGEX = Regex("\\s+")
-        private val REPEATED_FILLER_REGEX = Regex(
-            "\\b(um+|uh+|erm+|emm+|hmm+)(?:\\s+\\1\\b)+",
-            RegexOption.IGNORE_CASE
-        )
-        private val SPACE_BEFORE_PUNCTUATION_REGEX = Regex("\\s+([,.;!?])")
-        private val REPEATED_PUNCTUATION_REGEX = Regex("([,.;!?])\\1+")
-        private val PREFIX_LABEL_REGEX = Regex(
-            "^(rewritten|rewrite|cleaned|output|result)\\s*:\\s*",
-            RegexOption.IGNORE_CASE
-        )
-        private val CLEANED_ANCHOR_REGEX = Regex(
-            "^cleaned\\s*:\\s*",
-            setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)
-        )
     }
 }

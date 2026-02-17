@@ -41,7 +41,12 @@ fun PromptBenchmarkingScreen(
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val gateway = remember(appContext) { LiteRtPromptBenchmarkGateway(appContext) }
+    val gateway = remember(appContext, appGraph) {
+        LiteRtPromptBenchmarkGateway(
+            context = appContext,
+            composePolicy = appGraph.liteRtComposePolicy
+        )
+    }
     val viewModel = remember(appContext, appGraph, gateway) {
         PromptBenchmarkingViewModel(
             initialState = PromptBenchmarkingUiState(
