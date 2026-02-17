@@ -55,7 +55,7 @@ class LiteRtComposePolicy {
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
         }
-        return cleaned
+        return capitalizeOutput(cleaned)
     }
 
     fun finalizeComposeOutput(
@@ -71,6 +71,23 @@ class LiteRtComposePolicy {
         if (looksLikeAssistantReply(original = original, candidate = candidate)) return original
         if (isLowTokenOverlap(original = original, candidate = candidate)) return original
         return candidate
+    }
+
+    private fun capitalizeOutput(text: String): String {
+        if (text.isBlank()) return text
+        val chars = text.toCharArray()
+        var uppercaseNextLetter = true
+        for (i in chars.indices) {
+            val current = chars[i]
+            if (uppercaseNextLetter && current.isLetter()) {
+                chars[i] = current.uppercaseChar()
+                uppercaseNextLetter = false
+            }
+            if (current == '.' || current == ',' || current == '?') {
+                uppercaseNextLetter = true
+            }
+        }
+        return String(chars)
     }
 
     private fun isExcessiveLengthShift(
