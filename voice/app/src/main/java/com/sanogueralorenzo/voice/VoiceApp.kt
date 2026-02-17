@@ -23,7 +23,9 @@ class VoiceApp : Application() {
         LiteRtInitializer(
             summarizer = LiteRtSummarizer(
                 context = this,
-                composePolicy = appGraph.liteRtComposePolicy
+                composePolicy = appGraph.liteRtComposePolicy,
+                deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
+                composeLlmGate = appGraph.liteRtComposeLlmGate
             ),
             modelReadyFlow = ModelStore.observeModelReady(this, ModelCatalog.liteRtLm),
             promptReadyFlow = promptTemplateStore.observePromptReady()

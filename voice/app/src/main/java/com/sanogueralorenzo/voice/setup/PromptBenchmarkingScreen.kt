@@ -44,7 +44,9 @@ fun PromptBenchmarkingScreen(
     val gateway = remember(appContext, appGraph) {
         LiteRtPromptBenchmarkGateway(
             context = appContext,
-            composePolicy = appGraph.liteRtComposePolicy
+            composePolicy = appGraph.liteRtComposePolicy,
+            deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
+            composeLlmGate = appGraph.liteRtComposeLlmGate
         )
     }
     val viewModel = remember(appContext, appGraph, gateway) {

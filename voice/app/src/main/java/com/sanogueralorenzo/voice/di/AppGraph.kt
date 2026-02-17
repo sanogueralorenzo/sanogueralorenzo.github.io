@@ -5,6 +5,8 @@ import android.content.Context
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
+import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
+import com.sanogueralorenzo.voice.summary.LiteRtComposeLlmGate
 import com.sanogueralorenzo.voice.summary.LiteRtComposePolicy
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
@@ -18,12 +20,20 @@ interface AppGraph {
     val asrRuntimeStatusStore: AsrRuntimeStatusStore
     val modelUpdateChecker: ModelUpdateChecker
     val liteRtComposePolicy: LiteRtComposePolicy
+    val deterministicComposeRewriter: DeterministicComposeRewriter
+    val liteRtComposeLlmGate: LiteRtComposeLlmGate
 
     @Provides
     fun provideApplicationContext(application: Application): Context = application
 
     @Provides
     fun provideLiteRtComposePolicy(): LiteRtComposePolicy = LiteRtComposePolicy()
+
+    @Provides
+    fun provideDeterministicComposeRewriter(): DeterministicComposeRewriter = DeterministicComposeRewriter()
+
+    @Provides
+    fun provideLiteRtComposeLlmGate(): LiteRtComposeLlmGate = LiteRtComposeLlmGate()
 
     @DependencyGraph.Factory
     fun interface Factory {

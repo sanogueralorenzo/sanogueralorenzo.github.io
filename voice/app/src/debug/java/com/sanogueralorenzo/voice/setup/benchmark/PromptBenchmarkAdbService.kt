@@ -253,7 +253,9 @@ class PromptBenchmarkAdbService : Service() {
 
         val gateway = LiteRtPromptBenchmarkGateway(
             context = applicationContext,
-            composePolicy = applicationContext.appGraph().liteRtComposePolicy
+            composePolicy = applicationContext.appGraph().liteRtComposePolicy,
+            deterministicComposeRewriter = applicationContext.appGraph().deterministicComposeRewriter,
+            composeLlmGate = applicationContext.appGraph().liteRtComposeLlmGate
         )
         val activePromptTemplate = if (promptTemplate.isNullOrBlank()) {
             PromptTemplateStore(applicationContext).currentPromptTemplate()

@@ -90,7 +90,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val liteRtSummarizerLazy = lazy(LazyThreadSafetyMode.NONE) {
         LiteRtSummarizer(
             context = this,
-            composePolicy = appGraphLazy.value.liteRtComposePolicy
+            composePolicy = appGraphLazy.value.liteRtComposePolicy,
+            deterministicComposeRewriter = appGraphLazy.value.deterministicComposeRewriter,
+            composeLlmGate = appGraphLazy.value.liteRtComposeLlmGate
         )
     }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }

@@ -30,7 +30,9 @@ import java.util.concurrent.atomic.AtomicReference
 
 class LiteRtSummarizer(
     context: Context,
-    private val composePolicy: LiteRtComposePolicy
+    private val composePolicy: LiteRtComposePolicy,
+    private val deterministicComposeRewriter: DeterministicComposeRewriter,
+    private val composeLlmGate: LiteRtComposeLlmGate
 ) : LiteRtWarmupClient {
     private data class RewriteRequest(
         val content: String
@@ -85,13 +87,6 @@ class LiteRtSummarizer(
         if (normalizedInput.isBlank()) {
             return RewriteResult.Success(
                 text = "",
-                latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
-            )
-        }
-        if (!isConfiguredModelSupported() || !isModelAvailable()) {
-            return RewriteResult.Success(
-                text = normalizedInput,
                 latencyMs = 0L,
                 backend = initializedBackend ?: Backend.GPU
             )
@@ -171,26 +166,6 @@ class LiteRtSummarizer(
         startedAtMs: Long,
         promptTemplateOverride: String?
     ): RewriteResult {
-        val effectiveSystemInstruction = promptTemplateOverride
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: promptTemplateStore.currentPromptTemplate()?.takeIf { it.isNotBlank() }
-            ?: return RewriteResult.Failure(
-                latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU,
-                error = LiteRtFailureException(
-                    type = LiteRtFailureException.TYPE_UNKNOWN,
-                    litertError = "Prompt A is missing. Complete setup to download the prompt."
-                )
-            )
-
-        val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
-            ?: return RewriteResult.Success(
-                text = normalizedInput,
-                latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
-            )
-
         val request = parseRewriteRequest(normalizedInput)
         if (request.content.isBlank()) {
             return RewriteResult.Success(
@@ -199,6 +174,40 @@ class LiteRtSummarizer(
                 backend = initializedBackend ?: Backend.GPU
             )
         }
+
+        val deterministicResult = deterministicComposeRewriter.rewrite(request.content)
+        if (!composeLlmGate.shouldUseLlm(request.content, deterministicResult)) {
+            return RewriteResult.Success(
+                text = deterministicResult.text,
+                latencyMs = elapsedSince(startedAtMs),
+                backend = initializedBackend ?: Backend.GPU
+            )
+        }
+
+        if (!isConfiguredModelSupported() || !isModelAvailable()) {
+            return RewriteResult.Success(
+                text = deterministicResult.text,
+                latencyMs = elapsedSince(startedAtMs),
+                backend = initializedBackend ?: Backend.GPU
+            )
+        }
+
+        val effectiveSystemInstruction = promptTemplateOverride
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: promptTemplateStore.currentPromptTemplate()?.takeIf { it.isNotBlank() }
+            ?: return RewriteResult.Success(
+                text = deterministicResult.text,
+                latencyMs = elapsedSince(startedAtMs),
+                backend = initializedBackend ?: Backend.GPU,
+            )
+
+        val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
+            ?: return RewriteResult.Success(
+                text = deterministicResult.text,
+                latencyMs = elapsedSince(startedAtMs),
+                backend = initializedBackend ?: Backend.GPU
+            )
 
         val localEngine = try {
             ensureEngine(modelFile)
@@ -212,14 +221,15 @@ class LiteRtSummarizer(
 
         val backend = initializedBackend ?: Backend.GPU
         return try {
-            val listMode = looksLikeList(request.content)
+            val llmInput = deterministicResult.text
+            val listMode = looksLikeList(llmInput)
             val modelOutput = rewriteOnce(
                 localEngine = localEngine,
-                request = request,
+                request = RewriteRequest(content = llmInput),
                 rewriteSystemInstruction = effectiveSystemInstruction
             )
             val guardedOutput = composePolicy.finalizeComposeOutput(
-                originalText = request.content,
+                originalText = llmInput,
                 modelOutput = modelOutput,
                 listMode = listMode
             )
