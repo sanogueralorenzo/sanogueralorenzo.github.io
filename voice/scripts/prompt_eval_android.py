@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -110,6 +111,17 @@ def read_file_from_app(serial: str, package_name: str, rel_path: str, *, check: 
     return result.stdout
 
 
+def load_prompt_text(prompt_path: Path) -> str:
+    raw = prompt_path.read_text(encoding="utf-8")
+    if prompt_path.suffix.lower() != ".json":
+        return raw
+    payload = json.loads(raw)
+    prompt = str(payload.get("prompt", "")).strip()
+    if not prompt:
+        raise ValueError(f"Invalid prompt JSON (missing prompt): {prompt_path}")
+    return prompt + "\n"
+
+
 def trigger_run(
     serial: str,
     package_name: str,
@@ -200,8 +212,15 @@ def main() -> int:
     report_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.report.txt"
 
     if prompt_file is not None:
+        prompt_text = load_prompt_text(prompt_file)
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as temp_prompt:
+            temp_prompt.write(prompt_text)
+            temp_prompt_path = Path(temp_prompt.name)
         prompt_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.prompt.txt"
-        upload_file_to_app(serial, args.package, prompt_file, prompt_rel)
+        try:
+            upload_file_to_app(serial, args.package, temp_prompt_path, prompt_rel)
+        finally:
+            temp_prompt_path.unlink(missing_ok=True)
     upload_file_to_app(serial, args.package, cases_file, dataset_rel)
     trigger_run(
         serial=serial,

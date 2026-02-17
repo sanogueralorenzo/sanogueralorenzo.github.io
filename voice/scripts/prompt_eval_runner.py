@@ -99,6 +99,21 @@ def render_prompt(template: str, input_text: str) -> str:
     return rendered
 
 
+def load_prompt_template(prompt_file: str) -> str:
+    with open(prompt_file, 'r', encoding='utf-8') as f:
+        raw = f.read().strip()
+    if not raw:
+        raise ValueError(f'Prompt file is empty: {prompt_file}')
+    if not prompt_file.lower().endswith('.json'):
+        return raw
+    payload = json.loads(raw)
+    version = str(payload.get('version', '')).strip()
+    prompt = str(payload.get('prompt', '')).strip()
+    if not version or not prompt:
+        raise ValueError(f'Invalid prompt JSON: {prompt_file}')
+    return prompt
+
+
 def extract_main_output_text(raw_output: str) -> str:
     pre_benchmark = raw_output.split('BenchmarkInfo:', 1)[0]
     lines = [line.rstrip() for line in pre_benchmark.splitlines()]
@@ -288,11 +303,7 @@ def main() -> int:
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
-    with open(args.prompt_file, 'r', encoding='utf-8') as f:
-        prompt_template = f.read().strip()
-
-    if not prompt_template:
-        raise ValueError(f'Prompt file is empty: {args.prompt_file}')
+    prompt_template = load_prompt_template(args.prompt_file)
 
     cases = load_cases(args.cases_file)
     if args.max_cases > 0:

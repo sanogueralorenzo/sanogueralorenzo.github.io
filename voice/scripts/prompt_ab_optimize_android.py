@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -49,6 +50,29 @@ def compare_score(summary: EvalSummary) -> tuple[int, int, int]:
     return (summary.pass_count, -summary.fail_count, -summary.avg_latency_ms)
 
 
+def parse_prompt_json(raw: str, source: str) -> str:
+    payload = json.loads(raw)
+    version = str(payload.get("version", "")).strip()
+    prompt = str(payload.get("prompt", "")).strip()
+    if not version:
+        raise ValueError(f"Prompt JSON missing version: {source}")
+    if not prompt:
+        raise ValueError(f"Prompt JSON missing prompt: {source}")
+    return prompt + "\n"
+
+
+def load_local_prompt_json(path: Path) -> str:
+    return parse_prompt_json(path.read_text(encoding="utf-8"), str(path))
+
+
+def fetch_remote_prompt_json(url: str) -> str:
+    with urllib.request.urlopen(url, timeout=20) as response:
+        if response.status != 200:
+            raise RuntimeError(f"Prompt A download failed (HTTP {response.status})")
+        body = response.read().decode("utf-8")
+    return parse_prompt_json(body, url)
+
+
 def run_device_eval(
     eval_script: Path,
     serial: str | None,
@@ -87,8 +111,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Android-device A/B prompt evaluator (source-of-truth path)."
     )
-    parser.add_argument("--prompt-a-file", default="scripts/prompt_a.txt")
-    parser.add_argument("--prompt-b-file", default="scripts/prompt_b.txt")
+    parser.add_argument(
+        "--prompt-a-url",
+        default=(
+            "https://raw.githubusercontent.com/sanogueralorenzo/"
+            "sanogueralorenzo.github.io/main/voice/scripts/prompt_a.json"
+        ),
+    )
+    parser.add_argument("--prompt-b-file", default="scripts/prompt_b.json")
     parser.add_argument("--dataset-file", default="scripts/dataset.jsonl")
     parser.add_argument("--eval-script", default="scripts/prompt_eval_android.py")
     parser.add_argument("--run-root", default=".cache/prompt_ab_android")
@@ -104,16 +134,18 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path.cwd()
-    prompt_a_path = (repo_root / args.prompt_a_file).resolve()
     prompt_b_path = (repo_root / args.prompt_b_file).resolve()
     dataset_path = (repo_root / args.dataset_file).resolve()
     eval_script = (repo_root / args.eval_script).resolve()
-    if not prompt_a_path.exists() or not prompt_b_path.exists():
-        raise FileNotFoundError("Prompt A or B file not found.")
+    if not prompt_b_path.exists():
+        raise FileNotFoundError("Prompt B file not found.")
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
     if not eval_script.exists():
         raise FileNotFoundError(f"Eval script not found: {eval_script}")
+
+    prompt_a_text = fetch_remote_prompt_json(args.prompt_a_url)
+    prompt_b_text = load_local_prompt_json(prompt_b_path)
 
     run_root = (repo_root / args.run_root).resolve()
     run_dir = run_root / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -124,6 +156,10 @@ def main() -> int:
     for round_index in range(1, max(1, args.max_rounds) + 1):
         round_dir = run_dir / f"round_{round_index:02d}"
         round_dir.mkdir(parents=True, exist_ok=True)
+        prompt_a_path = round_dir / "prompt_a_resolved.txt"
+        prompt_b_resolved_path = round_dir / "prompt_b_resolved.txt"
+        prompt_a_path.write_text(prompt_a_text, encoding="utf-8")
+        prompt_b_resolved_path.write_text(prompt_b_text, encoding="utf-8")
 
         eval_a = run_device_eval(
             eval_script=eval_script,
@@ -139,7 +175,7 @@ def main() -> int:
         eval_b = run_device_eval(
             eval_script=eval_script,
             serial=args.serial.strip() or None,
-            prompt_file=prompt_b_path,
+            prompt_file=prompt_b_resolved_path,
             cases_file=dataset_path,
             report_text_path=round_dir / "b_report.txt",
             report_json_path=round_dir / "b_report.json",
@@ -174,7 +210,7 @@ def main() -> int:
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "source_of_truth": "android_device",
         "dataset_file": str(dataset_path),
-        "prompt_a_file": str(prompt_a_path),
+        "prompt_a_url": args.prompt_a_url,
         "prompt_b_file": str(prompt_b_path),
         "recommendation": recommendation,
         "rounds": rounds,

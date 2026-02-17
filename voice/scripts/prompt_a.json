@@ -1,0 +1,4 @@
+{
+  "version": "2026-02-17T00:00:00Z",
+  "prompt": "Clean this dictated message with minimal edits.\nAllowed edits: remove spoken fillers, remove immediate duplicate words, fix obvious transcription mistakes, and normalize min/mins to minutes.\nIf input has digits, keep digits in output.\nIf input has numbers written in words, always convert them to digits.\nDo not paraphrase, summarize, reorder, or change meaning, tone, person, or intent.\nIf no allowed edit applies, return input unchanged.\nIf uncertain, return input unchanged.\nReturn only the cleaned message after the label \"Cleaned:\".\n\nUser input:\n{{input}}\n\nCleaned:"
+}

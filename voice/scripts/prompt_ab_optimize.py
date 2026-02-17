@@ -203,6 +203,18 @@ def split_prompt_body_and_input_block(prompt_text: str) -> tuple[str, str]:
     return prompt_text.strip(), '\n\nUser input:\n{{input}}'
 
 
+def load_prompt_text_file(path: Path) -> str:
+    raw = path.read_text(encoding='utf-8')
+    if path.suffix.lower() != '.json':
+        return raw.strip() + '\n'
+    payload = json.loads(raw)
+    version = str(payload.get('version', '')).strip()
+    prompt = str(payload.get('prompt', '')).strip()
+    if not version or not prompt:
+        raise ValueError(f'invalid prompt json: {path}')
+    return prompt + '\n'
+
+
 def build_next_challenger_prompt(
     winner_prompt_text: str,
     loser_failure_cases: list[dict[str, Any]],
@@ -288,8 +300,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description='A/B prompt evaluator: recommendation-only by default.'
     )
-    parser.add_argument('--prompt-a-file', default='scripts/prompt_a.txt')
-    parser.add_argument('--prompt-b-file', default='scripts/prompt_b.txt')
+    parser.add_argument('--prompt-a-file', default='scripts/prompt_a.json')
+    parser.add_argument('--prompt-b-file', default='scripts/prompt_b.json')
     parser.add_argument('--dataset-file', default='scripts/dataset.jsonl')
     parser.add_argument('--eval-script', default='scripts/prompt_eval.sh')
     parser.add_argument('--run-root', default='.cache/prompt_ab')
@@ -377,8 +389,8 @@ def main() -> int:
         round_dir = run_dir / round_tag
         round_dir.mkdir(parents=True, exist_ok=True)
 
-        prompt_a_text = prompt_a_path.read_text(encoding='utf-8').strip() + '\n'
-        prompt_b_text = prompt_b_path.read_text(encoding='utf-8').strip() + '\n'
+        prompt_a_text = load_prompt_text_file(prompt_a_path)
+        prompt_b_text = load_prompt_text_file(prompt_b_path)
 
         train_a = run_prompt_eval(
             eval_script=eval_script,
@@ -636,7 +648,7 @@ def main() -> int:
         f'- holdout enabled: `{args.use_holdout}`',
         '',
         '## How To Apply',
-        '1. If recommendation is `PROMOTE_B`, copy `scripts/prompt_b.txt` into `scripts/prompt_a.txt` manually.',
+        '1. If recommendation is `PROMOTE_B`, copy `scripts/prompt_b.json` into `scripts/prompt_a.json` manually.',
         '2. Use `round_*/suggested_next_prompt_b.txt` as the next challenger.',
         '3. Run `scripts/prompt_ab_optimize.sh` again.',
         '',
@@ -660,8 +672,8 @@ def main() -> int:
         'recommendation': best_recommendation,
         'prompt_a_file': str(prompt_a_path),
         'prompt_b_file': str(prompt_b_path),
-        'prompt_a_text': prompt_a_path.read_text(encoding='utf-8'),
-        'prompt_b_text': prompt_b_path.read_text(encoding='utf-8'),
+        'prompt_a_text': load_prompt_text_file(prompt_a_path),
+        'prompt_b_text': load_prompt_text_file(prompt_b_path),
     }
     summary_path.write_text(json.dumps(final_summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
