@@ -12,17 +12,46 @@ internal object LiteRtPromptTemplates {
         return EDIT_SYSTEM_INSTRUCTION
     }
 
-    fun buildRewriteUserPrompt(inputText: String): String {
-        return buildString(REWRITE_SYSTEM_INSTRUCTION.length + inputText.length + 32) {
-            append(REWRITE_SYSTEM_INSTRUCTION)
+    fun buildRewriteUserPrompt(
+        inputText: String,
+        promptTemplateOverride: String? = null
+    ): String {
+        val promptTemplate = promptTemplateOverride
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_REWRITE_PROMPT_TEMPLATE
+        val replacedCurly = promptTemplate.replace("{{input}}", inputText)
+        val replaced = replacedCurly.replace("{input}", inputText)
+        if (replaced != promptTemplate) {
+            return replaced
+        }
+        return buildString(promptTemplate.length + inputText.length + 32) {
+            append(promptTemplate.trimEnd())
             append("\n\nUser input:\n")
             append(inputText)
             append("\n\nCleaned:")
         }
     }
 
-    fun benchmarkInstructionSnapshot(): String {
-        val rewriteInstruction = buildRewriteSystemInstruction()
+    fun defaultRewritePromptTemplate(): String {
+        return DEFAULT_REWRITE_PROMPT_TEMPLATE
+    }
+
+    fun renderPromptTemplate(
+        promptTemplate: String,
+        inputText: String
+    ): String {
+        return buildRewriteUserPrompt(
+            inputText = inputText,
+            promptTemplateOverride = promptTemplate
+        )
+    }
+
+    fun benchmarkInstructionSnapshot(
+        rewriteInstructionOverride: String? = null
+    ): String {
+        val rewriteInstruction = rewriteInstructionOverride?.trim().takeUnless { it.isNullOrBlank() }
+            ?: buildRewriteSystemInstruction()
         val editInstruction = buildEditSystemInstruction()
         return buildString {
             appendLine("rewrite_system_instruction:")
@@ -30,6 +59,15 @@ internal object LiteRtPromptTemplates {
             appendLine()
             appendLine("edit_system_instruction:")
             appendLine(editInstruction)
+        }
+    }
+
+    private val DEFAULT_REWRITE_PROMPT_TEMPLATE: String by lazy {
+        buildString(REWRITE_SYSTEM_INSTRUCTION.length + 32) {
+            append(REWRITE_SYSTEM_INSTRUCTION)
+            append("\n\nUser input:\n")
+            append("{{input}}")
+            append("\n\nCleaned:")
         }
     }
 

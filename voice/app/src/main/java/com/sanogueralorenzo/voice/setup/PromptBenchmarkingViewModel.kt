@@ -14,6 +14,7 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
+import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -82,6 +83,7 @@ class PromptBenchmarkingViewModel(
         if (!canRun) return
 
         val instructionSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot()
+        val runtimeConfigSnapshot = LiteRtRuntimeConfig.reportSnapshot()
 
         setState {
             copy(
@@ -118,6 +120,7 @@ class PromptBenchmarkingViewModel(
                 repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
                 modelId = ModelCatalog.liteRtLm.id,
                 promptInstructionsSnapshot = instructionSnapshot,
+                runtimeConfigSnapshot = runtimeConfigSnapshot,
                 onProgress = { progress ->
                     setState {
                         copy(

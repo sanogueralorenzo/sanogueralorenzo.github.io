@@ -58,6 +58,7 @@ data class PromptBenchmarkSessionResult(
     val totalElapsedMs: Long,
     val modelId: String,
     val promptInstructionsSnapshot: String,
+    val runtimeConfigSnapshot: String,
     val cases: List<PromptBenchmarkCaseResult>
 ) {
     val totalCases: Int

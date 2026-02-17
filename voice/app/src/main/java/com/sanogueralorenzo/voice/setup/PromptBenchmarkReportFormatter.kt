@@ -21,6 +21,10 @@ object PromptBenchmarkReportFormatter {
             appendLine(result.promptInstructionsSnapshot)
             appendLine()
 
+            appendLine("[runtime_config]")
+            appendLine(result.runtimeConfigSnapshot)
+            appendLine()
+
             appendLine("[results]")
             for (caseResult in result.cases) {
                 val caseDef = caseResult.caseDef

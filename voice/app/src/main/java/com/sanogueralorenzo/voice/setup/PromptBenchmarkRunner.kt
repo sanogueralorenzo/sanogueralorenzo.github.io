@@ -16,6 +16,8 @@ object PromptBenchmarkRunner {
         repeats: Int = DEFAULT_REPEATS,
         modelId: String,
         promptInstructionsSnapshot: String,
+        runtimeConfigSnapshot: String,
+        composePromptTemplateOverride: String? = null,
         onProgress: ((PromptBenchmarkProgress) -> Unit)? = null
     ): PromptBenchmarkSessionResult {
         require(repeats > 0) { "repeats must be > 0" }
@@ -40,7 +42,10 @@ object PromptBenchmarkRunner {
 
                 val rewriteResult = withContext(Dispatchers.IO) {
                     when (caseDef.type) {
-                        PromptBenchmarkCaseType.COMPOSE -> gateway.runCompose(caseDef.composeInput.orEmpty())
+                        PromptBenchmarkCaseType.COMPOSE -> gateway.runCompose(
+                            input = caseDef.composeInput.orEmpty(),
+                            promptTemplateOverride = composePromptTemplateOverride
+                        )
                         PromptBenchmarkCaseType.EDIT -> gateway.runEdit(
                             original = caseDef.editOriginal.orEmpty(),
                             instruction = caseDef.editInstruction.orEmpty()
@@ -62,6 +67,7 @@ object PromptBenchmarkRunner {
             totalElapsedMs = totalElapsedMs,
             modelId = modelId,
             promptInstructionsSnapshot = promptInstructionsSnapshot,
+            runtimeConfigSnapshot = runtimeConfigSnapshot,
             cases = caseResults
         )
     }

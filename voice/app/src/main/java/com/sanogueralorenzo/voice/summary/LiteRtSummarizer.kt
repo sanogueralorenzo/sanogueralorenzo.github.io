@@ -68,6 +68,13 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     }
 
     override fun summarizeBlocking(text: String): RewriteResult {
+        return summarizeBlocking(text = text, promptTemplateOverride = null)
+    }
+
+    fun summarizeBlocking(
+        text: String,
+        promptTemplateOverride: String? = null
+    ): RewriteResult {
         val startedAt = System.currentTimeMillis()
         val normalizedInput = normalizeInput(text)
         if (normalizedInput.isBlank()) {
@@ -87,7 +94,11 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
         return runBlocking(Dispatchers.Default) {
             operationMutex.withLock {
-                summarizeInternal(normalizedInput, startedAt)
+                summarizeInternal(
+                    normalizedInput = normalizedInput,
+                    startedAtMs = startedAt,
+                    promptTemplateOverride = promptTemplateOverride
+                )
             }
         }
     }
@@ -152,7 +163,8 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
     private suspend fun summarizeInternal(
         normalizedInput: String,
-        startedAtMs: Long
+        startedAtMs: Long,
+        promptTemplateOverride: String?
     ): RewriteResult {
         val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
             ?: return RewriteResult.Success(
@@ -186,10 +198,15 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             val output = rewriteOnce(
                 localEngine = localEngine,
                 request = request,
-                listMode = listMode
+                listMode = listMode,
+                promptTemplateOverride = promptTemplateOverride
+            )
+            val guardedOutput = applyComposeOutputGuard(
+                originalText = request.content,
+                candidateText = output
             )
             RewriteResult.Success(
-                text = output,
+                text = guardedOutput,
                 latencyMs = elapsedSince(startedAtMs),
                 backend = backend
             )
@@ -208,23 +225,27 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private suspend fun rewriteOnce(
         localEngine: Engine,
         request: RewriteRequest,
-        listMode: Boolean
+        listMode: Boolean,
+        promptTemplateOverride: String?
     ): String {
-        val userPrompt = LiteRtPromptTemplates.buildRewriteUserPrompt(request.content)
+        val userPrompt = LiteRtPromptTemplates.buildRewriteUserPrompt(
+            inputText = request.content,
+            promptTemplateOverride = promptTemplateOverride
+        )
         val config = ConversationConfig(
             systemInstruction = Contents.of(""),
             samplerConfig = SamplerConfig(
-                topK = DEFAULT_TOP_K,
-                topP = DEFAULT_TOP_P,
-                temperature = DEFAULT_TEMPERATURE,
-                seed = DEFAULT_SEED
+                topK = LiteRtRuntimeConfig.TOP_K,
+                topP = LiteRtRuntimeConfig.TOP_P,
+                temperature = LiteRtRuntimeConfig.TEMPERATURE,
+                seed = LiteRtRuntimeConfig.SEED
             )
         )
         val output = runConversation(
             localEngine = localEngine,
             config = config,
             userPrompt = userPrompt,
-            timeoutMs = REQUEST_TIMEOUT_MS
+            timeoutMs = LiteRtRuntimeConfig.REQUEST_TIMEOUT_MS
         )
         return cleanModelOutput(output, bulletMode = listMode)
     }
@@ -291,10 +312,10 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 LiteRtPromptTemplates.buildEditSystemInstruction()
             ),
             samplerConfig = SamplerConfig(
-                topK = DEFAULT_TOP_K,
-                topP = DEFAULT_TOP_P,
-                temperature = DEFAULT_TEMPERATURE,
-                seed = DEFAULT_SEED
+                topK = LiteRtRuntimeConfig.TOP_K,
+                topP = LiteRtRuntimeConfig.TOP_P,
+                temperature = LiteRtRuntimeConfig.TEMPERATURE,
+                seed = LiteRtRuntimeConfig.SEED
             )
         )
         val userPrompt = LiteRtPromptTemplates.buildEditUserPrompt(
@@ -307,7 +328,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             localEngine = localEngine,
             config = config,
             userPrompt = userPrompt,
-            timeoutMs = REQUEST_TIMEOUT_MS
+            timeoutMs = LiteRtRuntimeConfig.REQUEST_TIMEOUT_MS
         )
         return cleanModelOutput(text = output, bulletMode = request.listMode)
     }
@@ -375,7 +396,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 current.isInitialized() &&
                 initializedModelPath == path &&
                 initializedModelStamp == modelStamp &&
-                initializedMaxNumTokens == DEFAULT_ENGINE_MAX_TOKENS
+                initializedMaxNumTokens == LiteRtRuntimeConfig.ENGINE_MAX_TOKENS
             ) {
                 return@withLock current
             }
@@ -389,7 +410,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 val config = EngineConfig(
                     modelPath = path,
                     backend = backend,
-                    maxNumTokens = DEFAULT_ENGINE_MAX_TOKENS,
+                    maxNumTokens = LiteRtRuntimeConfig.ENGINE_MAX_TOKENS,
                     cacheDir = appContext.cacheDir.absolutePath
                 )
                 var fresh: Engine? = null
@@ -400,7 +421,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                     initializedModelPath = path
                     initializedModelStamp = modelStamp
                     initializedBackend = backend
-                    initializedMaxNumTokens = DEFAULT_ENGINE_MAX_TOKENS
+                    initializedMaxNumTokens = LiteRtRuntimeConfig.ENGINE_MAX_TOKENS
                     Log.i(TAG, "LiteRT engine initialized backend=$backend")
                     return@withLock fresh
                 } catch (t: Throwable) {
@@ -472,7 +493,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
     private fun timeoutFallbackMessage(t: Throwable): String? {
         if (t !is TimeoutCancellationException) return null
-        return "Timed out after ${REQUEST_TIMEOUT_MS}ms"
+        return "Timed out after ${LiteRtRuntimeConfig.REQUEST_TIMEOUT_MS}ms"
     }
 
     private fun elapsedSince(startedAtMs: Long): Long {
@@ -556,16 +577,39 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         return LiteRtEditHeuristics.looksLikeList(text)
     }
 
+    private fun applyComposeOutputGuard(
+        originalText: String,
+        candidateText: String
+    ): String {
+        val original = originalText.trim()
+        val candidate = candidateText.trim()
+        if (original.isBlank()) return candidate
+        if (candidate.isBlank()) return original
+
+        val originalChars = original.length
+        val candidateChars = candidate.length
+
+        val expandedTooMuch =
+            candidateChars > (originalChars * MAX_OUTPUT_EXPANSION_MULTIPLIER).toInt() &&
+                (candidateChars - originalChars) > MAX_OUTPUT_EXPANSION_DELTA_CHARS
+        if (expandedTooMuch) return original
+
+        val compressedTooMuch =
+            candidateChars < (originalChars * MIN_OUTPUT_COMPRESSION_MULTIPLIER).toInt() &&
+                (originalChars - candidateChars) > MAX_OUTPUT_COMPRESSION_DELTA_CHARS
+        if (compressedTooMuch) return original
+
+        return candidate
+    }
+
     companion object {
         private const val TAG = "LiteRtSummarizer"
-        private const val REQUEST_TIMEOUT_MS = 30_000L
         private const val CONVERSATION_TIMEOUT_CANCEL_GRACE_MS = 120L
-        private const val DEFAULT_TOP_K = 1
-        private const val DEFAULT_TOP_P = 0.95
-        private const val DEFAULT_TEMPERATURE = 1.0
-        private const val DEFAULT_SEED = 0
-        private const val DEFAULT_ENGINE_MAX_TOKENS = 4096
         private const val MAX_ERROR_MESSAGE_CHARS = 320
+        private const val MAX_OUTPUT_EXPANSION_MULTIPLIER = 1.5
+        private const val MIN_OUTPUT_COMPRESSION_MULTIPLIER = 0.5
+        private const val MAX_OUTPUT_EXPANSION_DELTA_CHARS = 20
+        private const val MAX_OUTPUT_COMPRESSION_DELTA_CHARS = 20
         private val SUPPORTED_MODEL_HINTS = listOf(
             "gemma-3n",
             "gemma3-1b",
