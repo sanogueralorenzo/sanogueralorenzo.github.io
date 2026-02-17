@@ -168,7 +168,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         startedAtMs: Long,
         promptTemplateOverride: String?
     ): RewriteResult {
-        val effectivePromptTemplate = promptTemplateOverride
+        val effectiveSystemInstruction = promptTemplateOverride
             ?.trim()
             ?.takeIf { it.isNotBlank() }
             ?: promptTemplateStore.currentPromptTemplate()?.takeIf { it.isNotBlank() }
@@ -214,7 +214,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 localEngine = localEngine,
                 request = request,
                 listMode = listMode,
-                promptTemplate = effectivePromptTemplate
+                rewriteSystemInstruction = effectiveSystemInstruction
             )
             val guardedOutput = applyComposeOutputGuard(
                 originalText = request.content,
@@ -241,14 +241,17 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         localEngine: Engine,
         request: RewriteRequest,
         listMode: Boolean,
-        promptTemplate: String
+        rewriteSystemInstruction: String
     ): String {
         val userPrompt = LiteRtPromptTemplates.buildRewriteUserPrompt(
-            inputText = request.content,
-            promptTemplateOverride = promptTemplate
+            inputText = request.content
         )
         val config = ConversationConfig(
-            systemInstruction = Contents.of(""),
+            systemInstruction = Contents.of(
+                LiteRtPromptTemplates.buildRewriteSystemInstruction(
+                    rewriteInstructionOverride = rewriteSystemInstruction
+                )
+            ),
             samplerConfig = SamplerConfig(
                 topK = LiteRtRuntimeConfig.TOP_K,
                 topP = LiteRtRuntimeConfig.TOP_P,
