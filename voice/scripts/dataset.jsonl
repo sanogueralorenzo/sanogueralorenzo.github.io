@@ -27,4 +27,4 @@
 {"id": 27, "input": "I left your package with the front desk.", "expected": "I left your package with the front desk.", "match": "exact"}
 {"id": 28, "input": "Let's keep this between us for now.", "expected": "Let's keep this between us for now.", "match": "exact"}
 {"id": 29, "input": "Do you want me to order for both of us?", "expected": "Do you want me to order for both of us?", "match": "exact"}
-{"id": 30, "input": "Perfect, see you at 6.", "expected": "Perfect, see you at 6.", "match": "exact"}
+{"id": 30, "input": "Perfect, see you at 5 actually 6.", "expected": "Perfect, see you at 6.", "match": "exact"}
