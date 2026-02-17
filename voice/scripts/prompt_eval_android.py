@@ -82,6 +82,22 @@ def ensure_package_installed(serial: str, package_name: str) -> None:
         )
 
 
+def wake_app_process(serial: str, package_name: str) -> None:
+    run(
+        adb_cmd(
+            serial,
+            "shell",
+            "monkey",
+            "-p",
+            package_name,
+            "-c",
+            "android.intent.category.LAUNCHER",
+            "1",
+        ),
+        check=True,
+    )
+
+
 def run_as_shell(serial: str, package_name: str, shell_command: str, *, stdin_path: Path | None = None) -> subprocess.CompletedProcess[str]:
     return run(
         adb_cmd(serial, "shell", f"run-as {package_name} sh -c '{shell_command}'"),
@@ -116,7 +132,10 @@ def load_prompt_text(prompt_path: Path) -> str:
     if prompt_path.suffix.lower() != ".json":
         return raw
     payload = json.loads(raw)
+    version = str(payload.get("version", "")).strip()
     prompt = str(payload.get("prompt", "")).strip()
+    if not version:
+        raise ValueError(f"Invalid prompt JSON (missing version): {prompt_path}")
     if not prompt:
         raise ValueError(f"Invalid prompt JSON (missing prompt): {prompt_path}")
     return prompt + "\n"
@@ -203,6 +222,7 @@ def main() -> int:
 
     serial = detect_device(args.serial.strip() or None)
     ensure_package_installed(serial, args.package)
+    wake_app_process(serial, args.package)
 
     run_id = args.run_id.strip() or datetime.now().strftime("run_%Y%m%d_%H%M%S")
     prompt_rel = APP_DEFAULT_PROMPT_SENTINEL

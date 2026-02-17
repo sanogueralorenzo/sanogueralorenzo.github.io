@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -21,7 +22,10 @@ import com.sanogueralorenzo.voice.R
 @Composable
 fun SettingsScreen(
     rewriteEnabled: Boolean,
-    onRewriteEnabledChange: (Boolean) -> Unit
+    updatesRunning: Boolean,
+    updatesMessage: String?,
+    onRewriteEnabledChange: (Boolean) -> Unit,
+    onCheckUpdates: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -70,6 +74,37 @@ fun SettingsScreen(
                         checked = rewriteEnabled,
                         onCheckedChange = onRewriteEnabledChange
                     )
+                }
+            }
+        }
+
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_updates_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = stringResource(R.string.settings_updates_description),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (!updatesMessage.isNullOrBlank()) {
+                    Text(
+                        text = updatesMessage,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Button(
+                    onClick = onCheckUpdates,
+                    enabled = !updatesRunning,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.settings_updates_action))
                 }
             }
         }

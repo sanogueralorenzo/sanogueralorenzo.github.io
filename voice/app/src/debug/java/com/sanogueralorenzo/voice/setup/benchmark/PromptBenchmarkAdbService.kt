@@ -18,6 +18,7 @@ import com.sanogueralorenzo.voice.setup.PromptBenchmarkRunner
 import com.sanogueralorenzo.voice.setup.PromptBenchmarkScoring
 import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
+import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -115,6 +116,21 @@ class PromptBenchmarkAdbService : Service() {
                     updatedAtMs = System.currentTimeMillis(),
                     startedAtMs = startedAt,
                     error = "LiteRT model is not ready",
+                    resultRelPath = request.outputRelPath,
+                    reportRelPath = reportRelPath
+                )
+            )
+            return
+        }
+        if (request.promptRelPath.isBlank() && !PromptTemplateStore(applicationContext).isPromptReady()) {
+            writeStatus(
+                statusFile = statusFile,
+                status = PromptBenchmarkRunStatus(
+                    runId = runId,
+                    state = "failed",
+                    updatedAtMs = System.currentTimeMillis(),
+                    startedAtMs = startedAt,
+                    error = "Prompt A is not ready",
                     resultRelPath = request.outputRelPath,
                     reportRelPath = reportRelPath
                 )
@@ -235,6 +251,11 @@ class PromptBenchmarkAdbService : Service() {
         }
 
         val gateway = LiteRtPromptBenchmarkGateway(applicationContext)
+        val activePromptTemplate = if (promptTemplate.isNullOrBlank()) {
+            PromptTemplateStore(applicationContext).currentPromptTemplate()
+        } else {
+            promptTemplate
+        }
         val session = runCatching {
             PromptBenchmarkRunner.runAll(
                 gateway = gateway,
@@ -243,7 +264,7 @@ class PromptBenchmarkAdbService : Service() {
                 repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
                 modelId = ModelCatalog.liteRtLm.id,
                 promptInstructionsSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot(
-                    rewriteInstructionOverride = promptTemplate?.trim()
+                    rewriteInstructionOverride = activePromptTemplate?.trim()
                 ),
                 runtimeConfigSnapshot = LiteRtRuntimeConfig.reportSnapshot(),
                 composePromptTemplateOverride = promptTemplate,

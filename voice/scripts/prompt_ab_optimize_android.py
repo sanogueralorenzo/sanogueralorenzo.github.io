@@ -67,8 +67,9 @@ def load_local_prompt_json(path: Path) -> str:
 
 def fetch_remote_prompt_json(url: str) -> str:
     with urllib.request.urlopen(url, timeout=20) as response:
-        if response.status != 200:
-            raise RuntimeError(f"Prompt A download failed (HTTP {response.status})")
+        status = getattr(response, "status", 200)
+        if status not in (None, 200):
+            raise RuntimeError(f"Prompt A download failed (HTTP {status})")
         body = response.read().decode("utf-8")
     return parse_prompt_json(body, url)
 

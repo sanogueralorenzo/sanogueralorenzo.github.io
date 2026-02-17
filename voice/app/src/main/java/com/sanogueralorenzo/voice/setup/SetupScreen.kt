@@ -117,18 +117,22 @@ fun SetupDownloadModelsScreen(
     allowMobileDataDownloads: Boolean,
     liteRtReady: Boolean,
     moonshineReady: Boolean,
+    promptReady: Boolean,
     liteRtDownloading: Boolean,
     moonshineDownloading: Boolean,
+    promptDownloading: Boolean,
     liteRtProgress: Int,
     moonshineProgress: Int,
+    promptProgress: Int,
+    promptVersion: String?,
     modelMessage: String?,
     updatesMessage: String?,
     onAllowMobileDataChange: (Boolean) -> Unit,
     onDownloadModels: () -> Unit
 ) {
     val context = LocalContext.current
-    val modelsReady = liteRtReady && moonshineReady
-    val downloadInProgress = liteRtDownloading || moonshineDownloading
+    val modelsReady = liteRtReady && moonshineReady && promptReady
+    val downloadInProgress = liteRtDownloading || moonshineDownloading || promptDownloading
     val requiresMobileDataApproval = !connectedToWifi
     val canStartDownload = !downloadInProgress &&
         !modelsReady &&
@@ -147,6 +151,10 @@ fun SetupDownloadModelsScreen(
             )
             Text(
                 text = stringResource(R.string.setup_models_intro_bullet_it),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.setup_models_intro_bullet_prompt),
                 style = MaterialTheme.typography.bodySmall
             )
             if (!updatesMessage.isNullOrBlank()) {
@@ -176,6 +184,16 @@ fun SetupDownloadModelsScreen(
                     stringResource(R.string.setup_model_litert),
                     humanReadableSize(context, ModelCatalog.liteRtLm.sizeBytes),
                     modelStatus(context, liteRtReady, liteRtDownloading, liteRtProgress)
+                ),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = stringResource(
+                    R.string.setup_model_row,
+                    stringResource(R.string.setup_model_prompt),
+                    promptVersion?.let { stringResource(R.string.setup_prompt_version_value, it) }
+                        ?: stringResource(R.string.setup_prompt_version_missing),
+                    modelStatus(context, promptReady, promptDownloading, promptProgress)
                 ),
                 style = MaterialTheme.typography.bodyMedium
             )

@@ -10,7 +10,7 @@
     <string name="home_section_prompt_benchmarking_title">Prompt Benchmarking</string>
     <string name="home_section_prompt_benchmarking_description">Run fixed cases to measure LiteRT quality and latency.</string>
     <string name="home_section_settings_title">Settings</string>
-    <string name="home_section_settings_description">Manage rewrite behavior and custom instructions.</string>
+    <string name="home_section_settings_description">Manage rewrite behavior and app updates.</string>
 
     <string name="onboarding_section_title">Onboarding</string>
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
@@ -37,12 +37,12 @@
     <string name="prompt_benchmark_expected_label">Expected</string>
     <string name="prompt_benchmark_output_label">Output</string>
     <string name="prompt_benchmark_expected_missing">(not provided)</string>
-    <string name="models_check_updates_running">Checking model integrity and updates…</string>
-    <string name="models_check_updates_none">Models are up to date.</string>
-    <string name="models_check_updates_unreachable">Could not reach update source. Current models were kept.</string>
-    <string name="models_check_updates_downloading">Update found. Downloading %1$d files…</string>
-    <string name="models_check_updates_applied">Updated %1$d files. Changes apply in the next transcription session.</string>
-    <string name="models_check_updates_partial">Updated %1$d of %2$d files. Some updates failed.</string>
+    <string name="models_check_updates_running">Checking updates…</string>
+    <string name="models_check_updates_none">Models and prompts are up to date.</string>
+    <string name="models_check_updates_unreachable">Could not reach update source. Current files were kept.</string>
+    <string name="models_check_updates_downloading">Update found. Downloading %1$d items…</string>
+    <string name="models_check_updates_applied">Updated %1$d items. Changes apply in the next session.</string>
+    <string name="models_check_updates_partial">Updated %1$d of %2$d items. Some updates failed.</string>
     <string name="onboarding_tutorial_next">Next</string>
     <string name="onboarding_tutorial_done">Done</string>
     <string name="onboarding_tutorial_open_picker">Keyboard picker</string>
@@ -57,6 +57,9 @@
     <string name="settings_rewrite_toggle_description">Turn this off to skip LiteRT rewrite and edit, and commit raw transcripts.</string>
     <string name="settings_rewrite_enabled">Enabled</string>
     <string name="settings_rewrite_disabled">Disabled</string>
+    <string name="settings_updates_title">Check for Updates</string>
+    <string name="settings_updates_description">Check and download updates for ASR model files, IT model, and prompt A.</string>
+    <string name="settings_updates_action">Check for updates</string>
 
     <string name="setup_grant_mic">Grant microphone permission</string>
     <string name="setup_mic_intro">Microphone access is required to transcribe speech.</string>
@@ -69,6 +72,7 @@
     <string name="setup_models_intro">Voice Keyboard uses:</string>
     <string name="setup_models_intro_bullet_asr">• ASR (Automatic Speech Recognition) model to convert spoken language into text from audio signals.</string>
     <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
+    <string name="setup_models_intro_bullet_prompt">• Prompt A config to keep rewrite behavior consistent across devices and benchmarks.</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_step_choose_keyboard">Choose Voice Keyboard</string>
@@ -76,12 +80,15 @@
     <string name="setup_models_mobile_data_warning">You are not on Wi‑Fi. Allow mobile data to download models.</string>
     <string name="setup_allow_mobile_data">Allow using mobile data</string>
     <string name="setup_download_models">Download models</string>
-    <string name="setup_models_ready">All models are ready.</string>
-    <string name="setup_download_all_already_ready">All models are already ready.</string>
-    <string name="setup_download_all_completed">All model downloads are complete.</string>
+    <string name="setup_models_ready">All required files are ready.</string>
+    <string name="setup_download_all_already_ready">All required files are already ready.</string>
+    <string name="setup_download_all_completed">All required downloads are complete.</string>
     <string name="setup_model_row">%1$s model (%2$s): %3$s</string>
     <string name="setup_model_litert">IT Model</string>
     <string name="setup_model_moonshine">ASR Model</string>
+    <string name="setup_model_prompt">Prompt A</string>
+    <string name="setup_prompt_version_value">v%1$s</string>
+    <string name="setup_prompt_version_missing">version unknown</string>
     <string name="setup_status_ready">Ready</string>
     <string name="setup_status_downloading">Downloading %1$d%%</string>
     <string name="setup_status_missing">Missing</string>
@@ -95,6 +102,11 @@
     <string name="setup_download_error_storage">Failed downloading %1$s (storage error).</string>
     <string name="setup_download_error_unknown">Failed downloading %1$s (unknown error).</string>
     <string name="setup_download_error_invalid">Failed downloading %1$s (invalid model spec).</string>
+    <string name="setup_prompt_download_error_http">Failed downloading prompt A (HTTP %1$d).</string>
+    <string name="setup_prompt_download_error_network">Failed downloading prompt A (network error).</string>
+    <string name="setup_prompt_download_error_storage">Failed downloading prompt A (storage error).</string>
+    <string name="setup_prompt_download_error_invalid">Failed downloading prompt A (invalid JSON payload).</string>
+    <string name="setup_prompt_download_error_unknown">Failed downloading prompt A (unknown error).</string>
     <string name="setup_unknown_value">unknown</string>
     <string name="ime_delete_recording">Delete recording</string>
     <string name="ime_send_recording">Send recording</string>

@@ -41,6 +41,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     )
 
     private val appContext = context.applicationContext
+    private val promptTemplateStore = PromptTemplateStore(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val operationMutex = Mutex()
     private val initMutex = Mutex()
@@ -64,7 +65,8 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private var initializedMaxNumTokens: Int = 0
 
     override fun isModelAvailable(): Boolean {
-        return ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
+        return ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm) &&
+            promptTemplateStore.isPromptReady()
     }
 
     override fun summarizeBlocking(text: String): RewriteResult {
@@ -166,6 +168,19 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         startedAtMs: Long,
         promptTemplateOverride: String?
     ): RewriteResult {
+        val effectivePromptTemplate = promptTemplateOverride
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: promptTemplateStore.currentPromptTemplate()?.takeIf { it.isNotBlank() }
+            ?: return RewriteResult.Failure(
+                latencyMs = elapsedSince(startedAtMs),
+                backend = initializedBackend ?: Backend.GPU,
+                error = LiteRtFailureException(
+                    type = LiteRtFailureException.TYPE_UNKNOWN,
+                    litertError = "Prompt A is missing. Complete setup to download the prompt."
+                )
+            )
+
         val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
             ?: return RewriteResult.Success(
                 text = normalizedInput,
@@ -199,7 +214,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 localEngine = localEngine,
                 request = request,
                 listMode = listMode,
-                promptTemplateOverride = promptTemplateOverride
+                promptTemplate = effectivePromptTemplate
             )
             val guardedOutput = applyComposeOutputGuard(
                 originalText = request.content,
@@ -226,11 +241,11 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         localEngine: Engine,
         request: RewriteRequest,
         listMode: Boolean,
-        promptTemplateOverride: String?
+        promptTemplate: String
     ): String {
         val userPrompt = LiteRtPromptTemplates.buildRewriteUserPrompt(
             inputText = request.content,
-            promptTemplateOverride = promptTemplateOverride
+            promptTemplateOverride = promptTemplate
         )
         val config = ConversationConfig(
             systemInstruction = Contents.of(""),

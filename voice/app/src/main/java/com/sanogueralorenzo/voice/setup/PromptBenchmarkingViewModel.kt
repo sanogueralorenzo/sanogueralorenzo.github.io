@@ -14,6 +14,7 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
+import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -82,7 +83,10 @@ class PromptBenchmarkingViewModel(
         }
         if (!canRun) return
 
-        val instructionSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot()
+        val activePromptTemplate = PromptTemplateStore(appContext).currentPromptTemplate()
+        val instructionSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot(
+            rewriteInstructionOverride = activePromptTemplate
+        )
         val runtimeConfigSnapshot = LiteRtRuntimeConfig.reportSnapshot()
 
         setState {

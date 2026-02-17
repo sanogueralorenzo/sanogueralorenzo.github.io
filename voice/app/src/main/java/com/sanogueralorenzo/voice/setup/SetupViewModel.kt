@@ -24,6 +24,7 @@ import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.ime.VoiceInputMethodService
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
+import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -31,14 +32,18 @@ import kotlinx.coroutines.withContext
 
 data class ModelReadiness(
     val liteRtReady: Boolean,
-    val moonshineReady: Boolean
+    val moonshineReady: Boolean,
+    val promptReady: Boolean,
+    val promptVersion: String?
 )
 
 data class ModelUpdatesOutcome(
     val updatesMessage: String,
     val modelMessage: String?,
     val liteRtReady: Boolean,
-    val moonshineReady: Boolean
+    val moonshineReady: Boolean,
+    val promptReady: Boolean,
+    val promptVersion: String?
 )
 
 class SetupViewModel(
@@ -49,6 +54,7 @@ class SetupViewModel(
 ) : MavericksViewModel<SetupUiState>(initialState) {
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
+    private val promptTemplateStore = PromptTemplateStore(appContext)
     private val voiceImeIdShort = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToShortString()
     private val voiceImeIdLong = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToString()
 
@@ -111,14 +117,18 @@ class SetupViewModel(
             }
             ModelReadiness(
                 liteRtReady = liteRtReady,
-                moonshineReady = moonshineReady
+                moonshineReady = moonshineReady,
+                promptReady = promptTemplateStore.isPromptReady(),
+                promptVersion = promptTemplateStore.currentPromptVersion()
             )
         }.execute { async ->
             when (async) {
                 is Success -> copy(
                     modelReadinessAsync = async,
                     liteRtReady = async().liteRtReady,
-                    moonshineReady = async().moonshineReady
+                    moonshineReady = async().moonshineReady,
+                    promptReady = async().promptReady,
+                    promptVersion = async().promptVersion
                 )
 
                 else -> copy(modelReadinessAsync = async)
@@ -143,27 +153,105 @@ class SetupViewModel(
                 addAll(ModelCatalog.moonshineMediumStreamingSpecs)
             }
             val check = withContext(Dispatchers.IO) { updateChecker.check(allSpecs) }
+            val promptCheck = withContext(Dispatchers.IO) { promptTemplateStore.checkForUpdates() }
             when (check) {
                 is ModelUpdateChecker.CheckResult.UpToDate -> {
-                    buildModelUpdatesOutcome(
-                        updatesMessage = appContext.getString(R.string.models_check_updates_none),
-                        modelMessage = null
-                    )
+                    when (promptCheck) {
+                        PromptTemplateStore.UpdateCheck.UpToDate -> {
+                            buildModelUpdatesOutcome(
+                                updatesMessage = appContext.getString(R.string.models_check_updates_none),
+                                modelMessage = null
+                            )
+                        }
+
+                        PromptTemplateStore.UpdateCheck.UpdateAvailable -> {
+                            setState {
+                                copy(
+                                    updatesMessage = appContext.getString(
+                                        R.string.models_check_updates_downloading,
+                                        1
+                                    )
+                                )
+                            }
+                            val promptResult = withContext(Dispatchers.IO) {
+                                promptTemplateStore.ensurePromptDownloaded(force = true)
+                            }
+                            val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
+                                promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
+                            val promptMessage = if (promptSuccess) {
+                                null
+                            } else {
+                                promptDownloadResultMessage(promptResult)
+                            }
+                            val updatesMessage = if (promptSuccess) {
+                                appContext.getString(R.string.models_check_updates_applied, 1)
+                            } else {
+                                appContext.getString(R.string.models_check_updates_partial, 0, 1)
+                            }
+                            buildModelUpdatesOutcome(
+                                updatesMessage = updatesMessage,
+                                modelMessage = promptMessage
+                            )
+                        }
+
+                        PromptTemplateStore.UpdateCheck.Unreachable -> {
+                            buildModelUpdatesOutcome(
+                                updatesMessage = appContext.getString(R.string.models_check_updates_unreachable),
+                                modelMessage = null
+                            )
+                        }
+                    }
                 }
 
                 is ModelUpdateChecker.CheckResult.Unreachable -> {
-                    buildModelUpdatesOutcome(
-                        updatesMessage = appContext.getString(R.string.models_check_updates_unreachable),
-                        modelMessage = null
-                    )
+                    when (promptCheck) {
+                        PromptTemplateStore.UpdateCheck.UpdateAvailable -> {
+                            setState {
+                                copy(
+                                    updatesMessage = appContext.getString(
+                                        R.string.models_check_updates_downloading,
+                                        1
+                                    )
+                                )
+                            }
+                            val promptResult = withContext(Dispatchers.IO) {
+                                promptTemplateStore.ensurePromptDownloaded(force = true)
+                            }
+                            val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
+                                promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
+                            val promptMessage = if (promptSuccess) {
+                                null
+                            } else {
+                                promptDownloadResultMessage(promptResult)
+                            }
+                            val updatesMessage = if (promptSuccess) {
+                                appContext.getString(R.string.models_check_updates_applied, 1)
+                            } else {
+                                appContext.getString(R.string.models_check_updates_partial, 0, 1)
+                            }
+                            buildModelUpdatesOutcome(
+                                updatesMessage = updatesMessage,
+                                modelMessage = promptMessage
+                            )
+                        }
+
+                        else -> {
+                            buildModelUpdatesOutcome(
+                                updatesMessage = appContext.getString(R.string.models_check_updates_unreachable),
+                                modelMessage = null
+                            )
+                        }
+                    }
                 }
 
                 is ModelUpdateChecker.CheckResult.UpdatesAvailable -> {
+                    val promptUpdates = if (promptCheck == PromptTemplateStore.UpdateCheck.UpdateAvailable) 1 else 0
+                    val totalUpdates = check.updates.size + promptUpdates
                     setState {
                         copy(
                             updatesMessage = appContext.getString(
                                 R.string.models_check_updates_downloading,
-                                check.updates.size
+                                totalUpdates
                             )
                         )
                     }
@@ -183,7 +271,19 @@ class SetupViewModel(
                             firstFailure = downloadResultMessage(candidate.spec, result)
                         }
                     }
-                    val message = if (applied == check.updates.size) {
+                    if (promptCheck == PromptTemplateStore.UpdateCheck.UpdateAvailable) {
+                        val promptResult = withContext(Dispatchers.IO) {
+                            promptTemplateStore.ensurePromptDownloaded(force = true)
+                        }
+                        val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
+                            promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
+                        if (promptSuccess) {
+                            applied += 1
+                        } else if (firstFailure == null) {
+                            firstFailure = promptDownloadResultMessage(promptResult)
+                        }
+                    }
+                    val message = if (applied == totalUpdates) {
                         appContext.getString(
                             R.string.models_check_updates_applied,
                             applied
@@ -192,7 +292,7 @@ class SetupViewModel(
                         appContext.getString(
                             R.string.models_check_updates_partial,
                             applied,
-                            check.updates.size
+                            totalUpdates
                         )
                     }
                     buildModelUpdatesOutcome(
@@ -214,7 +314,9 @@ class SetupViewModel(
                     updatesMessage = async().updatesMessage,
                     modelMessage = async().modelMessage ?: modelMessage,
                     liteRtReady = async().liteRtReady,
-                    moonshineReady = async().moonshineReady
+                    moonshineReady = async().moonshineReady,
+                    promptReady = async().promptReady,
+                    promptVersion = async().promptVersion
                 )
 
                 is Fail -> copy(
@@ -289,9 +391,63 @@ class SetupViewModel(
         )
     }
 
+    fun startPromptDownload(onComplete: (Boolean) -> Unit = {}) {
+        val snapshot = withState(this) { it }
+        if (snapshot.promptReady || isAnyDownloading(snapshot)) {
+            onComplete(snapshot.promptReady)
+            return
+        }
+        setState {
+            copy(
+                promptDownloading = true,
+                promptProgress = 0,
+                modelMessage = null
+            )
+        }
+        suspend {
+            withContext(Dispatchers.IO) {
+                promptTemplateStore.ensurePromptDownloaded(force = false)
+            }
+        }.execute { async ->
+            when (async) {
+                is Loading -> copy(promptDownloading = true)
+                is Success -> {
+                    val result = async()
+                    val ready = result is PromptTemplateStore.DownloadResult.Success ||
+                        result is PromptTemplateStore.DownloadResult.AlreadyAvailable
+                    copy(
+                        promptDownloading = false,
+                        promptReady = ready,
+                        promptProgress = if (ready) 100 else 0,
+                        promptVersion = promptTemplateStore.currentPromptVersion(),
+                        modelMessage = if (ready) {
+                            null
+                        } else {
+                            promptDownloadResultMessage(result)
+                        }
+                    ).also {
+                        onComplete(ready)
+                    }
+                }
+
+                is Fail -> {
+                    onComplete(false)
+                    copy(
+                        promptDownloading = false,
+                        promptReady = false,
+                        promptProgress = 0,
+                        modelMessage = appContext.getString(R.string.setup_prompt_download_error_unknown)
+                    )
+                }
+
+                is Uninitialized -> copy()
+            }
+        }
+    }
+
     fun downloadAllModels() {
         val startingState = withState(this) { state -> state }
-        if (startingState.liteRtReady && startingState.moonshineReady) {
+        if (startingState.liteRtReady && startingState.moonshineReady && startingState.promptReady) {
             setState {
                 copy(
                     modelMessage = appContext.getString(R.string.setup_download_all_already_ready)
@@ -299,11 +455,11 @@ class SetupViewModel(
             }
             return
         }
-        fun runLiteRt() {
-            val liteRtReady = withState(this) { state ->
-                state.liteRtReady
+        fun runPrompt() {
+            val promptReady = withState(this) { state ->
+                state.promptReady
             }
-            if (liteRtReady) {
+            if (promptReady) {
                 setState {
                     copy(
                         modelMessage = appContext.getString(R.string.setup_download_all_completed)
@@ -312,14 +468,28 @@ class SetupViewModel(
                 refreshModelReadiness()
                 return
             }
-            startLiteRtDownload(allowWhileAnotherDownloadActive = true) { success ->
-                if (!success) return@startLiteRtDownload
+            startPromptDownload { success ->
+                if (!success) return@startPromptDownload
                 setState {
                     copy(
                         modelMessage = appContext.getString(R.string.setup_download_all_completed)
                     )
                 }
                 refreshModelReadiness()
+            }
+        }
+
+        fun runLiteRt() {
+            val liteRtReady = withState(this) { state ->
+                state.liteRtReady
+            }
+            if (liteRtReady) {
+                runPrompt()
+                return
+            }
+            startLiteRtDownload(allowWhileAnotherDownloadActive = true) { success ->
+                if (!success) return@startLiteRtDownload
+                runPrompt()
             }
         }
 
@@ -405,7 +575,9 @@ class SetupViewModel(
             updatesMessage = updatesMessage,
             modelMessage = modelMessage,
             liteRtReady = readiness.liteRtReady,
-            moonshineReady = readiness.moonshineReady
+            moonshineReady = readiness.moonshineReady,
+            promptReady = readiness.promptReady,
+            promptVersion = readiness.promptVersion
         )
     }
 
@@ -420,7 +592,9 @@ class SetupViewModel(
         }
         return ModelReadiness(
             liteRtReady = liteRtReady,
-            moonshineReady = moonshineReady
+            moonshineReady = moonshineReady,
+            promptReady = promptTemplateStore.isPromptReady(),
+            promptVersion = promptTemplateStore.currentPromptVersion()
         )
     }
 
@@ -482,8 +656,35 @@ class SetupViewModel(
         }
     }
 
+    private fun promptDownloadResultMessage(result: PromptTemplateStore.DownloadResult): String? {
+        return when (result) {
+            is PromptTemplateStore.DownloadResult.Success,
+            is PromptTemplateStore.DownloadResult.AlreadyAvailable -> null
+            is PromptTemplateStore.DownloadResult.HttpError -> appContext.getString(
+                R.string.setup_prompt_download_error_http,
+                result.code
+            )
+
+            is PromptTemplateStore.DownloadResult.NetworkError -> appContext.getString(
+                R.string.setup_prompt_download_error_network
+            )
+
+            is PromptTemplateStore.DownloadResult.InvalidPayload -> appContext.getString(
+                R.string.setup_prompt_download_error_invalid
+            )
+
+            is PromptTemplateStore.DownloadResult.StorageError -> appContext.getString(
+                R.string.setup_prompt_download_error_storage
+            )
+
+            is PromptTemplateStore.DownloadResult.UnknownError -> appContext.getString(
+                R.string.setup_prompt_download_error_unknown
+            )
+        }
+    }
+
     private fun isAnyDownloading(state: SetupUiState): Boolean {
-        return state.liteRtDownloading || state.moonshineDownloading || state.updatesRunning
+        return state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading || state.updatesRunning
     }
 
     private fun hasMicPermission(): Boolean {

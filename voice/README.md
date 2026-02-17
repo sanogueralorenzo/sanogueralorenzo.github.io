@@ -164,8 +164,8 @@ Use `scripts/prompt_ab_optimize.sh` to run a round-based A/B loop with a fixed p
 
 ```bash
 scripts/prompt_ab_optimize.sh \
-  --prompt-a-file scripts/prompt_a.txt \
-  --prompt-b-file scripts/prompt_b.txt \
+  --prompt-a-file scripts/prompt_a.json \
+  --prompt-b-file scripts/prompt_b.json \
   --dataset-file scripts/dataset.jsonl \
   --max-rounds 1 \
   --patience 1
@@ -200,7 +200,7 @@ Optional holdout:
 
 1. Install and open the app.
 2. Grant microphone permission.
-3. Download Moonshine and LiteRT models.
+3. Download ASR model files, IT model, and Prompt A config.
 4. Enable `Voice Keyboard` in Android keyboard settings.
 5. Select `Voice Keyboard` in the IME picker.
 

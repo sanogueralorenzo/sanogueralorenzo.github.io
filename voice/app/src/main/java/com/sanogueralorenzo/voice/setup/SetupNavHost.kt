@@ -154,7 +154,7 @@ fun SetupNavHost() {
     }
 
     val keyboardSelected = uiState.voiceImeSelected || keyboardSelectionAssumed
-    val modelsReady = uiState.liteRtReady && uiState.moonshineReady
+    val modelsReady = uiState.liteRtReady && uiState.moonshineReady && uiState.promptReady
     val requiredSetupRoute = when {
         !uiState.micGranted -> MainRoute.SETUP_MIC
         !uiState.voiceImeEnabled -> MainRoute.SETUP_ENABLE_KEYBOARD
@@ -280,10 +280,14 @@ fun SetupNavHost() {
                     allowMobileDataDownloads = allowMobileDataDownloads,
                     liteRtReady = uiState.liteRtReady,
                     moonshineReady = uiState.moonshineReady,
+                    promptReady = uiState.promptReady,
                     liteRtDownloading = uiState.liteRtDownloading,
                     moonshineDownloading = uiState.moonshineDownloading,
+                    promptDownloading = uiState.promptDownloading,
                     liteRtProgress = uiState.liteRtProgress,
                     moonshineProgress = uiState.moonshineProgress,
+                    promptProgress = uiState.promptProgress,
+                    promptVersion = uiState.promptVersion,
                     modelMessage = uiState.modelMessage,
                     updatesMessage = uiState.updatesMessage,
                     onAllowMobileDataChange = { allowMobileDataDownloads = it },
@@ -309,9 +313,12 @@ fun SetupNavHost() {
             composable(MainRoute.SETTINGS) {
                 SettingsScreen(
                     rewriteEnabled = uiState.liteRtRewriteEnabled,
+                    updatesRunning = uiState.updatesRunning,
+                    updatesMessage = uiState.updatesMessage,
                     onRewriteEnabledChange = { enabled ->
                         setupViewModel.setLiteRtRewriteEnabled(enabled)
-                    }
+                    },
+                    onCheckUpdates = { setupViewModel.checkForModelUpdates() }
                 )
             }
         }
