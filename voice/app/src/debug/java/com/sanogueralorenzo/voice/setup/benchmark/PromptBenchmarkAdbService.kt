@@ -1,9 +1,14 @@
 package com.sanogueralorenzo.voice.setup.benchmark
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.setup.LiteRtPromptBenchmarkGateway
@@ -33,9 +38,14 @@ class PromptBenchmarkAdbService : Service() {
             return START_NOT_STICKY
         }
 
+        startForegroundCompat()
+
         scope.launch {
             try {
                 runBenchmark(intent)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Unhandled benchmark service error", error)
+                writeFatalStatusFromIntent(intent, error)
             } finally {
                 stopSelf(startId)
             }
@@ -358,7 +368,46 @@ class PromptBenchmarkAdbService : Service() {
         }
     }
 
+    private fun writeFatalStatusFromIntent(intent: Intent, error: Throwable) {
+        val runId = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_RUN_ID)
+            ?.trim()
+            ?.ifBlank { null }
+            ?: return
+        val statusFile = resolveAppFile("${PromptBenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.status.json")
+            ?: return
+        writeStatus(
+            statusFile = statusFile,
+            status = PromptBenchmarkRunStatus(
+                runId = runId,
+                state = "failed",
+                updatedAtMs = System.currentTimeMillis(),
+                error = error.message ?: "Unhandled benchmark service error"
+            )
+        )
+    }
+
+    private fun startForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            val channel = NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "Prompt Benchmark (Debug)",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            manager?.createNotificationChannel(channel)
+        }
+        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Running prompt benchmark")
+            .setContentText("Device benchmark is running")
+            .setOngoing(true)
+            .build()
+        startForeground(NOTIFICATION_ID, notification)
+    }
+
     private companion object {
         private const val TAG = "PromptBenchmarkAdbSvc"
+        private const val NOTIFICATION_CHANNEL_ID = "prompt_benchmark_debug"
+        private const val NOTIFICATION_ID = 12041
     }
 }
