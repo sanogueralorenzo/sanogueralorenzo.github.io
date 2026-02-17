@@ -358,9 +358,12 @@ class SetupViewModel(
         )
     }
 
-    fun startPromptDownload(onComplete: (Boolean) -> Unit = {}) {
+    fun startPromptDownload(
+        allowWhileAnotherDownloadActive: Boolean = false,
+        onComplete: (Boolean) -> Unit = {}
+    ) {
         val snapshot = withState(this) { it }
-        if (snapshot.promptReady || isAnyDownloading(snapshot)) {
+        if (snapshot.promptReady || (!allowWhileAnotherDownloadActive && isAnyDownloading(snapshot))) {
             onComplete(snapshot.promptReady)
             return
         }
@@ -435,7 +438,7 @@ class SetupViewModel(
                 refreshModelReadiness()
                 return
             }
-            startPromptDownload { success ->
+            startPromptDownload(allowWhileAnotherDownloadActive = true) { success ->
                 if (!success) return@startPromptDownload
                 setState {
                     copy(
