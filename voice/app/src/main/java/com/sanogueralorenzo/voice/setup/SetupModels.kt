@@ -31,6 +31,7 @@ data class SetupUiState(
 data class SetupActions(
     val onOpenOnboarding: () -> Unit,
     val onOpenPromptBenchmarking: () -> Unit,
+    val onOpenCheckUpdates: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onGrantMic: () -> Unit,
     val onOpenImeSettings: () -> Unit,

@@ -28,6 +28,7 @@ fun KeyboardTestBar(
 fun HomeScreen(
     onOpenOnboarding: () -> Unit,
     onOpenPromptBenchmarking: () -> Unit,
+    onOpenCheckUpdates: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     LazyColumn(
@@ -55,6 +56,13 @@ fun HomeScreen(
                 title = stringResource(R.string.home_section_settings_title),
                 description = stringResource(R.string.home_section_settings_description),
                 onClick = onOpenSettings
+            )
+        }
+        item {
+            SectionCard(
+                title = stringResource(R.string.home_section_check_updates_title),
+                description = stringResource(R.string.home_section_check_updates_description),
+                onClick = onOpenCheckUpdates
             )
         }
     }

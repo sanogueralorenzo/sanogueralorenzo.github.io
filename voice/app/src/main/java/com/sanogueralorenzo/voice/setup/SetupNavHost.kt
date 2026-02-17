@@ -54,6 +54,7 @@ private object MainRoute {
     const val SETUP_MODELS = "setup_models"
     const val ONBOARDING = "onboarding"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
+    const val CHECK_UPDATES = "check_updates"
     const val SETTINGS = "settings"
     val SETUP_ROUTES = setOf(
         SETUP_MIC,
@@ -83,7 +84,15 @@ fun SetupNavHost() {
             updateChecker = appGraph.modelUpdateChecker
         )
     }
+    val checkUpdatesViewModel = remember(appContext, appGraph) {
+        CheckUpdatesViewModel(
+            initialState = CheckUpdatesUiState(),
+            context = appContext,
+            updateChecker = appGraph.modelUpdateChecker
+        )
+    }
     val uiState by setupViewModel.collectAsStateWithLifecycle()
+    val checkUpdatesUiState by checkUpdatesViewModel.collectAsStateWithLifecycle()
     var keyboardSelectionAssumed by rememberSaveable { mutableStateOf(false) }
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
 
@@ -95,6 +104,9 @@ fun SetupNavHost() {
 
     DisposableEffect(setupViewModel) {
         onDispose { setupViewModel.shutdown() }
+    }
+    DisposableEffect(checkUpdatesViewModel) {
+        onDispose { checkUpdatesViewModel.shutdown() }
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -175,6 +187,7 @@ fun SetupNavHost() {
         MainRoute.SETUP_MODELS -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
         MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
+        MainRoute.CHECK_UPDATES -> stringResource(R.string.settings_updates_title)
         MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
@@ -192,6 +205,7 @@ fun SetupNavHost() {
     val actions = SetupActions(
         onOpenOnboarding = { navController.navigate(MainRoute.ONBOARDING) },
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
+        onOpenCheckUpdates = { navController.navigate(MainRoute.CHECK_UPDATES) },
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
@@ -252,6 +266,7 @@ fun SetupNavHost() {
                 HomeScreen(
                     onOpenOnboarding = actions.onOpenOnboarding,
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
+                    onOpenCheckUpdates = actions.onOpenCheckUpdates,
                     onOpenSettings = actions.onOpenSettings
                 )
             }
@@ -313,12 +328,18 @@ fun SetupNavHost() {
             composable(MainRoute.SETTINGS) {
                 SettingsScreen(
                     rewriteEnabled = uiState.liteRtRewriteEnabled,
-                    updatesRunning = uiState.updatesRunning,
-                    updatesMessage = uiState.updatesMessage,
                     onRewriteEnabledChange = { enabled ->
                         setupViewModel.setLiteRtRewriteEnabled(enabled)
-                    },
-                    onCheckUpdates = { setupViewModel.checkForModelUpdates() }
+                    }
+                )
+            }
+
+            composable(MainRoute.CHECK_UPDATES) {
+                CheckUpdatesScreen(
+                    updatesRunning = checkUpdatesUiState.updatesRunning,
+                    updatesMessage = checkUpdatesUiState.updatesMessage,
+                    modelMessage = checkUpdatesUiState.modelMessage,
+                    onCheckUpdates = { checkUpdatesViewModel.checkForUpdates() }
                 )
             }
         }

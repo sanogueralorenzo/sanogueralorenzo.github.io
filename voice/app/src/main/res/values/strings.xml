@@ -9,8 +9,10 @@
     <string name="home_section_onboarding_description">Walk through the Voice Keyboard flow.</string>
     <string name="home_section_prompt_benchmarking_title">Prompt Benchmarking</string>
     <string name="home_section_prompt_benchmarking_description">Run fixed cases to measure LiteRT quality and latency.</string>
+    <string name="home_section_check_updates_title">Check for Updates</string>
+    <string name="home_section_check_updates_description">Re-download Prompt A and update ASR/IT model files.</string>
     <string name="home_section_settings_title">Settings</string>
-    <string name="home_section_settings_description">Manage rewrite behavior and app updates.</string>
+    <string name="home_section_settings_description">Manage rewrite behavior.</string>
 
     <string name="onboarding_section_title">Onboarding</string>
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
@@ -60,6 +62,7 @@
     <string name="settings_updates_title">Check for Updates</string>
     <string name="settings_updates_description">Check and download updates for ASR model files, IT model, and prompt A.</string>
     <string name="settings_updates_action">Check for updates</string>
+    <string name="check_updates_section_description">Check and download updates for ASR model files, IT model, and Prompt A.</string>
 
     <string name="setup_grant_mic">Grant microphone permission</string>
     <string name="setup_mic_intro">Microphone access is required to transcribe speech.</string>
