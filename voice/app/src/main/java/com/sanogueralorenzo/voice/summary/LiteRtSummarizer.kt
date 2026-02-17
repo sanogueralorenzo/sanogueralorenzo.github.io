@@ -30,9 +30,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private data class RewriteRequest(
-        val directive: LiteRtPromptTemplates.RewriteDirective,
-        val content: String,
-        val allowStrongTransform: Boolean
+        val content: String
     )
 
     private data class EditRequest(
@@ -67,24 +65,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
     override fun isModelAvailable(): Boolean {
         return ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
-    }
-
-    fun currentBackendPolicy(): LiteRtBackendPolicy {
-        return backendPolicyStore.currentPolicy(currentModelSha())
-    }
-
-    fun warmupAsync() {
-        scope.launch {
-            operationMutex.withLock {
-                if (!isConfiguredModelSupported()) return@withLock
-                val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm) ?: return@withLock
-                runCatching {
-                    ensureEngine(modelFile)
-                }.onFailure { error ->
-                    Log.w(TAG, "LiteRT warmup failed", error)
-                }
-            }
-        }
     }
 
     override fun summarizeBlocking(text: String): RewriteResult {
@@ -402,8 +382,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
 
             closeEngineLocked()
 
-            val modelSha = currentModelSha()
-            val candidateBackends = backendPolicyStore.preferredBackends(modelSha)
+            val candidateBackends = backendPolicyStore.preferredBackends()
             var lastError: Throwable? = null
 
             for (backend in candidateBackends) {
@@ -427,9 +406,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
                 } catch (t: Throwable) {
                     runCatching { fresh?.close() }
                     lastError = t
-                    if (backend == Backend.GPU) {
-                        backendPolicyStore.markGpuFailed(modelSha)
-                    }
                     Log.w(TAG, "LiteRT init failed for backend=$backend", t)
                 }
             }
@@ -503,11 +479,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         return (System.currentTimeMillis() - startedAtMs).coerceAtLeast(0L)
     }
 
-    private fun currentModelSha(): String {
-        val sha = ModelCatalog.liteRtLm.sha256.trim().lowercase()
-        return if (sha.isBlank()) ModelCatalog.liteRtLm.id else sha
-    }
-
     private fun isConfiguredModelSupported(): Boolean {
         val id = ModelCatalog.liteRtLm.id.lowercase()
         val fileName = ModelCatalog.liteRtLm.fileName.lowercase()
@@ -529,79 +500,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     }
 
     private fun parseRewriteRequest(text: String): RewriteRequest {
-        val allowStrongTransform = hasHighIntensityIntro(text)
-        val tagged = parseTaggedDirectivePrefix(text, allowStrongTransform)
-        if (tagged != null) {
-            return tagged
-        }
-
-        val introDirective = parseNaturalLanguageIntroDirective(text, allowStrongTransform)
-        if (introDirective != null) {
-            return introDirective
-        }
-
-        return RewriteRequest(
-            directive = LiteRtPromptTemplates.RewriteDirective.DEFAULT,
-            content = text,
-            allowStrongTransform = allowStrongTransform
-        )
-    }
-
-    private fun parseTaggedDirectivePrefix(
-        text: String,
-        allowStrongTransform: Boolean
-    ): RewriteRequest? {
-        val match = DIRECTIVE_PREFIX_REGEX.find(text) ?: return null
-
-        val rawTag = listOfNotNull(
-            match.groups[1]?.value,
-            match.groups[2]?.value,
-            match.groups[3]?.value,
-            match.groups[4]?.value
-        ).firstOrNull()?.lowercase()
-
-        val directive = directiveFromToken(rawTag)
-
-        if (directive == LiteRtPromptTemplates.RewriteDirective.DEFAULT) {
-            return null
-        }
-
-        val content = text.substring(match.range.last + 1).trimStart()
-        if (content.isBlank()) {
-            return null
-        }
-        return RewriteRequest(
-            directive = directive,
-            content = content,
-            allowStrongTransform = allowStrongTransform
-        )
-    }
-
-    private fun parseNaturalLanguageIntroDirective(
-        text: String,
-        allowStrongTransform: Boolean
-    ): RewriteRequest? {
-        val match = NATURAL_INTRO_DIRECTIVE_REGEX.find(text) ?: return null
-        val rawDirective = match.groups[1]?.value
-        val content = match.groups[2]?.value?.trim().orEmpty()
-        if (content.isBlank()) return null
-        val directive = directiveFromToken(rawDirective)
-        if (directive == LiteRtPromptTemplates.RewriteDirective.DEFAULT) return null
-        return RewriteRequest(
-            directive = directive,
-            content = content,
-            allowStrongTransform = allowStrongTransform
-        )
-    }
-
-    private fun directiveFromToken(token: String?): LiteRtPromptTemplates.RewriteDirective {
-        return when (token?.trim()?.lowercase()) {
-            "short", "concise", "brief" -> LiteRtPromptTemplates.RewriteDirective.SHORT
-            "warm", "friendly", "kind" -> LiteRtPromptTemplates.RewriteDirective.WARM
-            "work", "professional", "formal", "business", "for work" ->
-                LiteRtPromptTemplates.RewriteDirective.WORK
-            else -> LiteRtPromptTemplates.RewriteDirective.DEFAULT
-        }
+        return RewriteRequest(content = text)
     }
 
     private fun normalizeInput(text: String): String {
@@ -657,12 +556,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         return LiteRtEditHeuristics.looksLikeList(text)
     }
 
-    private fun hasHighIntensityIntro(text: String): Boolean {
-        val intro = text.trim().take(INTRO_SCAN_MAX_CHARS)
-        if (intro.isBlank()) return false
-        return HIGH_INTENSITY_REGEX.containsMatchIn(intro)
-    }
-
     companion object {
         private const val TAG = "LiteRtSummarizer"
         private const val REQUEST_TIMEOUT_MS = 30_000L
@@ -681,7 +574,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
             "phi-4-mini",
             "tinygarden"
         )
-        private const val INTRO_SCAN_MAX_CHARS = 140
         private val WHITESPACE_REGEX = Regex("\\s+")
         private val REPEATED_FILLER_REGEX = Regex(
             "\\b(um+|uh+|erm+|emm+|hmm+)(?:\\s+\\1\\b)+",
@@ -696,21 +588,6 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
         private val CLEANED_ANCHOR_REGEX = Regex(
             "^cleaned\\s*:\\s*",
             setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE)
-        )
-        private val HIGH_INTENSITY_REGEX = Regex(
-            "\\b(very|extremely|heavily|drastically|significantly|major\\s+rewrite|substantially)\\b",
-            RegexOption.IGNORE_CASE
-        )
-        private val DIRECTIVE_PREFIX_REGEX = Regex(
-            "^\\s*(?:\\[([\\p{L}]+)]|/([\\p{L}]+)|(?:tone|style)\\s+([\\p{L}]+)\\s*[:\\-]?|([\\p{L}]+)\\s*[:\\-])\\s*",
-            RegexOption.IGNORE_CASE
-        )
-        private val NATURAL_INTRO_DIRECTIVE_REGEX = Regex(
-            "^\\s*(?:(?:please|pls)\\s+)?(?:(?:can|could|would)\\s+you\\s+)?" +
-                "(?:(?:make|keep|rewrite|write|clean(?:\\s+up)?|format|turn)\\s+(?:this|it|message)?\\s+)?" +
-                "(?:in\\s+(?:a\\s+)?)?(short|concise|brief|warm|friendly|kind|professional|formal|business|work|for\\s+work)" +
-                "(?:\\s+(?:tone|style|version))?(?:\\s*[:,-]\\s*|\\s+)(.+)$",
-            RegexOption.IGNORE_CASE
         )
     }
 }

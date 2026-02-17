@@ -4,18 +4,7 @@ package com.sanogueralorenzo.voice.summary
  * Centralized prompt templates for LiteRT rewrite/edit operations.
  */
 internal object LiteRtPromptTemplates {
-    enum class RewriteDirective {
-        DEFAULT,
-        SHORT,
-        WARM,
-        WORK
-    }
-
-    fun buildRewriteSystemInstruction(
-        directive: RewriteDirective,
-        bulletMode: Boolean,
-        allowStrongTransform: Boolean
-    ): String {
+    fun buildRewriteSystemInstruction(): String {
         return REWRITE_SYSTEM_INSTRUCTION
     }
 
@@ -33,11 +22,7 @@ internal object LiteRtPromptTemplates {
     }
 
     fun benchmarkInstructionSnapshot(): String {
-        val rewriteInstruction = buildRewriteSystemInstruction(
-            directive = RewriteDirective.DEFAULT,
-            bulletMode = false,
-            allowStrongTransform = false
-        )
+        val rewriteInstruction = buildRewriteSystemInstruction()
         val editInstruction = buildEditSystemInstruction()
         return buildString {
             appendLine("rewrite_system_instruction:")
@@ -67,10 +52,6 @@ internal object LiteRtPromptTemplates {
             append(instructionText)
         }
     }
-
-    const val PROBE_SYSTEM_INSTRUCTION: String =
-        "Reply with exactly OK. No markdown, no punctuation, no extra words."
-    const val PROBE_USER_MESSAGE: String = "Reply with OK."
 
     private const val REWRITE_SYSTEM_INSTRUCTION =
         "Clean this dictated message with minimal edits. " +

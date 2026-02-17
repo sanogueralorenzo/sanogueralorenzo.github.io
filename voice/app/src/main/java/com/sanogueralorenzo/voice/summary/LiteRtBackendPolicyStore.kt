@@ -3,10 +3,6 @@ package com.sanogueralorenzo.voice.summary
 import android.os.Build
 import com.google.ai.edge.litertlm.Backend
 
-enum class LiteRtBackendPolicy {
-    AUTO
-}
-
 /**
  * Backend policy holder.
  *
@@ -15,24 +11,12 @@ enum class LiteRtBackendPolicy {
 class LiteRtBackendPolicyStore {
     private val isEmulatorDevice: Boolean = isEmulator()
 
-    fun currentPolicy(modelSha: String): LiteRtBackendPolicy {
-        return LiteRtBackendPolicy.AUTO
-    }
-
-    fun preferredBackends(modelSha: String): List<Backend> {
+    fun preferredBackends(): List<Backend> {
         return if (isEmulatorDevice) {
             listOf(Backend.CPU, Backend.GPU)
         } else {
             listOf(Backend.GPU, Backend.CPU)
         }
-    }
-
-    fun markGpuFailed(modelSha: String) {
-        // Intentionally no-op while policy is fixed to AUTO.
-    }
-
-    fun clearPolicy(modelSha: String) {
-        // Intentionally no-op while policy is fixed to AUTO.
     }
 
     private fun isEmulator(): Boolean {
