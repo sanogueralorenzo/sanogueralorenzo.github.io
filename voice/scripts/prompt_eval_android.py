@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -17,7 +18,10 @@ DEFAULT_RECEIVER = (
     "com.sanogueralorenzo.voice/com.sanogueralorenzo.voice.setup.benchmark.PromptBenchmarkAdbReceiver"
 )
 DEFAULT_RESULTS_DIR = "benchmark_runs"
-APP_DEFAULT_PROMPT_SENTINEL = "__APP_DEFAULT__"
+DEFAULT_PROMPT_A_URL = (
+    "https://raw.githubusercontent.com/sanogueralorenzo/"
+    "sanogueralorenzo.github.io/main/voice/scripts/prompt_a.json"
+)
 
 
 def run(cmd: list[str], *, stdin_path: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -141,6 +145,22 @@ def load_prompt_text(prompt_path: Path) -> str:
     return prompt + "\n"
 
 
+def fetch_remote_prompt_text(prompt_url: str) -> str:
+    with urllib.request.urlopen(prompt_url, timeout=20) as response:
+        status = getattr(response, "status", 200)
+        if status not in (None, 200):
+            raise RuntimeError(f"Prompt A download failed (HTTP {status})")
+        payload = response.read().decode("utf-8")
+    parsed = json.loads(payload)
+    version = str(parsed.get("version", "")).strip()
+    prompt = str(parsed.get("prompt", "")).strip()
+    if not version:
+        raise ValueError(f"Invalid remote prompt JSON (missing version): {prompt_url}")
+    if not prompt:
+        raise ValueError(f"Invalid remote prompt JSON (missing prompt): {prompt_url}")
+    return prompt + "\n"
+
+
 def trigger_run(
     serial: str,
     package_name: str,
@@ -199,9 +219,8 @@ def poll_status(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run prompt benchmark on Android device via adb.")
-    prompt_group = parser.add_mutually_exclusive_group(required=True)
-    prompt_group.add_argument("--prompt-file")
-    prompt_group.add_argument("--use-app-default-prompt", action="store_true")
+    parser.add_argument("--prompt-file", default="")
+    parser.add_argument("--prompt-a-url", default=DEFAULT_PROMPT_A_URL)
     parser.add_argument("--cases-file", required=True)
     parser.add_argument("--serial", default="")
     parser.add_argument("--package", default=DEFAULT_PACKAGE)
@@ -225,22 +244,20 @@ def main() -> int:
     wake_app_process(serial, args.package)
 
     run_id = args.run_id.strip() or datetime.now().strftime("run_%Y%m%d_%H%M%S")
-    prompt_rel = APP_DEFAULT_PROMPT_SENTINEL
+    prompt_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.prompt.txt"
     dataset_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.dataset.jsonl"
     output_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.result.json"
     status_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.status.json"
     report_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.report.txt"
 
-    if prompt_file is not None:
-        prompt_text = load_prompt_text(prompt_file)
-        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as temp_prompt:
-            temp_prompt.write(prompt_text)
-            temp_prompt_path = Path(temp_prompt.name)
-        prompt_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.prompt.txt"
-        try:
-            upload_file_to_app(serial, args.package, temp_prompt_path, prompt_rel)
-        finally:
-            temp_prompt_path.unlink(missing_ok=True)
+    prompt_text = load_prompt_text(prompt_file) if prompt_file is not None else fetch_remote_prompt_text(args.prompt_a_url)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as temp_prompt:
+        temp_prompt.write(prompt_text)
+        temp_prompt_path = Path(temp_prompt.name)
+    try:
+        upload_file_to_app(serial, args.package, temp_prompt_path, prompt_rel)
+    finally:
+        temp_prompt_path.unlink(missing_ok=True)
     upload_file_to_app(serial, args.package, cases_file, dataset_rel)
     trigger_run(
         serial=serial,
