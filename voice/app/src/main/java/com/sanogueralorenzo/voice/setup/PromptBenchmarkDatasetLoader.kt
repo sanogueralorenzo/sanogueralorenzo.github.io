@@ -11,10 +11,10 @@ internal object PromptBenchmarkDatasetLoader {
     private const val READ_TIMEOUT_MS = 20_000
 
     const val SOURCE_BLOB_URL: String =
-        "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/blob/2081a06487221a221e681559878e0abaf002c2d2/voice/scripts/dataset.jsonl"
+        "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/blob/main/voice/scripts/dataset.jsonl"
 
     private const val SOURCE_RAW_URL: String =
-        "https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/2081a06487221a221e681559878e0abaf002c2d2/voice/scripts/dataset.jsonl"
+        "https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/voice/scripts/dataset.jsonl"
 
     suspend fun loadCases(): List<PromptBenchmarkCase> = withContext(Dispatchers.IO) {
         val connection = (URL(SOURCE_RAW_URL).openConnection() as HttpURLConnection).apply {
