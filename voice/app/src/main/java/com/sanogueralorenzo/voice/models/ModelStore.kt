@@ -32,14 +32,6 @@ object ModelStore {
         return File(context.filesDir, "models/${spec.subdir}/${spec.fileName}")
     }
 
-    fun isModelReady(context: Context, spec: ModelSpec): Boolean {
-        val target = modelFile(context, spec)
-        if (target.exists()) {
-            return isOnDiskModelReadyQuick(target, spec)
-        }
-        return assetExists(context, spec)
-    }
-
     fun isModelReadyStrict(context: Context, spec: ModelSpec): Boolean {
         val target = modelFile(context, spec)
         if (target.exists()) {
