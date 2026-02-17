@@ -1,6 +1,5 @@
 package com.sanogueralorenzo.voice.summary
 
-import android.content.Context
 import android.os.Build
 import com.google.ai.edge.litertlm.Backend
 
@@ -13,7 +12,7 @@ enum class LiteRtBackendPolicy {
  *
  * Current behavior is fixed to AUTO as requested.
  */
-class LiteRtBackendPolicyStore(context: Context) {
+class LiteRtBackendPolicyStore {
     private val isEmulatorDevice: Boolean = isEmulator()
 
     fun currentPolicy(modelSha: String): LiteRtBackendPolicy {

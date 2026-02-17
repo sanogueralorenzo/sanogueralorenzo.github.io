@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.withLock
 internal class LiteRtEngineManager(context: Context) {
     private val appContext = context.applicationContext
     private val initMutex = Mutex()
-    private val backendPolicyStore = LiteRtBackendPolicyStore(appContext)
+    private val backendPolicyStore = LiteRtBackendPolicyStore()
 
     @Volatile
     private var engine: Engine? = null

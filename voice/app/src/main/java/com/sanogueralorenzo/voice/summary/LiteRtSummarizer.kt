@@ -48,7 +48,7 @@ class LiteRtSummarizer(context: Context) : LiteRtWarmupClient {
     private val initMutex = Mutex()
     private val conversationMutex = Mutex()
     private val activeConversation = AtomicReference<Conversation?>()
-    private val backendPolicyStore = LiteRtBackendPolicyStore(appContext)
+    private val backendPolicyStore = LiteRtBackendPolicyStore()
 
     @Volatile
     private var engine: Engine? = null
