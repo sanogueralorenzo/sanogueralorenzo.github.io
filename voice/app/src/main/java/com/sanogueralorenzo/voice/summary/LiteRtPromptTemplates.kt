@@ -91,16 +91,17 @@ internal object LiteRtPromptTemplates {
         }
     }
 
-    private const val REWRITE_SYSTEM_INSTRUCTION =
-        "Clean this dictated message with minimal edits. " +
-            "Allowed edits: remove spoken fillers, remove immediate duplicate words, " +
-            "fix obvious transcription mistakes, and normalize min/mins to minutes. " +
-            "If input has digits, keep digits in output. " +
-            "If input has numbers written in words, always convert them to digits. " +
-            "Do not paraphrase, summarize, reorder, or change meaning, tone, person, or intent. " +
-            "If no allowed edit applies, return input unchanged. " +
-            "If uncertain, return input unchanged. " +
-            "Return only the cleaned message after the label \"Cleaned:\"."
+    private val REWRITE_SYSTEM_INSTRUCTION =
+        """
+        Clean this dictated message with minimal edits.
+        Allowed edits: remove spoken fillers, remove immediate duplicate words, fix obvious transcription mistakes, and normalize min/mins to minutes.
+        If input has digits, keep digits in output.
+        If input has numbers written in words, always convert them to digits.
+        Do not paraphrase, summarize, reorder, or change meaning, tone, person, or intent.
+        If no allowed edit applies, return input unchanged.
+        If uncertain, return input unchanged.
+        Return only the cleaned message after the label "Cleaned:".
+        """.trimIndent()
     private const val EDIT_SYSTEM_INSTRUCTION =
         "Apply EDIT_INSTRUCTION to ORIGINAL_MESSAGE exactly. " +
             "If EDIT_INTENT indicates delete-all, return an empty final message. " +

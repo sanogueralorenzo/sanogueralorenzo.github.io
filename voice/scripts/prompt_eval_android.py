@@ -16,6 +16,7 @@ DEFAULT_RECEIVER = (
     "com.sanogueralorenzo.voice/com.sanogueralorenzo.voice.setup.benchmark.PromptBenchmarkAdbReceiver"
 )
 DEFAULT_RESULTS_DIR = "benchmark_runs"
+APP_DEFAULT_PROMPT_SENTINEL = "__APP_DEFAULT__"
 
 
 def run(cmd: list[str], *, stdin_path: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -167,7 +168,9 @@ def poll_status(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run prompt benchmark on Android device via adb.")
-    parser.add_argument("--prompt-file", required=True)
+    prompt_group = parser.add_mutually_exclusive_group(required=True)
+    prompt_group.add_argument("--prompt-file")
+    prompt_group.add_argument("--use-app-default-prompt", action="store_true")
     parser.add_argument("--cases-file", required=True)
     parser.add_argument("--serial", default="")
     parser.add_argument("--package", default=DEFAULT_PACKAGE)
@@ -179,9 +182,9 @@ def main() -> int:
     parser.add_argument("--json-report-file", default=".cache/prompt_eval_android/report.json")
     args = parser.parse_args()
 
-    prompt_file = Path(args.prompt_file).resolve()
+    prompt_file = Path(args.prompt_file).resolve() if args.prompt_file else None
     cases_file = Path(args.cases_file).resolve()
-    if not prompt_file.exists():
+    if prompt_file is not None and not prompt_file.exists():
         raise FileNotFoundError(f"Prompt file not found: {prompt_file}")
     if not cases_file.exists():
         raise FileNotFoundError(f"Cases file not found: {cases_file}")
@@ -190,13 +193,15 @@ def main() -> int:
     ensure_package_installed(serial, args.package)
 
     run_id = args.run_id.strip() or datetime.now().strftime("run_%Y%m%d_%H%M%S")
-    prompt_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.prompt.txt"
+    prompt_rel = APP_DEFAULT_PROMPT_SENTINEL
     dataset_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.dataset.jsonl"
     output_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.result.json"
     status_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.status.json"
     report_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.report.txt"
 
-    upload_file_to_app(serial, args.package, prompt_file, prompt_rel)
+    if prompt_file is not None:
+        prompt_rel = f"{DEFAULT_RESULTS_DIR}/{run_id}.prompt.txt"
+        upload_file_to_app(serial, args.package, prompt_file, prompt_rel)
     upload_file_to_app(serial, args.package, cases_file, dataset_rel)
     trigger_run(
         serial=serial,

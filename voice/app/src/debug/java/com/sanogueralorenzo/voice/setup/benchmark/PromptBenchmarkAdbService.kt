@@ -63,9 +63,14 @@ class PromptBenchmarkAdbService : Service() {
             ?.trim()
             ?.ifBlank { null }
             ?: "run_${System.currentTimeMillis()}"
-        val promptRelPath = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_PROMPT_REL_PATH)
+        val promptRelPathRaw = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_PROMPT_REL_PATH)
             ?.trim()
             .orEmpty()
+        val promptRelPath = if (promptRelPathRaw == PromptBenchmarkAdbContracts.APP_DEFAULT_PROMPT_SENTINEL) {
+            ""
+        } else {
+            promptRelPathRaw
+        }
         val datasetRelPath = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_DATASET_REL_PATH)
             ?.trim()
             .orEmpty()
@@ -117,9 +122,9 @@ class PromptBenchmarkAdbService : Service() {
             return
         }
 
-        val promptFile = resolveAppFile(request.promptRelPath)
         val datasetFile = resolveAppFile(request.datasetRelPath)
-        if (promptFile == null || !promptFile.exists()) {
+        val promptFile = request.promptRelPath.takeIf { it.isNotBlank() }?.let { resolveAppFile(it) }
+        if (request.promptRelPath.isNotBlank() && (promptFile == null || !promptFile.exists())) {
             writeStatus(
                 statusFile = statusFile,
                 status = PromptBenchmarkRunStatus(
@@ -165,20 +170,24 @@ class PromptBenchmarkAdbService : Service() {
             return
         }
 
-        val promptTemplate = runCatching { promptFile.readText() }.getOrElse { error ->
-            writeStatus(
-                statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
-                    runId = runId,
-                    state = "failed",
-                    updatedAtMs = System.currentTimeMillis(),
-                    startedAtMs = startedAt,
-                    error = "Failed reading prompt file: ${error.message}",
-                    resultRelPath = request.outputRelPath,
-                    reportRelPath = reportRelPath
+        val promptTemplate = if (promptFile != null) {
+            runCatching { promptFile.readText() }.getOrElse { error ->
+                writeStatus(
+                    statusFile = statusFile,
+                    status = PromptBenchmarkRunStatus(
+                        runId = runId,
+                        state = "failed",
+                        updatedAtMs = System.currentTimeMillis(),
+                        startedAtMs = startedAt,
+                        error = "Failed reading prompt file: ${error.message}",
+                        resultRelPath = request.outputRelPath,
+                        reportRelPath = reportRelPath
+                    )
                 )
-            )
-            return
+                return
+            }
+        } else {
+            null
         }
 
         val datasetCases = runCatching {
@@ -234,7 +243,7 @@ class PromptBenchmarkAdbService : Service() {
                 repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
                 modelId = ModelCatalog.liteRtLm.id,
                 promptInstructionsSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot(
-                    rewriteInstructionOverride = promptTemplate.trim()
+                    rewriteInstructionOverride = promptTemplate?.trim()
                 ),
                 runtimeConfigSnapshot = LiteRtRuntimeConfig.reportSnapshot(),
                 composePromptTemplateOverride = promptTemplate,
@@ -301,7 +310,7 @@ class PromptBenchmarkAdbService : Service() {
             put("suite_version", session.suiteVersion)
             put("model_id", session.modelId)
             put("timestamp_ms", session.timestampMs)
-            put("prompt_file", request.promptRelPath)
+            put("prompt_file", request.promptRelPath.ifBlank { "(app_default)" })
             put("dataset_file", request.datasetRelPath)
             put("prompt_instructions", session.promptInstructionsSnapshot)
             put("runtime_config", session.runtimeConfigSnapshot)

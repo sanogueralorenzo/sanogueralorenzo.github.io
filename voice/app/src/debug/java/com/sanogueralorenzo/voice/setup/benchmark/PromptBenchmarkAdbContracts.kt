@@ -9,4 +9,5 @@ object PromptBenchmarkAdbContracts {
     const val EXTRA_OUTPUT_REL_PATH = "output_rel_path"
 
     const val DEFAULT_RESULTS_DIR = "benchmark_runs"
+    const val APP_DEFAULT_PROMPT_SENTINEL = "__APP_DEFAULT__"
 }
