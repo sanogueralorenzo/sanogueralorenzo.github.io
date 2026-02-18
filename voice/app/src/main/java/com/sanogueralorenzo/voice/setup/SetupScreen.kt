@@ -1,6 +1,5 @@
 package com.sanogueralorenzo.voice.setup
 
-import android.content.Context
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -54,7 +52,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.random.Random
-import java.util.Locale
 
 @Composable
 fun SetupSplashScreen(
@@ -291,18 +288,17 @@ fun SetupDownloadModelsScreen(
     promptDownloading: Boolean,
     liteRtProgress: Int,
     moonshineProgress: Int,
-    promptVersion: String?,
     modelMessage: String?,
     updatesMessage: String?,
     onAllowMobileDataChange: (Boolean) -> Unit,
     onDownloadModels: () -> Unit
 ) {
-    val context = LocalContext.current
-    val modelsReady = liteRtReady && moonshineReady && promptReady
+    val modelsReady = liteRtReady && moonshineReady
+    val allDownloadsReady = modelsReady && promptReady
     val downloadInProgress = liteRtDownloading || moonshineDownloading || promptDownloading
     val requiresMobileDataApproval = !connectedToWifi
     val canStartDownload = !downloadInProgress &&
-        !modelsReady &&
+        !allDownloadsReady &&
         (!requiresMobileDataApproval || allowMobileDataDownloads)
     val liteRtRatio = when {
         liteRtReady -> 1f
@@ -319,11 +315,17 @@ fun SetupDownloadModelsScreen(
             .coerceAtLeast(1.0)
     val completedModelBytes = (ModelCatalog.moonshineMediumStreamingTotalBytes.toDouble() * moonshineRatio) +
         (ModelCatalog.liteRtLm.sizeBytes.toDouble() * liteRtRatio)
-    val modelProgressPercent = ((completedModelBytes / totalModelBytes) * 99.0).toFloat().coerceIn(0f, 99f)
-    val totalProgressPercent = if (promptReady) {
-        (modelProgressPercent + 1f).coerceIn(0f, 100f)
+    val modelProgressPercent = ((completedModelBytes / totalModelBytes) * 100.0).toFloat().coerceIn(0f, 100f)
+    val totalProgressPercent = if (modelsReady) {
+        100f
     } else {
-        modelProgressPercent.coerceIn(0f, 99f)
+        modelProgressPercent
+    }
+    val activeDownloadTarget = when {
+        !moonshineReady -> stringResource(R.string.setup_model_moonshine)
+        !liteRtReady -> stringResource(R.string.setup_model_litert)
+        !promptReady -> stringResource(R.string.setup_model_prompt)
+        else -> stringResource(R.string.setup_status_ready)
     }
     val shouldShowTotalProgress =
         downloadInProgress || liteRtReady || moonshineReady || promptReady
@@ -358,7 +360,8 @@ fun SetupDownloadModelsScreen(
             if (shouldShowTotalProgress) {
                 Text(
                     text = stringResource(
-                        R.string.setup_total_progress,
+                        R.string.setup_total_progress_for_target,
+                        activeDownloadTarget,
                         totalProgressPercent.toInt().coerceIn(0, 100)
                     ),
                     style = MaterialTheme.typography.bodySmall
@@ -368,41 +371,13 @@ fun SetupDownloadModelsScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            Text(
-                text = stringResource(
-                    R.string.setup_model_row,
-                    stringResource(R.string.setup_model_moonshine),
-                    humanReadableSize(context, ModelCatalog.moonshineMediumStreamingTotalBytes),
-                    modelStatus(context, moonshineReady, moonshineDownloading)
-                ),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = stringResource(
-                    R.string.setup_model_row,
-                    stringResource(R.string.setup_model_litert),
-                    humanReadableSize(context, ModelCatalog.liteRtLm.sizeBytes),
-                    modelStatus(context, liteRtReady, liteRtDownloading)
-                ),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = stringResource(
-                    R.string.setup_model_row,
-                    stringResource(R.string.setup_model_prompt),
-                    promptVersion?.let { stringResource(R.string.setup_prompt_version_value, it) }
-                        ?: stringResource(R.string.setup_prompt_version_missing),
-                    modelStatus(context, promptReady, promptDownloading)
-                ),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            if (modelsReady) {
+            if (allDownloadsReady) {
                 Text(
                     text = stringResource(R.string.setup_models_ready),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (requiresMobileDataApproval && !modelsReady) {
+            if (requiresMobileDataApproval && !allDownloadsReady) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -420,7 +395,7 @@ fun SetupDownloadModelsScreen(
             }
         },
         actions = {
-            if (requiresMobileDataApproval && !modelsReady) {
+            if (requiresMobileDataApproval && !allDownloadsReady) {
                 Text(
                     text = stringResource(R.string.setup_models_mobile_data_warning),
                     style = MaterialTheme.typography.bodySmall
@@ -495,24 +470,6 @@ private fun SetupTopIcon() {
             modifier = Modifier.size(SetupLogoSize)
         )
     }
-}
-
-private fun modelStatus(
-    context: Context,
-    ready: Boolean,
-    downloading: Boolean
-): String {
-    return when {
-        ready -> context.getString(R.string.setup_status_ready)
-        downloading -> context.getString(R.string.setup_status_downloading_simple)
-        else -> context.getString(R.string.setup_status_missing)
-    }
-}
-
-private fun humanReadableSize(context: Context, bytes: Long): String {
-    if (bytes <= 0L) return context.getString(R.string.setup_unknown_value)
-    val mb = bytes / (1024.0 * 1024.0)
-    return String.format(Locale.US, "%.0f MB", mb)
 }
 
 private val SetupScreenOuterPadding = 20.dp
