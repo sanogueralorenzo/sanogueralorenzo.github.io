@@ -154,6 +154,29 @@ class LiteRtEditHeuristicsTest {
     }
 
     @Test
+    fun deterministic_replaceTerm_preservesCapitalizedReplacementWhenTargetIsCapitalized() {
+        val source = "Hey Mia, can you review this?"
+        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            sourceText = source,
+            instructionText = "replace Mia with john"
+        )
+
+        assertNotNull(result)
+        assertEquals("Hey John, can you review this?", result?.output)
+    }
+
+    @Test
+    fun postReplaceCapitalization_capitalizesEditedOutputForReplaceCommand() {
+        val output = LiteRtEditHeuristics.applyPostReplaceCapitalization(
+            sourceText = "Hey Mia, can you review this?",
+            instructionText = "replace Mia with john",
+            editedOutput = "Hey john, can you review this?"
+        )
+
+        assertEquals("Hey John, can you review this?", output)
+    }
+
+    @Test
     fun deterministic_scope_delete_first_and_last() {
         val source = "milk bread milk eggs milk"
 

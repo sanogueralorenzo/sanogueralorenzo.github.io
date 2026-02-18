@@ -96,6 +96,29 @@ internal object LiteRtEditHeuristics {
         return intent == EditIntent.DELETE_ALL
     }
 
+    fun applyPostReplaceCapitalization(
+        sourceText: String,
+        instructionText: String,
+        editedOutput: String
+    ): String {
+        if (sourceText.isBlank() || instructionText.isBlank() || editedOutput.isBlank()) return editedOutput
+        val commandCandidate = analyzeInstruction(instructionText).normalizedInstruction
+        val parsed = parseDeterministicCommand(commandCandidate) ?: return editedOutput
+        if (parsed.kind != CommandKind.REPLACE_TERM) return editedOutput
+        val target = parsed.target.orEmpty()
+        val replacement = parsed.replacement.orEmpty()
+        if (target.isBlank() || replacement.isBlank()) return editedOutput
+
+        val sourceMatches = targetRegex(target).findAll(sourceText).toList()
+        val capitalizedSourceMatch = sourceMatches.firstOrNull { isCapitalizedWordMatch(it.value) }
+            ?: return editedOutput
+
+        val replacementRegex = targetRegex(replacement)
+        return replacementRegex.replace(editedOutput) { match ->
+            applyReplacementCasing(capitalizedSourceMatch.value, match.value)
+        }
+    }
+
     fun tryApplyDeterministicEdit(
         sourceText: String,
         instructionText: String
@@ -374,7 +397,9 @@ internal object LiteRtEditHeuristics {
         return when (scope) {
             CommandScope.ALL -> {
                 ReplaceApplyResult(
-                    output = regex.replace(sourceText, replacement),
+                    output = regex.replace(sourceText) { match ->
+                        applyReplacementCasing(match.value, replacement)
+                    },
                     matchedCount = matches.size
                 )
             }
@@ -382,7 +407,10 @@ internal object LiteRtEditHeuristics {
             CommandScope.FIRST -> {
                 val first = matches.first()
                 ReplaceApplyResult(
-                    output = sourceText.replaceRange(first.range, replacement),
+                    output = sourceText.replaceRange(
+                        first.range,
+                        applyReplacementCasing(first.value, replacement)
+                    ),
                     matchedCount = 1
                 )
             }
@@ -390,7 +418,10 @@ internal object LiteRtEditHeuristics {
             CommandScope.LAST -> {
                 val last = matches.last()
                 ReplaceApplyResult(
-                    output = sourceText.replaceRange(last.range, replacement),
+                    output = sourceText.replaceRange(
+                        last.range,
+                        applyReplacementCasing(last.value, replacement)
+                    ),
                     matchedCount = 1
                 )
             }
@@ -431,6 +462,25 @@ internal object LiteRtEditHeuristics {
             output = sourceText.replaceRange(last.range, replacement),
             matchedCount = 1
         )
+    }
+
+    private fun applyReplacementCasing(sourceMatch: String, replacement: String): String {
+        if (replacement.isBlank()) return replacement
+        if (!isCapitalizedWordMatch(sourceMatch)) return replacement
+        val firstLetterIndex = replacement.indexOfFirst { it.isLetter() }
+        if (firstLetterIndex < 0) return replacement
+        if (replacement[firstLetterIndex].isUpperCase()) return replacement
+        return buildString(replacement.length) {
+            append(replacement.substring(0, firstLetterIndex))
+            append(replacement[firstLetterIndex].titlecaseChar())
+            append(replacement.substring(firstLetterIndex + 1))
+        }
+    }
+
+    private fun isCapitalizedWordMatch(value: String): Boolean {
+        val firstLetterIndex = value.indexOfFirst { it.isLetter() }
+        if (firstLetterIndex < 0) return false
+        return value[firstLetterIndex].isUpperCase()
     }
 
     private fun passesCommandGate(normalizedInstruction: String): Boolean {

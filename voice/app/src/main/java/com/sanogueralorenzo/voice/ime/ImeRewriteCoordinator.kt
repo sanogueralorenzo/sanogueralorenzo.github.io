@@ -127,15 +127,22 @@ internal class ImeRewriteCoordinator(
             instructionText = normalizedInstruction
         )
         return when (result) {
-            is RewriteResult.Success -> ImeRewriteResult(
-                output = result.text,
-                operation = ImeOperation.EDIT,
-                attempted = true,
-                applied = result.text != sourceText,
-                backend = result.backend.name,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
-            )
+            is RewriteResult.Success -> {
+                val normalizedOutput = LiteRtEditHeuristics.applyPostReplaceCapitalization(
+                    sourceText = sourceText,
+                    instructionText = normalizedInstruction,
+                    editedOutput = result.text
+                )
+                ImeRewriteResult(
+                    output = normalizedOutput,
+                    operation = ImeOperation.EDIT,
+                    attempted = true,
+                    applied = normalizedOutput != sourceText,
+                    backend = result.backend.name,
+                    elapsedMs = SystemClock.uptimeMillis() - startedAt,
+                    editIntent = editIntent
+                )
+            }
 
             is RewriteResult.Failure -> ImeRewriteResult(
                 output = sourceText,
