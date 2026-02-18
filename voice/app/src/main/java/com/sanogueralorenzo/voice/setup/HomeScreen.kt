@@ -18,7 +18,6 @@ import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shield
@@ -46,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.sanogueralorenzo.voice.BuildConfig
 import com.sanogueralorenzo.voice.R
 
 @Composable
@@ -123,7 +123,7 @@ fun HomeScreen(
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
-    val menuItems = listOf(
+    val menuItems = mutableListOf(
         HomeMenuItem(
             icon = Icons.Outlined.Language,
             title = stringResource(R.string.home_menu_languages_title),
@@ -141,6 +141,17 @@ fun HomeScreen(
             title = stringResource(R.string.home_menu_theme),
             onClick = onOpenTheme
         ),
+    )
+
+    if (BuildConfig.DEBUG) {
+        menuItems += HomeMenuItem(
+            icon = Icons.Outlined.ContentPaste,
+            title = stringResource(R.string.home_menu_prompt_benchmark),
+            onClick = onOpenPromptBenchmarking
+        )
+    }
+
+    menuItems += listOf(
         HomeMenuItem(
             icon = Icons.Outlined.Share,
             title = stringResource(
