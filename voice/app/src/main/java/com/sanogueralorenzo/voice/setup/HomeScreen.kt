@@ -1,17 +1,38 @@
 package com.sanogueralorenzo.voice.setup
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.material.icons.outlined.Gesture
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.InsertEmoticon
+import androidx.compose.material.icons.outlined.KeyboardVoice
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Spellcheck
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -19,7 +40,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -102,61 +125,134 @@ fun HomeScreen(
     onOpenCheckUpdates: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
+    val menuItems = listOf(
+        HomeMenuItem(
+            icon = Icons.Outlined.Language,
+            title = stringResource(R.string.home_menu_languages_title),
+            subtitle = stringResource(R.string.home_menu_languages_subtitle)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Tune,
+            title = stringResource(R.string.home_menu_preferences),
+            onClick = onOpenSettings
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Palette,
+            title = stringResource(R.string.home_menu_theme),
+            onClick = onOpenTheme
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Spellcheck,
+            title = stringResource(R.string.home_menu_corrections)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Gesture,
+            title = stringResource(R.string.home_menu_glide_typing)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.KeyboardVoice,
+            title = stringResource(R.string.home_menu_voice_typing),
+            onClick = onOpenPromptBenchmarking
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.ContentPaste,
+            title = stringResource(R.string.home_menu_clipboard)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.MenuBook,
+            title = stringResource(R.string.home_menu_dictionary)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.InsertEmoticon,
+            title = stringResource(R.string.home_menu_emoji)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Share,
+            title = stringResource(R.string.home_menu_share)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Shield,
+            title = stringResource(R.string.home_menu_privacy)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Star,
+            title = stringResource(R.string.home_menu_rate)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Info,
+            title = stringResource(R.string.home_menu_about),
+            onClick = onOpenCheckUpdates
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.HelpOutline,
+            title = stringResource(R.string.home_menu_help_feedback)
+        )
+    )
+
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        item {
-            SectionCard(
-                title = stringResource(R.string.home_section_prompt_benchmarking_title),
-                description = stringResource(R.string.home_section_prompt_benchmarking_description),
-                onClick = onOpenPromptBenchmarking
-            )
-        }
-        item {
-            SectionCard(
-                title = stringResource(R.string.home_section_theming_title),
-                description = stringResource(R.string.home_section_theming_description),
-                onClick = onOpenTheme
-            )
-        }
-        item {
-            SectionCard(
-                title = stringResource(R.string.home_section_settings_title),
-                description = stringResource(R.string.home_section_settings_description),
-                onClick = onOpenSettings
-            )
-        }
-        item {
-            SectionCard(
-                title = stringResource(R.string.home_section_check_updates_title),
-                description = stringResource(R.string.home_section_check_updates_description),
-                onClick = onOpenCheckUpdates
-            )
+        itemsIndexed(menuItems) { index, item ->
+            HomeMenuRow(item = item)
+            if (index == 0 || index == 9) {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
     }
 }
 
+private data class HomeMenuItem(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String? = null,
+    val onClick: (() -> Unit)? = null
+)
+
 @Composable
-private fun SectionCard(
-    title: String,
-    description: String,
-    onClick: () -> Unit
+private fun HomeMenuRow(
+    item: HomeMenuItem
 ) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+    val textColor = MaterialTheme.colorScheme.onSurface
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (item.onClick != null) {
+                    Modifier.clickable(onClick = item.onClick)
+                } else {
+                    Modifier
+                }
+            )
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Column(
+        Icon(
+            imageVector = item.icon,
+            contentDescription = null,
+            tint = textColor.copy(alpha = 0.7f),
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .size(28.dp)
+                .padding(top = 1.dp)
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
-            Text(text = description, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = textColor.copy(alpha = 0.82f)
+            )
+            if (!item.subtitle.isNullOrBlank()) {
+                Text(
+                    text = item.subtitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = textColor.copy(alpha = 0.62f)
+                )
+            }
         }
     }
 }
