@@ -9,20 +9,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,17 +40,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.sanogueralorenzo.voice.BuildConfig
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 
 @Composable
 fun HomeScreen(
     onOpenPromptBenchmarking: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
-    onOpenPreferences: () -> Unit
+    onOpenPreferences: () -> Unit,
+    keyboardThemeMode: KeyboardThemeMode,
+    updatesReady: Boolean
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
-    val menuItems = mutableListOf(
+    val generalItems = listOf(
         HomeMenuItem(
             icon = Icons.Outlined.Language,
             title = stringResource(R.string.home_menu_languages_title),
@@ -62,41 +68,66 @@ fun HomeScreen(
         HomeMenuItem(
             icon = Icons.Outlined.Palette,
             title = stringResource(R.string.home_menu_theme),
+            chip = HomeItemChip(themeModeLabel(keyboardThemeMode)),
             onClick = onOpenTheme
-        ),
+        )
+    )
+
+    val toolItems = mutableListOf(
+        HomeMenuItem(
+            icon = Icons.Outlined.Info,
+            title = stringResource(R.string.home_menu_updates),
+            chip = HomeItemChip(
+                label = if (updatesReady) {
+                    stringResource(R.string.home_chip_updates_ready)
+                } else {
+                    stringResource(R.string.home_chip_updates_attention)
+                },
+                tone = if (updatesReady) HomeChipTone.SUCCESS else HomeChipTone.WARNING
+            ),
+            onClick = onOpenUpdates
+        )
     )
 
     if (BuildConfig.DEBUG) {
-        menuItems += HomeMenuItem(
+        toolItems += HomeMenuItem(
             icon = Icons.Outlined.ContentPaste,
             title = stringResource(R.string.home_menu_prompt_benchmark),
+            chip = HomeItemChip(
+                label = stringResource(R.string.home_chip_debug),
+                tone = HomeChipTone.NEUTRAL
+            ),
             onClick = onOpenPromptBenchmarking
         )
     }
 
-    menuItems += listOf(
-        HomeMenuItem(
-            icon = Icons.Outlined.Info,
-            title = stringResource(R.string.home_menu_updates),
-            onClick = onOpenUpdates
+    val sections = listOf(
+        HomeMenuSection(
+            title = stringResource(R.string.home_section_general),
+            items = generalItems
         ),
-        HomeMenuItem(
-            icon = Icons.Outlined.HelpOutline,
-            title = stringResource(R.string.home_menu_help)
+        HomeMenuSection(
+            title = stringResource(R.string.home_section_tools),
+            items = toolItems
         )
     )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        itemsIndexed(menuItems) { index, item ->
-            HomeMenuRow(item = item)
-            if (index == 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+        item {
+            Text(
+                text = stringResource(R.string.home_screen_intro),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
+        items(sections) { section ->
+            HomeSectionCard(section = section)
+        }
+        item { Spacer(modifier = Modifier.height(4.dp)) }
     }
 
     if (showLanguagesComingSoonDialog) {
@@ -112,56 +143,138 @@ fun HomeScreen(
     }
 }
 
+private data class HomeMenuSection(
+    val title: String,
+    val items: List<HomeMenuItem>
+)
+
 private data class HomeMenuItem(
     val icon: ImageVector,
     val title: String,
     val subtitle: String? = null,
-    val onClick: (() -> Unit)? = null
+    val chip: HomeItemChip? = null,
+    val onClick: () -> Unit
 )
 
+private data class HomeItemChip(
+    val label: String,
+    val tone: HomeChipTone = HomeChipTone.NEUTRAL
+)
+
+private enum class HomeChipTone {
+    NEUTRAL,
+    SUCCESS,
+    WARNING
+}
+
 @Composable
-private fun HomeMenuRow(
-    item: HomeMenuItem
+private fun HomeSectionCard(
+    section: HomeMenuSection
 ) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = section.title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                section.items.forEachIndexed { index, item ->
+                    HomeMenuRow(item = item)
+                    if (index < section.items.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 58.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeMenuRow(item: HomeMenuItem) {
     val textColor = MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (item.onClick != null) {
-                    Modifier.clickable(onClick = item.onClick)
-                } else {
-                    Modifier
-                }
-            )
-            .padding(vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
-        verticalAlignment = Alignment.Top
+            .clickable(onClick = item.onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = item.icon,
             contentDescription = null,
-            tint = textColor,
-            modifier = Modifier
-                .size(28.dp)
-                .padding(top = 1.dp)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
         )
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.bodyLarge,
                 color = textColor
             )
             if (!item.subtitle.isNullOrBlank()) {
                 Text(
                     text = item.subtitle,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = textColor
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
+        if (item.chip != null) {
+            HomeRowChip(chip = item.chip)
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun HomeRowChip(chip: HomeItemChip) {
+    val containerColor = when (chip.tone) {
+        HomeChipTone.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainerHighest
+        HomeChipTone.SUCCESS -> MaterialTheme.colorScheme.secondaryContainer
+        HomeChipTone.WARNING -> MaterialTheme.colorScheme.errorContainer
+    }
+    val contentColor = when (chip.tone) {
+        HomeChipTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
+        HomeChipTone.SUCCESS -> MaterialTheme.colorScheme.onSecondaryContainer
+        HomeChipTone.WARNING -> MaterialTheme.colorScheme.onErrorContainer
+    }
+    Surface(
+        color = containerColor,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            text = chip.label,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun themeModeLabel(mode: KeyboardThemeMode): String {
+    return when (mode) {
+        KeyboardThemeMode.AUTO -> stringResource(R.string.home_chip_theme_auto)
+        KeyboardThemeMode.LIGHT -> stringResource(R.string.home_chip_theme_light)
+        KeyboardThemeMode.DARK -> stringResource(R.string.home_chip_theme_dark)
     }
 }

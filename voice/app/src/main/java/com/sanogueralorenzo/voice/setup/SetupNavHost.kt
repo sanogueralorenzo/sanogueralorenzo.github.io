@@ -110,6 +110,7 @@ fun SetupNavHost() {
         )
     }
     val uiState by setupViewModel.collectAsStateWithLifecycle()
+    val themeUiState by themeViewModel.collectAsStateWithLifecycle()
     val checkUpdatesUiState by checkUpdatesViewModel.collectAsStateWithLifecycle()
     val connectedToWifi by setupRepository.wifiConnected.collectFlowAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
@@ -293,7 +294,9 @@ fun SetupNavHost() {
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenTheme = actions.onOpenTheme,
                     onOpenUpdates = actions.onOpenUpdates,
-                    onOpenPreferences = actions.onOpenPreferences
+                    onOpenPreferences = actions.onOpenPreferences,
+                    keyboardThemeMode = themeUiState.keyboardThemeMode,
+                    updatesReady = uiState.liteRtReady && uiState.moonshineReady && uiState.promptReady
                 )
             }
 
