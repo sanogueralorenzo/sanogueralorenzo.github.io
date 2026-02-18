@@ -54,6 +54,7 @@ private object MainRoute {
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
     const val SETUP_MODELS = "setup_models"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
+    const val THEMING = "theming"
     const val CHECK_UPDATES = "check_updates"
     const val SETTINGS = "settings"
     val SETUP_ROUTES = setOf(
@@ -79,7 +80,8 @@ fun SetupNavHost() {
                 micGranted = false,
                 voiceImeEnabled = false,
                 voiceImeSelected = false,
-                liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled()
+                liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled(),
+                appThemeMode = appGraph.settingsStore.themeMode()
             ),
             context = appContext,
             settingsStore = appGraph.settingsStore,
@@ -121,6 +123,7 @@ fun SetupNavHost() {
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
+                setupViewModel.refreshThemeMode()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -131,6 +134,7 @@ fun SetupNavHost() {
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
         setupViewModel.refreshModelReadiness()
+        setupViewModel.refreshThemeMode()
     }
 
     LaunchedEffect(connectedToWifi) {
@@ -171,6 +175,7 @@ fun SetupNavHost() {
         isSetupRoute -> ""
         currentRoute == MainRoute.HOME -> stringResource(R.string.main_title_voice_keyboard)
         currentRoute == MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
+        currentRoute == MainRoute.THEMING -> stringResource(R.string.theming_section_title)
         currentRoute == MainRoute.CHECK_UPDATES -> stringResource(R.string.settings_updates_title)
         currentRoute == MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
@@ -189,6 +194,7 @@ fun SetupNavHost() {
     val actions = SetupActions(
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
         onOpenCheckUpdates = { navController.navigate(MainRoute.CHECK_UPDATES) },
+        onOpenTheming = { navController.navigate(MainRoute.THEMING) },
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
@@ -237,7 +243,7 @@ fun SetupNavHost() {
             )
         },
         bottomBar = {
-            if (currentRoute == MainRoute.HOME) {
+            if (currentRoute == MainRoute.HOME || currentRoute == MainRoute.THEMING) {
                 KeyboardTestBar(
                     value = uiState.keyboardTestInput,
                     onValueChange = { setupViewModel.setKeyboardTestInput(it) },
@@ -257,6 +263,7 @@ fun SetupNavHost() {
             composable(MainRoute.HOME) {
                 HomeScreen(
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
+                    onOpenTheming = actions.onOpenTheming,
                     onOpenCheckUpdates = actions.onOpenCheckUpdates,
                     onOpenSettings = actions.onOpenSettings
                 )
@@ -309,6 +316,13 @@ fun SetupNavHost() {
 
             composable(MainRoute.PROMPT_BENCHMARKING) {
                 PromptBenchmarkingScreen()
+            }
+
+            composable(MainRoute.THEMING) {
+                ThemingScreen(
+                    appThemeMode = uiState.appThemeMode,
+                    onThemeModeChange = { mode -> setupViewModel.setAppThemeMode(mode) }
+                )
             }
 
             composable(MainRoute.SETTINGS) {

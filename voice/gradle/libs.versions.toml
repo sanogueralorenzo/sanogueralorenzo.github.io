@@ -11,6 +11,7 @@ composeBom = "2026.02.00"
 navigationCompose = "2.9.7"
 litertlm = "0.9.0-alpha03"
 coroutines = "1.10.2"
+datastore = "1.1.7"
 mavericks = "3.1.0"
 moonshineVoice = "0.0.48"
 metro = "0.10.4"
@@ -35,6 +36,7 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 litertlm-android = { group = "com.google.ai.edge.litertlm", name = "litertlm-android", version.ref = "litertlm" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 mavericks = { group = "com.airbnb.android", name = "mavericks", version.ref = "mavericks" }
 mavericks-compose = { group = "com.airbnb.android", name = "mavericks-compose", version.ref = "mavericks" }
 moonshine-voice = { group = "ai.moonshine", name = "moonshine-voice", version.ref = "moonshineVoice" }

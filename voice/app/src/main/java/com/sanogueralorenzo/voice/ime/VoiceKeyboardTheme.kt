@@ -18,9 +18,10 @@ internal data class VoiceKeyboardColors(
 )
 
 @Composable
-internal fun rememberVoiceKeyboardColors(): VoiceKeyboardColors {
+internal fun rememberVoiceKeyboardColors(isDarkThemeOverride: Boolean? = null): VoiceKeyboardColors {
     val isDarkTheme = isSystemInDarkTheme()
-    return if (isDarkTheme) {
+    val useDarkTheme = isDarkThemeOverride ?: isDarkTheme
+    return if (useDarkTheme) {
         VoiceKeyboardColors(
             keyboardBackground = Color(0xFF131519),
             idlePill = Color(0xFF78808A),

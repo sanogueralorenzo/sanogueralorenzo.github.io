@@ -3,6 +3,7 @@ package com.sanogueralorenzo.voice.setup
 import com.airbnb.mvrx.Async
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.Uninitialized
+import com.sanogueralorenzo.voice.settings.AppThemeMode
 
 data class SetupUiState(
     val micGranted: Boolean = false,
@@ -23,6 +24,7 @@ data class SetupUiState(
     val updatesMessage: String? = null,
     val keyboardTestInput: String = "",
     val liteRtRewriteEnabled: Boolean = true,
+    val appThemeMode: AppThemeMode = AppThemeMode.AUTO,
     val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
     val updatesAsync: Async<ModelUpdatesOutcome> = Uninitialized
 ) : MavericksState
@@ -30,6 +32,7 @@ data class SetupUiState(
 data class SetupActions(
     val onOpenPromptBenchmarking: () -> Unit,
     val onOpenCheckUpdates: () -> Unit,
+    val onOpenTheming: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onGrantMic: () -> Unit,
     val onOpenImeSettings: () -> Unit,

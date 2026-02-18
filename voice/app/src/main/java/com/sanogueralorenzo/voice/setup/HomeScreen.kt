@@ -65,6 +65,7 @@ fun KeyboardTestBar(
 @Composable
 fun HomeScreen(
     onOpenPromptBenchmarking: () -> Unit,
+    onOpenTheming: () -> Unit,
     onOpenCheckUpdates: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -79,6 +80,13 @@ fun HomeScreen(
                 title = stringResource(R.string.home_section_prompt_benchmarking_title),
                 description = stringResource(R.string.home_section_prompt_benchmarking_description),
                 onClick = onOpenPromptBenchmarking
+            )
+        }
+        item {
+            SectionCard(
+                title = stringResource(R.string.home_section_theming_title),
+                description = stringResource(R.string.home_section_theming_description),
+                onClick = onOpenTheming
             )
         }
         item {

@@ -70,13 +70,14 @@ fun VoiceKeyboardImeContent(
     onDebugToggle: () -> Unit,
     onDebugLongPress: () -> Unit,
     showDebugButton: Boolean = true,
+    isDarkThemeOverride: Boolean? = null,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
     val bottomSystemInset = with(density) { state.bottomInsetPx.toDp() }
     val keyboardVisibleHeight = KeyboardBarHeight - (KeyboardParentVerticalTrim * 2)
     val keyboardContainerHeight = keyboardVisibleHeight + bottomSystemInset
-    val colors = rememberVoiceKeyboardColors()
+    val colors = rememberVoiceKeyboardColors(isDarkThemeOverride = isDarkThemeOverride)
 
     Box(
         modifier = modifier

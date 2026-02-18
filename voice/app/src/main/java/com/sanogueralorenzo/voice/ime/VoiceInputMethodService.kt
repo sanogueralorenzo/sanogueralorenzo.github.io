@@ -2,6 +2,7 @@ package com.sanogueralorenzo.voice.ime
 
 import android.Manifest
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
@@ -12,6 +13,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -27,17 +29,18 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
-import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
+import com.sanogueralorenzo.voice.settings.AppThemeMode
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.setup.MainActivity
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsStateWithLifecycle
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
@@ -124,7 +127,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     override fun onCreateInputView(): View {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         warmupMoonshineAsync()
-        val preComposeBackground = ContextCompat.getColor(this, R.color.ime_window_background)
+        val preComposeBackground = if (isImeDarkThemeEnabled(settingsStore.themeMode())) {
+            IME_BACKGROUND_DARK
+        } else {
+            IME_BACKGROUND_LIGHT
+        }
         val container = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -141,7 +148,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             attachOwnersToWindowTree(this)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
-                VoiceTheme {
+                val appThemeMode by settingsStore.themeModeFlow.collectFlowAsStateWithLifecycle(
+                    initialValue = settingsStore.themeMode(),
+                    lifecycleOwner = this@VoiceInputMethodService
+                )
+                val effectiveDarkTheme = appThemeMode.resolveIsDark(isSystemInDarkTheme())
+                VoiceTheme(themeMode = appThemeMode) {
                     val state by keyboardViewModel.collectAsStateWithLifecycle(
                         lifecycleOwner = this@VoiceInputMethodService
                     )
@@ -151,7 +163,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                         onDeleteTap = { onDeleteTap() },
                         onSendTap = { onSendTap() },
                         onDebugToggle = { keyboardViewModel.toggleInlineDebug() },
-                        onDebugLongPress = { onDebugLongPress() }
+                        onDebugLongPress = { onDebugLongPress() },
+                        isDarkThemeOverride = effectiveDarkTheme
                     )
                 }
             }
@@ -712,6 +725,15 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         keyboardViewModel.setBottomInsetPx(bottom)
     }
 
+    private fun isImeDarkThemeEnabled(themeMode: AppThemeMode): Boolean {
+        return themeMode.resolveIsDark(isSystemDarkTheme())
+    }
+
+    private fun isSystemDarkTheme(): Boolean {
+        val uiMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return uiMode == Configuration.UI_MODE_NIGHT_YES
+    }
+
     private data class SendRequest(
         val recorder: VoiceAudioRecorder,
         val sessionId: Int,
@@ -727,5 +749,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         private const val CHUNK_WAIT_SLICE_MS = 180L
         private const val MOONSHINE_FINALIZE_WAIT_MS = 4_500L
         private const val DEBUG_TEXT_SAMPLE_MAX_CHARS = 360
+        private const val IME_BACKGROUND_LIGHT = 0xFFE8EAED.toInt()
+        private const val IME_BACKGROUND_DARK = 0xFF131519.toInt()
     }
 }
