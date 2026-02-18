@@ -748,6 +748,7 @@ fun SetupFlowScreen(
     val uiState by setupViewModel.collectAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
+    var setupSelectKeyboardCompleted by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -784,7 +785,9 @@ fun SetupFlowScreen(
         SetupRepository.RequiredStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
         SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupRoute.SETUP_MODELS
-        SetupRepository.RequiredStep.COMPLETE -> null
+        SetupRepository.RequiredStep.COMPLETE -> {
+            if (setupSelectKeyboardCompleted) null else SetupRoute.SETUP_SELECT_KEYBOARD
+        }
     }
     val requiredSetupRoute = if (setupTargetRoute != null && !setupSplashCompleted) {
         SetupRoute.SETUP_SPLASH
@@ -792,8 +795,8 @@ fun SetupFlowScreen(
         setupTargetRoute
     }
 
-    LaunchedEffect(uiState.requiredStep) {
-        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE) {
+    LaunchedEffect(uiState.requiredStep, setupSelectKeyboardCompleted) {
+        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE && setupSelectKeyboardCompleted) {
             onSetupComplete()
         }
     }
@@ -813,7 +816,8 @@ fun SetupFlowScreen(
         onOpenImeSettings = { openImeSettings(context) },
         onDownloadModels = { setupViewModel.downloadAllModels() },
         onSplashFinished = { setupSplashCompleted = true },
-        onIntroContinue = { setupViewModel.onSetupIntroContinue() }
+        onIntroContinue = { setupViewModel.onSetupIntroContinue() },
+        onSetupSelectKeyboardDone = { setupSelectKeyboardCompleted = true }
     )
 }
 

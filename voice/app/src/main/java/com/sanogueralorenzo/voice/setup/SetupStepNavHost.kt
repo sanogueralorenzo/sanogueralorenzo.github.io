@@ -17,6 +17,7 @@ object SetupRoute {
     const val SETUP_MIC = "setup_mic"
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
     const val SETUP_MODELS = "setup_models"
+    const val SETUP_SELECT_KEYBOARD = "setup_select_keyboard"
 }
 
 @Composable
@@ -31,6 +32,7 @@ fun SetupStepNavHost(
     onDownloadModels: () -> Unit,
     onSplashFinished: () -> Unit,
     onIntroContinue: () -> Unit,
+    onSetupSelectKeyboardDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
@@ -88,6 +90,12 @@ fun SetupStepNavHost(
                 updatesMessage = uiState.updatesMessage,
                 onAllowMobileDataChange = onAllowMobileDataChange,
                 onDownloadModels = onDownloadModels
+            )
+        }
+
+        composable(SetupRoute.SETUP_SELECT_KEYBOARD) {
+            SetupSelectKeyboardScreen(
+                onDone = onSetupSelectKeyboardDone
             )
         }
     }
