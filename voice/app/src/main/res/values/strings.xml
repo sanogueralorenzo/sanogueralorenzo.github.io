@@ -117,7 +117,7 @@
     <string name="setup_prompt_download_error_invalid">Failed downloading prompt A (invalid JSON payload).</string>
     <string name="setup_prompt_download_error_unknown">Failed downloading prompt A (unknown error).</string>
     <string name="setup_unknown_value">unknown</string>
-    <string name="ime_delete_recording">Delete recording</string>
+    <string name="ime_delete_recording">Stop recording</string>
     <string name="ime_send_recording">Send recording</string>
     <string name="ime_edit_instruction">Edit current text with voice instruction</string>
     <string name="ime_debug_enable">Enable inline debug info</string>

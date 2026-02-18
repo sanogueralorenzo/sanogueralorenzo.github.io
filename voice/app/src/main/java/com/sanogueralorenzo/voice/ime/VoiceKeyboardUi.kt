@@ -29,8 +29,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -274,7 +274,7 @@ private fun ActivePillContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ActionIconButton(
-                icon = Icons.Rounded.Delete,
+                icon = Icons.Rounded.Stop,
                 contentDescription = stringResource(R.string.ime_delete_recording),
                 fromStart = true,
                 visible = isRecording,
