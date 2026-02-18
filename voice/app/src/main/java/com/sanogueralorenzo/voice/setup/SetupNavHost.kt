@@ -72,8 +72,9 @@ fun SetupNavHost() {
     val context = LocalContext.current
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
+    val setupRepository = remember(appContext, appGraph) { appGraph.setupRepository }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val setupViewModel = remember(appContext, appGraph) {
+    val setupViewModel = remember(appContext, appGraph, setupRepository) {
         SetupViewModel(
             initialState = SetupUiState(
                 micGranted = false,
@@ -83,7 +84,8 @@ fun SetupNavHost() {
             ),
             context = appContext,
             settingsStore = appGraph.settingsStore,
-            updateChecker = appGraph.modelUpdateChecker
+            updateChecker = appGraph.modelUpdateChecker,
+            setupRepository = setupRepository
         )
     }
     val checkUpdatesViewModel = remember(appContext, appGraph) {
@@ -168,17 +170,22 @@ fun SetupNavHost() {
         if (uiState.connectedToWifi) allowMobileDataDownloads = false
     }
 
-    val keyboardSelected = uiState.voiceImeSelected || keyboardSelectionAssumed
-    val setupSnapshot = SetupRepository.SetupSnapshot(
-        micGranted = uiState.micGranted,
-        voiceImeEnabled = uiState.voiceImeEnabled,
-        keyboardSelected = keyboardSelected,
-        liteRtReady = uiState.liteRtReady,
-        moonshineReady = uiState.moonshineReady,
-        promptReady = uiState.promptReady,
-        introDismissed = setupIntroDismissed
-    )
-    val requiredSetupRoute = when (SetupRepository.requiredStep(setupSnapshot)) {
+    val requiredSetupStep = remember(
+        setupIntroDismissed,
+        keyboardSelectionAssumed,
+        uiState.micGranted,
+        uiState.voiceImeEnabled,
+        uiState.voiceImeSelected,
+        uiState.liteRtReady,
+        uiState.moonshineReady,
+        uiState.promptReady
+    ) {
+        setupRepository.requiredStep(
+            introDismissed = setupIntroDismissed,
+            keyboardSelectionAssumed = keyboardSelectionAssumed
+        )
+    }
+    val requiredSetupRoute = when (requiredSetupStep) {
         SetupRepository.RequiredStep.INTRO -> MainRoute.SETUP_INTRO
         SetupRepository.RequiredStep.MIC_PERMISSION -> MainRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> MainRoute.SETUP_ENABLE_KEYBOARD

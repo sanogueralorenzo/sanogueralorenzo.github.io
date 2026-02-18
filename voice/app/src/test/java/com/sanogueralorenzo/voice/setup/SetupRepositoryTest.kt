@@ -6,46 +6,52 @@ import org.junit.Test
 class SetupRepositoryTest {
     @Test
     fun requiredStep_returnsIntro_whenAllCoreItemsMissingAndNotDismissed() {
-        val snapshot = SetupRepository.SetupSnapshot(
-            micGranted = false,
-            voiceImeEnabled = false,
-            keyboardSelected = false,
-            liteRtReady = false,
-            moonshineReady = false,
-            promptReady = false,
-            introDismissed = false
+        val missing = SetupRepository.MissingSetupItems(
+            micPermission = true,
+            imeEnabled = true,
+            imeSelected = true,
+            liteRtModel = true,
+            moonshineModel = true,
+            promptTemplate = true
         )
 
-        assertEquals(SetupRepository.RequiredStep.INTRO, SetupRepository.requiredStep(snapshot))
+        assertEquals(
+            SetupRepository.RequiredStep.INTRO,
+            SetupRepository.requiredStepForMissing(missing = missing, introDismissed = false)
+        )
     }
 
     @Test
     fun requiredStep_skipsIntroAfterDismiss_andContinuesWithMicStep() {
-        val snapshot = SetupRepository.SetupSnapshot(
-            micGranted = false,
-            voiceImeEnabled = false,
-            keyboardSelected = false,
-            liteRtReady = false,
-            moonshineReady = false,
-            promptReady = false,
-            introDismissed = true
+        val missing = SetupRepository.MissingSetupItems(
+            micPermission = true,
+            imeEnabled = true,
+            imeSelected = true,
+            liteRtModel = true,
+            moonshineModel = true,
+            promptTemplate = true
         )
 
-        assertEquals(SetupRepository.RequiredStep.MIC_PERMISSION, SetupRepository.requiredStep(snapshot))
+        assertEquals(
+            SetupRepository.RequiredStep.MIC_PERMISSION,
+            SetupRepository.requiredStepForMissing(missing = missing, introDismissed = true)
+        )
     }
 
     @Test
     fun requiredStep_returnsComplete_whenEverythingReady() {
-        val snapshot = SetupRepository.SetupSnapshot(
-            micGranted = true,
-            voiceImeEnabled = true,
-            keyboardSelected = true,
-            liteRtReady = true,
-            moonshineReady = true,
-            promptReady = true,
-            introDismissed = true
+        val missing = SetupRepository.MissingSetupItems(
+            micPermission = false,
+            imeEnabled = false,
+            imeSelected = false,
+            liteRtModel = false,
+            moonshineModel = false,
+            promptTemplate = false
         )
 
-        assertEquals(SetupRepository.RequiredStep.COMPLETE, SetupRepository.requiredStep(snapshot))
+        assertEquals(
+            SetupRepository.RequiredStep.COMPLETE,
+            SetupRepository.requiredStepForMissing(missing = missing, introDismissed = true)
+        )
     }
 }

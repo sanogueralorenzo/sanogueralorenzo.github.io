@@ -1,14 +1,6 @@
 package com.sanogueralorenzo.voice.setup
 
-import android.Manifest
-import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.provider.Settings
-import android.view.inputmethod.InputMethodManager
-import androidx.core.content.ContextCompat
 import com.airbnb.mvrx.Fail
 import com.airbnb.mvrx.Loading
 import com.airbnb.mvrx.MavericksViewModel
@@ -20,9 +12,7 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
 import com.sanogueralorenzo.voice.models.ModelSpec
-import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
-import com.sanogueralorenzo.voice.ime.VoiceInputMethodService
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import kotlin.coroutines.resume
@@ -50,29 +40,26 @@ class SetupViewModel(
     initialState: SetupUiState,
     context: Context,
     private val settingsStore: VoiceSettingsStore,
-    private val updateChecker: ModelUpdateChecker
+    private val updateChecker: ModelUpdateChecker,
+    private val setupRepository: SetupRepository
 ) : MavericksViewModel<SetupUiState>(initialState) {
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
-    private val promptTemplateStore = PromptTemplateStore(appContext)
-    private val voiceImeIdShort = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToShortString()
-    private val voiceImeIdLong = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToString()
 
     fun shutdown() {
         downloader.shutdown()
     }
 
     fun refreshMicPermission() {
-        setState { copy(micGranted = hasMicPermission()) }
+        setState { copy(micGranted = setupRepository.hasMicPermission()) }
     }
 
     fun refreshKeyboardStatus() {
-        val enabled = isVoiceImeEnabled()
-        val selected = isVoiceImeSelectedAsDefault(enabledFallback = enabled)
+        val keyboardStatus = setupRepository.keyboardStatus()
         setState {
             copy(
-                voiceImeEnabled = enabled,
-                voiceImeSelected = selected
+                voiceImeEnabled = keyboardStatus.enabled,
+                voiceImeSelected = keyboardStatus.selected
             )
         }
     }
@@ -80,7 +67,7 @@ class SetupViewModel(
     fun refreshNetworkStatus() {
         setState {
             copy(
-                connectedToWifi = isConnectedToWifi()
+                connectedToWifi = setupRepository.isConnectedToWifi()
             )
         }
     }
@@ -107,20 +94,9 @@ class SetupViewModel(
 
     fun refreshModelReadiness() {
         suspend {
-            val liteRtReady = withContext(Dispatchers.IO) {
-                ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
+            withContext(Dispatchers.IO) {
+                setupRepository.readModelReadiness()
             }
-            val moonshineReady = withContext(Dispatchers.IO) {
-                ModelCatalog.moonshineMediumStreamingSpecs.all {
-                    ModelStore.isModelReadyStrict(appContext, it)
-                }
-            }
-            ModelReadiness(
-                liteRtReady = liteRtReady,
-                moonshineReady = moonshineReady,
-                promptReady = promptTemplateStore.isPromptReady(),
-                promptVersion = promptTemplateStore.currentPromptVersion()
-            )
         }.execute { async ->
             when (async) {
                 is Success -> copy(
@@ -164,7 +140,7 @@ class SetupViewModel(
                         )
                     }
                     val promptResult = withContext(Dispatchers.IO) {
-                        promptTemplateStore.ensurePromptDownloaded(force = true)
+                        setupRepository.ensurePromptDownloaded(force = true)
                     }
                     val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
                         promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
@@ -194,7 +170,7 @@ class SetupViewModel(
                         )
                     }
                     val promptResult = withContext(Dispatchers.IO) {
-                        promptTemplateStore.ensurePromptDownloaded(force = true)
+                        setupRepository.ensurePromptDownloaded(force = true)
                     }
                     val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
                         promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
@@ -241,7 +217,7 @@ class SetupViewModel(
                         }
                     }
                     val promptResult = withContext(Dispatchers.IO) {
-                        promptTemplateStore.ensurePromptDownloaded(force = true)
+                        setupRepository.ensurePromptDownloaded(force = true)
                     }
                     val promptSuccess = promptResult is PromptTemplateStore.DownloadResult.Success ||
                         promptResult is PromptTemplateStore.DownloadResult.AlreadyAvailable
@@ -376,7 +352,7 @@ class SetupViewModel(
         }
         suspend {
             withContext(Dispatchers.IO) {
-                promptTemplateStore.ensurePromptDownloaded(force = false)
+                setupRepository.ensurePromptDownloaded(force = false)
             }
         }.execute { async ->
             when (async) {
@@ -389,7 +365,7 @@ class SetupViewModel(
                         promptDownloading = false,
                         promptReady = ready,
                         promptProgress = if (ready) 100 else 0,
-                        promptVersion = promptTemplateStore.currentPromptVersion(),
+                        promptVersion = setupRepository.currentPromptVersion(),
                         modelMessage = if (ready) {
                             null
                         } else {
@@ -552,20 +528,9 @@ class SetupViewModel(
     }
 
     private suspend fun loadModelReadiness(): ModelReadiness {
-        val liteRtReady = withContext(Dispatchers.IO) {
-            ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
+        return withContext(Dispatchers.IO) {
+            setupRepository.readModelReadiness()
         }
-        val moonshineReady = withContext(Dispatchers.IO) {
-            ModelCatalog.moonshineMediumStreamingSpecs.all {
-                ModelStore.isModelReadyStrict(appContext, it)
-            }
-        }
-        return ModelReadiness(
-            liteRtReady = liteRtReady,
-            moonshineReady = moonshineReady,
-            promptReady = promptTemplateStore.isPromptReady(),
-            promptVersion = promptTemplateStore.currentPromptVersion()
-        )
     }
 
     private suspend fun downloadSpecAwait(
@@ -655,59 +620,5 @@ class SetupViewModel(
 
     private fun isAnyDownloading(state: SetupUiState): Boolean {
         return state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading || state.updatesRunning
-    }
-
-    private fun hasMicPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            appContext,
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun isVoiceImeEnabled(): Boolean {
-        val imm = appContext.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        val enabledViaImm = imm
-            ?.enabledInputMethodList
-            ?.any { info -> isVoiceImeId(info.id.substringBefore(';').trim()) }
-            ?: false
-        if (enabledViaImm) return true
-
-        val raw = runCatching {
-            Settings.Secure.getString(
-                appContext.contentResolver,
-                Settings.Secure.ENABLED_INPUT_METHODS
-            )
-        }.getOrNull().orEmpty()
-        if (raw.isBlank()) return false
-        return raw.split(':').any { entry ->
-            isVoiceImeId(entry.substringBefore(';').trim())
-        }
-    }
-
-    private fun isVoiceImeSelectedAsDefault(enabledFallback: Boolean): Boolean {
-        val selected = runCatching {
-            Settings.Secure.getString(
-                appContext.contentResolver,
-                Settings.Secure.DEFAULT_INPUT_METHOD
-            )
-        }.getOrNull()?.substringBefore(';')?.trim().orEmpty()
-        if (selected.isBlank()) {
-            // Some OEM builds do not surface DEFAULT_INPUT_METHOD reliably to regular apps.
-            return enabledFallback
-        }
-        return isVoiceImeId(selected)
-    }
-
-    private fun isVoiceImeId(id: String?): Boolean {
-        if (id.isNullOrBlank()) return false
-        return id == voiceImeIdShort || id == voiceImeIdLong
-    }
-
-    private fun isConnectedToWifi(): Boolean {
-        val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return false
-        val activeNetwork = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 }
