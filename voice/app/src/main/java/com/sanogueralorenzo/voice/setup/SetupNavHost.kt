@@ -48,6 +48,7 @@ import com.sanogueralorenzo.voice.di.appGraph
 
 private object MainRoute {
     const val HOME = "home"
+    const val SETUP_INTRO = "setup_intro"
     const val SETUP_MIC = "setup_mic"
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
     const val SETUP_CHOOSE_KEYBOARD = "setup_choose_keyboard"
@@ -57,6 +58,7 @@ private object MainRoute {
     const val CHECK_UPDATES = "check_updates"
     const val SETTINGS = "settings"
     val SETUP_ROUTES = setOf(
+        SETUP_INTRO,
         SETUP_MIC,
         SETUP_ENABLE_KEYBOARD,
         SETUP_CHOOSE_KEYBOARD,
@@ -95,6 +97,7 @@ fun SetupNavHost() {
     val checkUpdatesUiState by checkUpdatesViewModel.collectAsStateWithLifecycle()
     var keyboardSelectionAssumed by rememberSaveable { mutableStateOf(false) }
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
+    var setupIntroDismissed by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -166,13 +169,22 @@ fun SetupNavHost() {
     }
 
     val keyboardSelected = uiState.voiceImeSelected || keyboardSelectionAssumed
-    val modelsReady = uiState.liteRtReady && uiState.moonshineReady && uiState.promptReady
-    val requiredSetupRoute = when {
-        !uiState.micGranted -> MainRoute.SETUP_MIC
-        !uiState.voiceImeEnabled -> MainRoute.SETUP_ENABLE_KEYBOARD
-        !keyboardSelected -> MainRoute.SETUP_CHOOSE_KEYBOARD
-        !modelsReady -> MainRoute.SETUP_MODELS
-        else -> null
+    val setupSnapshot = SetupRepository.SetupSnapshot(
+        micGranted = uiState.micGranted,
+        voiceImeEnabled = uiState.voiceImeEnabled,
+        keyboardSelected = keyboardSelected,
+        liteRtReady = uiState.liteRtReady,
+        moonshineReady = uiState.moonshineReady,
+        promptReady = uiState.promptReady,
+        introDismissed = setupIntroDismissed
+    )
+    val requiredSetupRoute = when (SetupRepository.requiredStep(setupSnapshot)) {
+        SetupRepository.RequiredStep.INTRO -> MainRoute.SETUP_INTRO
+        SetupRepository.RequiredStep.MIC_PERMISSION -> MainRoute.SETUP_MIC
+        SetupRepository.RequiredStep.ENABLE_KEYBOARD -> MainRoute.SETUP_ENABLE_KEYBOARD
+        SetupRepository.RequiredStep.CHOOSE_KEYBOARD -> MainRoute.SETUP_CHOOSE_KEYBOARD
+        SetupRepository.RequiredStep.DOWNLOAD_MODELS -> MainRoute.SETUP_MODELS
+        SetupRepository.RequiredStep.COMPLETE -> null
     }
     val startDestination = requiredSetupRoute ?: MainRoute.HOME
     val navController = rememberNavController()
@@ -181,6 +193,7 @@ fun SetupNavHost() {
     val isSetupRoute = currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES
     val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && !isSetupRoute
     val topBarTitle = when (currentRoute) {
+        MainRoute.SETUP_INTRO -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.SETUP_MIC -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.SETUP_ENABLE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
         MainRoute.SETUP_CHOOSE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
@@ -268,6 +281,12 @@ fun SetupNavHost() {
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenCheckUpdates = actions.onOpenCheckUpdates,
                     onOpenSettings = actions.onOpenSettings
+                )
+            }
+
+            composable(MainRoute.SETUP_INTRO) {
+                SetupIntroScreen(
+                    onContinue = { setupIntroDismissed = true }
                 )
             }
 

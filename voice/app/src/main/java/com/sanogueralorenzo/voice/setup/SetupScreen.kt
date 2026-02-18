@@ -27,6 +27,41 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import java.util.Locale
 
 @Composable
+fun SetupIntroScreen(
+    onContinue: () -> Unit
+) {
+    SetupStepScaffold(
+        title = stringResource(R.string.setup_step_intro),
+        body = {
+            Text(
+                text = stringResource(R.string.setup_intro_message),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = stringResource(R.string.setup_intro_bullet_mic),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.setup_intro_bullet_keyboard),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.setup_intro_bullet_models),
+                style = MaterialTheme.typography.bodySmall
+            )
+        },
+        actions = {
+            Button(
+                onClick = onContinue,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = stringResource(R.string.setup_intro_continue))
+            }
+        }
+    )
+}
+
+@Composable
 fun SetupMicPermissionScreen(
     onGrantMic: () -> Unit
 ) {
