@@ -66,7 +66,7 @@
 
     <string name="setup_grant_mic">Grant microphone permission</string>
     <string name="setup_mic_intro">Microphone access is required to transcribe speech.</string>
-    <string name="setup_mic_bullet_while_using">• Select \"While using the app\" when Android asks for permission.</string>
+    <string name="setup_mic_bullet_while_using">• Select "While using the app" when Android asks for permission.</string>
     <string name="setup_mic_bullet_local">• Voice transcription and rewrite run locally on your phone.</string>
     <string name="setup_mic_bullet_offline_after_download">• After models are downloaded, dictation works without internet.</string>
     <string name="setup_enable_keyboard_intro">Open Android keyboard settings and turn Voice Keyboard on.</string>
@@ -77,7 +77,7 @@
     <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
     <string name="setup_models_intro_bullet_prompt">• Prompt A config to keep rewrite behavior consistent across devices and benchmarks.</string>
     <string name="setup_step_intro">Welcome</string>
-    <string name="setup_intro_message">Let&apos;s set up Voice Keyboard in a few quick steps.</string>
+    <string name="setup_intro_message">Let us set up Voice Keyboard in a few quick steps.</string>
     <string name="setup_intro_bullet_mic">• Grant microphone permission.</string>
     <string name="setup_intro_bullet_keyboard">• Enable Voice Keyboard in Android settings.</string>
     <string name="setup_intro_bullet_models">• Download ASR, IT model, and Prompt A.</string>
