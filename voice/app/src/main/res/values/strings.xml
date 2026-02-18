@@ -10,7 +10,7 @@
     <string name="home_section_theming_title">Theming</string>
     <string name="home_section_theming_description">Choose keyboard Auto, Light, or Dark and test it with the input bar.</string>
     <string name="home_section_check_updates_title">Updates</string>
-    <string name="home_section_check_updates_description">Re-download Prompt A and update ASR/IT model files.</string>
+    <string name="home_section_check_updates_description">Re-download Prompt A and update ASR and LLM model files.</string>
     <string name="home_section_preferences_title">Preferences</string>
     <string name="home_section_preferences_description">Manage rewrite behavior.</string>
     <string name="home_menu_languages_title">Languages</string>
@@ -63,7 +63,7 @@
     <string name="preferences_rewrite_enabled">Enabled</string>
     <string name="preferences_rewrite_disabled">Disabled</string>
     <string name="updates_section_title">Updates</string>
-    <string name="updates_section_description">Check and download updates for ASR model files and IT model.</string>
+    <string name="updates_section_description">Check and download updates for ASR model files and the LLM model.</string>
     <string name="updates_check_action">Check for updates</string>
     <string name="updates_prompt_row_title">Prompt A</string>
     <string name="updates_prompt_row_version_date">Version date: %1$s</string>
@@ -90,7 +90,7 @@
     <string name="setup_intro_message">Let us set up Voice Keyboard in a few quick steps.</string>
     <string name="setup_intro_bullet_mic">• Grant microphone permission.</string>
     <string name="setup_intro_bullet_keyboard">• Enable Voice Keyboard in Android settings.</string>
-    <string name="setup_intro_bullet_models">• Download ASR, IT model, and Prompt A.</string>
+    <string name="setup_intro_bullet_models">• Download ASR, LLM model, and Prompt A.</string>
     <string name="setup_intro_continue">Start setup</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
@@ -101,8 +101,8 @@
     <string name="setup_models_ready">All required files are ready.</string>
     <string name="setup_download_all_already_ready">All required files are already ready.</string>
     <string name="setup_download_all_completed">All required downloads are complete.</string>
-    <string name="setup_model_row">%1$s model (%2$s): %3$s</string>
-    <string name="setup_model_litert">IT Model</string>
+    <string name="setup_model_row">%1$s (%2$s): %3$s</string>
+    <string name="setup_model_litert">LLM Model</string>
     <string name="setup_model_moonshine">ASR Model</string>
     <string name="setup_model_prompt">Prompt A</string>
     <string name="setup_prompt_version_value">v%1$s</string>
