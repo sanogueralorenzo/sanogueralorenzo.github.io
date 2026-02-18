@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.sanogueralorenzo.voice.R
 
 @Composable
-fun SettingsScreen(
+fun PreferencesScreen(
     rewriteEnabled: Boolean,
     onRewriteEnabledChange: (Boolean) -> Unit
 ) {
@@ -31,11 +31,11 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = stringResource(R.string.settings_section_title),
+            text = stringResource(R.string.preferences_section_title),
             style = MaterialTheme.typography.titleLarge
         )
         Text(
-            text = stringResource(R.string.settings_section_description),
+            text = stringResource(R.string.preferences_section_description),
             style = MaterialTheme.typography.bodyMedium
         )
 
@@ -47,11 +47,11 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.settings_rewrite_toggle_title),
+                    text = stringResource(R.string.preferences_rewrite_toggle_title),
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = stringResource(R.string.settings_rewrite_toggle_description),
+                    text = stringResource(R.string.preferences_rewrite_toggle_description),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Row(
@@ -60,9 +60,9 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = if (rewriteEnabled) {
-                            stringResource(R.string.settings_rewrite_enabled)
+                            stringResource(R.string.preferences_rewrite_enabled)
                         } else {
-                            stringResource(R.string.settings_rewrite_disabled)
+                            stringResource(R.string.preferences_rewrite_disabled)
                         },
                         style = MaterialTheme.typography.bodyMedium
                     )

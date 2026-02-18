@@ -32,7 +32,7 @@ data class SetupActions(
     val onOpenPromptBenchmarking: () -> Unit,
     val onOpenCheckUpdates: () -> Unit,
     val onOpenTheme: () -> Unit,
-    val onOpenSettings: () -> Unit,
+    val onOpenPreferences: () -> Unit,
     val onGrantMic: () -> Unit,
     val onOpenImeSettings: () -> Unit,
     val onShowImePicker: () -> Unit

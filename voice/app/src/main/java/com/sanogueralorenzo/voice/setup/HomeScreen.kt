@@ -123,7 +123,7 @@ fun HomeScreen(
     onOpenPromptBenchmarking: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenCheckUpdates: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenPreferences: () -> Unit
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
@@ -138,7 +138,7 @@ fun HomeScreen(
         HomeMenuItem(
             icon = Icons.Outlined.Tune,
             title = stringResource(R.string.home_menu_preferences),
-            onClick = onOpenSettings
+            onClick = onOpenPreferences
         ),
         HomeMenuItem(
             icon = Icons.Outlined.Palette,

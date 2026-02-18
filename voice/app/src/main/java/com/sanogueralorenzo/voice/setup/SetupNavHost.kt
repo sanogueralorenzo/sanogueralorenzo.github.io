@@ -57,7 +57,7 @@ private object MainRoute {
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
     const val THEME = "theme"
     const val CHECK_UPDATES = "check_updates"
-    const val SETTINGS = "settings"
+    const val PREFERENCES = "preferences"
     val SETUP_ROUTES = setOf(
         SETUP_SPLASH,
         SETUP_INTRO,
@@ -185,7 +185,7 @@ fun SetupNavHost() {
         currentRoute == MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
         currentRoute == MainRoute.THEME -> stringResource(R.string.theming_section_title)
         currentRoute == MainRoute.CHECK_UPDATES -> stringResource(R.string.settings_updates_title)
-        currentRoute == MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
+        currentRoute == MainRoute.PREFERENCES -> stringResource(R.string.preferences_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
 
@@ -203,7 +203,7 @@ fun SetupNavHost() {
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
         onOpenCheckUpdates = { navController.navigate(MainRoute.CHECK_UPDATES) },
         onOpenTheme = { navController.navigate(MainRoute.THEME) },
-        onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
+        onOpenPreferences = { navController.navigate(MainRoute.PREFERENCES) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = {
@@ -288,7 +288,7 @@ fun SetupNavHost() {
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenTheme = actions.onOpenTheme,
                     onOpenCheckUpdates = actions.onOpenCheckUpdates,
-                    onOpenSettings = actions.onOpenSettings
+                    onOpenPreferences = actions.onOpenPreferences
                 )
             }
 
@@ -345,8 +345,8 @@ fun SetupNavHost() {
                 ThemeScreen(viewModel = themeViewModel)
             }
 
-            composable(MainRoute.SETTINGS) {
-                SettingsScreen(
+            composable(MainRoute.PREFERENCES) {
+                PreferencesScreen(
                     rewriteEnabled = uiState.liteRtRewriteEnabled,
                     onRewriteEnabledChange = { enabled ->
                         setupViewModel.setLiteRtRewriteEnabled(enabled)
