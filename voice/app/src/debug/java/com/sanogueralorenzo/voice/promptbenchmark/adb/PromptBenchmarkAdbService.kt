@@ -131,7 +131,7 @@ class PromptBenchmarkAdbService : Service() {
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
                     startedAtMs = startedAt,
-                    error = "Prompt A is not ready",
+                    error = "Prompt is not ready",
                     resultRelPath = request.outputRelPath,
                     reportRelPath = reportRelPath
                 )
