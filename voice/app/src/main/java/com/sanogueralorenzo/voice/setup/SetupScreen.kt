@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.lerp
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.ui.VoicePillVisualizer
+import com.sanogueralorenzo.voice.ui.VoicePillVisualizerWidth
 import com.sanogueralorenzo.voice.ui.VoiceVisualizerMode
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -443,7 +444,7 @@ private fun humanReadableSize(context: Context, bytes: Long): String {
 
 private val SetupScreenOuterPadding = 20.dp
 private val SetupLogoVerticalPadding = 20.dp
-private val SetupLogoSize = 136.dp
+private val SetupLogoSize = VoicePillVisualizerWidth
 private const val SetupSplashCenterHoldMs = 3_000
 private const val SetupSplashTravelMs = 700
 private const val SetupSplashFrozenHoldMs = 300
