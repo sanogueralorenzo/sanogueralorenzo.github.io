@@ -489,49 +489,49 @@ class SetupViewModel(
             }
             return
         }
-        fun runFromFirstMissing() {
-            val next = withState(this) { state ->
-                when {
-                    !state.moonshineReady -> DownloadTarget.MOONSHINE
-                    !state.liteRtReady -> DownloadTarget.LITERT
-                    !state.promptReady -> DownloadTarget.PROMPT
-                    else -> DownloadTarget.COMPLETE
+        val targets = buildList {
+            if (!startingState.moonshineReady) add(DownloadTarget.MOONSHINE)
+            if (!startingState.liteRtReady) add(DownloadTarget.LITERT)
+            if (!startingState.promptReady) add(DownloadTarget.PROMPT)
+        }
+
+        fun runTarget(index: Int) {
+            if (index >= targets.size) {
+                setState {
+                    copy(
+                        modelMessage = appContext.getString(R.string.setup_download_all_completed)
+                    )
                 }
+                refreshModelReadiness()
+                return
             }
-            when (next) {
+            when (targets[index]) {
                 DownloadTarget.MOONSHINE -> {
                     startMoonshineDownload { success ->
                         if (!success) return@startMoonshineDownload
-                        runFromFirstMissing()
+                        runTarget(index + 1)
                     }
                 }
 
                 DownloadTarget.LITERT -> {
                     startLiteRtDownload(allowWhileAnotherDownloadActive = true) { success ->
                         if (!success) return@startLiteRtDownload
-                        runFromFirstMissing()
+                        runTarget(index + 1)
                     }
                 }
 
                 DownloadTarget.PROMPT -> {
                     startPromptDownload(allowWhileAnotherDownloadActive = true) { success ->
                         if (!success) return@startPromptDownload
-                        runFromFirstMissing()
+                        runTarget(index + 1)
                     }
                 }
 
-                DownloadTarget.COMPLETE -> {
-                    setState {
-                        copy(
-                            modelMessage = appContext.getString(R.string.setup_download_all_completed)
-                        )
-                    }
-                    refreshModelReadiness()
-                }
+                DownloadTarget.COMPLETE -> Unit
             }
         }
 
-        runFromFirstMissing()
+        runTarget(index = 0)
     }
 
     private fun startModelPackDownload(
