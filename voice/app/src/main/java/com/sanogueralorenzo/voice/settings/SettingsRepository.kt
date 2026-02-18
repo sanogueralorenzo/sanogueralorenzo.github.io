@@ -11,10 +11,8 @@ class SettingsRepository(
     private val setupRepository: SetupRepository
 ) {
     fun shouldStartInSetup(): Boolean {
-        val requiredStep = setupRepository.requiredStep(
+        return setupRepository.requiredStep(
             introDismissed = false
-        )
-        if (requiredStep != SetupRepository.RequiredStep.COMPLETE) return true
-        return !setupRepository.isSetupSelectKeyboardStepDone()
+        ) != SetupRepository.RequiredStep.COMPLETE
     }
 }

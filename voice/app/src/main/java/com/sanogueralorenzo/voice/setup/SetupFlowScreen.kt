@@ -147,14 +147,14 @@ class SetupViewModel(
             }
         }.execute { async ->
             when (async) {
-                is Success -> copy(setupSelectKeyboardDone = async())
+                is Success -> copy(setupSelectKeyboardDone = async()).withDerivedState()
                 else -> copy()
             }
         }
     }
 
     fun onSetupSelectKeyboardDone() {
-        setState { copy(setupSelectKeyboardDone = true) }
+        setState { copy(setupSelectKeyboardDone = true).withDerivedState() }
         viewModelScope.launch {
             setupRepository.setSetupSelectKeyboardStepDone(done = true)
         }
@@ -722,25 +722,17 @@ class SetupViewModel(
     }
 
     private fun computeRequiredStep(state: SetupUiState): SetupRepository.RequiredStep {
-        val missingMicPermission = !state.micGranted
-        val missingImeEnabled = !state.voiceImeEnabled
-        val missingLiteRtModel = !state.liteRtReady
-        val missingMoonshineModel = !state.moonshineReady
-        val missingPromptTemplate = !state.promptReady
-        val modelsOrPromptMissing = missingLiteRtModel || missingMoonshineModel || missingPromptTemplate
-        val allCoreItemsMissing = missingMicPermission &&
-            missingImeEnabled &&
-            missingLiteRtModel &&
-            missingMoonshineModel &&
-            missingPromptTemplate
-
-        return when {
-            !state.introDismissed && allCoreItemsMissing -> SetupRepository.RequiredStep.INTRO
-            missingMicPermission -> SetupRepository.RequiredStep.MIC_PERMISSION
-            missingImeEnabled -> SetupRepository.RequiredStep.ENABLE_KEYBOARD
-            modelsOrPromptMissing -> SetupRepository.RequiredStep.DOWNLOAD_MODELS
-            else -> SetupRepository.RequiredStep.COMPLETE
-        }
+        return SetupRepository.requiredStepForMissing(
+            missing = SetupRepository.MissingSetupItems(
+                micPermission = !state.micGranted,
+                imeEnabled = !state.voiceImeEnabled,
+                liteRtModel = !state.liteRtReady,
+                moonshineModel = !state.moonshineReady,
+                promptTemplate = !state.promptReady
+            ),
+            introDismissed = state.introDismissed,
+            setupSelectKeyboardDone = state.setupSelectKeyboardDone
+        )
     }
 
     companion object : MavericksViewModelFactory<SetupViewModel, SetupUiState> {
@@ -807,9 +799,8 @@ fun SetupFlowScreen(
         SetupRepository.RequiredStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
         SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupRoute.SETUP_MODELS
-        SetupRepository.RequiredStep.COMPLETE -> {
-            if (uiState.setupSelectKeyboardDone) null else SetupRoute.SETUP_SELECT_KEYBOARD
-        }
+        SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupRoute.SETUP_SELECT_KEYBOARD
+        SetupRepository.RequiredStep.COMPLETE -> null
     }
     val requiredSetupRoute = if (setupTargetRoute != null && !setupSplashCompleted) {
         SetupRoute.SETUP_SPLASH
@@ -817,8 +808,8 @@ fun SetupFlowScreen(
         setupTargetRoute
     }
 
-    LaunchedEffect(uiState.requiredStep, uiState.setupSelectKeyboardDone) {
-        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE && uiState.setupSelectKeyboardDone) {
+    LaunchedEffect(uiState.requiredStep) {
+        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE) {
             onSetupComplete()
         }
     }

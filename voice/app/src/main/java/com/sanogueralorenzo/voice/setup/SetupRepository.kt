@@ -53,6 +53,7 @@ class SetupRepository(
         MIC_PERMISSION,
         ENABLE_KEYBOARD,
         DOWNLOAD_MODELS,
+        SELECT_KEYBOARD,
         COMPLETE
     }
 
@@ -112,9 +113,11 @@ class SetupRepository(
         introDismissed: Boolean
     ): RequiredStep {
         val missing = missingSetupItems()
+        val setupSelectKeyboardDone = isSetupSelectKeyboardStepDone()
         return requiredStepForMissing(
             missing = missing,
-            introDismissed = introDismissed
+            introDismissed = introDismissed,
+            setupSelectKeyboardDone = setupSelectKeyboardDone
         )
     }
 
@@ -143,12 +146,14 @@ class SetupRepository(
 
         internal fun requiredStepForMissing(
             missing: MissingSetupItems,
-            introDismissed: Boolean
+            introDismissed: Boolean,
+            setupSelectKeyboardDone: Boolean
         ): RequiredStep {
             if (!introDismissed && missing.allCoreItemsMissing) return RequiredStep.INTRO
             if (missing.micPermission) return RequiredStep.MIC_PERMISSION
             if (missing.imeEnabled) return RequiredStep.ENABLE_KEYBOARD
             if (missing.modelsOrPrompt) return RequiredStep.DOWNLOAD_MODELS
+            if (!setupSelectKeyboardDone) return RequiredStep.SELECT_KEYBOARD
             return RequiredStep.COMPLETE
         }
     }

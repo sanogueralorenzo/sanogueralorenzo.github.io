@@ -16,7 +16,11 @@ class SetupRepositoryTest {
 
         assertEquals(
             SetupRepository.RequiredStep.INTRO,
-            SetupRepository.requiredStepForMissing(missing = missing, introDismissed = false)
+            SetupRepository.requiredStepForMissing(
+                missing = missing,
+                introDismissed = false,
+                setupSelectKeyboardDone = false
+            )
         )
     }
 
@@ -32,7 +36,31 @@ class SetupRepositoryTest {
 
         assertEquals(
             SetupRepository.RequiredStep.MIC_PERMISSION,
-            SetupRepository.requiredStepForMissing(missing = missing, introDismissed = true)
+            SetupRepository.requiredStepForMissing(
+                missing = missing,
+                introDismissed = true,
+                setupSelectKeyboardDone = false
+            )
+        )
+    }
+
+    @Test
+    fun requiredStep_returnsSelectKeyboard_whenEverythingReadyButFinalStepNotDone() {
+        val missing = SetupRepository.MissingSetupItems(
+            micPermission = false,
+            imeEnabled = false,
+            liteRtModel = false,
+            moonshineModel = false,
+            promptTemplate = false
+        )
+
+        assertEquals(
+            SetupRepository.RequiredStep.SELECT_KEYBOARD,
+            SetupRepository.requiredStepForMissing(
+                missing = missing,
+                introDismissed = true,
+                setupSelectKeyboardDone = false
+            )
         )
     }
 
@@ -48,7 +76,11 @@ class SetupRepositoryTest {
 
         assertEquals(
             SetupRepository.RequiredStep.COMPLETE,
-            SetupRepository.requiredStepForMissing(missing = missing, introDismissed = true)
+            SetupRepository.requiredStepForMissing(
+                missing = missing,
+                introDismissed = true,
+                setupSelectKeyboardDone = true
+            )
         )
     }
 }
