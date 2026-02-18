@@ -66,7 +66,6 @@
     <string name="updates_prompt_version_unknown">Unknown</string>
     <string name="updates_prompt_download_action">Download prompt</string>
     <string name="theming_section_title">Theming</string>
-    <string name="theming_section_description">Pick the keyboard appearance mode.</string>
     <string name="theming_option_auto">Auto (system)</string>
     <string name="theming_option_light">Light</string>
     <string name="theming_option_dark">Dark</string>
