@@ -1,7 +1,6 @@
 package com.sanogueralorenzo.voice.ime
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
@@ -21,10 +20,9 @@ internal data class VoiceKeyboardColors(
 @Composable
 internal fun rememberVoiceKeyboardColors(): VoiceKeyboardColors {
     val isDarkTheme = isSystemInDarkTheme()
-    val scheme = MaterialTheme.colorScheme
     return if (isDarkTheme) {
         VoiceKeyboardColors(
-            keyboardBackground = scheme.surface,
+            keyboardBackground = Color(0xFF131519),
             idlePill = Color(0xFF78808A),
             activePill = Color(0xFF1A2026),
             activeVisualizer = Color.White,
