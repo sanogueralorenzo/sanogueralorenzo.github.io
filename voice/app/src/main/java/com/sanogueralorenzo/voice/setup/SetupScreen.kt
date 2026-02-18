@@ -1,12 +1,23 @@
 package com.sanogueralorenzo.voice.setup
 
 import android.content.Context
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -16,15 +27,93 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.models.ModelCatalog
+import com.sanogueralorenzo.voice.ui.VoicePillVisualizer
+import com.sanogueralorenzo.voice.ui.VoiceVisualizerMode
+import kotlinx.coroutines.delay
 import java.util.Locale
+
+@Composable
+fun SetupSplashScreen(
+    onFinished: () -> Unit
+) {
+    val moveProgress = remember { Animatable(0f) }
+    var freezeBars by remember { mutableStateOf(false) }
+    var fadeOut by remember { mutableStateOf(false) }
+    val splashAlpha by animateFloatAsState(
+        targetValue = if (fadeOut) 0f else 1f,
+        animationSpec = tween(durationMillis = SetupSplashFadeOutMs, easing = FastOutSlowInEasing),
+        label = "setup_splash_alpha"
+    )
+    val levelTransition = rememberInfiniteTransition(label = "setup_splash_audio")
+    val fakeAudioLevel by levelTransition.animateFloat(
+        initialValue = 0.32f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "setup_splash_audio_level"
+    )
+
+    LaunchedEffect(Unit) {
+        delay(SetupSplashCenterHoldMs.toLong())
+        moveProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = SetupSplashTravelMs, easing = FastOutSlowInEasing)
+        )
+        freezeBars = true
+        delay(SetupSplashFrozenHoldMs.toLong())
+        fadeOut = true
+        delay(SetupSplashFadeOutMs.toLong())
+        onFinished()
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer { alpha = splashAlpha }
+    ) {
+        val startTop = (maxHeight - SetupLogoSize) * 0.5f
+        val endTop = SetupScreenOuterPadding + SetupLogoVerticalPadding
+        val animatedTop = lerp(startTop, endTop, moveProgress.value)
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = animatedTop)
+                .size(SetupLogoSize),
+            contentAlignment = Alignment.Center
+        ) {
+            if (freezeBars) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_logo_bars),
+                    contentDescription = null,
+                    modifier = Modifier.size(SetupLogoSize)
+                )
+            } else {
+                VoicePillVisualizer(
+                    level = fakeAudioLevel,
+                    mode = VoiceVisualizerMode.RECORDING_BARS
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun SetupIntroScreen(
@@ -282,7 +371,7 @@ private fun SetupStepScaffold(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
+            .padding(SetupScreenOuterPadding),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
@@ -321,14 +410,14 @@ private fun SetupTopIcon() {
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .padding(vertical = 20.dp),
+            .padding(vertical = SetupLogoVerticalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_logo),
             contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.size(136.dp)
+            modifier = Modifier.size(SetupLogoSize)
         )
     }
 }
@@ -351,3 +440,11 @@ private fun humanReadableSize(context: Context, bytes: Long): String {
     val mb = bytes / (1024.0 * 1024.0)
     return String.format(Locale.US, "%.0f MB", mb)
 }
+
+private val SetupScreenOuterPadding = 20.dp
+private val SetupLogoVerticalPadding = 20.dp
+private val SetupLogoSize = 136.dp
+private const val SetupSplashCenterHoldMs = 3_000
+private const val SetupSplashTravelMs = 700
+private const val SetupSplashFrozenHoldMs = 300
+private const val SetupSplashFadeOutMs = 240

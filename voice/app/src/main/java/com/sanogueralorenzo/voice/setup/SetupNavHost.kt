@@ -45,6 +45,7 @@ import com.sanogueralorenzo.voice.di.appGraph
 
 private object MainRoute {
     const val HOME = "home"
+    const val SETUP_SPLASH = "setup_splash"
     const val SETUP_INTRO = "setup_intro"
     const val SETUP_MIC = "setup_mic"
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
@@ -55,6 +56,7 @@ private object MainRoute {
     const val CHECK_UPDATES = "check_updates"
     const val SETTINGS = "settings"
     val SETUP_ROUTES = setOf(
+        SETUP_SPLASH,
         SETUP_INTRO,
         SETUP_MIC,
         SETUP_ENABLE_KEYBOARD,
@@ -97,6 +99,7 @@ fun SetupNavHost() {
     val connectedToWifi by setupRepository.wifiConnected.collectFlowAsStateWithLifecycle()
     var keyboardSelectionAssumed by rememberSaveable { mutableStateOf(false) }
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
+    var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
     var setupIntroDismissed by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -155,7 +158,7 @@ fun SetupNavHost() {
             keyboardSelectionAssumed = keyboardSelectionAssumed
         )
     }
-    val requiredSetupRoute = when (requiredSetupStep) {
+    val setupTargetRoute = when (requiredSetupStep) {
         SetupRepository.RequiredStep.INTRO -> MainRoute.SETUP_INTRO
         SetupRepository.RequiredStep.MIC_PERMISSION -> MainRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> MainRoute.SETUP_ENABLE_KEYBOARD
@@ -163,22 +166,24 @@ fun SetupNavHost() {
         SetupRepository.RequiredStep.DOWNLOAD_MODELS -> MainRoute.SETUP_MODELS
         SetupRepository.RequiredStep.COMPLETE -> null
     }
+    val requiredSetupRoute = if (setupTargetRoute != null && !setupSplashCompleted) {
+        MainRoute.SETUP_SPLASH
+    } else {
+        setupTargetRoute
+    }
     val startDestination = requiredSetupRoute ?: MainRoute.HOME
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
     val isSetupRoute = currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES
     val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && !isSetupRoute
-    val topBarTitle = when (currentRoute) {
-        MainRoute.SETUP_INTRO -> stringResource(R.string.main_title_voice_keyboard)
-        MainRoute.SETUP_MIC -> stringResource(R.string.main_title_voice_keyboard)
-        MainRoute.SETUP_ENABLE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
-        MainRoute.SETUP_CHOOSE_KEYBOARD -> stringResource(R.string.main_title_voice_keyboard)
-        MainRoute.SETUP_MODELS -> stringResource(R.string.main_title_voice_keyboard)
-        MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
-        MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
-        MainRoute.CHECK_UPDATES -> stringResource(R.string.settings_updates_title)
-        MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
+    val topBarTitle = when {
+        isSetupRoute -> ""
+        currentRoute == MainRoute.HOME -> stringResource(R.string.main_title_voice_keyboard)
+        currentRoute == MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
+        currentRoute == MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
+        currentRoute == MainRoute.CHECK_UPDATES -> stringResource(R.string.settings_updates_title)
+        currentRoute == MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
 
@@ -209,10 +214,12 @@ fun SetupNavHost() {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = topBarTitle,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (topBarTitle.isNotBlank()) {
+                        Text(
+                            text = topBarTitle,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 },
                 navigationIcon = {
                     if (canGoBack) {
@@ -258,6 +265,12 @@ fun SetupNavHost() {
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenCheckUpdates = actions.onOpenCheckUpdates,
                     onOpenSettings = actions.onOpenSettings
+                )
+            }
+
+            composable(MainRoute.SETUP_SPLASH) {
+                SetupSplashScreen(
+                    onFinished = { setupSplashCompleted = true }
                 )
             }
 
