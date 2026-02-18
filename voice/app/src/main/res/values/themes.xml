@@ -3,6 +3,10 @@
 
     <style name="Theme.Voice" parent="android:Theme.Material.Light.NoActionBar" />
 
+    <style name="Theme.Voice.Ime" parent="Theme.Voice">
+        <item name="android:windowBackground">@color/ime_window_background</item>
+    </style>
+
     <style name="Theme.Voice.Launch" parent="Theme.Voice">
         <item name="android:windowBackground">@color/splash_background</item>
     </style>

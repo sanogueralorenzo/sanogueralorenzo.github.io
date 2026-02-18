@@ -2,4 +2,5 @@
 <resources>
     <color name="splash_background">#000000</color>
     <color name="logo_stroke">#FFFFFF</color>
+    <color name="ime_window_background">#131519</color>
 </resources>

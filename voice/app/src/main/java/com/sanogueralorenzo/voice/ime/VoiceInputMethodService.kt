@@ -27,6 +27,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
+import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
@@ -123,17 +124,20 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     override fun onCreateInputView(): View {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         warmupMoonshineAsync()
+        val preComposeBackground = ContextCompat.getColor(this, R.color.ime_window_background)
         val container = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            setBackgroundColor(preComposeBackground)
         }
         val composeView = ComposeView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            setBackgroundColor(preComposeBackground)
             attachOwnersToWindowTree(this)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
