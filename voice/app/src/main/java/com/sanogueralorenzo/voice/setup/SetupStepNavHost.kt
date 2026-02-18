@@ -86,6 +86,7 @@ fun SetupStepNavHost(
                 promptDownloading = uiState.promptDownloading,
                 liteRtProgress = uiState.liteRtProgress,
                 moonshineProgress = uiState.moonshineProgress,
+                promptProgress = uiState.promptProgress,
                 modelMessage = uiState.modelMessage,
                 updatesMessage = uiState.updatesMessage,
                 onAllowMobileDataChange = onAllowMobileDataChange,

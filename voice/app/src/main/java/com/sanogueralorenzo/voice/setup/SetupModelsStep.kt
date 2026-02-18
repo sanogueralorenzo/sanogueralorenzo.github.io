@@ -28,6 +28,7 @@ fun SetupDownloadModelsScreen(
     promptDownloading: Boolean,
     liteRtProgress: Int,
     moonshineProgress: Int,
+    promptProgress: Int,
     modelMessage: String?,
     updatesMessage: String?,
     onAllowMobileDataChange: (Boolean) -> Unit,
@@ -51,19 +52,26 @@ fun SetupDownloadModelsScreen(
         moonshineDownloading -> moonshineProgress.coerceIn(0, 100) / 100f
         else -> 0f
     }
+    val promptRatio = when {
+        promptReady -> 1f
+        promptDownloading -> promptProgress.coerceIn(0, 100) / 100f
+        else -> 0f
+    }
     val totalModelBytes =
         (ModelCatalog.moonshineMediumStreamingTotalBytes + ModelCatalog.liteRtLm.sizeBytes).toDouble()
             .coerceAtLeast(1.0)
     val completedModelBytes = (ModelCatalog.moonshineMediumStreamingTotalBytes.toDouble() * moonshineRatio) +
         (ModelCatalog.liteRtLm.sizeBytes.toDouble() * liteRtRatio)
     val modelProgressPercent = ((completedModelBytes / totalModelBytes) * 100.0).toFloat().coerceIn(0f, 100f)
-    val totalProgressPercent = if (modelsReady) {
-        100f
-    } else {
-        modelProgressPercent
-    }
+    val totalProgressPercent = (modelProgressPercent * 0.99f) + promptRatio
     val shouldShowTotalProgress =
         downloadInProgress || liteRtReady || moonshineReady || promptReady
+    val downloadingModelLabel = when {
+        moonshineDownloading -> stringResource(R.string.setup_model_moonshine)
+        liteRtDownloading -> stringResource(R.string.setup_model_litert)
+        promptDownloading -> stringResource(R.string.setup_model_prompt)
+        else -> null
+    }
 
     SetupStepScaffold(
         title = stringResource(R.string.setup_step_models),
@@ -93,9 +101,9 @@ fun SetupDownloadModelsScreen(
                 )
             }
             if (shouldShowTotalProgress) {
-                if (downloadInProgress) {
+                if (downloadInProgress && downloadingModelLabel != null) {
                     Text(
-                        text = stringResource(R.string.setup_download_sequence_status),
+                        text = stringResource(R.string.setup_download_status_model, downloadingModelLabel),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
