@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -14,11 +15,13 @@ import android.widget.FrameLayout
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -130,11 +133,16 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     override fun onCreateInputView(): View {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         warmupMoonshineAsync()
-        val preComposeBackground = if (isImeDarkThemeEnabled(themeRepository.keyboardThemeMode())) {
+        val initialDarkTheme = isImeDarkThemeEnabled(themeRepository.keyboardThemeMode())
+        val preComposeBackground = if (initialDarkTheme) {
             IME_BACKGROUND_DARK
         } else {
             IME_BACKGROUND_LIGHT
         }
+        applyImeNavigationBarTheme(
+            darkTheme = initialDarkTheme,
+            backgroundColor = preComposeBackground
+        )
         val container = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -156,6 +164,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                     lifecycleOwner = this@VoiceInputMethodService
                 )
                 val effectiveDarkTheme = keyboardThemeMode.resolveIsDark(isSystemInDarkTheme())
+                LaunchedEffect(effectiveDarkTheme) {
+                    applyImeNavigationBarTheme(
+                        darkTheme = effectiveDarkTheme,
+                        backgroundColor = if (effectiveDarkTheme) IME_BACKGROUND_DARK else IME_BACKGROUND_LIGHT
+                    )
+                }
                 VoiceTheme {
                     val state by keyboardViewModel.collectAsStateWithLifecycle(
                         lifecycleOwner = this@VoiceInputMethodService
@@ -211,6 +225,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        val darkTheme = isImeDarkThemeEnabled(themeRepository.keyboardThemeMode())
+        applyImeNavigationBarTheme(
+            darkTheme = darkTheme,
+            backgroundColor = if (darkTheme) IME_BACKGROUND_DARK else IME_BACKGROUND_LIGHT
+        )
         attachOwnersToWindowTree(null)
         imeInputRootView?.let { view ->
             updateBottomInsetFromInsets(ViewCompat.getRootWindowInsets(view))
@@ -735,6 +754,19 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun isSystemDarkTheme(): Boolean {
         val uiMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
         return uiMode == Configuration.UI_MODE_NIGHT_YES
+    }
+
+    private fun applyImeNavigationBarTheme(
+        darkTheme: Boolean,
+        backgroundColor: Int
+    ) {
+        val imeWindow = window?.window ?: return
+        imeWindow.navigationBarColor = backgroundColor
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            imeWindow.isNavigationBarContrastEnforced = false
+        }
+        val controller = WindowCompat.getInsetsController(imeWindow, imeWindow.decorView) ?: return
+        controller.isAppearanceLightNavigationBars = !darkTheme
     }
 
     private data class SendRequest(
