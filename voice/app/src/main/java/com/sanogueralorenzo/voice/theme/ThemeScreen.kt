@@ -3,6 +3,7 @@ package com.sanogueralorenzo.voice.theme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -107,7 +108,8 @@ private fun ThemeOptionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .sizeIn(minHeight = 44.dp),
+            .sizeIn(minHeight = 44.dp)
+            .clickable(onClick = onClick),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -117,7 +119,7 @@ private fun ThemeOptionRow(
         )
         RadioButton(
             selected = selected,
-            onClick = onClick
+            onClick = null
         )
     }
 }
