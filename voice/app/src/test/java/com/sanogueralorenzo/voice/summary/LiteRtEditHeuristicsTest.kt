@@ -13,10 +13,12 @@ class LiteRtEditHeuristicsTest {
         val deleteAll = LiteRtEditHeuristics.analyzeInstruction("delete all")
         val clearEverything = LiteRtEditHeuristics.analyzeInstruction("clear everything please")
         val removeWhole = LiteRtEditHeuristics.analyzeInstruction("remove the whole message")
+        val undo = LiteRtEditHeuristics.analyzeInstruction("undo")
 
         assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, deleteAll.intent)
         assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, clearEverything.intent)
         assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, removeWhole.intent)
+        assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, undo.intent)
     }
 
     @Test
@@ -31,9 +33,10 @@ class LiteRtEditHeuristicsTest {
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("replace milk with oat milk"))
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("please remove milk"))
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("actually never mind"))
-        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("scratch that"))
+        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("undo"))
         assertFalse(LiteRtEditHeuristics.isStrictEditCommand("actually can we replace milk with oat milk"))
         assertFalse(LiteRtEditHeuristics.isStrictEditCommand("hey maybe never mind this part"))
+        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("scratch that"))
         assertFalse(LiteRtEditHeuristics.isStrictEditCommand("make this professional"))
     }
 
@@ -68,7 +71,16 @@ class LiteRtEditHeuristicsTest {
     @Test
     fun deterministic_clearAll_supportsVerbVariants() {
         val source = "Buy milk and eggs"
-        val cases = listOf("clear everything", "erase the whole message", "start over")
+        val cases = listOf(
+            "clear everything",
+            "remove all",
+            "delete everything",
+            "erase everything",
+            "wipe everything",
+            "erase the whole message",
+            "start over",
+            "undo"
+        )
 
         for (instruction in cases) {
             val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, instruction)
@@ -277,8 +289,7 @@ class LiteRtEditHeuristicsTest {
             "cancel that",
             "forget it",
             "ignore that",
-            "disregard that",
-            "scratch that"
+            "disregard that"
         )
 
         commands.forEach { command ->

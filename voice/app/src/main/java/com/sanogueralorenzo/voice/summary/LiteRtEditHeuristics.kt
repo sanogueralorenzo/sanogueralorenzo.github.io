@@ -69,7 +69,8 @@ internal object LiteRtEditHeuristics {
         val normalized = normalizeCorrectionPhrases(collapsed)
         val commandCandidate = stripCommandPreamble(normalized)
         val intent = when {
-            DeleteAllRegex.containsMatchIn(commandCandidate) -> EditIntent.DELETE_ALL
+            ClearAllRegex.matches(commandCandidate) || DeleteAllRegex.containsMatchIn(commandCandidate) ->
+                EditIntent.DELETE_ALL
             ReplaceRegex.containsMatchIn(commandCandidate) -> EditIntent.REPLACE
             else -> EditIntent.GENERAL
         }
@@ -590,11 +591,11 @@ internal object LiteRtEditHeuristics {
     )
 
     private val ClearAllRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:(?:delete|clear|erase|wipe|remove|reset)\\s+(?:all|everything|(?:the\\s+)?(?:whole|entire)\\s+(?:message|text)|(?:the\\s+)?message|(?:the\\s+)?text)|start\\s+over)\\s*$",
+        "^\\s*(?:please\\s+)?(?:(?:delete|clear|erase|wipe|remove|reset)\\s+(?:all|everything|(?:the\\s+)?(?:whole|entire)\\s+(?:message|text)|(?:the\\s+)?message|(?:the\\s+)?text)|start\\s+over|undo)\\s*$",
         RegexOption.IGNORE_CASE
     )
     private val NoOpRegex = Regex(
-        "^\\s*(?:(?:actually)\\s+)?(?:(?:just)\\s+)?(?:never\\s*mind|cancel(?:\\s+that)?|forget\\s+it|ignore\\s+that|disregard\\s+that|scratch\\s+that)\\s*[.!]?\\s*$",
+        "^\\s*(?:(?:actually)\\s+)?(?:(?:just)\\s+)?(?:never\\s*mind|cancel(?:\\s+that)?|forget\\s+it|ignore\\s+that|disregard\\s+that)\\s*[.!]?\\s*$",
         RegexOption.IGNORE_CASE
     )
     private val DeleteAllRegex = Regex(
