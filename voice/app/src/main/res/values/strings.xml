@@ -80,10 +80,8 @@
     <string name="theming_input_hint">Use the input bar at the bottom to validate how the keyboard theme looks.</string>
 
     <string name="setup_grant_mic">Grant microphone permission</string>
-    <string name="setup_mic_intro">Microphone access is required to transcribe speech.</string>
+    <string name="setup_mic_intro">Microphone is required to transcribe speech.</string>
     <string name="setup_mic_bullet_while_using">• Select "While using the app" when Android asks for permission.</string>
-    <string name="setup_mic_bullet_local">• Voice transcription and rewrite run locally on your phone.</string>
-    <string name="setup_mic_bullet_offline_after_download">• After models are downloaded, dictation works without internet.</string>
     <string name="setup_enable_keyboard_intro">Open Android keyboard settings and turn Voice Keyboard on.</string>
     <string name="setup_models_intro">Voice Keyboard uses:</string>
     <string name="setup_models_intro_bullet_asr">• ASR (Automatic Speech Recognition) model to convert spoken language into text from audio signals.</string>

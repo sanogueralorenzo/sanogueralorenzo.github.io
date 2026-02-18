@@ -244,14 +244,6 @@ fun SetupMicPermissionScreen(
                 text = stringResource(R.string.setup_mic_bullet_while_using),
                 style = MaterialTheme.typography.bodySmall
             )
-            Text(
-                text = stringResource(R.string.setup_mic_bullet_local),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.setup_mic_bullet_offline_after_download),
-                style = MaterialTheme.typography.bodySmall
-            )
         },
         actions = {
             Button(
