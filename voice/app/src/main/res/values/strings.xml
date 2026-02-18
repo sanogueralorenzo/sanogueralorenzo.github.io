@@ -59,7 +59,7 @@
     <string name="models_check_updates_applied">Updated %1$d items. Changes apply in the next session.</string>
     <string name="models_check_updates_partial">Updated %1$d of %2$d items. Some updates failed.</string>
     <string name="preferences_section_title">Preferences</string>
-    <string name="preferences_section_description">Control how LiteRT rewrites transcripts and edits.</string>
+    <string name="preferences_section_description">Control your text output preferences.</string>
     <string name="preferences_rewrite_toggle_title">LiteRT rewrite</string>
     <string name="preferences_rewrite_toggle_description">Turn this off to skip LiteRT rewrite and edit, and commit raw transcripts.</string>
     <string name="preferences_rewrite_enabled">Enabled</string>

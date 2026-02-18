@@ -65,10 +65,6 @@ private fun PreferencesScreenContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = stringResource(R.string.preferences_section_title),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Text(
             text = stringResource(R.string.preferences_section_description),
             style = MaterialTheme.typography.bodyMedium
         )
