@@ -118,7 +118,7 @@ fun KeyboardTestBar(
 fun HomeScreen(
     onOpenPromptBenchmarking: () -> Unit,
     onOpenTheme: () -> Unit,
-    onOpenCheckUpdates: () -> Unit,
+    onOpenUpdates: () -> Unit,
     onOpenPreferences: () -> Unit
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
@@ -127,8 +127,7 @@ fun HomeScreen(
         HomeMenuItem(
             icon = Icons.Outlined.Language,
             title = stringResource(R.string.home_menu_languages_title),
-            subtitle = stringResource(R.string.home_menu_languages_subtitle)
-            ,
+            subtitle = stringResource(R.string.home_menu_languages_subtitle),
             onClick = { showLanguagesComingSoonDialog = true }
         ),
         HomeMenuItem(
@@ -169,8 +168,8 @@ fun HomeScreen(
         ),
         HomeMenuItem(
             icon = Icons.Outlined.Info,
-            title = stringResource(R.string.home_menu_about),
-            onClick = onOpenCheckUpdates
+            title = stringResource(R.string.home_menu_updates),
+            onClick = onOpenUpdates
         ),
         HomeMenuItem(
             icon = Icons.Outlined.HelpOutline,
@@ -185,7 +184,7 @@ fun HomeScreen(
     ) {
         itemsIndexed(menuItems) { index, item ->
             HomeMenuRow(item = item)
-            if (index == 0 || index == 9) {
+            if (index == 0) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }

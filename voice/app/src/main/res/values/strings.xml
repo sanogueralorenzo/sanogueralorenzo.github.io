@@ -9,7 +9,7 @@
     <string name="home_section_prompt_benchmarking_description">Run fixed cases to measure LiteRT quality and latency.</string>
     <string name="home_section_theming_title">Theming</string>
     <string name="home_section_theming_description">Choose keyboard Auto, Light, or Dark and test it with the input bar.</string>
-    <string name="home_section_check_updates_title">Check for Updates</string>
+    <string name="home_section_check_updates_title">Updates</string>
     <string name="home_section_check_updates_description">Re-download Prompt A and update ASR/IT model files.</string>
     <string name="home_section_preferences_title">Preferences</string>
     <string name="home_section_preferences_description">Manage rewrite behavior.</string>
@@ -22,7 +22,7 @@
     <string name="home_menu_share">Share Voice %1$s</string>
     <string name="home_menu_privacy">Privacy</string>
     <string name="home_menu_rate">Rate us</string>
-    <string name="home_menu_about">About</string>
+    <string name="home_menu_updates">Updates</string>
     <string name="home_menu_help">Help</string>
 
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
@@ -61,10 +61,13 @@
     <string name="preferences_rewrite_toggle_description">Turn this off to skip LiteRT rewrite and edit, and commit raw transcripts.</string>
     <string name="preferences_rewrite_enabled">Enabled</string>
     <string name="preferences_rewrite_disabled">Disabled</string>
-    <string name="settings_updates_title">Check for Updates</string>
-    <string name="settings_updates_description">Check and download updates for ASR model files, IT model, and prompt A.</string>
-    <string name="settings_updates_action">Check for updates</string>
-    <string name="check_updates_section_description">Check and download updates for ASR model files, IT model, and Prompt A.</string>
+    <string name="updates_section_title">Updates</string>
+    <string name="updates_section_description">Check and download updates for ASR model files and IT model.</string>
+    <string name="updates_check_action">Check for updates</string>
+    <string name="updates_prompt_row_title">Prompt A</string>
+    <string name="updates_prompt_row_version_date">Version date: %1$s</string>
+    <string name="updates_prompt_version_unknown">Unknown</string>
+    <string name="updates_prompt_download_action">Download prompt</string>
     <string name="theming_section_title">Theming</string>
     <string name="theming_section_description">Pick the keyboard appearance mode.</string>
     <string name="theming_option_auto">Auto (system)</string>

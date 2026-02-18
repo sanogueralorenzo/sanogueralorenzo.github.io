@@ -56,7 +56,7 @@ private object MainRoute {
     const val SETUP_MODELS = "setup_models"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
     const val THEME = "theme"
-    const val CHECK_UPDATES = "check_updates"
+    const val UPDATES = "updates"
     const val PREFERENCES = "preferences"
     val SETUP_ROUTES = setOf(
         SETUP_SPLASH,
@@ -184,7 +184,7 @@ fun SetupNavHost() {
         currentRoute == MainRoute.HOME -> stringResource(R.string.main_title_voice_keyboard)
         currentRoute == MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
         currentRoute == MainRoute.THEME -> stringResource(R.string.theming_section_title)
-        currentRoute == MainRoute.CHECK_UPDATES -> stringResource(R.string.settings_updates_title)
+        currentRoute == MainRoute.UPDATES -> stringResource(R.string.updates_section_title)
         currentRoute == MainRoute.PREFERENCES -> stringResource(R.string.preferences_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
@@ -201,7 +201,7 @@ fun SetupNavHost() {
 
     val actions = SetupActions(
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
-        onOpenCheckUpdates = { navController.navigate(MainRoute.CHECK_UPDATES) },
+        onOpenUpdates = { navController.navigate(MainRoute.UPDATES) },
         onOpenTheme = { navController.navigate(MainRoute.THEME) },
         onOpenPreferences = { navController.navigate(MainRoute.PREFERENCES) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
@@ -287,7 +287,7 @@ fun SetupNavHost() {
                 HomeScreen(
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenTheme = actions.onOpenTheme,
-                    onOpenCheckUpdates = actions.onOpenCheckUpdates,
+                    onOpenUpdates = actions.onOpenUpdates,
                     onOpenPreferences = actions.onOpenPreferences
                 )
             }
@@ -354,11 +354,19 @@ fun SetupNavHost() {
                 )
             }
 
-            composable(MainRoute.CHECK_UPDATES) {
-                CheckUpdatesScreen(
+            composable(MainRoute.UPDATES) {
+                UpdatesScreen(
                     updatesRunning = checkUpdatesUiState.updatesRunning,
                     updatesMessage = checkUpdatesUiState.updatesMessage,
                     modelMessage = checkUpdatesUiState.modelMessage,
+                    promptVersion = uiState.promptVersion,
+                    promptDownloading = uiState.promptDownloading,
+                    promptProgress = uiState.promptProgress,
+                    onDownloadPrompt = {
+                        setupViewModel.startPromptDownload { _ ->
+                            setupViewModel.refreshModelReadiness()
+                        }
+                    },
                     onCheckUpdates = { checkUpdatesViewModel.checkForUpdates() }
                 )
             }
