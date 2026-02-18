@@ -20,7 +20,6 @@
     <string name="settings_menu_theme">Theme</string>
     <string name="settings_menu_prompt_benchmark">Prompt Benchmark</string>
     <string name="settings_menu_updates">Updates</string>
-    <string name="settings_screen_intro">Core keyboard settings and tools.</string>
     <string name="settings_section_general">General</string>
     <string name="settings_section_tools">Tools</string>
     <string name="settings_chip_theme_auto">Auto</string>
