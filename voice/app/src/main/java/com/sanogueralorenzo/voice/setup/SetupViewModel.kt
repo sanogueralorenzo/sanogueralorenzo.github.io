@@ -1,6 +1,7 @@
 package com.sanogueralorenzo.voice.setup
 
 import android.content.Context
+import androidx.lifecycle.viewModelScope
 import com.airbnb.mvrx.Fail
 import com.airbnb.mvrx.Loading
 import com.airbnb.mvrx.MavericksViewModelFactory
@@ -19,6 +20,8 @@ import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
@@ -47,12 +50,25 @@ class SetupViewModel(
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
 
+    init {
+        setState {
+            copy(wifiConnected = setupRepository.isConnectedToWifi()).withDerivedState()
+        }
+        viewModelScope.launch {
+            setupRepository.wifiConnected.collectLatest { connected ->
+                setState {
+                    copy(wifiConnected = connected)
+                }
+            }
+        }
+    }
+
     fun shutdown() {
         downloader.shutdown()
     }
 
     fun refreshMicPermission() {
-        setState { copy(micGranted = setupRepository.hasMicPermission()) }
+        setState { copy(micGranted = setupRepository.hasMicPermission()).withDerivedState() }
     }
 
     fun refreshKeyboardStatus() {
@@ -61,13 +77,17 @@ class SetupViewModel(
             copy(
                 voiceImeEnabled = keyboardStatus.enabled,
                 voiceImeSelected = keyboardStatus.selected
-            )
+            ).withDerivedState()
         }
     }
 
     fun onMicPermissionResult(granted: Boolean) {
-        setState { copy(micGranted = granted) }
+        setState { copy(micGranted = granted).withDerivedState() }
         refreshKeyboardStatus()
+    }
+
+    fun onSetupIntroContinue() {
+        setState { copy(introDismissed = true).withDerivedState() }
     }
 
     fun setSettingsKeyboardTestInput(value: String) {
@@ -97,7 +117,7 @@ class SetupViewModel(
                     moonshineReady = async().moonshineReady,
                     promptReady = async().promptReady,
                     promptVersion = async().promptVersion
-                )
+                ).withDerivedState()
 
                 else -> copy(modelReadinessAsync = async)
             }
@@ -252,7 +272,7 @@ class SetupViewModel(
                     moonshineReady = async().moonshineReady,
                     promptReady = async().promptReady,
                     promptVersion = async().promptVersion
-                )
+                ).withDerivedState()
 
                 is Fail -> copy(
                     updatesAsync = async,
@@ -298,7 +318,7 @@ class SetupViewModel(
                         } else {
                             downloadResultMessage(ModelCatalog.liteRtLm, result)
                         }
-                    )
+                    ).withDerivedState()
                 }
                 if (!ready) refreshModelReadiness()
                 onComplete(ready)
@@ -320,7 +340,7 @@ class SetupViewModel(
                 setState { copy(moonshineProgress = progress) }
             },
             setReady = { moonshineReady ->
-                setState { copy(moonshineReady = moonshineReady) }
+                setState { copy(moonshineReady = moonshineReady).withDerivedState() }
             },
             onComplete = onComplete
         )
@@ -363,7 +383,7 @@ class SetupViewModel(
                         } else {
                             promptDownloadResultMessage(result)
                         }
-                    ).also {
+                    ).withDerivedState().also {
                         onComplete(ready)
                     }
                 }
@@ -375,7 +395,7 @@ class SetupViewModel(
                         promptReady = false,
                         promptProgress = 0,
                         modelMessage = appContext.getString(R.string.setup_prompt_download_error_unknown)
-                    )
+                    ).withDerivedState()
                 }
 
                 is Uninitialized -> copy()
@@ -628,6 +648,32 @@ class SetupViewModel(
 
     private fun isAnyDownloading(state: SetupUiState): Boolean {
         return state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading || state.updatesRunning
+    }
+
+    private fun SetupUiState.withDerivedState(): SetupUiState {
+        return copy(requiredStep = computeRequiredStep(this))
+    }
+
+    private fun computeRequiredStep(state: SetupUiState): SetupRepository.RequiredStep {
+        val missingMicPermission = !state.micGranted
+        val missingImeEnabled = !state.voiceImeEnabled
+        val missingLiteRtModel = !state.liteRtReady
+        val missingMoonshineModel = !state.moonshineReady
+        val missingPromptTemplate = !state.promptReady
+        val modelsOrPromptMissing = missingLiteRtModel || missingMoonshineModel || missingPromptTemplate
+        val allCoreItemsMissing = missingMicPermission &&
+            missingImeEnabled &&
+            missingLiteRtModel &&
+            missingMoonshineModel &&
+            missingPromptTemplate
+
+        return when {
+            !state.introDismissed && allCoreItemsMissing -> SetupRepository.RequiredStep.INTRO
+            missingMicPermission -> SetupRepository.RequiredStep.MIC_PERMISSION
+            missingImeEnabled -> SetupRepository.RequiredStep.ENABLE_KEYBOARD
+            modelsOrPromptMissing -> SetupRepository.RequiredStep.DOWNLOAD_MODELS
+            else -> SetupRepository.RequiredStep.COMPLETE
+        }
     }
 
     companion object : MavericksViewModelFactory<SetupViewModel, SetupUiState> {

@@ -13,7 +13,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -21,26 +20,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsStateWithLifecycle
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
-import com.sanogueralorenzo.voice.di.appGraph
 
 @Composable
 fun SetupFlowScreen(
     onSetupComplete: () -> Unit
 ) {
     val context = LocalContext.current
-    val appContext = remember(context) { context.applicationContext }
-    val appGraph = remember(appContext) { appContext.appGraph() }
-    val setupRepository = remember(appGraph) { appGraph.setupRepository }
     val lifecycleOwner = LocalLifecycleOwner.current
     val setupViewModel = mavericksViewModel<SetupViewModel, SetupUiState>()
     val uiState by setupViewModel.collectAsStateWithLifecycle()
-    val connectedToWifi by setupRepository.wifiConnected.collectFlowAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
-    var setupIntroDismissed by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -68,23 +60,11 @@ fun SetupFlowScreen(
         setupViewModel.refreshModelReadiness()
     }
 
-    LaunchedEffect(connectedToWifi) {
-        if (connectedToWifi) allowMobileDataDownloads = false
+    LaunchedEffect(uiState.wifiConnected) {
+        if (uiState.wifiConnected) allowMobileDataDownloads = false
     }
 
-    val requiredStep = remember(
-        setupIntroDismissed,
-        uiState.micGranted,
-        uiState.voiceImeEnabled,
-        uiState.liteRtReady,
-        uiState.moonshineReady,
-        uiState.promptReady
-    ) {
-        setupRepository.requiredStep(
-            introDismissed = setupIntroDismissed
-        )
-    }
-    val setupTargetRoute = when (requiredStep) {
+    val setupTargetRoute = when (uiState.requiredStep) {
         SetupRepository.RequiredStep.INTRO -> SetupRoute.SETUP_INTRO
         SetupRepository.RequiredStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
@@ -97,8 +77,8 @@ fun SetupFlowScreen(
         setupTargetRoute
     }
 
-    LaunchedEffect(requiredStep) {
-        if (requiredStep == SetupRepository.RequiredStep.COMPLETE) {
+    LaunchedEffect(uiState.requiredStep) {
+        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE) {
             onSetupComplete()
         }
     }
@@ -110,7 +90,7 @@ fun SetupFlowScreen(
 
     SetupStepNavHost(
         requiredRoute = requiredSetupRoute,
-        connectedToWifi = connectedToWifi,
+        connectedToWifi = uiState.wifiConnected,
         allowMobileDataDownloads = allowMobileDataDownloads,
         uiState = uiState,
         onAllowMobileDataChange = { allowMobileDataDownloads = it },
@@ -118,7 +98,7 @@ fun SetupFlowScreen(
         onOpenImeSettings = { openImeSettings(context) },
         onDownloadModels = { setupViewModel.downloadAllModels() },
         onSplashFinished = { setupSplashCompleted = true },
-        onIntroContinue = { setupIntroDismissed = true }
+        onIntroContinue = { setupViewModel.onSetupIntroContinue() }
     )
 }
 
