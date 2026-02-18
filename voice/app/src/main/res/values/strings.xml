@@ -21,6 +21,7 @@
     <string name="home_menu_prompt_benchmark">Prompt Benchmark</string>
     <string name="home_menu_updates">Updates</string>
     <string name="home_menu_help">Help</string>
+    <string name="shared_input_hint_message">Message</string>
 
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
     <string name="prompt_benchmark_intro">Run fixed compose and edit cases to compare quality, consistency, and latency.</string>
