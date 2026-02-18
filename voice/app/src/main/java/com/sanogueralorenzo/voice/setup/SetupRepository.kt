@@ -4,9 +4,6 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
@@ -14,18 +11,11 @@ import com.sanogueralorenzo.voice.ime.VoiceInputMethodService
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.stateIn
 
 class SetupRepository(
-    context: Context
+    context: Context,
+    private val connectivityRepository: ConnectivityRepository
 ) {
     data class KeyboardStatus(
         val enabled: Boolean,
@@ -60,47 +50,7 @@ class SetupRepository(
     private val promptTemplateStore = PromptTemplateStore(appContext)
     private val voiceImeIdShort = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToShortString()
     private val voiceImeIdLong = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToString()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-    val wifiConnected: StateFlow<Boolean> = callbackFlow {
-        val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        if (connectivityManager == null) {
-            trySend(false)
-            close()
-            return@callbackFlow
-        }
-        trySend(isConnectedToWifi())
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: android.net.Network) {
-                trySend(isConnectedToWifi())
-            }
-
-            override fun onLost(network: android.net.Network) {
-                trySend(isConnectedToWifi())
-            }
-
-            override fun onCapabilitiesChanged(
-                network: android.net.Network,
-                networkCapabilities: NetworkCapabilities
-            ) {
-                trySend(isConnectedToWifi())
-            }
-        }
-        val request = NetworkRequest.Builder().build()
-        runCatching { connectivityManager.registerNetworkCallback(request, callback) }
-            .onFailure {
-                trySend(isConnectedToWifi())
-            }
-        awaitClose {
-            runCatching { connectivityManager.unregisterNetworkCallback(callback) }
-        }
-    }
-        .distinctUntilChanged()
-        .stateIn(
-            scope = scope,
-            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = WIFI_STOP_TIMEOUT_MS),
-            initialValue = isConnectedToWifi()
-        )
+    val wifiConnected: StateFlow<Boolean> = connectivityRepository.wifiConnected
 
     fun hasMicPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
@@ -119,11 +69,7 @@ class SetupRepository(
     }
 
     fun isConnectedToWifi(): Boolean {
-        val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return false
-        val activeNetwork = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        return connectivityRepository.isConnectedToWifi()
     }
 
     fun readModelReadiness(): ModelReadiness {
@@ -172,8 +118,6 @@ class SetupRepository(
     }
 
     companion object {
-        private const val WIFI_STOP_TIMEOUT_MS = 5_000L
-
         internal fun requiredStepForMissing(
             missing: MissingSetupItems,
             introDismissed: Boolean

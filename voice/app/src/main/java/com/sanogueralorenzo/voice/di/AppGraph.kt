@@ -5,6 +5,7 @@ import android.content.Context
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
+import com.sanogueralorenzo.voice.setup.ConnectivityRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
 import com.sanogueralorenzo.voice.summary.LiteRtComposeLlmGate
@@ -23,6 +24,7 @@ interface AppGraph {
     val liteRtComposePolicy: LiteRtComposePolicy
     val deterministicComposeRewriter: DeterministicComposeRewriter
     val liteRtComposeLlmGate: LiteRtComposeLlmGate
+    val connectivityRepository: ConnectivityRepository
     val setupRepository: SetupRepository
 
     @Provides
@@ -38,7 +40,16 @@ interface AppGraph {
     fun provideLiteRtComposeLlmGate(): LiteRtComposeLlmGate = LiteRtComposeLlmGate()
 
     @Provides
-    fun provideSetupRepository(context: Context): SetupRepository = SetupRepository(context)
+    fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)
+
+    @Provides
+    fun provideSetupRepository(
+        context: Context,
+        connectivityRepository: ConnectivityRepository
+    ): SetupRepository = SetupRepository(
+        context = context,
+        connectivityRepository = connectivityRepository
+    )
 
     @DependencyGraph.Factory
     fun interface Factory {
