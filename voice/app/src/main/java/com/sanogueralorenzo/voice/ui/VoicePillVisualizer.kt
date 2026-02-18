@@ -47,6 +47,7 @@ enum class VoiceVisualizerMode {
 fun VoicePillVisualizer(
     level: Float,
     mode: VoiceVisualizerMode,
+    barColor: Color = Color.White,
     modifier: Modifier = Modifier
 ) {
     val normalizedLevel by rememberUpdatedState(level.coerceIn(0f, 1f))
@@ -157,7 +158,7 @@ fun VoicePillVisualizer(
                                 .width(width)
                                 .height(DotSize)
                                 .clip(RoundedCornerShape(99.dp))
-                                .background(Color.White)
+                                .background(barColor)
                         )
                     } else {
                         val height = barHeightFor(bar.value)
@@ -166,7 +167,7 @@ fun VoicePillVisualizer(
                                 .width(width)
                                 .height(height)
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(Color.White)
+                                .background(barColor)
                         )
                     }
                 }

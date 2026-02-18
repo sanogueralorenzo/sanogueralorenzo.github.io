@@ -26,14 +26,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,18 +62,6 @@ private data class ActivePillVisualState(
     val audioLevel: Float
 )
 
-private data class ImeColorTokens(
-    val keyboardBackground: Color,
-    val idlePill: Color,
-    val activePill: Color,
-    val actionContainer: Color,
-    val actionIcon: Color,
-    val idleAuxContainer: Color,
-    val idleAuxContainerActive: Color,
-    val idleAuxIcon: Color,
-    val idleDebugInactiveAlpha: Float
-)
-
 @Composable
 fun VoiceKeyboardImeContent(
     state: VoiceKeyboardState,
@@ -92,7 +78,7 @@ fun VoiceKeyboardImeContent(
     val bottomSystemInset = with(density) { state.bottomInsetPx.toDp() }
     val keyboardVisibleHeight = KeyboardBarHeight - (KeyboardParentVerticalTrim * 2)
     val keyboardContainerHeight = keyboardVisibleHeight + bottomSystemInset
-    val colors = rememberImeColorTokens()
+    val colors = rememberVoiceKeyboardColors()
 
     Box(
         modifier = modifier
@@ -225,7 +211,8 @@ fun VoiceKeyboardImeContent(
                                         onDeleteTap = onDeleteTap,
                                         onSendTap = onSendTap,
                                         actionContainerColor = colors.actionContainer,
-                                        actionIconTint = colors.actionIcon
+                                        actionIconTint = colors.actionIcon,
+                                        visualizerColor = colors.activeVisualizer
                                     )
                                 }
                             }
@@ -264,7 +251,8 @@ private fun ActivePillContent(
     onDeleteTap: () -> Unit,
     onSendTap: () -> Unit,
     actionContainerColor: Color,
-    actionIconTint: Color
+    actionIconTint: Color,
+    visualizerColor: Color
 ) {
     val visualizerMode = when (mode) {
         VoiceKeyboardMode.RECORDING -> VoiceVisualizerMode.RECORDING_BARS
@@ -296,7 +284,8 @@ private fun ActivePillContent(
             )
             VoicePillVisualizer(
                 level = level,
-                mode = visualizerMode
+                mode = visualizerMode,
+                barColor = visualizerColor
             )
             ActionIconButton(
                 icon = Icons.AutoMirrored.Rounded.Send,
@@ -486,34 +475,3 @@ private val IconSlotSize = 44.dp
 private const val ActiveFadeInMs = 180
 private const val IdleCollapseFadeOutMs = 240
 private val PillTouchHeight = 50.dp
-
-@Composable
-private fun rememberImeColorTokens(): ImeColorTokens {
-    val isDarkTheme = isSystemInDarkTheme()
-    val scheme = MaterialTheme.colorScheme
-    return if (isDarkTheme) {
-        ImeColorTokens(
-            keyboardBackground = scheme.surface,
-            idlePill = Color(0xFF78808A),
-            activePill = Color(0xFF1A2026),
-            actionContainer = Color(0x33FFFFFF),
-            actionIcon = Color.White,
-            idleAuxContainer = Color(0x29FFFFFF),
-            idleAuxContainerActive = Color(0x52FFFFFF),
-            idleAuxIcon = Color.White,
-            idleDebugInactiveAlpha = 0.65f
-        )
-    } else {
-        ImeColorTokens(
-            keyboardBackground = Color(0xFFE8EAED),
-            idlePill = Color(0xFFA9B0B8),
-            activePill = Color(0xFF202124),
-            actionContainer = Color(0x33FFFFFF),
-            actionIcon = Color.White,
-            idleAuxContainer = Color(0x26000000),
-            idleAuxContainerActive = Color(0x3D000000),
-            idleAuxIcon = Color(0xFF202124),
-            idleDebugInactiveAlpha = 0.82f
-        )
-    }
-}
