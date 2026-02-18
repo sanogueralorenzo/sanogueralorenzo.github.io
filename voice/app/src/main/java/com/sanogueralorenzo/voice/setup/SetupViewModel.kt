@@ -474,6 +474,22 @@ class SetupViewModel(
         setProgress(0)
         setState { copy(modelMessage = null) }
         val total = specs.size
+        val byteWeights = specs.map { it.sizeBytes.coerceAtLeast(0L) }
+        val totalBytes = byteWeights.sum()
+        val useByteWeightedProgress = totalBytes > 0L && byteWeights.all { it > 0L }
+
+        fun overallProgress(index: Int, percent: Int): Int {
+            val safePercent = percent.coerceIn(0, 100)
+            if (!useByteWeightedProgress) {
+                val overall = ((index * 100f) + safePercent.toFloat()) / total.toFloat()
+                return overall.toInt().coerceIn(0, 100)
+            }
+            val completedBytes = byteWeights.take(index).sum()
+            val currentBytes = byteWeights.getOrNull(index) ?: 0L
+            val currentBytesDownloaded = currentBytes.toDouble() * (safePercent.toDouble() / 100.0)
+            val downloadedBytes = completedBytes.toDouble() + currentBytesDownloaded
+            return ((downloadedBytes / totalBytes.toDouble()) * 100.0).toInt().coerceIn(0, 100)
+        }
 
         fun runNext(index: Int) {
             if (index >= total) {
@@ -487,8 +503,7 @@ class SetupViewModel(
             downloader.download(
                 spec = spec,
                 onProgress = { percent ->
-                    val overall = ((index * 100f) + percent.toFloat()) / total.toFloat()
-                    setProgress(overall.toInt().coerceIn(0, 100))
+                    setProgress(overallProgress(index, percent))
                 },
                 onComplete = { result ->
                     val success = result is ModelDownloadResult.Success ||
@@ -500,6 +515,7 @@ class SetupViewModel(
                         onComplete(false)
                         return@download
                     }
+                    setProgress(overallProgress(index, 100))
                     runNext(index + 1)
                 }
             )

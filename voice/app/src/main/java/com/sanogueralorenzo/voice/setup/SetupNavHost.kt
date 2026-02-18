@@ -335,7 +335,6 @@ fun SetupNavHost() {
                     promptDownloading = uiState.promptDownloading,
                     liteRtProgress = uiState.liteRtProgress,
                     moonshineProgress = uiState.moonshineProgress,
-                    promptProgress = uiState.promptProgress,
                     promptVersion = uiState.promptVersion,
                     modelMessage = uiState.modelMessage,
                     updatesMessage = uiState.updatesMessage,

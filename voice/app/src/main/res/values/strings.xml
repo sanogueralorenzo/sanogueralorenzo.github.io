@@ -107,8 +107,10 @@
     <string name="setup_model_prompt">Prompt A</string>
     <string name="setup_prompt_version_value">v%1$s</string>
     <string name="setup_prompt_version_missing">version unknown</string>
+    <string name="setup_total_progress">Download progress: %1$d%%</string>
     <string name="setup_status_ready">Ready</string>
     <string name="setup_status_downloading">Downloading %1$d%%</string>
+    <string name="setup_status_downloading_simple">Downloading</string>
     <string name="setup_status_missing">Missing</string>
     <string name="setup_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_select_keyboard">Select Voice keyboard</string>

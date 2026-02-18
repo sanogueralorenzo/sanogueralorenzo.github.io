@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -298,7 +299,6 @@ fun SetupDownloadModelsScreen(
     promptDownloading: Boolean,
     liteRtProgress: Int,
     moonshineProgress: Int,
-    promptProgress: Int,
     promptVersion: String?,
     modelMessage: String?,
     updatesMessage: String?,
@@ -312,6 +312,29 @@ fun SetupDownloadModelsScreen(
     val canStartDownload = !downloadInProgress &&
         !modelsReady &&
         (!requiresMobileDataApproval || allowMobileDataDownloads)
+    val liteRtRatio = when {
+        liteRtReady -> 1f
+        liteRtDownloading -> liteRtProgress.coerceIn(0, 100) / 100f
+        else -> 0f
+    }
+    val moonshineRatio = when {
+        moonshineReady -> 1f
+        moonshineDownloading -> moonshineProgress.coerceIn(0, 100) / 100f
+        else -> 0f
+    }
+    val totalModelBytes =
+        (ModelCatalog.moonshineMediumStreamingTotalBytes + ModelCatalog.liteRtLm.sizeBytes).toDouble()
+            .coerceAtLeast(1.0)
+    val completedModelBytes = (ModelCatalog.moonshineMediumStreamingTotalBytes.toDouble() * moonshineRatio) +
+        (ModelCatalog.liteRtLm.sizeBytes.toDouble() * liteRtRatio)
+    val modelProgressPercent = ((completedModelBytes / totalModelBytes) * 99.0).toFloat().coerceIn(0f, 99f)
+    val totalProgressPercent = if (promptReady) {
+        (modelProgressPercent + 1f).coerceIn(0f, 100f)
+    } else {
+        modelProgressPercent.coerceIn(0f, 99f)
+    }
+    val shouldShowTotalProgress =
+        downloadInProgress || liteRtReady || moonshineReady || promptReady
 
     SetupStepScaffold(
         title = stringResource(R.string.setup_step_models),
@@ -344,12 +367,25 @@ fun SetupDownloadModelsScreen(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+            if (shouldShowTotalProgress) {
+                Text(
+                    text = stringResource(
+                        R.string.setup_total_progress,
+                        totalProgressPercent.toInt().coerceIn(0, 100)
+                    ),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                LinearProgressIndicator(
+                    progress = { totalProgressPercent / 100f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             Text(
                 text = stringResource(
                     R.string.setup_model_row,
                     stringResource(R.string.setup_model_moonshine),
                     humanReadableSize(context, ModelCatalog.moonshineMediumStreamingTotalBytes),
-                    modelStatus(context, moonshineReady, moonshineDownloading, moonshineProgress)
+                    modelStatus(context, moonshineReady, moonshineDownloading)
                 ),
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -358,7 +394,7 @@ fun SetupDownloadModelsScreen(
                     R.string.setup_model_row,
                     stringResource(R.string.setup_model_litert),
                     humanReadableSize(context, ModelCatalog.liteRtLm.sizeBytes),
-                    modelStatus(context, liteRtReady, liteRtDownloading, liteRtProgress)
+                    modelStatus(context, liteRtReady, liteRtDownloading)
                 ),
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -368,7 +404,7 @@ fun SetupDownloadModelsScreen(
                     stringResource(R.string.setup_model_prompt),
                     promptVersion?.let { stringResource(R.string.setup_prompt_version_value, it) }
                         ?: stringResource(R.string.setup_prompt_version_missing),
-                    modelStatus(context, promptReady, promptDownloading, promptProgress)
+                    modelStatus(context, promptReady, promptDownloading)
                 ),
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -476,12 +512,11 @@ private fun SetupTopIcon() {
 private fun modelStatus(
     context: Context,
     ready: Boolean,
-    downloading: Boolean,
-    progress: Int
+    downloading: Boolean
 ): String {
     return when {
         ready -> context.getString(R.string.setup_status_ready)
-        downloading -> context.getString(R.string.setup_status_downloading, progress)
+        downloading -> context.getString(R.string.setup_status_downloading_simple)
         else -> context.getString(R.string.setup_status_missing)
     }
 }
