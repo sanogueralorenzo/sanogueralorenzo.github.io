@@ -28,7 +28,6 @@ data class SetupUiState(
 ) : MavericksState
 
 data class SetupActions(
-    val onOpenOnboarding: () -> Unit,
     val onOpenPromptBenchmarking: () -> Unit,
     val onOpenCheckUpdates: () -> Unit,
     val onOpenSettings: () -> Unit,

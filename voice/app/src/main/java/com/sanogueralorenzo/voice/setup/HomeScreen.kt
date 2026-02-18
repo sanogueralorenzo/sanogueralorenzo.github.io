@@ -26,7 +26,6 @@ fun KeyboardTestBar(
 
 @Composable
 fun HomeScreen(
-    onOpenOnboarding: () -> Unit,
     onOpenPromptBenchmarking: () -> Unit,
     onOpenCheckUpdates: () -> Unit,
     onOpenSettings: () -> Unit
@@ -37,13 +36,6 @@ fun HomeScreen(
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            SectionCard(
-                title = stringResource(R.string.home_section_onboarding_title),
-                description = stringResource(R.string.home_section_onboarding_description),
-                onClick = onOpenOnboarding
-            )
-        }
         item {
             SectionCard(
                 title = stringResource(R.string.home_section_prompt_benchmarking_title),

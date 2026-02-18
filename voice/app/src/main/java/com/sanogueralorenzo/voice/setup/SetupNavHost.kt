@@ -51,7 +51,6 @@ private object MainRoute {
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
     const val SETUP_CHOOSE_KEYBOARD = "setup_choose_keyboard"
     const val SETUP_MODELS = "setup_models"
-    const val ONBOARDING = "onboarding"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
     const val CHECK_UPDATES = "check_updates"
     const val SETTINGS = "settings"
@@ -180,7 +179,6 @@ fun SetupNavHost() {
     val topBarTitle = when {
         isSetupRoute -> ""
         currentRoute == MainRoute.HOME -> stringResource(R.string.main_title_voice_keyboard)
-        currentRoute == MainRoute.ONBOARDING -> stringResource(R.string.onboarding_section_title)
         currentRoute == MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
         currentRoute == MainRoute.CHECK_UPDATES -> stringResource(R.string.settings_updates_title)
         currentRoute == MainRoute.SETTINGS -> stringResource(R.string.settings_section_title)
@@ -198,7 +196,6 @@ fun SetupNavHost() {
     }
 
     val actions = SetupActions(
-        onOpenOnboarding = { navController.navigate(MainRoute.ONBOARDING) },
         onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
         onOpenCheckUpdates = { navController.navigate(MainRoute.CHECK_UPDATES) },
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
@@ -261,7 +258,6 @@ fun SetupNavHost() {
         ) {
             composable(MainRoute.HOME) {
                 HomeScreen(
-                    onOpenOnboarding = actions.onOpenOnboarding,
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenCheckUpdates = actions.onOpenCheckUpdates,
                     onOpenSettings = actions.onOpenSettings
@@ -316,17 +312,6 @@ fun SetupNavHost() {
                     updatesMessage = uiState.updatesMessage,
                     onAllowMobileDataChange = { allowMobileDataDownloads = it },
                     onDownloadModels = { setupViewModel.downloadAllModels() }
-                )
-            }
-
-            composable(MainRoute.ONBOARDING) {
-                OnboardingTutorialScreen(
-                    onDone = {
-                        navController.navigate(MainRoute.HOME) {
-                            popUpTo(MainRoute.HOME) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }
                 )
             }
 

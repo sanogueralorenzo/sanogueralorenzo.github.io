@@ -5,8 +5,6 @@
     <string name="main_title_voice_keyboard">Voice Keyboard</string>
     <string name="main_back">Back</string>
 
-    <string name="home_section_onboarding_title">Onboarding</string>
-    <string name="home_section_onboarding_description">Walk through the Voice Keyboard flow.</string>
     <string name="home_section_prompt_benchmarking_title">Prompt Benchmarking</string>
     <string name="home_section_prompt_benchmarking_description">Run fixed cases to measure LiteRT quality and latency.</string>
     <string name="home_section_check_updates_title">Check for Updates</string>
@@ -14,7 +12,6 @@
     <string name="home_section_settings_title">Settings</string>
     <string name="home_section_settings_description">Manage rewrite behavior.</string>
 
-    <string name="onboarding_section_title">Onboarding</string>
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
     <string name="prompt_benchmark_intro">Run fixed compose and edit cases to compare quality, consistency, and latency.</string>
     <string name="prompt_benchmark_rewrite_disabled_warning">Rewrite is off in Settings. This benchmark still calls LiteRT directly.</string>
@@ -45,14 +42,6 @@
     <string name="models_check_updates_downloading">Update found. Downloading %1$d items…</string>
     <string name="models_check_updates_applied">Updated %1$d items. Changes apply in the next session.</string>
     <string name="models_check_updates_partial">Updated %1$d of %2$d items. Some updates failed.</string>
-    <string name="onboarding_tutorial_next">Next</string>
-    <string name="onboarding_tutorial_done">Done</string>
-    <string name="onboarding_tutorial_open_picker">Keyboard picker</string>
-    <string name="onboarding_tutorial_open_settings">IME settings</string>
-    <string name="onboarding_tutorial_real_instruction_compose">Use Voice Keyboard to dictate a message.</string>
-    <string name="onboarding_tutorial_real_instruction_edit">Use voice edit commands like "replace eggs with milk" to update the message.</string>
-    <string name="onboarding_tutorial_real_instruction_sent">Message sent.</string>
-    <string name="onboarding_tutorial_sent_now">now</string>
     <string name="settings_section_title">Settings</string>
     <string name="settings_section_description">Control how LiteRT rewrites transcripts and edits.</string>
     <string name="settings_rewrite_toggle_title">LiteRT rewrite</string>
