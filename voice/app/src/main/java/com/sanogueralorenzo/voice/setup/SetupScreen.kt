@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -39,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -63,12 +61,6 @@ fun SetupSplashScreen(
 ) {
     val moveProgress = remember { Animatable(0f) }
     var settleBars by remember { mutableStateOf(false) }
-    var fadeOut by remember { mutableStateOf(false) }
-    val splashAlpha by animateFloatAsState(
-        targetValue = if (fadeOut) 0f else 1f,
-        animationSpec = tween(durationMillis = SetupSplashFadeOutMs, easing = FastOutSlowInEasing),
-        label = "setup_splash_alpha"
-    )
     val levelTransition = rememberInfiniteTransition(label = "setup_splash_audio")
     val fakeAudioLevel by levelTransition.animateFloat(
         initialValue = 0.32f,
@@ -89,15 +81,11 @@ fun SetupSplashScreen(
         settleBars = true
         delay(SetupSplashSettleMs.toLong())
         delay(SetupSplashFrozenHoldMs.toLong())
-        fadeOut = true
-        delay(SetupSplashFadeOutMs.toLong())
         onFinished()
     }
 
     BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer { alpha = splashAlpha }
+        modifier = Modifier.fillMaxSize()
     ) {
         val startTop = (maxHeight - SetupLogoSize) * 0.5f
         val endTop = SetupScreenOuterPadding + SetupLogoVerticalPadding
@@ -538,7 +526,6 @@ private const val SetupSplashCenterHoldMs = 3_000
 private const val SetupSplashTravelMs = 700
 private const val SetupSplashSettleMs = 220
 private const val SetupSplashFrozenHoldMs = 300
-private const val SetupSplashFadeOutMs = 240
 
 private const val SetupLogoViewport = 108f
 private const val SetupBarCount = 5
