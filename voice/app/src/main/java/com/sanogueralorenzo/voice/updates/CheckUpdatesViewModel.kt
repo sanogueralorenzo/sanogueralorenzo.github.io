@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.updates
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope

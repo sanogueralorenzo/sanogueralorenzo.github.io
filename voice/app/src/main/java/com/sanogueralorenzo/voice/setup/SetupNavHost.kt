@@ -49,6 +49,9 @@ import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.theme.ThemeUiState
 import com.sanogueralorenzo.voice.theme.ThemeViewModel
 import com.sanogueralorenzo.voice.ui.components.KeyboardTestBar
+import com.sanogueralorenzo.voice.updates.CheckUpdatesUiState
+import com.sanogueralorenzo.voice.updates.CheckUpdatesViewModel
+import com.sanogueralorenzo.voice.updates.UpdatesScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

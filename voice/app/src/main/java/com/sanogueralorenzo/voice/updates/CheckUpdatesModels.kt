@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.updates
 
 import com.airbnb.mvrx.MavericksState
 
