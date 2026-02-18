@@ -27,6 +27,14 @@ class LiteRtEditHeuristicsTest {
     }
 
     @Test
+    fun strictEditCommand_requiresStartAnchoredCommand() {
+        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("replace milk with oat milk"))
+        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("please remove milk"))
+        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("actually can we replace milk with oat milk"))
+        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("make this professional"))
+    }
+
+    @Test
     fun analyzeInstruction_prefersFinalCorrectionForReplace() {
         val result = LiteRtEditHeuristics.analyzeInstruction(
             "replace milk with oat milk no, make it almond milk"
@@ -90,6 +98,19 @@ class LiteRtEditHeuristicsTest {
     }
 
     @Test
+    fun deterministic_deleteTerm_supportsMultipleTargets() {
+        val source = "buy apple eggs milk bread"
+        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            sourceText = source,
+            instructionText = "remove eggs and milk"
+        )
+
+        assertNotNull(result)
+        assertEquals("buy apple bread", result?.output)
+        assertEquals(2, result?.matchedCount)
+    }
+
+    @Test
     fun deterministic_replaceTerm_supportsVerbVariants() {
         val source = "buy milk and bread"
 
@@ -101,6 +122,20 @@ class LiteRtEditHeuristicsTest {
 
         val useInstead = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "use oat milk instead of milk")
         assertEquals("buy oat milk and bread", useInstead?.output)
+    }
+
+    @Test
+    fun deterministic_updateNumber_replacesLastNumberToken() {
+        val source = "Meeting moved from 5:00 PM to 6:00 PM tomorrow."
+        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            sourceText = source,
+            instructionText = "update number to 6:30"
+        )
+
+        assertNotNull(result)
+        assertEquals("Meeting moved from 5:00 PM to 6:30 tomorrow.", result?.output)
+        assertEquals(LiteRtEditHeuristics.CommandKind.UPDATE_NUMBER, result?.commandKind)
+        assertEquals(1, result?.matchedCount)
     }
 
     @Test

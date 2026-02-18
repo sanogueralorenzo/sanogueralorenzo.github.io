@@ -4,14 +4,13 @@ import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
 
 internal class ImeCommitCoordinator {
     fun commit(
-        mode: ImeSendMode,
+        operation: ImeOperation,
         outputForCommit: String,
         editIntent: String?,
         sessionId: Int,
         packageName: String?,
         isSessionCurrent: (Int, String?) -> Boolean,
-        replaceCurrentInputText: (String) -> Boolean,
-        enqueuePendingCommit: (String, Int, String?) -> Unit
+        replaceCurrentInputText: (String) -> Boolean
     ): ImeCommitResult {
         if (!isSessionCurrent(sessionId, packageName)) {
             return ImeCommitResult(
@@ -20,25 +19,14 @@ internal class ImeCommitCoordinator {
             )
         }
 
-        val shouldPreserveBlankEdit = mode == ImeSendMode.EDIT_EXISTING &&
+        val shouldPreserveBlankEdit = operation == ImeOperation.EDIT &&
             outputForCommit.isBlank() &&
             editIntent != LiteRtEditHeuristics.EditIntent.DELETE_ALL.name
 
-        val committed = if (outputForCommit.isBlank()) {
-            if (mode == ImeSendMode.EDIT_EXISTING) {
-                if (shouldPreserveBlankEdit) {
-                    true
-                } else {
-                    replaceCurrentInputText("")
-                }
-            } else {
-                false
-            }
-        } else if (mode == ImeSendMode.EDIT_EXISTING) {
-            replaceCurrentInputText(outputForCommit)
-        } else {
-            enqueuePendingCommit(outputForCommit, sessionId, packageName)
-            true
+        val committed = when {
+            outputForCommit.isBlank() && operation == ImeOperation.APPEND -> false
+            outputForCommit.isBlank() && shouldPreserveBlankEdit -> true
+            else -> replaceCurrentInputText(outputForCommit)
         }
 
         return ImeCommitResult(

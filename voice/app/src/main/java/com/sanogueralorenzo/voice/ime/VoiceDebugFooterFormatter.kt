@@ -6,6 +6,7 @@ object VoiceDebugFooterFormatter {
         return buildString {
             appendLine("----- VOICE DEBUG -----")
             appendLine("mode: $modeName")
+            appendLine("operation_mode: ${metrics.operationMode.name.lowercase()}")
             appendLine("session: ${metrics.sessionId}")
             appendLine("path: ${metrics.transcriptionPath.name}")
             appendLine()

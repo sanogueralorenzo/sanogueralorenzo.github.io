@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -66,7 +65,6 @@ private data class ActivePillVisualState(
 fun VoiceKeyboardImeContent(
     state: VoiceKeyboardState,
     onIdleTap: () -> Unit,
-    onEditTap: () -> Unit,
     onDeleteTap: () -> Unit,
     onSendTap: () -> Unit,
     onDebugToggle: () -> Unit,
@@ -221,24 +219,16 @@ fun VoiceKeyboardImeContent(
                 }
             }
 
-            if (state.mode == VoiceKeyboardMode.IDLE) {
-                IdleEditButton(
-                    visible = state.canEditCurrentInput,
-                    onTap = onEditTap,
-                    containerColor = colors.idleAuxContainer,
-                    iconTint = colors.idleAuxIcon
+            if (state.mode == VoiceKeyboardMode.IDLE && showDebugButton) {
+                IdleDebugButton(
+                    active = state.inlineDebugEnabled,
+                    onTap = onDebugToggle,
+                    onLongPress = onDebugLongPress,
+                    inactiveContainerColor = colors.idleAuxContainer,
+                    activeContainerColor = colors.idleAuxContainerActive,
+                    iconTint = colors.idleAuxIcon,
+                    inactiveAlpha = colors.idleDebugInactiveAlpha
                 )
-                if (showDebugButton) {
-                    IdleDebugButton(
-                        active = state.inlineDebugEnabled,
-                        onTap = onDebugToggle,
-                        onLongPress = onDebugLongPress,
-                        inactiveContainerColor = colors.idleAuxContainer,
-                        activeContainerColor = colors.idleAuxContainerActive,
-                        iconTint = colors.idleAuxIcon,
-                        inactiveAlpha = colors.idleDebugInactiveAlpha
-                    )
-                }
             }
         }
     }
@@ -358,47 +348,6 @@ private fun ActionIconButton(
                 Icon(
                     imageVector = icon,
                     contentDescription = contentDescription,
-                    tint = iconTint
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun IdleEditButton(
-    visible: Boolean,
-    onTap: () -> Unit,
-    containerColor: Color,
-    iconTint: Color
-) {
-    val alpha by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "edit_alpha"
-    )
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 18.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Surface(
-            modifier = Modifier
-                .size(34.dp)
-                .graphicsLayer { this.alpha = alpha }
-                .clip(RoundedCornerShape(999.dp))
-                .clickable(enabled = visible, onClick = onTap),
-            shape = RoundedCornerShape(999.dp),
-            color = containerColor
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Edit,
-                    contentDescription = stringResource(R.string.ime_edit_instruction),
                     tint = iconTint
                 )
             }

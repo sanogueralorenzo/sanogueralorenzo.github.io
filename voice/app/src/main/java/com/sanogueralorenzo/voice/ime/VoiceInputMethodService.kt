@@ -71,18 +71,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private var activeChunkSessionId: Int = 0
 
     @Volatile
-    private var pendingCommit: PendingCommit? = null
-
-    @Volatile
-    private var pendingSendMode: ImeSendMode = ImeSendMode.COMPOSE_NEW
-
-    @Volatile
-    private var pendingEditSourceText: String = ""
-
-    @Volatile
     private var imeInputRootView: View? = null
 
-    private val pendingCommitRunnable = Runnable { flushPendingCommit() }
     private val activeChunkFutures = ArrayList<Future<*>>()
 
     private val moonshineTranscriberLazy = lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
@@ -154,7 +144,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                     VoiceKeyboardImeContent(
                         state = state,
                         onIdleTap = { onIdlePillTap() },
-                        onEditTap = { onEditPillTap() },
                         onDeleteTap = { onDeleteTap() },
                         onSendTap = { onSendTap() },
                         onDebugToggle = { keyboardViewModel.toggleInlineDebug() },
@@ -208,14 +197,10 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             ViewCompat.requestApplyInsets(view)
         }
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
-        schedulePendingCommitFlush(delayMs = 0L)
-        refreshEditableInputState()
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        schedulePendingCommitFlush(delayMs = 0L)
-        refreshEditableInputState()
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false
@@ -242,28 +227,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             openAppForPermission()
             return
         }
-        startRecording(mode = ImeSendMode.COMPOSE_NEW)
-    }
-
-    private fun onEditPillTap() {
-        if (audioRecorder != null || inFlight != null || keyboardViewModel.isProcessing()) return
-        val sourceText = currentInputTextSnapshot()
-        if (sourceText.isBlank()) {
-            keyboardViewModel.setCanEditCurrentInput(false)
-            return
-        }
-        if (!hasMicPermission()) {
-            openAppForPermission()
-            return
-        }
-        if (!isMoonshineModelReady()) {
-            openAppForPermission()
-            return
-        }
-        startRecording(
-            mode = ImeSendMode.EDIT_EXISTING,
-            editSourceText = sourceText
-        )
+        startRecording()
     }
 
     private fun onDebugLongPress() {
@@ -273,13 +237,10 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         } else {
             Log.w(TAG, "Debug long press failed to clear current input text")
         }
-        refreshEditableInputState()
     }
 
-    private fun startRecording(mode: ImeSendMode, editSourceText: String = "") {
+    private fun startRecording() {
         if (audioRecorder != null) return
-        pendingSendMode = mode
-        pendingEditSourceText = if (mode == ImeSendMode.EDIT_EXISTING) editSourceText else ""
         val chunkSessionId = beginChunkSession()
         val recorder = VoiceAudioRecorder(
             onLevelChanged = { level ->
@@ -290,8 +251,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             }
         )
         if (!recorder.start()) {
-            pendingSendMode = ImeSendMode.COMPOSE_NEW
-            pendingEditSourceText = ""
             endChunkSession(chunkSessionId, cancelPending = true)
             keyboardViewModel.showIdle()
             return
@@ -304,10 +263,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun onDeleteTap() {
         if (inFlight != null) return
         stopRecordingDiscardAsync()
-        pendingSendMode = ImeSendMode.COMPOSE_NEW
-        pendingEditSourceText = ""
         keyboardViewModel.showIdle()
-        refreshEditableInputState()
     }
 
     private fun onSendTap() {
@@ -315,10 +271,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val recorder = audioRecorder ?: return
         audioRecorder = null
         keyboardViewModel.showTranscribing()
-        val mode = pendingSendMode
-        val editSourceText = pendingEditSourceText
-        pendingSendMode = ImeSendMode.COMPOSE_NEW
-        pendingEditSourceText = ""
+        val sourceTextSnapshot = currentInputTextSnapshot()
 
         submitSendRequest(
             SendRequest(
@@ -326,8 +279,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 sessionId = sessionCounter.incrementAndGet(),
                 packageName = currentInputEditorInfo?.packageName,
                 chunkSessionId = activeChunkSessionId,
-                mode = mode,
-                editSourceText = editSourceText
+                sourceTextSnapshot = sourceTextSnapshot
             )
         )
     }
@@ -351,8 +303,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         try {
             val pipelineRequest = ImePipelineRequest(
                 recorder = request.recorder,
-                mode = request.mode,
-                editSourceText = request.editSourceText,
+                sourceTextSnapshot = request.sourceTextSnapshot,
                 chunkSessionId = request.chunkSessionId
             )
             val transcribe = imePipeline.transcribe(
@@ -376,6 +327,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             val totalElapsed = SystemClock.uptimeMillis() - pipelineStartedAt
             val metrics = VoiceDebugMetrics(
                 sessionId = request.sessionId,
+                operationMode = rewrite.operation,
                 timestampMs = System.currentTimeMillis(),
                 totalMs = totalElapsed,
                 transcribeMs = transcribe.elapsedMs,
@@ -397,7 +349,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 committed = false,
                 editIntent = rewrite.editIntent
             )
-            postSendResult(request, rewrite.output, metrics)
+            postSendResult(request, rewrite, metrics)
         } catch (t: Throwable) {
             Log.e(TAG, "onSend pipeline failed", t)
             postIdleAfterBackgroundWork()
@@ -406,28 +358,26 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }
     }
 
-    private fun postSendResult(request: SendRequest, output: String, metrics: VoiceDebugMetrics) {
+    private fun postSendResult(request: SendRequest, rewrite: ImeRewriteResult, metrics: VoiceDebugMetrics) {
         mainHandler.post {
             inFlight = null
             val outputForCommit = appendInlineDebugIfEnabled(
-                output = output,
+                output = rewrite.output,
                 metrics = metrics,
-                mode = request.mode
+                modeName = rewrite.operation.name
             )
             val commitResult = imePipeline.commit(
-                mode = request.mode,
+                operation = rewrite.operation,
                 outputForCommit = outputForCommit,
                 editIntent = metrics.editIntent,
                 sessionId = request.sessionId,
                 packageName = request.packageName,
                 isSessionCurrent = ::isSessionCurrent,
-                replaceCurrentInputText = ::replaceCurrentInputText,
-                enqueuePendingCommit = ::enqueuePendingCommit
+                replaceCurrentInputText = ::replaceCurrentInputText
             )
             if (commitResult.sessionMismatch) {
                 keyboardViewModel.setDebugMetrics(metrics.copy(committed = false))
                 keyboardViewModel.showIdle()
-                refreshEditableInputState()
                 return@post
             }
             val committed = commitResult.committed
@@ -436,7 +386,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                     Log.w(TAG, "Output generated but commit failed for session=${request.sessionId}")
                 }
             } else {
-                if (committed && request.mode == ImeSendMode.EDIT_EXISTING) {
+                if (committed && rewrite.operation == ImeOperation.EDIT) {
                     Log.i(TAG, "Edit cleared input for session=${request.sessionId}")
                 } else {
                     Log.i(TAG, "No transcript text to commit for session=${request.sessionId}")
@@ -449,18 +399,17 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 )
             )
             keyboardViewModel.showIdle()
-            refreshEditableInputState()
         }
     }
 
     private fun appendInlineDebugIfEnabled(
         output: String,
         metrics: VoiceDebugMetrics,
-        mode: ImeSendMode
+        modeName: String
     ): String {
         if (!keyboardViewModel.isInlineDebugEnabled()) return output
         if (output.isBlank()) return output
-        return output.trimEnd() + "\n\n" + VoiceDebugFooterFormatter.format(metrics, mode.name)
+        return output.trimEnd() + "\n\n" + VoiceDebugFooterFormatter.format(metrics, modeName)
     }
 
     private fun debugTextSample(text: String): String {
@@ -474,7 +423,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         mainHandler.post {
             inFlight = null
             keyboardViewModel.showIdle()
-            refreshEditableInputState()
         }
     }
 
@@ -608,63 +556,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         return true
     }
 
-    private fun commitSummary(summary: String): Boolean {
-        val connection = currentInputConnection ?: return false
-        return runCatching {
-            connection.commitText(summary, 1)
-        }.getOrElse {
-            Log.w(TAG, "commitText failed", it)
-            false
-        }
-    }
-
-    private fun enqueuePendingCommit(summary: String, sessionId: Int, packageName: String?) {
-        pendingCommit = PendingCommit(
-            summary = summary,
-            sessionId = sessionId,
-            packageName = packageName
-        )
-        schedulePendingCommitFlush(delayMs = 0L)
-    }
-
-    private fun flushPendingCommit() {
-        val pending = pendingCommit ?: return
-        if ((SystemClock.uptimeMillis() - pending.createdAtMs) > MAX_COMMIT_WINDOW_MS) {
-            Log.w(TAG, "pending commit expired for session=${pending.sessionId}")
-            pendingCommit = null
-            refreshEditableInputState()
-            return
-        }
-        if (!isSessionCurrent(pending.sessionId, pending.packageName)) {
-            pendingCommit = null
-            refreshEditableInputState()
-            return
-        }
-        if (commitSummary(pending.summary)) {
-            pendingCommit = null
-            refreshEditableInputState()
-            return
-        }
-        val nextAttempt = pending.attempt + 1
-        if (nextAttempt >= MAX_COMMIT_ATTEMPTS) {
-            Log.w(TAG, "commitText retries exhausted for session=${pending.sessionId}")
-            pendingCommit = null
-            refreshEditableInputState()
-            return
-        }
-        pendingCommit = pending.copy(attempt = nextAttempt)
-        schedulePendingCommitFlush(delayMs = COMMIT_RETRY_DELAY_MS)
-    }
-
-    private fun schedulePendingCommitFlush(delayMs: Long) {
-        mainHandler.removeCallbacks(pendingCommitRunnable)
-        if (delayMs <= 0L) {
-            mainHandler.post(pendingCommitRunnable)
-        } else {
-            mainHandler.postDelayed(pendingCommitRunnable, delayMs)
-        }
-    }
-
     private fun hasMicPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             this,
@@ -685,16 +576,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     private fun cancelInFlight() {
         sessionCounter.incrementAndGet()
-        pendingCommit = null
-        pendingSendMode = ImeSendMode.COMPOSE_NEW
-        pendingEditSourceText = ""
-        mainHandler.removeCallbacks(pendingCommitRunnable)
         moonshineTranscriberIfInitialized()?.cancelActive()
         inFlight?.cancel(true)
         inFlight = null
         liteRtSummarizerIfInitialized()?.cancelActive()
         endChunkSession(activeChunkSessionId, cancelPending = true)
-        refreshEditableInputState()
     }
 
     private fun cancelSessionWork(cancelProcessing: Boolean) {
@@ -703,14 +589,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             cancelInFlight()
         }
         keyboardViewModel.showIdle()
-        refreshEditableInputState()
     }
 
     private fun stopRecordingDiscardAsync() {
         val recorder = audioRecorder ?: return
         audioRecorder = null
-        pendingSendMode = ImeSendMode.COMPOSE_NEW
-        pendingEditSourceText = ""
         moonshineTranscriberIfInitialized()?.cancelActive()
         val chunkSessionId = activeChunkSessionId
         endChunkSession(chunkSessionId, cancelPending = true)
@@ -723,11 +606,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 recorder.stopAndGetPcm()
             }.start()
         }
-        refreshEditableInputState()
-    }
-
-    private fun refreshEditableInputState() {
-        keyboardViewModel.setCanEditCurrentInput(currentInputTextSnapshot().isNotBlank())
     }
 
     private fun currentInputTextSnapshot(): String {
@@ -835,24 +713,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val sessionId: Int,
         val packageName: String?,
         val chunkSessionId: Int,
-        val mode: ImeSendMode,
-        val editSourceText: String
-    )
-
-    private data class PendingCommit(
-        val summary: String,
-        val sessionId: Int,
-        val packageName: String?,
-        val attempt: Int = 0,
-        val createdAtMs: Long = SystemClock.uptimeMillis()
+        val sourceTextSnapshot: String
     )
 
     companion object {
         private const val TAG = "VoiceIme"
         private const val INPUT_SNAPSHOT_MAX_CHARS = 4_000
-        private const val COMMIT_RETRY_DELAY_MS = 120L
-        private const val MAX_COMMIT_ATTEMPTS = 20
-        private const val MAX_COMMIT_WINDOW_MS = 4_000L
         private const val CHUNK_WAIT_TOTAL_MS = 7_000L
         private const val CHUNK_WAIT_SLICE_MS = 180L
         private const val MOONSHINE_FINALIZE_WAIT_MS = 4_500L

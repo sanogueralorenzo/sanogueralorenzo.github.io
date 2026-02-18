@@ -27,6 +27,7 @@ enum class TranscriptionPath {
 
 data class VoiceDebugMetrics(
     val sessionId: Int,
+    val operationMode: ImeOperation,
     val timestampMs: Long,
     val totalMs: Long,
     val transcribeMs: Long,
@@ -55,7 +56,6 @@ data class VoiceKeyboardState(
     val audioLevel: Float = 0f,
     val bottomInsetPx: Int = 0,
     val processingStartedAtMs: Long = 0L,
-    val canEditCurrentInput: Boolean = false,
     val lastDebugMetrics: VoiceDebugMetrics? = null,
     val inlineDebugEnabled: Boolean = false
 ) : MavericksState
@@ -145,10 +145,6 @@ class VoiceKeyboardViewModel(initialState: VoiceKeyboardState) :
 
     fun setDebugMetrics(metrics: VoiceDebugMetrics) {
         setState { copy(lastDebugMetrics = metrics) }
-    }
-
-    fun setCanEditCurrentInput(canEdit: Boolean) {
-        setState { copy(canEditCurrentInput = canEdit) }
     }
 
     fun toggleInlineDebug() {

@@ -23,32 +23,29 @@ internal class VoiceImePipeline(
         onShowRewriting: () -> Unit
     ): ImeRewriteResult {
         return rewriteCoordinator.rewrite(
-            mode = request.mode,
+            sourceText = request.sourceTextSnapshot,
             transcript = transcript,
-            editSourceText = request.editSourceText,
             onShowRewriting = onShowRewriting
         )
     }
 
     fun commit(
-        mode: ImeSendMode,
+        operation: ImeOperation,
         outputForCommit: String,
         editIntent: String?,
         sessionId: Int,
         packageName: String?,
         isSessionCurrent: (Int, String?) -> Boolean,
-        replaceCurrentInputText: (String) -> Boolean,
-        enqueuePendingCommit: (String, Int, String?) -> Unit
+        replaceCurrentInputText: (String) -> Boolean
     ): ImeCommitResult {
         return commitCoordinator.commit(
-            mode = mode,
+            operation = operation,
             outputForCommit = outputForCommit,
             editIntent = editIntent,
             sessionId = sessionId,
             packageName = packageName,
             isSessionCurrent = isSessionCurrent,
-            replaceCurrentInputText = replaceCurrentInputText,
-            enqueuePendingCommit = enqueuePendingCommit
+            replaceCurrentInputText = replaceCurrentInputText
         )
     }
 }

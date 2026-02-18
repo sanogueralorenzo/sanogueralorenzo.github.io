@@ -10,30 +10,47 @@ class ImeCommitCoordinatorTest {
     private val coordinator = ImeCommitCoordinator()
 
     @Test
-    fun composeNonBlank_enqueuesCommit() {
-        var enqueuedText: String? = null
-        var replaced = false
+    fun appendNonBlank_replacesInput() {
+        var replacedText: String? = null
 
         val result = coordinator.commit(
-            mode = ImeSendMode.COMPOSE_NEW,
+            operation = ImeOperation.APPEND,
             outputForCommit = "hello world",
             editIntent = null,
             sessionId = 12,
             packageName = "pkg",
             isSessionCurrent = { _, _ -> true },
             replaceCurrentInputText = {
-                replaced = true
+                replacedText = it
                 true
-            },
-            enqueuePendingCommit = { text, _, _ ->
-                enqueuedText = text
             }
         )
 
         assertTrue(result.committed)
         assertFalse(result.sessionMismatch)
+        assertEquals("hello world", replacedText)
+    }
+
+    @Test
+    fun appendBlank_isNoOp() {
+        var replaced = false
+
+        val result = coordinator.commit(
+            operation = ImeOperation.APPEND,
+            outputForCommit = "",
+            editIntent = null,
+            sessionId = 1,
+            packageName = "pkg",
+            isSessionCurrent = { _, _ -> true },
+            replaceCurrentInputText = {
+                replaced = true
+                true
+            }
+        )
+
+        assertFalse(result.sessionMismatch)
+        assertFalse(result.committed)
         assertFalse(replaced)
-        assertEquals("hello world", enqueuedText)
     }
 
     @Test
@@ -41,7 +58,7 @@ class ImeCommitCoordinatorTest {
         var replaced = false
 
         val result = coordinator.commit(
-            mode = ImeSendMode.EDIT_EXISTING,
+            operation = ImeOperation.EDIT,
             outputForCommit = "",
             editIntent = "REPLACE_TERM",
             sessionId = 1,
@@ -50,8 +67,7 @@ class ImeCommitCoordinatorTest {
             replaceCurrentInputText = {
                 replaced = true
                 true
-            },
-            enqueuePendingCommit = { _, _, _ -> }
+            }
         )
 
         assertTrue(result.committed)
@@ -64,7 +80,7 @@ class ImeCommitCoordinatorTest {
         var replacedText: String? = null
 
         val result = coordinator.commit(
-            mode = ImeSendMode.EDIT_EXISTING,
+            operation = ImeOperation.EDIT,
             outputForCommit = "",
             editIntent = LiteRtEditHeuristics.EditIntent.DELETE_ALL.name,
             sessionId = 1,
@@ -73,8 +89,7 @@ class ImeCommitCoordinatorTest {
             replaceCurrentInputText = {
                 replacedText = it
                 true
-            },
-            enqueuePendingCommit = { _, _, _ -> }
+            }
         )
 
         assertTrue(result.committed)
@@ -84,10 +99,9 @@ class ImeCommitCoordinatorTest {
     @Test
     fun sessionMismatch_doesNotCommit() {
         var replaced = false
-        var enqueued = false
 
         val result = coordinator.commit(
-            mode = ImeSendMode.COMPOSE_NEW,
+            operation = ImeOperation.APPEND,
             outputForCommit = "text",
             editIntent = null,
             sessionId = 1,
@@ -96,15 +110,11 @@ class ImeCommitCoordinatorTest {
             replaceCurrentInputText = {
                 replaced = true
                 true
-            },
-            enqueuePendingCommit = { _, _, _ ->
-                enqueued = true
             }
         )
 
         assertFalse(result.committed)
         assertTrue(result.sessionMismatch)
         assertFalse(replaced)
-        assertFalse(enqueued)
     }
 }

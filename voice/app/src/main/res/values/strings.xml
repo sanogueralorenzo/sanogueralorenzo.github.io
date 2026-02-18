@@ -50,7 +50,7 @@
     <string name="onboarding_tutorial_open_picker">Keyboard picker</string>
     <string name="onboarding_tutorial_open_settings">IME settings</string>
     <string name="onboarding_tutorial_real_instruction_compose">Use Voice Keyboard to dictate a message.</string>
-    <string name="onboarding_tutorial_real_instruction_edit">Use Edit to update the message.</string>
+    <string name="onboarding_tutorial_real_instruction_edit">Use voice edit commands like "replace eggs with milk" to update the message.</string>
     <string name="onboarding_tutorial_real_instruction_sent">Message sent.</string>
     <string name="onboarding_tutorial_sent_now">now</string>
     <string name="settings_section_title">Settings</string>
@@ -119,7 +119,6 @@
     <string name="setup_unknown_value">unknown</string>
     <string name="ime_delete_recording">Stop recording</string>
     <string name="ime_send_recording">Send recording</string>
-    <string name="ime_edit_instruction">Edit current text with voice instruction</string>
     <string name="ime_debug_enable">Enable inline debug info</string>
     <string name="ime_debug_disable">Disable inline debug info</string>
 </resources>

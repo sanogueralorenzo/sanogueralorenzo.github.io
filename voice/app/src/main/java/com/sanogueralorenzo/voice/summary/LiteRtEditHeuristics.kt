@@ -19,7 +19,8 @@ internal object LiteRtEditHeuristics {
     internal enum class CommandKind {
         CLEAR_ALL,
         DELETE_TERM,
-        REPLACE_TERM
+        REPLACE_TERM,
+        UPDATE_NUMBER
     }
 
     internal enum class RuleConfidence {
@@ -77,6 +78,20 @@ internal object LiteRtEditHeuristics {
         )
     }
 
+    fun isStrictEditCommand(instructionText: String): Boolean {
+        val collapsed = instructionText
+            .replace(WhitespaceRegex, " ")
+            .trim()
+        if (collapsed.isBlank()) return false
+        val commandCandidate = stripCommandPreamble(collapsed)
+        if (commandCandidate.isBlank()) return false
+        return ClearAllRegex.matches(commandCandidate) ||
+            DeleteCommandRegex.matches(commandCandidate) ||
+            ReplaceDirectRegex.matches(commandCandidate) ||
+            ReplaceUseInsteadRegex.matches(commandCandidate) ||
+            UpdateNumberCommandRegex.matches(commandCandidate)
+    }
+
     fun shouldAllowBlankOutput(intent: EditIntent): Boolean {
         return intent == EditIntent.DELETE_ALL
     }
@@ -107,25 +122,33 @@ internal object LiteRtEditHeuristics {
 
             CommandKind.DELETE_TERM -> {
                 val target = parsed.target.orEmpty()
-                val replaceResult = applyScopedEdit(
-                    sourceText = sourceText,
-                    target = target,
-                    replacement = "",
-                    scope = parsed.scope
-                )
+                val targets = splitDeleteTargets(target)
+                if (targets.size > 1 && parsed.scope != CommandScope.ALL) return null
+                var updated = sourceText
+                var totalMatched = 0
+                targets.forEach { term ->
+                    val replaceResult = applyScopedEdit(
+                        sourceText = updated,
+                        target = term,
+                        replacement = "",
+                        scope = if (targets.size > 1) CommandScope.ALL else parsed.scope
+                    )
+                    updated = replaceResult.output
+                    totalMatched += replaceResult.matchedCount
+                }
                 DeterministicEditResult(
-                    output = cleanupEditedText(replaceResult.output),
-                    applied = replaceResult.output != sourceText,
+                    output = cleanupEditedText(updated),
+                    applied = updated != sourceText,
                     intent = EditIntent.GENERAL,
                     scope = parsed.scope,
                     commandKind = CommandKind.DELETE_TERM,
-                    matchedCount = replaceResult.matchedCount,
-                    ruleConfidence = if (replaceResult.matchedCount > 0) {
+                    matchedCount = totalMatched,
+                    ruleConfidence = if (totalMatched > 0) {
                         RuleConfidence.HIGH
                     } else {
                         RuleConfidence.LOW
                     },
-                    noMatchDetected = replaceResult.matchedCount == 0
+                    noMatchDetected = totalMatched == 0
                 )
             }
 
@@ -144,6 +167,28 @@ internal object LiteRtEditHeuristics {
                     intent = EditIntent.REPLACE,
                     scope = parsed.scope,
                     commandKind = CommandKind.REPLACE_TERM,
+                    matchedCount = replaceResult.matchedCount,
+                    ruleConfidence = if (replaceResult.matchedCount > 0) {
+                        RuleConfidence.HIGH
+                    } else {
+                        RuleConfidence.LOW
+                    },
+                    noMatchDetected = replaceResult.matchedCount == 0
+                )
+            }
+
+            CommandKind.UPDATE_NUMBER -> {
+                val replacement = parsed.replacement.orEmpty()
+                val replaceResult = applyLastNumericEdit(
+                    sourceText = sourceText,
+                    replacement = replacement
+                )
+                DeterministicEditResult(
+                    output = cleanupEditedText(replaceResult.output),
+                    applied = replaceResult.output != sourceText,
+                    intent = EditIntent.REPLACE,
+                    scope = CommandScope.LAST,
+                    commandKind = CommandKind.UPDATE_NUMBER,
                     matchedCount = replaceResult.matchedCount,
                     ruleConfidence = if (replaceResult.matchedCount > 0) {
                         RuleConfidence.HIGH
@@ -216,7 +261,8 @@ internal object LiteRtEditHeuristics {
         val clear = parseClearAllCommand(instruction)
         val delete = parseDeleteCommand(instruction)
         val replace = parseReplaceCommand(instruction)
-        val parsed = listOfNotNull(clear, delete, replace)
+        val updateNumber = parseUpdateNumberCommand(instruction)
+        val parsed = listOfNotNull(clear, delete, replace, updateNumber)
         if (parsed.size != 1) return null
         return parsed.first()
     }
@@ -275,6 +321,17 @@ internal object LiteRtEditHeuristics {
             scope = fromScoped.scope,
             target = from,
             replacement = to
+        )
+    }
+
+    private fun parseUpdateNumberCommand(instruction: String): ParsedCommand? {
+        val match = UpdateNumberCommandRegex.find(instruction) ?: return null
+        val replacement = normalizeReplacementTerm(match.groupValues[1])
+        if (replacement.isBlank()) return null
+        return ParsedCommand(
+            kind = CommandKind.UPDATE_NUMBER,
+            scope = CommandScope.LAST,
+            replacement = replacement
         )
     }
 
@@ -340,6 +397,21 @@ internal object LiteRtEditHeuristics {
         }
     }
 
+    private fun splitDeleteTargets(target: String): List<String> {
+        val normalized = target.trim()
+        if (!DeleteTargetSeparatorRegex.containsMatchIn(normalized)) {
+            return listOf(normalized)
+        }
+        val tokens = DeleteTargetSeparatorRegex.split(normalized)
+            .map { normalizeCommandTerm(it, stripArticleWordPrefix = true) }
+            .filter { it.isNotBlank() }
+        if (tokens.size < 2) return listOf(normalized)
+        if (tokens.any { WordRegex.findAll(it).count() > MAX_MULTI_TARGET_TERM_WORDS }) {
+            return listOf(normalized)
+        }
+        return tokens.distinctBy { it.lowercase() }
+    }
+
     private fun targetRegex(term: String): Regex {
         val escaped = Regex.escape(term)
         return if (SingleTokenRegex.matches(term)) {
@@ -347,6 +419,18 @@ internal object LiteRtEditHeuristics {
         } else {
             Regex(escaped, setOf(RegexOption.IGNORE_CASE))
         }
+    }
+
+    private fun applyLastNumericEdit(sourceText: String, replacement: String): ReplaceApplyResult {
+        val matches = NumericLikeRegex.findAll(sourceText).toList()
+        if (matches.isEmpty()) {
+            return ReplaceApplyResult(output = sourceText, matchedCount = 0)
+        }
+        val last = matches.last()
+        return ReplaceApplyResult(
+            output = sourceText.replaceRange(last.range, replacement),
+            matchedCount = 1
+        )
     }
 
     private fun passesCommandGate(normalizedInstruction: String): Boolean {
@@ -422,6 +506,7 @@ internal object LiteRtEditHeuristics {
 
     private const val MAX_COMMAND_WORDS = 10
     private const val MAX_COMMAND_CHARS = 96
+    private const val MAX_MULTI_TARGET_TERM_WORDS = 3
 
     private val WhitespaceRegex = Regex("\\s+")
     private val WordRegex = Regex("\\p{L}[\\p{L}\\p{N}'’-]*")
@@ -444,15 +529,27 @@ internal object LiteRtEditHeuristics {
     )
 
     private val ReplaceRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:(?:replace|change|swap|substitute)\\s+.+\\s+(?:with|to|for)\\s+.+|use\\s+.+\\s+instead\\s+of\\s+.+)$",
+        "^\\s*(?:please\\s+)?(?:(?:replace|change|swap|substitute|update|correct)\\s+.+\\s+(?:with|to|for)\\s+.+|use\\s+.+\\s+instead\\s+of\\s+.+)$",
         RegexOption.IGNORE_CASE
     )
     private val ReplaceDirectRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:replace|change|swap|substitute)\\s+(.+?)\\s+(?:with|to|for)\\s+(.+?)\\s*$",
+        "^\\s*(?:please\\s+)?(?:replace|change|swap|substitute|update|correct)\\s+(.+?)\\s+(?:with|to|for)\\s+(.+?)\\s*$",
         RegexOption.IGNORE_CASE
     )
     private val ReplaceUseInsteadRegex = Regex(
         "^\\s*(?:please\\s+)?use\\s+(.+?)\\s+instead\\s+of\\s+(.+?)\\s*$",
+        RegexOption.IGNORE_CASE
+    )
+    private val UpdateNumberCommandRegex = Regex(
+        "^\\s*(?:please\\s+)?update\\s+number\\s+(?:to|with)\\s+(.+?)\\s*$",
+        RegexOption.IGNORE_CASE
+    )
+    private val DeleteTargetSeparatorRegex = Regex(
+        "\\s*(?:,|\\band\\b)\\s*",
+        RegexOption.IGNORE_CASE
+    )
+    private val NumericLikeRegex = Regex(
+        "\\b\\d{1,4}(?::\\d{2})?(?:\\s?(?:am|pm))?\\b",
         RegexOption.IGNORE_CASE
     )
 

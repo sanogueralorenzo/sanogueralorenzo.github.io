@@ -8,6 +8,7 @@ class VoiceDebugFooterFormatterTest {
     fun format_containsCoreFields() {
         val metrics = VoiceDebugMetrics(
             sessionId = 7,
+            operationMode = ImeOperation.EDIT,
             timestampMs = 1700000000000L,
             totalMs = 1400L,
             transcribeMs = 900L,
@@ -30,8 +31,9 @@ class VoiceDebugFooterFormatterTest {
             editIntent = "REPLACE_TERM"
         )
 
-        val footer = VoiceDebugFooterFormatter.format(metrics, "COMPOSE_NEW")
-        assertTrue(footer.contains("mode: COMPOSE_NEW"))
+        val footer = VoiceDebugFooterFormatter.format(metrics, "AUTO")
+        assertTrue(footer.contains("mode: AUTO"))
+        assertTrue(footer.contains("operation_mode: edit"))
         assertTrue(footer.contains("session: 7"))
         assertTrue(footer.contains("litert_backend: GPU"))
         assertTrue(footer.contains("litert_error_type: none"))

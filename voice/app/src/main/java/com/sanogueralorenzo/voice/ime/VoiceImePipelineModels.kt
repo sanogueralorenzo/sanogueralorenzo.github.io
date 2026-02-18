@@ -2,15 +2,14 @@ package com.sanogueralorenzo.voice.ime
 
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 
-internal enum class ImeSendMode {
-    COMPOSE_NEW,
-    EDIT_EXISTING
+enum class ImeOperation {
+    APPEND,
+    EDIT
 }
 
 internal data class ImePipelineRequest(
     val recorder: VoiceAudioRecorder,
-    val mode: ImeSendMode,
-    val editSourceText: String,
+    val sourceTextSnapshot: String,
     val chunkSessionId: Int
 )
 
@@ -26,6 +25,7 @@ internal data class ImeTranscriptionResult(
 
 internal data class ImeRewriteResult(
     val output: String,
+    val operation: ImeOperation,
     val attempted: Boolean,
     val applied: Boolean,
     val backend: String?,

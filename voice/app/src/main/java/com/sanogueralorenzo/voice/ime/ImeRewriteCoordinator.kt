@@ -11,68 +11,63 @@ internal class ImeRewriteCoordinator(
     private val liteRtSummarizer: LiteRtSummarizer
 ) {
     fun rewrite(
-        mode: ImeSendMode,
+        sourceText: String,
         transcript: String,
-        editSourceText: String,
         onShowRewriting: () -> Unit
     ): ImeRewriteResult {
-        return if (mode == ImeSendMode.EDIT_EXISTING) {
+        val normalizedTranscript = transcript.trim()
+        val hasSource = sourceText.trim().isNotBlank()
+        val shouldEdit = hasSource && LiteRtEditHeuristics.isStrictEditCommand(normalizedTranscript)
+
+        return if (shouldEdit) {
             editCurrentTextWithInstruction(
-                sourceText = editSourceText,
-                instructionTranscript = transcript,
+                sourceText = sourceText,
+                instructionTranscript = normalizedTranscript,
                 onShowRewriting = onShowRewriting
             )
         } else {
-            rewriteTranscriptIfNeeded(
-                transcript = transcript,
+            appendToSourceText(
+                sourceText = sourceText,
+                transcript = normalizedTranscript,
                 onShowRewriting = onShowRewriting
             )
         }
     }
 
-    private fun rewriteTranscriptIfNeeded(
+    private fun appendToSourceText(
+        sourceText: String,
         transcript: String,
         onShowRewriting: () -> Unit
     ): ImeRewriteResult {
         val startedAt = SystemClock.uptimeMillis()
-        val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
-        val shouldRewrite = rewriteEnabled && transcript.isNotBlank() && liteRtSummarizer.isModelAvailable()
-        if (shouldRewrite) {
-            onShowRewriting()
-        }
-        if (!shouldRewrite) {
+        if (sourceText.isBlank()) {
+            val chunkResult = rewriteChunkIfNeeded(transcript, onShowRewriting)
             return ImeRewriteResult(
-                output = transcript,
-                attempted = false,
-                applied = false,
-                backend = null,
+                output = chunkResult.output,
+                operation = ImeOperation.APPEND,
+                attempted = chunkResult.attempted,
+                applied = chunkResult.output != transcript,
+                backend = chunkResult.backend,
+                errorType = chunkResult.errorType,
+                errorMessage = chunkResult.errorMessage,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
                 editIntent = null
             )
         }
 
-        val result = liteRtSummarizer.summarizeBlocking(text = transcript)
-        return when (result) {
-            is RewriteResult.Success -> ImeRewriteResult(
-                output = result.text,
-                attempted = true,
-                applied = result.text != transcript,
-                backend = result.backend.name,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
-            )
-
-            is RewriteResult.Failure -> ImeRewriteResult(
-                output = transcript,
-                attempted = true,
-                applied = false,
-                backend = result.backend?.name,
-                errorType = result.error.type,
-                errorMessage = result.error.litertError,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
-            )
-        }
+        val chunkResult = rewriteChunkIfNeeded(transcript, onShowRewriting)
+        val output = ImeAppendFormatter.append(sourceText = sourceText, chunkText = chunkResult.output)
+        return ImeRewriteResult(
+            output = output,
+            operation = ImeOperation.APPEND,
+            attempted = chunkResult.attempted,
+            applied = output != sourceText,
+            backend = chunkResult.backend,
+            errorType = chunkResult.errorType,
+            errorMessage = chunkResult.errorMessage,
+            elapsedMs = SystemClock.uptimeMillis() - startedAt,
+            editIntent = null
+        )
     }
 
     private fun editCurrentTextWithInstruction(
@@ -86,6 +81,7 @@ internal class ImeRewriteCoordinator(
         if (normalizedSource.isBlank() || normalizedInstruction.isBlank()) {
             return ImeRewriteResult(
                 output = sourceText,
+                operation = ImeOperation.EDIT,
                 attempted = false,
                 applied = false,
                 backend = null,
@@ -103,6 +99,7 @@ internal class ImeRewriteCoordinator(
         if (deterministicEdit != null && !deterministicEdit.noMatchDetected) {
             return ImeRewriteResult(
                 output = deterministicEdit.output,
+                operation = ImeOperation.EDIT,
                 attempted = false,
                 applied = deterministicEdit.output != sourceText,
                 backend = null,
@@ -112,19 +109,10 @@ internal class ImeRewriteCoordinator(
         }
 
         val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
-        if (!rewriteEnabled) {
+        if (!rewriteEnabled || !liteRtSummarizer.isModelAvailable()) {
             return ImeRewriteResult(
                 output = sourceText,
-                attempted = false,
-                applied = false,
-                backend = null,
-                elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
-            )
-        }
-        if (!liteRtSummarizer.isModelAvailable()) {
-            return ImeRewriteResult(
-                output = sourceText,
+                operation = ImeOperation.EDIT,
                 attempted = false,
                 applied = false,
                 backend = null,
@@ -141,6 +129,7 @@ internal class ImeRewriteCoordinator(
         return when (result) {
             is RewriteResult.Success -> ImeRewriteResult(
                 output = result.text,
+                operation = ImeOperation.EDIT,
                 attempted = true,
                 applied = result.text != sourceText,
                 backend = result.backend.name,
@@ -150,6 +139,7 @@ internal class ImeRewriteCoordinator(
 
             is RewriteResult.Failure -> ImeRewriteResult(
                 output = sourceText,
+                operation = ImeOperation.EDIT,
                 attempted = true,
                 applied = false,
                 backend = result.backend?.name,
@@ -160,4 +150,44 @@ internal class ImeRewriteCoordinator(
             )
         }
     }
+
+    private fun rewriteChunkIfNeeded(
+        transcript: String,
+        onShowRewriting: () -> Unit
+    ): ChunkRewriteResult {
+        val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
+        val shouldRewrite = rewriteEnabled && transcript.isNotBlank() && liteRtSummarizer.isModelAvailable()
+        if (!shouldRewrite) {
+            return ChunkRewriteResult(
+                output = transcript,
+                attempted = false,
+                backend = null
+            )
+        }
+
+        onShowRewriting()
+        return when (val result = liteRtSummarizer.summarizeBlocking(text = transcript)) {
+            is RewriteResult.Success -> ChunkRewriteResult(
+                output = result.text,
+                attempted = true,
+                backend = result.backend.name
+            )
+
+            is RewriteResult.Failure -> ChunkRewriteResult(
+                output = transcript,
+                attempted = true,
+                backend = result.backend?.name,
+                errorType = result.error.type,
+                errorMessage = result.error.litertError
+            )
+        }
+    }
+
+    private data class ChunkRewriteResult(
+        val output: String,
+        val attempted: Boolean,
+        val backend: String?,
+        val errorType: String? = null,
+        val errorMessage: String? = null
+    )
 }
