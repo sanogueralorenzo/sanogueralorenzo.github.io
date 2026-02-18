@@ -64,14 +64,6 @@ class SetupViewModel(
         }
     }
 
-    fun refreshNetworkStatus() {
-        setState {
-            copy(
-                connectedToWifi = setupRepository.isConnectedToWifi()
-            )
-        }
-    }
-
     fun onMicPermissionResult(granted: Boolean) {
         setState { copy(micGranted = granted) }
         refreshKeyboardStatus()

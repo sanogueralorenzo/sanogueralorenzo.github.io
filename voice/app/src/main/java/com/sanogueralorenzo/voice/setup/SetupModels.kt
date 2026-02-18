@@ -8,7 +8,6 @@ data class SetupUiState(
     val micGranted: Boolean = false,
     val voiceImeEnabled: Boolean = false,
     val voiceImeSelected: Boolean = false,
-    val connectedToWifi: Boolean = true,
     val liteRtReady: Boolean = false,
     val moonshineReady: Boolean = false,
     val promptReady: Boolean = false,

@@ -3,10 +3,6 @@ package com.sanogueralorenzo.voice.setup
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -38,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -97,6 +94,7 @@ fun SetupNavHost() {
     }
     val uiState by setupViewModel.collectAsStateWithLifecycle()
     val checkUpdatesUiState by checkUpdatesViewModel.collectAsStateWithLifecycle()
+    val connectedToWifi by setupRepository.wifiConnected.collectFlowAsStateWithLifecycle()
     var keyboardSelectionAssumed by rememberSaveable { mutableStateOf(false) }
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupIntroDismissed by rememberSaveable { mutableStateOf(false) }
@@ -119,7 +117,6 @@ fun SetupNavHost() {
             if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
-                setupViewModel.refreshNetworkStatus()
                 setupViewModel.refreshModelReadiness()
             }
         }
@@ -127,36 +124,9 @@ fun SetupNavHost() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    DisposableEffect(appContext) {
-        val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        if (connectivityManager == null) {
-            onDispose { }
-        } else {
-            val callback = object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    setupViewModel.refreshNetworkStatus()
-                }
-
-                override fun onLost(network: Network) {
-                    setupViewModel.refreshNetworkStatus()
-                }
-
-                override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                    setupViewModel.refreshNetworkStatus()
-                }
-            }
-            val request = NetworkRequest.Builder().build()
-            runCatching { connectivityManager.registerNetworkCallback(request, callback) }
-            onDispose {
-                runCatching { connectivityManager.unregisterNetworkCallback(callback) }
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
-        setupViewModel.refreshNetworkStatus()
         setupViewModel.refreshModelReadiness()
     }
 
@@ -166,8 +136,8 @@ fun SetupNavHost() {
     LaunchedEffect(uiState.voiceImeEnabled) {
         if (!uiState.voiceImeEnabled) keyboardSelectionAssumed = false
     }
-    LaunchedEffect(uiState.connectedToWifi) {
-        if (uiState.connectedToWifi) allowMobileDataDownloads = false
+    LaunchedEffect(connectedToWifi) {
+        if (connectedToWifi) allowMobileDataDownloads = false
     }
 
     val requiredSetupStep = remember(
@@ -317,7 +287,7 @@ fun SetupNavHost() {
 
             composable(MainRoute.SETUP_MODELS) {
                 SetupDownloadModelsScreen(
-                    connectedToWifi = uiState.connectedToWifi,
+                    connectedToWifi = connectedToWifi,
                     allowMobileDataDownloads = allowMobileDataDownloads,
                     liteRtReady = uiState.liteRtReady,
                     moonshineReady = uiState.moonshineReady,
