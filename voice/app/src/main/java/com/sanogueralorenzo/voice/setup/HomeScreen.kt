@@ -172,7 +172,10 @@ fun HomeScreen(
         ),
         HomeMenuItem(
             icon = Icons.Outlined.Share,
-            title = stringResource(R.string.home_menu_share)
+            title = stringResource(
+                R.string.home_menu_share,
+                stringResource(R.string.app_name)
+            )
         ),
         HomeMenuItem(
             icon = Icons.Outlined.Shield,
