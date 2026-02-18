@@ -249,13 +249,13 @@ private fun HomeMenuRow(
         ) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 color = textColor.copy(alpha = 0.82f)
             )
             if (!item.subtitle.isNullOrBlank()) {
                 Text(
                     text = item.subtitle,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = textColor.copy(alpha = 0.62f)
                 )
             }
