@@ -109,8 +109,8 @@ fun VoiceKeyboardImeContent(
         ) {
             val targetWidth = when (state.mode) {
                 VoiceKeyboardMode.IDLE -> VoicePillVisualizerWidth
-                VoiceKeyboardMode.RECORDING -> (maxWidth * 0.92f).coerceAtMost(420.dp)
-                VoiceKeyboardMode.PROCESSING -> (maxWidth * 0.84f).coerceInDp(230.dp, 380.dp)
+                VoiceKeyboardMode.RECORDING,
+                VoiceKeyboardMode.PROCESSING -> (maxWidth * 0.92f).coerceAtMost(420.dp)
             }
             val idleHeight = 14.dp
             val idleHeightAnimated by animateDpAsState(
