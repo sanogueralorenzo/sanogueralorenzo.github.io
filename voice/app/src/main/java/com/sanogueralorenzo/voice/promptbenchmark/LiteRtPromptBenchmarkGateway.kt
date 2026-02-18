@@ -10,6 +10,7 @@ import com.sanogueralorenzo.voice.summary.RewriteResult
 interface PromptBenchmarkGateway {
     fun runCompose(input: String, promptTemplateOverride: String? = null): RewriteResult
     fun runEdit(original: String, instruction: String): RewriteResult
+    fun release() {}
 }
 
 class LiteRtPromptBenchmarkGateway(
@@ -39,7 +40,7 @@ class LiteRtPromptBenchmarkGateway(
         )
     }
 
-    fun release() {
+    override fun release() {
         summarizer.release()
     }
 }

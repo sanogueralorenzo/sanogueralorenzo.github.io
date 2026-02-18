@@ -5,11 +5,14 @@ import com.airbnb.mvrx.Async
 import com.airbnb.mvrx.Fail
 import com.airbnb.mvrx.Loading
 import com.airbnb.mvrx.MavericksState
+import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
+import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
@@ -45,10 +48,11 @@ data class BenchmarkPrerequisites(
 
 class PromptBenchmarkingViewModel(
     initialState: PromptBenchmarkingUiState,
-    private val appContext: Context,
+    context: Context,
     private val preferencesRepository: PreferencesRepository,
     private val gateway: PromptBenchmarkGateway
 ) : MavericksViewModel<PromptBenchmarkingUiState>(initialState) {
+    private val appContext = context.applicationContext
     private var runJob: Job? = null
 
     init {
@@ -194,5 +198,32 @@ class PromptBenchmarkingViewModel(
 
     fun cancelBenchmark() {
         runJob?.cancel()
+    }
+
+    override fun onCleared() {
+        gateway.release()
+        super.onCleared()
+    }
+
+    companion object : MavericksViewModelFactory<PromptBenchmarkingViewModel, PromptBenchmarkingUiState> {
+        override fun create(
+            viewModelContext: ViewModelContext,
+            state: PromptBenchmarkingUiState
+        ): PromptBenchmarkingViewModel {
+            val app = viewModelContext.app<VoiceApp>()
+            val appGraph = app.appGraph
+            val gateway = LiteRtPromptBenchmarkGateway(
+                context = app.applicationContext,
+                composePolicy = appGraph.liteRtComposePolicy,
+                deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
+                composeLlmGate = appGraph.liteRtComposeLlmGate
+            )
+            return PromptBenchmarkingViewModel(
+                initialState = state,
+                context = app.applicationContext,
+                preferencesRepository = appGraph.preferencesRepository,
+                gateway = gateway
+            )
+        }
     }
 }

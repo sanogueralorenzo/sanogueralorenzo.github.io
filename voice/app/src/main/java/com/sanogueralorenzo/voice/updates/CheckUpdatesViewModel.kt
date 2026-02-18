@@ -2,7 +2,10 @@ package com.sanogueralorenzo.voice.updates
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
+import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.MavericksViewModel
+import com.airbnb.mvrx.ViewModelContext
+import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelDownloadResult
@@ -250,6 +253,20 @@ class CheckUpdatesViewModel(
 
             is PromptTemplateStore.DownloadResult.UnknownError -> appContext.getString(
                 R.string.setup_prompt_download_error_unknown
+            )
+        }
+    }
+
+    companion object : MavericksViewModelFactory<CheckUpdatesViewModel, CheckUpdatesUiState> {
+        override fun create(
+            viewModelContext: ViewModelContext,
+            state: CheckUpdatesUiState
+        ): CheckUpdatesViewModel {
+            val app = viewModelContext.app<VoiceApp>()
+            return CheckUpdatesViewModel(
+                initialState = state,
+                context = app.applicationContext,
+                updateChecker = app.appGraph.modelUpdateChecker
             )
         }
     }

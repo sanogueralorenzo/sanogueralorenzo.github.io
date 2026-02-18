@@ -21,7 +21,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -30,48 +29,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
+import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.di.appGraph
 
 @Composable
 fun PromptBenchmarkingScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val appContext = remember(context) { context.applicationContext }
-    val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val gateway = remember(appContext, appGraph) {
-        LiteRtPromptBenchmarkGateway(
-            context = appContext,
-            composePolicy = appGraph.liteRtComposePolicy,
-            deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
-            composeLlmGate = appGraph.liteRtComposeLlmGate
-        )
-    }
-    val viewModel = remember(appContext, appGraph, gateway) {
-        PromptBenchmarkingViewModel(
-            initialState = PromptBenchmarkingUiState(
-                runnerState = PromptBenchmarkRunnerState(
-                    isRunning = false,
-                    phase = PromptBenchmarkRunPhase.IDLE,
-                    currentCaseIndex = 0,
-                    totalCases = 0,
-                    currentRunIndex = 0,
-                    repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
-                    errorMessage = null
-                )
-            ),
-            appContext = appContext,
-            preferencesRepository = appGraph.preferencesRepository,
-            gateway = gateway
-        )
-    }
+    val viewModel = mavericksViewModel<PromptBenchmarkingViewModel, PromptBenchmarkingUiState>()
     val uiState by viewModel.collectAsStateWithLifecycle()
-
-    DisposableEffect(gateway) {
-        onDispose { gateway.release() }
-    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->

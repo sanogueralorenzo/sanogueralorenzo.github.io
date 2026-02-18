@@ -13,23 +13,33 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
+import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
 
 @Composable
 fun UpdatesScreen(
-    updatesRunning: Boolean,
-    updatesMessage: String?,
-    modelMessage: String?,
     promptVersion: String?,
     promptDownloading: Boolean,
     promptProgress: Int,
-    onDownloadPrompt: () -> Unit,
-    onCheckUpdates: () -> Unit
+    onDownloadPrompt: () -> Unit
 ) {
+    val viewModel = mavericksViewModel<CheckUpdatesViewModel, CheckUpdatesUiState>()
+    val uiState by viewModel.collectAsStateWithLifecycle()
+    val updatesRunning = uiState.updatesRunning
+    val updatesMessage = uiState.updatesMessage
+    val modelMessage = uiState.modelMessage
+
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.shutdown() }
+    }
+
     val promptVersionDate = promptVersion ?: stringResource(R.string.updates_prompt_version_unknown)
     Column(
         modifier = Modifier
@@ -105,7 +115,7 @@ fun UpdatesScreen(
                     )
                 }
                 Button(
-                    onClick = onCheckUpdates,
+                    onClick = viewModel::checkForUpdates,
                     enabled = !updatesRunning,
                     modifier = Modifier.fillMaxWidth()
                 ) {

@@ -48,11 +48,7 @@ import com.sanogueralorenzo.voice.SettingsScreen
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
 import com.sanogueralorenzo.voice.theme.ThemeScreen
-import com.sanogueralorenzo.voice.theme.ThemeUiState
-import com.sanogueralorenzo.voice.theme.ThemeViewModel
 import com.sanogueralorenzo.voice.ui.components.KeyboardTestBar
-import com.sanogueralorenzo.voice.updates.CheckUpdatesUiState
-import com.sanogueralorenzo.voice.updates.CheckUpdatesViewModel
 import com.sanogueralorenzo.voice.updates.UpdatesScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -97,24 +93,8 @@ fun SetupNavHost() {
             setupRepository = setupRepository
         )
     }
-    val themeViewModel = remember(appContext, appGraph) {
-        ThemeViewModel(
-            initialState = ThemeUiState(
-                keyboardThemeMode = appGraph.themeRepository.keyboardThemeMode()
-            ),
-            themeRepository = appGraph.themeRepository
-        )
-    }
-    val checkUpdatesViewModel = remember(appContext, appGraph) {
-        CheckUpdatesViewModel(
-            initialState = CheckUpdatesUiState(),
-            context = appContext,
-            updateChecker = appGraph.modelUpdateChecker
-        )
-    }
     val uiState by setupViewModel.collectAsStateWithLifecycle()
-    val themeUiState by themeViewModel.collectAsStateWithLifecycle()
-    val checkUpdatesUiState by checkUpdatesViewModel.collectAsStateWithLifecycle()
+    val keyboardThemeMode by appGraph.themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle()
     val connectedToWifi by setupRepository.wifiConnected.collectFlowAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
@@ -130,17 +110,12 @@ fun SetupNavHost() {
     DisposableEffect(setupViewModel) {
         onDispose { setupViewModel.shutdown() }
     }
-    DisposableEffect(checkUpdatesViewModel) {
-        onDispose { checkUpdatesViewModel.shutdown() }
-    }
-
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
-                themeViewModel.refreshKeyboardThemeMode()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -151,7 +126,6 @@ fun SetupNavHost() {
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
         setupViewModel.refreshModelReadiness()
-        themeViewModel.refreshKeyboardThemeMode()
     }
 
     LaunchedEffect(connectedToWifi) {
@@ -298,7 +272,7 @@ fun SetupNavHost() {
                     onOpenTheme = actions.onOpenTheme,
                     onOpenUpdates = actions.onOpenUpdates,
                     onOpenPreferences = actions.onOpenPreferences,
-                    keyboardThemeMode = themeUiState.keyboardThemeMode,
+                    keyboardThemeMode = keyboardThemeMode,
                     updatesReady = uiState.liteRtReady && uiState.moonshineReady && uiState.promptReady
                 )
             }
@@ -352,18 +326,15 @@ fun SetupNavHost() {
             }
 
             composable(MainRoute.THEME) {
-                ThemeScreen(viewModel = themeViewModel)
+                ThemeScreen()
             }
 
             composable(MainRoute.PREFERENCES) {
-                PreferencesScreen(repository = appGraph.preferencesRepository)
+                PreferencesScreen()
             }
 
             composable(MainRoute.UPDATES) {
                 UpdatesScreen(
-                    updatesRunning = checkUpdatesUiState.updatesRunning,
-                    updatesMessage = checkUpdatesUiState.updatesMessage,
-                    modelMessage = checkUpdatesUiState.modelMessage,
                     promptVersion = uiState.promptVersion,
                     promptDownloading = uiState.promptDownloading,
                     promptProgress = uiState.promptProgress,
@@ -371,8 +342,7 @@ fun SetupNavHost() {
                         setupViewModel.startPromptDownload { _ ->
                             setupViewModel.refreshModelReadiness()
                         }
-                    },
-                    onCheckUpdates = { checkUpdatesViewModel.checkForUpdates() }
+                    }
                 )
             }
         }

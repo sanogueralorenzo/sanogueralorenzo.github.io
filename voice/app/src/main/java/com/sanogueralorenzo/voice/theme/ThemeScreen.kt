@@ -14,19 +14,40 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
+import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-fun ThemeScreen(
-    viewModel: ThemeViewModel
-) {
+fun ThemeScreen() {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val viewModel = mavericksViewModel<ThemeViewModel, ThemeUiState>()
     val uiState by viewModel.collectAsStateWithLifecycle()
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshKeyboardThemeMode()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.refreshKeyboardThemeMode()
+    }
+
     ThemeScreenContent(
         keyboardThemeMode = uiState.keyboardThemeMode,
         onThemeModeChange = viewModel::setKeyboardThemeMode

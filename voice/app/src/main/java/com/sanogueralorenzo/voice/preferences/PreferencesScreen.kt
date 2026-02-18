@@ -16,29 +16,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
+import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-fun PreferencesScreen(
-    repository: PreferencesRepository
-) {
+fun PreferencesScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel = remember(repository) {
-        PreferencesViewModel(
-            initialState = PreferencesUiState(
-                rewriteEnabled = repository.isLiteRtRewriteEnabled()
-            ),
-            repository = repository
-        )
-    }
+    val viewModel = mavericksViewModel<PreferencesViewModel, PreferencesUiState>()
     val uiState by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner, viewModel) {
