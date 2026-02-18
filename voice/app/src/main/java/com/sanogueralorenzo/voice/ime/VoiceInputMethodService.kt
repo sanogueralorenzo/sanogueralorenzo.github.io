@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
-import android.graphics.drawable.ColorDrawable
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -116,7 +115,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onCreate() {
         super.onCreate()
-        applyImeWindowBackground()
         savedStateRegistryController.performAttach()
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
@@ -126,7 +124,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     override fun onCreateInputView(): View {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         warmupMoonshineAsync()
-        applyImeWindowBackground()
         val preComposeBackground = ContextCompat.getColor(this, R.color.ime_window_background)
         val container = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -713,11 +710,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             bottom = max(bottom, insets.getInsets(type).bottom)
         }
         keyboardViewModel.setBottomInsetPx(bottom)
-    }
-
-    private fun applyImeWindowBackground() {
-        val backgroundColor = ContextCompat.getColor(this, R.color.ime_window_background)
-        window?.window?.setBackgroundDrawable(ColorDrawable(backgroundColor))
     }
 
     private data class SendRequest(
