@@ -149,27 +149,21 @@ fun VoiceKeyboardImeContent(
             )
 
             Box(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .clickable(
+                        enabled = state.mode == VoiceKeyboardMode.IDLE,
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onIdleTap
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                val interactionSource = remember { MutableInteractionSource() }
                 Box(
                     modifier = Modifier
                         .width(width)
-                        .height(PillTouchHeight)
-                        .then(
-                            if (state.mode == VoiceKeyboardMode.IDLE) {
-                                Modifier
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .clickable(
-                            enabled = state.mode == VoiceKeyboardMode.IDLE,
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClick = onIdleTap
-                        ),
+                        .height(PillTouchHeight),
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
