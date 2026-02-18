@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.connectivity
 
 import android.content.Context
 import android.net.ConnectivityManager

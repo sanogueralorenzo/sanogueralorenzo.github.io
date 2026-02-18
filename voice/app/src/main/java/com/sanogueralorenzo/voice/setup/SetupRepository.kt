@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
+import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.ime.VoiceInputMethodService
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore

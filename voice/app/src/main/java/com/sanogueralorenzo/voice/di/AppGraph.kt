@@ -3,10 +3,10 @@ package com.sanogueralorenzo.voice.di
 import android.app.Application
 import android.content.Context
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
+import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
-import com.sanogueralorenzo.voice.setup.ConnectivityRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
 import com.sanogueralorenzo.voice.summary.LiteRtComposeLlmGate
