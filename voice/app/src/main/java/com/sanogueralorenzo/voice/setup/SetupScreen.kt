@@ -89,7 +89,7 @@ fun SetupSplashScreen(
         modifier = Modifier.fillMaxSize()
     ) {
         val startTop = (maxHeight - SetupLogoSize) * 0.5f
-        val endTop = SetupScreenOuterPadding + SetupLogoVerticalPadding
+        val endTop = SetupLogoTopOffset
         val animatedTop = lerp(startTop, endTop, moveProgress.value)
 
         Box(
@@ -497,7 +497,7 @@ private fun SetupTopIcon() {
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .padding(vertical = SetupLogoVerticalPadding),
+            .padding(top = SetupLogoTopOffset - SetupScreenOuterPadding, bottom = SetupLogoBottomPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -528,7 +528,8 @@ private fun humanReadableSize(context: Context, bytes: Long): String {
 }
 
 private val SetupScreenOuterPadding = 20.dp
-private val SetupLogoVerticalPadding = 20.dp
+private val SetupLogoTopOffset = 32.dp
+private val SetupLogoBottomPadding = 20.dp
 private val SetupLogoSize = VoicePillVisualizerWidth
 private const val SetupSplashCenterHoldMs = 3_000
 private const val SetupSplashTravelMs = 700
