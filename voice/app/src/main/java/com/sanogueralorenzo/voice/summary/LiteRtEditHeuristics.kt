@@ -62,14 +62,26 @@ internal object LiteRtEditHeuristics {
         val matchedCount: Int
     )
 
+    private enum class DeleteVerbRestriction {
+        ALL_ONLY,
+        TARGETED_ONLY
+    }
+
+    private data class DeleteVerbSpec(
+        val pattern: String,
+        val bareMeansAll: Boolean = false,
+        val restrictions: Set<DeleteVerbRestriction> = emptySet()
+    )
+
     fun analyzeInstruction(instructionText: String): EditInstructionAnalysis {
         val collapsed = instructionText
             .replace(WhitespaceRegex, " ")
             .trim()
         val normalized = normalizeCorrectionPhrases(collapsed)
         val commandCandidate = stripCommandPreamble(normalized)
+        val deleteCommand = parseDeleteVerbCommand(commandCandidate)
         val intent = when {
-            ClearAllRegex.matches(commandCandidate) || DeleteAllRegex.containsMatchIn(commandCandidate) ->
+            deleteCommand?.kind == CommandKind.CLEAR_ALL ->
                 EditIntent.DELETE_ALL
             ReplaceRegex.containsMatchIn(commandCandidate) -> EditIntent.REPLACE
             else -> EditIntent.GENERAL
@@ -87,9 +99,8 @@ internal object LiteRtEditHeuristics {
         if (collapsed.isBlank()) return false
         val commandCandidate = stripCommandPreamble(collapsed)
         if (commandCandidate.isBlank()) return false
-        return ClearAllRegex.matches(commandCandidate) ||
+        return parseDeleteVerbCommand(commandCandidate) != null ||
             NoOpRegex.matches(commandCandidate) ||
-            DeleteCommandRegex.matches(commandCandidate) ||
             ReplaceDirectRegex.matches(commandCandidate) ||
             ReplaceUseInsteadRegex.matches(commandCandidate) ||
             UpdateNumberCommandRegex.matches(commandCandidate)
@@ -316,30 +327,56 @@ internal object LiteRtEditHeuristics {
     }
 
     private fun parseClearAllCommand(instruction: String): ParsedCommand? {
-        if (!ClearAllRegex.matches(instruction)) return null
-        return ParsedCommand(
-            kind = CommandKind.CLEAR_ALL,
-            scope = CommandScope.ALL
-        )
+        return parseDeleteVerbCommand(instruction)
+            ?.takeIf { it.kind == CommandKind.CLEAR_ALL }
     }
 
     private fun parseDeleteCommand(instruction: String): ParsedCommand? {
-        val match = DeleteCommandRegex.find(instruction) ?: return null
-        val rawTarget = listOfNotNull(
-            match.groups[1]?.value,
-            match.groups[2]?.value,
-            match.groups[3]?.value
-        ).firstOrNull().orEmpty()
-        val scoped = scopedTarget(rawTarget) ?: return null
-        val target = normalizeCommandTerm(scoped.target, stripArticleWordPrefix = true)
-        if (target.isBlank()) return null
-        if (DeleteAllTargetRegex.matches(target)) return null
-        if (isAmbiguousPronounTarget(target)) return null
-        return ParsedCommand(
-            kind = CommandKind.DELETE_TERM,
-            scope = scoped.scope,
-            target = target
-        )
+        return parseDeleteVerbCommand(instruction)
+            ?.takeIf { it.kind == CommandKind.DELETE_TERM }
+    }
+
+    private fun parseDeleteVerbCommand(instruction: String): ParsedCommand? {
+        for (verb in DeleteVerbSpecs) {
+            val regex = Regex(
+                "^\\s*(?:please\\s+)?(?:${verb.pattern})(?:\\s+(.+))?\\s*$",
+                RegexOption.IGNORE_CASE
+            )
+            val match = regex.find(instruction) ?: continue
+            val rawTarget = match.groups[1]?.value.orEmpty().trim()
+            val supportsAll = !verb.restrictions.contains(DeleteVerbRestriction.TARGETED_ONLY)
+            val supportsTargeted = !verb.restrictions.contains(DeleteVerbRestriction.ALL_ONLY)
+            if (rawTarget.isBlank()) {
+                if (verb.bareMeansAll && supportsAll) {
+                    return ParsedCommand(
+                        kind = CommandKind.CLEAR_ALL,
+                        scope = CommandScope.ALL
+                    )
+                }
+                continue
+            }
+
+            val scoped = scopedTarget(rawTarget) ?: return null
+            val target = normalizeCommandTerm(scoped.target, stripArticleWordPrefix = true)
+            if (target.isBlank()) return null
+            if (DeleteAllTargetRegex.matches(target)) {
+                if (supportsAll && scoped.scope == CommandScope.ALL) {
+                    return ParsedCommand(
+                        kind = CommandKind.CLEAR_ALL,
+                        scope = CommandScope.ALL
+                    )
+                }
+                return null
+            }
+            if (!supportsTargeted) return null
+            if (isAmbiguousPronounTarget(target)) return null
+            return ParsedCommand(
+                kind = CommandKind.DELETE_TERM,
+                scope = scoped.scope,
+                target = target
+            )
+        }
+        return null
     }
 
     private fun parseReplaceCommand(instruction: String): ParsedCommand? {
@@ -590,21 +627,34 @@ internal object LiteRtEditHeuristics {
         RegexOption.IGNORE_CASE
     )
 
-    private val ClearAllRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:(?:delete|clear|erase|wipe|remove|reset)\\s+(?:all|everything|(?:the\\s+)?(?:whole|entire)\\s+(?:message|text)|(?:the\\s+)?message|(?:the\\s+)?text)|start\\s+over|undo)\\s*$",
-        RegexOption.IGNORE_CASE
-    )
     private val NoOpRegex = Regex(
         "^\\s*(?:(?:actually)\\s+)?(?:(?:just)\\s+)?(?:never\\s*mind|cancel(?:\\s+that)?|forget\\s+it|ignore\\s+that|disregard\\s+that)\\s*[.!]?\\s*$",
         RegexOption.IGNORE_CASE
     )
-    private val DeleteAllRegex = Regex(
-        "\\b(?:delete|clear|remove|erase|wipe|reset|start\\s+over)\\b.*\\b(?:all|everything|whole|entire|start\\s+over)\\b",
-        RegexOption.IGNORE_CASE
-    )
-    private val DeleteCommandRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:(?:delete|remove|erase|drop|cut)\\s+(.+?)|take\\s+out\\s+(.+?)|get\\s+rid\\s+of\\s+(.+?))\\s*$",
-        RegexOption.IGNORE_CASE
+    private val DeleteVerbSpecs = listOf(
+        DeleteVerbSpec(pattern = "get\\s+rid\\s+of"),
+        DeleteVerbSpec(pattern = "take\\s+out"),
+        DeleteVerbSpec(
+            pattern = "start\\s+over",
+            bareMeansAll = true,
+            restrictions = setOf(DeleteVerbRestriction.ALL_ONLY)
+        ),
+        DeleteVerbSpec(pattern = "delete"),
+        DeleteVerbSpec(pattern = "clear"),
+        DeleteVerbSpec(pattern = "erase"),
+        DeleteVerbSpec(pattern = "wipe"),
+        DeleteVerbSpec(pattern = "remove"),
+        DeleteVerbSpec(
+            pattern = "reset",
+            bareMeansAll = true,
+            restrictions = setOf(DeleteVerbRestriction.ALL_ONLY)
+        ),
+        DeleteVerbSpec(pattern = "undo", bareMeansAll = true),
+        DeleteVerbSpec(
+            pattern = "drop",
+            restrictions = setOf(DeleteVerbRestriction.TARGETED_ONLY)
+        ),
+        DeleteVerbSpec(pattern = "cut")
     )
 
     private val ReplaceRegex = Regex(
@@ -650,7 +700,7 @@ internal object LiteRtEditHeuristics {
     )
 
     private val DeleteContextSuffixRegex = Regex(
-        "\\s+(?:from\\s+(?:the\\s+)?(?:message|text)|in\\s+(?:the\\s+)?(?:message|text)|from\\s+it)$",
+        "\\s+(?:from\\s+(?:(?:my|the)\\s+)?(?:shopping\\s+)?list|from\\s+(?:the\\s+)?(?:message|text)|in\\s+(?:the\\s+)?(?:message|text)|from\\s+it)$",
         RegexOption.IGNORE_CASE
     )
     private val ScopedPrefixRegex = Regex(

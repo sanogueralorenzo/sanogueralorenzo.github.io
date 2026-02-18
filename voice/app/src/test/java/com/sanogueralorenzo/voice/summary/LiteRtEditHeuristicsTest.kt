@@ -77,6 +77,10 @@ class LiteRtEditHeuristicsTest {
             "delete everything",
             "erase everything",
             "wipe everything",
+            "get rid of everything",
+            "take out everything",
+            "cut all",
+            "cut everything",
             "erase the whole message",
             "start over",
             "undo"
@@ -99,7 +103,10 @@ class LiteRtEditHeuristicsTest {
         val cases = listOf(
             "delete milk",
             "remove the word milk",
-            "take out \"next week\""
+            "take out \"next week\"",
+            "get rid of milk",
+            "cut milk",
+            "undo milk"
         )
 
         val first = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[0])
@@ -110,6 +117,15 @@ class LiteRtEditHeuristicsTest {
 
         val third = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[2])
         assertEquals("buy milk", third?.output)
+
+        val fourth = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[3])
+        assertEquals("buy next week", fourth?.output)
+
+        val fifth = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[4])
+        assertEquals("buy next week", fifth?.output)
+
+        val sixth = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[5])
+        assertEquals("buy next week", sixth?.output)
     }
 
     @Test
@@ -123,6 +139,22 @@ class LiteRtEditHeuristicsTest {
         assertNotNull(result)
         assertEquals("buy apple bread", result?.output)
         assertEquals(2, result?.matchedCount)
+    }
+
+    @Test
+    fun deterministic_deleteAllOnly_commands_doNotAcceptTargets() {
+        val source = "buy milk and eggs"
+        val resetTargeted = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            sourceText = source,
+            instructionText = "reset milk"
+        )
+        val startOverTargeted = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            sourceText = source,
+            instructionText = "start over milk"
+        )
+
+        assertNull(resetTargeted)
+        assertNull(startOverTargeted)
     }
 
     @Test
