@@ -209,7 +209,6 @@ fun SetupNavHost() {
         onOpenUpdates = { navController.navigate(MainRoute.UPDATES) },
         onOpenTheme = { navController.navigate(MainRoute.THEME) },
         onOpenPreferences = { navController.navigate(MainRoute.PREFERENCES) },
-        onShareApp = { shareApp(context) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = {
@@ -294,8 +293,7 @@ fun SetupNavHost() {
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenTheme = actions.onOpenTheme,
                     onOpenUpdates = actions.onOpenUpdates,
-                    onOpenPreferences = actions.onOpenPreferences,
-                    onShareApp = actions.onShareApp
+                    onOpenPreferences = actions.onOpenPreferences
                 )
             }
 
@@ -388,22 +386,6 @@ private fun openImeSettings(context: Context) {
 private fun showImePicker(context: Context) {
     val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     imm.showInputMethodPicker()
-}
-
-private fun shareApp(context: Context) {
-    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(
-            Intent.EXTRA_TEXT,
-            "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main"
-        )
-    }
-    context.startActivity(
-        Intent.createChooser(
-            shareIntent,
-            context.getString(R.string.home_menu_share, context.getString(R.string.app_name))
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    )
 }
 
 private fun NavHostController.navigateClearingBackStack(route: String) {

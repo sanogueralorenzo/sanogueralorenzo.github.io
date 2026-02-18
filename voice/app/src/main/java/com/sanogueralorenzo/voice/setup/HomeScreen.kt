@@ -19,9 +19,6 @@ import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -46,8 +43,7 @@ fun HomeScreen(
     onOpenPromptBenchmarking: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
-    onOpenPreferences: () -> Unit,
-    onShareApp: () -> Unit
+    onOpenPreferences: () -> Unit
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
@@ -79,22 +75,6 @@ fun HomeScreen(
     }
 
     menuItems += listOf(
-        HomeMenuItem(
-            icon = Icons.Outlined.Share,
-            title = stringResource(
-                R.string.home_menu_share,
-                stringResource(R.string.app_name)
-            ),
-            onClick = onShareApp
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.Shield,
-            title = stringResource(R.string.home_menu_privacy)
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.Star,
-            title = stringResource(R.string.home_menu_rate)
-        ),
         HomeMenuItem(
             icon = Icons.Outlined.Info,
             title = stringResource(R.string.home_menu_updates),
