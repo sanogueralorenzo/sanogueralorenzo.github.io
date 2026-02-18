@@ -31,7 +31,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun PreferencesScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel = mavericksViewModel<PreferencesViewModel, PreferencesUiState>()
+    val viewModel = mavericksViewModel<PreferencesViewModel, PreferencesState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner, viewModel) {

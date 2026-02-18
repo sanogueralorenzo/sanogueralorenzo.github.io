@@ -25,10 +25,10 @@ private data class CheckUpdatesOutcome(
 )
 
 class CheckUpdatesViewModel(
-    initialState: CheckUpdatesUiState,
+    initialState: CheckUpdatesState,
     context: Context,
     private val updateChecker: ModelUpdateChecker
-) : MavericksViewModel<CheckUpdatesUiState>(initialState) {
+) : MavericksViewModel<CheckUpdatesState>(initialState) {
 
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
@@ -257,10 +257,10 @@ class CheckUpdatesViewModel(
         }
     }
 
-    companion object : MavericksViewModelFactory<CheckUpdatesViewModel, CheckUpdatesUiState> {
+    companion object : MavericksViewModelFactory<CheckUpdatesViewModel, CheckUpdatesState> {
         override fun create(
             viewModelContext: ViewModelContext,
-            state: CheckUpdatesUiState
+            state: CheckUpdatesState
         ): CheckUpdatesViewModel {
             val app = viewModelContext.app<VoiceApp>()
             return CheckUpdatesViewModel(

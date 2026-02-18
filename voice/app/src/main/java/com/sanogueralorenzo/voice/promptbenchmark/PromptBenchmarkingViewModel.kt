@@ -24,7 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 
-data class PromptBenchmarkingUiState(
+data class PromptBenchmarkingState(
     val modelAvailable: Boolean = false,
     val rewriteEnabled: Boolean = false,
     val runnerState: PromptBenchmarkRunnerState = PromptBenchmarkRunnerState(
@@ -47,11 +47,11 @@ data class BenchmarkPrerequisites(
 )
 
 class PromptBenchmarkingViewModel(
-    initialState: PromptBenchmarkingUiState,
+    initialState: PromptBenchmarkingState,
     context: Context,
     private val preferencesRepository: PreferencesRepository,
     private val gateway: PromptBenchmarkGateway
-) : MavericksViewModel<PromptBenchmarkingUiState>(initialState) {
+) : MavericksViewModel<PromptBenchmarkingState>(initialState) {
     private val appContext = context.applicationContext
     private var runJob: Job? = null
 
@@ -205,10 +205,10 @@ class PromptBenchmarkingViewModel(
         super.onCleared()
     }
 
-    companion object : MavericksViewModelFactory<PromptBenchmarkingViewModel, PromptBenchmarkingUiState> {
+    companion object : MavericksViewModelFactory<PromptBenchmarkingViewModel, PromptBenchmarkingState> {
         override fun create(
             viewModelContext: ViewModelContext,
-            state: PromptBenchmarkingUiState
+            state: PromptBenchmarkingState
         ): PromptBenchmarkingViewModel {
             val app = viewModelContext.app<VoiceApp>()
             val appGraph = app.appGraph

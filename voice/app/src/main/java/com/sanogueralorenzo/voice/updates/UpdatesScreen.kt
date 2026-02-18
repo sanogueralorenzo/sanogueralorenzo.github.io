@@ -30,7 +30,7 @@ fun UpdatesScreen(
     promptProgress: Int,
     onDownloadPrompt: () -> Unit
 ) {
-    val viewModel = mavericksViewModel<CheckUpdatesViewModel, CheckUpdatesUiState>()
+    val viewModel = mavericksViewModel<CheckUpdatesViewModel, CheckUpdatesState>()
     val state by viewModel.collectAsStateWithLifecycle()
     val updatesRunning = state.updatesRunning
     val updatesMessage = state.updatesMessage

@@ -6,9 +6,9 @@ import com.airbnb.mvrx.ViewModelContext
 import com.sanogueralorenzo.voice.VoiceApp
 
 class PreferencesViewModel(
-    initialState: PreferencesUiState,
+    initialState: PreferencesState,
     private val repository: PreferencesRepository
-) : MavericksViewModel<PreferencesUiState>(initialState) {
+) : MavericksViewModel<PreferencesState>(initialState) {
 
     fun refreshPreferences() {
         setState {
@@ -41,10 +41,10 @@ class PreferencesViewModel(
         }
     }
 
-    companion object : MavericksViewModelFactory<PreferencesViewModel, PreferencesUiState> {
-        override fun initialState(viewModelContext: ViewModelContext): PreferencesUiState {
+    companion object : MavericksViewModelFactory<PreferencesViewModel, PreferencesState> {
+        override fun initialState(viewModelContext: ViewModelContext): PreferencesState {
             val repository = viewModelContext.app<VoiceApp>().appGraph.preferencesRepository
-            return PreferencesUiState(
+            return PreferencesState(
                 llmRewriteEnabled = repository.isLlmRewriteEnabled(),
                 capitalizeSentencesEnabled = repository.isCapitalizeSentencesEnabled(),
                 removeDotAtEndEnabled = repository.isRemoveDotAtEndEnabled()
@@ -53,7 +53,7 @@ class PreferencesViewModel(
 
         override fun create(
             viewModelContext: ViewModelContext,
-            state: PreferencesUiState
+            state: PreferencesState
         ): PreferencesViewModel {
             val repository = viewModelContext.app<VoiceApp>().appGraph.preferencesRepository
             return PreferencesViewModel(

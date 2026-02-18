@@ -16,7 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsSt
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.di.appGraph
-import com.sanogueralorenzo.voice.setup.SetupUiState
+import com.sanogueralorenzo.voice.setup.SetupState
 import com.sanogueralorenzo.voice.setup.SetupViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -27,7 +27,7 @@ fun SettingsFlowScreen() {
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val setupViewModel = mavericksViewModel<SetupViewModel, SetupUiState>()
+    val setupViewModel = mavericksViewModel<SetupViewModel, SetupState>()
     val state by setupViewModel.collectAsStateWithLifecycle()
     val keyboardThemeMode by appGraph.themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle()
     val scope = rememberCoroutineScope()

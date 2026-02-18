@@ -25,7 +25,7 @@ fun SetupStepNavHost(
     requiredRoute: String,
     connectedToWifi: Boolean,
     allowMobileDataDownloads: Boolean,
-    uiState: SetupUiState,
+    uiState: SetupState,
     onAllowMobileDataChange: (Boolean) -> Unit,
     onGrantMic: () -> Unit,
     onOpenImeSettings: () -> Unit,

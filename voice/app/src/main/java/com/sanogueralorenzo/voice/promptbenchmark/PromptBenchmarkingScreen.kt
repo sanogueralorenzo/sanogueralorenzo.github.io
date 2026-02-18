@@ -38,7 +38,7 @@ fun PromptBenchmarkingScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel = mavericksViewModel<PromptBenchmarkingViewModel, PromptBenchmarkingUiState>()
+    val viewModel = mavericksViewModel<PromptBenchmarkingViewModel, PromptBenchmarkingState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner) {

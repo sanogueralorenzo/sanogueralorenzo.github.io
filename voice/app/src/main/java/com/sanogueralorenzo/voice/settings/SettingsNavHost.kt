@@ -25,7 +25,7 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.SettingsScreen
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
 import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
-import com.sanogueralorenzo.voice.setup.SetupUiState
+import com.sanogueralorenzo.voice.setup.SetupState
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.ui.components.VoiceInput
@@ -42,7 +42,7 @@ private object SettingsRoute {
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun SettingsNavHost(
-    uiState: SetupUiState,
+    uiState: SetupState,
     keyboardThemeMode: KeyboardThemeMode,
     onSettingsInputChange: (String) -> Unit,
     onThemeInputChange: (String) -> Unit,

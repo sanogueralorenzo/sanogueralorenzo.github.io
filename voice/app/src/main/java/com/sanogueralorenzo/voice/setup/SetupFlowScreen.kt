@@ -64,7 +64,7 @@ data class ModelUpdatesOutcome(
     val promptVersion: String?
 )
 
-data class SetupUiState(
+data class SetupState(
     val micGranted: Boolean = false,
     val voiceImeEnabled: Boolean = false,
     val voiceImeSelected: Boolean = false,
@@ -92,11 +92,11 @@ data class SetupUiState(
 ) : MavericksState
 
 class SetupViewModel(
-    initialState: SetupUiState,
+    initialState: SetupState,
     context: Context,
     private val updateChecker: ModelUpdateChecker,
     private val setupRepository: SetupRepository
-) : MavericksViewModel<SetupUiState>(initialState) {
+) : MavericksViewModel<SetupState>(initialState) {
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
 
@@ -706,7 +706,7 @@ class SetupViewModel(
         }
     }
 
-    private fun isAnyDownloading(state: SetupUiState): Boolean {
+    private fun isAnyDownloading(state: SetupState): Boolean {
         return state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading || state.updatesRunning
     }
 
@@ -717,11 +717,11 @@ class SetupViewModel(
         COMPLETE
     }
 
-    private fun SetupUiState.withDerivedState(): SetupUiState {
+    private fun SetupState.withDerivedState(): SetupState {
         return copy(requiredStep = computeRequiredStep(this))
     }
 
-    private fun computeRequiredStep(state: SetupUiState): SetupRepository.RequiredStep {
+    private fun computeRequiredStep(state: SetupState): SetupRepository.RequiredStep {
         return SetupRepository.requiredStepForMissing(
             missing = SetupRepository.MissingSetupItems(
                 micPermission = !state.micGranted,
@@ -735,10 +735,10 @@ class SetupViewModel(
         )
     }
 
-    companion object : MavericksViewModelFactory<SetupViewModel, SetupUiState> {
+    companion object : MavericksViewModelFactory<SetupViewModel, SetupState> {
         override fun create(
             viewModelContext: ViewModelContext,
-            state: SetupUiState
+            state: SetupState
         ): SetupViewModel {
             val app = viewModelContext.app<VoiceApp>()
             return SetupViewModel(
@@ -757,7 +757,7 @@ fun SetupFlowScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val setupViewModel = mavericksViewModel<SetupViewModel, SetupUiState>()
+    val setupViewModel = mavericksViewModel<SetupViewModel, SetupState>()
     val state by setupViewModel.collectAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }

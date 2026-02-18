@@ -6,14 +6,14 @@ import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.ViewModelContext
 import com.sanogueralorenzo.voice.VoiceApp
 
-data class ThemeUiState(
+data class ThemeState(
     val keyboardThemeMode: KeyboardThemeMode = KeyboardThemeMode.AUTO
 ) : MavericksState
 
 class ThemeViewModel(
-    initialState: ThemeUiState,
+    initialState: ThemeState,
     private val themeRepository: ThemeRepository
-) : MavericksViewModel<ThemeUiState>(initialState) {
+) : MavericksViewModel<ThemeState>(initialState) {
     fun refreshKeyboardThemeMode() {
         setState { copy(keyboardThemeMode = themeRepository.keyboardThemeMode()) }
     }
@@ -23,17 +23,17 @@ class ThemeViewModel(
         setState { copy(keyboardThemeMode = mode) }
     }
 
-    companion object : MavericksViewModelFactory<ThemeViewModel, ThemeUiState> {
-        override fun initialState(viewModelContext: ViewModelContext): ThemeUiState {
+    companion object : MavericksViewModelFactory<ThemeViewModel, ThemeState> {
+        override fun initialState(viewModelContext: ViewModelContext): ThemeState {
             val repository = viewModelContext.app<VoiceApp>().appGraph.themeRepository
-            return ThemeUiState(
+            return ThemeState(
                 keyboardThemeMode = repository.keyboardThemeMode()
             )
         }
 
         override fun create(
             viewModelContext: ViewModelContext,
-            state: ThemeUiState
+            state: ThemeState
         ): ThemeViewModel {
             val repository = viewModelContext.app<VoiceApp>().appGraph.themeRepository
             return ThemeViewModel(

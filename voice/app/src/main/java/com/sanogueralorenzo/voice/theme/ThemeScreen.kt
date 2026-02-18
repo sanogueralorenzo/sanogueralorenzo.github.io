@@ -31,7 +31,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun ThemeScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel = mavericksViewModel<ThemeViewModel, ThemeUiState>()
+    val viewModel = mavericksViewModel<ThemeViewModel, ThemeState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner, viewModel) {
