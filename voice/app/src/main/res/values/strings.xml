@@ -86,12 +86,11 @@
     <string name="setup_models_intro">Voice Keyboard uses:</string>
     <string name="setup_models_intro_bullet_asr">• ASR (Automatic Speech Recognition) model to convert spoken language into text from audio signals.</string>
     <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
-    <string name="setup_models_intro_bullet_prompt">• Prompt config to keep rewrite behavior consistent across devices and benchmarks.</string>
     <string name="setup_step_intro">Welcome</string>
     <string name="setup_intro_message">Voice Keyboard needs a few quick steps.</string>
     <string name="setup_intro_bullet_mic">• Grant microphone permission.</string>
     <string name="setup_intro_bullet_keyboard">• Enable Voice Keyboard in Android settings.</string>
-    <string name="setup_intro_bullet_models">• Download ASR, LLM model, and Prompt.</string>
+    <string name="setup_intro_bullet_models">• Download ASR and LLM model.</string>
     <string name="setup_intro_continue">Start setup</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>

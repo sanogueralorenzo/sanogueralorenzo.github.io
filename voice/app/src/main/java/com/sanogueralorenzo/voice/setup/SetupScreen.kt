@@ -343,10 +343,6 @@ fun SetupDownloadModelsScreen(
                 text = stringResource(R.string.setup_models_intro_bullet_it),
                 style = MaterialTheme.typography.bodySmall
             )
-            Text(
-                text = stringResource(R.string.setup_models_intro_bullet_prompt),
-                style = MaterialTheme.typography.bodySmall
-            )
             if (!updatesMessage.isNullOrBlank()) {
                 Text(
                     text = updatesMessage,
