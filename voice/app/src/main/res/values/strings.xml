@@ -90,7 +90,7 @@
     <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
     <string name="setup_models_intro_bullet_prompt">• Prompt config to keep rewrite behavior consistent across devices and benchmarks.</string>
     <string name="setup_step_intro">Welcome</string>
-    <string name="setup_intro_message">Let us set up Voice Keyboard in a few quick steps.</string>
+    <string name="setup_intro_message">Voice Keyboard needs a few quick steps.</string>
     <string name="setup_intro_bullet_mic">• Grant microphone permission.</string>
     <string name="setup_intro_bullet_keyboard">• Enable Voice Keyboard in Android settings.</string>
     <string name="setup_intro_bullet_models">• Download ASR, LLM model, and Prompt.</string>
