@@ -44,6 +44,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.SettingsScreen
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.theme.ThemeUiState
@@ -56,7 +57,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private object MainRoute {
-    const val HOME = "home"
+    const val SETTINGS = "settings"
     const val SETUP_SPLASH = "setup_splash"
     const val SETUP_INTRO = "setup_intro"
     const val SETUP_MIC = "setup_mic"
@@ -182,15 +183,15 @@ fun SetupNavHost() {
     } else {
         setupTargetRoute
     }
-    val startDestination = requiredSetupRoute ?: MainRoute.HOME
+    val startDestination = requiredSetupRoute ?: MainRoute.SETTINGS
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
     val isSetupRoute = currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES
-    val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && !isSetupRoute
+    val canGoBack = currentRoute != null && currentRoute != MainRoute.SETTINGS && !isSetupRoute
     val topBarTitle = when {
         isSetupRoute -> ""
-        currentRoute == MainRoute.HOME -> stringResource(R.string.main_title_voice_keyboard)
+        currentRoute == MainRoute.SETTINGS -> stringResource(R.string.main_title_voice_keyboard)
         currentRoute == MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
         currentRoute == MainRoute.THEME -> stringResource(R.string.theming_section_title)
         currentRoute == MainRoute.UPDATES -> stringResource(R.string.updates_section_title)
@@ -204,7 +205,7 @@ fun SetupNavHost() {
             return@LaunchedEffect
         }
         if (requiredSetupRoute == null && currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES) {
-            navController.navigateClearingBackStack(MainRoute.HOME)
+            navController.navigateClearingBackStack(MainRoute.SETTINGS)
         }
     }
 
@@ -261,10 +262,10 @@ fun SetupNavHost() {
         },
         bottomBar = {
             when (currentRoute) {
-                MainRoute.HOME -> key("home_input_bar") {
+                MainRoute.SETTINGS -> key("settings_input_bar") {
                     KeyboardTestBar(
-                        value = uiState.homeKeyboardTestInput,
-                        onValueChange = { setupViewModel.setHomeKeyboardTestInput(it) },
+                        value = uiState.settingsKeyboardTestInput,
+                        onValueChange = { setupViewModel.setSettingsKeyboardTestInput(it) },
                         voiceImeSelected = uiState.voiceImeSelected,
                         onRequestKeyboardPicker = actions.onShowImePicker,
                         autoFocusOnResume = true
@@ -292,8 +293,8 @@ fun SetupNavHost() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            composable(MainRoute.HOME) {
-                HomeScreen(
+            composable(MainRoute.SETTINGS) {
+                SettingsScreen(
                     onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
                     onOpenTheme = actions.onOpenTheme,
                     onOpenUpdates = actions.onOpenUpdates,
@@ -396,7 +397,7 @@ private fun showImePicker(context: Context) {
 
 private fun NavHostController.navigateClearingBackStack(route: String) {
     while (popBackStack()) {
-        // Keep popping until the stack is empty so setup/home can be enforced after runtime changes.
+        // Keep popping until the stack is empty so setup/settings can be enforced after runtime changes.
     }
     navigate(route) {
         launchSingleTop = true

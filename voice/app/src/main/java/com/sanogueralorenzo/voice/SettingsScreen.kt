@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +43,7 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 
 @Composable
-fun HomeScreen(
+fun SettingsScreen(
     onOpenPromptBenchmarking: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
@@ -54,60 +54,60 @@ fun HomeScreen(
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
     val generalItems = listOf(
-        HomeMenuItem(
+        SettingsMenuItem(
             icon = Icons.Outlined.Language,
-            title = stringResource(R.string.home_menu_languages_title),
-            subtitle = stringResource(R.string.home_menu_languages_subtitle),
+            title = stringResource(R.string.settings_menu_languages_title),
+            subtitle = stringResource(R.string.settings_menu_languages_subtitle),
             onClick = { showLanguagesComingSoonDialog = true }
         ),
-        HomeMenuItem(
+        SettingsMenuItem(
             icon = Icons.Outlined.Tune,
-            title = stringResource(R.string.home_menu_preferences),
+            title = stringResource(R.string.settings_menu_preferences),
             onClick = onOpenPreferences
         ),
-        HomeMenuItem(
+        SettingsMenuItem(
             icon = Icons.Outlined.Palette,
-            title = stringResource(R.string.home_menu_theme),
-            chip = HomeItemChip(themeModeLabel(keyboardThemeMode)),
+            title = stringResource(R.string.settings_menu_theme),
+            chip = SettingsItemChip(themeModeLabel(keyboardThemeMode)),
             onClick = onOpenTheme
         )
     )
 
     val toolItems = mutableListOf(
-        HomeMenuItem(
+        SettingsMenuItem(
             icon = Icons.Outlined.SystemUpdate,
-            title = stringResource(R.string.home_menu_updates),
-            chip = HomeItemChip(
+            title = stringResource(R.string.settings_menu_updates),
+            chip = SettingsItemChip(
                 label = if (updatesReady) {
-                    stringResource(R.string.home_chip_updates_ready)
+                    stringResource(R.string.settings_chip_updates_ready)
                 } else {
-                    stringResource(R.string.home_chip_updates_attention)
+                    stringResource(R.string.settings_chip_updates_attention)
                 },
-                tone = if (updatesReady) HomeChipTone.SUCCESS else HomeChipTone.WARNING
+                tone = if (updatesReady) SettingsChipTone.SUCCESS else SettingsChipTone.WARNING
             ),
             onClick = onOpenUpdates
         )
     )
 
     if (BuildConfig.DEBUG) {
-        toolItems += HomeMenuItem(
+        toolItems += SettingsMenuItem(
             icon = Icons.Outlined.ContentPaste,
-            title = stringResource(R.string.home_menu_prompt_benchmark),
-            chip = HomeItemChip(
-                label = stringResource(R.string.home_chip_debug),
-                tone = HomeChipTone.NEUTRAL
+            title = stringResource(R.string.settings_menu_prompt_benchmark),
+            chip = SettingsItemChip(
+                label = stringResource(R.string.settings_chip_debug),
+                tone = SettingsChipTone.NEUTRAL
             ),
             onClick = onOpenPromptBenchmarking
         )
     }
 
     val sections = listOf(
-        HomeMenuSection(
-            title = stringResource(R.string.home_section_general),
+        SettingsMenuSection(
+            title = stringResource(R.string.settings_section_general),
             items = generalItems
         ),
-        HomeMenuSection(
-            title = stringResource(R.string.home_section_tools),
+        SettingsMenuSection(
+            title = stringResource(R.string.settings_section_tools),
             items = toolItems
         )
     )
@@ -119,13 +119,13 @@ fun HomeScreen(
     ) {
         item {
             Text(
-                text = stringResource(R.string.home_screen_intro),
+                text = stringResource(R.string.settings_screen_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         items(sections) { section ->
-            HomeSectionCard(section = section)
+            SettingsSectionCard(section = section)
         }
         item { Spacer(modifier = Modifier.height(4.dp)) }
     }
@@ -133,7 +133,7 @@ fun HomeScreen(
     if (showLanguagesComingSoonDialog) {
         AlertDialog(
             onDismissRequest = { showLanguagesComingSoonDialog = false },
-            text = { Text(text = stringResource(R.string.home_languages_coming_soon_message)) },
+            text = { Text(text = stringResource(R.string.settings_languages_coming_soon_message)) },
             confirmButton = {
                 TextButton(onClick = { showLanguagesComingSoonDialog = false }) {
                     Text(text = stringResource(android.R.string.ok))
@@ -143,33 +143,33 @@ fun HomeScreen(
     }
 }
 
-private data class HomeMenuSection(
+private data class SettingsMenuSection(
     val title: String,
-    val items: List<HomeMenuItem>
+    val items: List<SettingsMenuItem>
 )
 
-private data class HomeMenuItem(
+private data class SettingsMenuItem(
     val icon: ImageVector,
     val title: String,
     val subtitle: String? = null,
-    val chip: HomeItemChip? = null,
+    val chip: SettingsItemChip? = null,
     val onClick: () -> Unit
 )
 
-private data class HomeItemChip(
+private data class SettingsItemChip(
     val label: String,
-    val tone: HomeChipTone = HomeChipTone.NEUTRAL
+    val tone: SettingsChipTone = SettingsChipTone.NEUTRAL
 )
 
-private enum class HomeChipTone {
+private enum class SettingsChipTone {
     NEUTRAL,
     SUCCESS,
     WARNING
 }
 
 @Composable
-private fun HomeSectionCard(
-    section: HomeMenuSection
+private fun SettingsSectionCard(
+    section: SettingsMenuSection
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -186,7 +186,7 @@ private fun HomeSectionCard(
                     .padding(vertical = 8.dp)
             ) {
                 section.items.forEachIndexed { index, item ->
-                    HomeMenuRow(item = item)
+                    SettingsMenuRow(item = item)
                     if (index < section.items.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 58.dp),
@@ -200,7 +200,7 @@ private fun HomeSectionCard(
 }
 
 @Composable
-private fun HomeMenuRow(item: HomeMenuItem) {
+private fun SettingsMenuRow(item: SettingsMenuItem) {
     val textColor = MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
@@ -234,7 +234,7 @@ private fun HomeMenuRow(item: HomeMenuItem) {
             }
         }
         if (item.chip != null) {
-            HomeRowChip(chip = item.chip)
+            SettingsRowChip(chip = item.chip)
         }
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -246,16 +246,16 @@ private fun HomeMenuRow(item: HomeMenuItem) {
 }
 
 @Composable
-private fun HomeRowChip(chip: HomeItemChip) {
+private fun SettingsRowChip(chip: SettingsItemChip) {
     val containerColor = when (chip.tone) {
-        HomeChipTone.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainerHighest
-        HomeChipTone.SUCCESS -> MaterialTheme.colorScheme.secondaryContainer
-        HomeChipTone.WARNING -> MaterialTheme.colorScheme.errorContainer
+        SettingsChipTone.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainerHighest
+        SettingsChipTone.SUCCESS -> MaterialTheme.colorScheme.secondaryContainer
+        SettingsChipTone.WARNING -> MaterialTheme.colorScheme.errorContainer
     }
     val contentColor = when (chip.tone) {
-        HomeChipTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
-        HomeChipTone.SUCCESS -> MaterialTheme.colorScheme.onSecondaryContainer
-        HomeChipTone.WARNING -> MaterialTheme.colorScheme.onErrorContainer
+        SettingsChipTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
+        SettingsChipTone.SUCCESS -> MaterialTheme.colorScheme.onSecondaryContainer
+        SettingsChipTone.WARNING -> MaterialTheme.colorScheme.onErrorContainer
     }
     Surface(
         color = containerColor,
@@ -273,8 +273,8 @@ private fun HomeRowChip(chip: HomeItemChip) {
 @Composable
 private fun themeModeLabel(mode: KeyboardThemeMode): String {
     return when (mode) {
-        KeyboardThemeMode.AUTO -> stringResource(R.string.home_chip_theme_auto)
-        KeyboardThemeMode.LIGHT -> stringResource(R.string.home_chip_theme_light)
-        KeyboardThemeMode.DARK -> stringResource(R.string.home_chip_theme_dark)
+        KeyboardThemeMode.AUTO -> stringResource(R.string.settings_chip_theme_auto)
+        KeyboardThemeMode.LIGHT -> stringResource(R.string.settings_chip_theme_light)
+        KeyboardThemeMode.DARK -> stringResource(R.string.settings_chip_theme_dark)
     }
 }

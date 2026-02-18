@@ -21,7 +21,7 @@ data class SetupUiState(
     val updatesRunning: Boolean = false,
     val modelMessage: String? = null,
     val updatesMessage: String? = null,
-    val homeKeyboardTestInput: String = "",
+    val settingsKeyboardTestInput: String = "",
     val themeKeyboardTestInput: String = "",
     val liteRtRewriteEnabled: Boolean = true,
     val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
