@@ -110,7 +110,7 @@
     <string name="setup_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_select_keyboard">Select Voice keyboard</string>
     <string name="setup_choose_keyboard">Choose Voice Keyboard</string>
-    <string name="setup_input_keyboard_required_title">Select Voice Keyboard first</string>
+    <string name="setup_input_keyboard_required_title">Tap Voice Keyboard</string>
     <string name="setup_input_keyboard_required_body">To test typing here, switch to Voice Keyboard and then tap the input again.</string>
     <string name="setup_download_error_http">Failed downloading %1$s (HTTP %2$d).</string>
     <string name="setup_download_error_hash">Failed downloading %1$s (hash mismatch).</string>
