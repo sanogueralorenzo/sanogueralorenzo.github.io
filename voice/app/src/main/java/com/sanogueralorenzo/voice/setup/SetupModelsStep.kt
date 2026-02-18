@@ -62,12 +62,6 @@ fun SetupDownloadModelsScreen(
     } else {
         modelProgressPercent
     }
-    val activeDownloadTarget = when {
-        !moonshineReady -> stringResource(R.string.setup_model_moonshine)
-        !liteRtReady -> stringResource(R.string.setup_model_litert)
-        !promptReady -> stringResource(R.string.setup_model_prompt)
-        else -> stringResource(R.string.setup_status_ready)
-    }
     val shouldShowTotalProgress =
         downloadInProgress || liteRtReady || moonshineReady || promptReady
 
@@ -99,14 +93,12 @@ fun SetupDownloadModelsScreen(
                 )
             }
             if (shouldShowTotalProgress) {
-                Text(
-                    text = stringResource(
-                        R.string.setup_total_progress_for_target,
-                        activeDownloadTarget,
-                        totalProgressPercent.toInt().coerceIn(0, 100)
-                    ),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                if (downloadInProgress) {
+                    Text(
+                        text = stringResource(R.string.setup_download_sequence_status),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 LinearProgressIndicator(
                     progress = { totalProgressPercent / 100f },
                     modifier = Modifier.fillMaxWidth()

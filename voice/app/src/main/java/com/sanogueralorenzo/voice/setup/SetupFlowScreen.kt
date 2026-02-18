@@ -462,59 +462,49 @@ class SetupViewModel(
             }
             return
         }
-        fun runPrompt() {
-            val promptReady = withState(this) { state ->
-                state.promptReady
-            }
-            if (promptReady) {
-                setState {
-                    copy(
-                        modelMessage = appContext.getString(R.string.setup_download_all_completed)
-                    )
+        fun runFromFirstMissing() {
+            val next = withState(this) { state ->
+                when {
+                    !state.moonshineReady -> DownloadTarget.MOONSHINE
+                    !state.liteRtReady -> DownloadTarget.LITERT
+                    !state.promptReady -> DownloadTarget.PROMPT
+                    else -> DownloadTarget.COMPLETE
                 }
-                refreshModelReadiness()
-                return
             }
-            startPromptDownload(allowWhileAnotherDownloadActive = true) { success ->
-                if (!success) return@startPromptDownload
-                setState {
-                    copy(
-                        modelMessage = appContext.getString(R.string.setup_download_all_completed)
-                    )
+            when (next) {
+                DownloadTarget.MOONSHINE -> {
+                    startMoonshineDownload { success ->
+                        if (!success) return@startMoonshineDownload
+                        runFromFirstMissing()
+                    }
                 }
-                refreshModelReadiness()
+
+                DownloadTarget.LITERT -> {
+                    startLiteRtDownload(allowWhileAnotherDownloadActive = true) { success ->
+                        if (!success) return@startLiteRtDownload
+                        runFromFirstMissing()
+                    }
+                }
+
+                DownloadTarget.PROMPT -> {
+                    startPromptDownload(allowWhileAnotherDownloadActive = true) { success ->
+                        if (!success) return@startPromptDownload
+                        runFromFirstMissing()
+                    }
+                }
+
+                DownloadTarget.COMPLETE -> {
+                    setState {
+                        copy(
+                            modelMessage = appContext.getString(R.string.setup_download_all_completed)
+                        )
+                    }
+                    refreshModelReadiness()
+                }
             }
         }
 
-        fun runLiteRt() {
-            val liteRtReady = withState(this) { state ->
-                state.liteRtReady
-            }
-            if (liteRtReady) {
-                runPrompt()
-                return
-            }
-            startLiteRtDownload(allowWhileAnotherDownloadActive = true) { success ->
-                if (!success) return@startLiteRtDownload
-                runPrompt()
-            }
-        }
-
-        fun runMoonshine() {
-            val moonshineReady = withState(this) { state ->
-                state.moonshineReady
-            }
-            if (moonshineReady) {
-                runLiteRt()
-                return
-            }
-            startMoonshineDownload { success ->
-                if (!success) return@startMoonshineDownload
-                runLiteRt()
-            }
-        }
-
-        runMoonshine()
+        runFromFirstMissing()
     }
 
     private fun startModelPackDownload(
@@ -697,6 +687,13 @@ class SetupViewModel(
 
     private fun isAnyDownloading(state: SetupUiState): Boolean {
         return state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading || state.updatesRunning
+    }
+
+    private enum class DownloadTarget {
+        MOONSHINE,
+        LITERT,
+        PROMPT,
+        COMPLETE
     }
 
     private fun SetupUiState.withDerivedState(): SetupUiState {
