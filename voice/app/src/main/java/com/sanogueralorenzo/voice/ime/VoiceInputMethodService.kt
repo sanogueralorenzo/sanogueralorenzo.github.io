@@ -116,7 +116,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onCreate() {
         super.onCreate()
-        setTheme(R.style.Theme_Voice_Ime)
         applyImeWindowBackground()
         savedStateRegistryController.performAttach()
         savedStateRegistryController.performRestore(null)
