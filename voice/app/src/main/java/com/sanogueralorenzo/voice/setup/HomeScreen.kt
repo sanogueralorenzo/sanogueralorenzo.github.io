@@ -125,11 +125,15 @@ fun HomeScreen(
     onOpenCheckUpdates: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
+    var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
+
     val menuItems = listOf(
         HomeMenuItem(
             icon = Icons.Outlined.Language,
             title = stringResource(R.string.home_menu_languages_title),
             subtitle = stringResource(R.string.home_menu_languages_subtitle)
+            ,
+            onClick = { showLanguagesComingSoonDialog = true }
         ),
         HomeMenuItem(
             icon = Icons.Outlined.Tune,
@@ -200,6 +204,18 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
+    }
+
+    if (showLanguagesComingSoonDialog) {
+        AlertDialog(
+            onDismissRequest = { showLanguagesComingSoonDialog = false },
+            text = { Text(text = stringResource(R.string.home_languages_coming_soon_message)) },
+            confirmButton = {
+                TextButton(onClick = { showLanguagesComingSoonDialog = false }) {
+                    Text(text = stringResource(android.R.string.ok))
+                }
+            }
+        )
     }
 }
 
