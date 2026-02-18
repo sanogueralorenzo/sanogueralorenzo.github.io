@@ -26,7 +26,7 @@
             android:required="false" />
 
         <activity
-            android:name=".setup.MainActivity"
+            android:name=".SettingsActivity"
             android:exported="true"
             android:theme="@style/Theme.Voice.Launch">
             <intent-filter>

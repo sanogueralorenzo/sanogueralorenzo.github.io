@@ -38,7 +38,7 @@ import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
-import com.sanogueralorenzo.voice.setup.MainActivity
+import com.sanogueralorenzo.voice.SettingsActivity
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsStateWithLifecycle
@@ -584,7 +584,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     private fun openAppForPermission() {
-        val intent = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent = Intent(this, SettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
     }
 
