@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -85,6 +86,7 @@ data class SetupState(
     val updatesRunning: Boolean = false,
     val modelMessage: String? = null,
     val updatesMessage: String? = null,
+    val setupKeyboardTestInput: String = "",
     val settingsKeyboardTestInput: String = "",
     val themeKeyboardTestInput: String = "",
     val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
@@ -162,6 +164,10 @@ class SetupViewModel(
 
     fun setSettingsKeyboardTestInput(value: String) {
         setState { copy(settingsKeyboardTestInput = value) }
+    }
+
+    fun setSetupKeyboardTestInput(value: String) {
+        setState { copy(setupKeyboardTestInput = value) }
     }
 
     fun setThemeKeyboardTestInput(value: String) {
@@ -823,11 +829,13 @@ fun SetupFlowScreen(
         requiredRoute = requiredSetupRoute,
         connectedToWifi = state.wifiConnected,
         allowMobileDataDownloads = allowMobileDataDownloads,
-        uiState = state,
+        state = state,
         onAllowMobileDataChange = { allowMobileDataDownloads = it },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
+        onShowImePicker = { showImePicker(context) },
         onDownloadModels = { setupViewModel.downloadAllModels() },
+        onSetupKeyboardInputChange = { setupViewModel.setSetupKeyboardTestInput(it) },
         onSplashFinished = { setupSplashCompleted = true },
         onIntroContinue = { setupViewModel.onSetupIntroContinue() },
         onSetupSelectKeyboardDone = { setupViewModel.onSetupSelectKeyboardDone() }
@@ -837,4 +845,9 @@ fun SetupFlowScreen(
 private fun openImeSettings(context: Context) {
     val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     context.startActivity(intent)
+}
+
+private fun showImePicker(context: Context) {
+    val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    imm.showInputMethodPicker()
 }
