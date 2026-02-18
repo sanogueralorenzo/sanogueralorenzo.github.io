@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.settings
+package com.sanogueralorenzo.voice.theme
 
 import android.content.Context
 import androidx.datastore.core.DataStore

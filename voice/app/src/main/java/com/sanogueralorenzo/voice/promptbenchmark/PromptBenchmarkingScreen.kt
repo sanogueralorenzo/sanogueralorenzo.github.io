@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.promptbenchmark
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement

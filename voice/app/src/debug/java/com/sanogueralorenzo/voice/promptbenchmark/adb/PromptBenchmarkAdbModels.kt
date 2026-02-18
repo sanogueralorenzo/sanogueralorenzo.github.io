@@ -1,6 +1,6 @@
-package com.sanogueralorenzo.voice.setup.benchmark
+package com.sanogueralorenzo.voice.promptbenchmark.adb
 
-import com.sanogueralorenzo.voice.setup.PromptBenchmarkProgress
+import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkProgress
 import org.json.JSONObject
 
 data class PromptBenchmarkRunRequest(

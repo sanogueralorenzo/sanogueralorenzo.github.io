@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.promptbenchmark
 
 import com.sanogueralorenzo.voice.summary.RewriteResult
 import kotlinx.coroutines.Dispatchers

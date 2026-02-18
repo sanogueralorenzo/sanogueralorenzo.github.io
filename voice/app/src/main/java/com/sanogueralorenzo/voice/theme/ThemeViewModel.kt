@@ -1,9 +1,7 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.theme
 
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
-import com.sanogueralorenzo.voice.settings.KeyboardThemeMode
-import com.sanogueralorenzo.voice.settings.ThemeRepository
 
 data class ThemeUiState(
     val keyboardThemeMode: KeyboardThemeMode = KeyboardThemeMode.AUTO

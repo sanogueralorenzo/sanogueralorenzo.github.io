@@ -5,7 +5,7 @@
 
     <application>
         <receiver
-            android:name=".setup.benchmark.PromptBenchmarkAdbReceiver"
+            android:name=".promptbenchmark.adb.PromptBenchmarkAdbReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -14,7 +14,7 @@
         </receiver>
 
         <service
-            android:name=".setup.benchmark.PromptBenchmarkAdbService"
+            android:name=".promptbenchmark.adb.PromptBenchmarkAdbService"
             android:enabled="true"
             android:foregroundServiceType="dataSync"
             android:exported="false" />

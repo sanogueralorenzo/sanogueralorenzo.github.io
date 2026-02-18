@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup.benchmark
+package com.sanogueralorenzo.voice.promptbenchmark.adb
 
 object PromptBenchmarkAdbContracts {
     const val ACTION_RUN = "com.sanogueralorenzo.voice.DEBUG_PROMPT_BENCHMARK_RUN"

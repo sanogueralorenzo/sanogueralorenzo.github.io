@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.promptbenchmark
 
 internal object PromptBenchmarkScoring {
     fun isCasePassed(caseResult: PromptBenchmarkCaseResult): Boolean {

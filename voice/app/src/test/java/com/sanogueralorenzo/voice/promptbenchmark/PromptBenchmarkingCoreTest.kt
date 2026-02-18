@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.promptbenchmark
 
 import com.google.ai.edge.litertlm.Backend
 import com.sanogueralorenzo.voice.summary.LiteRtFailureException

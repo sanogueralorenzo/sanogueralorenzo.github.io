@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.promptbenchmark
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

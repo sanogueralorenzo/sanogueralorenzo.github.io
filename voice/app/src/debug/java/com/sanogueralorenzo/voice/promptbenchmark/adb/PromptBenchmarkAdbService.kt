@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup.benchmark
+package com.sanogueralorenzo.voice.promptbenchmark.adb
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,11 +12,11 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.setup.LiteRtPromptBenchmarkGateway
-import com.sanogueralorenzo.voice.setup.PromptBenchmarkDatasetParser
-import com.sanogueralorenzo.voice.setup.PromptBenchmarkReportFormatter
-import com.sanogueralorenzo.voice.setup.PromptBenchmarkRunner
-import com.sanogueralorenzo.voice.setup.PromptBenchmarkScoring
+import com.sanogueralorenzo.voice.promptbenchmark.LiteRtPromptBenchmarkGateway
+import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkDatasetParser
+import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkReportFormatter
+import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkRunner
+import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkScoring
 import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore

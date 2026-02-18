@@ -35,8 +35,8 @@ import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.settings.KeyboardThemeMode
-import com.sanogueralorenzo.voice.settings.ThemeRepository
+import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
+import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.setup.MainActivity
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer

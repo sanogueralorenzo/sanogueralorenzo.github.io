@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup.benchmark
+package com.sanogueralorenzo.voice.promptbenchmark.adb
 
 import android.content.BroadcastReceiver
 import android.content.Context
