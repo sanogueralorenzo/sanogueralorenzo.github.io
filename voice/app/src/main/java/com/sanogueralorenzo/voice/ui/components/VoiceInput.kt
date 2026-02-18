@@ -19,7 +19,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sanogueralorenzo.voice.R
 
 @Composable
-fun KeyboardTestBar(
+fun VoiceInput(
     value: String,
     onValueChange: (String) -> Unit,
     voiceImeSelected: Boolean,

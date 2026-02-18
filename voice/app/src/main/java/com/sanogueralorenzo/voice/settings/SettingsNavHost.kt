@@ -28,7 +28,7 @@ import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
 import com.sanogueralorenzo.voice.setup.SetupUiState
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeScreen
-import com.sanogueralorenzo.voice.ui.components.KeyboardTestBar
+import com.sanogueralorenzo.voice.ui.components.VoiceInput
 import com.sanogueralorenzo.voice.updates.UpdatesScreen
 
 private object SettingsRoute {
@@ -93,7 +93,7 @@ fun SettingsNavHost(
         bottomBar = {
             when (currentRoute) {
                 SettingsRoute.SETTINGS -> key("settings_input_bar") {
-                    KeyboardTestBar(
+                    VoiceInput(
                         value = uiState.settingsKeyboardTestInput,
                         onValueChange = onSettingsInputChange,
                         voiceImeSelected = uiState.voiceImeSelected,
@@ -103,7 +103,7 @@ fun SettingsNavHost(
                 }
 
                 SettingsRoute.THEME -> key("theme_input_bar") {
-                    KeyboardTestBar(
+                    VoiceInput(
                         value = uiState.themeKeyboardTestInput,
                         onValueChange = onThemeInputChange,
                         voiceImeSelected = uiState.voiceImeSelected,
