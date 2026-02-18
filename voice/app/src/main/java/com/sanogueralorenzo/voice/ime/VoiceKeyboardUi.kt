@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.BugReport
@@ -49,23 +50,30 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.isSystemInDarkTheme
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.ui.VoicePillVisualizer
 import com.sanogueralorenzo.voice.ui.VoicePillVisualizerWidth
 import com.sanogueralorenzo.voice.ui.VoiceVisualizerMode
 import kotlinx.coroutines.delay
 
-private val IdleColor = Color(0xFFB7BEC6)
-private val ActiveColor = Color(0xFF1A2026)
-private val ActionColor = Color(0x33FFFFFF)
-private val LightKeyboardBarColor = Color(0xFFE8EAED)
 private val KeyboardBarHeight = 84.dp
 private val KeyboardParentVerticalTrim = 8.dp
 
 private data class ActivePillVisualState(
     val mode: VoiceKeyboardMode,
     val audioLevel: Float
+)
+
+private data class ImeColorTokens(
+    val keyboardBackground: Color,
+    val idlePill: Color,
+    val activePill: Color,
+    val actionContainer: Color,
+    val actionIcon: Color,
+    val idleAuxContainer: Color,
+    val idleAuxContainerActive: Color,
+    val idleAuxIcon: Color,
+    val idleDebugInactiveAlpha: Float
 )
 
 @Composable
@@ -84,17 +92,13 @@ fun VoiceKeyboardImeContent(
     val bottomSystemInset = with(density) { state.bottomInsetPx.toDp() }
     val keyboardVisibleHeight = KeyboardBarHeight - (KeyboardParentVerticalTrim * 2)
     val keyboardContainerHeight = keyboardVisibleHeight + bottomSystemInset
-    val keyboardBarColor = if (isSystemInDarkTheme()) {
-        MaterialTheme.colorScheme.surface
-    } else {
-        LightKeyboardBarColor
-    }
+    val colors = rememberImeColorTokens()
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(keyboardContainerHeight)
-            .background(keyboardBarColor),
+            .background(colors.keyboardBackground),
         contentAlignment = if (bottomSystemInset > 0.dp) Alignment.TopCenter else Alignment.Center
     ) {
         BoxWithConstraints(
@@ -127,7 +131,7 @@ fun VoiceKeyboardImeContent(
                 label = "pill_width"
             )
             val pillColor by animateColorAsState(
-                targetValue = if (state.mode == VoiceKeyboardMode.IDLE) IdleColor else ActiveColor,
+                targetValue = if (state.mode == VoiceKeyboardMode.IDLE) colors.idlePill else colors.activePill,
                 animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                 label = "pill_color"
             )
@@ -219,7 +223,9 @@ fun VoiceKeyboardImeContent(
                                         mode = activeVisual.mode,
                                         level = activeVisual.audioLevel,
                                         onDeleteTap = onDeleteTap,
-                                        onSendTap = onSendTap
+                                        onSendTap = onSendTap,
+                                        actionContainerColor = colors.actionContainer,
+                                        actionIconTint = colors.actionIcon
                                     )
                                 }
                             }
@@ -231,13 +237,19 @@ fun VoiceKeyboardImeContent(
             if (state.mode == VoiceKeyboardMode.IDLE) {
                 IdleEditButton(
                     visible = state.canEditCurrentInput,
-                    onTap = onEditTap
+                    onTap = onEditTap,
+                    containerColor = colors.idleAuxContainer,
+                    iconTint = colors.idleAuxIcon
                 )
                 if (showDebugButton) {
                     IdleDebugButton(
                         active = state.inlineDebugEnabled,
                         onTap = onDebugToggle,
-                        onLongPress = onDebugLongPress
+                        onLongPress = onDebugLongPress,
+                        inactiveContainerColor = colors.idleAuxContainer,
+                        activeContainerColor = colors.idleAuxContainerActive,
+                        iconTint = colors.idleAuxIcon,
+                        inactiveAlpha = colors.idleDebugInactiveAlpha
                     )
                 }
             }
@@ -250,7 +262,9 @@ private fun ActivePillContent(
     mode: VoiceKeyboardMode,
     level: Float,
     onDeleteTap: () -> Unit,
-    onSendTap: () -> Unit
+    onSendTap: () -> Unit,
+    actionContainerColor: Color,
+    actionIconTint: Color
 ) {
     val visualizerMode = when (mode) {
         VoiceKeyboardMode.RECORDING -> VoiceVisualizerMode.RECORDING_BARS
@@ -276,7 +290,9 @@ private fun ActivePillContent(
                 contentDescription = stringResource(R.string.ime_delete_recording),
                 fromStart = true,
                 visible = isRecording,
-                onTap = onDeleteTap
+                onTap = onDeleteTap,
+                containerColor = actionContainerColor,
+                iconTint = actionIconTint
             )
             VoicePillVisualizer(
                 level = level,
@@ -287,7 +303,9 @@ private fun ActivePillContent(
                 contentDescription = stringResource(R.string.ime_send_recording),
                 fromStart = false,
                 visible = isRecording,
-                onTap = onSendTap
+                onTap = onSendTap,
+                containerColor = actionContainerColor,
+                iconTint = actionIconTint
             )
         }
     }
@@ -299,7 +317,9 @@ private fun ActionIconButton(
     contentDescription: String,
     fromStart: Boolean,
     visible: Boolean,
-    onTap: () -> Unit
+    onTap: () -> Unit,
+    containerColor: Color,
+    iconTint: Color
 ) {
     val slotWidth by animateDpAsState(
         targetValue = if (visible) IconSlotSize else 0.dp,
@@ -340,7 +360,7 @@ private fun ActionIconButton(
                 .clip(RoundedCornerShape(999.dp))
                 .clickable(enabled = visible, onClick = onTap),
             shape = RoundedCornerShape(999.dp),
-            color = ActionColor
+            color = containerColor
         ) {
             Box(
                 modifier = Modifier.size(IconContainerSize),
@@ -349,7 +369,7 @@ private fun ActionIconButton(
                 Icon(
                     imageVector = icon,
                     contentDescription = contentDescription,
-                    tint = Color.White
+                    tint = iconTint
                 )
             }
         }
@@ -359,7 +379,9 @@ private fun ActionIconButton(
 @Composable
 private fun IdleEditButton(
     visible: Boolean,
-    onTap: () -> Unit
+    onTap: () -> Unit,
+    containerColor: Color,
+    iconTint: Color
 ) {
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
@@ -379,7 +401,7 @@ private fun IdleEditButton(
                 .clip(RoundedCornerShape(999.dp))
                 .clickable(enabled = visible, onClick = onTap),
             shape = RoundedCornerShape(999.dp),
-            color = Color(0x29FFFFFF)
+            color = containerColor
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -388,7 +410,7 @@ private fun IdleEditButton(
                 Icon(
                     imageVector = Icons.Rounded.Edit,
                     contentDescription = stringResource(R.string.ime_edit_instruction),
-                    tint = Color.White
+                    tint = iconTint
                 )
             }
         }
@@ -400,15 +422,19 @@ private fun IdleEditButton(
 private fun IdleDebugButton(
     active: Boolean,
     onTap: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    inactiveContainerColor: Color,
+    activeContainerColor: Color,
+    iconTint: Color,
+    inactiveAlpha: Float
 ) {
     val containerColor by animateColorAsState(
-        targetValue = if (active) Color(0x52FFFFFF) else Color(0x29FFFFFF),
+        targetValue = if (active) activeContainerColor else inactiveContainerColor,
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "debug_container_color"
     )
     val alpha by animateFloatAsState(
-        targetValue = if (active) 1f else 0.65f,
+        targetValue = if (active) 1f else inactiveAlpha,
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "debug_alpha"
     )
@@ -441,7 +467,7 @@ private fun IdleDebugButton(
                     } else {
                         stringResource(R.string.ime_debug_enable)
                     },
-                    tint = Color.White
+                    tint = iconTint
                 )
             }
         }
@@ -460,3 +486,34 @@ private val IconSlotSize = 44.dp
 private const val ActiveFadeInMs = 180
 private const val IdleCollapseFadeOutMs = 240
 private val PillTouchHeight = 50.dp
+
+@Composable
+private fun rememberImeColorTokens(): ImeColorTokens {
+    val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    return if (isDarkTheme) {
+        ImeColorTokens(
+            keyboardBackground = scheme.surface,
+            idlePill = Color(0xFF78808A),
+            activePill = Color(0xFF1A2026),
+            actionContainer = Color(0x33FFFFFF),
+            actionIcon = Color.White,
+            idleAuxContainer = Color(0x29FFFFFF),
+            idleAuxContainerActive = Color(0x52FFFFFF),
+            idleAuxIcon = Color.White,
+            idleDebugInactiveAlpha = 0.65f
+        )
+    } else {
+        ImeColorTokens(
+            keyboardBackground = Color(0xFFE8EAED),
+            idlePill = Color(0xFFA9B0B8),
+            activePill = Color(0xFF202124),
+            actionContainer = Color(0x33FFFFFF),
+            actionIcon = Color.White,
+            idleAuxContainer = Color(0x26000000),
+            idleAuxContainerActive = Color(0x3D000000),
+            idleAuxIcon = Color(0xFF202124),
+            idleDebugInactiveAlpha = 0.82f
+        )
+    }
+}
