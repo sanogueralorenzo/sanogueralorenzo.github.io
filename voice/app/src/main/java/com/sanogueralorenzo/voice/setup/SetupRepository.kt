@@ -7,12 +7,23 @@ import android.content.pm.PackageManager
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.ime.VoiceInputMethodService
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.runBlocking
+
+private val Context.setupDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = SetupRepository.SETUP_DATASTORE_NAME
+)
 
 class SetupRepository(
     context: Context,
@@ -47,6 +58,7 @@ class SetupRepository(
 
     private val appContext = context.applicationContext
     private val promptTemplateStore = PromptTemplateStore(appContext)
+    private val dataStore = appContext.setupDataStore
     private val voiceImeIdShort = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToShortString()
     private val voiceImeIdLong = ComponentName(appContext, VoiceInputMethodService::class.java).flattenToString()
     val wifiConnected: StateFlow<Boolean> = connectivityRepository.wifiConnected
@@ -114,7 +126,21 @@ class SetupRepository(
         return promptTemplateStore.currentPromptVersion()
     }
 
+    fun isSetupSelectKeyboardStepDone(): Boolean {
+        val snapshot = runBlocking { dataStore.data.first() }
+        return snapshot[KEY_SETUP_SELECT_KEYBOARD_DONE] ?: false
+    }
+
+    suspend fun setSetupSelectKeyboardStepDone(done: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[KEY_SETUP_SELECT_KEYBOARD_DONE] = done
+        }
+    }
+
     companion object {
+        internal const val SETUP_DATASTORE_NAME = "setup_store"
+        private val KEY_SETUP_SELECT_KEYBOARD_DONE = booleanPreferencesKey("setup_select_keyboard_done")
+
         internal fun requiredStepForMissing(
             missing: MissingSetupItems,
             introDismissed: Boolean

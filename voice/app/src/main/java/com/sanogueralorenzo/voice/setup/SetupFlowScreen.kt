@@ -81,6 +81,7 @@ data class SetupUiState(
     val moonshineDownloading: Boolean = false,
     val promptDownloading: Boolean = false,
     val promptVersion: String? = null,
+    val setupSelectKeyboardDone: Boolean = false,
     val updatesRunning: Boolean = false,
     val modelMessage: String? = null,
     val updatesMessage: String? = null,
@@ -137,6 +138,26 @@ class SetupViewModel(
 
     fun onSetupIntroContinue() {
         setState { copy(introDismissed = true).withDerivedState() }
+    }
+
+    fun refreshSetupSelectKeyboardDone() {
+        suspend {
+            withContext(Dispatchers.IO) {
+                setupRepository.isSetupSelectKeyboardStepDone()
+            }
+        }.execute { async ->
+            when (async) {
+                is Success -> copy(setupSelectKeyboardDone = async())
+                else -> copy()
+            }
+        }
+    }
+
+    fun onSetupSelectKeyboardDone() {
+        setState { copy(setupSelectKeyboardDone = true) }
+        viewModelScope.launch {
+            setupRepository.setSetupSelectKeyboardStepDone(done = true)
+        }
     }
 
     fun setSettingsKeyboardTestInput(value: String) {
@@ -748,7 +769,6 @@ fun SetupFlowScreen(
     val uiState by setupViewModel.collectAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
-    var setupSelectKeyboardCompleted by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -765,6 +785,7 @@ fun SetupFlowScreen(
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
+                setupViewModel.refreshSetupSelectKeyboardDone()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -774,6 +795,7 @@ fun SetupFlowScreen(
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
         setupViewModel.refreshModelReadiness()
+        setupViewModel.refreshSetupSelectKeyboardDone()
     }
 
     LaunchedEffect(uiState.wifiConnected) {
@@ -786,7 +808,7 @@ fun SetupFlowScreen(
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
         SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupRoute.SETUP_MODELS
         SetupRepository.RequiredStep.COMPLETE -> {
-            if (setupSelectKeyboardCompleted) null else SetupRoute.SETUP_SELECT_KEYBOARD
+            if (uiState.setupSelectKeyboardDone) null else SetupRoute.SETUP_SELECT_KEYBOARD
         }
     }
     val requiredSetupRoute = if (setupTargetRoute != null && !setupSplashCompleted) {
@@ -795,8 +817,8 @@ fun SetupFlowScreen(
         setupTargetRoute
     }
 
-    LaunchedEffect(uiState.requiredStep, setupSelectKeyboardCompleted) {
-        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE && setupSelectKeyboardCompleted) {
+    LaunchedEffect(uiState.requiredStep, uiState.setupSelectKeyboardDone) {
+        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE && uiState.setupSelectKeyboardDone) {
             onSetupComplete()
         }
     }
@@ -817,7 +839,7 @@ fun SetupFlowScreen(
         onDownloadModels = { setupViewModel.downloadAllModels() },
         onSplashFinished = { setupSplashCompleted = true },
         onIntroContinue = { setupViewModel.onSetupIntroContinue() },
-        onSetupSelectKeyboardDone = { setupSelectKeyboardCompleted = true }
+        onSetupSelectKeyboardDone = { setupViewModel.onSetupSelectKeyboardDone() }
     )
 }
 
