@@ -47,8 +47,6 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.SettingsScreen
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
-import com.sanogueralorenzo.voice.preferences.PreferencesUiState
-import com.sanogueralorenzo.voice.preferences.PreferencesViewModel
 import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.theme.ThemeUiState
 import com.sanogueralorenzo.voice.theme.ThemeViewModel
@@ -99,14 +97,6 @@ fun SetupNavHost() {
             setupRepository = setupRepository
         )
     }
-    val preferencesViewModel = remember(appContext, appGraph) {
-        PreferencesViewModel(
-            initialState = PreferencesUiState(
-                rewriteEnabled = appGraph.preferencesRepository.isLiteRtRewriteEnabled()
-            ),
-            repository = appGraph.preferencesRepository
-        )
-    }
     val themeViewModel = remember(appContext, appGraph) {
         ThemeViewModel(
             initialState = ThemeUiState(
@@ -150,7 +140,6 @@ fun SetupNavHost() {
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
-                preferencesViewModel.refreshPreferences()
                 themeViewModel.refreshKeyboardThemeMode()
             }
         }
@@ -162,7 +151,6 @@ fun SetupNavHost() {
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
         setupViewModel.refreshModelReadiness()
-        preferencesViewModel.refreshPreferences()
         themeViewModel.refreshKeyboardThemeMode()
     }
 
@@ -368,7 +356,7 @@ fun SetupNavHost() {
             }
 
             composable(MainRoute.PREFERENCES) {
-                PreferencesScreen(viewModel = preferencesViewModel)
+                PreferencesScreen(repository = appGraph.preferencesRepository)
             }
 
             composable(MainRoute.UPDATES) {
