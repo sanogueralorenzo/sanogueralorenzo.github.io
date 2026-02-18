@@ -59,7 +59,7 @@ class SetupRepository(
 
     fun keyboardStatus(): KeyboardStatus {
         val enabled = isVoiceImeEnabled()
-        val selected = isVoiceImeSelectedAsDefault(enabledFallback = enabled)
+        val selected = isVoiceImeSelectedAsDefault()
         return KeyboardStatus(
             enabled = enabled,
             selected = selected
@@ -128,34 +128,19 @@ class SetupRepository(
 
     private fun isVoiceImeEnabled(): Boolean {
         val imm = appContext.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        val enabledViaImm = imm
+        return imm
             ?.enabledInputMethodList
             ?.any { info -> isVoiceImeId(info.id.substringBefore(';').trim()) }
             ?: false
-        if (enabledViaImm) return true
-
-        val raw = runCatching {
-            Settings.Secure.getString(
-                appContext.contentResolver,
-                Settings.Secure.ENABLED_INPUT_METHODS
-            )
-        }.getOrNull().orEmpty()
-        if (raw.isBlank()) return false
-        return raw.split(':').any { entry ->
-            isVoiceImeId(entry.substringBefore(';').trim())
-        }
     }
 
-    private fun isVoiceImeSelectedAsDefault(enabledFallback: Boolean): Boolean {
+    private fun isVoiceImeSelectedAsDefault(): Boolean {
         val selected = runCatching {
             Settings.Secure.getString(
                 appContext.contentResolver,
                 Settings.Secure.DEFAULT_INPUT_METHOD
             )
         }.getOrNull()?.substringBefore(';')?.trim().orEmpty()
-        if (selected.isBlank()) {
-            return enabledFallback
-        }
         return isVoiceImeId(selected)
     }
 
