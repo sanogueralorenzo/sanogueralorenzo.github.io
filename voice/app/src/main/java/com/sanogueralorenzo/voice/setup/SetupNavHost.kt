@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -42,6 +43,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private object MainRoute {
     const val HOME = "home"
@@ -97,6 +100,7 @@ fun SetupNavHost() {
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
     var setupIntroDismissed by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -188,7 +192,15 @@ fun SetupNavHost() {
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
-        onShowImePicker = { showImePicker(context) }
+        onShowImePicker = {
+            showImePicker(context)
+            scope.launch {
+                repeat(10) {
+                    delay(250)
+                    setupViewModel.refreshKeyboardStatus()
+                }
+            }
+        }
     )
 
     Scaffold(

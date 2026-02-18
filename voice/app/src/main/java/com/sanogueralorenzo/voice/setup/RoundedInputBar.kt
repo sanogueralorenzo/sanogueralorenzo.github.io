@@ -2,7 +2,6 @@ package com.sanogueralorenzo.voice.setup
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -35,6 +34,17 @@ fun RoundedInputBar(
         .navigationBarsPadding()
         .padding(horizontal = 12.dp, vertical = 8.dp)
         .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+        .then(
+            if (!enabled && onBlockedTap != null) {
+                Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onBlockedTap
+                )
+            } else {
+                Modifier
+            }
+        )
 
     Box(modifier = fieldModifier) {
         TextField(
@@ -54,16 +64,5 @@ fun RoundedInputBar(
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
             )
         )
-        if (!enabled && onBlockedTap != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onBlockedTap
-                    )
-            )
-        }
     }
 }
