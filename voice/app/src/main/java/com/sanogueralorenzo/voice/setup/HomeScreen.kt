@@ -176,6 +176,10 @@ fun HomeScreen(
         HomeMenuItem(
             icon = Icons.Outlined.HelpOutline,
             title = stringResource(R.string.home_menu_help)
+        ),
+        HomeMenuItem(
+            icon = Icons.Outlined.Shield,
+            title = stringResource(R.string.home_menu_legal)
         )
     )
 
