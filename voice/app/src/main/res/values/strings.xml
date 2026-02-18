@@ -30,7 +30,7 @@
 
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
     <string name="prompt_benchmark_intro">Run fixed compose and edit cases to compare quality, consistency, and latency.</string>
-    <string name="prompt_benchmark_rewrite_disabled_warning">Rewrite is off in Settings. This benchmark still calls LiteRT directly.</string>
+    <string name="prompt_benchmark_rewrite_disabled_warning">LLM rewrite is off in Settings. This benchmark still calls LiteRT directly.</string>
     <string name="prompt_benchmark_run_action">Run</string>
     <string name="prompt_benchmark_cancel_action">Cancel</string>
     <string name="prompt_benchmark_share_action">Share</string>
@@ -60,10 +60,10 @@
     <string name="models_check_updates_partial">Updated %1$d of %2$d items. Some updates failed.</string>
     <string name="preferences_section_title">Preferences</string>
     <string name="preferences_section_description">Control your text output preferences.</string>
-    <string name="preferences_rewrite_toggle_title">LiteRT rewrite</string>
-    <string name="preferences_rewrite_toggle_description">Turn this off to skip LiteRT rewrite and edit, and commit raw transcripts.</string>
-    <string name="preferences_rewrite_enabled">Enabled</string>
-    <string name="preferences_rewrite_disabled">Disabled</string>
+    <string name="preferences_rewrite_toggle_title">LLM rewrite</string>
+    <string name="preferences_rewrite_toggle_description">Turn this off to skip LLM rewrite and edit, and commit transcripts.</string>
+    <string name="preferences_capitalize_sentences_title">Capitalize sentences</string>
+    <string name="preferences_remove_dot_end_title">Remove dot at the end of sentences</string>
     <string name="updates_section_title">Updates</string>
     <string name="updates_section_description">Check and download updates for ASR model files and the LLM model.</string>
     <string name="updates_check_action">Check for updates</string>

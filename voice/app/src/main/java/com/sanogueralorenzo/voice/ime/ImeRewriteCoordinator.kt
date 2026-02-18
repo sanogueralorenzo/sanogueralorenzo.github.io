@@ -108,7 +108,7 @@ internal class ImeRewriteCoordinator(
             )
         }
 
-        val rewriteEnabled = preferencesRepository.isLiteRtRewriteEnabled()
+        val rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()
         if (!rewriteEnabled || !liteRtSummarizer.isModelAvailable()) {
             return ImeRewriteResult(
                 output = sourceText,
@@ -162,7 +162,7 @@ internal class ImeRewriteCoordinator(
         transcript: String,
         onShowRewriting: () -> Unit
     ): ChunkRewriteResult {
-        val rewriteEnabled = preferencesRepository.isLiteRtRewriteEnabled()
+        val rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()
         val shouldRewrite = rewriteEnabled && transcript.isNotBlank() && liteRtSummarizer.isModelAvailable()
         if (!shouldRewrite) {
             return ChunkRewriteResult(

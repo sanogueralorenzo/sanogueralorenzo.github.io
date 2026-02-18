@@ -2,13 +2,14 @@ package com.sanogueralorenzo.voice.preferences
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -16,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -47,15 +49,23 @@ fun PreferencesScreen() {
     }
 
     PreferencesScreenContent(
-        rewriteEnabled = uiState.rewriteEnabled,
-        onRewriteEnabledChange = viewModel::setRewriteEnabled
+        llmRewriteEnabled = uiState.llmRewriteEnabled,
+        onLlmRewriteEnabledChange = viewModel::setLlmRewriteEnabled,
+        capitalizeSentencesEnabled = uiState.capitalizeSentencesEnabled,
+        onCapitalizeSentencesEnabledChange = viewModel::setCapitalizeSentencesEnabled,
+        removeDotAtEndEnabled = uiState.removeDotAtEndEnabled,
+        onRemoveDotAtEndEnabledChange = viewModel::setRemoveDotAtEndEnabled
     )
 }
 
 @Composable
 private fun PreferencesScreenContent(
-    rewriteEnabled: Boolean,
-    onRewriteEnabledChange: (Boolean) -> Unit
+    llmRewriteEnabled: Boolean,
+    onLlmRewriteEnabledChange: (Boolean) -> Unit,
+    capitalizeSentencesEnabled: Boolean,
+    onCapitalizeSentencesEnabledChange: (Boolean) -> Unit,
+    removeDotAtEndEnabled: Boolean,
+    onRemoveDotAtEndEnabledChange: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -73,36 +83,71 @@ private fun PreferencesScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(vertical = 6.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.preferences_rewrite_toggle_title),
-                    style = MaterialTheme.typography.titleMedium
+                PreferencesToggleRow(
+                    title = stringResource(R.string.preferences_rewrite_toggle_title),
+                    description = stringResource(R.string.preferences_rewrite_toggle_description),
+                    checked = llmRewriteEnabled,
+                    onCheckedChange = onLlmRewriteEnabledChange
                 )
-                Text(
-                    text = stringResource(R.string.preferences_rewrite_toggle_description),
-                    style = MaterialTheme.typography.bodySmall
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = if (rewriteEnabled) {
-                            stringResource(R.string.preferences_rewrite_enabled)
-                        } else {
-                            stringResource(R.string.preferences_rewrite_disabled)
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = rewriteEnabled,
-                        onCheckedChange = onRewriteEnabledChange
-                    )
-                }
+                PreferencesToggleRow(
+                    title = stringResource(R.string.preferences_capitalize_sentences_title),
+                    checked = capitalizeSentencesEnabled,
+                    onCheckedChange = onCapitalizeSentencesEnabledChange
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                PreferencesToggleRow(
+                    title = stringResource(R.string.preferences_remove_dot_end_title),
+                    checked = removeDotAtEndEnabled,
+                    onCheckedChange = onRemoveDotAtEndEnabledChange
+                )
             }
         }
+    }
+}
 
+@Composable
+private fun PreferencesToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    description: String? = null
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
+        }
+        if (!description.isNullOrBlank()) {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

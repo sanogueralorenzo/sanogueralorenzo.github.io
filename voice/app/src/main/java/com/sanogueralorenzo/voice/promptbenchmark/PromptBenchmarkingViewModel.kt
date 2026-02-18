@@ -66,7 +66,7 @@ class PromptBenchmarkingViewModel(
             }
             BenchmarkPrerequisites(
                 modelAvailable = modelAvailable,
-                rewriteEnabled = preferencesRepository.isLiteRtRewriteEnabled()
+                rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()
             )
         }.execute { async ->
             when (async) {

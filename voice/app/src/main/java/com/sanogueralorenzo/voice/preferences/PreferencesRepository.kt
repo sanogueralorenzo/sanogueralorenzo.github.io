@@ -30,37 +30,77 @@ class PreferencesRepository(
     private val appContext = context.applicationContext
     private val dataStore = appContext.preferencesDataStore
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val rewriteEnabledState = MutableStateFlow(DEFAULT_REWRITE_ENABLED)
+    private val llmRewriteEnabledState = MutableStateFlow(DEFAULT_LLM_REWRITE_ENABLED)
+    private val capitalizeSentencesEnabledState = MutableStateFlow(DEFAULT_CAPITALIZE_SENTENCES_ENABLED)
+    private val removeDotAtEndEnabledState = MutableStateFlow(DEFAULT_REMOVE_DOT_AT_END_ENABLED)
 
     init {
         val initialSnapshot = runBlocking {
             dataStore.data.first()
         }
-        rewriteEnabledState.value = initialSnapshot[KEY_REWRITE_ENABLED] ?: DEFAULT_REWRITE_ENABLED
+        llmRewriteEnabledState.value = initialSnapshot[KEY_LLM_REWRITE_ENABLED] ?: DEFAULT_LLM_REWRITE_ENABLED
+        capitalizeSentencesEnabledState.value =
+            initialSnapshot[KEY_CAPITALIZE_SENTENCES_ENABLED] ?: DEFAULT_CAPITALIZE_SENTENCES_ENABLED
+        removeDotAtEndEnabledState.value =
+            initialSnapshot[KEY_REMOVE_DOT_AT_END_ENABLED] ?: DEFAULT_REMOVE_DOT_AT_END_ENABLED
 
         scope.launch {
             dataStore.data.collectLatest { prefs ->
-                rewriteEnabledState.value = prefs[KEY_REWRITE_ENABLED] ?: DEFAULT_REWRITE_ENABLED
+                llmRewriteEnabledState.value = prefs[KEY_LLM_REWRITE_ENABLED] ?: DEFAULT_LLM_REWRITE_ENABLED
+                capitalizeSentencesEnabledState.value =
+                    prefs[KEY_CAPITALIZE_SENTENCES_ENABLED] ?: DEFAULT_CAPITALIZE_SENTENCES_ENABLED
+                removeDotAtEndEnabledState.value =
+                    prefs[KEY_REMOVE_DOT_AT_END_ENABLED] ?: DEFAULT_REMOVE_DOT_AT_END_ENABLED
             }
         }
     }
 
-    fun isLiteRtRewriteEnabled(): Boolean {
-        return rewriteEnabledState.value
+    fun isLlmRewriteEnabled(): Boolean {
+        return llmRewriteEnabledState.value
     }
 
-    fun setLiteRtRewriteEnabled(enabled: Boolean) {
-        rewriteEnabledState.value = enabled
+    fun setLlmRewriteEnabled(enabled: Boolean) {
+        llmRewriteEnabledState.value = enabled
         scope.launch {
             dataStore.edit { prefs ->
-                prefs[KEY_REWRITE_ENABLED] = enabled
+                prefs[KEY_LLM_REWRITE_ENABLED] = enabled
+            }
+        }
+    }
+
+    fun isCapitalizeSentencesEnabled(): Boolean {
+        return capitalizeSentencesEnabledState.value
+    }
+
+    fun setCapitalizeSentencesEnabled(enabled: Boolean) {
+        capitalizeSentencesEnabledState.value = enabled
+        scope.launch {
+            dataStore.edit { prefs ->
+                prefs[KEY_CAPITALIZE_SENTENCES_ENABLED] = enabled
+            }
+        }
+    }
+
+    fun isRemoveDotAtEndEnabled(): Boolean {
+        return removeDotAtEndEnabledState.value
+    }
+
+    fun setRemoveDotAtEndEnabled(enabled: Boolean) {
+        removeDotAtEndEnabledState.value = enabled
+        scope.launch {
+            dataStore.edit { prefs ->
+                prefs[KEY_REMOVE_DOT_AT_END_ENABLED] = enabled
             }
         }
     }
 
     companion object {
         internal const val DATASTORE_NAME = "preferences_store"
-        private val KEY_REWRITE_ENABLED = booleanPreferencesKey("rewrite_enabled")
-        private const val DEFAULT_REWRITE_ENABLED = true
+        private val KEY_LLM_REWRITE_ENABLED = booleanPreferencesKey("llm_rewrite_enabled")
+        private val KEY_CAPITALIZE_SENTENCES_ENABLED = booleanPreferencesKey("capitalize_sentences_enabled")
+        private val KEY_REMOVE_DOT_AT_END_ENABLED = booleanPreferencesKey("remove_dot_at_end_enabled")
+        private const val DEFAULT_LLM_REWRITE_ENABLED = true
+        private const val DEFAULT_CAPITALIZE_SENTENCES_ENABLED = false
+        private const val DEFAULT_REMOVE_DOT_AT_END_ENABLED = false
     }
 }

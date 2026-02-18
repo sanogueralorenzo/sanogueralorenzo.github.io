@@ -12,14 +12,32 @@ class PreferencesViewModel(
 
     fun refreshPreferences() {
         setState {
-            copy(rewriteEnabled = repository.isLiteRtRewriteEnabled())
+            copy(
+                llmRewriteEnabled = repository.isLlmRewriteEnabled(),
+                capitalizeSentencesEnabled = repository.isCapitalizeSentencesEnabled(),
+                removeDotAtEndEnabled = repository.isRemoveDotAtEndEnabled()
+            )
         }
     }
 
-    fun setRewriteEnabled(enabled: Boolean) {
-        repository.setLiteRtRewriteEnabled(enabled)
+    fun setLlmRewriteEnabled(enabled: Boolean) {
+        repository.setLlmRewriteEnabled(enabled)
         setState {
-            copy(rewriteEnabled = enabled)
+            copy(llmRewriteEnabled = enabled)
+        }
+    }
+
+    fun setCapitalizeSentencesEnabled(enabled: Boolean) {
+        repository.setCapitalizeSentencesEnabled(enabled)
+        setState {
+            copy(capitalizeSentencesEnabled = enabled)
+        }
+    }
+
+    fun setRemoveDotAtEndEnabled(enabled: Boolean) {
+        repository.setRemoveDotAtEndEnabled(enabled)
+        setState {
+            copy(removeDotAtEndEnabled = enabled)
         }
     }
 
@@ -27,7 +45,9 @@ class PreferencesViewModel(
         override fun initialState(viewModelContext: ViewModelContext): PreferencesUiState {
             val repository = viewModelContext.app<VoiceApp>().appGraph.preferencesRepository
             return PreferencesUiState(
-                rewriteEnabled = repository.isLiteRtRewriteEnabled()
+                llmRewriteEnabled = repository.isLlmRewriteEnabled(),
+                capitalizeSentencesEnabled = repository.isCapitalizeSentencesEnabled(),
+                removeDotAtEndEnabled = repository.isRemoveDotAtEndEnabled()
             )
         }
 
