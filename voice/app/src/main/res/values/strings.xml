@@ -24,7 +24,6 @@
     <string name="home_menu_rate">Rate us</string>
     <string name="home_menu_updates">Updates</string>
     <string name="home_menu_help">Help</string>
-    <string name="home_menu_legal">⚖️ Legal</string>
 
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
     <string name="prompt_benchmark_intro">Run fixed compose and edit cases to compare quality, consistency, and latency.</string>

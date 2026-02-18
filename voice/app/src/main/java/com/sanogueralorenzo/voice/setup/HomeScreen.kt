@@ -103,10 +103,6 @@ fun HomeScreen(
         HomeMenuItem(
             icon = Icons.Outlined.HelpOutline,
             title = stringResource(R.string.home_menu_help)
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.Shield,
-            title = stringResource(R.string.home_menu_legal)
         )
     )
 
@@ -165,7 +161,7 @@ private fun HomeMenuRow(
         Icon(
             imageVector = item.icon,
             contentDescription = null,
-            tint = textColor.copy(alpha = 0.7f),
+            tint = textColor,
             modifier = Modifier
                 .size(28.dp)
                 .padding(top = 1.dp)
@@ -177,13 +173,13 @@ private fun HomeMenuRow(
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleLarge,
-                color = textColor.copy(alpha = 0.82f)
+                color = textColor
             )
             if (!item.subtitle.isNullOrBlank()) {
                 Text(
                     text = item.subtitle,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = textColor.copy(alpha = 0.62f)
+                    color = textColor
                 )
             }
         }
