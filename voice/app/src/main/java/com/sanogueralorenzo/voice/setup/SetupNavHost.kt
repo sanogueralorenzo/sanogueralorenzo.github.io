@@ -1,367 +1,102 @@
 package com.sanogueralorenzo.voice.setup
 
-import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.provider.Settings
-import android.view.inputmethod.InputMethodManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Keyboard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavHostController
-import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
-import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.SettingsScreen
-import com.sanogueralorenzo.voice.di.appGraph
-import com.sanogueralorenzo.voice.preferences.PreferencesScreen
-import com.sanogueralorenzo.voice.theme.ThemeScreen
-import com.sanogueralorenzo.voice.ui.components.KeyboardTestBar
-import com.sanogueralorenzo.voice.updates.UpdatesScreen
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-private object MainRoute {
-    const val SETTINGS = "settings"
+object SetupRoute {
     const val SETUP_SPLASH = "setup_splash"
     const val SETUP_INTRO = "setup_intro"
     const val SETUP_MIC = "setup_mic"
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
     const val SETUP_MODELS = "setup_models"
-    const val PROMPT_BENCHMARKING = "prompt_benchmarking"
-    const val THEME = "theme"
-    const val UPDATES = "updates"
-    const val PREFERENCES = "preferences"
-    val SETUP_ROUTES = setOf(
-        SETUP_SPLASH,
-        SETUP_INTRO,
-        SETUP_MIC,
-        SETUP_ENABLE_KEYBOARD,
-        SETUP_MODELS
-    )
 }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-fun SetupNavHost() {
-    val context = LocalContext.current
-    val appContext = remember(context) { context.applicationContext }
-    val appGraph = remember(appContext) { appContext.appGraph() }
-    val setupRepository = remember(appContext, appGraph) { appGraph.setupRepository }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val setupViewModel = remember(appContext, appGraph, setupRepository) {
-        SetupViewModel(
-            initialState = SetupUiState(
-                micGranted = false,
-                voiceImeEnabled = false,
-                voiceImeSelected = false
-            ),
-            context = appContext,
-            updateChecker = appGraph.modelUpdateChecker,
-            setupRepository = setupRepository
-        )
-    }
-    val uiState by setupViewModel.collectAsStateWithLifecycle()
-    val keyboardThemeMode by appGraph.themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle()
-    val connectedToWifi by setupRepository.wifiConnected.collectFlowAsStateWithLifecycle()
-    var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
-    var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
-    var setupIntroDismissed by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        setupViewModel.onMicPermissionResult(granted)
-    }
-
-    DisposableEffect(setupViewModel) {
-        onDispose { setupViewModel.shutdown() }
-    }
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                setupViewModel.refreshMicPermission()
-                setupViewModel.refreshKeyboardStatus()
-                setupViewModel.refreshModelReadiness()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    LaunchedEffect(Unit) {
-        setupViewModel.refreshMicPermission()
-        setupViewModel.refreshKeyboardStatus()
-        setupViewModel.refreshModelReadiness()
-    }
-
-    LaunchedEffect(connectedToWifi) {
-        if (connectedToWifi) allowMobileDataDownloads = false
-    }
-
-    val requiredSetupStep = remember(
-        setupIntroDismissed,
-        uiState.micGranted,
-        uiState.voiceImeEnabled,
-        uiState.liteRtReady,
-        uiState.moonshineReady,
-        uiState.promptReady
-    ) {
-        setupRepository.requiredStep(
-            introDismissed = setupIntroDismissed
-        )
-    }
-    val setupTargetRoute = when (requiredSetupStep) {
-        SetupRepository.RequiredStep.INTRO -> MainRoute.SETUP_INTRO
-        SetupRepository.RequiredStep.MIC_PERMISSION -> MainRoute.SETUP_MIC
-        SetupRepository.RequiredStep.ENABLE_KEYBOARD -> MainRoute.SETUP_ENABLE_KEYBOARD
-        SetupRepository.RequiredStep.DOWNLOAD_MODELS -> MainRoute.SETUP_MODELS
-        SetupRepository.RequiredStep.COMPLETE -> null
-    }
-    val requiredSetupRoute = if (setupTargetRoute != null && !setupSplashCompleted) {
-        MainRoute.SETUP_SPLASH
-    } else {
-        setupTargetRoute
-    }
-    val startDestination = requiredSetupRoute ?: MainRoute.SETTINGS
+fun SetupNavHost(
+    requiredRoute: String,
+    connectedToWifi: Boolean,
+    allowMobileDataDownloads: Boolean,
+    uiState: SetupUiState,
+    onAllowMobileDataChange: (Boolean) -> Unit,
+    onGrantMic: () -> Unit,
+    onOpenImeSettings: () -> Unit,
+    onDownloadModels: () -> Unit,
+    onSplashFinished: () -> Unit,
+    onIntroContinue: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
-    val isSetupRoute = currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES
-    val canGoBack = currentRoute != null && currentRoute != MainRoute.SETTINGS && !isSetupRoute
-    val topBarTitle = when {
-        isSetupRoute -> ""
-        currentRoute == MainRoute.SETTINGS -> stringResource(R.string.main_title_voice_keyboard)
-        currentRoute == MainRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
-        currentRoute == MainRoute.THEME -> stringResource(R.string.theming_section_title)
-        currentRoute == MainRoute.UPDATES -> stringResource(R.string.updates_section_title)
-        currentRoute == MainRoute.PREFERENCES -> stringResource(R.string.preferences_section_title)
-        else -> stringResource(R.string.main_title_voice_keyboard)
-    }
 
-    LaunchedEffect(requiredSetupRoute, currentRoute) {
-        if (requiredSetupRoute != null && currentRoute != requiredSetupRoute) {
-            navController.navigateClearingBackStack(requiredSetupRoute)
-            return@LaunchedEffect
-        }
-        if (requiredSetupRoute == null && currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES) {
-            navController.navigateClearingBackStack(MainRoute.SETTINGS)
+    LaunchedEffect(requiredRoute, currentRoute) {
+        if (currentRoute != requiredRoute) {
+            navController.navigateClearingBackStack(requiredRoute)
         }
     }
 
-    val actions = SetupActions(
-        onOpenPromptBenchmarking = { navController.navigate(MainRoute.PROMPT_BENCHMARKING) },
-        onOpenUpdates = { navController.navigate(MainRoute.UPDATES) },
-        onOpenTheme = { navController.navigate(MainRoute.THEME) },
-        onOpenPreferences = { navController.navigate(MainRoute.PREFERENCES) },
-        onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-        onOpenImeSettings = { openImeSettings(context) },
-        onShowImePicker = {
-            showImePicker(context)
-            scope.launch {
-                repeat(10) {
-                    delay(250)
-                    setupViewModel.refreshKeyboardStatus()
-                }
-            }
-        }
-    )
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    if (topBarTitle.isNotBlank()) {
-                        Text(
-                            text = topBarTitle,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (canGoBack) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.main_back)
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    if (!isSetupRoute) {
-                        IconButton(onClick = actions.onShowImePicker) {
-                            Icon(
-                                imageVector = Icons.Rounded.Keyboard,
-                                contentDescription = stringResource(R.string.setup_select_keyboard)
-                            )
-                        }
-                    }
-                }
+    NavHost(
+        navController = navController,
+        startDestination = requiredRoute,
+        modifier = modifier.fillMaxSize()
+    ) {
+        composable(SetupRoute.SETUP_SPLASH) {
+            SetupSplashScreen(
+                onFinished = onSplashFinished
             )
-        },
-        bottomBar = {
-            when (currentRoute) {
-                MainRoute.SETTINGS -> key("settings_input_bar") {
-                    KeyboardTestBar(
-                        value = uiState.settingsKeyboardTestInput,
-                        onValueChange = { setupViewModel.setSettingsKeyboardTestInput(it) },
-                        voiceImeSelected = uiState.voiceImeSelected,
-                        onRequestKeyboardPicker = actions.onShowImePicker,
-                        autoFocusOnResume = true
-                    )
-                }
-
-                MainRoute.THEME -> key("theme_input_bar") {
-                    KeyboardTestBar(
-                        value = uiState.themeKeyboardTestInput,
-                        onValueChange = { setupViewModel.setThemeKeyboardTestInput(it) },
-                        voiceImeSelected = uiState.voiceImeSelected,
-                        onRequestKeyboardPicker = actions.onShowImePicker,
-                        autoFocusOnResume = false
-                    )
-                }
-
-                else -> Unit
-            }
         }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            composable(MainRoute.SETTINGS) {
-                SettingsScreen(
-                    onOpenPromptBenchmarking = actions.onOpenPromptBenchmarking,
-                    onOpenTheme = actions.onOpenTheme,
-                    onOpenUpdates = actions.onOpenUpdates,
-                    onOpenPreferences = actions.onOpenPreferences,
-                    keyboardThemeMode = keyboardThemeMode,
-                    updatesReady = uiState.liteRtReady && uiState.moonshineReady && uiState.promptReady
-                )
-            }
 
-            composable(MainRoute.SETUP_SPLASH) {
-                SetupSplashScreen(
-                    onFinished = { setupSplashCompleted = true }
-                )
-            }
+        composable(SetupRoute.SETUP_INTRO) {
+            SetupIntroScreen(
+                onContinue = onIntroContinue
+            )
+        }
 
-            composable(MainRoute.SETUP_INTRO) {
-                SetupIntroScreen(
-                    onContinue = { setupIntroDismissed = true }
-                )
-            }
+        composable(SetupRoute.SETUP_MIC) {
+            SetupMicPermissionScreen(
+                onGrantMic = onGrantMic
+            )
+        }
 
-            composable(MainRoute.SETUP_MIC) {
-                SetupMicPermissionScreen(
-                    onGrantMic = actions.onGrantMic
-                )
-            }
+        composable(SetupRoute.SETUP_ENABLE_KEYBOARD) {
+            SetupEnableKeyboardScreen(
+                onOpenImeSettings = onOpenImeSettings
+            )
+        }
 
-            composable(MainRoute.SETUP_ENABLE_KEYBOARD) {
-                SetupEnableKeyboardScreen(
-                    onOpenImeSettings = actions.onOpenImeSettings
-                )
-            }
-
-            composable(MainRoute.SETUP_MODELS) {
-                SetupDownloadModelsScreen(
-                    connectedToWifi = connectedToWifi,
-                    allowMobileDataDownloads = allowMobileDataDownloads,
-                    liteRtReady = uiState.liteRtReady,
-                    moonshineReady = uiState.moonshineReady,
-                    promptReady = uiState.promptReady,
-                    liteRtDownloading = uiState.liteRtDownloading,
-                    moonshineDownloading = uiState.moonshineDownloading,
-                    promptDownloading = uiState.promptDownloading,
-                    liteRtProgress = uiState.liteRtProgress,
-                    moonshineProgress = uiState.moonshineProgress,
-                    promptVersion = uiState.promptVersion,
-                    modelMessage = uiState.modelMessage,
-                    updatesMessage = uiState.updatesMessage,
-                    onAllowMobileDataChange = { allowMobileDataDownloads = it },
-                    onDownloadModels = { setupViewModel.downloadAllModels() }
-                )
-            }
-
-            composable(MainRoute.PROMPT_BENCHMARKING) {
-                PromptBenchmarkingScreen()
-            }
-
-            composable(MainRoute.THEME) {
-                ThemeScreen()
-            }
-
-            composable(MainRoute.PREFERENCES) {
-                PreferencesScreen()
-            }
-
-            composable(MainRoute.UPDATES) {
-                UpdatesScreen(
-                    promptVersion = uiState.promptVersion,
-                    promptDownloading = uiState.promptDownloading,
-                    promptProgress = uiState.promptProgress,
-                    onDownloadPrompt = {
-                        setupViewModel.startPromptDownload { _ ->
-                            setupViewModel.refreshModelReadiness()
-                        }
-                    }
-                )
-            }
+        composable(SetupRoute.SETUP_MODELS) {
+            SetupDownloadModelsScreen(
+                connectedToWifi = connectedToWifi,
+                allowMobileDataDownloads = allowMobileDataDownloads,
+                liteRtReady = uiState.liteRtReady,
+                moonshineReady = uiState.moonshineReady,
+                promptReady = uiState.promptReady,
+                liteRtDownloading = uiState.liteRtDownloading,
+                moonshineDownloading = uiState.moonshineDownloading,
+                promptDownloading = uiState.promptDownloading,
+                liteRtProgress = uiState.liteRtProgress,
+                moonshineProgress = uiState.moonshineProgress,
+                promptVersion = uiState.promptVersion,
+                modelMessage = uiState.modelMessage,
+                updatesMessage = uiState.updatesMessage,
+                onAllowMobileDataChange = onAllowMobileDataChange,
+                onDownloadModels = onDownloadModels
+            )
         }
     }
-}
-
-private fun openImeSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    context.startActivity(intent)
-}
-
-private fun showImePicker(context: Context) {
-    val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-    imm.showInputMethodPicker()
 }
 
 private fun NavHostController.navigateClearingBackStack(route: String) {
     while (popBackStack()) {
-        // Keep popping until the stack is empty so setup/settings can be enforced after runtime changes.
+        // Keep popping until the stack is empty so required setup step can take over.
     }
     navigate(route) {
         launchSingleTop = true

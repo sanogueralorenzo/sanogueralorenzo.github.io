@@ -3,11 +3,14 @@ package com.sanogueralorenzo.voice.setup
 import android.content.Context
 import com.airbnb.mvrx.Fail
 import com.airbnb.mvrx.Loading
+import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
+import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
@@ -625,5 +628,20 @@ class SetupViewModel(
 
     private fun isAnyDownloading(state: SetupUiState): Boolean {
         return state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading || state.updatesRunning
+    }
+
+    companion object : MavericksViewModelFactory<SetupViewModel, SetupUiState> {
+        override fun create(
+            viewModelContext: ViewModelContext,
+            state: SetupUiState
+        ): SetupViewModel {
+            val app = viewModelContext.app<VoiceApp>()
+            return SetupViewModel(
+                initialState = state,
+                context = app.applicationContext,
+                updateChecker = app.appGraph.modelUpdateChecker,
+                setupRepository = app.appGraph.setupRepository
+            )
+        }
     }
 }

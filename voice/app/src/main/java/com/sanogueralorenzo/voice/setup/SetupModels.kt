@@ -26,13 +26,3 @@ data class SetupUiState(
     val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
     val updatesAsync: Async<ModelUpdatesOutcome> = Uninitialized
 ) : MavericksState
-
-data class SetupActions(
-    val onOpenPromptBenchmarking: () -> Unit,
-    val onOpenUpdates: () -> Unit,
-    val onOpenTheme: () -> Unit,
-    val onOpenPreferences: () -> Unit,
-    val onGrantMic: () -> Unit,
-    val onOpenImeSettings: () -> Unit,
-    val onShowImePicker: () -> Unit
-)

@@ -6,6 +6,7 @@ import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
+import com.sanogueralorenzo.voice.settings.SettingsRepository
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
@@ -28,6 +29,7 @@ interface AppGraph {
     val liteRtComposeLlmGate: LiteRtComposeLlmGate
     val connectivityRepository: ConnectivityRepository
     val setupRepository: SetupRepository
+    val settingsRepository: SettingsRepository
 
     @Provides
     fun provideApplicationContext(application: Application): Context = application
