@@ -32,7 +32,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun PreferencesScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<PreferencesViewModel, PreferencesUiState>()
-    val uiState by viewModel.collectAsStateWithLifecycle()
+    val state by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -49,11 +49,11 @@ fun PreferencesScreen() {
     }
 
     PreferencesScreenContent(
-        llmRewriteEnabled = uiState.llmRewriteEnabled,
+        llmRewriteEnabled = state.llmRewriteEnabled,
         onLlmRewriteEnabledChange = viewModel::setLlmRewriteEnabled,
-        capitalizeSentencesEnabled = uiState.capitalizeSentencesEnabled,
+        capitalizeSentencesEnabled = state.capitalizeSentencesEnabled,
         onCapitalizeSentencesEnabledChange = viewModel::setCapitalizeSentencesEnabled,
-        removeDotAtEndEnabled = uiState.removeDotAtEndEnabled,
+        removeDotAtEndEnabled = state.removeDotAtEndEnabled,
         onRemoveDotAtEndEnabledChange = viewModel::setRemoveDotAtEndEnabled
     )
 }

@@ -758,7 +758,7 @@ fun SetupFlowScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val setupViewModel = mavericksViewModel<SetupViewModel, SetupUiState>()
-    val uiState by setupViewModel.collectAsStateWithLifecycle()
+    val state by setupViewModel.collectAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
 
@@ -790,11 +790,11 @@ fun SetupFlowScreen(
         setupViewModel.refreshSetupSelectKeyboardDone()
     }
 
-    LaunchedEffect(uiState.wifiConnected) {
-        if (uiState.wifiConnected) allowMobileDataDownloads = false
+    LaunchedEffect(state.wifiConnected) {
+        if (state.wifiConnected) allowMobileDataDownloads = false
     }
 
-    val setupTargetRoute = when (uiState.requiredStep) {
+    val setupTargetRoute = when (state.requiredStep) {
         SetupRepository.RequiredStep.INTRO -> SetupRoute.SETUP_INTRO
         SetupRepository.RequiredStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
@@ -808,8 +808,8 @@ fun SetupFlowScreen(
         setupTargetRoute
     }
 
-    LaunchedEffect(uiState.requiredStep) {
-        if (uiState.requiredStep == SetupRepository.RequiredStep.COMPLETE) {
+    LaunchedEffect(state.requiredStep) {
+        if (state.requiredStep == SetupRepository.RequiredStep.COMPLETE) {
             onSetupComplete()
         }
     }
@@ -821,9 +821,9 @@ fun SetupFlowScreen(
 
     SetupStepNavHost(
         requiredRoute = requiredSetupRoute,
-        connectedToWifi = uiState.wifiConnected,
+        connectedToWifi = state.wifiConnected,
         allowMobileDataDownloads = allowMobileDataDownloads,
-        uiState = uiState,
+        uiState = state,
         onAllowMobileDataChange = { allowMobileDataDownloads = it },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },

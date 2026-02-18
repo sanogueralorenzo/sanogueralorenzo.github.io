@@ -32,7 +32,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun ThemeScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<ThemeViewModel, ThemeUiState>()
-    val uiState by viewModel.collectAsStateWithLifecycle()
+    val state by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -49,7 +49,7 @@ fun ThemeScreen() {
     }
 
     ThemeScreenContent(
-        keyboardThemeMode = uiState.keyboardThemeMode,
+        keyboardThemeMode = state.keyboardThemeMode,
         onThemeModeChange = viewModel::setKeyboardThemeMode
     )
 }

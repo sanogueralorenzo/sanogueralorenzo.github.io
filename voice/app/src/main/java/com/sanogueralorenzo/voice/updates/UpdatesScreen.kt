@@ -31,10 +31,10 @@ fun UpdatesScreen(
     onDownloadPrompt: () -> Unit
 ) {
     val viewModel = mavericksViewModel<CheckUpdatesViewModel, CheckUpdatesUiState>()
-    val uiState by viewModel.collectAsStateWithLifecycle()
-    val updatesRunning = uiState.updatesRunning
-    val updatesMessage = uiState.updatesMessage
-    val modelMessage = uiState.modelMessage
+    val state by viewModel.collectAsStateWithLifecycle()
+    val updatesRunning = state.updatesRunning
+    val updatesMessage = state.updatesMessage
+    val modelMessage = state.modelMessage
 
     DisposableEffect(viewModel) {
         onDispose { viewModel.shutdown() }

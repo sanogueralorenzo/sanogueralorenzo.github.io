@@ -39,7 +39,7 @@ fun PromptBenchmarkingScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<PromptBenchmarkingViewModel, PromptBenchmarkingUiState>()
-    val uiState by viewModel.collectAsStateWithLifecycle()
+    val state by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -70,8 +70,8 @@ fun PromptBenchmarkingScreen(
         )
     }
 
-    val runnerState = uiState.runnerState
-    val sessionResult = uiState.sessionResult
+    val runnerState = state.runnerState
+    val sessionResult = state.sessionResult
     val totalRuns = runnerState.totalCases * runnerState.repeats
     val completedRuns = if (runnerState.currentCaseIndex <= 0 || runnerState.currentRunIndex <= 0) {
         0
@@ -104,7 +104,7 @@ fun PromptBenchmarkingScreen(
             }
         }
 
-        if (!uiState.rewriteEnabled) {
+        if (!state.rewriteEnabled) {
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = stringResource(R.string.prompt_benchmark_rewrite_disabled_warning),
@@ -120,7 +120,7 @@ fun PromptBenchmarkingScreen(
         ) {
             Button(
                 onClick = { viewModel.runBenchmark() },
-                enabled = !runnerState.isRunning && uiState.modelAvailable,
+                enabled = !runnerState.isRunning && state.modelAvailable,
                 modifier = Modifier.weight(1f)
             ) {
                 Text(text = stringResource(R.string.prompt_benchmark_run_action))

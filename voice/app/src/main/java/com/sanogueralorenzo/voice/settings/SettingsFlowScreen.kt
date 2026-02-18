@@ -28,7 +28,7 @@ fun SettingsFlowScreen() {
     val appGraph = remember(appContext) { appContext.appGraph() }
     val lifecycleOwner = LocalLifecycleOwner.current
     val setupViewModel = mavericksViewModel<SetupViewModel, SetupUiState>()
-    val uiState by setupViewModel.collectAsStateWithLifecycle()
+    val state by setupViewModel.collectAsStateWithLifecycle()
     val keyboardThemeMode by appGraph.themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
@@ -53,7 +53,7 @@ fun SettingsFlowScreen() {
     }
 
     SettingsNavHost(
-        uiState = uiState,
+        uiState = state,
         keyboardThemeMode = keyboardThemeMode,
         onSettingsInputChange = { setupViewModel.setSettingsKeyboardTestInput(it) },
         onThemeInputChange = { setupViewModel.setThemeKeyboardTestInput(it) },
