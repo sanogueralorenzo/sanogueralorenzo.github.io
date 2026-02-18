@@ -15,17 +15,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.InsertEmoticon
-import androidx.compose.material.icons.outlined.KeyboardVoice
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.Spellcheck
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
@@ -146,31 +142,6 @@ fun HomeScreen(
             onClick = onOpenTheme
         ),
         HomeMenuItem(
-            icon = Icons.Outlined.Spellcheck,
-            title = stringResource(R.string.home_menu_corrections)
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.Gesture,
-            title = stringResource(R.string.home_menu_glide_typing)
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.KeyboardVoice,
-            title = stringResource(R.string.home_menu_voice_typing),
-            onClick = onOpenPromptBenchmarking
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.ContentPaste,
-            title = stringResource(R.string.home_menu_clipboard)
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.MenuBook,
-            title = stringResource(R.string.home_menu_dictionary)
-        ),
-        HomeMenuItem(
-            icon = Icons.Outlined.InsertEmoticon,
-            title = stringResource(R.string.home_menu_emoji)
-        ),
-        HomeMenuItem(
             icon = Icons.Outlined.Share,
             title = stringResource(
                 R.string.home_menu_share,
@@ -192,7 +163,7 @@ fun HomeScreen(
         ),
         HomeMenuItem(
             icon = Icons.Outlined.HelpOutline,
-            title = stringResource(R.string.home_menu_help_feedback)
+            title = stringResource(R.string.home_menu_help)
         )
     )
 

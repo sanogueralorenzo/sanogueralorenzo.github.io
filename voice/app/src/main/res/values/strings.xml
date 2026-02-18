@@ -18,17 +18,11 @@
     <string name="home_languages_coming_soon_message">More languages are coming soon.</string>
     <string name="home_menu_preferences">Preferences</string>
     <string name="home_menu_theme">Theme</string>
-    <string name="home_menu_corrections">Corrections &amp; suggestions</string>
-    <string name="home_menu_glide_typing">Glide typing</string>
-    <string name="home_menu_voice_typing">Voice typing</string>
-    <string name="home_menu_clipboard">Clipboard</string>
-    <string name="home_menu_dictionary">Dictionary</string>
-    <string name="home_menu_emoji">Emojis, Stickers &amp; GIFs</string>
     <string name="home_menu_share">Share Voice %1$s</string>
     <string name="home_menu_privacy">Privacy</string>
     <string name="home_menu_rate">Rate us</string>
     <string name="home_menu_about">About</string>
-    <string name="home_menu_help_feedback">Help &amp; feedback</string>
+    <string name="home_menu_help">Help</string>
 
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>
     <string name="prompt_benchmark_intro">Run fixed compose and edit cases to compare quality, consistency, and latency.</string>
