@@ -67,10 +67,26 @@ internal object LiteRtEditHeuristics {
         TARGETED_ONLY
     }
 
+    private enum class ReplaceVerbRestriction {
+        EXCLUDE_NUMBER_TARGET
+    }
+
+    private enum class ReplaceConnector(val pattern: String) {
+        WITH("with"),
+        TO("to"),
+        FOR("for")
+    }
+
     private data class DeleteVerbSpec(
         val pattern: String,
         val bareMeansAll: Boolean = false,
         val restrictions: Set<DeleteVerbRestriction> = emptySet()
+    )
+
+    private data class ReplaceVerbSpec(
+        val pattern: String,
+        val connectors: Set<ReplaceConnector>,
+        val restrictions: Set<ReplaceVerbRestriction> = emptySet()
     )
 
     fun analyzeInstruction(instructionText: String): EditInstructionAnalysis {
@@ -80,10 +96,12 @@ internal object LiteRtEditHeuristics {
         val normalized = normalizeCorrectionPhrases(collapsed)
         val commandCandidate = stripCommandPreamble(normalized)
         val deleteCommand = parseDeleteVerbCommand(commandCandidate)
+        val replaceCommand = parseReplaceCommand(commandCandidate)
+        val updateNumberCommand = parseUpdateNumberCommand(commandCandidate)
         val intent = when {
             deleteCommand?.kind == CommandKind.CLEAR_ALL ->
                 EditIntent.DELETE_ALL
-            ReplaceRegex.containsMatchIn(commandCandidate) -> EditIntent.REPLACE
+            replaceCommand != null || updateNumberCommand != null -> EditIntent.REPLACE
             else -> EditIntent.GENERAL
         }
         return EditInstructionAnalysis(
@@ -101,9 +119,8 @@ internal object LiteRtEditHeuristics {
         if (commandCandidate.isBlank()) return false
         return parseDeleteVerbCommand(commandCandidate) != null ||
             NoOpRegex.matches(commandCandidate) ||
-            ReplaceDirectRegex.matches(commandCandidate) ||
-            ReplaceUseInsteadRegex.matches(commandCandidate) ||
-            UpdateNumberCommandRegex.matches(commandCandidate)
+            parseReplaceCommand(commandCandidate) != null ||
+            parseUpdateNumberCommand(commandCandidate) != null
     }
 
     fun shouldAllowBlankOutput(intent: EditIntent): Boolean {
@@ -380,21 +397,11 @@ internal object LiteRtEditHeuristics {
     }
 
     private fun parseReplaceCommand(instruction: String): ParsedCommand? {
-        val directMatch = ReplaceDirectRegex.find(instruction)
-        if (directMatch != null) {
-            val fromScoped = scopedTarget(directMatch.groupValues[1]) ?: return null
-            val from = normalizeCommandTerm(fromScoped.target, stripArticleWordPrefix = true)
-            val to = normalizeReplacementTerm(directMatch.groupValues[2])
-            if (from.isBlank() || to.isBlank()) return null
-            if (isAmbiguousPronounTarget(from)) return null
-            return ParsedCommand(
-                kind = CommandKind.REPLACE_TERM,
-                scope = fromScoped.scope,
-                target = from,
-                replacement = to
-            )
-        }
+        parseReplaceVerbCommand(instruction)?.let { return it }
+        return parseUseInsteadCommand(instruction)
+    }
 
+    private fun parseUseInsteadCommand(instruction: String): ParsedCommand? {
         val useInsteadMatch = ReplaceUseInsteadRegex.find(instruction) ?: return null
         val fromScoped = scopedTarget(useInsteadMatch.groupValues[2]) ?: return null
         val from = normalizeCommandTerm(fromScoped.target, stripArticleWordPrefix = true)
@@ -407,6 +414,36 @@ internal object LiteRtEditHeuristics {
             target = from,
             replacement = to
         )
+    }
+
+    private fun parseReplaceVerbCommand(instruction: String): ParsedCommand? {
+        for (verb in ReplaceVerbSpecs) {
+            for (connector in verb.connectors) {
+                val regex = Regex(
+                    "^\\s*(?:please\\s+)?(?:${verb.pattern})\\s+(.+?)\\s+(?:${connector.pattern})\\s+(.+?)\\s*$",
+                    RegexOption.IGNORE_CASE
+                )
+                val match = regex.find(instruction) ?: continue
+                val fromScoped = scopedTarget(match.groupValues[1]) ?: return null
+                val from = normalizeCommandTerm(fromScoped.target, stripArticleWordPrefix = true)
+                val to = normalizeReplacementTerm(match.groupValues[2])
+                if (from.isBlank() || to.isBlank()) return null
+                if (isAmbiguousPronounTarget(from)) return null
+                if (
+                    verb.restrictions.contains(ReplaceVerbRestriction.EXCLUDE_NUMBER_TARGET) &&
+                    NumberWordTargetRegex.matches(from)
+                ) {
+                    return null
+                }
+                return ParsedCommand(
+                    kind = CommandKind.REPLACE_TERM,
+                    scope = fromScoped.scope,
+                    target = from,
+                    replacement = to
+                )
+            }
+        }
+        return null
     }
 
     private fun parseUpdateNumberCommand(instruction: String): ParsedCommand? {
@@ -657,13 +694,36 @@ internal object LiteRtEditHeuristics {
         DeleteVerbSpec(pattern = "cut")
     )
 
-    private val ReplaceRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:(?:replace|change|swap|substitute|update|correct)\\s+.+\\s+(?:with|to|for)\\s+.+|use\\s+.+\\s+instead\\s+of\\s+.+)$",
-        RegexOption.IGNORE_CASE
-    )
-    private val ReplaceDirectRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:replace|change|swap|substitute|update|correct)\\s+(.+?)\\s+(?:with|to|for)\\s+(.+?)\\s*$",
-        RegexOption.IGNORE_CASE
+    private val ReplaceVerbSpecs = listOf(
+        ReplaceVerbSpec(
+            pattern = "replace",
+            connectors = setOf(ReplaceConnector.WITH)
+        ),
+        ReplaceVerbSpec(
+            pattern = "change",
+            connectors = setOf(ReplaceConnector.TO, ReplaceConnector.WITH, ReplaceConnector.FOR)
+        ),
+        ReplaceVerbSpec(
+            pattern = "swap",
+            connectors = setOf(ReplaceConnector.FOR, ReplaceConnector.WITH)
+        ),
+        ReplaceVerbSpec(
+            pattern = "substitute",
+            connectors = setOf(ReplaceConnector.WITH, ReplaceConnector.FOR)
+        ),
+        ReplaceVerbSpec(
+            pattern = "update",
+            connectors = setOf(ReplaceConnector.TO, ReplaceConnector.WITH),
+            restrictions = setOf(ReplaceVerbRestriction.EXCLUDE_NUMBER_TARGET)
+        ),
+        ReplaceVerbSpec(
+            pattern = "correct",
+            connectors = setOf(ReplaceConnector.TO, ReplaceConnector.WITH)
+        ),
+        ReplaceVerbSpec(
+            pattern = "fix",
+            connectors = setOf(ReplaceConnector.TO, ReplaceConnector.WITH)
+        )
     )
     private val ReplaceUseInsteadRegex = Regex(
         "^\\s*(?:please\\s+)?use\\s+(.+?)\\s+instead\\s+of\\s+(.+?)\\s*$",
@@ -721,6 +781,10 @@ internal object LiteRtEditHeuristics {
     )
     private val AmbiguousPronounTargetRegex = Regex(
         "^(?:it|that|this|thing|part)$",
+        RegexOption.IGNORE_CASE
+    )
+    private val NumberWordTargetRegex = Regex(
+        "^number$",
         RegexOption.IGNORE_CASE
     )
 

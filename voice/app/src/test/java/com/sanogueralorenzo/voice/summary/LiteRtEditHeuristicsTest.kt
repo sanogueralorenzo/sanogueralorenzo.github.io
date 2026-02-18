@@ -31,6 +31,7 @@ class LiteRtEditHeuristicsTest {
     @Test
     fun strictEditCommand_requiresStartAnchoredCommand() {
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("replace milk with oat milk"))
+        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("fix milk to oat milk"))
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("please remove milk"))
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("actually never mind"))
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("undo"))
@@ -166,6 +167,21 @@ class LiteRtEditHeuristicsTest {
 
         val swap = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "swap milk for oat milk")
         assertEquals("buy oat milk and bread", swap?.output)
+
+        val substitute = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            source,
+            "substitute milk with oat milk"
+        )
+        assertEquals("buy oat milk and bread", substitute?.output)
+
+        val correct = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "correct milk to oat milk")
+        assertEquals("buy oat milk and bread", correct?.output)
+
+        val fix = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "fix milk to oat milk")
+        assertEquals("buy oat milk and bread", fix?.output)
+
+        val update = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "update milk to oat milk")
+        assertEquals("buy oat milk and bread", update?.output)
 
         val useInstead = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "use oat milk instead of milk")
         assertEquals("buy oat milk and bread", useInstead?.output)
