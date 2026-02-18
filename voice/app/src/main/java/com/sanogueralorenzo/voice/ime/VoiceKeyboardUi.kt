@@ -151,7 +151,7 @@ fun VoiceKeyboardImeContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxSize()
+                    .height(ExpandedPillHeight)
                     .clickable(
                         enabled = state.mode == VoiceKeyboardMode.IDLE,
                         interactionSource = remember { MutableInteractionSource() },
@@ -163,7 +163,7 @@ fun VoiceKeyboardImeContent(
                 Box(
                     modifier = Modifier
                         .width(width)
-                        .height(PillTouchHeight),
+                        .height(ExpandedPillHeight),
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
@@ -249,7 +249,7 @@ private fun ActivePillContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp)
+            .height(ExpandedPillHeight)
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -418,4 +418,4 @@ private val IconContainerSize = 38.dp
 private val IconSlotSize = 44.dp
 private const val ActiveFadeInMs = 180
 private const val IdleCollapseFadeOutMs = 240
-private val PillTouchHeight = 50.dp
+private val ExpandedPillHeight = 50.dp
