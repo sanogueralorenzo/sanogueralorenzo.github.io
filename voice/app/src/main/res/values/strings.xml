@@ -88,7 +88,8 @@
     <string name="setup_intro_message">Voice Keyboard needs a few quick steps.</string>
     <string name="setup_intro_bullet_mic">• Grant microphone permission.</string>
     <string name="setup_intro_bullet_keyboard">• Enable Voice Keyboard in Android settings.</string>
-    <string name="setup_intro_bullet_models">• Download ASR and LLM model.</string>
+    <string name="setup_intro_bullet_select_keyboard">• Select Voice Keyboard.</string>
+    <string name="setup_intro_bullet_models">• Download Artificial Intelligence models.</string>
     <string name="setup_intro_continue">Start setup</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>

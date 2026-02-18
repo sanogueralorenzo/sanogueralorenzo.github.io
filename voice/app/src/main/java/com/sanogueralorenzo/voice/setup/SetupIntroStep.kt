@@ -29,6 +29,10 @@ fun SetupIntroScreen(
                 style = MaterialTheme.typography.bodySmall
             )
             Text(
+                text = stringResource(R.string.setup_intro_bullet_select_keyboard),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
                 text = stringResource(R.string.setup_intro_bullet_models),
                 style = MaterialTheme.typography.bodySmall
             )
