@@ -75,7 +75,7 @@
     <string name="theming_option_auto">Auto (system)</string>
     <string name="theming_option_light">Light</string>
     <string name="theming_option_dark">Dark</string>
-    <string name="theming_input_hint">Use the input bar at the bottom to validate how the keyboard theme looks.</string>
+    <string name="theming_input_hint">Use the bottom input to preview the keyboard theme.</string>
 
     <string name="setup_grant_mic">Grant microphone permission</string>
     <string name="setup_mic_intro">Microphone is required to transcribe speech.</string>

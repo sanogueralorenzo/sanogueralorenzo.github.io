@@ -66,11 +66,6 @@ private fun ThemeScreenContent(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = stringResource(R.string.theming_section_title),
-            style = MaterialTheme.typography.titleLarge
-        )
-
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
