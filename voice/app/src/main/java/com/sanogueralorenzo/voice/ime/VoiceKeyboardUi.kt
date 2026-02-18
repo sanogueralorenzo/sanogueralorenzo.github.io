@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.ui.VoicePillVisualizer
 import com.sanogueralorenzo.voice.ui.VoicePillVisualizerWidth
@@ -58,6 +59,7 @@ import kotlinx.coroutines.delay
 private val IdleColor = Color(0xFFB7BEC6)
 private val ActiveColor = Color(0xFF1A2026)
 private val ActionColor = Color(0x33FFFFFF)
+private val LightKeyboardBarColor = Color(0xFFE8EAED)
 private val KeyboardBarHeight = 84.dp
 private val KeyboardParentVerticalTrim = 8.dp
 
@@ -82,7 +84,11 @@ fun VoiceKeyboardImeContent(
     val bottomSystemInset = with(density) { state.bottomInsetPx.toDp() }
     val keyboardVisibleHeight = KeyboardBarHeight - (KeyboardParentVerticalTrim * 2)
     val keyboardContainerHeight = keyboardVisibleHeight + bottomSystemInset
-    val keyboardBarColor = MaterialTheme.colorScheme.surface
+    val keyboardBarColor = if (isSystemInDarkTheme()) {
+        MaterialTheme.colorScheme.surface
+    } else {
+        LightKeyboardBarColor
+    }
 
     Box(
         modifier = modifier
