@@ -2,7 +2,6 @@ package com.sanogueralorenzo.voice.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -20,10 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 private val Context.voiceSettingsDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = VoiceSettingsStore.DATASTORE_NAME,
-    produceMigrations = { context ->
-        listOf(SharedPreferencesMigration(context, VoiceSettingsStore.LEGACY_PREFS_NAME))
-    }
+    name = VoiceSettingsStore.DATASTORE_NAME
 )
 
 /**
@@ -66,7 +62,6 @@ class VoiceSettingsStore(context: Context) {
     }
 
     companion object {
-        internal const val LEGACY_PREFS_NAME = "voice_settings"
         internal const val DATASTORE_NAME = "voice_settings_store"
         private val KEY_LITERT_REWRITE_ENABLED = booleanPreferencesKey("litert_rewrite_enabled")
         private const val DEFAULT_LITERT_REWRITE_ENABLED = true
