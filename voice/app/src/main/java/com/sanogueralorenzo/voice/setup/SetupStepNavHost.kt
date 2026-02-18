@@ -20,7 +20,7 @@ object SetupRoute {
 }
 
 @Composable
-fun SetupNavHost(
+fun SetupStepNavHost(
     requiredRoute: String,
     connectedToWifi: Boolean,
     allowMobileDataDownloads: Boolean,

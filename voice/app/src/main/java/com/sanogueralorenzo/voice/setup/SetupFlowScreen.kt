@@ -108,7 +108,7 @@ fun SetupFlowScreen(
         return
     }
 
-    SetupNavHost(
+    SetupStepNavHost(
         requiredRoute = requiredSetupRoute,
         connectedToWifi = connectedToWifi,
         allowMobileDataDownloads = allowMobileDataDownloads,
