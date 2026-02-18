@@ -33,6 +33,7 @@ data class SetupActions(
     val onOpenUpdates: () -> Unit,
     val onOpenTheme: () -> Unit,
     val onOpenPreferences: () -> Unit,
+    val onShareApp: () -> Unit,
     val onGrantMic: () -> Unit,
     val onOpenImeSettings: () -> Unit,
     val onShowImePicker: () -> Unit

@@ -19,7 +19,7 @@
     <string name="home_menu_preferences">Preferences</string>
     <string name="home_menu_theme">Theme</string>
     <string name="home_menu_prompt_benchmark">Prompt Benchmark</string>
-    <string name="home_menu_share">Share Voice %1$s</string>
+    <string name="home_menu_share">Share %1$s</string>
     <string name="home_menu_privacy">Privacy</string>
     <string name="home_menu_rate">Rate us</string>
     <string name="home_menu_updates">Updates</string>

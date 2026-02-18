@@ -119,7 +119,8 @@ fun HomeScreen(
     onOpenPromptBenchmarking: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
-    onOpenPreferences: () -> Unit
+    onOpenPreferences: () -> Unit,
+    onShareApp: () -> Unit
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
@@ -156,7 +157,8 @@ fun HomeScreen(
             title = stringResource(
                 R.string.home_menu_share,
                 stringResource(R.string.app_name)
-            )
+            ),
+            onClick = onShareApp
         ),
         HomeMenuItem(
             icon = Icons.Outlined.Shield,
