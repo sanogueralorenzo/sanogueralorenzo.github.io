@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,7 +58,6 @@ import kotlinx.coroutines.delay
 private val IdleColor = Color(0xFFB7BEC6)
 private val ActiveColor = Color(0xFF1A2026)
 private val ActionColor = Color(0x33FFFFFF)
-private val KeyboardBarColor = Color.Black
 private val KeyboardBarHeight = 84.dp
 private val KeyboardParentVerticalTrim = 8.dp
 
@@ -82,12 +82,13 @@ fun VoiceKeyboardImeContent(
     val bottomSystemInset = with(density) { state.bottomInsetPx.toDp() }
     val keyboardVisibleHeight = KeyboardBarHeight - (KeyboardParentVerticalTrim * 2)
     val keyboardContainerHeight = keyboardVisibleHeight + bottomSystemInset
+    val keyboardBarColor = MaterialTheme.colorScheme.surface
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(keyboardContainerHeight)
-            .background(KeyboardBarColor),
+            .background(keyboardBarColor),
         contentAlignment = if (bottomSystemInset > 0.dp) Alignment.TopCenter else Alignment.Center
     ) {
         BoxWithConstraints(
