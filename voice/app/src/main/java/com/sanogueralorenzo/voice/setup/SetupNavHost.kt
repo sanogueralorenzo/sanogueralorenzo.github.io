@@ -49,7 +49,6 @@ private object MainRoute {
     const val SETUP_INTRO = "setup_intro"
     const val SETUP_MIC = "setup_mic"
     const val SETUP_ENABLE_KEYBOARD = "setup_enable_keyboard"
-    const val SETUP_CHOOSE_KEYBOARD = "setup_choose_keyboard"
     const val SETUP_MODELS = "setup_models"
     const val PROMPT_BENCHMARKING = "prompt_benchmarking"
     const val CHECK_UPDATES = "check_updates"
@@ -59,7 +58,6 @@ private object MainRoute {
         SETUP_INTRO,
         SETUP_MIC,
         SETUP_ENABLE_KEYBOARD,
-        SETUP_CHOOSE_KEYBOARD,
         SETUP_MODELS
     )
 }
@@ -96,7 +94,6 @@ fun SetupNavHost() {
     val uiState by setupViewModel.collectAsStateWithLifecycle()
     val checkUpdatesUiState by checkUpdatesViewModel.collectAsStateWithLifecycle()
     val connectedToWifi by setupRepository.wifiConnected.collectFlowAsStateWithLifecycle()
-    var keyboardSelectionAssumed by rememberSaveable { mutableStateOf(false) }
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
     var setupIntroDismissed by rememberSaveable { mutableStateOf(false) }
@@ -132,36 +129,26 @@ fun SetupNavHost() {
         setupViewModel.refreshModelReadiness()
     }
 
-    LaunchedEffect(uiState.micGranted) {
-        if (!uiState.micGranted) keyboardSelectionAssumed = false
-    }
-    LaunchedEffect(uiState.voiceImeEnabled) {
-        if (!uiState.voiceImeEnabled) keyboardSelectionAssumed = false
-    }
     LaunchedEffect(connectedToWifi) {
         if (connectedToWifi) allowMobileDataDownloads = false
     }
 
     val requiredSetupStep = remember(
         setupIntroDismissed,
-        keyboardSelectionAssumed,
         uiState.micGranted,
         uiState.voiceImeEnabled,
-        uiState.voiceImeSelected,
         uiState.liteRtReady,
         uiState.moonshineReady,
         uiState.promptReady
     ) {
         setupRepository.requiredStep(
-            introDismissed = setupIntroDismissed,
-            keyboardSelectionAssumed = keyboardSelectionAssumed
+            introDismissed = setupIntroDismissed
         )
     }
     val setupTargetRoute = when (requiredSetupStep) {
         SetupRepository.RequiredStep.INTRO -> MainRoute.SETUP_INTRO
         SetupRepository.RequiredStep.MIC_PERMISSION -> MainRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> MainRoute.SETUP_ENABLE_KEYBOARD
-        SetupRepository.RequiredStep.CHOOSE_KEYBOARD -> MainRoute.SETUP_CHOOSE_KEYBOARD
         SetupRepository.RequiredStep.DOWNLOAD_MODELS -> MainRoute.SETUP_MODELS
         SetupRepository.RequiredStep.COMPLETE -> null
     }
@@ -201,10 +188,7 @@ fun SetupNavHost() {
         onOpenSettings = { navController.navigate(MainRoute.SETTINGS) },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
-        onShowImePicker = {
-            showImePicker(context)
-            keyboardSelectionAssumed = true
-        }
+        onShowImePicker = { showImePicker(context) }
     )
 
     Scaffold(
@@ -244,7 +228,9 @@ fun SetupNavHost() {
             if (currentRoute == MainRoute.HOME) {
                 KeyboardTestBar(
                     value = uiState.keyboardTestInput,
-                    onValueChange = { setupViewModel.setKeyboardTestInput(it) }
+                    onValueChange = { setupViewModel.setKeyboardTestInput(it) },
+                    voiceImeSelected = uiState.voiceImeSelected,
+                    onRequestKeyboardPicker = actions.onShowImePicker
                 )
             }
         }
@@ -285,12 +271,6 @@ fun SetupNavHost() {
             composable(MainRoute.SETUP_ENABLE_KEYBOARD) {
                 SetupEnableKeyboardScreen(
                     onOpenImeSettings = actions.onOpenImeSettings
-                )
-            }
-
-            composable(MainRoute.SETUP_CHOOSE_KEYBOARD) {
-                SetupChooseKeyboardScreen(
-                    onShowImePicker = actions.onShowImePicker
                 )
             }
 

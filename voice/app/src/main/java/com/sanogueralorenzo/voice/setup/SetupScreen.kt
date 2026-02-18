@@ -287,33 +287,6 @@ fun SetupEnableKeyboardScreen(
 }
 
 @Composable
-fun SetupChooseKeyboardScreen(
-    onShowImePicker: () -> Unit
-) {
-    SetupStepScaffold(
-        title = stringResource(R.string.setup_step_choose_keyboard),
-        body = {
-            Text(
-                text = stringResource(R.string.setup_choose_keyboard_intro),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = stringResource(R.string.setup_keyboard_button_recommendation),
-                style = MaterialTheme.typography.bodySmall
-            )
-        },
-        actions = {
-            Button(
-                onClick = onShowImePicker,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(text = stringResource(R.string.setup_choose_keyboard))
-            }
-        }
-    )
-}
-
-@Composable
 fun SetupDownloadModelsScreen(
     connectedToWifi: Boolean,
     allowMobileDataDownloads: Boolean,

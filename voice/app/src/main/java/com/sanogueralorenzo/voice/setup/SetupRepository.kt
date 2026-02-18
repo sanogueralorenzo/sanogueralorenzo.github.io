@@ -25,7 +25,6 @@ class SetupRepository(
     data class MissingSetupItems(
         val micPermission: Boolean,
         val imeEnabled: Boolean,
-        val imeSelected: Boolean,
         val liteRtModel: Boolean,
         val moonshineModel: Boolean,
         val promptTemplate: Boolean
@@ -41,7 +40,6 @@ class SetupRepository(
         INTRO,
         MIC_PERMISSION,
         ENABLE_KEYBOARD,
-        CHOOSE_KEYBOARD,
         DOWNLOAD_MODELS,
         COMPLETE
     }
@@ -59,9 +57,9 @@ class SetupRepository(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun keyboardStatus(keyboardSelectionAssumed: Boolean = false): KeyboardStatus {
+    fun keyboardStatus(): KeyboardStatus {
         val enabled = isVoiceImeEnabled()
-        val selected = keyboardSelectionAssumed || isVoiceImeSelectedAsDefault(enabledFallback = enabled)
+        val selected = isVoiceImeSelectedAsDefault(enabledFallback = enabled)
         return KeyboardStatus(
             enabled = enabled,
             selected = selected
@@ -85,13 +83,12 @@ class SetupRepository(
         )
     }
 
-    fun missingSetupItems(keyboardSelectionAssumed: Boolean = false): MissingSetupItems {
-        val keyboardStatus = keyboardStatus(keyboardSelectionAssumed = keyboardSelectionAssumed)
+    fun missingSetupItems(): MissingSetupItems {
+        val keyboardStatus = keyboardStatus()
         val readiness = readModelReadiness()
         return MissingSetupItems(
             micPermission = !hasMicPermission(),
             imeEnabled = !keyboardStatus.enabled,
-            imeSelected = !keyboardStatus.selected,
             liteRtModel = !readiness.liteRtReady,
             moonshineModel = !readiness.moonshineReady,
             promptTemplate = !readiness.promptReady
@@ -99,10 +96,9 @@ class SetupRepository(
     }
 
     fun requiredStep(
-        introDismissed: Boolean,
-        keyboardSelectionAssumed: Boolean = false
+        introDismissed: Boolean
     ): RequiredStep {
-        val missing = missingSetupItems(keyboardSelectionAssumed = keyboardSelectionAssumed)
+        val missing = missingSetupItems()
         return requiredStepForMissing(
             missing = missing,
             introDismissed = introDismissed
@@ -125,7 +121,6 @@ class SetupRepository(
             if (!introDismissed && missing.allCoreItemsMissing) return RequiredStep.INTRO
             if (missing.micPermission) return RequiredStep.MIC_PERMISSION
             if (missing.imeEnabled) return RequiredStep.ENABLE_KEYBOARD
-            if (missing.imeSelected) return RequiredStep.CHOOSE_KEYBOARD
             if (missing.modelsOrPrompt) return RequiredStep.DOWNLOAD_MODELS
             return RequiredStep.COMPLETE
         }

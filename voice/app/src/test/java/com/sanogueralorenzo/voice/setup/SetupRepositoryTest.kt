@@ -9,7 +9,6 @@ class SetupRepositoryTest {
         val missing = SetupRepository.MissingSetupItems(
             micPermission = true,
             imeEnabled = true,
-            imeSelected = true,
             liteRtModel = true,
             moonshineModel = true,
             promptTemplate = true
@@ -26,7 +25,6 @@ class SetupRepositoryTest {
         val missing = SetupRepository.MissingSetupItems(
             micPermission = true,
             imeEnabled = true,
-            imeSelected = true,
             liteRtModel = true,
             moonshineModel = true,
             promptTemplate = true
@@ -43,7 +41,6 @@ class SetupRepositoryTest {
         val missing = SetupRepository.MissingSetupItems(
             micPermission = false,
             imeEnabled = false,
-            imeSelected = false,
             liteRtModel = false,
             moonshineModel = false,
             promptTemplate = false

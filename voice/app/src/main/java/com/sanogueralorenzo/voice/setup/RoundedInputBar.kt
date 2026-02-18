@@ -1,14 +1,19 @@
 package com.sanogueralorenzo.voice.setup
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -20,7 +25,9 @@ fun RoundedInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester? = null
+    focusRequester: FocusRequester? = null,
+    enabled: Boolean = true,
+    onBlockedTap: (() -> Unit)? = null
 ) {
     val fieldModifier = modifier
         .fillMaxWidth()
@@ -29,20 +36,34 @@ fun RoundedInputBar(
         .padding(horizontal = 12.dp, vertical = 8.dp)
         .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
 
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = fieldModifier,
-        shape = RoundedCornerShape(24.dp),
-        minLines = 1,
-        maxLines = 5,
-        colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    Box(modifier = fieldModifier) {
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            shape = RoundedCornerShape(24.dp),
+            minLines = 1,
+            maxLines = 5,
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            )
         )
-    )
+        if (!enabled && onBlockedTap != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onBlockedTap
+                    )
+            )
+        }
+    }
 }

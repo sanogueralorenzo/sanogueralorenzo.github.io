@@ -59,8 +59,6 @@
     <string name="setup_mic_bullet_local">• Voice transcription and rewrite run locally on your phone.</string>
     <string name="setup_mic_bullet_offline_after_download">• After models are downloaded, dictation works without internet.</string>
     <string name="setup_enable_keyboard_intro">Open Android keyboard settings and turn Voice Keyboard on.</string>
-    <string name="setup_choose_keyboard_intro">Set Voice Keyboard as your active input method.</string>
-    <string name="setup_keyboard_button_recommendation">For faster switching, use: General &gt; Keyboard &gt; Keyboard button on navigation bar &gt; Show button to hide keyboard.</string>
     <string name="setup_models_intro">Voice Keyboard uses:</string>
     <string name="setup_models_intro_bullet_asr">• ASR (Automatic Speech Recognition) model to convert spoken language into text from audio signals.</string>
     <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
@@ -73,7 +71,6 @@
     <string name="setup_intro_continue">Start setup</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
-    <string name="setup_step_choose_keyboard">Choose Voice Keyboard</string>
     <string name="setup_step_models">Download Models</string>
     <string name="setup_models_mobile_data_warning">You are not on Wi‑Fi. Allow mobile data to download models.</string>
     <string name="setup_allow_mobile_data">Allow using mobile data</string>
@@ -93,6 +90,8 @@
     <string name="setup_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_select_keyboard">Select Voice keyboard</string>
     <string name="setup_choose_keyboard">Choose Voice Keyboard</string>
+    <string name="setup_input_keyboard_required_title">Select Voice Keyboard first</string>
+    <string name="setup_input_keyboard_required_body">To test typing here, switch to Voice Keyboard and then tap the input again.</string>
     <string name="setup_download_error_http">Failed downloading %1$s (HTTP %2$d).</string>
     <string name="setup_download_error_hash">Failed downloading %1$s (hash mismatch).</string>
     <string name="setup_download_error_size">Failed downloading %1$s (size mismatch).</string>
