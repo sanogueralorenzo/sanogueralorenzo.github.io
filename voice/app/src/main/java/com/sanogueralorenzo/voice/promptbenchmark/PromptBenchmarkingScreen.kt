@@ -63,7 +63,7 @@ fun PromptBenchmarkingScreen(
                 )
             ),
             appContext = appContext,
-            settingsStore = appGraph.settingsStore,
+            preferencesRepository = appGraph.preferencesRepository,
             gateway = gateway
         )
     }

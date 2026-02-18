@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.setup
+package com.sanogueralorenzo.voice.preferences
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,13 +13,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.sanogueralorenzo.voice.R
 
 @Composable
 fun PreferencesScreen(
+    viewModel: PreferencesViewModel
+) {
+    val uiState by viewModel.collectAsStateWithLifecycle()
+    PreferencesScreenContent(
+        rewriteEnabled = uiState.rewriteEnabled,
+        onRewriteEnabledChange = viewModel::setRewriteEnabled
+    )
+}
+
+@Composable
+private fun PreferencesScreenContent(
     rewriteEnabled: Boolean,
     onRewriteEnabledChange: (Boolean) -> Unit
 ) {

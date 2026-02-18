@@ -1,13 +1,13 @@
 package com.sanogueralorenzo.voice.ime
 
 import android.os.SystemClock
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
+import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.summary.RewriteResult
 
 internal class ImeRewriteCoordinator(
-    private val settingsStore: VoiceSettingsStore,
+    private val preferencesRepository: PreferencesRepository,
     private val liteRtSummarizer: LiteRtSummarizer
 ) {
     fun rewrite(
@@ -108,7 +108,7 @@ internal class ImeRewriteCoordinator(
             )
         }
 
-        val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
+        val rewriteEnabled = preferencesRepository.isLiteRtRewriteEnabled()
         if (!rewriteEnabled || !liteRtSummarizer.isModelAvailable()) {
             return ImeRewriteResult(
                 output = sourceText,
@@ -162,7 +162,7 @@ internal class ImeRewriteCoordinator(
         transcript: String,
         onShowRewriting: () -> Unit
     ): ChunkRewriteResult {
-        val rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
+        val rewriteEnabled = preferencesRepository.isLiteRtRewriteEnabled()
         val shouldRewrite = rewriteEnabled && transcript.isNotBlank() && liteRtSummarizer.isModelAvailable()
         if (!shouldRewrite) {
             return ChunkRewriteResult(

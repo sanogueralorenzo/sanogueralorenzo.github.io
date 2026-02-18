@@ -12,7 +12,7 @@ import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
+import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
@@ -46,7 +46,7 @@ data class BenchmarkPrerequisites(
 class PromptBenchmarkingViewModel(
     initialState: PromptBenchmarkingUiState,
     private val appContext: Context,
-    private val settingsStore: VoiceSettingsStore,
+    private val preferencesRepository: PreferencesRepository,
     private val gateway: PromptBenchmarkGateway
 ) : MavericksViewModel<PromptBenchmarkingUiState>(initialState) {
     private var runJob: Job? = null
@@ -62,7 +62,7 @@ class PromptBenchmarkingViewModel(
             }
             BenchmarkPrerequisites(
                 modelAvailable = modelAvailable,
-                rewriteEnabled = settingsStore.isLiteRtRewriteEnabled()
+                rewriteEnabled = preferencesRepository.isLiteRtRewriteEnabled()
             )
         }.execute { async ->
             when (async) {

@@ -13,7 +13,6 @@ import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +38,6 @@ data class ModelUpdatesOutcome(
 class SetupViewModel(
     initialState: SetupUiState,
     context: Context,
-    private val settingsStore: VoiceSettingsStore,
     private val updateChecker: ModelUpdateChecker,
     private val setupRepository: SetupRepository
 ) : MavericksViewModel<SetupUiState>(initialState) {
@@ -75,11 +73,6 @@ class SetupViewModel(
 
     fun setThemeKeyboardTestInput(value: String) {
         setState { copy(themeKeyboardTestInput = value) }
-    }
-
-    fun setLiteRtRewriteEnabled(enabled: Boolean) {
-        settingsStore.setLiteRtRewriteEnabled(enabled)
-        setState { copy(liteRtRewriteEnabled = enabled) }
     }
 
     fun isAnyDownloading(): Boolean {

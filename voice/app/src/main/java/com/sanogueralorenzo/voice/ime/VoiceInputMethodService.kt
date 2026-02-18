@@ -37,7 +37,7 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeRepository
-import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
+import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.SettingsActivity
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
@@ -91,12 +91,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         )
     }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }
-    private val settingsStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.settingsStore }
+    private val preferencesRepositoryLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.preferencesRepository }
     private val themeRepositoryLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.themeRepository }
     private val moonshineTranscriber: MoonshineTranscriber get() = moonshineTranscriberLazy.value
     private val liteRtSummarizer: LiteRtSummarizer get() = liteRtSummarizerLazy.value
     private val asrRuntimeStatusStore: AsrRuntimeStatusStore get() = asrRuntimeStatusStoreLazy.value
-    private val settingsStore: VoiceSettingsStore get() = settingsStoreLazy.value
+    private val preferencesRepository: PreferencesRepository get() = preferencesRepositoryLazy.value
     private val themeRepository: ThemeRepository get() = themeRepositoryLazy.value
     private val imePipeline by lazy {
         VoiceImePipeline(
@@ -106,7 +106,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 logTag = TAG
             ),
             rewriteCoordinator = ImeRewriteCoordinator(
-                settingsStore = settingsStore,
+                preferencesRepository = preferencesRepository,
                 liteRtSummarizer = liteRtSummarizer
             ),
             commitCoordinator = ImeCommitCoordinator()

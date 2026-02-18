@@ -46,6 +46,9 @@ import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.SettingsScreen
 import com.sanogueralorenzo.voice.di.appGraph
+import com.sanogueralorenzo.voice.preferences.PreferencesScreen
+import com.sanogueralorenzo.voice.preferences.PreferencesUiState
+import com.sanogueralorenzo.voice.preferences.PreferencesViewModel
 import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.theme.ThemeUiState
 import com.sanogueralorenzo.voice.theme.ThemeViewModel
@@ -89,13 +92,19 @@ fun SetupNavHost() {
             initialState = SetupUiState(
                 micGranted = false,
                 voiceImeEnabled = false,
-                voiceImeSelected = false,
-                liteRtRewriteEnabled = appGraph.settingsStore.isLiteRtRewriteEnabled()
+                voiceImeSelected = false
             ),
             context = appContext,
-            settingsStore = appGraph.settingsStore,
             updateChecker = appGraph.modelUpdateChecker,
             setupRepository = setupRepository
+        )
+    }
+    val preferencesViewModel = remember(appContext, appGraph) {
+        PreferencesViewModel(
+            initialState = PreferencesUiState(
+                rewriteEnabled = appGraph.preferencesRepository.isLiteRtRewriteEnabled()
+            ),
+            repository = appGraph.preferencesRepository
         )
     }
     val themeViewModel = remember(appContext, appGraph) {
@@ -141,6 +150,7 @@ fun SetupNavHost() {
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
+                preferencesViewModel.refreshPreferences()
                 themeViewModel.refreshKeyboardThemeMode()
             }
         }
@@ -152,6 +162,7 @@ fun SetupNavHost() {
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
         setupViewModel.refreshModelReadiness()
+        preferencesViewModel.refreshPreferences()
         themeViewModel.refreshKeyboardThemeMode()
     }
 
@@ -357,12 +368,7 @@ fun SetupNavHost() {
             }
 
             composable(MainRoute.PREFERENCES) {
-                PreferencesScreen(
-                    rewriteEnabled = uiState.liteRtRewriteEnabled,
-                    onRewriteEnabledChange = { enabled ->
-                        setupViewModel.setLiteRtRewriteEnabled(enabled)
-                    }
-                )
+                PreferencesScreen(viewModel = preferencesViewModel)
             }
 
             composable(MainRoute.UPDATES) {
