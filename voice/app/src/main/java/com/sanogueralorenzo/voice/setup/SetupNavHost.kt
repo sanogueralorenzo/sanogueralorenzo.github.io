@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -250,13 +251,28 @@ fun SetupNavHost() {
             )
         },
         bottomBar = {
-            if (currentRoute == MainRoute.HOME || currentRoute == MainRoute.THEME) {
-                KeyboardTestBar(
-                    value = uiState.keyboardTestInput,
-                    onValueChange = { setupViewModel.setKeyboardTestInput(it) },
-                    voiceImeSelected = uiState.voiceImeSelected,
-                    onRequestKeyboardPicker = actions.onShowImePicker
-                )
+            when (currentRoute) {
+                MainRoute.HOME -> key("home_input_bar") {
+                    KeyboardTestBar(
+                        value = uiState.homeKeyboardTestInput,
+                        onValueChange = { setupViewModel.setHomeKeyboardTestInput(it) },
+                        voiceImeSelected = uiState.voiceImeSelected,
+                        onRequestKeyboardPicker = actions.onShowImePicker,
+                        autoFocusOnResume = true
+                    )
+                }
+
+                MainRoute.THEME -> key("theme_input_bar") {
+                    KeyboardTestBar(
+                        value = uiState.themeKeyboardTestInput,
+                        onValueChange = { setupViewModel.setThemeKeyboardTestInput(it) },
+                        voiceImeSelected = uiState.voiceImeSelected,
+                        onRequestKeyboardPicker = actions.onShowImePicker,
+                        autoFocusOnResume = false
+                    )
+                }
+
+                else -> Unit
             }
         }
     ) { innerPadding ->

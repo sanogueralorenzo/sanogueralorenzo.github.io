@@ -69,8 +69,12 @@ class SetupViewModel(
         refreshKeyboardStatus()
     }
 
-    fun setKeyboardTestInput(value: String) {
-        setState { copy(keyboardTestInput = value) }
+    fun setHomeKeyboardTestInput(value: String) {
+        setState { copy(homeKeyboardTestInput = value) }
+    }
+
+    fun setThemeKeyboardTestInput(value: String) {
+        setState { copy(themeKeyboardTestInput = value) }
     }
 
     fun setLiteRtRewriteEnabled(enabled: Boolean) {
