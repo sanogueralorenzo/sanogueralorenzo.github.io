@@ -129,8 +129,7 @@ fun SettingsNavHost(
                     onOpenTheme = { navController.navigate(SettingsRoute.THEME) },
                     onOpenUpdates = { navController.navigate(SettingsRoute.UPDATES) },
                     onOpenPreferences = { navController.navigate(SettingsRoute.PREFERENCES) },
-                    keyboardThemeMode = keyboardThemeMode,
-                    updatesReady = uiState.liteRtReady && uiState.moonshineReady && uiState.promptReady
+                    keyboardThemeMode = keyboardThemeMode
                 )
             }
 

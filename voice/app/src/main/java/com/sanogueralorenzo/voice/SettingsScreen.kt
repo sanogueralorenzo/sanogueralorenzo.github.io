@@ -48,8 +48,7 @@ fun SettingsScreen(
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
     onOpenPreferences: () -> Unit,
-    keyboardThemeMode: KeyboardThemeMode,
-    updatesReady: Boolean
+    keyboardThemeMode: KeyboardThemeMode
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
@@ -77,14 +76,6 @@ fun SettingsScreen(
         SettingsMenuItem(
             icon = Icons.Outlined.SystemUpdate,
             title = stringResource(R.string.settings_menu_updates),
-            chip = SettingsItemChip(
-                label = if (updatesReady) {
-                    stringResource(R.string.settings_chip_updates_ready)
-                } else {
-                    stringResource(R.string.settings_chip_updates_attention)
-                },
-                tone = if (updatesReady) SettingsChipTone.SUCCESS else SettingsChipTone.WARNING
-            ),
             onClick = onOpenUpdates
         )
     )
