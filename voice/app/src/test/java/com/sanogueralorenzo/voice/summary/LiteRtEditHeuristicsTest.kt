@@ -30,7 +30,10 @@ class LiteRtEditHeuristicsTest {
     fun strictEditCommand_requiresStartAnchoredCommand() {
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("replace milk with oat milk"))
         assertTrue(LiteRtEditHeuristics.isStrictEditCommand("please remove milk"))
+        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("actually never mind"))
+        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("scratch that"))
         assertFalse(LiteRtEditHeuristics.isStrictEditCommand("actually can we replace milk with oat milk"))
+        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("hey maybe never mind this part"))
         assertFalse(LiteRtEditHeuristics.isStrictEditCommand("make this professional"))
     }
 
@@ -261,5 +264,33 @@ class LiteRtEditHeuristicsTest {
             instructionText = "make this friendlier"
         )
         assertNull(result)
+    }
+
+    @Test
+    fun deterministic_noOpCommands_keepSourceUnchanged() {
+        val source = "Please buy milk and eggs."
+        val commands = listOf(
+            "nevermind",
+            "actually never mind",
+            "just never mind",
+            "cancel",
+            "cancel that",
+            "forget it",
+            "ignore that",
+            "disregard that",
+            "scratch that"
+        )
+
+        commands.forEach { command ->
+            val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+                sourceText = source,
+                instructionText = command
+            )
+            assertNotNull(result)
+            assertEquals(source, result?.output)
+            assertFalse(result?.applied == true)
+            assertEquals(LiteRtEditHeuristics.CommandKind.NO_OP, result?.commandKind)
+            assertFalse(result?.noMatchDetected == true)
+        }
     }
 }

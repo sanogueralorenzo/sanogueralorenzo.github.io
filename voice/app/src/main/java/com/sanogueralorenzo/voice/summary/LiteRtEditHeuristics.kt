@@ -17,6 +17,7 @@ internal object LiteRtEditHeuristics {
     }
 
     internal enum class CommandKind {
+        NO_OP,
         CLEAR_ALL,
         DELETE_TERM,
         REPLACE_TERM,
@@ -86,6 +87,7 @@ internal object LiteRtEditHeuristics {
         val commandCandidate = stripCommandPreamble(collapsed)
         if (commandCandidate.isBlank()) return false
         return ClearAllRegex.matches(commandCandidate) ||
+            NoOpRegex.matches(commandCandidate) ||
             DeleteCommandRegex.matches(commandCandidate) ||
             ReplaceDirectRegex.matches(commandCandidate) ||
             ReplaceUseInsteadRegex.matches(commandCandidate) ||
@@ -130,6 +132,19 @@ internal object LiteRtEditHeuristics {
 
         val parsed = parseDeterministicCommand(commandCandidate) ?: return null
         return when (parsed.kind) {
+            CommandKind.NO_OP -> {
+                DeterministicEditResult(
+                    output = sourceText,
+                    applied = false,
+                    intent = EditIntent.GENERAL,
+                    scope = CommandScope.ALL,
+                    commandKind = CommandKind.NO_OP,
+                    matchedCount = 1,
+                    ruleConfidence = RuleConfidence.HIGH,
+                    noMatchDetected = false
+                )
+            }
+
             CommandKind.CLEAR_ALL -> {
                 DeterministicEditResult(
                     output = "",
@@ -281,13 +296,22 @@ internal object LiteRtEditHeuristics {
     }
 
     private fun parseDeterministicCommand(instruction: String): ParsedCommand? {
+        val noop = parseNoOpCommand(instruction)
         val clear = parseClearAllCommand(instruction)
         val delete = parseDeleteCommand(instruction)
         val replace = parseReplaceCommand(instruction)
         val updateNumber = parseUpdateNumberCommand(instruction)
-        val parsed = listOfNotNull(clear, delete, replace, updateNumber)
+        val parsed = listOfNotNull(noop, clear, delete, replace, updateNumber)
         if (parsed.size != 1) return null
         return parsed.first()
+    }
+
+    private fun parseNoOpCommand(instruction: String): ParsedCommand? {
+        if (!NoOpRegex.matches(instruction)) return null
+        return ParsedCommand(
+            kind = CommandKind.NO_OP,
+            scope = CommandScope.ALL
+        )
     }
 
     private fun parseClearAllCommand(instruction: String): ParsedCommand? {
@@ -566,11 +590,15 @@ internal object LiteRtEditHeuristics {
     )
 
     private val ClearAllRegex = Regex(
-        "^\\s*(?:please\\s+)?(?:(?:delete|clear|erase|wipe|remove|reset)\\s+(?:all|everything|(?:the\\s+)?(?:whole|entire)\\s+(?:message|text)|(?:the\\s+)?message|(?:the\\s+)?text)|start\\s+over|scratch(?:\\s+that)?)\\s*$",
+        "^\\s*(?:please\\s+)?(?:(?:delete|clear|erase|wipe|remove|reset)\\s+(?:all|everything|(?:the\\s+)?(?:whole|entire)\\s+(?:message|text)|(?:the\\s+)?message|(?:the\\s+)?text)|start\\s+over)\\s*$",
+        RegexOption.IGNORE_CASE
+    )
+    private val NoOpRegex = Regex(
+        "^\\s*(?:(?:actually)\\s+)?(?:(?:just)\\s+)?(?:never\\s*mind|cancel(?:\\s+that)?|forget\\s+it|ignore\\s+that|disregard\\s+that|scratch\\s+that)\\s*[.!]?\\s*$",
         RegexOption.IGNORE_CASE
     )
     private val DeleteAllRegex = Regex(
-        "\\b(?:delete|clear|remove|erase|wipe|reset|start\\s+over|scratch)\\b.*\\b(?:all|everything|whole|entire|start\\s+over)\\b",
+        "\\b(?:delete|clear|remove|erase|wipe|reset|start\\s+over)\\b.*\\b(?:all|everything|whole|entire|start\\s+over)\\b",
         RegexOption.IGNORE_CASE
     )
     private val DeleteCommandRegex = Regex(
