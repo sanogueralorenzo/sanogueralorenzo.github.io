@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ElevatedCard
@@ -75,7 +75,7 @@ fun HomeScreen(
 
     val toolItems = mutableListOf(
         HomeMenuItem(
-            icon = Icons.Outlined.Info,
+            icon = Icons.Outlined.SystemUpdate,
             title = stringResource(R.string.home_menu_updates),
             chip = HomeItemChip(
                 label = if (updatesReady) {
