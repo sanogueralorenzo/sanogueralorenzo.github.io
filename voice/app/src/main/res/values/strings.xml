@@ -8,7 +8,7 @@
     <string name="home_section_prompt_benchmarking_title">Prompt Benchmarking</string>
     <string name="home_section_prompt_benchmarking_description">Run fixed cases to measure LiteRT quality and latency.</string>
     <string name="home_section_theming_title">Theming</string>
-    <string name="home_section_theming_description">Choose Auto, Light, or Dark and test it with the input bar.</string>
+    <string name="home_section_theming_description">Choose keyboard Auto, Light, or Dark and test it with the input bar.</string>
     <string name="home_section_check_updates_title">Check for Updates</string>
     <string name="home_section_check_updates_description">Re-download Prompt A and update ASR/IT model files.</string>
     <string name="home_section_settings_title">Settings</string>
@@ -55,7 +55,7 @@
     <string name="settings_updates_action">Check for updates</string>
     <string name="check_updates_section_description">Check and download updates for ASR model files, IT model, and Prompt A.</string>
     <string name="theming_section_title">Theming</string>
-    <string name="theming_section_description">Pick the app and keyboard appearance mode.</string>
+    <string name="theming_section_description">Pick the keyboard appearance mode.</string>
     <string name="theming_option_auto">Auto (system)</string>
     <string name="theming_option_light">Light</string>
     <string name="theming_option_dark">Dark</string>

@@ -13,7 +13,6 @@ import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
-import com.sanogueralorenzo.voice.settings.AppThemeMode
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import kotlin.coroutines.resume
@@ -77,15 +76,6 @@ class SetupViewModel(
     fun setLiteRtRewriteEnabled(enabled: Boolean) {
         settingsStore.setLiteRtRewriteEnabled(enabled)
         setState { copy(liteRtRewriteEnabled = enabled) }
-    }
-
-    fun refreshThemeMode() {
-        setState { copy(appThemeMode = settingsStore.themeMode()) }
-    }
-
-    fun setAppThemeMode(mode: AppThemeMode) {
-        settingsStore.setThemeMode(mode)
-        setState { copy(appThemeMode = mode) }
     }
 
     fun isAnyDownloading(): Boolean {

@@ -13,16 +13,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.settings.AppThemeMode
+import com.sanogueralorenzo.voice.settings.KeyboardThemeMode
 
 @Composable
-fun ThemingScreen(
-    appThemeMode: AppThemeMode,
-    onThemeModeChange: (AppThemeMode) -> Unit
+fun ThemeScreen(
+    viewModel: ThemeViewModel
+) {
+    val uiState by viewModel.collectAsStateWithLifecycle()
+    ThemeScreenContent(
+        keyboardThemeMode = uiState.keyboardThemeMode,
+        onThemeModeChange = viewModel::setKeyboardThemeMode
+    )
+}
+
+@Composable
+private fun ThemeScreenContent(
+    keyboardThemeMode: KeyboardThemeMode,
+    onThemeModeChange: (KeyboardThemeMode) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -49,18 +62,18 @@ fun ThemingScreen(
             ) {
                 ThemeOptionRow(
                     title = stringResource(R.string.theming_option_auto),
-                    selected = appThemeMode == AppThemeMode.AUTO,
-                    onClick = { onThemeModeChange(AppThemeMode.AUTO) }
+                    selected = keyboardThemeMode == KeyboardThemeMode.AUTO,
+                    onClick = { onThemeModeChange(KeyboardThemeMode.AUTO) }
                 )
                 ThemeOptionRow(
                     title = stringResource(R.string.theming_option_light),
-                    selected = appThemeMode == AppThemeMode.LIGHT,
-                    onClick = { onThemeModeChange(AppThemeMode.LIGHT) }
+                    selected = keyboardThemeMode == KeyboardThemeMode.LIGHT,
+                    onClick = { onThemeModeChange(KeyboardThemeMode.LIGHT) }
                 )
                 ThemeOptionRow(
                     title = stringResource(R.string.theming_option_dark),
-                    selected = appThemeMode == AppThemeMode.DARK,
-                    onClick = { onThemeModeChange(AppThemeMode.DARK) }
+                    selected = keyboardThemeMode == KeyboardThemeMode.DARK,
+                    onClick = { onThemeModeChange(KeyboardThemeMode.DARK) }
                 )
             }
         }

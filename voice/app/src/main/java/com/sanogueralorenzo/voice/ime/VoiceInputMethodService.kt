@@ -35,7 +35,8 @@ import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.settings.AppThemeMode
+import com.sanogueralorenzo.voice.settings.KeyboardThemeMode
+import com.sanogueralorenzo.voice.settings.ThemeRepository
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.setup.MainActivity
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
@@ -91,10 +92,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }
     private val settingsStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.settingsStore }
+    private val themeRepositoryLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.themeRepository }
     private val moonshineTranscriber: MoonshineTranscriber get() = moonshineTranscriberLazy.value
     private val liteRtSummarizer: LiteRtSummarizer get() = liteRtSummarizerLazy.value
     private val asrRuntimeStatusStore: AsrRuntimeStatusStore get() = asrRuntimeStatusStoreLazy.value
     private val settingsStore: VoiceSettingsStore get() = settingsStoreLazy.value
+    private val themeRepository: ThemeRepository get() = themeRepositoryLazy.value
     private val imePipeline by lazy {
         VoiceImePipeline(
             transcriptionCoordinator = ImeTranscriptionCoordinator(
@@ -127,7 +130,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     override fun onCreateInputView(): View {
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         warmupMoonshineAsync()
-        val preComposeBackground = if (isImeDarkThemeEnabled(settingsStore.themeMode())) {
+        val preComposeBackground = if (isImeDarkThemeEnabled(themeRepository.keyboardThemeMode())) {
             IME_BACKGROUND_DARK
         } else {
             IME_BACKGROUND_LIGHT
@@ -148,12 +151,12 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             attachOwnersToWindowTree(this)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
-                val appThemeMode by settingsStore.themeModeFlow.collectFlowAsStateWithLifecycle(
-                    initialValue = settingsStore.themeMode(),
+                val keyboardThemeMode by themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle(
+                    initialValue = themeRepository.keyboardThemeMode(),
                     lifecycleOwner = this@VoiceInputMethodService
                 )
-                val effectiveDarkTheme = appThemeMode.resolveIsDark(isSystemInDarkTheme())
-                VoiceTheme(themeMode = appThemeMode) {
+                val effectiveDarkTheme = keyboardThemeMode.resolveIsDark(isSystemInDarkTheme())
+                VoiceTheme {
                     val state by keyboardViewModel.collectAsStateWithLifecycle(
                         lifecycleOwner = this@VoiceInputMethodService
                     )
@@ -725,7 +728,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         keyboardViewModel.setBottomInsetPx(bottom)
     }
 
-    private fun isImeDarkThemeEnabled(themeMode: AppThemeMode): Boolean {
+    private fun isImeDarkThemeEnabled(themeMode: KeyboardThemeMode): Boolean {
         return themeMode.resolveIsDark(isSystemDarkTheme())
     }
 

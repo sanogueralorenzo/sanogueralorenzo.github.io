@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
+import com.sanogueralorenzo.voice.settings.ThemeRepository
 import com.sanogueralorenzo.voice.settings.VoiceSettingsStore
 import com.sanogueralorenzo.voice.setup.ConnectivityRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
@@ -19,6 +20,7 @@ import dev.zacsweers.metro.SingleIn
 @DependencyGraph(AppScope::class)
 interface AppGraph {
     val settingsStore: VoiceSettingsStore
+    val themeRepository: ThemeRepository
     val asrRuntimeStatusStore: AsrRuntimeStatusStore
     val modelUpdateChecker: ModelUpdateChecker
     val liteRtComposePolicy: LiteRtComposePolicy
