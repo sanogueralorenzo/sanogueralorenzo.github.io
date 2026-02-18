@@ -1,6 +1,7 @@
 package com.sanogueralorenzo.voice.setup
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -179,6 +180,7 @@ fun SetupNavHost() {
     val currentRoute = backStackEntry?.destination?.route
     val isSetupRoute = currentRoute != null && currentRoute in MainRoute.SETUP_ROUTES
     val canGoBack = currentRoute != null && currentRoute != MainRoute.HOME && !isSetupRoute
+    val canCloseHome = currentRoute == MainRoute.HOME
     val topBarTitle = when {
         isSetupRoute -> ""
         currentRoute == MainRoute.HOME -> stringResource(R.string.main_title_voice_keyboard)
@@ -229,8 +231,16 @@ fun SetupNavHost() {
                     }
                 },
                 navigationIcon = {
-                    if (canGoBack) {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                    if (canGoBack || canCloseHome) {
+                        IconButton(
+                            onClick = {
+                                if (canGoBack) {
+                                    navController.popBackStack()
+                                } else {
+                                    (context as? Activity)?.finish()
+                                }
+                            }
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.main_back)
