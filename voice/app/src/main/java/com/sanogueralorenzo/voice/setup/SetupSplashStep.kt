@@ -171,10 +171,10 @@ private fun SetupSplashBars(
     }
 }
 
-private const val SetupSplashCenterHoldMs = 3_000
-private const val SetupSplashTravelMs = 700
-private const val SetupSplashSettleMs = 220
-private const val SetupSplashFrozenHoldMs = 300
+private const val SetupSplashCenterHoldMs = 2_200
+private const val SetupSplashTravelMs = 600
+private const val SetupSplashSettleMs = 180
+private const val SetupSplashFrozenHoldMs = 200
 
 private const val SetupLogoViewport = 108f
 private const val SetupBarCount = 5
