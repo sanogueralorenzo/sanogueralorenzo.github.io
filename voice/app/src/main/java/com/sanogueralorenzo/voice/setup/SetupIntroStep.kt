@@ -24,18 +24,6 @@ fun SetupIntroScreen(
                 text = stringResource(R.string.setup_intro_message),
                 style = MaterialTheme.typography.bodyMedium
             )
-            Text(
-                text = stringResource(R.string.setup_intro_expectation_local),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.setup_intro_expectation_warmup),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.setup_intro_expectation_control),
-                style = MaterialTheme.typography.bodySmall
-            )
         },
         actions = {
             Button(
