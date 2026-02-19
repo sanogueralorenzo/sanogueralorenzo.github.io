@@ -28,7 +28,12 @@ internal fun SetupStepScaffold(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(SetupScreenOuterPadding),
+            .padding(
+                start = SetupScreenOuterPadding,
+                top = SetupScreenOuterPadding,
+                end = SetupScreenOuterPadding,
+                bottom = SetupScreenBottomPadding
+            ),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
