@@ -25,6 +25,13 @@ private val Context.setupDataStore: DataStore<Preferences> by preferencesDataSto
     name = SetupRepository.SETUP_DATASTORE_NAME
 )
 
+data class ModelReadiness(
+    val liteRtReady: Boolean,
+    val moonshineReady: Boolean,
+    val promptReady: Boolean,
+    val promptVersion: String?
+)
+
 class SetupRepository(
     context: Context,
     private val connectivityRepository: ConnectivityRepository

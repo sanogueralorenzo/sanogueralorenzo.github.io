@@ -5,8 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -26,16 +26,11 @@ object SetupRoute {
 @Composable
 fun SetupStepNavHost(
     requiredRoute: String,
-    allowMobileDataDownloads: Boolean,
-    state: SetupState,
-    onAllowMobileDataChange: (Boolean) -> Unit,
     onGrantMic: () -> Unit,
     onOpenImeSettings: () -> Unit,
     onShowImePicker: () -> Unit,
-    onDownloadModels: () -> Unit,
-    onSetupKeyboardInputChange: (String) -> Unit,
     onIntroContinue: () -> Unit,
-    onSetupSelectKeyboardDone: () -> Unit,
+    onSetupStateChanged: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
@@ -63,7 +58,7 @@ fun SetupStepNavHost(
 
         composable(SetupRoute.SETUP_INTRO) {
             SetupIntroScreen(
-                onContinue = onIntroContinue
+                onContinue = { onIntroContinue() }
             )
         }
 
@@ -81,35 +76,14 @@ fun SetupStepNavHost(
 
         composable(SetupRoute.SETUP_MODELS) {
             SetupDownloadModelsScreen(
-                state = SetupDownloadModelsStepState(
-                    connectedToWifi = state.wifiConnected,
-                    allowMobileDataDownloads = allowMobileDataDownloads,
-                    liteRtReady = state.liteRtReady,
-                    moonshineReady = state.moonshineReady,
-                    promptReady = state.promptReady,
-                    liteRtDownloading = state.liteRtDownloading,
-                    moonshineDownloading = state.moonshineDownloading,
-                    promptDownloading = state.promptDownloading,
-                    liteRtProgress = state.liteRtProgress,
-                    moonshineProgress = state.moonshineProgress,
-                    promptProgress = state.promptProgress,
-                    modelMessage = state.modelMessage,
-                    updatesMessage = state.updatesMessage
-                ),
-                onAllowMobileDataChange = onAllowMobileDataChange,
-                onDownloadModels = onDownloadModels
+                onModelsReady = onSetupStateChanged
             )
         }
 
         composable(SetupRoute.SETUP_SELECT_KEYBOARD) {
             SetupSelectKeyboardScreen(
-                state = SetupSelectKeyboardStepState(
-                    value = state.setupKeyboardTestInput,
-                    voiceImeSelected = state.voiceImeSelected
-                ),
-                onValueChange = onSetupKeyboardInputChange,
                 onRequestKeyboardPicker = onShowImePicker,
-                onDone = onSetupSelectKeyboardDone
+                onDone = onSetupStateChanged
             )
         }
     }
