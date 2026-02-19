@@ -758,7 +758,6 @@ fun SetupFlowScreen(
     val setupViewModel = mavericksViewModel<SetupViewModel, SetupState>()
     val state by setupViewModel.collectAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
-    var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -801,11 +800,7 @@ fun SetupFlowScreen(
         SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupRoute.SETUP_SELECT_KEYBOARD
         SetupRepository.RequiredStep.COMPLETE -> null
     }
-    val requiredSetupRoute = if (setupTargetRoute != null && !setupSplashCompleted) {
-        SetupRoute.SETUP_SPLASH
-    } else {
-        setupTargetRoute
-    }
+    val requiredSetupRoute = setupTargetRoute
 
     LaunchedEffect(state.requiredStep) {
         if (state.requiredStep == SetupRepository.RequiredStep.COMPLETE) {
@@ -836,7 +831,6 @@ fun SetupFlowScreen(
         },
         onDownloadModels = { setupViewModel.downloadAllModels() },
         onSetupKeyboardInputChange = { setupViewModel.setSetupKeyboardTestInput(it) },
-        onSplashFinished = { setupSplashCompleted = true },
         onIntroContinue = { setupViewModel.onSetupIntroContinue() },
         onSetupSelectKeyboardDone = { setupViewModel.onSetupSelectKeyboardDone() }
     )

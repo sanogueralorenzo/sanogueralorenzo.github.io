@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -31,18 +34,19 @@ fun SetupStepNavHost(
     onShowImePicker: () -> Unit,
     onDownloadModels: () -> Unit,
     onSetupKeyboardInputChange: (String) -> Unit,
-    onSplashFinished: () -> Unit,
     onIntroContinue: () -> Unit,
     onSetupSelectKeyboardDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
+    var splashCompleted by rememberSaveable { mutableStateOf(false) }
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
+    val effectiveRequiredRoute = if (!splashCompleted) SetupRoute.SETUP_SPLASH else requiredRoute
 
-    LaunchedEffect(requiredRoute, currentRoute) {
-        if (currentRoute != requiredRoute) {
-            navController.navigateClearingBackStack(requiredRoute)
+    LaunchedEffect(effectiveRequiredRoute, currentRoute) {
+        if (currentRoute != effectiveRequiredRoute) {
+            navController.navigateClearingBackStack(effectiveRequiredRoute)
         }
     }
 
@@ -53,7 +57,7 @@ fun SetupStepNavHost(
     ) {
         composable(SetupRoute.SETUP_SPLASH) {
             SetupSplashScreen(
-                onFinished = onSplashFinished
+                onFinished = { splashCompleted = true }
             )
         }
 
