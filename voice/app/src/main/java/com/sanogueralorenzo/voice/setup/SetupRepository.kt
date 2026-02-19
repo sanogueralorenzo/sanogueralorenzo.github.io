@@ -113,11 +113,11 @@ class SetupRepository(
         introDismissed: Boolean
     ): RequiredStep {
         val missing = missingSetupItems()
-        val setupSelectKeyboardDone = isSetupSelectKeyboardStepDone()
+        val setupComplete = isSetupComplete()
         return requiredStepForMissing(
             missing = missing,
             introDismissed = introDismissed,
-            setupSelectKeyboardDone = setupSelectKeyboardDone
+            setupComplete = setupComplete
         )
     }
 
@@ -129,31 +129,31 @@ class SetupRepository(
         return promptTemplateStore.currentPromptVersion()
     }
 
-    fun isSetupSelectKeyboardStepDone(): Boolean {
+    fun isSetupComplete(): Boolean {
         val snapshot = runBlocking { dataStore.data.first() }
-        return snapshot[KEY_SETUP_SELECT_KEYBOARD_DONE] ?: false
+        return snapshot[KEY_SETUP_COMPLETE] ?: false
     }
 
-    suspend fun setSetupSelectKeyboardStepDone(done: Boolean) {
+    suspend fun setSetupComplete(complete: Boolean) {
         dataStore.edit { prefs ->
-            prefs[KEY_SETUP_SELECT_KEYBOARD_DONE] = done
+            prefs[KEY_SETUP_COMPLETE] = complete
         }
     }
 
     companion object {
         internal const val SETUP_DATASTORE_NAME = "setup_store"
-        private val KEY_SETUP_SELECT_KEYBOARD_DONE = booleanPreferencesKey("setup_select_keyboard_done")
+        private val KEY_SETUP_COMPLETE = booleanPreferencesKey("setup_complete")
 
         internal fun requiredStepForMissing(
             missing: MissingSetupItems,
             introDismissed: Boolean,
-            setupSelectKeyboardDone: Boolean
+            setupComplete: Boolean
         ): RequiredStep {
             if (!introDismissed && missing.allCoreItemsMissing) return RequiredStep.INTRO
             if (missing.modelsOrPrompt) return RequiredStep.DOWNLOAD_MODELS
             if (missing.micPermission) return RequiredStep.MIC_PERMISSION
             if (missing.imeEnabled) return RequiredStep.ENABLE_KEYBOARD
-            if (!setupSelectKeyboardDone) return RequiredStep.SELECT_KEYBOARD
+            if (!setupComplete) return RequiredStep.SELECT_KEYBOARD
             return RequiredStep.COMPLETE
         }
     }

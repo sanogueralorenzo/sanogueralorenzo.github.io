@@ -84,7 +84,7 @@ data class SetupState(
     val moonshineDownloading: Boolean = false,
     val promptDownloading: Boolean = false,
     val promptVersion: String? = null,
-    val setupSelectKeyboardDone: Boolean = false,
+    val setupComplete: Boolean = false,
     val updatesRunning: Boolean = false,
     val modelMessage: String? = null,
     val updatesMessage: String? = null,
@@ -142,23 +142,23 @@ class SetupViewModel(
         setState { copy(introDismissed = true).withDerivedState() }
     }
 
-    fun refreshSetupSelectKeyboardDone() {
+    fun refreshSetupComplete() {
         suspend {
             withContext(Dispatchers.IO) {
-                setupRepository.isSetupSelectKeyboardStepDone()
+                setupRepository.isSetupComplete()
             }
         }.execute { async ->
             when (async) {
-                is Success -> copy(setupSelectKeyboardDone = async()).withDerivedState()
+                is Success -> copy(setupComplete = async()).withDerivedState()
                 else -> copy()
             }
         }
     }
 
     fun onSetupSelectKeyboardDone() {
-        setState { copy(setupSelectKeyboardDone = true).withDerivedState() }
+        setState { copy(setupComplete = true).withDerivedState() }
         viewModelScope.launch {
-            setupRepository.setSetupSelectKeyboardStepDone(done = true)
+            setupRepository.setSetupComplete(complete = true)
         }
     }
 
@@ -729,7 +729,7 @@ class SetupViewModel(
                 promptTemplate = !state.promptReady
             ),
             introDismissed = state.introDismissed,
-            setupSelectKeyboardDone = state.setupSelectKeyboardDone
+            setupComplete = state.setupComplete
         )
     }
 
@@ -775,7 +775,7 @@ fun SetupFlowScreen(
                 setupViewModel.refreshMicPermission()
                 setupViewModel.refreshKeyboardStatus()
                 setupViewModel.refreshModelReadiness()
-                setupViewModel.refreshSetupSelectKeyboardDone()
+                setupViewModel.refreshSetupComplete()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -785,7 +785,7 @@ fun SetupFlowScreen(
         setupViewModel.refreshMicPermission()
         setupViewModel.refreshKeyboardStatus()
         setupViewModel.refreshModelReadiness()
-        setupViewModel.refreshSetupSelectKeyboardDone()
+        setupViewModel.refreshSetupComplete()
     }
 
     LaunchedEffect(state.wifiConnected) {

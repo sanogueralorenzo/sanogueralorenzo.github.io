@@ -19,7 +19,7 @@ class SetupRepositoryTest {
             SetupRepository.requiredStepForMissing(
                 missing = missing,
                 introDismissed = false,
-                setupSelectKeyboardDone = false
+                setupComplete = false
             )
         )
     }
@@ -39,7 +39,7 @@ class SetupRepositoryTest {
             SetupRepository.requiredStepForMissing(
                 missing = missing,
                 introDismissed = true,
-                setupSelectKeyboardDone = false
+                setupComplete = false
             )
         )
     }
@@ -59,7 +59,7 @@ class SetupRepositoryTest {
             SetupRepository.requiredStepForMissing(
                 missing = missing,
                 introDismissed = true,
-                setupSelectKeyboardDone = false
+                setupComplete = false
             )
         )
     }
@@ -79,7 +79,7 @@ class SetupRepositoryTest {
             SetupRepository.requiredStepForMissing(
                 missing = missing,
                 introDismissed = true,
-                setupSelectKeyboardDone = false
+                setupComplete = false
             )
         )
     }
@@ -99,7 +99,7 @@ class SetupRepositoryTest {
             SetupRepository.requiredStepForMissing(
                 missing = missing,
                 introDismissed = true,
-                setupSelectKeyboardDone = true
+                setupComplete = true
             )
         )
     }
