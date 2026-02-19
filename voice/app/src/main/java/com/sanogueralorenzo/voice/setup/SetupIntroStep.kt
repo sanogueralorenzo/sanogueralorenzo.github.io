@@ -20,10 +20,6 @@ fun SetupIntroScreen(
                 text = stringResource(R.string.setup_intro_description),
                 style = MaterialTheme.typography.bodyMedium
             )
-            Text(
-                text = stringResource(R.string.setup_intro_message),
-                style = MaterialTheme.typography.bodyMedium
-            )
         },
         actions = {
             Button(
