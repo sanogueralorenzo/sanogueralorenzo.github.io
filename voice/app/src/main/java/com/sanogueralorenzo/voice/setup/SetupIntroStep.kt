@@ -17,6 +17,10 @@ fun SetupIntroScreen(
         title = stringResource(R.string.setup_step_intro),
         body = {
             Text(
+                text = stringResource(R.string.setup_intro_description),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
                 text = stringResource(R.string.setup_intro_message),
                 style = MaterialTheme.typography.bodyMedium
             )
