@@ -86,7 +86,7 @@
     <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
     <string name="setup_step_intro">Welcome</string>
     <string name="setup_intro_description">Voice Keyboard is an AI on device keyboard that turns speech into polished text and supports quick voice edits.</string>
-    <string name="setup_intro_message">Let's get things ready so you can start talking and typing in a minute.</string>
+    <string name="setup_intro_message">Let us get things ready so you can start talking and typing in a minute.</string>
     <string name="setup_intro_bullet_mic">• Grant microphone permission.</string>
     <string name="setup_intro_bullet_keyboard">• Enable Voice Keyboard in Android settings.</string>
     <string name="setup_intro_bullet_select_keyboard">• Select Voice Keyboard.</string>
