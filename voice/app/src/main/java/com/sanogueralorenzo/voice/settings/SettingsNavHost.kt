@@ -25,7 +25,6 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.SettingsScreen
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
 import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
-import com.sanogueralorenzo.voice.setup.SetupState
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.ui.components.VoiceInput
@@ -42,7 +41,7 @@ private object SettingsRoute {
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun SettingsNavHost(
-    uiState: SetupState,
+    state: SettingsFlowState,
     keyboardThemeMode: KeyboardThemeMode,
     onSettingsInputChange: (String) -> Unit,
     onThemeInputChange: (String) -> Unit,
@@ -94,9 +93,9 @@ fun SettingsNavHost(
             when (currentRoute) {
                 SettingsRoute.SETTINGS -> key("settings_input_bar") {
                     VoiceInput(
-                        value = uiState.settingsKeyboardTestInput,
+                        value = state.settingsKeyboardInput,
                         onValueChange = onSettingsInputChange,
-                        voiceImeSelected = uiState.voiceImeSelected,
+                        voiceImeSelected = state.voiceImeSelected,
                         onRequestKeyboardPicker = onShowImePicker,
                         autoFocusOnResume = true
                     )
@@ -104,9 +103,9 @@ fun SettingsNavHost(
 
                 SettingsRoute.THEME -> key("theme_input_bar") {
                     VoiceInput(
-                        value = uiState.themeKeyboardTestInput,
+                        value = state.themeKeyboardInput,
                         onValueChange = onThemeInputChange,
-                        voiceImeSelected = uiState.voiceImeSelected,
+                        voiceImeSelected = state.voiceImeSelected,
                         onRequestKeyboardPicker = onShowImePicker,
                         autoFocusOnResume = false
                     )
@@ -147,9 +146,9 @@ fun SettingsNavHost(
 
             composable(SettingsRoute.UPDATES) {
                 UpdatesScreen(
-                    promptVersion = uiState.promptVersion,
-                    promptDownloading = uiState.promptDownloading,
-                    promptProgress = uiState.promptProgress,
+                    promptVersion = state.promptVersion,
+                    promptDownloading = state.promptDownloading,
+                    promptProgress = state.promptProgress,
                     onDownloadPrompt = onDownloadPrompt
                 )
             }

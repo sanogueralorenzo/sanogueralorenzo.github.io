@@ -23,7 +23,6 @@ object SetupRoute {
 @Composable
 fun SetupStepNavHost(
     requiredRoute: String,
-    connectedToWifi: Boolean,
     allowMobileDataDownloads: Boolean,
     state: SetupState,
     onAllowMobileDataChange: (Boolean) -> Unit,
@@ -78,19 +77,21 @@ fun SetupStepNavHost(
 
         composable(SetupRoute.SETUP_MODELS) {
             SetupDownloadModelsScreen(
-                connectedToWifi = connectedToWifi,
-                allowMobileDataDownloads = allowMobileDataDownloads,
-                liteRtReady = state.liteRtReady,
-                moonshineReady = state.moonshineReady,
-                promptReady = state.promptReady,
-                liteRtDownloading = state.liteRtDownloading,
-                moonshineDownloading = state.moonshineDownloading,
-                promptDownloading = state.promptDownloading,
-                liteRtProgress = state.liteRtProgress,
-                moonshineProgress = state.moonshineProgress,
-                promptProgress = state.promptProgress,
-                modelMessage = state.modelMessage,
-                updatesMessage = state.updatesMessage,
+                state = SetupDownloadModelsStepState(
+                    connectedToWifi = state.wifiConnected,
+                    allowMobileDataDownloads = allowMobileDataDownloads,
+                    liteRtReady = state.liteRtReady,
+                    moonshineReady = state.moonshineReady,
+                    promptReady = state.promptReady,
+                    liteRtDownloading = state.liteRtDownloading,
+                    moonshineDownloading = state.moonshineDownloading,
+                    promptDownloading = state.promptDownloading,
+                    liteRtProgress = state.liteRtProgress,
+                    moonshineProgress = state.moonshineProgress,
+                    promptProgress = state.promptProgress,
+                    modelMessage = state.modelMessage,
+                    updatesMessage = state.updatesMessage
+                ),
                 onAllowMobileDataChange = onAllowMobileDataChange,
                 onDownloadModels = onDownloadModels
             )
@@ -98,9 +99,11 @@ fun SetupStepNavHost(
 
         composable(SetupRoute.SETUP_SELECT_KEYBOARD) {
             SetupSelectKeyboardScreen(
-                value = state.setupKeyboardTestInput,
+                state = SetupSelectKeyboardStepState(
+                    value = state.setupKeyboardTestInput,
+                    voiceImeSelected = state.voiceImeSelected
+                ),
                 onValueChange = onSetupKeyboardInputChange,
-                voiceImeSelected = state.voiceImeSelected,
                 onRequestKeyboardPicker = onShowImePicker,
                 onDone = onSetupSelectKeyboardDone
             )

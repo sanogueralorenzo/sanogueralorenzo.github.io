@@ -14,6 +14,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -44,6 +45,7 @@ import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -87,8 +89,6 @@ data class SetupState(
     val modelMessage: String? = null,
     val updatesMessage: String? = null,
     val setupKeyboardTestInput: String = "",
-    val settingsKeyboardTestInput: String = "",
-    val themeKeyboardTestInput: String = "",
     val modelReadinessAsync: Async<ModelReadiness> = Uninitialized,
     val updatesAsync: Async<ModelUpdatesOutcome> = Uninitialized
 ) : MavericksState
@@ -162,16 +162,8 @@ class SetupViewModel(
         }
     }
 
-    fun setSettingsKeyboardTestInput(value: String) {
-        setState { copy(settingsKeyboardTestInput = value) }
-    }
-
     fun setSetupKeyboardTestInput(value: String) {
         setState { copy(setupKeyboardTestInput = value) }
-    }
-
-    fun setThemeKeyboardTestInput(value: String) {
-        setState { copy(themeKeyboardTestInput = value) }
     }
 
     fun isAnyDownloading(): Boolean {
@@ -767,6 +759,7 @@ fun SetupFlowScreen(
     val state by setupViewModel.collectAsStateWithLifecycle()
     var allowMobileDataDownloads by rememberSaveable { mutableStateOf(false) }
     var setupSplashCompleted by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -827,13 +820,20 @@ fun SetupFlowScreen(
 
     SetupStepNavHost(
         requiredRoute = requiredSetupRoute,
-        connectedToWifi = state.wifiConnected,
         allowMobileDataDownloads = allowMobileDataDownloads,
         state = state,
         onAllowMobileDataChange = { allowMobileDataDownloads = it },
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
-        onShowImePicker = { showImePicker(context) },
+        onShowImePicker = {
+            showImePicker(context)
+            scope.launch {
+                repeat(10) {
+                    delay(250)
+                    setupViewModel.refreshKeyboardStatus()
+                }
+            }
+        },
         onDownloadModels = { setupViewModel.downloadAllModels() },
         onSetupKeyboardInputChange = { setupViewModel.setSetupKeyboardTestInput(it) },
         onSplashFinished = { setupSplashCompleted = true },

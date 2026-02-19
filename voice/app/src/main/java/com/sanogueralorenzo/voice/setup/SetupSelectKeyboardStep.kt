@@ -13,11 +13,15 @@ import androidx.compose.ui.unit.dp
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.ui.components.VoiceInput
 
+data class SetupSelectKeyboardStepState(
+    val value: String,
+    val voiceImeSelected: Boolean
+)
+
 @Composable
 fun SetupSelectKeyboardScreen(
-    value: String,
+    state: SetupSelectKeyboardStepState,
     onValueChange: (String) -> Unit,
-    voiceImeSelected: Boolean,
     onRequestKeyboardPicker: () -> Unit,
     onDone: () -> Unit
 ) {
@@ -31,9 +35,9 @@ fun SetupSelectKeyboardScreen(
         },
         actions = {
             VoiceInput(
-                value = value,
+                value = state.value,
                 onValueChange = onValueChange,
-                voiceImeSelected = voiceImeSelected,
+                voiceImeSelected = state.voiceImeSelected,
                 onRequestKeyboardPicker = onRequestKeyboardPicker,
                 autoFocusOnResume = true
             )

@@ -16,61 +16,50 @@ import androidx.compose.ui.unit.dp
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.models.ModelCatalog
 
+data class SetupDownloadModelsStepState(
+    val connectedToWifi: Boolean,
+    val allowMobileDataDownloads: Boolean,
+    val liteRtReady: Boolean,
+    val moonshineReady: Boolean,
+    val promptReady: Boolean,
+    val liteRtDownloading: Boolean,
+    val moonshineDownloading: Boolean,
+    val promptDownloading: Boolean,
+    val liteRtProgress: Int,
+    val moonshineProgress: Int,
+    val promptProgress: Int,
+    val modelMessage: String?,
+    val updatesMessage: String?
+)
+
+private data class SetupDownloadModelsPresentation(
+    val allDownloadsReady: Boolean,
+    val downloadInProgress: Boolean,
+    val requiresMobileDataApproval: Boolean,
+    val canStartDownload: Boolean,
+    val shouldShowTotalProgress: Boolean,
+    val totalProgressFraction: Float,
+    val downloadingTarget: DownloadTarget?
+)
+
+private enum class DownloadTarget {
+    MOONSHINE,
+    LITERT,
+    PROMPT
+}
+
 @Composable
 fun SetupDownloadModelsScreen(
-    connectedToWifi: Boolean,
-    allowMobileDataDownloads: Boolean,
-    liteRtReady: Boolean,
-    moonshineReady: Boolean,
-    promptReady: Boolean,
-    liteRtDownloading: Boolean,
-    moonshineDownloading: Boolean,
-    promptDownloading: Boolean,
-    liteRtProgress: Int,
-    moonshineProgress: Int,
-    promptProgress: Int,
-    modelMessage: String?,
-    updatesMessage: String?,
+    state: SetupDownloadModelsStepState,
     onAllowMobileDataChange: (Boolean) -> Unit,
     onDownloadModels: () -> Unit
 ) {
-    val modelsReady = liteRtReady && moonshineReady
-    val allDownloadsReady = modelsReady && promptReady
-    val downloadInProgress = liteRtDownloading || moonshineDownloading || promptDownloading
-    val requiresMobileDataApproval = !connectedToWifi
-    val canStartDownload = !downloadInProgress &&
-        !allDownloadsReady &&
-        (!requiresMobileDataApproval || allowMobileDataDownloads)
-
-    val liteRtRatio = when {
-        liteRtReady -> 1f
-        liteRtDownloading -> liteRtProgress.coerceIn(0, 100) / 100f
-        else -> 0f
-    }
-    val moonshineRatio = when {
-        moonshineReady -> 1f
-        moonshineDownloading -> moonshineProgress.coerceIn(0, 100) / 100f
-        else -> 0f
-    }
-    val promptRatio = when {
-        promptReady -> 1f
-        promptDownloading -> promptProgress.coerceIn(0, 100) / 100f
-        else -> 0f
-    }
-    val totalModelBytes =
-        (ModelCatalog.moonshineMediumStreamingTotalBytes + ModelCatalog.liteRtLm.sizeBytes).toDouble()
-            .coerceAtLeast(1.0)
-    val completedModelBytes = (ModelCatalog.moonshineMediumStreamingTotalBytes.toDouble() * moonshineRatio) +
-        (ModelCatalog.liteRtLm.sizeBytes.toDouble() * liteRtRatio)
-    val modelProgressPercent = ((completedModelBytes / totalModelBytes) * 100.0).toFloat().coerceIn(0f, 100f)
-    val totalProgressPercent = (modelProgressPercent * 0.99f) + promptRatio
-    val shouldShowTotalProgress =
-        downloadInProgress || liteRtReady || moonshineReady || promptReady
-    val downloadingModelLabel = when {
-        moonshineDownloading -> stringResource(R.string.setup_model_moonshine)
-        liteRtDownloading -> stringResource(R.string.setup_model_litert)
-        promptDownloading -> stringResource(R.string.setup_model_prompt)
-        else -> null
+    val presentation = buildSetupDownloadModelsPresentation(state)
+    val downloadingModelLabel = when (presentation.downloadingTarget) {
+        DownloadTarget.MOONSHINE -> stringResource(R.string.setup_model_moonshine)
+        DownloadTarget.LITERT -> stringResource(R.string.setup_model_litert)
+        DownloadTarget.PROMPT -> stringResource(R.string.setup_model_prompt)
+        null -> null
     }
 
     SetupStepScaffold(
@@ -88,44 +77,44 @@ fun SetupDownloadModelsScreen(
                 text = stringResource(R.string.setup_models_intro_bullet_it),
                 style = MaterialTheme.typography.bodySmall
             )
-            if (!updatesMessage.isNullOrBlank()) {
+            if (!state.updatesMessage.isNullOrBlank()) {
                 Text(
-                    text = updatesMessage,
+                    text = state.updatesMessage,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (!modelMessage.isNullOrBlank()) {
+            if (!state.modelMessage.isNullOrBlank()) {
                 Text(
-                    text = modelMessage,
+                    text = state.modelMessage,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (shouldShowTotalProgress) {
-                if (downloadInProgress && downloadingModelLabel != null) {
+            if (presentation.shouldShowTotalProgress) {
+                if (presentation.downloadInProgress && downloadingModelLabel != null) {
                     Text(
                         text = stringResource(R.string.setup_download_status_model, downloadingModelLabel),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
                 LinearProgressIndicator(
-                    progress = { totalProgressPercent / 100f },
+                    progress = { presentation.totalProgressFraction },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            if (allDownloadsReady) {
+            if (presentation.allDownloadsReady) {
                 Text(
                     text = stringResource(R.string.setup_models_ready),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (requiresMobileDataApproval && !allDownloadsReady) {
+            if (presentation.requiresMobileDataApproval && !presentation.allDownloadsReady) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
-                        checked = allowMobileDataDownloads,
+                        checked = state.allowMobileDataDownloads,
                         onCheckedChange = onAllowMobileDataChange
                     )
                     Text(
@@ -136,7 +125,7 @@ fun SetupDownloadModelsScreen(
             }
         },
         actions = {
-            if (requiresMobileDataApproval && !allDownloadsReady) {
+            if (presentation.requiresMobileDataApproval && !presentation.allDownloadsReady) {
                 Text(
                     text = stringResource(R.string.setup_models_mobile_data_warning),
                     style = MaterialTheme.typography.bodySmall
@@ -144,11 +133,65 @@ fun SetupDownloadModelsScreen(
             }
             Button(
                 onClick = onDownloadModels,
-                enabled = canStartDownload,
+                enabled = presentation.canStartDownload,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = stringResource(R.string.setup_download_models))
             }
         }
+    )
+}
+
+private fun buildSetupDownloadModelsPresentation(
+    state: SetupDownloadModelsStepState
+): SetupDownloadModelsPresentation {
+    val modelsReady = state.liteRtReady && state.moonshineReady
+    val allDownloadsReady = modelsReady && state.promptReady
+    val downloadInProgress = state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading
+    val requiresMobileDataApproval = !state.connectedToWifi
+    val canStartDownload = !downloadInProgress &&
+        !allDownloadsReady &&
+        (!requiresMobileDataApproval || state.allowMobileDataDownloads)
+
+    val liteRtRatio = when {
+        state.liteRtReady -> 1f
+        state.liteRtDownloading -> state.liteRtProgress.coerceIn(0, 100) / 100f
+        else -> 0f
+    }
+    val moonshineRatio = when {
+        state.moonshineReady -> 1f
+        state.moonshineDownloading -> state.moonshineProgress.coerceIn(0, 100) / 100f
+        else -> 0f
+    }
+    val promptRatio = when {
+        state.promptReady -> 1f
+        state.promptDownloading -> state.promptProgress.coerceIn(0, 100) / 100f
+        else -> 0f
+    }
+
+    val totalModelBytes =
+        (ModelCatalog.moonshineMediumStreamingTotalBytes + ModelCatalog.liteRtLm.sizeBytes).toDouble()
+            .coerceAtLeast(1.0)
+    val completedModelBytes = (ModelCatalog.moonshineMediumStreamingTotalBytes.toDouble() * moonshineRatio) +
+        (ModelCatalog.liteRtLm.sizeBytes.toDouble() * liteRtRatio)
+    val modelProgressFraction = (completedModelBytes / totalModelBytes).toFloat().coerceIn(0f, 1f)
+    val totalProgressFraction = ((modelProgressFraction * 0.99f) + (promptRatio * 0.01f)).coerceIn(0f, 1f)
+    val shouldShowTotalProgress =
+        downloadInProgress || state.liteRtReady || state.moonshineReady || state.promptReady
+    val downloadingTarget = when {
+        state.moonshineDownloading -> DownloadTarget.MOONSHINE
+        state.liteRtDownloading -> DownloadTarget.LITERT
+        state.promptDownloading -> DownloadTarget.PROMPT
+        else -> null
+    }
+
+    return SetupDownloadModelsPresentation(
+        allDownloadsReady = allDownloadsReady,
+        downloadInProgress = downloadInProgress,
+        requiresMobileDataApproval = requiresMobileDataApproval,
+        canStartDownload = canStartDownload,
+        shouldShowTotalProgress = shouldShowTotalProgress,
+        totalProgressFraction = totalProgressFraction,
+        downloadingTarget = downloadingTarget
     )
 }
