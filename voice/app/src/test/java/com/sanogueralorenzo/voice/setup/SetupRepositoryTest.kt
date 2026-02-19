@@ -25,7 +25,7 @@ class SetupRepositoryTest {
     }
 
     @Test
-    fun requiredStep_skipsIntroAfterDismiss_andContinuesWithMicStep() {
+    fun requiredStep_skipsIntroAfterDismiss_andContinuesWithModelsStep() {
         val missing = SetupRepository.MissingSetupItems(
             micPermission = true,
             imeEnabled = true,
@@ -35,7 +35,27 @@ class SetupRepositoryTest {
         )
 
         assertEquals(
-            SetupRepository.RequiredStep.MIC_PERMISSION,
+            SetupRepository.RequiredStep.DOWNLOAD_MODELS,
+            SetupRepository.requiredStepForMissing(
+                missing = missing,
+                introDismissed = true,
+                setupSelectKeyboardDone = false
+            )
+        )
+    }
+
+    @Test
+    fun requiredStep_prioritizesModelsBeforeMicAndKeyboard() {
+        val missing = SetupRepository.MissingSetupItems(
+            micPermission = true,
+            imeEnabled = true,
+            liteRtModel = true,
+            moonshineModel = false,
+            promptTemplate = false
+        )
+
+        assertEquals(
+            SetupRepository.RequiredStep.DOWNLOAD_MODELS,
             SetupRepository.requiredStepForMissing(
                 missing = missing,
                 introDismissed = true,

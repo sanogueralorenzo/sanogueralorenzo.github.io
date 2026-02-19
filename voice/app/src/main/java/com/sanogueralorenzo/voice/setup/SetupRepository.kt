@@ -150,9 +150,9 @@ class SetupRepository(
             setupSelectKeyboardDone: Boolean
         ): RequiredStep {
             if (!introDismissed && missing.allCoreItemsMissing) return RequiredStep.INTRO
+            if (missing.modelsOrPrompt) return RequiredStep.DOWNLOAD_MODELS
             if (missing.micPermission) return RequiredStep.MIC_PERMISSION
             if (missing.imeEnabled) return RequiredStep.ENABLE_KEYBOARD
-            if (missing.modelsOrPrompt) return RequiredStep.DOWNLOAD_MODELS
             if (!setupSelectKeyboardDone) return RequiredStep.SELECT_KEYBOARD
             return RequiredStep.COMPLETE
         }
