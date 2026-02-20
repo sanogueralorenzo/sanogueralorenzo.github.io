@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -106,7 +105,6 @@ fun SetupStep5KeyboardSetupScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<SetupStep5KeyboardSetupViewModel, SetupStep5KeyboardSetupState>()
     val state by viewModel.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -134,6 +132,16 @@ fun SetupStep5KeyboardSetupScreen(
         }
     }
 
+    // Keep checking selection while the system keyboard picker is up/opened.
+    // This guarantees auto-advance even if user takes longer than a short fixed polling window.
+    LaunchedEffect(state.stage, state.setupCompleted) {
+        if (state.stage != KeyboardSetupStage.SELECT_KEYBOARD || state.setupCompleted) return@LaunchedEffect
+        while (true) {
+            delay(500)
+            viewModel.refreshKeyboardStatus()
+        }
+    }
+
     val bodyText = when (state.stage) {
         KeyboardSetupStage.ENABLE_KEYBOARD -> stringResource(R.string.setup_enable_keyboard_intro)
         KeyboardSetupStage.SELECT_KEYBOARD -> stringResource(R.string.setup_select_keyboard_step_message)
@@ -153,15 +161,7 @@ fun SetupStep5KeyboardSetupScreen(
                 onClick = {
                     when (state.stage) {
                         KeyboardSetupStage.ENABLE_KEYBOARD -> onOpenImeSettings()
-                        KeyboardSetupStage.SELECT_KEYBOARD -> {
-                            onRequestKeyboardPicker()
-                            scope.launch {
-                                repeat(10) {
-                                    delay(250)
-                                    viewModel.refreshKeyboardStatus()
-                                }
-                            }
-                        }
+                        KeyboardSetupStage.SELECT_KEYBOARD -> onRequestKeyboardPicker()
                         KeyboardSetupStage.READY -> Unit
                     }
                 },
