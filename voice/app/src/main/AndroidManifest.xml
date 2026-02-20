@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name=".VoiceApp"
@@ -50,6 +52,21 @@
                 android:name="android.view.im"
                 android:resource="@xml/voice_ime" />
         </service>
+
+        <receiver
+            android:name=".promptbenchmark.adb.PromptBenchmarkAdbReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.sanogueralorenzo.voice.DEBUG_PROMPT_BENCHMARK_RUN" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".promptbenchmark.adb.PromptBenchmarkAdbService"
+            android:enabled="true"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
     </application>
 
 </manifest>
