@@ -43,7 +43,7 @@ import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 
 @Composable
 fun HomeScreen(
-    onOpenPromptBenchmarking: () -> Unit,
+    onOpenBenchmark: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
     onOpenPreferences: () -> Unit,
@@ -81,8 +81,8 @@ fun HomeScreen(
 
     toolItems += HomeMenuItem(
         icon = Icons.Outlined.ContentPaste,
-        title = stringResource(R.string.settings_menu_prompt_benchmark),
-        onClick = onOpenPromptBenchmarking
+        title = stringResource(R.string.settings_menu_benchmark),
+        onClick = onOpenBenchmark
     )
 
     val sections = listOf(

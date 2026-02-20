@@ -1,11 +1,11 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 
-internal object PromptBenchmarkDatasetLoader {
+internal object BenchmarkDatasetLoader {
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 20_000
 
@@ -15,7 +15,7 @@ internal object PromptBenchmarkDatasetLoader {
     private const val SOURCE_RAW_URL: String =
         "https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/voice/scripts/dataset.jsonl"
 
-    suspend fun loadCases(): List<PromptBenchmarkCase> = withContext(Dispatchers.IO) {
+    suspend fun loadCases(): List<BenchmarkCase> = withContext(Dispatchers.IO) {
         val connection = (URL(SOURCE_RAW_URL).openConnection() as HttpURLConnection).apply {
             connectTimeout = CONNECT_TIMEOUT_MS
             readTimeout = READ_TIMEOUT_MS
@@ -34,7 +34,7 @@ internal object PromptBenchmarkDatasetLoader {
                     .toList()
             }
             val parsed = rows.mapIndexedNotNull { index, line ->
-                PromptBenchmarkDatasetParser.parseLineToCase(line = line, fallbackIndex = index + 1)
+                BenchmarkDatasetParser.parseLineToCase(line = line, fallbackIndex = index + 1)
             }
             if (parsed.isEmpty()) {
                 throw IllegalStateException("Dataset is empty")

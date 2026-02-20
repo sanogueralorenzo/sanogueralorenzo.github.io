@@ -12,10 +12,10 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-ACTION_RUN = "com.sanogueralorenzo.voice.DEBUG_PROMPT_BENCHMARK_RUN"
+ACTION_RUN = "com.sanogueralorenzo.voice.DEBUG_BENCHMARK_RUN"
 DEFAULT_PACKAGE = "com.sanogueralorenzo.voice"
 DEFAULT_RECEIVER = (
-    "com.sanogueralorenzo.voice/com.sanogueralorenzo.voice.setup.benchmark.PromptBenchmarkAdbReceiver"
+    "com.sanogueralorenzo.voice/com.sanogueralorenzo.voice.benchmark.adb.BenchmarkAdbReceiver"
 )
 DEFAULT_RESULTS_DIR = "benchmark_runs"
 DEFAULT_PROMPT_A_URL = (

@@ -1,23 +1,23 @@
-package com.sanogueralorenzo.voice.promptbenchmark.adb
+package com.sanogueralorenzo.voice.benchmark.adb
 
-import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkProgress
+import com.sanogueralorenzo.voice.benchmark.BenchmarkProgress
 import org.json.JSONObject
 
-data class PromptBenchmarkRunRequest(
+data class BenchmarkRunRequest(
     val runId: String,
     val promptRelPath: String,
     val datasetRelPath: String,
     val outputRelPath: String
 )
 
-data class PromptBenchmarkRunStatus(
+data class BenchmarkRunStatus(
     val runId: String,
     val state: String,
     val updatedAtMs: Long,
     val startedAtMs: Long? = null,
     val message: String? = null,
     val error: String? = null,
-    val progress: PromptBenchmarkProgress? = null,
+    val progress: BenchmarkProgress? = null,
     val resultRelPath: String? = null,
     val reportRelPath: String? = null
 ) {

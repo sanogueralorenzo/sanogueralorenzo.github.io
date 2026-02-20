@@ -24,7 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.HomeScreen
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
-import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
+import com.sanogueralorenzo.voice.benchmark.BenchmarkScreen
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.ui.components.VoiceInput
@@ -32,7 +32,7 @@ import com.sanogueralorenzo.voice.updates.UpdatesScreen
 
 private object SettingsRoute {
     const val HOME = "settings_home"
-    const val PROMPT_BENCHMARKING = "settings_prompt_benchmarking"
+    const val BENCHMARK = "settings_benchmark"
     const val THEME = "settings_theme"
     const val UPDATES = "settings_updates"
     const val PREFERENCES = "settings_preferences"
@@ -53,7 +53,7 @@ fun SettingsNavHost(
     val currentRoute = backStackEntry?.destination?.route
     val canGoBack = currentRoute != null && currentRoute != SettingsRoute.HOME
     val topBarTitle = when (currentRoute) {
-        SettingsRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
+        SettingsRoute.BENCHMARK -> stringResource(R.string.benchmark_section_title)
         SettingsRoute.THEME -> stringResource(R.string.theming_section_title)
         SettingsRoute.UPDATES -> stringResource(R.string.updates_section_title)
         SettingsRoute.PREFERENCES -> stringResource(R.string.preferences_section_title)
@@ -124,7 +124,7 @@ fun SettingsNavHost(
         ) {
             composable(SettingsRoute.HOME) {
                 HomeScreen(
-                    onOpenPromptBenchmarking = { navController.navigate(SettingsRoute.PROMPT_BENCHMARKING) },
+                    onOpenBenchmark = { navController.navigate(SettingsRoute.BENCHMARK) },
                     onOpenTheme = { navController.navigate(SettingsRoute.THEME) },
                     onOpenUpdates = { navController.navigate(SettingsRoute.UPDATES) },
                     onOpenPreferences = { navController.navigate(SettingsRoute.PREFERENCES) },
@@ -132,8 +132,8 @@ fun SettingsNavHost(
                 )
             }
 
-            composable(SettingsRoute.PROMPT_BENCHMARKING) {
-                PromptBenchmarkingScreen()
+            composable(SettingsRoute.BENCHMARK) {
+                BenchmarkScreen()
             }
 
             composable(SettingsRoute.THEME) {

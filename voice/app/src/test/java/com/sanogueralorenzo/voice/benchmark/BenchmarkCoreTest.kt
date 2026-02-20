@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
 import com.google.ai.edge.litertlm.Backend
 import com.sanogueralorenzo.voice.summary.LiteRtFailureException
@@ -8,36 +8,36 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class PromptBenchmarkingCoreTest {
+class BenchmarkCoreTest {
     @Test
     fun suiteIntegrity_hasTwentyCasesUniqueIdsAndBothTypes() {
-        val cases = PromptBenchmarkSuite.defaultCases()
+        val cases = BenchmarkSuite.defaultCases()
         assertEquals(20, cases.size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
-        assertTrue(cases.any { it.type == PromptBenchmarkCaseType.COMPOSE })
-        assertTrue(cases.any { it.type == PromptBenchmarkCaseType.EDIT })
+        assertTrue(cases.any { it.type == BenchmarkCaseType.COMPOSE })
+        assertTrue(cases.any { it.type == BenchmarkCaseType.EDIT })
     }
 
     @Test
     fun runnerExecutesStrictlySequentialOrder() = runBlocking {
         val cases = listOf(
-            PromptBenchmarkCase(
+            BenchmarkCase(
                 id = "C1",
                 title = "Compose one",
                 category = "compose",
-                type = PromptBenchmarkCaseType.COMPOSE,
+                type = BenchmarkCaseType.COMPOSE,
                 composeInput = "hello"
             ),
-            PromptBenchmarkCase(
+            BenchmarkCase(
                 id = "C2",
                 title = "Compose two",
                 category = "compose",
-                type = PromptBenchmarkCaseType.COMPOSE,
+                type = BenchmarkCaseType.COMPOSE,
                 composeInput = "bye"
             )
         )
         val calls = ArrayList<String>()
-        val gateway = object : PromptBenchmarkGateway {
+        val gateway = object : BenchmarkGateway {
             override fun runCompose(input: String): RewriteResult {
                 calls += "compose:$input"
                 return RewriteResult.Success(text = input.uppercase(), latencyMs = 10L, backend = Backend.CPU)
@@ -49,7 +49,7 @@ class PromptBenchmarkingCoreTest {
             }
         }
 
-        PromptBenchmarkRunner.runAll(
+        BenchmarkRunner.runAll(
             gateway = gateway,
             cases = cases,
             suiteVersion = "test",
@@ -74,15 +74,15 @@ class PromptBenchmarkingCoreTest {
 
     @Test
     fun repeatBehaviorAndAggregation_areComputedPerCase() = runBlocking {
-        val case = PromptBenchmarkCase(
+        val case = BenchmarkCase(
             id = "C1",
             title = "Compose",
             category = "compose",
-            type = PromptBenchmarkCaseType.COMPOSE,
+            type = BenchmarkCaseType.COMPOSE,
             composeInput = "x"
         )
         var callCount = 0
-        val gateway = object : PromptBenchmarkGateway {
+        val gateway = object : BenchmarkGateway {
             override fun runCompose(input: String): RewriteResult {
                 callCount += 1
                 val output = when (callCount) {
@@ -97,7 +97,7 @@ class PromptBenchmarkingCoreTest {
             }
         }
 
-        val result = PromptBenchmarkRunner.runAll(
+        val result = BenchmarkRunner.runAll(
             gateway = gateway,
             cases = listOf(case),
             suiteVersion = "test",
@@ -117,15 +117,15 @@ class PromptBenchmarkingCoreTest {
 
     @Test
     fun failureMapping_isCapturedInRunResults() = runBlocking {
-        val case = PromptBenchmarkCase(
+        val case = BenchmarkCase(
             id = "E1",
             title = "Edit",
             category = "edit",
-            type = PromptBenchmarkCaseType.EDIT,
+            type = BenchmarkCaseType.EDIT,
             editOriginal = "hello",
             editInstruction = "change"
         )
-        val gateway = object : PromptBenchmarkGateway {
+        val gateway = object : BenchmarkGateway {
             override fun runCompose(input: String): RewriteResult {
                 return RewriteResult.Success(text = input, latencyMs = 1L, backend = Backend.CPU)
             }
@@ -142,7 +142,7 @@ class PromptBenchmarkingCoreTest {
             }
         }
 
-        val result = PromptBenchmarkRunner.runAll(
+        val result = BenchmarkRunner.runAll(
             gateway = gateway,
             cases = listOf(case),
             suiteVersion = "test",
@@ -160,14 +160,14 @@ class PromptBenchmarkingCoreTest {
 
     @Test
     fun formatterIncludesInstructionsAndRunOutputs() {
-        val case = PromptBenchmarkCase(
+        val case = BenchmarkCase(
             id = "C1",
             title = "Compose",
             category = "compose",
-            type = PromptBenchmarkCaseType.COMPOSE,
+            type = BenchmarkCaseType.COMPOSE,
             composeInput = "input"
         )
-        val session = PromptBenchmarkSessionResult(
+        val session = BenchmarkSessionResult(
             suiteVersion = "v1",
             repeats = 3,
             timestampMs = 1700000000000L,
@@ -176,12 +176,12 @@ class PromptBenchmarkingCoreTest {
             customInstructions = "none",
             promptInstructionsSnapshot = "rewrite_system_instruction:\nR\n\nedit_system_instruction:\nE",
             cases = listOf(
-                PromptBenchmarkCaseResult(
+                BenchmarkCaseResult(
                     caseDef = case,
                     runs = listOf(
-                        PromptBenchmarkRunResult(1, "out1", 10L, "GPU", null, null, true),
-                        PromptBenchmarkRunResult(2, "out2", 20L, "GPU", null, null, true),
-                        PromptBenchmarkRunResult(3, "out3", 30L, "CPU", null, null, true)
+                        BenchmarkRunResult(1, "out1", 10L, "GPU", null, null, true),
+                        BenchmarkRunResult(2, "out2", 20L, "GPU", null, null, true),
+                        BenchmarkRunResult(3, "out3", 30L, "CPU", null, null, true)
                     ),
                     uniqueOutputsCount = 3,
                     avgLatencyMs = 20L,
@@ -191,7 +191,7 @@ class PromptBenchmarkingCoreTest {
             )
         )
 
-        val text = PromptBenchmarkReportFormatter.toPlainText(session)
+        val text = BenchmarkReportFormatter.toPlainText(session)
         assertTrue(text.contains("[prompt_instructions]"))
         assertTrue(text.contains("rewrite_system_instruction"))
         assertTrue(text.contains("run_1_after: out1"))

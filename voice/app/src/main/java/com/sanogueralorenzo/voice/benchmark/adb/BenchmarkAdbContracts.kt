@@ -1,7 +1,7 @@
-package com.sanogueralorenzo.voice.promptbenchmark.adb
+package com.sanogueralorenzo.voice.benchmark.adb
 
-object PromptBenchmarkAdbContracts {
-    const val ACTION_RUN = "com.sanogueralorenzo.voice.DEBUG_PROMPT_BENCHMARK_RUN"
+object BenchmarkAdbContracts {
+    const val ACTION_RUN = "com.sanogueralorenzo.voice.DEBUG_BENCHMARK_RUN"
 
     const val EXTRA_RUN_ID = "run_id"
     const val EXTRA_PROMPT_REL_PATH = "prompt_rel_path"

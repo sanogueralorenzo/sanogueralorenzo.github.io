@@ -1,7 +1,7 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
-internal object PromptBenchmarkScoring {
-    fun isCasePassed(caseResult: PromptBenchmarkCaseResult): Boolean {
+internal object BenchmarkScoring {
+    fun isCasePassed(caseResult: BenchmarkCaseResult): Boolean {
         if (caseResult.runs.any { !it.success }) return false
         val expected = caseResult.caseDef.expectedOutput?.trim().orEmpty()
         if (expected.isBlank()) return true
@@ -9,7 +9,7 @@ internal object PromptBenchmarkScoring {
         return normalizeForMatch(output) == normalizeForMatch(expected)
     }
 
-    fun benchmarkOutputText(runs: List<PromptBenchmarkRunResult>): String {
+    fun benchmarkOutputText(runs: List<BenchmarkRunResult>): String {
         return runs.lastOrNull { !it.output.isNullOrBlank() }?.output
             ?: runs.lastOrNull()?.output
             ?: "(error)"

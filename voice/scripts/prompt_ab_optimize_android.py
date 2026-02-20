@@ -130,7 +130,7 @@ def main() -> int:
     parser.add_argument("--package", default="com.sanogueralorenzo.voice")
     parser.add_argument(
         "--receiver-component",
-        default="com.sanogueralorenzo.voice/com.sanogueralorenzo.voice.setup.benchmark.PromptBenchmarkAdbReceiver",
+        default="com.sanogueralorenzo.voice/com.sanogueralorenzo.voice.benchmark.adb.BenchmarkAdbReceiver",
     )
     args = parser.parse_args()
 

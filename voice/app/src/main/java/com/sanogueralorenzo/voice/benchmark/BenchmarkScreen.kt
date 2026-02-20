@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -33,12 +33,12 @@ import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
 
 @Composable
-fun PromptBenchmarkingScreen(
+fun BenchmarkScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel = mavericksViewModel<PromptBenchmarkingViewModel, PromptBenchmarkingState>()
+    val viewModel = mavericksViewModel<BenchmarkViewModel, BenchmarkState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
     DisposableEffect(lifecycleOwner) {
@@ -55,17 +55,17 @@ fun PromptBenchmarkingScreen(
         viewModel.refreshPrerequisites()
     }
 
-    fun shareResult(result: PromptBenchmarkSessionResult) {
-        val reportText = PromptBenchmarkReportFormatter.toPlainText(result)
+    fun shareResult(result: BenchmarkSessionResult) {
+        val reportText = BenchmarkReportFormatter.toPlainText(result)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.prompt_benchmark_share_subject))
+            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.benchmark_share_subject))
             putExtra(Intent.EXTRA_TEXT, reportText)
         }
         context.startActivity(
             Intent.createChooser(
                 shareIntent,
-                context.getString(R.string.prompt_benchmark_share_chooser)
+                context.getString(R.string.benchmark_share_chooser)
             )
         )
     }
@@ -98,7 +98,7 @@ fun PromptBenchmarkingScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.prompt_benchmark_intro),
+                    text = stringResource(R.string.benchmark_intro),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -107,7 +107,7 @@ fun PromptBenchmarkingScreen(
         if (!state.rewriteEnabled) {
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = stringResource(R.string.prompt_benchmark_rewrite_disabled_warning),
+                    text = stringResource(R.string.benchmark_rewrite_disabled_warning),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(16.dp)
                 )
@@ -123,7 +123,7 @@ fun PromptBenchmarkingScreen(
                 enabled = !runnerState.isRunning && state.modelAvailable,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(text = stringResource(R.string.prompt_benchmark_run_action))
+                Text(text = stringResource(R.string.benchmark_run_action))
             }
 
             OutlinedButton(
@@ -131,7 +131,7 @@ fun PromptBenchmarkingScreen(
                 enabled = runnerState.isRunning,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(text = stringResource(R.string.prompt_benchmark_cancel_action))
+                Text(text = stringResource(R.string.benchmark_cancel_action))
             }
 
             OutlinedButton(
@@ -139,11 +139,11 @@ fun PromptBenchmarkingScreen(
                 enabled = !runnerState.isRunning && sessionResult != null,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(text = stringResource(R.string.prompt_benchmark_share_action))
+                Text(text = stringResource(R.string.benchmark_share_action))
             }
         }
 
-        if (runnerState.isRunning || runnerState.phase == PromptBenchmarkRunPhase.ERROR) {
+        if (runnerState.isRunning || runnerState.phase == BenchmarkRunPhase.ERROR) {
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
@@ -155,7 +155,7 @@ fun PromptBenchmarkingScreen(
                         text = benchmarkProgressLabel(runnerState),
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    if (runnerState.phase == PromptBenchmarkRunPhase.DOWNLOADING_DATASET) {
+                    if (runnerState.phase == BenchmarkRunPhase.DOWNLOADING_DATASET) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     } else {
                         LinearProgressIndicator(
@@ -183,7 +183,7 @@ fun PromptBenchmarkingScreen(
         ) {
             val result = sessionResult
             if (result != null) {
-                val displayedFailures = result.cases.count { !PromptBenchmarkScoring.isCasePassed(it) }
+                val displayedFailures = result.cases.count { !BenchmarkScoring.isCasePassed(it) }
                 val displayedPasses = result.totalCases - displayedFailures
                 item {
                     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -194,19 +194,19 @@ fun PromptBenchmarkingScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = stringResource(R.string.prompt_benchmark_summary_title),
+                                text = stringResource(R.string.benchmark_summary_title),
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
                                 text = stringResource(
-                                    R.string.prompt_benchmark_summary_pass,
+                                    R.string.benchmark_summary_pass,
                                     displayedPasses
                                 ),
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
                                 text = stringResource(
-                                    R.string.prompt_benchmark_summary_fail,
+                                    R.string.benchmark_summary_fail,
                                     displayedFailures
                                 ),
                                 style = MaterialTheme.typography.bodySmall
@@ -216,7 +216,7 @@ fun PromptBenchmarkingScreen(
                 }
 
                 items(result.cases, key = { it.caseDef.id }) { caseResult ->
-                    PromptBenchmarkCaseCard(caseResult = caseResult)
+                    BenchmarkCaseCard(caseResult = caseResult)
                 }
             }
         }
@@ -224,33 +224,33 @@ fun PromptBenchmarkingScreen(
 }
 
 @Composable
-private fun benchmarkProgressLabel(state: PromptBenchmarkRunnerState): String {
+private fun benchmarkProgressLabel(state: BenchmarkRunnerState): String {
     return when (state.phase) {
-        PromptBenchmarkRunPhase.DOWNLOADING_DATASET ->
-            stringResource(R.string.prompt_benchmark_progress_downloading)
-        PromptBenchmarkRunPhase.RUNNING ->
+        BenchmarkRunPhase.DOWNLOADING_DATASET ->
+            stringResource(R.string.benchmark_progress_downloading)
+        BenchmarkRunPhase.RUNNING ->
             stringResource(
-                R.string.prompt_benchmark_progress_running,
+                R.string.benchmark_progress_running,
                 state.currentCaseIndex,
                 state.totalCases
             )
-        PromptBenchmarkRunPhase.ERROR ->
-            stringResource(R.string.prompt_benchmark_progress_error)
-        PromptBenchmarkRunPhase.COMPLETED ->
-            stringResource(R.string.prompt_benchmark_progress_complete)
+        BenchmarkRunPhase.ERROR ->
+            stringResource(R.string.benchmark_progress_error)
+        BenchmarkRunPhase.COMPLETED ->
+            stringResource(R.string.benchmark_progress_complete)
         else ->
-            stringResource(R.string.prompt_benchmark_progress_idle)
+            stringResource(R.string.benchmark_progress_idle)
     }
 }
 
 @Composable
-private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
+private fun BenchmarkCaseCard(caseResult: BenchmarkCaseResult) {
     val caseDef = caseResult.caseDef
-    val casePassed = PromptBenchmarkScoring.isCasePassed(caseResult)
+    val casePassed = BenchmarkScoring.isCasePassed(caseResult)
     val backendLabel = backendLabel(caseResult.runs)
     val inputText = benchmarkInputText(caseDef)
-    val expectedText = caseDef.expectedOutput ?: stringResource(R.string.prompt_benchmark_expected_missing)
-    val outputText = PromptBenchmarkScoring.benchmarkOutputText(caseResult.runs)
+    val expectedText = caseDef.expectedOutput ?: stringResource(R.string.benchmark_expected_missing)
+    val outputText = BenchmarkScoring.benchmarkOutputText(caseResult.runs)
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -299,9 +299,9 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
                         Text(
                             text = stringResource(
                                 if (casePassed) {
-                                    R.string.prompt_benchmark_case_pass
+                                    R.string.benchmark_case_pass
                                 } else {
-                                    R.string.prompt_benchmark_case_fail
+                                    R.string.benchmark_case_fail
                                 }
                             ),
                             style = MaterialTheme.typography.labelSmall
@@ -311,7 +311,7 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
             }
 
             Text(
-                text = stringResource(R.string.prompt_benchmark_before_label),
+                text = stringResource(R.string.benchmark_before_label),
                 style = MaterialTheme.typography.labelLarge
             )
             Text(
@@ -319,7 +319,7 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
                 style = MaterialTheme.typography.bodySmall
             )
             Text(
-                text = stringResource(R.string.prompt_benchmark_expected_label),
+                text = stringResource(R.string.benchmark_expected_label),
                 style = MaterialTheme.typography.labelLarge
             )
             Text(
@@ -327,7 +327,7 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
                 style = MaterialTheme.typography.bodySmall
             )
             Text(
-                text = stringResource(R.string.prompt_benchmark_output_label),
+                text = stringResource(R.string.benchmark_output_label),
                 style = MaterialTheme.typography.labelLarge
             )
             Text(
@@ -338,10 +338,10 @@ private fun PromptBenchmarkCaseCard(caseResult: PromptBenchmarkCaseResult) {
     }
 }
 
-private fun benchmarkInputText(caseDef: PromptBenchmarkCase): String {
+private fun benchmarkInputText(caseDef: BenchmarkCase): String {
     return when (caseDef.type) {
-        PromptBenchmarkCaseType.COMPOSE -> caseDef.composeInput.orEmpty()
-        PromptBenchmarkCaseType.EDIT -> {
+        BenchmarkCaseType.COMPOSE -> caseDef.composeInput.orEmpty()
+        BenchmarkCaseType.EDIT -> {
             val original = caseDef.editOriginal.orEmpty()
             val instruction = caseDef.editInstruction.orEmpty()
             "Original: $original\nInstruction: $instruction"
@@ -349,7 +349,7 @@ private fun benchmarkInputText(caseDef: PromptBenchmarkCase): String {
     }
 }
 
-private fun backendLabel(runs: List<PromptBenchmarkRunResult>): String {
+private fun backendLabel(runs: List<BenchmarkRunResult>): String {
     val backend = runs.firstOrNull { !it.backend.isNullOrBlank() }?.backend.orEmpty()
     return if (backend.contains("gpu", ignoreCase = true)) "GPU" else "CPU"
 }

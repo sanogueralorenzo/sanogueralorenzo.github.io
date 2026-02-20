@@ -54,16 +54,16 @@
         </service>
 
         <receiver
-            android:name=".promptbenchmark.adb.PromptBenchmarkAdbReceiver"
+            android:name=".benchmark.adb.BenchmarkAdbReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.sanogueralorenzo.voice.DEBUG_PROMPT_BENCHMARK_RUN" />
+                <action android:name="com.sanogueralorenzo.voice.DEBUG_BENCHMARK_RUN" />
             </intent-filter>
         </receiver>
 
         <service
-            android:name=".promptbenchmark.adb.PromptBenchmarkAdbService"
+            android:name=".benchmark.adb.BenchmarkAdbService"
             android:enabled="true"
             android:foregroundServiceType="dataSync"
             android:exported="false" />

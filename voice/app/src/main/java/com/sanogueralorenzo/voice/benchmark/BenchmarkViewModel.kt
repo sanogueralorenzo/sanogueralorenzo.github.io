@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
 import android.content.Context
 import com.airbnb.mvrx.Async
@@ -24,20 +24,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 
-data class PromptBenchmarkingState(
+data class BenchmarkState(
     val modelAvailable: Boolean = false,
     val rewriteEnabled: Boolean = false,
-    val runnerState: PromptBenchmarkRunnerState = PromptBenchmarkRunnerState(
+    val runnerState: BenchmarkRunnerState = BenchmarkRunnerState(
         isRunning = false,
-        phase = PromptBenchmarkRunPhase.IDLE,
+        phase = BenchmarkRunPhase.IDLE,
         currentCaseIndex = 0,
         totalCases = 0,
         currentRunIndex = 0,
-        repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
+        repeats = BenchmarkRunner.DEFAULT_REPEATS,
         errorMessage = null
     ),
-    val sessionResult: PromptBenchmarkSessionResult? = null,
-    val benchmarkRunAsync: Async<PromptBenchmarkSessionResult> = Uninitialized,
+    val sessionResult: BenchmarkSessionResult? = null,
+    val benchmarkRunAsync: Async<BenchmarkSessionResult> = Uninitialized,
     val prerequisitesAsync: Async<BenchmarkPrerequisites> = Uninitialized
 ) : MavericksState
 
@@ -46,12 +46,12 @@ data class BenchmarkPrerequisites(
     val rewriteEnabled: Boolean
 )
 
-class PromptBenchmarkingViewModel(
-    initialState: PromptBenchmarkingState,
+class BenchmarkViewModel(
+    initialState: BenchmarkState,
     context: Context,
     private val preferencesRepository: PreferencesRepository,
-    private val gateway: PromptBenchmarkGateway
-) : MavericksViewModel<PromptBenchmarkingState>(initialState) {
+    private val gateway: BenchmarkGateway
+) : MavericksViewModel<BenchmarkState>(initialState) {
     private val appContext = context.applicationContext
     private var runJob: Job? = null
 
@@ -98,7 +98,7 @@ class PromptBenchmarkingViewModel(
                 sessionResult = null,
                 runnerState = runnerState.copy(
                     isRunning = true,
-                    phase = PromptBenchmarkRunPhase.DOWNLOADING_DATASET,
+                    phase = BenchmarkRunPhase.DOWNLOADING_DATASET,
                     currentCaseIndex = 0,
                     totalCases = 0,
                     currentRunIndex = 0,
@@ -108,24 +108,24 @@ class PromptBenchmarkingViewModel(
         }
 
         runJob = suspend {
-            val downloadedCases = PromptBenchmarkDatasetLoader.loadCases()
+            val downloadedCases = BenchmarkDatasetLoader.loadCases()
             setState {
                 copy(
                     runnerState = runnerState.copy(
-                        phase = PromptBenchmarkRunPhase.RUNNING,
+                        phase = BenchmarkRunPhase.RUNNING,
                         totalCases = downloadedCases.size,
                         currentCaseIndex = 0,
                         currentRunIndex = 0,
-                        repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
+                        repeats = BenchmarkRunner.DEFAULT_REPEATS,
                         errorMessage = null
                     )
                 )
             }
-            PromptBenchmarkRunner.runAll(
+            BenchmarkRunner.runAll(
                 gateway = gateway,
                 cases = downloadedCases,
-                suiteVersion = "${PromptBenchmarkSuite.SUITE_VERSION}+remote_dataset",
-                repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
+                suiteVersion = "${BenchmarkSuite.SUITE_VERSION}+remote_dataset",
+                repeats = BenchmarkRunner.DEFAULT_REPEATS,
                 modelId = ModelCatalog.liteRtLm.id,
                 promptInstructionsSnapshot = instructionSnapshot,
                 runtimeConfigSnapshot = runtimeConfigSnapshot,
@@ -133,7 +133,7 @@ class PromptBenchmarkingViewModel(
                     setState {
                         copy(
                             runnerState = runnerState.copy(
-                                phase = PromptBenchmarkRunPhase.RUNNING,
+                                phase = BenchmarkRunPhase.RUNNING,
                                 currentCaseIndex = progress.caseIndex,
                                 totalCases = progress.totalCases,
                                 currentRunIndex = progress.runIndex,
@@ -150,8 +150,8 @@ class PromptBenchmarkingViewModel(
                     benchmarkRunAsync = async,
                     runnerState = runnerState.copy(
                         isRunning = true,
-                        phase = if (runnerState.phase == PromptBenchmarkRunPhase.IDLE) {
-                            PromptBenchmarkRunPhase.DOWNLOADING_DATASET
+                        phase = if (runnerState.phase == BenchmarkRunPhase.IDLE) {
+                            BenchmarkRunPhase.DOWNLOADING_DATASET
                         } else {
                             runnerState.phase
                         },
@@ -164,7 +164,7 @@ class PromptBenchmarkingViewModel(
                     sessionResult = async(),
                     runnerState = runnerState.copy(
                         isRunning = false,
-                        phase = PromptBenchmarkRunPhase.COMPLETED,
+                        phase = BenchmarkRunPhase.COMPLETED,
                         totalCases = async().totalCases,
                         currentCaseIndex = async().totalCases,
                         errorMessage = null
@@ -173,18 +173,18 @@ class PromptBenchmarkingViewModel(
 
                 is Fail -> {
                     val message = if (async.error is CancellationException) {
-                        appContext.getString(R.string.prompt_benchmark_status_cancelled)
+                        appContext.getString(R.string.benchmark_status_cancelled)
                     } else {
-                        async.error.message ?: appContext.getString(R.string.prompt_benchmark_status_failed)
+                        async.error.message ?: appContext.getString(R.string.benchmark_status_failed)
                     }
                     copy(
                         benchmarkRunAsync = async,
                         runnerState = runnerState.copy(
                             isRunning = false,
                             phase = if (async.error is CancellationException) {
-                                PromptBenchmarkRunPhase.IDLE
+                                BenchmarkRunPhase.IDLE
                             } else {
-                                PromptBenchmarkRunPhase.ERROR
+                                BenchmarkRunPhase.ERROR
                             },
                             errorMessage = message
                         )
@@ -205,20 +205,20 @@ class PromptBenchmarkingViewModel(
         super.onCleared()
     }
 
-    companion object : MavericksViewModelFactory<PromptBenchmarkingViewModel, PromptBenchmarkingState> {
+    companion object : MavericksViewModelFactory<BenchmarkViewModel, BenchmarkState> {
         override fun create(
             viewModelContext: ViewModelContext,
-            state: PromptBenchmarkingState
-        ): PromptBenchmarkingViewModel {
+            state: BenchmarkState
+        ): BenchmarkViewModel {
             val app = viewModelContext.app<VoiceApp>()
             val appGraph = app.appGraph
-            val gateway = LiteRtPromptBenchmarkGateway(
+            val gateway = LiteRtBenchmarkGateway(
                 context = app.applicationContext,
                 composePolicy = appGraph.liteRtComposePolicy,
                 deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
                 composeLlmGate = appGraph.liteRtComposeLlmGate
             )
-            return PromptBenchmarkingViewModel(
+            return BenchmarkViewModel(
                 initialState = state,
                 context = app.applicationContext,
                 preferencesRepository = appGraph.preferencesRepository,

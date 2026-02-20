@@ -1,11 +1,11 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-object PromptBenchmarkReportFormatter {
-    fun toPlainText(result: PromptBenchmarkSessionResult): String {
+object BenchmarkReportFormatter {
+    fun toPlainText(result: BenchmarkSessionResult): String {
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
             .format(Date(result.timestampMs))
 
@@ -33,11 +33,11 @@ object PromptBenchmarkReportFormatter {
                 appendLine("case_category: ${caseDef.category}")
                 appendLine("case_type: ${caseDef.type.name}")
                 when (caseDef.type) {
-                    PromptBenchmarkCaseType.COMPOSE -> {
+                    BenchmarkCaseType.COMPOSE -> {
                         appendLine("input_before: ${caseDef.composeInput.orEmpty()}")
                     }
 
-                    PromptBenchmarkCaseType.EDIT -> {
+                    BenchmarkCaseType.EDIT -> {
                         appendLine("input_before_original: ${caseDef.editOriginal.orEmpty()}")
                         appendLine("input_before_instruction: ${caseDef.editInstruction.orEmpty()}")
                     }

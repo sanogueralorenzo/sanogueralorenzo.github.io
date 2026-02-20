@@ -1,15 +1,15 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
-enum class PromptBenchmarkCaseType {
+enum class BenchmarkCaseType {
     COMPOSE,
     EDIT
 }
 
-data class PromptBenchmarkCase(
+data class BenchmarkCase(
     val id: String,
     val title: String,
     val category: String,
-    val type: PromptBenchmarkCaseType,
+    val type: BenchmarkCaseType,
     val composeInput: String? = null,
     val expectedOutput: String? = null,
     val editOriginal: String? = null,
@@ -17,11 +17,11 @@ data class PromptBenchmarkCase(
 ) {
     init {
         when (type) {
-            PromptBenchmarkCaseType.COMPOSE -> {
+            BenchmarkCaseType.COMPOSE -> {
                 require(!composeInput.isNullOrBlank()) { "composeInput is required for COMPOSE case: $id" }
             }
 
-            PromptBenchmarkCaseType.EDIT -> {
+            BenchmarkCaseType.EDIT -> {
                 require(!editOriginal.isNullOrBlank()) { "editOriginal is required for EDIT case: $id" }
                 require(!editInstruction.isNullOrBlank()) { "editInstruction is required for EDIT case: $id" }
             }
@@ -29,7 +29,7 @@ data class PromptBenchmarkCase(
     }
 }
 
-data class PromptBenchmarkRunResult(
+data class BenchmarkRunResult(
     val runIndex: Int,
     val output: String?,
     val latencyMs: Long,
@@ -39,9 +39,9 @@ data class PromptBenchmarkRunResult(
     val success: Boolean
 )
 
-data class PromptBenchmarkCaseResult(
-    val caseDef: PromptBenchmarkCase,
-    val runs: List<PromptBenchmarkRunResult>,
+data class BenchmarkCaseResult(
+    val caseDef: BenchmarkCase,
+    val runs: List<BenchmarkRunResult>,
     val uniqueOutputsCount: Int,
     val avgLatencyMs: Long,
     val minLatencyMs: Long,
@@ -51,7 +51,7 @@ data class PromptBenchmarkCaseResult(
         get() = runs.count { !it.success }
 }
 
-data class PromptBenchmarkSessionResult(
+data class BenchmarkSessionResult(
     val suiteVersion: String,
     val repeats: Int,
     val timestampMs: Long,
@@ -59,7 +59,7 @@ data class PromptBenchmarkSessionResult(
     val modelId: String,
     val promptInstructionsSnapshot: String,
     val runtimeConfigSnapshot: String,
-    val cases: List<PromptBenchmarkCaseResult>
+    val cases: List<BenchmarkCaseResult>
 ) {
     val totalCases: Int
         get() = cases.size
@@ -101,7 +101,7 @@ data class PromptBenchmarkSessionResult(
         }
 }
 
-data class PromptBenchmarkProgress(
+data class BenchmarkProgress(
     val caseIndex: Int,
     val totalCases: Int,
     val runIndex: Int,
@@ -109,7 +109,7 @@ data class PromptBenchmarkProgress(
     val caseId: String
 )
 
-enum class PromptBenchmarkRunPhase {
+enum class BenchmarkRunPhase {
     IDLE,
     DOWNLOADING_DATASET,
     RUNNING,
@@ -117,9 +117,9 @@ enum class PromptBenchmarkRunPhase {
     COMPLETED
 }
 
-data class PromptBenchmarkRunnerState(
+data class BenchmarkRunnerState(
     val isRunning: Boolean = false,
-    val phase: PromptBenchmarkRunPhase = PromptBenchmarkRunPhase.IDLE,
+    val phase: BenchmarkRunPhase = BenchmarkRunPhase.IDLE,
     val currentCaseIndex: Int = 0,
     val totalCases: Int = 0,
     val currentRunIndex: Int = 0,

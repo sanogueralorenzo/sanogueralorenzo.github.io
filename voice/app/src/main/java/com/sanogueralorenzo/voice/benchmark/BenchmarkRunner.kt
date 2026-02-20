@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
 import com.sanogueralorenzo.voice.summary.RewriteResult
 import kotlinx.coroutines.Dispatchers
@@ -6,32 +6,32 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
-object PromptBenchmarkRunner {
+object BenchmarkRunner {
     const val DEFAULT_REPEATS = 1
 
     suspend fun runAll(
-        gateway: PromptBenchmarkGateway,
-        cases: List<PromptBenchmarkCase>,
+        gateway: BenchmarkGateway,
+        cases: List<BenchmarkCase>,
         suiteVersion: String,
         repeats: Int = DEFAULT_REPEATS,
         modelId: String,
         promptInstructionsSnapshot: String,
         runtimeConfigSnapshot: String,
         composePromptTemplateOverride: String? = null,
-        onProgress: ((PromptBenchmarkProgress) -> Unit)? = null
-    ): PromptBenchmarkSessionResult {
+        onProgress: ((BenchmarkProgress) -> Unit)? = null
+    ): BenchmarkSessionResult {
         require(repeats > 0) { "repeats must be > 0" }
         val startedAt = System.currentTimeMillis()
-        val caseResults = ArrayList<PromptBenchmarkCaseResult>(cases.size)
+        val caseResults = ArrayList<BenchmarkCaseResult>(cases.size)
 
         for ((caseIndexZeroBased, caseDef) in cases.withIndex()) {
-            val runs = ArrayList<PromptBenchmarkRunResult>(repeats)
+            val runs = ArrayList<BenchmarkRunResult>(repeats)
             val caseIndex = caseIndexZeroBased + 1
 
             for (runIndex in 1..repeats) {
                 currentCoroutineContext().ensureActive()
                 onProgress?.invoke(
-                    PromptBenchmarkProgress(
+                    BenchmarkProgress(
                         caseIndex = caseIndex,
                         totalCases = cases.size,
                         runIndex = runIndex,
@@ -42,11 +42,11 @@ object PromptBenchmarkRunner {
 
                 val rewriteResult = withContext(Dispatchers.IO) {
                     when (caseDef.type) {
-                        PromptBenchmarkCaseType.COMPOSE -> gateway.runCompose(
+                        BenchmarkCaseType.COMPOSE -> gateway.runCompose(
                             input = caseDef.composeInput.orEmpty(),
                             promptTemplateOverride = composePromptTemplateOverride
                         )
-                        PromptBenchmarkCaseType.EDIT -> gateway.runEdit(
+                        BenchmarkCaseType.EDIT -> gateway.runEdit(
                             original = caseDef.editOriginal.orEmpty(),
                             instruction = caseDef.editInstruction.orEmpty()
                         )
@@ -60,7 +60,7 @@ object PromptBenchmarkRunner {
         }
 
         val totalElapsedMs = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L)
-        return PromptBenchmarkSessionResult(
+        return BenchmarkSessionResult(
             suiteVersion = suiteVersion,
             repeats = repeats,
             timestampMs = System.currentTimeMillis(),
@@ -72,9 +72,9 @@ object PromptBenchmarkRunner {
         )
     }
 
-    private fun RewriteResult.toRunResult(runIndex: Int): PromptBenchmarkRunResult {
+    private fun RewriteResult.toRunResult(runIndex: Int): BenchmarkRunResult {
         return when (this) {
-            is RewriteResult.Success -> PromptBenchmarkRunResult(
+            is RewriteResult.Success -> BenchmarkRunResult(
                 runIndex = runIndex,
                 output = text,
                 latencyMs = latencyMs,
@@ -84,7 +84,7 @@ object PromptBenchmarkRunner {
                 success = true
             )
 
-            is RewriteResult.Failure -> PromptBenchmarkRunResult(
+            is RewriteResult.Failure -> BenchmarkRunResult(
                 runIndex = runIndex,
                 output = null,
                 latencyMs = latencyMs,
@@ -97,9 +97,9 @@ object PromptBenchmarkRunner {
     }
 
     private fun aggregateCase(
-        caseDef: PromptBenchmarkCase,
-        runs: List<PromptBenchmarkRunResult>
-    ): PromptBenchmarkCaseResult {
+        caseDef: BenchmarkCase,
+        runs: List<BenchmarkRunResult>
+    ): BenchmarkCaseResult {
         val latencies = runs.map { it.latencyMs }
         val successfulOutputs = runs
             .filter { it.success }
@@ -110,7 +110,7 @@ object PromptBenchmarkRunner {
         val uniqueOutputsCount = if (successfulOutputs.isEmpty()) 0 else successfulOutputs.toSet().size
         val avgLatency = if (latencies.isEmpty()) 0L else latencies.average().toLong()
 
-        return PromptBenchmarkCaseResult(
+        return BenchmarkCaseResult(
             caseDef = caseDef,
             runs = runs,
             uniqueOutputsCount = uniqueOutputsCount,

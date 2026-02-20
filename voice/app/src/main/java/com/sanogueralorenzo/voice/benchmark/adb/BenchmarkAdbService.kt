@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.promptbenchmark.adb
+package com.sanogueralorenzo.voice.benchmark.adb
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,11 +12,11 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.promptbenchmark.LiteRtPromptBenchmarkGateway
-import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkDatasetParser
-import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkReportFormatter
-import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkRunner
-import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkScoring
+import com.sanogueralorenzo.voice.benchmark.LiteRtBenchmarkGateway
+import com.sanogueralorenzo.voice.benchmark.BenchmarkDatasetParser
+import com.sanogueralorenzo.voice.benchmark.BenchmarkReportFormatter
+import com.sanogueralorenzo.voice.benchmark.BenchmarkRunner
+import com.sanogueralorenzo.voice.benchmark.BenchmarkScoring
 import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
@@ -29,13 +29,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-class PromptBenchmarkAdbService : Service() {
+class BenchmarkAdbService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action != PromptBenchmarkAdbContracts.ACTION_RUN) {
+        if (intent?.action != BenchmarkAdbContracts.ACTION_RUN) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -61,35 +61,35 @@ class PromptBenchmarkAdbService : Service() {
     }
 
     private suspend fun runBenchmark(intent: Intent) {
-        val runId = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_RUN_ID)
+        val runId = intent.getStringExtra(BenchmarkAdbContracts.EXTRA_RUN_ID)
             ?.trim()
             ?.ifBlank { null }
             ?: "run_${System.currentTimeMillis()}"
-        val promptRelPathRaw = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_PROMPT_REL_PATH)
+        val promptRelPathRaw = intent.getStringExtra(BenchmarkAdbContracts.EXTRA_PROMPT_REL_PATH)
             ?.trim()
             .orEmpty()
-        val promptRelPath = if (promptRelPathRaw == PromptBenchmarkAdbContracts.APP_DEFAULT_PROMPT_SENTINEL) {
+        val promptRelPath = if (promptRelPathRaw == BenchmarkAdbContracts.APP_DEFAULT_PROMPT_SENTINEL) {
             ""
         } else {
             promptRelPathRaw
         }
-        val datasetRelPath = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_DATASET_REL_PATH)
+        val datasetRelPath = intent.getStringExtra(BenchmarkAdbContracts.EXTRA_DATASET_REL_PATH)
             ?.trim()
             .orEmpty()
-        val outputRelPath = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_OUTPUT_REL_PATH)
+        val outputRelPath = intent.getStringExtra(BenchmarkAdbContracts.EXTRA_OUTPUT_REL_PATH)
             ?.trim()
             ?.ifBlank { null }
-            ?: "${PromptBenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.result.json"
+            ?: "${BenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.result.json"
 
-        val request = PromptBenchmarkRunRequest(
+        val request = BenchmarkRunRequest(
             runId = runId,
             promptRelPath = promptRelPath,
             datasetRelPath = datasetRelPath,
             outputRelPath = outputRelPath
         )
 
-        val statusRelPath = "${PromptBenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.status.json"
-        val reportRelPath = "${PromptBenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.report.txt"
+        val statusRelPath = "${BenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.status.json"
+        val reportRelPath = "${BenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.report.txt"
         val statusFile = resolveAppFile(statusRelPath) ?: return
         val resultFile = resolveAppFile(request.outputRelPath)
         val reportFile = resolveAppFile(reportRelPath)
@@ -97,7 +97,7 @@ class PromptBenchmarkAdbService : Service() {
         val startedAt = System.currentTimeMillis()
         writeStatus(
             statusFile = statusFile,
-            status = PromptBenchmarkRunStatus(
+            status = BenchmarkRunStatus(
                 runId = runId,
                 state = "running",
                 updatedAtMs = startedAt,
@@ -111,7 +111,7 @@ class PromptBenchmarkAdbService : Service() {
         if (!ModelStore.isModelReadyStrict(applicationContext, ModelCatalog.liteRtLm)) {
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -126,7 +126,7 @@ class PromptBenchmarkAdbService : Service() {
         if (request.promptRelPath.isBlank() && !PromptTemplateStore(applicationContext).isPromptReady()) {
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -144,7 +144,7 @@ class PromptBenchmarkAdbService : Service() {
         if (request.promptRelPath.isNotBlank() && (promptFile == null || !promptFile.exists())) {
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -159,7 +159,7 @@ class PromptBenchmarkAdbService : Service() {
         if (datasetFile == null || !datasetFile.exists()) {
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -174,7 +174,7 @@ class PromptBenchmarkAdbService : Service() {
         if (resultFile == null || reportFile == null) {
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -191,7 +191,7 @@ class PromptBenchmarkAdbService : Service() {
             runCatching { promptFile.readText() }.getOrElse { error ->
                 writeStatus(
                     statusFile = statusFile,
-                    status = PromptBenchmarkRunStatus(
+                    status = BenchmarkRunStatus(
                         runId = runId,
                         state = "failed",
                         updatedAtMs = System.currentTimeMillis(),
@@ -214,7 +214,7 @@ class PromptBenchmarkAdbService : Service() {
                     .filter { it.isNotBlank() && !it.startsWith("#") }
                     .toList()
             }.mapIndexedNotNull { index, line ->
-                PromptBenchmarkDatasetParser.parseLineToCase(
+                BenchmarkDatasetParser.parseLineToCase(
                     line = line,
                     fallbackIndex = index + 1
                 )
@@ -222,7 +222,7 @@ class PromptBenchmarkAdbService : Service() {
         }.getOrElse { error ->
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -238,7 +238,7 @@ class PromptBenchmarkAdbService : Service() {
         if (datasetCases.isEmpty()) {
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -251,7 +251,7 @@ class PromptBenchmarkAdbService : Service() {
             return
         }
 
-        val gateway = LiteRtPromptBenchmarkGateway(
+        val gateway = LiteRtBenchmarkGateway(
             context = applicationContext,
             composePolicy = applicationContext.appGraph().liteRtComposePolicy,
             deterministicComposeRewriter = applicationContext.appGraph().deterministicComposeRewriter,
@@ -263,11 +263,11 @@ class PromptBenchmarkAdbService : Service() {
             promptTemplate
         }
         val session = runCatching {
-            PromptBenchmarkRunner.runAll(
+            BenchmarkRunner.runAll(
                 gateway = gateway,
                 cases = datasetCases,
                 suiteVersion = "v1+adb_device",
-                repeats = PromptBenchmarkRunner.DEFAULT_REPEATS,
+                repeats = BenchmarkRunner.DEFAULT_REPEATS,
                 modelId = ModelCatalog.liteRtLm.id,
                 promptInstructionsSnapshot = LiteRtPromptTemplates.benchmarkInstructionSnapshot(
                     rewriteInstructionOverride = activePromptTemplate?.trim()
@@ -277,7 +277,7 @@ class PromptBenchmarkAdbService : Service() {
                 onProgress = { progress ->
                     writeStatus(
                         statusFile = statusFile,
-                        status = PromptBenchmarkRunStatus(
+                        status = BenchmarkRunStatus(
                             runId = runId,
                             state = "running",
                             updatedAtMs = System.currentTimeMillis(),
@@ -298,7 +298,7 @@ class PromptBenchmarkAdbService : Service() {
         if (session == null) {
             writeStatus(
                 statusFile = statusFile,
-                status = PromptBenchmarkRunStatus(
+                status = BenchmarkRunStatus(
                     runId = runId,
                     state = "failed",
                     updatedAtMs = System.currentTimeMillis(),
@@ -312,17 +312,17 @@ class PromptBenchmarkAdbService : Service() {
         }
 
         reportFile.parentFile?.mkdirs()
-        reportFile.writeText(PromptBenchmarkReportFormatter.toPlainText(session))
+        reportFile.writeText(BenchmarkReportFormatter.toPlainText(session))
 
         val summaryCases = session.cases.map { caseResult ->
-            val output = PromptBenchmarkScoring.benchmarkOutputText(caseResult.runs)
+            val output = BenchmarkScoring.benchmarkOutputText(caseResult.runs)
             val lastRun = caseResult.runs.lastOrNull()
             JSONObject().apply {
                 put("id", caseResult.caseDef.id)
                 put("input", caseResult.caseDef.composeInput.orEmpty())
                 put("expected", caseResult.caseDef.expectedOutput.orEmpty())
                 put("actual", output)
-                put("passed", PromptBenchmarkScoring.isCasePassed(caseResult))
+                put("passed", BenchmarkScoring.isCasePassed(caseResult))
                 put("success", caseResult.runs.all { it.success })
                 put("latency_ms", caseResult.avgLatencyMs)
                 put("backend", lastRun?.backend ?: "n/a")
@@ -330,7 +330,7 @@ class PromptBenchmarkAdbService : Service() {
                 put("error_type", lastRun?.errorType ?: "")
             }
         }
-        val passCount = session.cases.count { PromptBenchmarkScoring.isCasePassed(it) }
+        val passCount = session.cases.count { BenchmarkScoring.isCasePassed(it) }
         val failCount = session.totalCases - passCount
         val resultJson = JSONObject().apply {
             put("run_id", runId)
@@ -367,7 +367,7 @@ class PromptBenchmarkAdbService : Service() {
 
         writeStatus(
             statusFile = statusFile,
-            status = PromptBenchmarkRunStatus(
+            status = BenchmarkRunStatus(
                 runId = runId,
                 state = "completed",
                 updatedAtMs = System.currentTimeMillis(),
@@ -379,7 +379,7 @@ class PromptBenchmarkAdbService : Service() {
         )
     }
 
-    private fun writeStatus(statusFile: File, status: PromptBenchmarkRunStatus) {
+    private fun writeStatus(statusFile: File, status: BenchmarkRunStatus) {
         runCatching {
             statusFile.parentFile?.mkdirs()
             statusFile.writeText(status.toJson().toString(2))
@@ -405,15 +405,15 @@ class PromptBenchmarkAdbService : Service() {
     }
 
     private fun writeFatalStatusFromIntent(intent: Intent, error: Throwable) {
-        val runId = intent.getStringExtra(PromptBenchmarkAdbContracts.EXTRA_RUN_ID)
+        val runId = intent.getStringExtra(BenchmarkAdbContracts.EXTRA_RUN_ID)
             ?.trim()
             ?.ifBlank { null }
             ?: return
-        val statusFile = resolveAppFile("${PromptBenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.status.json")
+        val statusFile = resolveAppFile("${BenchmarkAdbContracts.DEFAULT_RESULTS_DIR}/$runId.status.json")
             ?: return
         writeStatus(
             statusFile = statusFile,
-            status = PromptBenchmarkRunStatus(
+            status = BenchmarkRunStatus(
                 runId = runId,
                 state = "failed",
                 updatedAtMs = System.currentTimeMillis(),
@@ -427,14 +427,14 @@ class PromptBenchmarkAdbService : Service() {
             val manager = getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
-                "Prompt Benchmark (Debug)",
+                "Benchmark (Debug)",
                 NotificationManager.IMPORTANCE_LOW
             )
             manager?.createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Running prompt benchmark")
+            .setContentTitle("Running benchmark")
             .setContentText("Device benchmark is running")
             .setOngoing(true)
             .build()
@@ -442,8 +442,8 @@ class PromptBenchmarkAdbService : Service() {
     }
 
     private companion object {
-        private const val TAG = "PromptBenchmarkAdbSvc"
-        private const val NOTIFICATION_CHANNEL_ID = "prompt_benchmark_debug"
+        private const val TAG = "BenchmarkAdbSvc"
+        private const val NOTIFICATION_CHANNEL_ID = "benchmark_debug"
         private const val NOTIFICATION_ID = 12041
     }
 }

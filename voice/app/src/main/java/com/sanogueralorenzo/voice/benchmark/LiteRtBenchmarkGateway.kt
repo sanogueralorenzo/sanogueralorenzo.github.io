@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.promptbenchmark
+package com.sanogueralorenzo.voice.benchmark
 
 import android.content.Context
 import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
@@ -7,18 +7,18 @@ import com.sanogueralorenzo.voice.summary.LiteRtComposePolicy
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.summary.RewriteResult
 
-interface PromptBenchmarkGateway {
+interface BenchmarkGateway {
     fun runCompose(input: String, promptTemplateOverride: String? = null): RewriteResult
     fun runEdit(original: String, instruction: String): RewriteResult
     fun release() {}
 }
 
-class LiteRtPromptBenchmarkGateway(
+class LiteRtBenchmarkGateway(
     context: Context,
     composePolicy: LiteRtComposePolicy,
     deterministicComposeRewriter: DeterministicComposeRewriter,
     composeLlmGate: LiteRtComposeLlmGate
-) : PromptBenchmarkGateway {
+) : BenchmarkGateway {
     private val summarizer = LiteRtSummarizer(
         context = context.applicationContext,
         composePolicy = composePolicy,
