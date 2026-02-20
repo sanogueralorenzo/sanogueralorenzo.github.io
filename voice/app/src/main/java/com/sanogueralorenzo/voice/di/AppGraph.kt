@@ -9,9 +9,9 @@ import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.settings.SettingsRepository
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
-import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
-import com.sanogueralorenzo.voice.summary.LiteRtComposeLlmGate
-import com.sanogueralorenzo.voice.summary.LiteRtComposePolicy
+import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
+import com.sanogueralorenzo.voice.summary.ComposeLlmGate
+import com.sanogueralorenzo.voice.summary.ComposePostLlmRules
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
@@ -24,9 +24,9 @@ interface AppGraph {
     val themeRepository: ThemeRepository
     val asrRuntimeStatusStore: AsrRuntimeStatusStore
     val modelUpdateChecker: ModelUpdateChecker
-    val liteRtComposePolicy: LiteRtComposePolicy
-    val deterministicComposeRewriter: DeterministicComposeRewriter
-    val liteRtComposeLlmGate: LiteRtComposeLlmGate
+    val composePostLlmRules: ComposePostLlmRules
+    val composePreLlmRules: ComposePreLlmRules
+    val composeLlmGate: ComposeLlmGate
     val connectivityRepository: ConnectivityRepository
     val setupRepository: SetupRepository
     val settingsRepository: SettingsRepository
@@ -35,13 +35,13 @@ interface AppGraph {
     fun provideApplicationContext(application: Application): Context = application
 
     @Provides
-    fun provideLiteRtComposePolicy(): LiteRtComposePolicy = LiteRtComposePolicy()
+    fun provideComposePostLlmRules(): ComposePostLlmRules = ComposePostLlmRules()
 
     @Provides
-    fun provideDeterministicComposeRewriter(): DeterministicComposeRewriter = DeterministicComposeRewriter()
+    fun provideComposePreLlmRules(): ComposePreLlmRules = ComposePreLlmRules()
 
     @Provides
-    fun provideLiteRtComposeLlmGate(): LiteRtComposeLlmGate = LiteRtComposeLlmGate()
+    fun provideComposeLlmGate(): ComposeLlmGate = ComposeLlmGate()
 
     @Provides
     fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)

@@ -4,10 +4,10 @@ package com.sanogueralorenzo.voice.summary
  * Determines whether compose flow should call the LLM after deterministic rewrite.
  * Only typo-like cases should fall through to LLM.
  */
-class LiteRtComposeLlmGate {
+class ComposeLlmGate {
     fun shouldUseLlm(
         originalText: String,
-        deterministicResult: DeterministicComposeRewriter.Result
+        deterministicResult: ComposePreLlmRules.Result
     ): Boolean {
         if (originalText.isBlank()) return false
         if (deterministicResult.changed) return false

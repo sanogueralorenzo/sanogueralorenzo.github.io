@@ -42,7 +42,7 @@ import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.MainActivity
-import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
+import com.sanogueralorenzo.voice.summary.SummaryEngine
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsStateWithLifecycle
 import java.util.concurrent.Executors
@@ -85,42 +85,42 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     private val moonshineTranscriberLazy = lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
     private val appGraphLazy = lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
-    private val liteRtSummarizerLazy = lazy(LazyThreadSafetyMode.NONE) {
-        LiteRtSummarizer(
+    private val summaryEngineLazy = lazy(LazyThreadSafetyMode.NONE) {
+        SummaryEngine(
             context = this,
-            composePolicy = appGraphLazy.value.liteRtComposePolicy,
-            deterministicComposeRewriter = appGraphLazy.value.deterministicComposeRewriter,
-            composeLlmGate = appGraphLazy.value.liteRtComposeLlmGate
+            composePolicy = appGraphLazy.value.composePostLlmRules,
+            composePreLlmRules = appGraphLazy.value.composePreLlmRules,
+            composeLlmGate = appGraphLazy.value.composeLlmGate
         )
     }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }
     private val preferencesRepositoryLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.preferencesRepository }
     private val themeRepositoryLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.themeRepository }
     private val moonshineTranscriber: MoonshineTranscriber get() = moonshineTranscriberLazy.value
-    private val liteRtSummarizer: LiteRtSummarizer get() = liteRtSummarizerLazy.value
+    private val summaryEngine: SummaryEngine get() = summaryEngineLazy.value
     private val asrRuntimeStatusStore: AsrRuntimeStatusStore get() = asrRuntimeStatusStoreLazy.value
     private val preferencesRepository: PreferencesRepository get() = preferencesRepositoryLazy.value
     private val themeRepository: ThemeRepository get() = themeRepositoryLazy.value
     private val imePipeline by lazy {
         VoiceImePipeline(
             speechProcessor = SpeechProcessor(
-                asrOutputProcessor = AsrOutputProcessor(
+                asrStage = AsrStage(
                     transcriptionCoordinator = ImeTranscriptionCoordinator(
                         moonshineTranscriber = moonshineTranscriber,
                         asrRuntimeStatusStore = asrRuntimeStatusStore,
                         logTag = TAG
                     )
                 ),
-                preLlmLocalRulesProcessor = PreLlmLocalRulesProcessor(
+                preLlmRulesStage = PreLlmRulesStage(
                     preferencesRepository = preferencesRepository,
-                    liteRtSummarizer = liteRtSummarizer,
-                    deterministicComposeRewriter = appGraphLazy.value.deterministicComposeRewriter,
-                    composeLlmGate = appGraphLazy.value.liteRtComposeLlmGate
+                    summaryEngine = summaryEngine,
+                    composePreLlmRules = appGraphLazy.value.composePreLlmRules,
+                    composeLlmGate = appGraphLazy.value.composeLlmGate
                 ),
-                llmOutputProcessor = LlmOutputProcessor(
-                    liteRtSummarizer = liteRtSummarizer
+                llmStage = LlmStage(
+                    summaryEngine = summaryEngine
                 ),
-                postLlmLocalRulesProcessor = PostLlmLocalRulesProcessor()
+                postLlmRulesStage = PostLlmRulesStage()
             ),
             commitCoordinator = ImeCommitCoordinator()
         )
@@ -221,13 +221,13 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val recorderToRelease = audioRecorder
         audioRecorder = null
         val moonshineToRelease = moonshineTranscriberIfInitialized()
-        val liteRtSummarizerToRelease = liteRtSummarizerIfInitialized()
+        val summaryEngineToRelease = summaryEngineIfInitialized()
         executor.shutdownNow()
         chunkExecutor.shutdownNow()
         Thread({
             recorderToRelease?.release()
             moonshineToRelease?.release()
-            liteRtSummarizerToRelease?.release()
+            summaryEngineToRelease?.release()
         }, "voice-ime-release").start()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
@@ -611,7 +611,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         moonshineTranscriberIfInitialized()?.cancelActive()
         inFlight?.cancel(true)
         inFlight = null
-        liteRtSummarizerIfInitialized()?.cancelActive()
+        summaryEngineIfInitialized()?.cancelActive()
         endChunkSession(activeChunkSessionId, cancelPending = true)
     }
 
@@ -703,8 +703,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         return if (moonshineTranscriberLazy.isInitialized()) moonshineTranscriberLazy.value else null
     }
 
-    private fun liteRtSummarizerIfInitialized(): LiteRtSummarizer? {
-        return if (liteRtSummarizerLazy.isInitialized()) liteRtSummarizerLazy.value else null
+    private fun summaryEngineIfInitialized(): SummaryEngine? {
+        return if (summaryEngineLazy.isInitialized()) summaryEngineLazy.value else null
     }
 
     private fun cancelPendingChunkWork(sessionId: Int) {

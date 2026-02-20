@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.ime
 
-import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
+import com.sanogueralorenzo.voice.summary.EditInstructionRules
 
 internal object ImeAppendFormatter {
     fun append(sourceText: String, chunkText: String): String {
@@ -9,8 +9,8 @@ internal object ImeAppendFormatter {
         if (chunk.isBlank()) return sourceText
         if (source.isBlank()) return chunk
 
-        val useNewline = LiteRtEditHeuristics.looksLikeList(source) ||
-            LiteRtEditHeuristics.looksLikeList(chunk)
+        val useNewline = EditInstructionRules.looksLikeList(source) ||
+            EditInstructionRules.looksLikeList(chunk)
         val separator = if (useNewline) "\n" else " "
         val joined = source + separator + chunk
         return joined

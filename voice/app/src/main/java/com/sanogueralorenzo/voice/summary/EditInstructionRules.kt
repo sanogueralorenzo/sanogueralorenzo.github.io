@@ -3,7 +3,7 @@ package com.sanogueralorenzo.voice.summary
 /**
  * Lightweight parsing and deterministic local heuristics for edit instructions and list-like text.
  */
-internal object LiteRtEditHeuristics {
+internal object EditInstructionRules {
     internal enum class EditIntent {
         GENERAL,
         DELETE_ALL,

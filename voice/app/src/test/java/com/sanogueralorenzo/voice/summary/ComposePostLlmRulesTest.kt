@@ -3,8 +3,8 @@ package com.sanogueralorenzo.voice.summary
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class LiteRtComposePolicyTest {
-    private val policy = LiteRtComposePolicy()
+class ComposePostLlmRulesTest {
+    private val policy = ComposePostLlmRules()
 
     @Test
     fun cleanModelOutput_capitalizesStartAndAfterConfiguredPunctuation() {

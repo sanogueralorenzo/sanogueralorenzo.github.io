@@ -7,8 +7,8 @@ import com.google.ai.edge.litertlm.LogSeverity
 import com.sanogueralorenzo.voice.di.AppGraph
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.summary.LiteRtInitializer
-import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
+import com.sanogueralorenzo.voice.summary.SummaryWarmup
+import com.sanogueralorenzo.voice.summary.SummaryEngine
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import dev.zacsweers.metro.createGraphFactory
 
@@ -20,15 +20,15 @@ class VoiceApp : Application() {
         PromptTemplateStore(this)
     }
     private val liteRtWarmupSummarizer by lazy {
-        LiteRtSummarizer(
+        SummaryEngine(
             context = this,
-            composePolicy = appGraph.liteRtComposePolicy,
-            deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
-            composeLlmGate = appGraph.liteRtComposeLlmGate
+            composePolicy = appGraph.composePostLlmRules,
+            composePreLlmRules = appGraph.composePreLlmRules,
+            composeLlmGate = appGraph.composeLlmGate
         )
     }
     private val liteRtInitializer by lazy {
-        LiteRtInitializer(
+        SummaryWarmup(
             isModelAvailable = { liteRtWarmupSummarizer.isModelAvailable() },
             runWarmup = { text -> liteRtWarmupSummarizer.summarizeBlocking(text) },
             modelReadyFlow = ModelStore.observeModelReady(this, ModelCatalog.liteRtLm),

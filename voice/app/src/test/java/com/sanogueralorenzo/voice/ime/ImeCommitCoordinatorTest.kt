@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.ime
 
-import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
+import com.sanogueralorenzo.voice.summary.EditInstructionRules
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -82,7 +82,7 @@ class ImeCommitCoordinatorTest {
         val result = coordinator.commit(
             operation = ImeOperation.EDIT,
             outputForCommit = "",
-            editIntent = LiteRtEditHeuristics.EditIntent.DELETE_ALL.name,
+            editIntent = EditInstructionRules.EditIntent.DELETE_ALL.name,
             sessionId = 1,
             packageName = "pkg",
             isSessionCurrent = { _, _ -> true },

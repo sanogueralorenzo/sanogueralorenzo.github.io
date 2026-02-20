@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.summary
 
-object LiteRtRewritePolicy {
+object LiteRtRuntimePolicy {
     fun isInvalidArgumentError(error: Throwable): Boolean {
         var current: Throwable? = error
         while (current != null) {

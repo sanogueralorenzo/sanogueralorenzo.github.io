@@ -4,7 +4,7 @@ package com.sanogueralorenzo.voice.summary
  * Local deterministic rewrite pass for compose flow.
  * Applies safe, narrow transformations before any LLM call.
  */
-class DeterministicComposeRewriter {
+class ComposePreLlmRules {
     data class Result(
         val text: String,
         val changed: Boolean,

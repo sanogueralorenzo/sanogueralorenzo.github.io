@@ -8,7 +8,7 @@ import com.google.ai.edge.litertlm.Backend
  *
  * Current behavior is fixed to AUTO as requested.
  */
-class LiteRtBackendPolicyStore {
+class LiteRtBackendOrderPolicy {
     private val isEmulatorDevice: Boolean = isEmulator()
 
     fun preferredBackends(): List<Backend> {

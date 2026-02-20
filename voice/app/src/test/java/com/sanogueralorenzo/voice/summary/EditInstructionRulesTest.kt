@@ -7,66 +7,66 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class LiteRtEditHeuristicsTest {
+class EditInstructionRulesTest {
     @Test
     fun analyzeInstruction_detectsDeleteAllPhrases() {
-        val deleteAll = LiteRtEditHeuristics.analyzeInstruction("delete all")
-        val clearEverything = LiteRtEditHeuristics.analyzeInstruction("clear everything please")
-        val removeWhole = LiteRtEditHeuristics.analyzeInstruction("remove the whole message")
-        val undo = LiteRtEditHeuristics.analyzeInstruction("undo")
+        val deleteAll = EditInstructionRules.analyzeInstruction("delete all")
+        val clearEverything = EditInstructionRules.analyzeInstruction("clear everything please")
+        val removeWhole = EditInstructionRules.analyzeInstruction("remove the whole message")
+        val undo = EditInstructionRules.analyzeInstruction("undo")
 
-        assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, deleteAll.intent)
-        assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, clearEverything.intent)
-        assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, removeWhole.intent)
-        assertEquals(LiteRtEditHeuristics.EditIntent.DELETE_ALL, undo.intent)
+        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, deleteAll.intent)
+        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, clearEverything.intent)
+        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, removeWhole.intent)
+        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, undo.intent)
     }
 
     @Test
     fun analyzeInstruction_detectsReplaceIntent() {
-        val result = LiteRtEditHeuristics.analyzeInstruction("replace milk with oat milk")
-        assertEquals(LiteRtEditHeuristics.EditIntent.REPLACE, result.intent)
+        val result = EditInstructionRules.analyzeInstruction("replace milk with oat milk")
+        assertEquals(EditInstructionRules.EditIntent.REPLACE, result.intent)
         assertEquals("replace milk with oat milk", result.normalizedInstruction)
     }
 
     @Test
     fun strictEditCommand_requiresStartAnchoredCommand() {
-        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("replace milk with oat milk"))
-        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("fix milk to oat milk"))
-        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("please remove milk"))
-        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("actually never mind"))
-        assertTrue(LiteRtEditHeuristics.isStrictEditCommand("undo"))
-        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("actually can we replace milk with oat milk"))
-        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("hey maybe never mind this part"))
-        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("scratch that"))
-        assertFalse(LiteRtEditHeuristics.isStrictEditCommand("make this professional"))
+        assertTrue(EditInstructionRules.isStrictEditCommand("replace milk with oat milk"))
+        assertTrue(EditInstructionRules.isStrictEditCommand("fix milk to oat milk"))
+        assertTrue(EditInstructionRules.isStrictEditCommand("please remove milk"))
+        assertTrue(EditInstructionRules.isStrictEditCommand("actually never mind"))
+        assertTrue(EditInstructionRules.isStrictEditCommand("undo"))
+        assertFalse(EditInstructionRules.isStrictEditCommand("actually can we replace milk with oat milk"))
+        assertFalse(EditInstructionRules.isStrictEditCommand("hey maybe never mind this part"))
+        assertFalse(EditInstructionRules.isStrictEditCommand("scratch that"))
+        assertFalse(EditInstructionRules.isStrictEditCommand("make this professional"))
     }
 
     @Test
     fun analyzeInstruction_prefersFinalCorrectionForReplace() {
-        val result = LiteRtEditHeuristics.analyzeInstruction(
+        val result = EditInstructionRules.analyzeInstruction(
             "replace milk with oat milk no, make it almond milk"
         )
-        assertEquals(LiteRtEditHeuristics.EditIntent.REPLACE, result.intent)
+        assertEquals(EditInstructionRules.EditIntent.REPLACE, result.intent)
         assertEquals("replace milk with almond milk", result.normalizedInstruction)
     }
 
     @Test
     fun allowBlankOutput_onlyForDeleteAllIntent() {
-        assertTrue(LiteRtEditHeuristics.shouldAllowBlankOutput(LiteRtEditHeuristics.EditIntent.DELETE_ALL))
-        assertFalse(LiteRtEditHeuristics.shouldAllowBlankOutput(LiteRtEditHeuristics.EditIntent.REPLACE))
-        assertFalse(LiteRtEditHeuristics.shouldAllowBlankOutput(LiteRtEditHeuristics.EditIntent.GENERAL))
+        assertTrue(EditInstructionRules.shouldAllowBlankOutput(EditInstructionRules.EditIntent.DELETE_ALL))
+        assertFalse(EditInstructionRules.shouldAllowBlankOutput(EditInstructionRules.EditIntent.REPLACE))
+        assertFalse(EditInstructionRules.shouldAllowBlankOutput(EditInstructionRules.EditIntent.GENERAL))
     }
 
     @Test
     fun looksLikeList_detectsShoppingAndDelimitedItems() {
         val shoppingText = "buy milk, eggs, bananas, bread"
-        assertTrue(LiteRtEditHeuristics.looksLikeList(shoppingText))
+        assertTrue(EditInstructionRules.looksLikeList(shoppingText))
     }
 
     @Test
     fun looksLikeList_ignoresPlainProse() {
         val prose = "I can make it at 5pm and bring the document for review."
-        assertFalse(LiteRtEditHeuristics.looksLikeList(prose))
+        assertFalse(EditInstructionRules.looksLikeList(prose))
     }
 
     @Test
@@ -88,11 +88,11 @@ class LiteRtEditHeuristicsTest {
         )
 
         for (instruction in cases) {
-            val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, instruction)
+            val result = EditInstructionRules.tryApplyDeterministicEdit(source, instruction)
             assertNotNull(result)
             assertEquals("", result?.output)
-            assertEquals(LiteRtEditHeuristics.CommandKind.CLEAR_ALL, result?.commandKind)
-            assertEquals(LiteRtEditHeuristics.CommandScope.ALL, result?.scope)
+            assertEquals(EditInstructionRules.CommandKind.CLEAR_ALL, result?.commandKind)
+            assertEquals(EditInstructionRules.CommandScope.ALL, result?.scope)
             assertEquals(1, result?.matchedCount)
             assertFalse(result?.noMatchDetected == true)
         }
@@ -110,29 +110,29 @@ class LiteRtEditHeuristicsTest {
             "undo milk"
         )
 
-        val first = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[0])
+        val first = EditInstructionRules.tryApplyDeterministicEdit(source, cases[0])
         assertEquals("buy next week", first?.output)
 
-        val second = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[1])
+        val second = EditInstructionRules.tryApplyDeterministicEdit(source, cases[1])
         assertEquals("buy next week", second?.output)
 
-        val third = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[2])
+        val third = EditInstructionRules.tryApplyDeterministicEdit(source, cases[2])
         assertEquals("buy milk", third?.output)
 
-        val fourth = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[3])
+        val fourth = EditInstructionRules.tryApplyDeterministicEdit(source, cases[3])
         assertEquals("buy next week", fourth?.output)
 
-        val fifth = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[4])
+        val fifth = EditInstructionRules.tryApplyDeterministicEdit(source, cases[4])
         assertEquals("buy next week", fifth?.output)
 
-        val sixth = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, cases[5])
+        val sixth = EditInstructionRules.tryApplyDeterministicEdit(source, cases[5])
         assertEquals("buy next week", sixth?.output)
     }
 
     @Test
     fun deterministic_deleteTerm_supportsMultipleTargets() {
         val source = "buy apple eggs milk bread"
-        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val result = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "remove eggs and milk"
         )
@@ -145,11 +145,11 @@ class LiteRtEditHeuristicsTest {
     @Test
     fun deterministic_deleteAllOnly_commands_doNotAcceptTargets() {
         val source = "buy milk and eggs"
-        val resetTargeted = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val resetTargeted = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "reset milk"
         )
-        val startOverTargeted = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val startOverTargeted = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "start over milk"
         )
@@ -162,64 +162,64 @@ class LiteRtEditHeuristicsTest {
     fun deterministic_replaceTerm_supportsVerbVariants() {
         val source = "buy milk and bread"
 
-        val change = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "change milk to oat milk")
+        val change = EditInstructionRules.tryApplyDeterministicEdit(source, "change milk to oat milk")
         assertEquals("buy oat milk and bread", change?.output)
 
-        val swap = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "swap milk for oat milk")
+        val swap = EditInstructionRules.tryApplyDeterministicEdit(source, "swap milk for oat milk")
         assertEquals("buy oat milk and bread", swap?.output)
 
-        val substitute = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val substitute = EditInstructionRules.tryApplyDeterministicEdit(
             source,
             "substitute milk with oat milk"
         )
         assertEquals("buy oat milk and bread", substitute?.output)
 
-        val correct = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "correct milk to oat milk")
+        val correct = EditInstructionRules.tryApplyDeterministicEdit(source, "correct milk to oat milk")
         assertEquals("buy oat milk and bread", correct?.output)
 
-        val fix = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "fix milk to oat milk")
+        val fix = EditInstructionRules.tryApplyDeterministicEdit(source, "fix milk to oat milk")
         assertEquals("buy oat milk and bread", fix?.output)
 
-        val update = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "update milk to oat milk")
+        val update = EditInstructionRules.tryApplyDeterministicEdit(source, "update milk to oat milk")
         assertEquals("buy oat milk and bread", update?.output)
 
-        val useInstead = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "use oat milk instead of milk")
+        val useInstead = EditInstructionRules.tryApplyDeterministicEdit(source, "use oat milk instead of milk")
         assertEquals("buy oat milk and bread", useInstead?.output)
     }
 
     @Test
     fun deterministic_updateNumber_replacesLastNumberToken() {
         val source = "Meeting moved from 5:00 PM to 6:00 PM tomorrow."
-        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val result = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "update number to 6:30"
         )
 
         assertNotNull(result)
         assertEquals("Meeting moved from 5:00 PM to 6:30 tomorrow.", result?.output)
-        assertEquals(LiteRtEditHeuristics.CommandKind.UPDATE_NUMBER, result?.commandKind)
+        assertEquals(EditInstructionRules.CommandKind.UPDATE_NUMBER, result?.commandKind)
         assertEquals(1, result?.matchedCount)
     }
 
     @Test
     fun deterministic_replaceTerm_supportsPoliteNaturalLanguageForm() {
         val source = "Hey guys. This is Mario speaking."
-        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val result = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "can you replace the word guys with the word girls?"
         )
 
         assertNotNull(result)
         assertEquals("Hey girls. This is Mario speaking.", result?.output)
-        assertEquals(LiteRtEditHeuristics.CommandKind.REPLACE_TERM, result?.commandKind)
-        assertEquals(LiteRtEditHeuristics.CommandScope.ALL, result?.scope)
+        assertEquals(EditInstructionRules.CommandKind.REPLACE_TERM, result?.commandKind)
+        assertEquals(EditInstructionRules.CommandScope.ALL, result?.scope)
         assertEquals(1, result?.matchedCount)
     }
 
     @Test
     fun deterministic_replaceTerm_preservesCapitalizedReplacementWhenTargetIsCapitalized() {
         val source = "Hey Mia, can you review this?"
-        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val result = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "replace Mia with john"
         )
@@ -230,7 +230,7 @@ class LiteRtEditHeuristicsTest {
 
     @Test
     fun postReplaceCapitalization_capitalizesEditedOutputForReplaceCommand() {
-        val output = LiteRtEditHeuristics.applyPostReplaceCapitalization(
+        val output = EditInstructionRules.applyPostReplaceCapitalization(
             sourceText = "Hey Mia, can you review this?",
             instructionText = "replace Mia with john",
             editedOutput = "Hey john, can you review this?"
@@ -243,16 +243,16 @@ class LiteRtEditHeuristicsTest {
     fun deterministic_scope_delete_first_and_last() {
         val source = "milk bread milk eggs milk"
 
-        val first = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "delete first milk")
+        val first = EditInstructionRules.tryApplyDeterministicEdit(source, "delete first milk")
         assertNotNull(first)
         assertEquals("bread milk eggs milk", first?.output)
-        assertEquals(LiteRtEditHeuristics.CommandScope.FIRST, first?.scope)
+        assertEquals(EditInstructionRules.CommandScope.FIRST, first?.scope)
         assertEquals(1, first?.matchedCount)
 
-        val last = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "delete last milk")
+        val last = EditInstructionRules.tryApplyDeterministicEdit(source, "delete last milk")
         assertNotNull(last)
         assertEquals("milk bread milk eggs", last?.output)
-        assertEquals(LiteRtEditHeuristics.CommandScope.LAST, last?.scope)
+        assertEquals(EditInstructionRules.CommandScope.LAST, last?.scope)
         assertEquals(1, last?.matchedCount)
     }
 
@@ -260,21 +260,21 @@ class LiteRtEditHeuristicsTest {
     fun deterministic_scope_replace_first_and_last() {
         val source = "milk bread milk eggs milk"
 
-        val first = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "replace first milk with oat")
+        val first = EditInstructionRules.tryApplyDeterministicEdit(source, "replace first milk with oat")
         assertNotNull(first)
         assertEquals("oat bread milk eggs milk", first?.output)
-        assertEquals(LiteRtEditHeuristics.CommandScope.FIRST, first?.scope)
+        assertEquals(EditInstructionRules.CommandScope.FIRST, first?.scope)
 
-        val last = LiteRtEditHeuristics.tryApplyDeterministicEdit(source, "replace last milk with oat")
+        val last = EditInstructionRules.tryApplyDeterministicEdit(source, "replace last milk with oat")
         assertNotNull(last)
         assertEquals("milk bread milk eggs oat", last?.output)
-        assertEquals(LiteRtEditHeuristics.CommandScope.LAST, last?.scope)
+        assertEquals(EditInstructionRules.CommandScope.LAST, last?.scope)
     }
 
     @Test
     fun deterministic_noMatch_reportsMetadata() {
         val source = "Please buy milk and eggs."
-        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val result = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "replace bread with rice"
         )
@@ -284,20 +284,20 @@ class LiteRtEditHeuristicsTest {
         assertFalse(result?.applied == true)
         assertEquals(0, result?.matchedCount)
         assertTrue(result?.noMatchDetected == true)
-        assertEquals(LiteRtEditHeuristics.RuleConfidence.LOW, result?.ruleConfidence)
+        assertEquals(EditInstructionRules.RuleConfidence.LOW, result?.ruleConfidence)
     }
 
     @Test
     fun deterministic_rejectsAmbiguousPronounTargets() {
         val source = "Please buy milk and eggs."
         assertNull(
-            LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            EditInstructionRules.tryApplyDeterministicEdit(
                 sourceText = source,
                 instructionText = "delete it"
             )
         )
         assertNull(
-            LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            EditInstructionRules.tryApplyDeterministicEdit(
                 sourceText = source,
                 instructionText = "change that to bread"
             )
@@ -309,7 +309,7 @@ class LiteRtEditHeuristicsTest {
         val source = "Please buy milk and eggs."
         val longInstruction = "please delete the word milk from the message and then rewrite the rest politely"
 
-        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val result = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = longInstruction
         )
@@ -319,7 +319,7 @@ class LiteRtEditHeuristicsTest {
 
     @Test
     fun deterministic_returnsNullForGeneralInstruction() {
-        val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+        val result = EditInstructionRules.tryApplyDeterministicEdit(
             sourceText = "Please buy milk and eggs.",
             instructionText = "make this friendlier"
         )
@@ -341,14 +341,14 @@ class LiteRtEditHeuristicsTest {
         )
 
         commands.forEach { command ->
-            val result = LiteRtEditHeuristics.tryApplyDeterministicEdit(
+            val result = EditInstructionRules.tryApplyDeterministicEdit(
                 sourceText = source,
                 instructionText = command
             )
             assertNotNull(result)
             assertEquals(source, result?.output)
             assertFalse(result?.applied == true)
-            assertEquals(LiteRtEditHeuristics.CommandKind.NO_OP, result?.commandKind)
+            assertEquals(EditInstructionRules.CommandKind.NO_OP, result?.commandKind)
             assertFalse(result?.noMatchDetected == true)
         }
     }

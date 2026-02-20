@@ -9,14 +9,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class LiteRtInitializerTest {
+class SummaryWarmupTest {
     @Test
     fun warmupRunsOnlyOnceAfterReadinessAndSuccess() {
         val calls = AtomicInteger(0)
         val latch = CountDownLatch(1)
         val modelReadyFlow = MutableStateFlow(false)
         val promptReadyFlow = MutableStateFlow(false)
-        val initializer = LiteRtInitializer(
+        val initializer = SummaryWarmup(
             isModelAvailable = { true },
             runWarmup = { text ->
                 calls.incrementAndGet()
@@ -46,7 +46,7 @@ class LiteRtInitializerTest {
     @Test
     fun warmupSkipsWhenModelUnavailable() {
         val calls = AtomicInteger(0)
-        val initializer = LiteRtInitializer(
+        val initializer = SummaryWarmup(
             isModelAvailable = { false },
             runWarmup = { text ->
                 calls.incrementAndGet()

@@ -1,10 +1,10 @@
 package com.sanogueralorenzo.voice.benchmark
 
 import android.content.Context
-import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
-import com.sanogueralorenzo.voice.summary.LiteRtComposeLlmGate
-import com.sanogueralorenzo.voice.summary.LiteRtComposePolicy
-import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
+import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
+import com.sanogueralorenzo.voice.summary.ComposeLlmGate
+import com.sanogueralorenzo.voice.summary.ComposePostLlmRules
+import com.sanogueralorenzo.voice.summary.SummaryEngine
 import com.sanogueralorenzo.voice.summary.RewriteResult
 
 interface BenchmarkGateway {
@@ -15,14 +15,14 @@ interface BenchmarkGateway {
 
 class LiteRtBenchmarkGateway(
     context: Context,
-    composePolicy: LiteRtComposePolicy,
-    deterministicComposeRewriter: DeterministicComposeRewriter,
-    composeLlmGate: LiteRtComposeLlmGate
+    composePolicy: ComposePostLlmRules,
+    composePreLlmRules: ComposePreLlmRules,
+    composeLlmGate: ComposeLlmGate
 ) : BenchmarkGateway {
-    private val summarizer = LiteRtSummarizer(
+    private val summarizer = SummaryEngine(
         context = context.applicationContext,
         composePolicy = composePolicy,
-        deterministicComposeRewriter = deterministicComposeRewriter,
+        composePreLlmRules = composePreLlmRules,
         composeLlmGate = composeLlmGate
     )
 

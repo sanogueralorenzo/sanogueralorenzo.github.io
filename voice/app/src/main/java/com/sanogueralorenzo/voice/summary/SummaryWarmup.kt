@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
-class LiteRtInitializer(
+class SummaryWarmup(
     private val isModelAvailable: () -> Boolean,
     private val runWarmup: (String) -> RewriteResult,
     private val modelReadyFlow: Flow<Boolean>,
@@ -66,7 +66,7 @@ class LiteRtInitializer(
     }
 
     private companion object {
-        private const val TAG = "LiteRtInitializer"
+        private const val TAG = "SummaryWarmup"
         private const val WARMUP_PLACEHOLDER_INPUT = "warmup"
     }
 }

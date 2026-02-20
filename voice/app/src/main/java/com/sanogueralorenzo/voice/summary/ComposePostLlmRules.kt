@@ -4,7 +4,7 @@ package com.sanogueralorenzo.voice.summary
  * Deterministic input/output policy for compose cleanup.
  * Keeps rewrite behavior constrained to minimal dictation-safe edits.
  */
-class LiteRtComposePolicy {
+class ComposePostLlmRules {
     fun normalizeComposeInput(text: String): String {
         val collapsed = text.replace(WHITESPACE_REGEX, " ").trim()
         if (collapsed.isBlank()) return ""

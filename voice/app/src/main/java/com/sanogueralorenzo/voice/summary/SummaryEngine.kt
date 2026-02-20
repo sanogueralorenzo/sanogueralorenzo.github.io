@@ -30,11 +30,11 @@ import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
-class LiteRtSummarizer(
+class SummaryEngine(
     context: Context,
-    private val composePolicy: LiteRtComposePolicy,
-    private val deterministicComposeRewriter: DeterministicComposeRewriter,
-    private val composeLlmGate: LiteRtComposeLlmGate
+    private val composePolicy: ComposePostLlmRules,
+    private val composePreLlmRules: ComposePreLlmRules,
+    private val composeLlmGate: ComposeLlmGate
 ) {
     private data class RewriteRequest(
         val content: String
@@ -43,7 +43,7 @@ class LiteRtSummarizer(
     private data class EditRequest(
         val originalText: String,
         val instructionText: String,
-        val intent: LiteRtEditHeuristics.EditIntent,
+        val intent: EditInstructionRules.EditIntent,
         val listMode: Boolean
     )
 
@@ -54,7 +54,7 @@ class LiteRtSummarizer(
     private val initMutex = Mutex()
     private val conversationMutex = Mutex()
     private val activeConversation = AtomicReference<Conversation?>()
-    private val backendPolicyStore = LiteRtBackendPolicyStore()
+    private val backendPolicyStore = LiteRtBackendOrderPolicy()
 
     @Volatile
     private var engine: Engine? = null
@@ -177,7 +177,7 @@ class LiteRtSummarizer(
             )
         }
 
-        val deterministicResult = deterministicComposeRewriter.rewrite(request.content)
+        val deterministicResult = composePreLlmRules.rewrite(request.content)
         val deterministicOutput = composePolicy.normalizeComposeOutputText(deterministicResult.text)
         if (!composeLlmGate.shouldUseLlm(request.content, deterministicResult)) {
             return RewriteResult.Success(
@@ -242,7 +242,7 @@ class LiteRtSummarizer(
                 backend = backend
             )
         } catch (t: Throwable) {
-            if (LiteRtRewritePolicy.isInvalidArgumentError(t)) {
+            if (LiteRtRuntimePolicy.isInvalidArgumentError(t)) {
                 resetEngineNow()
             }
             RewriteResult.Failure(
@@ -295,7 +295,7 @@ class LiteRtSummarizer(
                 backend = initializedBackend ?: Backend.GPU
             )
 
-        val instructionAnalysis = LiteRtEditHeuristics.analyzeInstruction(instructionText)
+        val instructionAnalysis = EditInstructionRules.analyzeInstruction(instructionText)
         val editRequest = EditRequest(
             originalText = originalText,
             instructionText = instructionAnalysis.normalizedInstruction,
@@ -325,7 +325,7 @@ class LiteRtSummarizer(
                 backend = backend
             )
         } catch (t: Throwable) {
-            if (LiteRtRewritePolicy.isInvalidArgumentError(t)) {
+            if (LiteRtRuntimePolicy.isInvalidArgumentError(t)) {
                 resetEngineNow()
             }
             RewriteResult.Failure(
@@ -489,8 +489,8 @@ class LiteRtSummarizer(
         fallbackMessage: String? = null
     ): LiteRtFailureException {
         val type = when {
-            t != null && LiteRtRewritePolicy.isInvalidArgumentError(t) -> LiteRtFailureException.TYPE_INVALID_ARGUMENT
-            t != null && LiteRtRewritePolicy.isInputTooLongError(t) -> LiteRtFailureException.TYPE_INPUT_TOO_LONG
+            t != null && LiteRtRuntimePolicy.isInvalidArgumentError(t) -> LiteRtFailureException.TYPE_INVALID_ARGUMENT
+            t != null && LiteRtRuntimePolicy.isInputTooLongError(t) -> LiteRtFailureException.TYPE_INPUT_TOO_LONG
             else -> LiteRtFailureException.TYPE_UNKNOWN
         }
         val litertError = extractLiteRtError(t)
@@ -558,11 +558,11 @@ class LiteRtSummarizer(
     }
 
     private fun looksLikeList(text: String): Boolean {
-        return LiteRtEditHeuristics.looksLikeList(text)
+        return EditInstructionRules.looksLikeList(text)
     }
 
     companion object {
-        private const val TAG = "LiteRtSummarizer"
+        private const val TAG = "SummaryEngine"
         private const val CONVERSATION_TIMEOUT_CANCEL_GRACE_MS = 120L
         private const val MAX_ERROR_MESSAGE_CHARS = 320
         private val SUPPORTED_MODEL_HINTS = listOf(

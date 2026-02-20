@@ -214,9 +214,9 @@ class BenchmarkViewModel(
             val appGraph = app.appGraph
             val gateway = LiteRtBenchmarkGateway(
                 context = app.applicationContext,
-                composePolicy = appGraph.liteRtComposePolicy,
-                deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
-                composeLlmGate = appGraph.liteRtComposeLlmGate
+                composePolicy = appGraph.composePostLlmRules,
+                composePreLlmRules = appGraph.composePreLlmRules,
+                composeLlmGate = appGraph.composeLlmGate
             )
             return BenchmarkViewModel(
                 initialState = state,
