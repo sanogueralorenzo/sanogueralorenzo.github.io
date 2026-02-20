@@ -55,37 +55,37 @@ fun SetupStepNavHost(
         modifier = modifier.fillMaxSize()
     ) {
         composable(SetupRoute.SETUP_SPLASH) {
-            SetupSplashScreen(
+            SetupStep1SplashScreen(
                 onFinished = { splashCompleted = true }
             )
         }
 
         composable(SetupRoute.SETUP_INTRO) {
-            SetupIntroScreen(
+            SetupStep2IntroScreen(
                 onContinue = { introCompleted = true }
             )
         }
 
         composable(SetupRoute.SETUP_MIC) {
-            SetupMicPermissionScreen(
+            SetupStep4MicPermissionScreen(
                 onGrantMic = onGrantMic
             )
         }
 
         composable(SetupRoute.SETUP_ENABLE_KEYBOARD) {
-            SetupEnableKeyboardScreen(
+            SetupStep5KeyboardEnableScreen(
                 onOpenImeSettings = onOpenImeSettings
             )
         }
 
         composable(SetupRoute.SETUP_MODELS) {
-            SetupDownloadModelsScreen(
+            SetupStep3ModelsDownloadScreen(
                 onModelsReady = onSetupStateChanged
             )
         }
 
         composable(SetupRoute.SETUP_SELECT_KEYBOARD) {
-            SetupSelectKeyboardScreen(
+            SetupStep6KeyboardSelectScreen(
                 onRequestKeyboardPicker = onShowImePicker,
                 onDone = onSetupStateChanged
             )

@@ -30,15 +30,15 @@ import com.sanogueralorenzo.voice.ui.components.VoiceInput
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-data class SetupSelectKeyboardState(
+data class SetupStep6KeyboardSelectState(
     val value: String = "",
     val voiceImeSelected: Boolean = false
 ) : MavericksState
 
-class SetupSelectKeyboardViewModel(
-    initialState: SetupSelectKeyboardState,
+class SetupStep6KeyboardSelectViewModel(
+    initialState: SetupStep6KeyboardSelectState,
     private val setupRepository: SetupRepository
-) : MavericksViewModel<SetupSelectKeyboardState>(initialState) {
+) : MavericksViewModel<SetupStep6KeyboardSelectState>(initialState) {
 
     fun refreshKeyboardStatus() {
         val keyboardStatus = setupRepository.keyboardStatus()
@@ -56,13 +56,13 @@ class SetupSelectKeyboardViewModel(
         }
     }
 
-    companion object : MavericksViewModelFactory<SetupSelectKeyboardViewModel, SetupSelectKeyboardState> {
+    companion object : MavericksViewModelFactory<SetupStep6KeyboardSelectViewModel, SetupStep6KeyboardSelectState> {
         override fun create(
             viewModelContext: ViewModelContext,
-            state: SetupSelectKeyboardState
-        ): SetupSelectKeyboardViewModel {
+            state: SetupStep6KeyboardSelectState
+        ): SetupStep6KeyboardSelectViewModel {
             val app = viewModelContext.app<VoiceApp>()
-            return SetupSelectKeyboardViewModel(
+            return SetupStep6KeyboardSelectViewModel(
                 initialState = state,
                 setupRepository = app.appGraph.setupRepository
             )
@@ -71,12 +71,12 @@ class SetupSelectKeyboardViewModel(
 }
 
 @Composable
-fun SetupSelectKeyboardScreen(
+fun SetupStep6KeyboardSelectScreen(
     onRequestKeyboardPicker: () -> Unit,
     onDone: () -> Unit
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel = mavericksViewModel<SetupSelectKeyboardViewModel, SetupSelectKeyboardState>()
+    val viewModel = mavericksViewModel<SetupStep6KeyboardSelectViewModel, SetupStep6KeyboardSelectState>()
     val state by viewModel.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 

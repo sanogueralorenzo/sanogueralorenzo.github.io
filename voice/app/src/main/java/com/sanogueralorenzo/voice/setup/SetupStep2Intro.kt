@@ -10,7 +10,7 @@ import androidx.compose.ui.res.stringResource
 import com.sanogueralorenzo.voice.R
 
 @Composable
-fun SetupIntroScreen(
+fun SetupStep2IntroScreen(
     onContinue: () -> Unit
 ) {
     SetupStepScaffold(

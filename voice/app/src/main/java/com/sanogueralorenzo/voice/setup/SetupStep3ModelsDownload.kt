@@ -44,7 +44,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class SetupModelsState(
+data class SetupStep3ModelsDownloadState(
     val connectedToWifi: Boolean = true,
     val allowMobileDataDownloads: Boolean = false,
     val liteRtReady: Boolean = false,
@@ -59,11 +59,11 @@ data class SetupModelsState(
     val modelMessage: String? = null
 ) : MavericksState
 
-class SetupModelsViewModel(
-    initialState: SetupModelsState,
+class SetupStep3ModelsDownloadViewModel(
+    initialState: SetupStep3ModelsDownloadState,
     context: Context,
     private val setupRepository: SetupRepository
-) : MavericksViewModel<SetupModelsState>(initialState) {
+) : MavericksViewModel<SetupStep3ModelsDownloadState>(initialState) {
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
 
@@ -407,7 +407,7 @@ class SetupModelsViewModel(
         }
     }
 
-    private fun isAnyDownloading(state: SetupModelsState): Boolean {
+    private fun isAnyDownloading(state: SetupStep3ModelsDownloadState): Boolean {
         return state.liteRtDownloading || state.moonshineDownloading || state.promptDownloading
     }
 
@@ -418,13 +418,13 @@ class SetupModelsViewModel(
         COMPLETE
     }
 
-    companion object : MavericksViewModelFactory<SetupModelsViewModel, SetupModelsState> {
+    companion object : MavericksViewModelFactory<SetupStep3ModelsDownloadViewModel, SetupStep3ModelsDownloadState> {
         override fun create(
             viewModelContext: ViewModelContext,
-            state: SetupModelsState
-        ): SetupModelsViewModel {
+            state: SetupStep3ModelsDownloadState
+        ): SetupStep3ModelsDownloadViewModel {
             val app = viewModelContext.app<VoiceApp>()
-            return SetupModelsViewModel(
+            return SetupStep3ModelsDownloadViewModel(
                 initialState = state,
                 context = app.applicationContext,
                 setupRepository = app.appGraph.setupRepository
@@ -450,11 +450,11 @@ private enum class DownloadTarget {
 }
 
 @Composable
-fun SetupDownloadModelsScreen(
+fun SetupStep3ModelsDownloadScreen(
     onModelsReady: () -> Unit
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val viewModel = mavericksViewModel<SetupModelsViewModel, SetupModelsState>()
+    val viewModel = mavericksViewModel<SetupStep3ModelsDownloadViewModel, SetupStep3ModelsDownloadState>()
     val state by viewModel.collectAsStateWithLifecycle()
     var modelsReadyNotified by rememberSaveable { mutableStateOf(false) }
 
@@ -488,7 +488,7 @@ fun SetupDownloadModelsScreen(
         }
     }
 
-    SetupDownloadModelsContent(
+    SetupStep3ModelsDownloadContent(
         state = state,
         onAllowMobileDataChange = viewModel::setAllowMobileDataDownloads,
         onDownloadModels = viewModel::downloadAllModels
@@ -496,8 +496,8 @@ fun SetupDownloadModelsScreen(
 }
 
 @Composable
-private fun SetupDownloadModelsContent(
-    state: SetupModelsState,
+private fun SetupStep3ModelsDownloadContent(
+    state: SetupStep3ModelsDownloadState,
     onAllowMobileDataChange: (Boolean) -> Unit,
     onDownloadModels: () -> Unit
 ) {
@@ -584,7 +584,7 @@ private fun SetupDownloadModelsContent(
 }
 
 private fun buildSetupDownloadModelsPresentation(
-    state: SetupModelsState
+    state: SetupStep3ModelsDownloadState
 ): SetupDownloadModelsPresentation {
     val modelsReady = state.liteRtReady && state.moonshineReady
     val allDownloadsReady = modelsReady && state.promptReady

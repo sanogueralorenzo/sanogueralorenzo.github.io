@@ -34,7 +34,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 @Composable
-fun SetupSplashScreen(
+fun SetupStep1SplashScreen(
     onFinished: () -> Unit
 ) {
     val moveProgress = remember { Animatable(0f) }

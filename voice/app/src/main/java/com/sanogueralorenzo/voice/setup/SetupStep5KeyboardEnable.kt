@@ -10,7 +10,7 @@ import androidx.compose.ui.res.stringResource
 import com.sanogueralorenzo.voice.R
 
 @Composable
-fun SetupEnableKeyboardScreen(
+fun SetupStep5KeyboardEnableScreen(
     onOpenImeSettings: () -> Unit
 ) {
     SetupStepScaffold(
