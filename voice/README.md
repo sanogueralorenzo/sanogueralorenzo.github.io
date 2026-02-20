@@ -37,3 +37,10 @@ Voice is an on-device voice keyboard built for speed, accuracy, and privacy.
 scripts/prompt_eval.sh --prompt-file examples/prompt_eval/prompt.txt --cases-file examples/prompt_eval/cases.jsonl --report-file .cache/prompt_eval/report.txt --json-report-file .cache/prompt_eval/report.json
 scripts/prompt_ab_optimize.sh --prompt-a-file scripts/prompt_a.json --prompt-b-file scripts/prompt_b.json --dataset-file scripts/dataset.jsonl
 ```
+
+## License
+
+- This project uses third-party models and runtimes that are governed by their own terms.
+- Gemma 1B IT (LiteRT): [Gemma Terms of Use](https://ai.google.dev/gemma/terms) and [Gemma Prohibited Use Policy](https://ai.google.dev/gemma/prohibited_use_policy).
+- Moonshine.ai models/runtime: [Moonshine License](https://www.moonshine.ai/license) and [Moonshine Acceptable Use Policy](https://www.moonshine.ai/use-policy).
+- By using or distributing this app, ensure your usage complies with those third-party terms and any applicable laws.
