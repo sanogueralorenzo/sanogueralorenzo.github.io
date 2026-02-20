@@ -17,10 +17,11 @@ Voice is an on-device voice keyboard built for speed, accuracy, and privacy.
 ## User Setup
 
 1. Install and open the app.
-2. Grant microphone permission.
-3. Wait for required downloads.
-4. Enable Voice Keyboard in Android settings.
-5. Select Voice Keyboard in the IME picker.
+2. Continue through intro.
+3. Download required files (auto-starts on Wi-Fi).
+4. Grant microphone permission.
+5. Tap Continue to open Android keyboard settings and enable Voice Keyboard.
+6. Tap Continue to open the IME picker and select Voice Keyboard.
 
 ## Key Files
 
