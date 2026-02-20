@@ -2,13 +2,26 @@ package com.sanogueralorenzo.voice.summary
 
 import com.google.ai.edge.litertlm.Backend
 
+/**
+ * Result of a summary/rewrite/edit request.
+ *
+ * Possible outcomes:
+ * - [Success]: output text was produced (possibly unchanged fallback text).
+ * - [Failure]: runtime/model error details were captured.
+ */
 sealed interface RewriteResult {
+    /**
+     * Successful completion with output text and timing/backend metadata.
+     */
     data class Success(
         val text: String,
         val latencyMs: Long,
         val backend: Backend
     ) : RewriteResult
 
+    /**
+     * Failed completion with backend context and classified LiteRT failure.
+     */
     data class Failure(
         val latencyMs: Long,
         val backend: Backend?,
@@ -16,6 +29,9 @@ sealed interface RewriteResult {
     ) : RewriteResult
 }
 
+/**
+ * Typed LiteRT failure surfaced to upper layers for diagnostics and fallbacks.
+ */
 class LiteRtFailureException(
     val type: String,
     val litertError: String,

@@ -13,6 +13,14 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * Observes readiness signals and runs a one-shot warmup invocation for SummaryEngine.
+ *
+ * Possible outcomes:
+ * - No-op when model/prompt are not ready or model is unavailable.
+ * - Warmup success: keeps `warmupStarted=true` and logs completion.
+ * - Warmup failure/throw: resets state so a future readiness event can retry.
+ */
 class SummaryWarmup(
     private val isModelAvailable: () -> Boolean,
     private val runWarmup: (String) -> RewriteResult,

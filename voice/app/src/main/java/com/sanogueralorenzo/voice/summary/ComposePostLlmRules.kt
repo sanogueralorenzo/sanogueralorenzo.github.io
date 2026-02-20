@@ -1,8 +1,13 @@
 package com.sanogueralorenzo.voice.summary
 
 /**
- * Deterministic input/output policy for compose cleanup.
- * Keeps rewrite behavior constrained to minimal dictation-safe edits.
+ * Deterministic compose normalization and guardrails around model output.
+ *
+ * Possible outcomes:
+ * - Input normalization returns cleaned text or `""`.
+ * - Output cleanup returns cleaned text or `""` when model output is unusable.
+ * - Finalization returns candidate output or falls back to original input when
+ *   safety/quality checks fail.
  */
 class ComposePostLlmRules {
     fun normalizeComposeInput(text: String): String {

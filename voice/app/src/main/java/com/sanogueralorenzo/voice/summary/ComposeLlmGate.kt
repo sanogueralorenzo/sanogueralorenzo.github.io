@@ -1,8 +1,11 @@
 package com.sanogueralorenzo.voice.summary
 
 /**
- * Determines whether compose flow should call the LLM after deterministic rewrite.
- * Only typo-like cases should fall through to LLM.
+ * Decides whether compose should invoke the LLM after deterministic pre-LLM rules.
+ *
+ * Possible outcomes:
+ * - `true`: input looks like typo/noise that deterministic rules did not change.
+ * - `false`: blank input, deterministic rules already changed text, or no typo signal.
  */
 class ComposeLlmGate {
     fun shouldUseLlm(

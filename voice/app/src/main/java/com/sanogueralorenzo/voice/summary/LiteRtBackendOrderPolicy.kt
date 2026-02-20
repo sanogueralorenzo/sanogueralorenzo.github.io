@@ -4,9 +4,11 @@ import android.os.Build
 import com.google.ai.edge.litertlm.Backend
 
 /**
- * Backend policy holder.
+ * Chooses backend order for LiteRT engine initialization.
  *
- * Current behavior is fixed to AUTO as requested.
+ * Possible outcomes:
+ * - Emulator-like device: `[CPU, GPU]`.
+ * - Physical device: `[GPU, CPU]`.
  */
 class LiteRtBackendOrderPolicy {
     private val isEmulatorDevice: Boolean = isEmulator()

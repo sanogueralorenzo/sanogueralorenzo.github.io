@@ -1,7 +1,11 @@
 package com.sanogueralorenzo.voice.summary
 
 /**
- * Shared LiteRT runtime configuration used by app runtime and benchmark flows.
+ * Shared LiteRT runtime constants used by app runtime and benchmark flows.
+ *
+ * Possible outcomes:
+ * - Callers read stable config constants for sampling/timeout/token limits.
+ * - `reportSnapshot()` returns a human-readable multi-line config summary.
  */
 object LiteRtRuntimeConfig {
     const val TOP_K: Int = 1

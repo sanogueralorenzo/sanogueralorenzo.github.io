@@ -1,7 +1,13 @@
 package com.sanogueralorenzo.voice.summary
 
 /**
- * Lightweight parsing and deterministic local heuristics for edit instructions and list-like text.
+ * Parses edit instructions and applies deterministic local edit rules.
+ *
+ * Possible outcomes:
+ * - Instruction analysis classifies intent as `GENERAL`, `DELETE_ALL`, or `REPLACE`.
+ * - Strict-command detection returns `true` for supported edit commands, else `false`.
+ * - Deterministic edit returns an applied/no-op result, or `null` when unsupported.
+ * - Post-replace capitalization either preserves output or adjusts replacement casing.
  */
 internal object EditInstructionRules {
     internal enum class EditIntent {

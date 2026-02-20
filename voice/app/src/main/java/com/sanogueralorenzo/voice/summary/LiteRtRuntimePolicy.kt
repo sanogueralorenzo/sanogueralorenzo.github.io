@@ -1,5 +1,13 @@
 package com.sanogueralorenzo.voice.summary
 
+/**
+ * Classifies known LiteRT runtime errors by scanning throwable cause chains.
+ *
+ * Possible outcomes:
+ * - `isInvalidArgumentError(...)`: `true` for known invalid-argument signatures.
+ * - `isInputTooLongError(...)`: `true` for known token-length signatures.
+ * - Otherwise both checks return `false`.
+ */
 object LiteRtRuntimePolicy {
     fun isInvalidArgumentError(error: Throwable): Boolean {
         var current: Throwable? = error

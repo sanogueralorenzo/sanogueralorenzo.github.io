@@ -1,8 +1,11 @@
 package com.sanogueralorenzo.voice.summary
 
 /**
- * Local deterministic rewrite pass for compose flow.
- * Applies safe, narrow transformations before any LLM call.
+ * Deterministic pre-LLM rewrite for compose input.
+ *
+ * Possible outcomes:
+ * - Returns unchanged text with `changed=false` and no applied rules.
+ * - Returns normalized text with `changed=true` and the set of rules applied.
  */
 class ComposePreLlmRules {
     data class Result(

@@ -30,6 +30,18 @@ import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * Core rewrite/edit engine for on-device LiteRT flows.
+ *
+ * Responsibilities:
+ * - Compose path: pre-LLM deterministic rules -> optional LLM rewrite -> post-LLM guards.
+ * - Edit path: instruction normalization -> LLM edit -> output cleanup.
+ * - Runtime management: model readiness checks, backend selection, engine lifecycle, cancellation.
+ *
+ * Possible outcomes:
+ * - [RewriteResult.Success] with final output text (including safe fallbacks).
+ * - [RewriteResult.Failure] with classified LiteRT runtime error metadata.
+ */
 class SummaryEngine(
     context: Context,
     private val composePolicy: ComposePostLlmRules,
@@ -76,10 +88,25 @@ class SummaryEngine(
             promptTemplateStore.isPromptReady()
     }
 
+    /**
+     * Runs compose rewrite with default prompt template resolution.
+     *
+     * Possible outcomes:
+     * - [RewriteResult.Success] with rewritten or fallback-safe output.
+     * - [RewriteResult.Failure] when runtime/model processing fails.
+     */
     fun summarizeBlocking(text: String): RewriteResult {
         return summarizeBlocking(text = text, promptTemplateOverride = null)
     }
 
+    /**
+     * Runs compose rewrite with optional prompt override.
+     *
+     * Possible outcomes:
+     * - [RewriteResult.Success] when deterministic path is used, model is unavailable,
+     *   or model rewrite succeeds.
+     * - [RewriteResult.Failure] when model/engine invocation fails.
+     */
     fun summarizeBlocking(
         text: String,
         promptTemplateOverride: String? = null
@@ -105,6 +132,13 @@ class SummaryEngine(
         }
     }
 
+    /**
+     * Applies instruction-based edit to existing text.
+     *
+     * Possible outcomes:
+     * - [RewriteResult.Success] with edited text or unchanged fallback text.
+     * - [RewriteResult.Failure] when model/engine invocation fails.
+     */
     fun applyEditInstructionBlocking(
         originalText: String,
         instructionText: String
