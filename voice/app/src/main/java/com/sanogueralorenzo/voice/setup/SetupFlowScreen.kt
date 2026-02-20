@@ -30,8 +30,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class SetupFlowStep {
+    SPLASH,
+    INTRO,
+    DOWNLOAD_MODELS,
+    MIC_PERMISSION,
+    ENABLE_KEYBOARD,
+    SELECT_KEYBOARD,
+    COMPLETE
+}
+
 data class SetupState(
-    val requiredStep: SetupRepository.RequiredStep = SetupRepository.RequiredStep.DOWNLOAD_MODELS
+    val coreRequiredStep: SetupRepository.RequiredStep = SetupRepository.RequiredStep.DOWNLOAD_MODELS,
+    val splashCompleted: Boolean = false,
+    val introCompleted: Boolean = false,
+    val requiredStep: SetupFlowStep = SetupFlowStep.SPLASH
 ) : MavericksState
 
 class SetupViewModel(
@@ -43,12 +56,41 @@ class SetupViewModel(
         refreshRequiredStep()
     }
 
+    fun onSplashFinished() {
+        setState {
+            val updated = copy(splashCompleted = true)
+            updated.copy(requiredStep = computeFlowStep(updated))
+        }
+    }
+
+    fun onIntroContinue() {
+        setState {
+            val updated = copy(introCompleted = true)
+            updated.copy(requiredStep = computeFlowStep(updated))
+        }
+    }
+
     fun refreshRequiredStep() {
         viewModelScope.launch {
             val requiredStep = withContext(Dispatchers.IO) {
                 setupRepository.requiredStep()
             }
-            setState { copy(requiredStep = requiredStep) }
+            setState {
+                val updated = copy(coreRequiredStep = requiredStep)
+                updated.copy(requiredStep = computeFlowStep(updated))
+            }
+        }
+    }
+
+    private fun computeFlowStep(state: SetupState): SetupFlowStep {
+        if (!state.splashCompleted) return SetupFlowStep.SPLASH
+        if (!state.introCompleted) return SetupFlowStep.INTRO
+        return when (state.coreRequiredStep) {
+            SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupFlowStep.DOWNLOAD_MODELS
+            SetupRepository.RequiredStep.MIC_PERMISSION -> SetupFlowStep.MIC_PERMISSION
+            SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupFlowStep.ENABLE_KEYBOARD
+            SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupFlowStep.SELECT_KEYBOARD
+            SetupRepository.RequiredStep.COMPLETE -> SetupFlowStep.COMPLETE
         }
     }
 
@@ -56,7 +98,10 @@ class SetupViewModel(
         override fun initialState(viewModelContext: ViewModelContext): SetupState {
             val app = viewModelContext.app<VoiceApp>()
             val requiredStep = app.appGraph.setupRepository.requiredStep()
-            return SetupState(requiredStep = requiredStep)
+            return SetupState(
+                coreRequiredStep = requiredStep,
+                requiredStep = SetupFlowStep.SPLASH
+            )
         }
 
         override fun create(
@@ -102,15 +147,17 @@ fun SetupFlowScreen(
     }
 
     val requiredSetupRoute = when (state.requiredStep) {
-        SetupRepository.RequiredStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
-        SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
-        SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupRoute.SETUP_MODELS
-        SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupRoute.SETUP_SELECT_KEYBOARD
-        SetupRepository.RequiredStep.COMPLETE -> null
+        SetupFlowStep.SPLASH -> SetupRoute.SETUP_SPLASH
+        SetupFlowStep.INTRO -> SetupRoute.SETUP_INTRO
+        SetupFlowStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
+        SetupFlowStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
+        SetupFlowStep.DOWNLOAD_MODELS -> SetupRoute.SETUP_MODELS
+        SetupFlowStep.SELECT_KEYBOARD -> SetupRoute.SETUP_SELECT_KEYBOARD
+        SetupFlowStep.COMPLETE -> null
     }
 
     LaunchedEffect(state.requiredStep) {
-        if (state.requiredStep == SetupRepository.RequiredStep.COMPLETE) {
+        if (state.requiredStep == SetupFlowStep.COMPLETE) {
             onSetupComplete()
         }
     }
@@ -125,6 +172,8 @@ fun SetupFlowScreen(
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = { showImePicker(context) },
+        onSplashFinished = { setupViewModel.onSplashFinished() },
+        onIntroContinue = { setupViewModel.onIntroContinue() },
         onSetupStateChanged = { setupViewModel.refreshRequiredStep() }
     )
 }
