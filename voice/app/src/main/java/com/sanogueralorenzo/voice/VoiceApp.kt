@@ -23,8 +23,7 @@ class VoiceApp : Application() {
         SummaryEngine(
             context = this,
             composePolicy = appGraph.composePostLlmRules,
-            composePreLlmRules = appGraph.composePreLlmRules,
-            composeLlmGate = appGraph.composeLlmGate
+            composePreLlmRules = appGraph.composePreLlmRules
         )
     }
     private val liteRtInitializer by lazy {

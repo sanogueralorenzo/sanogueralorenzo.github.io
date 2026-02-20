@@ -6,6 +6,7 @@ package com.sanogueralorenzo.voice.summary
  * Possible outcomes:
  * - Returns unchanged text with `changed=false` and no applied rules.
  * - Returns normalized text with `changed=true` and the set of rules applied.
+ * - LLM gate returns `true` only for typo-like inputs not changed by deterministic rules.
  */
 class ComposePreLlmRules {
     data class Result(
@@ -67,6 +68,19 @@ class ComposePreLlmRules {
             changed = finalText != source,
             appliedRules = applied
         )
+    }
+
+    fun shouldUseLlm(
+        originalText: String,
+        deterministicResult: Result
+    ): Boolean {
+        if (originalText.isBlank()) return false
+        if (deterministicResult.changed) return false
+        val typoSignals = TYPO_SIGNAL_PATTERNS.count { pattern ->
+            pattern.containsMatchIn(originalText)
+        }
+        if (typoSignals == 0) return false
+        return typoSignals <= MAX_ALLOWED_TYPO_SIGNALS
     }
 
     private fun removeStandaloneFillers(text: String): String {
@@ -217,6 +231,7 @@ class ComposePreLlmRules {
     }
 
     companion object {
+        private const val MAX_ALLOWED_TYPO_SIGNALS = 2
         private val WHITESPACE_REGEX = Regex("\\s+")
         private val MULTI_SPACE_REGEX = Regex(" {2,}")
         private val DIGIT_REGEX = Regex("\\d")
@@ -283,6 +298,15 @@ class ComposePreLlmRules {
         private val NUMBER_WORD_PATTERN = ALL_NUMBER_WORDS.joinToString(separator = "|")
         private val NUMBER_SEQUENCE_REGEX = Regex(
             "(?i)\\b(?:$NUMBER_WORD_PATTERN)(?:[\\s-]+(?:$NUMBER_WORD_PATTERN|and))*\\b"
+        )
+        private val TYPO_SIGNAL_PATTERNS = listOf(
+            Regex("(?i)\\byour\\s+(done|welcome|right|going|late)\\b"),
+            Regex("(?i)\\bnite\\b"),
+            Regex("(?i)\\b(?:im|ive|id|dont|cant|wont|isnt|arent|didnt|couldnt|shouldnt|wouldnt)\\b"),
+            Regex("(?i)\\bteh\\b"),
+            Regex("(?i)\\brecieve\\b"),
+            Regex("(?i)\\bseperate\\b"),
+            Regex("(?i)\\bdefinately\\b")
         )
     }
 }

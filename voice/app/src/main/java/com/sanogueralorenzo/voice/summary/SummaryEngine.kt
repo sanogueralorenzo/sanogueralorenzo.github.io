@@ -45,8 +45,7 @@ import java.util.concurrent.atomic.AtomicReference
 class SummaryEngine(
     context: Context,
     private val composePolicy: ComposePostLlmRules,
-    private val composePreLlmRules: ComposePreLlmRules,
-    private val composeLlmGate: ComposeLlmGate
+    private val composePreLlmRules: ComposePreLlmRules
 ) {
     private data class RewriteRequest(
         val content: String
@@ -213,7 +212,7 @@ class SummaryEngine(
 
         val deterministicResult = composePreLlmRules.rewrite(request.content)
         val deterministicOutput = composePolicy.normalizeComposeOutputText(deterministicResult.text)
-        if (!composeLlmGate.shouldUseLlm(request.content, deterministicResult)) {
+        if (!composePreLlmRules.shouldUseLlm(request.content, deterministicResult)) {
             return RewriteResult.Success(
                 text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),

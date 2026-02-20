@@ -13,7 +13,7 @@ import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.benchmark.LiteRtBenchmarkGateway
-import com.sanogueralorenzo.voice.benchmark.BenchmarkDatasetParser
+import com.sanogueralorenzo.voice.benchmark.BenchmarkDatasetLoader
 import com.sanogueralorenzo.voice.benchmark.BenchmarkReportFormatter
 import com.sanogueralorenzo.voice.benchmark.BenchmarkRunner
 import com.sanogueralorenzo.voice.benchmark.BenchmarkScoring
@@ -214,7 +214,7 @@ class BenchmarkAdbService : Service() {
                     .filter { it.isNotBlank() && !it.startsWith("#") }
                     .toList()
             }.mapIndexedNotNull { index, line ->
-                BenchmarkDatasetParser.parseLineToCase(
+                BenchmarkDatasetLoader.parseLineToCase(
                     line = line,
                     fallbackIndex = index + 1
                 )
@@ -254,8 +254,7 @@ class BenchmarkAdbService : Service() {
         val gateway = LiteRtBenchmarkGateway(
             context = applicationContext,
             composePolicy = applicationContext.appGraph().composePostLlmRules,
-            composePreLlmRules = applicationContext.appGraph().composePreLlmRules,
-            composeLlmGate = applicationContext.appGraph().composeLlmGate
+            composePreLlmRules = applicationContext.appGraph().composePreLlmRules
         )
         val activePromptTemplate = if (promptTemplate.isNullOrBlank()) {
             PromptTemplateStore(applicationContext).currentPromptTemplate()

@@ -89,8 +89,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         SummaryEngine(
             context = this,
             composePolicy = appGraphLazy.value.composePostLlmRules,
-            composePreLlmRules = appGraphLazy.value.composePreLlmRules,
-            composeLlmGate = appGraphLazy.value.composeLlmGate
+            composePreLlmRules = appGraphLazy.value.composePreLlmRules
         )
     }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }
@@ -101,30 +100,25 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val asrRuntimeStatusStore: AsrRuntimeStatusStore get() = asrRuntimeStatusStoreLazy.value
     private val preferencesRepository: PreferencesRepository get() = preferencesRepositoryLazy.value
     private val themeRepository: ThemeRepository get() = themeRepositoryLazy.value
-    private val imePipeline by lazy {
-        VoiceImePipeline(
-            speechProcessor = SpeechProcessor(
-                asrStage = AsrStage(
-                    transcriptionCoordinator = ImeTranscriptionCoordinator(
-                        moonshineTranscriber = moonshineTranscriber,
-                        asrRuntimeStatusStore = asrRuntimeStatusStore,
-                        logTag = TAG
-                    )
-                ),
-                preLlmRulesStage = PreLlmRulesStage(
-                    preferencesRepository = preferencesRepository,
-                    summaryEngine = summaryEngine,
-                    composePreLlmRules = appGraphLazy.value.composePreLlmRules,
-                    composeLlmGate = appGraphLazy.value.composeLlmGate
-                ),
-                llmStage = LlmStage(
-                    summaryEngine = summaryEngine
-                ),
-                postLlmRulesStage = PostLlmRulesStage()
+    private val speechProcessor by lazy {
+        SpeechProcessor(
+            asrStage = AsrStage(
+                moonshineTranscriber = moonshineTranscriber,
+                asrRuntimeStatusStore = asrRuntimeStatusStore,
+                logTag = TAG
             ),
-            commitCoordinator = ImeCommitCoordinator()
+            preLlmRulesStage = PreLlmRulesStage(
+                preferencesRepository = preferencesRepository,
+                summaryEngine = summaryEngine,
+                composePreLlmRules = appGraphLazy.value.composePreLlmRules
+            ),
+            llmStage = LlmStage(
+                summaryEngine = summaryEngine
+            ),
+            postLlmRulesStage = PostLlmRulesStage()
         )
     }
+    private val imeCommitCoordinator = ImeCommitCoordinator()
     private val keyboardViewModel by lazy { VoiceKeyboardViewModel(VoiceKeyboardState()) }
 
     override val lifecycle: Lifecycle
@@ -355,7 +349,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 sourceTextSnapshot = request.sourceTextSnapshot,
                 chunkSessionId = request.chunkSessionId
             )
-            val pipelineResult = imePipeline.processSpeech(
+            val pipelineResult = speechProcessor.process(
                 request = pipelineRequest,
                 awaitChunkSessionQuiescence = { awaitChunkSessionQuiescence(it) },
                 finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) },
@@ -408,7 +402,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         mainHandler.post {
             inFlight = null
             val outputForCommit = rewrite.output
-            val commitResult = imePipeline.commit(
+            val commitResult = imeCommitCoordinator.commit(
                 operation = rewrite.operation,
                 outputForCommit = outputForCommit,
                 editIntent = metrics.editIntent,

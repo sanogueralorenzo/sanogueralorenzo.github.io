@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.di.appGraph
+import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.settings.SettingsFlowScreen
 import com.sanogueralorenzo.voice.setup.SetupFlowScreen
 
@@ -20,10 +21,10 @@ fun MainNavHost() {
     val context = LocalContext.current
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
-    val settingsRepository = remember(appGraph) { appGraph.settingsRepository }
+    val setupRepository = remember(appGraph) { appGraph.setupRepository }
     val navController = rememberNavController()
-    val startDestination = remember(settingsRepository) {
-        if (settingsRepository.shouldStartInSetup()) {
+    val startDestination = remember(setupRepository) {
+        if (setupRepository.requiredStep() != SetupRepository.RequiredStep.COMPLETE) {
             MainRoute.SETUP_FLOW
         } else {
             MainRoute.SETTINGS_FLOW

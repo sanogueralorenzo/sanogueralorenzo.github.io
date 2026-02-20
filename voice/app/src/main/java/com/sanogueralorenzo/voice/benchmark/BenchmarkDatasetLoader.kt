@@ -2,6 +2,7 @@ package com.sanogueralorenzo.voice.benchmark
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -34,7 +35,7 @@ internal object BenchmarkDatasetLoader {
                     .toList()
             }
             val parsed = rows.mapIndexedNotNull { index, line ->
-                BenchmarkDatasetParser.parseLineToCase(line = line, fallbackIndex = index + 1)
+                parseLineToCase(line = line, fallbackIndex = index + 1)
             }
             if (parsed.isEmpty()) {
                 throw IllegalStateException("Dataset is empty")
@@ -45,4 +46,21 @@ internal object BenchmarkDatasetLoader {
         }
     }
 
+    fun parseLineToCase(line: String, fallbackIndex: Int): BenchmarkCase? {
+        return runCatching {
+            val json = JSONObject(line)
+            val input = json.optString("input").trim()
+            if (input.isBlank()) return null
+            val id = json.optInt("id", fallbackIndex)
+            val expected = json.optString("expected").trim().ifBlank { null }
+            BenchmarkCase(
+                id = id.toString(),
+                title = "Case $id",
+                category = "compose",
+                type = BenchmarkCaseType.COMPOSE,
+                composeInput = input,
+                expectedOutput = expected
+            )
+        }.getOrNull()
+    }
 }

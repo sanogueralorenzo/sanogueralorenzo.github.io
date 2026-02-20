@@ -1,12 +1,16 @@
 package com.sanogueralorenzo.voice.ime
 
 import android.os.SystemClock
+import android.util.Log
+import com.sanogueralorenzo.voice.asr.AsrEngine
+import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
+import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
+import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
-import com.sanogueralorenzo.voice.summary.ComposeLlmGate
 import com.sanogueralorenzo.voice.summary.EditInstructionRules
-import com.sanogueralorenzo.voice.summary.SummaryEngine
 import com.sanogueralorenzo.voice.summary.RewriteResult
+import com.sanogueralorenzo.voice.summary.SummaryEngine
 
 /**
  * 4-stage speech pipeline orchestrator:
@@ -60,18 +64,126 @@ internal class SpeechProcessor(
  * Stage 1: produces ASR output from captured audio with timing/path metadata.
  */
 internal class AsrStage(
-    private val transcriptionCoordinator: ImeTranscriptionCoordinator
+    private val moonshineTranscriber: MoonshineTranscriber,
+    private val asrRuntimeStatusStore: AsrRuntimeStatusStore,
+    private val logTag: String = "VoiceIme"
 ) {
     fun process(
         request: ImePipelineRequest,
         awaitChunkSessionQuiescence: (Int) -> Unit,
         finalizeMoonshineTranscript: (Int) -> String
     ): ImeTranscriptionResult {
-        return transcriptionCoordinator.transcribe(
-            request = request,
-            awaitChunkSessionQuiescence = awaitChunkSessionQuiescence,
-            finalizeMoonshineTranscript = finalizeMoonshineTranscript
+        val startedAt = SystemClock.uptimeMillis()
+        val fullPcm = request.recorder.stopAndGetPcm()
+        val chunkWaitStartedAt = SystemClock.uptimeMillis()
+        awaitChunkSessionQuiescence(request.chunkSessionId)
+        val chunkWaitElapsedMs = SystemClock.uptimeMillis() - chunkWaitStartedAt
+
+        val moonshineStartedAt = SystemClock.uptimeMillis()
+        val streamingText = finalizeMoonshineTranscript(request.chunkSessionId)
+        val moonshineElapsedMs = SystemClock.uptimeMillis() - moonshineStartedAt
+        if (streamingText.isNotBlank()) {
+            asrRuntimeStatusStore.recordRun(engineUsed = AsrEngine.MOONSHINE)
+            val totalElapsedMs = SystemClock.uptimeMillis() - startedAt
+            if (totalElapsedMs >= SLOW_TRANSCRIBE_PIPELINE_MS) {
+                Log.i(
+                    logTag,
+                    "Moonshine transcribe pipeline slow: total=${totalElapsedMs}ms moonshine=${moonshineElapsedMs}ms chunkWait=${chunkWaitElapsedMs}ms samples=${fullPcm.size} finalChars=${streamingText.length}"
+                )
+            }
+            return ImeTranscriptionResult(
+                transcript = streamingText,
+                path = TranscriptionPath.STREAMING,
+                inputSamples = fullPcm.size,
+                chunkWaitMs = chunkWaitElapsedMs,
+                streamingFinalizeMs = moonshineElapsedMs,
+                oneShotMs = 0L,
+                elapsedMs = totalElapsedMs
+            )
+        }
+
+        if (fullPcm.isEmpty()) {
+            asrRuntimeStatusStore.recordRun(
+                engineUsed = AsrEngine.MOONSHINE,
+                reason = "no_audio"
+            )
+            return ImeTranscriptionResult(
+                transcript = "",
+                path = TranscriptionPath.EMPTY_AUDIO,
+                inputSamples = 0,
+                chunkWaitMs = chunkWaitElapsedMs,
+                streamingFinalizeMs = moonshineElapsedMs,
+                oneShotMs = 0L,
+                elapsedMs = SystemClock.uptimeMillis() - startedAt
+            )
+        }
+
+        val oneShotStartedAt = SystemClock.uptimeMillis()
+        val oneShot = moonshineTranscriber.transcribeWithoutStreaming(
+            pcm = fullPcm,
+            sampleRateHz = VoiceAudioRecorder.SAMPLE_RATE_HZ
         )
+        var oneShotElapsedMs = SystemClock.uptimeMillis() - oneShotStartedAt
+        var totalElapsedMs = SystemClock.uptimeMillis() - startedAt
+        if (oneShot.isNotBlank()) {
+            asrRuntimeStatusStore.recordRun(
+                engineUsed = AsrEngine.MOONSHINE,
+                reason = "streaming_empty_non_streaming_used"
+            )
+            return ImeTranscriptionResult(
+                transcript = oneShot,
+                path = TranscriptionPath.ONE_SHOT_FALLBACK,
+                inputSamples = fullPcm.size,
+                chunkWaitMs = chunkWaitElapsedMs,
+                streamingFinalizeMs = moonshineElapsedMs,
+                oneShotMs = oneShotElapsedMs,
+                elapsedMs = totalElapsedMs
+            )
+        }
+
+        // First-run/cold-start can occasionally return empty; reinitialize once and retry.
+        moonshineTranscriber.release()
+        moonshineTranscriber.warmup()
+        val retryStartedAt = SystemClock.uptimeMillis()
+        val retryOneShot = moonshineTranscriber.transcribeWithoutStreaming(
+            pcm = fullPcm,
+            sampleRateHz = VoiceAudioRecorder.SAMPLE_RATE_HZ
+        )
+        oneShotElapsedMs += (SystemClock.uptimeMillis() - retryStartedAt)
+        totalElapsedMs = SystemClock.uptimeMillis() - startedAt
+        if (retryOneShot.isNotBlank()) {
+            asrRuntimeStatusStore.recordRun(
+                engineUsed = AsrEngine.MOONSHINE,
+                reason = "streaming_empty_one_shot_retry_used"
+            )
+            return ImeTranscriptionResult(
+                transcript = retryOneShot,
+                path = TranscriptionPath.ONE_SHOT_RETRY,
+                inputSamples = fullPcm.size,
+                chunkWaitMs = chunkWaitElapsedMs,
+                streamingFinalizeMs = moonshineElapsedMs,
+                oneShotMs = oneShotElapsedMs,
+                elapsedMs = totalElapsedMs
+            )
+        }
+
+        asrRuntimeStatusStore.recordRun(
+            engineUsed = AsrEngine.MOONSHINE,
+            reason = "empty_after_all_paths_retry_failed"
+        )
+        return ImeTranscriptionResult(
+            transcript = "",
+            path = TranscriptionPath.EMPTY_AFTER_ALL_PATHS,
+            inputSamples = fullPcm.size,
+            chunkWaitMs = chunkWaitElapsedMs,
+            streamingFinalizeMs = moonshineElapsedMs,
+            oneShotMs = oneShotElapsedMs,
+            elapsedMs = totalElapsedMs
+        )
+    }
+
+    private companion object {
+        private const val SLOW_TRANSCRIBE_PIPELINE_MS = 900L
     }
 }
 
@@ -82,8 +194,7 @@ internal class AsrStage(
 internal class PreLlmRulesStage(
     private val preferencesRepository: PreferencesRepository,
     private val summaryEngine: SummaryEngine,
-    private val composePreLlmRules: ComposePreLlmRules,
-    private val composeLlmGate: ComposeLlmGate
+    private val composePreLlmRules: ComposePreLlmRules
 ) {
     fun process(
         sourceText: String,
@@ -129,7 +240,7 @@ internal class PreLlmRulesStage(
             sourceText = sourceText,
             transcript = transcript,
             deterministicOutput = deterministicResult.text,
-            llmCandidate = composeLlmGate.shouldUseLlm(
+            llmCandidate = composePreLlmRules.shouldUseLlm(
                 originalText = transcript,
                 deterministicResult = deterministicResult
             ),

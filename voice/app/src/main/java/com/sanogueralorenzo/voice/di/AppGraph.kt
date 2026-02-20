@@ -6,11 +6,9 @@ import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
-import com.sanogueralorenzo.voice.settings.SettingsRepository
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
-import com.sanogueralorenzo.voice.summary.ComposeLlmGate
 import com.sanogueralorenzo.voice.summary.ComposePostLlmRules
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
@@ -26,10 +24,8 @@ interface AppGraph {
     val modelUpdateChecker: ModelUpdateChecker
     val composePostLlmRules: ComposePostLlmRules
     val composePreLlmRules: ComposePreLlmRules
-    val composeLlmGate: ComposeLlmGate
     val connectivityRepository: ConnectivityRepository
     val setupRepository: SetupRepository
-    val settingsRepository: SettingsRepository
 
     @Provides
     fun provideApplicationContext(application: Application): Context = application
@@ -39,9 +35,6 @@ interface AppGraph {
 
     @Provides
     fun provideComposePreLlmRules(): ComposePreLlmRules = ComposePreLlmRules()
-
-    @Provides
-    fun provideComposeLlmGate(): ComposeLlmGate = ComposeLlmGate()
 
     @Provides
     fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)
