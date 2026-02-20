@@ -110,7 +110,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             ),
             rewriteCoordinator = ImeRewriteCoordinator(
                 preferencesRepository = preferencesRepository,
-                liteRtSummarizer = liteRtSummarizer
+                liteRtSummarizer = liteRtSummarizer,
+                deterministicComposeRewriter = appGraphLazy.value.deterministicComposeRewriter,
+                composeLlmGate = appGraphLazy.value.liteRtComposeLlmGate
             ),
             commitCoordinator = ImeCommitCoordinator()
         )
@@ -379,8 +381,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 transcriptChars = transcribe.transcript.length,
                 outputChars = rewrite.output.length,
                 moonshineTranscriptText = debugTextSample(transcribe.transcript),
-                postLiteRtText = debugTextSample(rewrite.output),
-                rewriteAttempted = rewrite.attempted,
+                localRulesBeforeLlm = rewrite.diagnostics.localRulesBeforeLlm,
+                llmOutputText = debugTextSample(rewrite.diagnostics.llmOutputText ?: "(not invoked)"),
+                localRulesAfterLlm = rewrite.diagnostics.localRulesAfterLlm,
+                finalOutputText = debugTextSample(rewrite.output),
+                rewriteAttempted = rewrite.llmInvoked,
                 rewriteApplied = rewrite.applied,
                 rewriteBackend = rewrite.backend,
                 rewriteErrorType = rewrite.errorType,
@@ -400,11 +405,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun postSendResult(request: SendRequest, rewrite: ImeRewriteResult, metrics: VoiceDebugMetrics) {
         mainHandler.post {
             inFlight = null
-            val outputForCommit = appendInlineDebugIfEnabled(
-                output = rewrite.output,
-                metrics = metrics,
-                modeName = rewrite.operation.name
-            )
+            val outputForCommit = rewrite.output
             val commitResult = imePipeline.commit(
                 operation = rewrite.operation,
                 outputForCommit = outputForCommit,
@@ -439,16 +440,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             )
             keyboardViewModel.showIdle()
         }
-    }
-
-    private fun appendInlineDebugIfEnabled(
-        output: String,
-        metrics: VoiceDebugMetrics,
-        modeName: String
-    ): String {
-        if (!keyboardViewModel.isInlineDebugEnabled()) return output
-        if (output.isBlank()) return output
-        return output.trimEnd() + "\n\n" + VoiceDebugFooterFormatter.format(metrics, modeName)
     }
 
     private fun debugTextSample(text: String): String {

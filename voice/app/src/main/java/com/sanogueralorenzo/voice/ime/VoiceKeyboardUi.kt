@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,12 +27,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,7 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.ui.VoicePillVisualizer
@@ -55,6 +59,7 @@ import kotlinx.coroutines.delay
 
 private val KeyboardBarHeight = 84.dp
 private val KeyboardParentVerticalTrim = 8.dp
+private val DebugPanelHeight = 210.dp
 
 private data class ActivePillVisualState(
     val mode: VoiceKeyboardMode,
@@ -76,7 +81,13 @@ fun VoiceKeyboardImeContent(
     val density = LocalDensity.current
     val bottomSystemInset = with(density) { state.bottomInsetPx.toDp() }
     val keyboardVisibleHeight = KeyboardBarHeight - (KeyboardParentVerticalTrim * 2)
-    val keyboardContainerHeight = keyboardVisibleHeight + bottomSystemInset
+    val debugPanelHeight by animateDpAsState(
+        targetValue = if (state.inlineDebugEnabled) DebugPanelHeight else 0.dp,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "debug_panel_height"
+    )
+    val keyboardContentHeight = keyboardVisibleHeight + debugPanelHeight
+    val keyboardContainerHeight = keyboardContentHeight + bottomSystemInset
     val colors = rememberVoiceKeyboardColors(isDarkThemeOverride = isDarkThemeOverride)
 
     Box(
@@ -84,14 +95,29 @@ fun VoiceKeyboardImeContent(
             .fillMaxWidth()
             .height(keyboardContainerHeight)
             .background(colors.keyboardBackground),
-        contentAlignment = if (bottomSystemInset > 0.dp) Alignment.TopCenter else Alignment.Center
+        contentAlignment = Alignment.TopCenter
     ) {
-        BoxWithConstraints(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(keyboardVisibleHeight),
-            contentAlignment = Alignment.Center
+                .height(keyboardContentHeight)
         ) {
+            if (debugPanelHeight > 0.dp) {
+                DebugTracePanel(
+                    metrics = state.lastDebugMetrics,
+                    colors = colors,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(debugPanelHeight)
+                        .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 2.dp)
+                )
+            }
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(keyboardVisibleHeight),
+                contentAlignment = Alignment.Center
+            ) {
             val targetWidth = when (state.mode) {
                 VoiceKeyboardMode.IDLE -> VoicePillVisualizerWidth
                 VoiceKeyboardMode.RECORDING,
@@ -226,6 +252,119 @@ fun VoiceKeyboardImeContent(
                 )
             }
         }
+    }
+}
+}
+
+@Composable
+private fun DebugTracePanel(
+    metrics: VoiceDebugMetrics?,
+    colors: VoiceKeyboardColors,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(16.dp)),
+        color = colors.debugPanelContainer,
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (metrics == null) {
+                Text(
+                    text = "No trace yet. Record and send once, then tap the bug icon to inspect the pipeline.",
+                    color = colors.debugText
+                )
+                return@Column
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                DebugChip(label = "ASR ${metrics.transcribeMs}ms", colors = colors)
+                DebugChip(label = "LLM ${metrics.rewriteMs}ms", colors = colors)
+                DebugChip(label = "Total ${metrics.totalMs}ms", colors = colors)
+            }
+
+            DebugTraceSection(
+                title = "ASR Output",
+                text = metrics.moonshineTranscriptText,
+                colors = colors
+            )
+            DebugTraceSection(
+                title = "Local Rules (Before LLM)",
+                text = formatRuleList(metrics.localRulesBeforeLlm),
+                colors = colors
+            )
+            DebugTraceSection(
+                title = "LLM Output",
+                text = metrics.llmOutputText,
+                colors = colors
+            )
+            DebugTraceSection(
+                title = "Local Rules (After LLM)",
+                text = formatRuleList(metrics.localRulesAfterLlm),
+                colors = colors
+            )
+            DebugTraceSection(
+                title = "Final Output",
+                text = metrics.finalOutputText,
+                colors = colors
+            )
+
+            metrics.rewriteError?.let { error ->
+                DebugTraceSection(
+                    title = "LLM Error",
+                    text = error,
+                    colors = colors
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebugTraceSection(
+    title: String,
+    text: String,
+    colors: VoiceKeyboardColors
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            text = title,
+            color = colors.debugLabel,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = text.ifBlank { "(empty)" },
+            color = colors.debugText
+        )
+    }
+}
+
+@Composable
+private fun DebugChip(
+    label: String,
+    colors: VoiceKeyboardColors
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = colors.debugChipContainer
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            color = colors.debugText
+        )
+    }
+}
+
+private fun formatRuleList(rules: List<String>): String {
+    if (rules.isEmpty()) return "none"
+    return rules.joinToString(separator = "\n") { rule ->
+        "- ${rule.replace('_', ' ').lowercase()}"
     }
 }
 
@@ -407,13 +546,6 @@ private fun IdleDebugButton(
     }
 }
 
-private fun Dp.coerceInDp(min: Dp, max: Dp): Dp {
-    return when {
-        this < min -> min
-        this > max -> max
-        else -> this
-    }
-}
 private val IconContainerSize = 38.dp
 private val IconSlotSize = 44.dp
 private const val ActiveFadeInMs = 180

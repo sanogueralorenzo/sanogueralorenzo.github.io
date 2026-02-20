@@ -14,7 +14,11 @@ internal data class VoiceKeyboardColors(
     val idleAuxContainer: Color,
     val idleAuxContainerActive: Color,
     val idleAuxIcon: Color,
-    val idleDebugInactiveAlpha: Float
+    val idleDebugInactiveAlpha: Float,
+    val debugPanelContainer: Color,
+    val debugChipContainer: Color,
+    val debugLabel: Color,
+    val debugText: Color
 )
 
 @Composable
@@ -32,7 +36,11 @@ internal fun rememberVoiceKeyboardColors(isDarkThemeOverride: Boolean? = null): 
             idleAuxContainer = Color(0x29FFFFFF),
             idleAuxContainerActive = Color(0x52FFFFFF),
             idleAuxIcon = Color.White,
-            idleDebugInactiveAlpha = 0.65f
+            idleDebugInactiveAlpha = 0.65f,
+            debugPanelContainer = Color(0xFF1D232A),
+            debugChipContainer = Color(0x2EFFFFFF),
+            debugLabel = Color(0xFFE8EAED),
+            debugText = Color.White
         )
     } else {
         VoiceKeyboardColors(
@@ -45,7 +53,11 @@ internal fun rememberVoiceKeyboardColors(isDarkThemeOverride: Boolean? = null): 
             idleAuxContainer = Color(0x26000000),
             idleAuxContainerActive = Color(0x3D000000),
             idleAuxIcon = Color(0xFF202124),
-            idleDebugInactiveAlpha = 0.82f
+            idleDebugInactiveAlpha = 0.82f,
+            debugPanelContainer = Color(0xFFF6F7F8),
+            debugChipContainer = Color(0x14000000),
+            debugLabel = Color(0xFF5F6368),
+            debugText = Color(0xFF202124)
         )
     }
 }

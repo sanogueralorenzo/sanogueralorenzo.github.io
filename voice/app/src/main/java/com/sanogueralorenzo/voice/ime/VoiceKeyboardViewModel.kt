@@ -40,7 +40,10 @@ data class VoiceDebugMetrics(
     val transcriptChars: Int,
     val outputChars: Int,
     val moonshineTranscriptText: String,
-    val postLiteRtText: String,
+    val localRulesBeforeLlm: List<String>,
+    val llmOutputText: String,
+    val localRulesAfterLlm: List<String>,
+    val finalOutputText: String,
     val rewriteAttempted: Boolean,
     val rewriteApplied: Boolean,
     val rewriteBackend: String?,
@@ -149,13 +152,5 @@ class VoiceKeyboardViewModel(initialState: VoiceKeyboardState) :
 
     fun toggleInlineDebug() {
         setState { copy(inlineDebugEnabled = !inlineDebugEnabled) }
-    }
-
-    fun isInlineDebugEnabled(): Boolean {
-        var enabled = false
-        withState(this) { state ->
-            enabled = state.inlineDebugEnabled
-        }
-        return enabled
     }
 }

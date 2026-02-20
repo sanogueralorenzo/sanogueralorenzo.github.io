@@ -1,6 +1,8 @@
 package com.sanogueralorenzo.voice.ime
 
 import android.os.SystemClock
+import com.sanogueralorenzo.voice.summary.DeterministicComposeRewriter
+import com.sanogueralorenzo.voice.summary.LiteRtComposeLlmGate
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
@@ -8,7 +10,9 @@ import com.sanogueralorenzo.voice.summary.RewriteResult
 
 internal class ImeRewriteCoordinator(
     private val preferencesRepository: PreferencesRepository,
-    private val liteRtSummarizer: LiteRtSummarizer
+    private val liteRtSummarizer: LiteRtSummarizer,
+    private val deterministicComposeRewriter: DeterministicComposeRewriter,
+    private val composeLlmGate: LiteRtComposeLlmGate
 ) {
     fun rewrite(
         sourceText: String,
@@ -45,13 +49,14 @@ internal class ImeRewriteCoordinator(
             return ImeRewriteResult(
                 output = chunkResult.output,
                 operation = ImeOperation.APPEND,
-                attempted = chunkResult.attempted,
+                llmInvoked = chunkResult.llmInvoked,
                 applied = chunkResult.output != transcript,
                 backend = chunkResult.backend,
                 errorType = chunkResult.errorType,
                 errorMessage = chunkResult.errorMessage,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
+                editIntent = null,
+                diagnostics = chunkResult.diagnostics
             )
         }
 
@@ -60,13 +65,14 @@ internal class ImeRewriteCoordinator(
         return ImeRewriteResult(
             output = output,
             operation = ImeOperation.APPEND,
-            attempted = chunkResult.attempted,
+            llmInvoked = chunkResult.llmInvoked,
             applied = output != sourceText,
             backend = chunkResult.backend,
             errorType = chunkResult.errorType,
             errorMessage = chunkResult.errorMessage,
             elapsedMs = SystemClock.uptimeMillis() - startedAt,
-            editIntent = null
+            editIntent = null,
+            diagnostics = chunkResult.diagnostics
         )
     }
 
@@ -78,15 +84,17 @@ internal class ImeRewriteCoordinator(
         val startedAt = SystemClock.uptimeMillis()
         val normalizedSource = sourceText.trim()
         val normalizedInstruction = instructionTranscript.trim()
+        val localRulesBeforeLlm = mutableListOf("strict_edit_command")
         if (normalizedSource.isBlank() || normalizedInstruction.isBlank()) {
             return ImeRewriteResult(
                 output = sourceText,
                 operation = ImeOperation.EDIT,
-                attempted = false,
+                llmInvoked = false,
                 applied = false,
                 backend = null,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = null
+                editIntent = null,
+                diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
             )
         }
         val instructionAnalysis = LiteRtEditHeuristics.analyzeInstruction(normalizedInstruction)
@@ -97,15 +105,20 @@ internal class ImeRewriteCoordinator(
             instructionText = normalizedInstruction
         )
         if (deterministicEdit != null && !deterministicEdit.noMatchDetected) {
+            localRulesBeforeLlm += "deterministic_${deterministicEdit.commandKind.name.lowercase()}"
             return ImeRewriteResult(
                 output = deterministicEdit.output,
                 operation = ImeOperation.EDIT,
-                attempted = false,
+                llmInvoked = false,
                 applied = deterministicEdit.output != sourceText,
                 backend = null,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = deterministicEdit.intent.name
+                editIntent = deterministicEdit.intent.name,
+                diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
             )
+        }
+        if (deterministicEdit?.noMatchDetected == true) {
+            localRulesBeforeLlm += "deterministic_no_match"
         }
 
         val rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()
@@ -113,11 +126,12 @@ internal class ImeRewriteCoordinator(
             return ImeRewriteResult(
                 output = sourceText,
                 operation = ImeOperation.EDIT,
-                attempted = false,
+                llmInvoked = false,
                 applied = false,
                 backend = null,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
+                editIntent = editIntent,
+                diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
             )
         }
 
@@ -128,32 +142,42 @@ internal class ImeRewriteCoordinator(
         )
         return when (result) {
             is RewriteResult.Success -> {
+                val localRulesAfterLlm = mutableListOf<String>()
                 val normalizedOutput = LiteRtEditHeuristics.applyPostReplaceCapitalization(
                     sourceText = sourceText,
                     instructionText = normalizedInstruction,
                     editedOutput = result.text
                 )
+                if (normalizedOutput != result.text) {
+                    localRulesAfterLlm += "post_replace_capitalization"
+                }
                 ImeRewriteResult(
                     output = normalizedOutput,
                     operation = ImeOperation.EDIT,
-                    attempted = true,
+                    llmInvoked = true,
                     applied = normalizedOutput != sourceText,
                     backend = result.backend.name,
                     elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                    editIntent = editIntent
+                    editIntent = editIntent,
+                    diagnostics = ImeRewriteDiagnostics(
+                        localRulesBeforeLlm = localRulesBeforeLlm,
+                        llmOutputText = result.text,
+                        localRulesAfterLlm = localRulesAfterLlm
+                    )
                 )
             }
 
             is RewriteResult.Failure -> ImeRewriteResult(
                 output = sourceText,
                 operation = ImeOperation.EDIT,
-                attempted = true,
+                llmInvoked = true,
                 applied = false,
                 backend = result.backend?.name,
                 errorType = result.error.type,
                 errorMessage = result.error.litertError,
                 elapsedMs = SystemClock.uptimeMillis() - startedAt,
-                editIntent = editIntent
+                editIntent = editIntent,
+                diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
             )
         }
     }
@@ -162,13 +186,22 @@ internal class ImeRewriteCoordinator(
         transcript: String,
         onShowRewriting: () -> Unit
     ): ChunkRewriteResult {
+        val deterministicResult = deterministicComposeRewriter.rewrite(transcript)
+        val localRulesBeforeLlm = deterministicResult.appliedRules.map { rule ->
+            "compose_${rule.name.lowercase()}"
+        }
+        val llmCandidate = composeLlmGate.shouldUseLlm(
+            originalText = transcript,
+            deterministicResult = deterministicResult
+        )
         val rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()
         val shouldRewrite = rewriteEnabled && transcript.isNotBlank() && liteRtSummarizer.isModelAvailable()
         if (!shouldRewrite) {
             return ChunkRewriteResult(
                 output = transcript,
-                attempted = false,
-                backend = null
+                llmInvoked = false,
+                backend = null,
+                diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
             )
         }
 
@@ -176,25 +209,36 @@ internal class ImeRewriteCoordinator(
         return when (val result = liteRtSummarizer.summarizeBlocking(text = transcript)) {
             is RewriteResult.Success -> ChunkRewriteResult(
                 output = result.text,
-                attempted = true,
-                backend = result.backend.name
+                llmInvoked = llmCandidate,
+                backend = result.backend.name,
+                diagnostics = ImeRewriteDiagnostics(
+                    localRulesBeforeLlm = localRulesBeforeLlm,
+                    llmOutputText = if (llmCandidate) result.text else null,
+                    localRulesAfterLlm = if (llmCandidate && result.text != deterministicResult.text) {
+                        listOf("compose_output_policy")
+                    } else {
+                        emptyList()
+                    }
+                )
             )
 
             is RewriteResult.Failure -> ChunkRewriteResult(
                 output = transcript,
-                attempted = true,
+                llmInvoked = llmCandidate,
                 backend = result.backend?.name,
                 errorType = result.error.type,
-                errorMessage = result.error.litertError
+                errorMessage = result.error.litertError,
+                diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
             )
         }
     }
 
     private data class ChunkRewriteResult(
         val output: String,
-        val attempted: Boolean,
+        val llmInvoked: Boolean,
         val backend: String?,
         val errorType: String? = null,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
+        val diagnostics: ImeRewriteDiagnostics = ImeRewriteDiagnostics()
     )
 }

@@ -26,13 +26,20 @@ internal data class ImeTranscriptionResult(
 internal data class ImeRewriteResult(
     val output: String,
     val operation: ImeOperation,
-    val attempted: Boolean,
+    val llmInvoked: Boolean,
     val applied: Boolean,
     val backend: String?,
     val errorType: String? = null,
     val errorMessage: String? = null,
     val elapsedMs: Long,
-    val editIntent: String?
+    val editIntent: String?,
+    val diagnostics: ImeRewriteDiagnostics = ImeRewriteDiagnostics()
+)
+
+internal data class ImeRewriteDiagnostics(
+    val localRulesBeforeLlm: List<String> = emptyList(),
+    val llmOutputText: String? = null,
+    val localRulesAfterLlm: List<String> = emptyList()
 )
 
 internal data class ImePipelineResult(

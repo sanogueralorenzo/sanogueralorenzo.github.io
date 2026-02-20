@@ -108,6 +108,6 @@
     <string name="setup_prompt_download_error_unknown">Failed downloading prompt (unknown error).</string>
     <string name="ime_delete_recording">Stop recording</string>
     <string name="ime_send_recording">Send recording</string>
-    <string name="ime_debug_enable">Enable inline debug info</string>
-    <string name="ime_debug_disable">Disable inline debug info</string>
+    <string name="ime_debug_enable">Show debug trace</string>
+    <string name="ime_debug_disable">Hide debug trace</string>
 </resources>
