@@ -7,13 +7,10 @@ import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -30,7 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class SetupFlowStep {
+enum class SetupDestination {
     SPLASH,
     INTRO,
     DOWNLOAD_MODELS,
@@ -44,7 +41,7 @@ data class SetupState(
     val coreRequiredStep: SetupRepository.RequiredStep = SetupRepository.RequiredStep.DOWNLOAD_MODELS,
     val isSplashComplete: Boolean = false,
     val isIntroComplete: Boolean = false,
-    val requiredStep: SetupFlowStep = SetupFlowStep.SPLASH
+    val destination: SetupDestination = SetupDestination.SPLASH
 ) : MavericksState
 
 class SetupViewModel(
@@ -52,21 +49,17 @@ class SetupViewModel(
     private val setupRepository: SetupRepository
 ) : MavericksViewModel<SetupState>(initialState) {
 
-    init {
-        refreshRequiredStep()
-    }
-
     fun onSplashFinished() {
         setState {
             val updated = copy(isSplashComplete = true)
-            updated.copy(requiredStep = computeFlowStep(updated))
+            updated.copy(destination = computeDestination(updated))
         }
     }
 
     fun onIntroContinue() {
         setState {
             val updated = copy(isIntroComplete = true)
-            updated.copy(requiredStep = computeFlowStep(updated))
+            updated.copy(destination = computeDestination(updated))
         }
     }
 
@@ -77,20 +70,20 @@ class SetupViewModel(
             }
             setState {
                 val updated = copy(coreRequiredStep = requiredStep)
-                updated.copy(requiredStep = computeFlowStep(updated))
+                updated.copy(destination = computeDestination(updated))
             }
         }
     }
 
-    private fun computeFlowStep(state: SetupState): SetupFlowStep {
-        if (!state.isSplashComplete) return SetupFlowStep.SPLASH
-        if (!state.isIntroComplete) return SetupFlowStep.INTRO
+    private fun computeDestination(state: SetupState): SetupDestination {
+        if (!state.isSplashComplete) return SetupDestination.SPLASH
+        if (!state.isIntroComplete) return SetupDestination.INTRO
         return when (state.coreRequiredStep) {
-            SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupFlowStep.DOWNLOAD_MODELS
-            SetupRepository.RequiredStep.MIC_PERMISSION -> SetupFlowStep.MIC_PERMISSION
-            SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupFlowStep.ENABLE_KEYBOARD
-            SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupFlowStep.SELECT_KEYBOARD
-            SetupRepository.RequiredStep.COMPLETE -> SetupFlowStep.COMPLETE
+            SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupDestination.DOWNLOAD_MODELS
+            SetupRepository.RequiredStep.MIC_PERMISSION -> SetupDestination.MIC_PERMISSION
+            SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupDestination.ENABLE_KEYBOARD
+            SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupDestination.SELECT_KEYBOARD
+            SetupRepository.RequiredStep.COMPLETE -> SetupDestination.COMPLETE
         }
     }
 
@@ -100,7 +93,7 @@ class SetupViewModel(
             val requiredStep = app.appGraph.setupRepository.requiredStep()
             return SetupState(
                 coreRequiredStep = requiredStep,
-                requiredStep = SetupFlowStep.SPLASH
+                destination = SetupDestination.SPLASH
             )
         }
 
@@ -134,7 +127,7 @@ fun SetupFlowScreen(
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
+            if (event == Lifecycle.Event.ON_RESUME) {
                 setupViewModel.refreshRequiredStep()
             }
         }
@@ -142,40 +135,30 @@ fun SetupFlowScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(Unit) {
-        setupViewModel.refreshRequiredStep()
-    }
-
-    val requiredSetupRoute = when (state.requiredStep) {
-        SetupFlowStep.SPLASH -> SetupRoute.SETUP_SPLASH
-        SetupFlowStep.INTRO -> SetupRoute.SETUP_INTRO
-        SetupFlowStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
-        SetupFlowStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
-        SetupFlowStep.DOWNLOAD_MODELS -> SetupRoute.SETUP_MODELS
-        SetupFlowStep.SELECT_KEYBOARD -> SetupRoute.SETUP_SELECT_KEYBOARD
-        SetupFlowStep.COMPLETE -> null
-    }
-
-    LaunchedEffect(state.requiredStep) {
-        if (state.requiredStep == SetupFlowStep.COMPLETE) {
+    LaunchedEffect(state.destination) {
+        if (state.destination == SetupDestination.COMPLETE) {
             onSetupComplete()
         }
     }
 
-    if (requiredSetupRoute == null) {
-        Box(modifier = Modifier.fillMaxSize())
-        return
+    when (state.destination) {
+        SetupDestination.SPLASH -> SetupStep1SplashScreen(onFinished = setupViewModel::onSplashFinished)
+        SetupDestination.INTRO -> SetupStep2IntroScreen(onContinue = setupViewModel::onIntroContinue)
+        SetupDestination.DOWNLOAD_MODELS -> SetupStep3ModelsDownloadScreen(
+            onModelsReady = setupViewModel::refreshRequiredStep
+        )
+        SetupDestination.MIC_PERMISSION -> SetupStep4MicPermissionScreen(
+            onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
+        )
+        SetupDestination.ENABLE_KEYBOARD -> SetupStep5KeyboardEnableScreen(
+            onOpenImeSettings = { openImeSettings(context) }
+        )
+        SetupDestination.SELECT_KEYBOARD -> SetupStep6KeyboardSelectScreen(
+            onRequestKeyboardPicker = { showImePicker(context) },
+            onDone = setupViewModel::refreshRequiredStep
+        )
+        SetupDestination.COMPLETE -> Unit
     }
-
-    SetupStepNavHost(
-        requiredRoute = requiredSetupRoute,
-        onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
-        onOpenImeSettings = { openImeSettings(context) },
-        onShowImePicker = { showImePicker(context) },
-        onSplashFinished = { setupViewModel.onSplashFinished() },
-        onIntroContinue = { setupViewModel.onIntroContinue() },
-        onSetupStateChanged = { setupViewModel.refreshRequiredStep() }
-    )
 }
 
 private fun openImeSettings(context: Context) {
