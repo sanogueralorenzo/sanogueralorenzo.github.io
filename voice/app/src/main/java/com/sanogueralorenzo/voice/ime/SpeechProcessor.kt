@@ -8,6 +8,13 @@ import com.sanogueralorenzo.voice.summary.LiteRtEditHeuristics
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
 import com.sanogueralorenzo.voice.summary.RewriteResult
 
+/**
+ * 4-stage speech pipeline orchestrator:
+ * 1) ASR output
+ * 2) Pre-LLM local rules (rule decisions before model)
+ * 3) LLM output
+ * 4) Post-LLM local rules (final normalization/guards)
+ */
 internal class SpeechProcessor(
     private val asrOutputProcessor: AsrOutputProcessor,
     private val preLlmLocalRulesProcessor: PreLlmLocalRulesProcessor,
@@ -49,6 +56,9 @@ internal class SpeechProcessor(
     }
 }
 
+/**
+ * Stage 1: produces ASR output from captured audio with timing/path metadata.
+ */
 internal class AsrOutputProcessor(
     private val transcriptionCoordinator: ImeTranscriptionCoordinator
 ) {
@@ -65,6 +75,10 @@ internal class AsrOutputProcessor(
     }
 }
 
+/**
+ * Stage 2: applies deterministic/local rules before any LLM call and decides
+ * whether processing can complete locally or should continue to Stage 3.
+ */
 internal class PreLlmLocalRulesProcessor(
     private val preferencesRepository: PreferencesRepository,
     private val liteRtSummarizer: LiteRtSummarizer,
@@ -189,6 +203,10 @@ internal class PreLlmLocalRulesProcessor(
     }
 }
 
+/**
+ * Stage 3: executes LLM rewrite/edit when requested by Stage 2 and returns
+ * model output/fallback details.
+ */
 internal class LlmOutputProcessor(
     private val liteRtSummarizer: LiteRtSummarizer
 ) {
@@ -244,6 +262,10 @@ internal class LlmOutputProcessor(
     }
 }
 
+/**
+ * Stage 4: applies final local rules after LLM output, then builds the
+ * final rewrite result and diagnostics for commit/debug trace.
+ */
 internal class PostLlmLocalRulesProcessor {
     fun processComplete(
         input: PreLlmResult.Complete
