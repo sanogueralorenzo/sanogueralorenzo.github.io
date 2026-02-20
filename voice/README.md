@@ -3,16 +3,17 @@
 Voice is an on-device voice keyboard built for speed, accuracy, and privacy.
 
 - Dictation: Moonshine ASR (local)
-- Rewrite/Edit: LiteRT-LM (local, optional)
+- Rewrite/Edit: LiteRT-LM (local)
 - Output: commits text directly into the active input field
 - Network: only for model/prompt downloads and update checks
 
 ## Why Voice
 
 - Fast speech-to-text inside the keyboard
-- Reliable local rewrite/edit when enabled
-- No cloud inference in normal runtime
-- Setup optimized to reduce taps (auto-download on Wi-Fi, auto-advance when ready)
+- Reliable local rewrite/edit
+- Fully on-device runtime with no cloud inference
+- GPU-accelerated inference when available
+- Fastest experience out there, powered by live transcription and live LLM rewrite
 
 ## User Setup
 
