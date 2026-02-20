@@ -37,7 +37,6 @@ enum class SetupDestination {
 }
 
 data class SetupState(
-    val coreRequiredStep: SetupRepository.RequiredStep = SetupRepository.RequiredStep.DOWNLOAD_MODELS,
     val isSplashComplete: Boolean = false,
     val isIntroComplete: Boolean = false,
     val destination: SetupDestination = SetupDestination.SPLASH
@@ -48,18 +47,22 @@ class SetupViewModel(
     private val setupRepository: SetupRepository
 ) : MavericksViewModel<SetupState>(initialState) {
 
+    init {
+        refreshRequiredStep()
+    }
+
     fun onSplashFinished() {
         setState {
-            val updated = copy(isSplashComplete = true)
-            updated.copy(destination = computeDestination(updated))
+            copy(
+                isSplashComplete = true,
+                destination = if (!isIntroComplete) SetupDestination.INTRO else destination
+            )
         }
     }
 
     fun onIntroContinue() {
-        setState {
-            val updated = copy(isIntroComplete = true)
-            updated.copy(destination = computeDestination(updated))
-        }
+        setState { copy(isIntroComplete = true) }
+        refreshRequiredStep()
     }
 
     fun refreshRequiredStep() {
@@ -68,16 +71,25 @@ class SetupViewModel(
                 setupRepository.requiredStep()
             }
             setState {
-                val updated = copy(coreRequiredStep = requiredStep)
-                updated.copy(destination = computeDestination(updated))
+                copy(
+                    destination = computeDestination(
+                        isSplashComplete = isSplashComplete,
+                        isIntroComplete = isIntroComplete,
+                        requiredStep = requiredStep
+                    )
+                )
             }
         }
     }
 
-    private fun computeDestination(state: SetupState): SetupDestination {
-        if (!state.isSplashComplete) return SetupDestination.SPLASH
-        if (!state.isIntroComplete) return SetupDestination.INTRO
-        return when (state.coreRequiredStep) {
+    private fun computeDestination(
+        isSplashComplete: Boolean,
+        isIntroComplete: Boolean,
+        requiredStep: SetupRepository.RequiredStep
+    ): SetupDestination {
+        if (!isSplashComplete) return SetupDestination.SPLASH
+        if (!isIntroComplete) return SetupDestination.INTRO
+        return when (requiredStep) {
             SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupDestination.DOWNLOAD_MODELS
             SetupRepository.RequiredStep.MIC_PERMISSION -> SetupDestination.MIC_PERMISSION
             SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupDestination.KEYBOARD
@@ -88,12 +100,7 @@ class SetupViewModel(
 
     companion object : MavericksViewModelFactory<SetupViewModel, SetupState> {
         override fun initialState(viewModelContext: ViewModelContext): SetupState {
-            val app = viewModelContext.app<VoiceApp>()
-            val requiredStep = app.appGraph.setupRepository.requiredStep()
-            return SetupState(
-                coreRequiredStep = requiredStep,
-                destination = SetupDestination.SPLASH
-            )
+            return SetupState(destination = SetupDestination.SPLASH)
         }
 
         override fun create(
