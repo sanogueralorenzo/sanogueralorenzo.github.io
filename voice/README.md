@@ -22,16 +22,6 @@ Voice is an on-device voice keyboard built for speed, accuracy, and privacy.
 4. Enable Voice Keyboard in Android settings.
 5. Select Voice Keyboard in the IME picker.
 
-## Developer Quick Start
-
-```bash
-./gradlew :app:assembleDebug
-./gradlew :app:testDebugUnitTest
-./gradlew :app:lintDebug
-./gradlew :app:installDebug
-adb shell am start -n com.sanogueralorenzo.voice/.MainActivity
-```
-
 ## Key Files
 
 - IME orchestration: `app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceInputMethodService.kt`
@@ -47,8 +37,3 @@ adb shell am start -n com.sanogueralorenzo.voice/.MainActivity
 scripts/prompt_eval.sh --prompt-file examples/prompt_eval/prompt.txt --cases-file examples/prompt_eval/cases.jsonl --report-file .cache/prompt_eval/report.txt --json-report-file .cache/prompt_eval/report.json
 scripts/prompt_ab_optimize.sh --prompt-a-file scripts/prompt_a.json --prompt-b-file scripts/prompt_b.json --dataset-file scripts/dataset.jsonl
 ```
-
-## Contributor Notes
-
-- Keep user copy in `app/src/main/res/values/strings.xml`.
-- Keep this README concise and current.
