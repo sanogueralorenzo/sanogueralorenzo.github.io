@@ -33,7 +33,7 @@ class LiteRtSummarizer(
     private val composePolicy: LiteRtComposePolicy,
     private val deterministicComposeRewriter: DeterministicComposeRewriter,
     private val composeLlmGate: LiteRtComposeLlmGate
-) : LiteRtWarmupClient {
+) {
     private data class RewriteRequest(
         val content: String
     )
@@ -69,12 +69,12 @@ class LiteRtSummarizer(
     @Volatile
     private var initializedMaxNumTokens: Int = 0
 
-    override fun isModelAvailable(): Boolean {
+    fun isModelAvailable(): Boolean {
         return ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm) &&
             promptTemplateStore.isPromptReady()
     }
 
-    override fun summarizeBlocking(text: String): RewriteResult {
+    fun summarizeBlocking(text: String): RewriteResult {
         return summarizeBlocking(text = text, promptTemplateOverride = null)
     }
 

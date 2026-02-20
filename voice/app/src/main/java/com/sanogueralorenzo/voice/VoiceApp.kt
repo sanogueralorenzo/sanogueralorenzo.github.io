@@ -19,14 +19,18 @@ class VoiceApp : Application() {
     private val promptTemplateStore by lazy {
         PromptTemplateStore(this)
     }
+    private val liteRtWarmupSummarizer by lazy {
+        LiteRtSummarizer(
+            context = this,
+            composePolicy = appGraph.liteRtComposePolicy,
+            deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
+            composeLlmGate = appGraph.liteRtComposeLlmGate
+        )
+    }
     private val liteRtInitializer by lazy {
         LiteRtInitializer(
-            summarizer = LiteRtSummarizer(
-                context = this,
-                composePolicy = appGraph.liteRtComposePolicy,
-                deterministicComposeRewriter = appGraph.deterministicComposeRewriter,
-                composeLlmGate = appGraph.liteRtComposeLlmGate
-            ),
+            isModelAvailable = { liteRtWarmupSummarizer.isModelAvailable() },
+            runWarmup = { text -> liteRtWarmupSummarizer.summarizeBlocking(text) },
             modelReadyFlow = ModelStore.observeModelReady(this, ModelCatalog.liteRtLm),
             promptReadyFlow = promptTemplateStore.observePromptReady()
         )

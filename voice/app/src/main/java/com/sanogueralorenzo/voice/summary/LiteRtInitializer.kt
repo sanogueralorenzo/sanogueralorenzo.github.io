@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 class LiteRtInitializer(
-    private val summarizer: LiteRtWarmupClient,
+    private val isModelAvailable: () -> Boolean,
+    private val runWarmup: (String) -> RewriteResult,
     private val modelReadyFlow: Flow<Boolean>,
     private val promptReadyFlow: Flow<Boolean>
 ) {
@@ -36,12 +37,12 @@ class LiteRtInitializer(
     }
 
     fun warmupAsyncIfNeeded() {
-        if (!summarizer.isModelAvailable()) return
+        if (!isModelAvailable()) return
         if (!warmupStarted.compareAndSet(false, true)) return
 
         scope.launch {
             val result = runCatching {
-                summarizer.summarizeBlocking(WARMUP_PLACEHOLDER_INPUT)
+                runWarmup(WARMUP_PLACEHOLDER_INPUT)
             }.getOrElse { error ->
                 warmupStarted.set(false)
                 Log.w(TAG, "LiteRT warmup invocation failed", error)

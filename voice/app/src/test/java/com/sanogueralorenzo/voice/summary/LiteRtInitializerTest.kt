@@ -14,23 +14,19 @@ class LiteRtInitializerTest {
     fun warmupRunsOnlyOnceAfterReadinessAndSuccess() {
         val calls = AtomicInteger(0)
         val latch = CountDownLatch(1)
-        val client = object : LiteRtWarmupClient {
-            override fun isModelAvailable(): Boolean = true
-
-            override fun summarizeBlocking(text: String): RewriteResult {
+        val modelReadyFlow = MutableStateFlow(false)
+        val promptReadyFlow = MutableStateFlow(false)
+        val initializer = LiteRtInitializer(
+            isModelAvailable = { true },
+            runWarmup = { text ->
                 calls.incrementAndGet()
                 latch.countDown()
-                return RewriteResult.Success(
+                RewriteResult.Success(
                     text = text,
                     latencyMs = 1L,
                     backend = Backend.CPU
                 )
-            }
-        }
-        val modelReadyFlow = MutableStateFlow(false)
-        val promptReadyFlow = MutableStateFlow(false)
-        val initializer = LiteRtInitializer(
-            summarizer = client,
+            },
             modelReadyFlow = modelReadyFlow,
             promptReadyFlow = promptReadyFlow
         )
@@ -50,20 +46,16 @@ class LiteRtInitializerTest {
     @Test
     fun warmupSkipsWhenModelUnavailable() {
         val calls = AtomicInteger(0)
-        val client = object : LiteRtWarmupClient {
-            override fun isModelAvailable(): Boolean = false
-
-            override fun summarizeBlocking(text: String): RewriteResult {
+        val initializer = LiteRtInitializer(
+            isModelAvailable = { false },
+            runWarmup = { text ->
                 calls.incrementAndGet()
-                return RewriteResult.Success(
+                RewriteResult.Success(
                     text = text,
                     latencyMs = 1L,
                     backend = Backend.CPU
                 )
-            }
-        }
-        val initializer = LiteRtInitializer(
-            summarizer = client,
+            },
             modelReadyFlow = MutableStateFlow(true),
             promptReadyFlow = MutableStateFlow(true)
         )
