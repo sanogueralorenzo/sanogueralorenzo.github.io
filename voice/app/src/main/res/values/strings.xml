@@ -7,7 +7,7 @@
 
     <string name="settings_menu_languages_title">Languages</string>
     <string name="settings_menu_languages_subtitle">English (US)</string>
-    <string name="settings_languages_coming_soon_message">Languages are hard. %1$s prioritizes on-device accuracy and low word error rate. We will keep you updated on new languages.</string>
+    <string name="settings_languages_coming_soon_message">%1$s aims for the best on-device accuracy in the world. More languages coming soon.</string>
     <string name="settings_menu_preferences">Preferences</string>
     <string name="settings_menu_theme">Theme</string>
     <string name="settings_menu_benchmark">Benchmark</string>
