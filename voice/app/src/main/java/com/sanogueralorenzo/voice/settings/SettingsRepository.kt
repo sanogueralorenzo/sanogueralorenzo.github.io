@@ -11,8 +11,6 @@ class SettingsRepository(
     private val setupRepository: SetupRepository
 ) {
     fun shouldStartInSetup(): Boolean {
-        return setupRepository.requiredStep(
-            introDismissed = false
-        ) != SetupRepository.RequiredStep.COMPLETE
+        return setupRepository.requiredStep() != SetupRepository.RequiredStep.COMPLETE
     }
 }

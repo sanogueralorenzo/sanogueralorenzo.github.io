@@ -29,15 +29,19 @@ fun SetupStepNavHost(
     onGrantMic: () -> Unit,
     onOpenImeSettings: () -> Unit,
     onShowImePicker: () -> Unit,
-    onIntroContinue: () -> Unit,
     onSetupStateChanged: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
     var splashCompleted by rememberSaveable { mutableStateOf(false) }
+    var introCompleted by rememberSaveable { mutableStateOf(false) }
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
-    val effectiveRequiredRoute = if (!splashCompleted) SetupRoute.SETUP_SPLASH else requiredRoute
+    val effectiveRequiredRoute = when {
+        !splashCompleted -> SetupRoute.SETUP_SPLASH
+        !introCompleted -> SetupRoute.SETUP_INTRO
+        else -> requiredRoute
+    }
 
     LaunchedEffect(effectiveRequiredRoute, currentRoute) {
         if (currentRoute != effectiveRequiredRoute) {
@@ -58,7 +62,7 @@ fun SetupStepNavHost(
 
         composable(SetupRoute.SETUP_INTRO) {
             SetupIntroScreen(
-                onContinue = { onIntroContinue() }
+                onContinue = { introCompleted = true }
             )
         }
 

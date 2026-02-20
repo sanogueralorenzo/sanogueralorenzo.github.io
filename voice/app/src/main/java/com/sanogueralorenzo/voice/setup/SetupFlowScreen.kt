@@ -25,15 +25,13 @@ import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
-import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.VoiceApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class SetupState(
-    val introDismissed: Boolean = false,
-    val requiredStep: SetupRepository.RequiredStep = SetupRepository.RequiredStep.INTRO
+    val requiredStep: SetupRepository.RequiredStep = SetupRepository.RequiredStep.DOWNLOAD_MODELS
 ) : MavericksState
 
 class SetupViewModel(
@@ -45,22 +43,22 @@ class SetupViewModel(
         refreshRequiredStep()
     }
 
-    fun onSetupIntroContinue() {
-        setState { copy(introDismissed = true) }
-        refreshRequiredStep()
-    }
-
     fun refreshRequiredStep() {
         viewModelScope.launch {
-            val introDismissed = withState(this@SetupViewModel) { state -> state.introDismissed }
             val requiredStep = withContext(Dispatchers.IO) {
-                setupRepository.requiredStep(introDismissed = introDismissed)
+                setupRepository.requiredStep()
             }
             setState { copy(requiredStep = requiredStep) }
         }
     }
 
     companion object : MavericksViewModelFactory<SetupViewModel, SetupState> {
+        override fun initialState(viewModelContext: ViewModelContext): SetupState {
+            val app = viewModelContext.app<VoiceApp>()
+            val requiredStep = app.appGraph.setupRepository.requiredStep()
+            return SetupState(requiredStep = requiredStep)
+        }
+
         override fun create(
             viewModelContext: ViewModelContext,
             state: SetupState
@@ -104,7 +102,6 @@ fun SetupFlowScreen(
     }
 
     val requiredSetupRoute = when (state.requiredStep) {
-        SetupRepository.RequiredStep.INTRO -> SetupRoute.SETUP_INTRO
         SetupRepository.RequiredStep.MIC_PERMISSION -> SetupRoute.SETUP_MIC
         SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupRoute.SETUP_ENABLE_KEYBOARD
         SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupRoute.SETUP_MODELS
@@ -128,7 +125,6 @@ fun SetupFlowScreen(
         onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
         onOpenImeSettings = { openImeSettings(context) },
         onShowImePicker = { showImePicker(context) },
-        onIntroContinue = { setupViewModel.onSetupIntroContinue() },
         onSetupStateChanged = { setupViewModel.refreshRequiredStep() }
     )
 }

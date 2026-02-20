@@ -50,13 +50,9 @@ class SetupRepository(
     ) {
         val modelsOrPrompt: Boolean
             get() = liteRtModel || moonshineModel || promptTemplate
-
-        val allCoreItemsMissing: Boolean
-            get() = micPermission && imeEnabled && liteRtModel && moonshineModel && promptTemplate
     }
 
     enum class RequiredStep {
-        INTRO,
         MIC_PERMISSION,
         ENABLE_KEYBOARD,
         DOWNLOAD_MODELS,
@@ -116,14 +112,11 @@ class SetupRepository(
         )
     }
 
-    fun requiredStep(
-        introDismissed: Boolean
-    ): RequiredStep {
+    fun requiredStep(): RequiredStep {
         val missing = missingSetupItems()
         val setupComplete = isSetupComplete()
         return requiredStepForMissing(
             missing = missing,
-            introDismissed = introDismissed,
             setupComplete = setupComplete
         )
     }
@@ -153,10 +146,8 @@ class SetupRepository(
 
         internal fun requiredStepForMissing(
             missing: MissingSetupItems,
-            introDismissed: Boolean,
             setupComplete: Boolean
         ): RequiredStep {
-            if (!introDismissed && missing.allCoreItemsMissing) return RequiredStep.INTRO
             if (missing.modelsOrPrompt) return RequiredStep.DOWNLOAD_MODELS
             if (missing.micPermission) return RequiredStep.MIC_PERMISSION
             if (missing.imeEnabled) return RequiredStep.ENABLE_KEYBOARD

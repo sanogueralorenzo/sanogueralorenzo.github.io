@@ -5,27 +5,7 @@ import org.junit.Test
 
 class SetupRepositoryTest {
     @Test
-    fun requiredStep_returnsIntro_whenAllCoreItemsMissingAndNotDismissed() {
-        val missing = SetupRepository.MissingSetupItems(
-            micPermission = true,
-            imeEnabled = true,
-            liteRtModel = true,
-            moonshineModel = true,
-            promptTemplate = true
-        )
-
-        assertEquals(
-            SetupRepository.RequiredStep.INTRO,
-            SetupRepository.requiredStepForMissing(
-                missing = missing,
-                introDismissed = false,
-                setupComplete = false
-            )
-        )
-    }
-
-    @Test
-    fun requiredStep_skipsIntroAfterDismiss_andContinuesWithModelsStep() {
+    fun requiredStep_returnsModels_whenAllCoreItemsMissing() {
         val missing = SetupRepository.MissingSetupItems(
             micPermission = true,
             imeEnabled = true,
@@ -38,7 +18,6 @@ class SetupRepositoryTest {
             SetupRepository.RequiredStep.DOWNLOAD_MODELS,
             SetupRepository.requiredStepForMissing(
                 missing = missing,
-                introDismissed = true,
                 setupComplete = false
             )
         )
@@ -58,14 +37,32 @@ class SetupRepositoryTest {
             SetupRepository.RequiredStep.DOWNLOAD_MODELS,
             SetupRepository.requiredStepForMissing(
                 missing = missing,
-                introDismissed = true,
                 setupComplete = false
             )
         )
     }
 
     @Test
-    fun requiredStep_returnsSelectKeyboard_whenEverythingReadyButFinalStepNotDone() {
+    fun requiredStep_returnsMic_whenOnlyMicMissing() {
+        val missing = SetupRepository.MissingSetupItems(
+            micPermission = true,
+            imeEnabled = false,
+            liteRtModel = false,
+            moonshineModel = false,
+            promptTemplate = false
+        )
+
+        assertEquals(
+            SetupRepository.RequiredStep.MIC_PERMISSION,
+            SetupRepository.requiredStepForMissing(
+                missing = missing,
+                setupComplete = false
+            )
+        )
+    }
+
+    @Test
+    fun requiredStep_returnsSelectKeyboard_whenRequirementsReadyButSetupIncomplete() {
         val missing = SetupRepository.MissingSetupItems(
             micPermission = false,
             imeEnabled = false,
@@ -78,14 +75,13 @@ class SetupRepositoryTest {
             SetupRepository.RequiredStep.SELECT_KEYBOARD,
             SetupRepository.requiredStepForMissing(
                 missing = missing,
-                introDismissed = true,
                 setupComplete = false
             )
         )
     }
 
     @Test
-    fun requiredStep_returnsComplete_whenEverythingReady() {
+    fun requiredStep_returnsComplete_whenRequirementsReadyAndSetupComplete() {
         val missing = SetupRepository.MissingSetupItems(
             micPermission = false,
             imeEnabled = false,
@@ -98,7 +94,6 @@ class SetupRepositoryTest {
             SetupRepository.RequiredStep.COMPLETE,
             SetupRepository.requiredStepForMissing(
                 missing = missing,
-                introDismissed = true,
                 setupComplete = true
             )
         )
