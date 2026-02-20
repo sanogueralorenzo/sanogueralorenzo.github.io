@@ -1,88 +1,54 @@
-# Voice (Android IME)
+# Voice Keyboard (Android IME)
 
-Voice is an Android keyboard (IME) for on-device speech-to-text and optional local rewrite/edit.
+Voice is an on-device voice keyboard built for speed, accuracy, and privacy.
 
-- ASR: Moonshine (local)
+- Dictation: Moonshine ASR (local)
 - Rewrite/Edit: LiteRT-LM (local, optional)
-- Final output: committed to the active input field
-- Network use: model/prompt download and update checks only
+- Output: commits text directly into the active input field
+- Network: only for model/prompt downloads and update checks
 
-## Runtime Flow
+## Why Voice
 
-`tap mic -> record audio -> transcribe -> optional rewrite/edit -> commitText`
+- Fast speech-to-text inside the keyboard
+- Reliable local rewrite/edit when enabled
+- No cloud inference in normal runtime
+- Setup optimized to reduce taps (auto-download on Wi-Fi, auto-advance when ready)
 
-## What Users Get
-
-- Dictation directly from the keyboard
-- Optional cleanup/edit of dictated text
-- Setup flow for mic permission, model download, and keyboard enable/select
-- Update checks for models and prompt template
-
-## Setup (End User)
+## User Setup
 
 1. Install and open the app.
 2. Grant microphone permission.
-3. Let required downloads complete (auto-start on Wi-Fi).
-4. Enable Voice Keyboard in Android keyboard settings.
+3. Wait for required downloads.
+4. Enable Voice Keyboard in Android settings.
 5. Select Voice Keyboard in the IME picker.
 
-## Build and Test (Developer)
+## Developer Quick Start
 
 ```bash
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ./gradlew :app:lintDebug
-```
-
-Install and launch on a connected device/emulator:
-
-```bash
 ./gradlew :app:installDebug
 adb shell am start -n com.sanogueralorenzo.voice/.MainActivity
 ```
 
-## Key Source Files
+## Key Files
 
-- IME entry and orchestration:
-  - `app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceInputMethodService.kt`
-- Keyboard UI and state:
-  - `app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceKeyboardUi.kt`
-  - `app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceKeyboardViewModel.kt`
-- Audio capture / ASR:
-  - `app/src/main/java/com/sanogueralorenzo/voice/audio/VoiceAudioRecorder.kt`
-  - `app/src/main/java/com/sanogueralorenzo/voice/audio/MoonshineTranscriber.kt`
-- Rewrite / edit:
-  - `app/src/main/java/com/sanogueralorenzo/voice/summary/LiteRtSummarizer.kt`
-- Models and updates:
-  - `app/src/main/java/com/sanogueralorenzo/voice/models/ModelCatalog.kt`
-  - `app/src/main/java/com/sanogueralorenzo/voice/models/ModelDownloader.kt`
-  - `app/src/main/java/com/sanogueralorenzo/voice/models/ModelUpdateChecker.kt`
-- Setup flow:
-  - `app/src/main/java/com/sanogueralorenzo/voice/setup/SetupFlowScreen.kt`
+- IME orchestration: `app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceInputMethodService.kt`
+- Keyboard UI/state: `app/src/main/java/com/sanogueralorenzo/voice/ime/VoiceKeyboardUi.kt`
+- ASR: `app/src/main/java/com/sanogueralorenzo/voice/audio/MoonshineTranscriber.kt`
+- Rewrite/Edit: `app/src/main/java/com/sanogueralorenzo/voice/summary/LiteRtSummarizer.kt`
+- Models/updates: `app/src/main/java/com/sanogueralorenzo/voice/models/ModelCatalog.kt`
+- Setup flow: `app/src/main/java/com/sanogueralorenzo/voice/setup/SetupFlowScreen.kt`
 
-## Prompt Evaluation (Optional)
-
-Run local prompt eval:
+## Optional Prompt Evaluation
 
 ```bash
-scripts/prompt_eval.sh \
-  --prompt-file examples/prompt_eval/prompt.txt \
-  --cases-file examples/prompt_eval/cases.jsonl \
-  --report-file .cache/prompt_eval/report.txt \
-  --json-report-file .cache/prompt_eval/report.json
+scripts/prompt_eval.sh --prompt-file examples/prompt_eval/prompt.txt --cases-file examples/prompt_eval/cases.jsonl --report-file .cache/prompt_eval/report.txt --json-report-file .cache/prompt_eval/report.json
+scripts/prompt_ab_optimize.sh --prompt-a-file scripts/prompt_a.json --prompt-b-file scripts/prompt_b.json --dataset-file scripts/dataset.jsonl
 ```
 
-Run A/B loop:
+## Contributor Notes
 
-```bash
-scripts/prompt_ab_optimize.sh \
-  --prompt-a-file scripts/prompt_a.json \
-  --prompt-b-file scripts/prompt_b.json \
-  --dataset-file scripts/dataset.jsonl
-```
-
-## Notes for Contributors and Code Agents
-
-- Keep user-visible copy in `app/src/main/res/values/strings.xml`.
-- Keep this `README.md` as the single high-level source of truth.
-- Prefer feature-scoped changes and update call sites/tests in the same change.
+- Keep user copy in `app/src/main/res/values/strings.xml`.
+- Keep this README concise and current.
