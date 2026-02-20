@@ -36,7 +36,7 @@ import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
-import com.sanogueralorenzo.voice.ui.OnStartOrResume
+import com.sanogueralorenzo.voice.ui.OnResume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -473,7 +473,7 @@ fun SetupStep3ModelsDownloadScreen(
         onDispose { viewModel.shutdown() }
     }
 
-    OnStartOrResume {
+    OnResume {
         viewModel.refreshModelReadiness()
     }
 

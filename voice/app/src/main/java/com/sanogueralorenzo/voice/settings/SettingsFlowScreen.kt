@@ -27,7 +27,7 @@ import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.setup.ModelReadiness
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
-import com.sanogueralorenzo.voice.ui.OnStartOrResume
+import com.sanogueralorenzo.voice.ui.OnResume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -142,7 +142,7 @@ fun SettingsFlowScreen() {
     val keyboardThemeMode by appGraph.themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    OnStartOrResume {
+    OnResume {
         viewModel.refreshKeyboardStatus()
         viewModel.refreshModelReadiness()
     }

@@ -24,14 +24,14 @@ import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.ui.OnStartOrResume
+import com.sanogueralorenzo.voice.ui.OnResume
 
 @Composable
 fun ThemeScreen() {
     val viewModel = mavericksViewModel<ThemeViewModel, ThemeState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
-    OnStartOrResume {
+    OnResume {
         viewModel.refreshKeyboardThemeMode()
     }
 
