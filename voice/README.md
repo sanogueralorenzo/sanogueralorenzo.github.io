@@ -40,7 +40,8 @@ scripts/prompt_ab_optimize.sh --prompt-a-file scripts/prompt_a.json --prompt-b-f
 
 ## License
 
-- This project uses third-party models and runtimes that are governed by their own terms.
-- Gemma 1B IT (LiteRT): [Gemma Terms of Use](https://ai.google.dev/gemma/terms) and [Gemma Prohibited Use Policy](https://ai.google.dev/gemma/prohibited_use_policy).
-- Moonshine.ai models/runtime: [Moonshine License](https://www.moonshine.ai/license) and [Moonshine Acceptable Use Policy](https://www.moonshine.ai/use-policy).
-- By using or distributing this app, ensure your usage complies with those third-party terms and any applicable laws.
+- This repository code is licensed under MIT. See `LICENSE`.
+- Gemma 1B IT (LiteRT) model usage is governed by:
+  - [Gemma Terms of Use](https://ai.google.dev/gemma/terms)
+  - [Gemma Prohibited Use Policy](https://ai.google.dev/gemma/prohibited_use_policy)
+- See `legal/GEMMA_NOTICE.md` for the Gemma notice included with this project.
