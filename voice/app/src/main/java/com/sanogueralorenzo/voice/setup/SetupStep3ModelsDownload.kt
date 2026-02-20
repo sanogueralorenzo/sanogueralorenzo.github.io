@@ -47,6 +47,7 @@ import kotlinx.coroutines.withContext
 data class SetupStep3ModelsDownloadState(
     val connectedToWifi: Boolean = true,
     val allowMobileDataDownloads: Boolean = false,
+    val autoDownloadTriggered: Boolean = false,
     val liteRtReady: Boolean = false,
     val moonshineReady: Boolean = false,
     val promptReady: Boolean = false,
@@ -80,6 +81,7 @@ class SetupStep3ModelsDownloadViewModel(
                         allowMobileDataDownloads = if (connected) false else allowMobileDataDownloads
                     )
                 }
+                triggerAutoDownloadIfEligible()
             }
         }
     }
@@ -107,6 +109,7 @@ class SetupStep3ModelsDownloadViewModel(
                     promptProgress = if (readiness.promptReady) 100 else promptProgress
                 )
             }
+            triggerAutoDownloadIfEligible()
         }
     }
 
@@ -163,6 +166,18 @@ class SetupStep3ModelsDownloadViewModel(
         }
 
         runTarget(index = 0)
+    }
+
+    fun triggerAutoDownloadIfEligible() {
+        val shouldAutoStart = withState(this) { state ->
+            if (state.autoDownloadTriggered) return@withState false
+            val allReady = state.liteRtReady && state.moonshineReady && state.promptReady
+            val downloading = isAnyDownloading(state)
+            state.connectedToWifi && !allReady && !downloading
+        }
+        if (!shouldAutoStart) return
+        setState { copy(autoDownloadTriggered = true) }
+        downloadAllModels()
     }
 
     private fun startLiteRtDownload(
@@ -473,6 +488,7 @@ fun SetupStep3ModelsDownloadScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refreshModelReadiness()
+        viewModel.triggerAutoDownloadIfEligible()
     }
 
     val allReady = state.liteRtReady && state.moonshineReady && state.promptReady

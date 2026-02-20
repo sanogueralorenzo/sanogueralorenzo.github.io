@@ -32,8 +32,7 @@ enum class SetupDestination {
     INTRO,
     DOWNLOAD_MODELS,
     MIC_PERMISSION,
-    ENABLE_KEYBOARD,
-    SELECT_KEYBOARD,
+    KEYBOARD,
     COMPLETE
 }
 
@@ -81,8 +80,8 @@ class SetupViewModel(
         return when (state.coreRequiredStep) {
             SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupDestination.DOWNLOAD_MODELS
             SetupRepository.RequiredStep.MIC_PERMISSION -> SetupDestination.MIC_PERMISSION
-            SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupDestination.ENABLE_KEYBOARD
-            SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupDestination.SELECT_KEYBOARD
+            SetupRepository.RequiredStep.ENABLE_KEYBOARD -> SetupDestination.KEYBOARD
+            SetupRepository.RequiredStep.SELECT_KEYBOARD -> SetupDestination.KEYBOARD
             SetupRepository.RequiredStep.COMPLETE -> SetupDestination.COMPLETE
         }
     }
@@ -150,10 +149,8 @@ fun SetupFlowScreen(
         SetupDestination.MIC_PERMISSION -> SetupStep4MicPermissionScreen(
             onGrantMic = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
         )
-        SetupDestination.ENABLE_KEYBOARD -> SetupStep5KeyboardEnableScreen(
-            onOpenImeSettings = { openImeSettings(context) }
-        )
-        SetupDestination.SELECT_KEYBOARD -> SetupStep6KeyboardSelectScreen(
+        SetupDestination.KEYBOARD -> SetupStep5KeyboardSetupScreen(
+            onOpenImeSettings = { openImeSettings(context) },
             onRequestKeyboardPicker = { showImePicker(context) },
             onDone = setupViewModel::refreshRequiredStep
         )

@@ -79,8 +79,8 @@
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_step_models">Download Models</string>
-    <string name="setup_step_select_keyboard">Setup Complete</string>
     <string name="setup_select_keyboard_step_message">The last step is to tap the input to select Voice Keyboard and start talking.</string>
+    <string name="setup_keyboard_ready_continuing">Voice Keyboard is selected. Continuing…</string>
     <string name="setup_models_mobile_data_warning">You are not on Wi‑Fi. Allow mobile data to download models.</string>
     <string name="setup_allow_mobile_data">Allow using mobile data</string>
     <string name="setup_models_ready">All required files are ready.</string>
