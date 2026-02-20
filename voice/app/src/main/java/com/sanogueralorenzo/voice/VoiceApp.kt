@@ -9,7 +9,7 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.summary.LiteRtInitializer
 import com.sanogueralorenzo.voice.summary.LiteRtSummarizer
-import com.sanogueralorenzo.voice.summary.PromptTemplateStore
+import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import dev.zacsweers.metro.createGraphFactory
 
 class VoiceApp : Application() {

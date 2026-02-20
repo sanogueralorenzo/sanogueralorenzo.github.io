@@ -26,7 +26,7 @@ import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.setup.ModelReadiness
 import com.sanogueralorenzo.voice.setup.SetupRepository
-import com.sanogueralorenzo.voice.summary.PromptTemplateStore
+import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import com.sanogueralorenzo.voice.ui.OnResume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

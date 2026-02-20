@@ -13,6 +13,8 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
+import com.sanogueralorenzo.voice.prompt.LiteRtPromptTemplates
+import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

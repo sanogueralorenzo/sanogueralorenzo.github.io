@@ -16,8 +16,8 @@ import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
-import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
-import com.sanogueralorenzo.voice.summary.PromptTemplateStore
+import com.sanogueralorenzo.voice.prompt.LiteRtPromptTemplates
+import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers

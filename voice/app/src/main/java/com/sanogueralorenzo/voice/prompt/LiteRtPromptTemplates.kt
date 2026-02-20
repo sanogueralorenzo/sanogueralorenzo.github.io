@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.summary
+package com.sanogueralorenzo.voice.prompt
 
 /**
  * Centralized prompt templates for LiteRT rewrite/edit operations.

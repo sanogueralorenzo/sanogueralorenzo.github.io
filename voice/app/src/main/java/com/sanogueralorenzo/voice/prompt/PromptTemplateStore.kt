@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.summary
+package com.sanogueralorenzo.voice.prompt
 
 import android.content.Context
 import java.io.File

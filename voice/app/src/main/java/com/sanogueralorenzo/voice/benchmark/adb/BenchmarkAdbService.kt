@@ -17,9 +17,9 @@ import com.sanogueralorenzo.voice.benchmark.BenchmarkDatasetParser
 import com.sanogueralorenzo.voice.benchmark.BenchmarkReportFormatter
 import com.sanogueralorenzo.voice.benchmark.BenchmarkRunner
 import com.sanogueralorenzo.voice.benchmark.BenchmarkScoring
-import com.sanogueralorenzo.voice.summary.LiteRtPromptTemplates
+import com.sanogueralorenzo.voice.prompt.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
-import com.sanogueralorenzo.voice.summary.PromptTemplateStore
+import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
