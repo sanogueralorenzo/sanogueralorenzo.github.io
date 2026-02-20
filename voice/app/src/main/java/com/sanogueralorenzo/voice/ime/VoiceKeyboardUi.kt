@@ -285,7 +285,7 @@ private fun DebugTracePanel(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 DebugChip(label = "ASR ${metrics.transcribeMs}ms", colors = colors)
                 DebugChip(label = "LLM ${metrics.rewriteMs}ms", colors = colors)
-                DebugChip(label = "Total ${metrics.totalMs}ms", colors = colors)
+                DebugChip(label = formatBackendChip(metrics.rewriteBackend), colors = colors)
             }
 
             DebugTraceSection(
@@ -365,6 +365,14 @@ private fun formatRuleList(rules: List<String>): String {
     if (rules.isEmpty()) return "none"
     return rules.joinToString(separator = "\n") { rule ->
         "- ${rule.replace('_', ' ').lowercase()}"
+    }
+}
+
+private fun formatBackendChip(backend: String?): String {
+    val normalized = backend?.trim()?.uppercase().orEmpty()
+    return when (normalized) {
+        "CPU", "GPU" -> normalized
+        else -> "N/A"
     }
 }
 
