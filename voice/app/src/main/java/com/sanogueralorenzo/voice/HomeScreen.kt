@@ -42,7 +42,7 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 
 @Composable
-fun SettingsScreen(
+fun HomeScreen(
     onOpenPromptBenchmarking: () -> Unit,
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
@@ -52,45 +52,45 @@ fun SettingsScreen(
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
 
     val generalItems = listOf(
-        SettingsMenuItem(
+        HomeMenuItem(
             icon = Icons.Outlined.Language,
             title = stringResource(R.string.settings_menu_languages_title),
             subtitle = stringResource(R.string.settings_menu_languages_subtitle),
             onClick = { showLanguagesComingSoonDialog = true }
         ),
-        SettingsMenuItem(
+        HomeMenuItem(
             icon = Icons.Outlined.Tune,
             title = stringResource(R.string.settings_menu_preferences),
             onClick = onOpenPreferences
         ),
-        SettingsMenuItem(
+        HomeMenuItem(
             icon = Icons.Outlined.Palette,
             title = stringResource(R.string.settings_menu_theme),
-            chip = SettingsItemChip(themeModeLabel(keyboardThemeMode)),
+            chip = HomeItemChip(themeModeLabel(keyboardThemeMode)),
             onClick = onOpenTheme
         )
     )
 
     val toolItems = mutableListOf(
-        SettingsMenuItem(
+        HomeMenuItem(
             icon = Icons.Outlined.SystemUpdate,
             title = stringResource(R.string.settings_menu_updates),
             onClick = onOpenUpdates
         )
     )
 
-    toolItems += SettingsMenuItem(
+    toolItems += HomeMenuItem(
         icon = Icons.Outlined.ContentPaste,
         title = stringResource(R.string.settings_menu_prompt_benchmark),
         onClick = onOpenPromptBenchmarking
     )
 
     val sections = listOf(
-        SettingsMenuSection(
+        HomeMenuSection(
             title = stringResource(R.string.settings_section_general),
             items = generalItems
         ),
-        SettingsMenuSection(
+        HomeMenuSection(
             title = stringResource(R.string.settings_section_tools),
             items = toolItems
         )
@@ -102,7 +102,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         items(sections) { section ->
-            SettingsSectionCard(section = section)
+            HomeSectionCard(section = section)
         }
         item { Spacer(modifier = Modifier.height(4.dp)) }
     }
@@ -120,33 +120,33 @@ fun SettingsScreen(
     }
 }
 
-private data class SettingsMenuSection(
+private data class HomeMenuSection(
     val title: String,
-    val items: List<SettingsMenuItem>
+    val items: List<HomeMenuItem>
 )
 
-private data class SettingsMenuItem(
+private data class HomeMenuItem(
     val icon: ImageVector,
     val title: String,
     val subtitle: String? = null,
-    val chip: SettingsItemChip? = null,
+    val chip: HomeItemChip? = null,
     val onClick: () -> Unit
 )
 
-private data class SettingsItemChip(
+private data class HomeItemChip(
     val label: String,
-    val tone: SettingsChipTone = SettingsChipTone.NEUTRAL
+    val tone: HomeChipTone = HomeChipTone.NEUTRAL
 )
 
-private enum class SettingsChipTone {
+private enum class HomeChipTone {
     NEUTRAL,
     SUCCESS,
     WARNING
 }
 
 @Composable
-private fun SettingsSectionCard(
-    section: SettingsMenuSection
+private fun HomeSectionCard(
+    section: HomeMenuSection
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -163,7 +163,7 @@ private fun SettingsSectionCard(
                     .padding(vertical = 8.dp)
             ) {
                 section.items.forEachIndexed { index, item ->
-                    SettingsMenuRow(item = item)
+                    HomeMenuRow(item = item)
                     if (index < section.items.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 58.dp),
@@ -177,7 +177,7 @@ private fun SettingsSectionCard(
 }
 
 @Composable
-private fun SettingsMenuRow(item: SettingsMenuItem) {
+private fun HomeMenuRow(item: HomeMenuItem) {
     val textColor = MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
@@ -211,7 +211,7 @@ private fun SettingsMenuRow(item: SettingsMenuItem) {
             }
         }
         if (item.chip != null) {
-            SettingsRowChip(chip = item.chip)
+            HomeRowChip(chip = item.chip)
         }
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
@@ -223,16 +223,16 @@ private fun SettingsMenuRow(item: SettingsMenuItem) {
 }
 
 @Composable
-private fun SettingsRowChip(chip: SettingsItemChip) {
+private fun HomeRowChip(chip: HomeItemChip) {
     val containerColor = when (chip.tone) {
-        SettingsChipTone.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainerHighest
-        SettingsChipTone.SUCCESS -> MaterialTheme.colorScheme.secondaryContainer
-        SettingsChipTone.WARNING -> MaterialTheme.colorScheme.errorContainer
+        HomeChipTone.NEUTRAL -> MaterialTheme.colorScheme.surfaceContainerHighest
+        HomeChipTone.SUCCESS -> MaterialTheme.colorScheme.secondaryContainer
+        HomeChipTone.WARNING -> MaterialTheme.colorScheme.errorContainer
     }
     val contentColor = when (chip.tone) {
-        SettingsChipTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
-        SettingsChipTone.SUCCESS -> MaterialTheme.colorScheme.onSecondaryContainer
-        SettingsChipTone.WARNING -> MaterialTheme.colorScheme.onErrorContainer
+        HomeChipTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
+        HomeChipTone.SUCCESS -> MaterialTheme.colorScheme.onSecondaryContainer
+        HomeChipTone.WARNING -> MaterialTheme.colorScheme.onErrorContainer
     }
     Surface(
         color = containerColor,

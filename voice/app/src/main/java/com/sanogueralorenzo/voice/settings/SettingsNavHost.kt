@@ -22,7 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.SettingsScreen
+import com.sanogueralorenzo.voice.HomeScreen
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
 import com.sanogueralorenzo.voice.promptbenchmark.PromptBenchmarkingScreen
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
@@ -31,7 +31,7 @@ import com.sanogueralorenzo.voice.ui.components.VoiceInput
 import com.sanogueralorenzo.voice.updates.UpdatesScreen
 
 private object SettingsRoute {
-    const val SETTINGS = "settings_home"
+    const val HOME = "settings_home"
     const val PROMPT_BENCHMARKING = "settings_prompt_benchmarking"
     const val THEME = "settings_theme"
     const val UPDATES = "settings_updates"
@@ -43,7 +43,7 @@ private object SettingsRoute {
 fun SettingsNavHost(
     state: SettingsFlowState,
     keyboardThemeMode: KeyboardThemeMode,
-    onSettingsInputChange: (String) -> Unit,
+    onHomeInputChange: (String) -> Unit,
     onThemeInputChange: (String) -> Unit,
     onDownloadPrompt: () -> Unit,
     onShowImePicker: () -> Unit
@@ -51,7 +51,7 @@ fun SettingsNavHost(
     val navController = rememberNavController()
     val backStackEntry = navController.currentBackStackEntryAsState().value
     val currentRoute = backStackEntry?.destination?.route
-    val canGoBack = currentRoute != null && currentRoute != SettingsRoute.SETTINGS
+    val canGoBack = currentRoute != null && currentRoute != SettingsRoute.HOME
     val topBarTitle = when (currentRoute) {
         SettingsRoute.PROMPT_BENCHMARKING -> stringResource(R.string.prompt_benchmark_section_title)
         SettingsRoute.THEME -> stringResource(R.string.theming_section_title)
@@ -91,10 +91,10 @@ fun SettingsNavHost(
         },
         bottomBar = {
             when (currentRoute) {
-                SettingsRoute.SETTINGS -> key("settings_input_bar") {
+                SettingsRoute.HOME -> key("home_input_bar") {
                     VoiceInput(
-                        value = state.settingsKeyboardInput,
-                        onValueChange = onSettingsInputChange,
+                        value = state.homeKeyboardInput,
+                        onValueChange = onHomeInputChange,
                         voiceImeSelected = state.voiceImeSelected,
                         onRequestKeyboardPicker = onShowImePicker,
                         autoFocusOnResume = true
@@ -117,13 +117,13 @@ fun SettingsNavHost(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = SettingsRoute.SETTINGS,
+            startDestination = SettingsRoute.HOME,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            composable(SettingsRoute.SETTINGS) {
-                SettingsScreen(
+            composable(SettingsRoute.HOME) {
+                HomeScreen(
                     onOpenPromptBenchmarking = { navController.navigate(SettingsRoute.PROMPT_BENCHMARKING) },
                     onOpenTheme = { navController.navigate(SettingsRoute.THEME) },
                     onOpenUpdates = { navController.navigate(SettingsRoute.UPDATES) },

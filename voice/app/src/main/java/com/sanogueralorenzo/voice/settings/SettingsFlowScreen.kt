@@ -37,7 +37,7 @@ import kotlinx.coroutines.withContext
 
 data class SettingsFlowState(
     val voiceImeSelected: Boolean = false,
-    val settingsKeyboardInput: String = "",
+    val homeKeyboardInput: String = "",
     val themeKeyboardInput: String = "",
     val liteRtReady: Boolean = false,
     val moonshineReady: Boolean = false,
@@ -76,8 +76,8 @@ class SettingsFlowViewModel(
         }
     }
 
-    fun setSettingsKeyboardInput(value: String) {
-        setState { copy(settingsKeyboardInput = value) }
+    fun setHomeKeyboardInput(value: String) {
+        setState { copy(homeKeyboardInput = value) }
     }
 
     fun setThemeKeyboardInput(value: String) {
@@ -163,7 +163,7 @@ fun SettingsFlowScreen() {
     SettingsNavHost(
         state = state,
         keyboardThemeMode = keyboardThemeMode,
-        onSettingsInputChange = viewModel::setSettingsKeyboardInput,
+        onHomeInputChange = viewModel::setHomeKeyboardInput,
         onThemeInputChange = viewModel::setThemeKeyboardInput,
         onDownloadPrompt = viewModel::startPromptDownload,
         onShowImePicker = {
