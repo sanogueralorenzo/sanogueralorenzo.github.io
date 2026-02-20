@@ -440,13 +440,12 @@ private data class SetupDownloadModelsPresentation(
     val canStartDownload: Boolean,
     val shouldShowTotalProgress: Boolean,
     val totalProgressFraction: Float,
-    val downloadingTarget: DownloadTarget?
+    val downloadingTarget: DownloadingModelTarget?
 )
 
-private enum class DownloadTarget {
+private enum class DownloadingModelTarget {
     MOONSHINE,
-    LITERT,
-    PROMPT
+    LITERT
 }
 
 @Composable
@@ -503,9 +502,8 @@ private fun SetupStep3ModelsDownloadContent(
 ) {
     val presentation = buildSetupDownloadModelsPresentation(state)
     val downloadingModelLabel = when (presentation.downloadingTarget) {
-        DownloadTarget.MOONSHINE -> stringResource(R.string.setup_model_moonshine)
-        DownloadTarget.LITERT -> stringResource(R.string.setup_model_litert)
-        DownloadTarget.PROMPT -> stringResource(R.string.setup_model_prompt)
+        DownloadingModelTarget.MOONSHINE -> stringResource(R.string.setup_model_moonshine)
+        DownloadingModelTarget.LITERT -> stringResource(R.string.setup_model_litert)
         null -> null
     }
 
@@ -620,9 +618,8 @@ private fun buildSetupDownloadModelsPresentation(
     val shouldShowTotalProgress =
         downloadInProgress || state.liteRtReady || state.moonshineReady || state.promptReady
     val downloadingTarget = when {
-        state.moonshineDownloading -> DownloadTarget.MOONSHINE
-        state.liteRtDownloading -> DownloadTarget.LITERT
-        state.promptDownloading -> DownloadTarget.PROMPT
+        state.moonshineDownloading -> DownloadingModelTarget.MOONSHINE
+        state.liteRtDownloading -> DownloadingModelTarget.LITERT
         else -> null
     }
 

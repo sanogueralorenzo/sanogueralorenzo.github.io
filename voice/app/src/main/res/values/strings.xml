@@ -91,7 +91,6 @@
     <string name="setup_download_all_completed">All required downloads are complete.</string>
     <string name="setup_model_litert">LLM Model</string>
     <string name="setup_model_moonshine">ASR Model</string>
-    <string name="setup_model_prompt">Prompt</string>
     <string name="setup_download_status_model">Downloading %1$s</string>
     <string name="setup_status_downloading">Downloading %1$d%%</string>
     <string name="setup_enable_keyboard">Enable Voice Keyboard</string>
