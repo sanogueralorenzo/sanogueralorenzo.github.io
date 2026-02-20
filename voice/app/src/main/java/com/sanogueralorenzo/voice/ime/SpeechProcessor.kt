@@ -240,10 +240,6 @@ internal class PreLlmRulesStage(
             sourceText = sourceText,
             transcript = transcript,
             deterministicOutput = deterministicResult.text,
-            llmCandidate = composePreLlmRules.shouldUseLlm(
-                originalText = transcript,
-                deterministicResult = deterministicResult
-            ),
             diagnostics = diagnostics
         )
     }
@@ -328,14 +324,14 @@ internal class LlmStage(
         onShowRewriting()
         return when (val result = summaryEngine.summarizeBlocking(text = input.transcript)) {
             is RewriteResult.Success -> LlmStageResult(
-                invoked = input.llmCandidate,
+                invoked = true,
                 output = result.text,
                 backend = result.backend.name,
-                llmOutputText = if (input.llmCandidate) result.text else null
+                llmOutputText = result.text
             )
 
             is RewriteResult.Failure -> LlmStageResult(
-                invoked = input.llmCandidate,
+                invoked = true,
                 output = input.transcript,
                 backend = result.backend?.name,
                 errorType = result.error.type,
@@ -402,7 +398,7 @@ internal class PostLlmRulesStage {
         } else {
             ImeAppendFormatter.append(sourceText = input.sourceText, chunkText = llm.output)
         }
-        val localRulesAfterLlm = if (input.llmCandidate && llm.output != input.deterministicOutput) {
+        val localRulesAfterLlm = if (llm.output != input.deterministicOutput) {
             listOf("compose_output_policy")
         } else {
             emptyList()
@@ -481,7 +477,6 @@ internal sealed interface PreLlmResult {
         val sourceText: String,
         val transcript: String,
         val deterministicOutput: String,
-        val llmCandidate: Boolean,
         override val diagnostics: ImeRewriteDiagnostics
     ) : PreLlmResult {
         override val operation: ImeOperation = ImeOperation.APPEND

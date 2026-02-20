@@ -212,13 +212,6 @@ class SummaryEngine(
 
         val deterministicResult = composePreLlmRules.rewrite(request.content)
         val deterministicOutput = composePolicy.normalizeComposeOutputText(deterministicResult.text)
-        if (!composePreLlmRules.shouldUseLlm(request.content, deterministicResult)) {
-            return RewriteResult.Success(
-                text = deterministicOutput,
-                latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
-            )
-        }
 
         if (!isConfiguredModelSupported() || !isModelAvailable()) {
             return RewriteResult.Success(
