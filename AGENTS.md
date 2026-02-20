@@ -13,7 +13,8 @@
 - Avoid unnecessary abstraction.
 - Create packages by feature, not by layer.
 - Prefer reactive flows over one-shot patterns.
-- For any task that changes code, before the final response: commit and push the branch.
+- For any task that changes code, before the final response: commit and push directly to `main` by default.
+- Never create a branch unless explicitly requested.
 - If commit/push or install/run cannot be completed, fix the issue and try again.
 
 ## Mobile Rules (Android)
