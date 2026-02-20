@@ -17,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
@@ -25,30 +24,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.ui.OnResume
 
 @Composable
 fun BenchmarkScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<BenchmarkViewModel, BenchmarkState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshPrerequisites()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    OnResume {
+        viewModel.refreshPrerequisites()
     }
 
     LaunchedEffect(Unit) {

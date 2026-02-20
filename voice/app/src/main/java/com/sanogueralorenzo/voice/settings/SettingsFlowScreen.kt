@@ -9,9 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle as collectFlowAsStateWithLifecycle
 import com.airbnb.mvrx.Async
 import com.airbnb.mvrx.Fail
@@ -30,6 +27,7 @@ import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.setup.ModelReadiness
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
+import com.sanogueralorenzo.voice.ui.OnStartOrResume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -139,22 +137,16 @@ fun SettingsFlowScreen() {
     val context = LocalContext.current
     val appContext = remember(context) { context.applicationContext }
     val appGraph = remember(appContext) { appContext.appGraph() }
-    val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<SettingsFlowViewModel, SettingsFlowState>()
     val state by viewModel.collectAsStateWithLifecycle()
     val keyboardThemeMode by appGraph.themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshKeyboardStatus()
-                viewModel.refreshModelReadiness()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    OnStartOrResume {
+        viewModel.refreshKeyboardStatus()
+        viewModel.refreshModelReadiness()
     }
+
     LaunchedEffect(Unit) {
         viewModel.refreshKeyboardStatus()
         viewModel.refreshModelReadiness()

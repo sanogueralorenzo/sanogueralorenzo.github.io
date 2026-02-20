@@ -5,14 +5,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
@@ -23,6 +19,7 @@ import com.airbnb.mvrx.compose.mavericksViewModel
 import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.VoiceApp
+import com.sanogueralorenzo.voice.ui.OnResume
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -102,18 +99,11 @@ fun SetupStep5KeyboardSetupScreen(
     onRequestKeyboardPicker: () -> Unit,
     onDone: () -> Unit
 ) {
-    val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<SetupStep5KeyboardSetupViewModel, SetupStep5KeyboardSetupState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshKeyboardStatus()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    OnResume {
+        viewModel.refreshKeyboardStatus()
     }
 
     LaunchedEffect(Unit) {

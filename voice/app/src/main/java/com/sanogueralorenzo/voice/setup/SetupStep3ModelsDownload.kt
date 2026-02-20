@@ -20,9 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
@@ -39,6 +36,7 @@ import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.summary.PromptTemplateStore
+import com.sanogueralorenzo.voice.ui.OnStartOrResume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -467,7 +465,6 @@ private enum class DownloadingModelTarget {
 fun SetupStep3ModelsDownloadScreen(
     onModelsReady: () -> Unit
 ) {
-    val lifecycleOwner = LocalLifecycleOwner.current
     val viewModel = mavericksViewModel<SetupStep3ModelsDownloadViewModel, SetupStep3ModelsDownloadState>()
     val state by viewModel.collectAsStateWithLifecycle()
     var modelsReadyNotified by rememberSaveable { mutableStateOf(false) }
@@ -476,14 +473,8 @@ fun SetupStep3ModelsDownloadScreen(
         onDispose { viewModel.shutdown() }
     }
 
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshModelReadiness()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    OnStartOrResume {
+        viewModel.refreshModelReadiness()
     }
 
     LaunchedEffect(Unit) {

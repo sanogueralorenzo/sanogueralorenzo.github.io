@@ -9,17 +9,36 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-fun OnResume(onResume: () -> Unit) {
+private fun OnLifecycleEvents(
+    events: Set<Lifecycle.Event>,
+    onEvent: () -> Unit
+) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val latestOnResume by rememberUpdatedState(onResume)
+    val latestOnEvent by rememberUpdatedState(onEvent)
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                latestOnResume()
+            if (event in events) {
+                latestOnEvent()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+}
+
+@Composable
+fun OnResume(onResume: () -> Unit) {
+    OnLifecycleEvents(
+        events = setOf(Lifecycle.Event.ON_RESUME),
+        onEvent = onResume
+    )
+}
+
+@Composable
+fun OnStartOrResume(onStartOrResume: () -> Unit) {
+    OnLifecycleEvents(
+        events = setOf(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME),
+        onEvent = onStartOrResume
+    )
 }
