@@ -42,8 +42,8 @@ enum class SetupFlowStep {
 
 data class SetupState(
     val coreRequiredStep: SetupRepository.RequiredStep = SetupRepository.RequiredStep.DOWNLOAD_MODELS,
-    val splashCompleted: Boolean = false,
-    val introCompleted: Boolean = false,
+    val isSplashComplete: Boolean = false,
+    val isIntroComplete: Boolean = false,
     val requiredStep: SetupFlowStep = SetupFlowStep.SPLASH
 ) : MavericksState
 
@@ -58,14 +58,14 @@ class SetupViewModel(
 
     fun onSplashFinished() {
         setState {
-            val updated = copy(splashCompleted = true)
+            val updated = copy(isSplashComplete = true)
             updated.copy(requiredStep = computeFlowStep(updated))
         }
     }
 
     fun onIntroContinue() {
         setState {
-            val updated = copy(introCompleted = true)
+            val updated = copy(isIntroComplete = true)
             updated.copy(requiredStep = computeFlowStep(updated))
         }
     }
@@ -83,8 +83,8 @@ class SetupViewModel(
     }
 
     private fun computeFlowStep(state: SetupState): SetupFlowStep {
-        if (!state.splashCompleted) return SetupFlowStep.SPLASH
-        if (!state.introCompleted) return SetupFlowStep.INTRO
+        if (!state.isSplashComplete) return SetupFlowStep.SPLASH
+        if (!state.isIntroComplete) return SetupFlowStep.INTRO
         return when (state.coreRequiredStep) {
             SetupRepository.RequiredStep.DOWNLOAD_MODELS -> SetupFlowStep.DOWNLOAD_MODELS
             SetupRepository.RequiredStep.MIC_PERMISSION -> SetupFlowStep.MIC_PERMISSION
