@@ -25,7 +25,6 @@
     <string name="settings_chip_theme_auto">Auto</string>
     <string name="settings_chip_theme_light">Light</string>
     <string name="settings_chip_theme_dark">Dark</string>
-    <string name="settings_chip_debug">Debug</string>
     <string name="shared_input_hint_message">Message</string>
 
     <string name="prompt_benchmark_section_title">Prompt Benchmarking</string>

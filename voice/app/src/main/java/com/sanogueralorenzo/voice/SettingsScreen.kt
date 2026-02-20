@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.sanogueralorenzo.voice.BuildConfig
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 
@@ -80,17 +79,11 @@ fun SettingsScreen(
         )
     )
 
-    if (BuildConfig.DEBUG) {
-        toolItems += SettingsMenuItem(
-            icon = Icons.Outlined.ContentPaste,
-            title = stringResource(R.string.settings_menu_prompt_benchmark),
-            chip = SettingsItemChip(
-                label = stringResource(R.string.settings_chip_debug),
-                tone = SettingsChipTone.NEUTRAL
-            ),
-            onClick = onOpenPromptBenchmarking
-        )
-    }
+    toolItems += SettingsMenuItem(
+        icon = Icons.Outlined.ContentPaste,
+        title = stringResource(R.string.settings_menu_prompt_benchmark),
+        onClick = onOpenPromptBenchmarking
+    )
 
     val sections = listOf(
         SettingsMenuSection(
