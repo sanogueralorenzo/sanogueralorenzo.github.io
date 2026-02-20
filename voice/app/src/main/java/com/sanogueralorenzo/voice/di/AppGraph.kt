@@ -10,6 +10,7 @@ import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
 import com.sanogueralorenzo.voice.summary.ComposePostLlmRules
+import com.sanogueralorenzo.voice.summary.SummaryEngine
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
@@ -24,6 +25,7 @@ interface AppGraph {
     val modelUpdateChecker: ModelUpdateChecker
     val composePostLlmRules: ComposePostLlmRules
     val composePreLlmRules: ComposePreLlmRules
+    val summaryEngine: SummaryEngine
     val connectivityRepository: ConnectivityRepository
     val setupRepository: SetupRepository
 
@@ -35,6 +37,17 @@ interface AppGraph {
 
     @Provides
     fun provideComposePreLlmRules(): ComposePreLlmRules = ComposePreLlmRules()
+
+    @Provides
+    fun provideSummaryEngine(
+        context: Context,
+        composePostLlmRules: ComposePostLlmRules,
+        composePreLlmRules: ComposePreLlmRules
+    ): SummaryEngine = SummaryEngine(
+        context = context,
+        composePolicy = composePostLlmRules,
+        composePreLlmRules = composePreLlmRules
+    )
 
     @Provides
     fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)

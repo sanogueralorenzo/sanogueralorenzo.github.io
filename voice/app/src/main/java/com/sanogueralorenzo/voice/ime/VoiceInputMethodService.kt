@@ -85,13 +85,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     private val moonshineTranscriberLazy = lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
     private val appGraphLazy = lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
-    private val summaryEngineLazy = lazy(LazyThreadSafetyMode.NONE) {
-        SummaryEngine(
-            context = this,
-            composePolicy = appGraphLazy.value.composePostLlmRules,
-            composePreLlmRules = appGraphLazy.value.composePreLlmRules
-        )
-    }
+    private val summaryEngineLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.summaryEngine }
     private val asrRuntimeStatusStoreLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.asrRuntimeStatusStore }
     private val preferencesRepositoryLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.preferencesRepository }
     private val themeRepositoryLazy = lazy(LazyThreadSafetyMode.NONE) { appGraphLazy.value.themeRepository }
@@ -215,13 +209,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val recorderToRelease = audioRecorder
         audioRecorder = null
         val moonshineToRelease = moonshineTranscriberIfInitialized()
-        val summaryEngineToRelease = summaryEngineIfInitialized()
         executor.shutdownNow()
         chunkExecutor.shutdownNow()
         Thread({
             recorderToRelease?.release()
             moonshineToRelease?.release()
-            summaryEngineToRelease?.release()
         }, "voice-ime-release").start()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()

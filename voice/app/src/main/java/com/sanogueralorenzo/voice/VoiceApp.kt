@@ -8,7 +8,6 @@ import com.sanogueralorenzo.voice.di.AppGraph
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.summary.SummaryWarmup
-import com.sanogueralorenzo.voice.summary.SummaryEngine
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import dev.zacsweers.metro.createGraphFactory
 
@@ -19,17 +18,11 @@ class VoiceApp : Application() {
     private val promptTemplateStore by lazy {
         PromptTemplateStore(this)
     }
-    private val liteRtWarmupSummarizer by lazy {
-        SummaryEngine(
-            context = this,
-            composePolicy = appGraph.composePostLlmRules,
-            composePreLlmRules = appGraph.composePreLlmRules
-        )
-    }
+    private val summaryEngine by lazy { appGraph.summaryEngine }
     private val liteRtInitializer by lazy {
         SummaryWarmup(
-            isModelAvailable = { liteRtWarmupSummarizer.isModelAvailable() },
-            runWarmup = { text -> liteRtWarmupSummarizer.summarizeBlocking(text) },
+            isModelAvailable = { summaryEngine.isModelAvailable() },
+            runWarmup = { text -> summaryEngine.summarizeBlocking(text) },
             modelReadyFlow = ModelStore.observeModelReady(this, ModelCatalog.liteRtLm),
             promptReadyFlow = promptTemplateStore.observePromptReady()
         )
