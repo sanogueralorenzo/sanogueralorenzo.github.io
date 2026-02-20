@@ -1,30 +1,19 @@
 package com.sanogueralorenzo.voice.ime
 
 internal class VoiceImePipeline(
-    private val transcriptionCoordinator: ImeTranscriptionCoordinator,
-    private val rewriteCoordinator: ImeRewriteCoordinator,
+    private val speechProcessor: SpeechProcessor,
     private val commitCoordinator: ImeCommitCoordinator
 ) {
-    fun transcribe(
+    fun processSpeech(
         request: ImePipelineRequest,
         awaitChunkSessionQuiescence: (Int) -> Unit,
-        finalizeMoonshineTranscript: (Int) -> String
-    ): ImeTranscriptionResult {
-        return transcriptionCoordinator.transcribe(
+        finalizeMoonshineTranscript: (Int) -> String,
+        onShowRewriting: () -> Unit
+    ): ImePipelineResult {
+        return speechProcessor.process(
             request = request,
             awaitChunkSessionQuiescence = awaitChunkSessionQuiescence,
-            finalizeMoonshineTranscript = finalizeMoonshineTranscript
-        )
-    }
-
-    fun rewrite(
-        request: ImePipelineRequest,
-        transcript: String,
-        onShowRewriting: () -> Unit
-    ): ImeRewriteResult {
-        return rewriteCoordinator.rewrite(
-            sourceText = request.sourceTextSnapshot,
-            transcript = transcript,
+            finalizeMoonshineTranscript = finalizeMoonshineTranscript,
             onShowRewriting = onShowRewriting
         )
     }

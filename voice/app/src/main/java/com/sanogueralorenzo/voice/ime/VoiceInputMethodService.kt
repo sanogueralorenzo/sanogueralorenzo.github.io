@@ -103,16 +103,24 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val themeRepository: ThemeRepository get() = themeRepositoryLazy.value
     private val imePipeline by lazy {
         VoiceImePipeline(
-            transcriptionCoordinator = ImeTranscriptionCoordinator(
-                moonshineTranscriber = moonshineTranscriber,
-                asrRuntimeStatusStore = asrRuntimeStatusStore,
-                logTag = TAG
-            ),
-            rewriteCoordinator = ImeRewriteCoordinator(
-                preferencesRepository = preferencesRepository,
-                liteRtSummarizer = liteRtSummarizer,
-                deterministicComposeRewriter = appGraphLazy.value.deterministicComposeRewriter,
-                composeLlmGate = appGraphLazy.value.liteRtComposeLlmGate
+            speechProcessor = SpeechProcessor(
+                asrOutputProcessor = AsrOutputProcessor(
+                    transcriptionCoordinator = ImeTranscriptionCoordinator(
+                        moonshineTranscriber = moonshineTranscriber,
+                        asrRuntimeStatusStore = asrRuntimeStatusStore,
+                        logTag = TAG
+                    )
+                ),
+                preLlmLocalRulesProcessor = PreLlmLocalRulesProcessor(
+                    preferencesRepository = preferencesRepository,
+                    liteRtSummarizer = liteRtSummarizer,
+                    deterministicComposeRewriter = appGraphLazy.value.deterministicComposeRewriter,
+                    composeLlmGate = appGraphLazy.value.liteRtComposeLlmGate
+                ),
+                llmOutputProcessor = LlmOutputProcessor(
+                    liteRtSummarizer = liteRtSummarizer
+                ),
+                postLlmLocalRulesProcessor = PostLlmLocalRulesProcessor()
             ),
             commitCoordinator = ImeCommitCoordinator()
         )
@@ -347,20 +355,14 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 sourceTextSnapshot = request.sourceTextSnapshot,
                 chunkSessionId = request.chunkSessionId
             )
-            val transcribe = imePipeline.transcribe(
+            val pipelineResult = imePipeline.processSpeech(
                 request = pipelineRequest,
                 awaitChunkSessionQuiescence = { awaitChunkSessionQuiescence(it) },
-                finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) }
-            )
-            if (Thread.currentThread().isInterrupted) {
-                postIdleAfterBackgroundWork()
-                return
-            }
-            val rewrite = imePipeline.rewrite(
-                request = pipelineRequest,
-                transcript = transcribe.transcript,
+                finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) },
                 onShowRewriting = { mainHandler.post { keyboardViewModel.showRewriting() } }
             )
+            val transcribe = pipelineResult.transcription
+            val rewrite = pipelineResult.rewrite
             if (Thread.currentThread().isInterrupted) {
                 postIdleAfterBackgroundWork()
                 return
