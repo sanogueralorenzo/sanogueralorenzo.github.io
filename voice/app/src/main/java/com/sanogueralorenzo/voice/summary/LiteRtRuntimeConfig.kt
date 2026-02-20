@@ -13,7 +13,7 @@ object LiteRtRuntimeConfig {
     const val TEMPERATURE: Double = 0.0
     const val SEED: Int = 42
 
-    const val REQUEST_TIMEOUT_MS: Long = 30_000L
+    const val REQUEST_TIMEOUT_MS: Long = 10_000L
     const val ENGINE_MAX_TOKENS: Int = 4096
 
     fun reportSnapshot(): String {
