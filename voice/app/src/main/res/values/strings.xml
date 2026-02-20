@@ -67,25 +67,22 @@
     <string name="theming_option_dark">Dark</string>
     <string name="theming_input_hint">Use the bottom input to preview the keyboard theme.</string>
 
-    <string name="setup_grant_mic">Grant microphone permission</string>
     <string name="setup_mic_intro">Microphone is required to transcribe speech.</string>
     <string name="setup_mic_bullet_while_using">• Select "While using the app" when Android asks for permission.</string>
-    <string name="setup_enable_keyboard_intro">Open Android keyboard settings and turn Voice Keyboard on.</string>
+    <string name="setup_enable_keyboard_intro">Enable Voice Keyboard in the following Android settings screen.</string>
     <string name="setup_models_intro">Voice Keyboard uses:</string>
     <string name="setup_models_intro_bullet_asr">• ASR (Automatic Speech Recognition) model to convert spoken language into text from audio signals.</string>
     <string name="setup_models_intro_bullet_it">• LLM (Large Language Model) to enhance dictation and correct text on the fly.</string>
     <string name="setup_step_intro">Welcome</string>
     <string name="setup_intro_description">Voice Keyboard is an AI on device keyboard that turns speech into accurate text and supports quick voice edits.</string>
-    <string name="setup_intro_continue">Continue</string>
+    <string name="setup_continue">Continue</string>
     <string name="setup_step_microphone">Microphone Permission</string>
     <string name="setup_step_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_step_models">Download Models</string>
     <string name="setup_step_select_keyboard">Setup Complete</string>
     <string name="setup_select_keyboard_step_message">The last step is to tap the input to select Voice Keyboard and start talking.</string>
-    <string name="setup_done">Done</string>
     <string name="setup_models_mobile_data_warning">You are not on Wi‑Fi. Allow mobile data to download models.</string>
     <string name="setup_allow_mobile_data">Allow using mobile data</string>
-    <string name="setup_download_models">Download models</string>
     <string name="setup_models_ready">All required files are ready.</string>
     <string name="setup_download_all_already_ready">All required files are already ready.</string>
     <string name="setup_download_all_completed">All required downloads are complete.</string>
@@ -93,7 +90,6 @@
     <string name="setup_model_moonshine">ASR Model</string>
     <string name="setup_download_status_model">Downloading %1$s</string>
     <string name="setup_status_downloading">Downloading %1$d%%</string>
-    <string name="setup_enable_keyboard">Enable Voice Keyboard</string>
     <string name="setup_select_keyboard">Select Voice keyboard</string>
     <string name="setup_choose_keyboard">Choose Voice Keyboard</string>
     <string name="setup_input_keyboard_required_title">Tap Voice Keyboard</string>

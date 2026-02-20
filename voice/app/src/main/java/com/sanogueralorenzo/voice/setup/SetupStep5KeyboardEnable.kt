@@ -26,7 +26,7 @@ fun SetupStep5KeyboardEnableScreen(
                 onClick = onOpenImeSettings,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = stringResource(R.string.setup_enable_keyboard))
+                Text(text = stringResource(R.string.setup_continue))
             }
         }
     )

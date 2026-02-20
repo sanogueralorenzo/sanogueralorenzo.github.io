@@ -125,7 +125,7 @@ fun SetupStep6KeyboardSelectScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = stringResource(R.string.setup_done))
+                Text(text = stringResource(R.string.setup_continue))
             }
         }
     )

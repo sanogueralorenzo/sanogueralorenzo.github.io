@@ -26,7 +26,7 @@ fun SetupStep2IntroScreen(
                 onClick = onContinue,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = stringResource(R.string.setup_intro_continue))
+                Text(text = stringResource(R.string.setup_continue))
             }
         }
     )

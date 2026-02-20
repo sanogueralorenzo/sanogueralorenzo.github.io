@@ -30,7 +30,7 @@ fun SetupStep4MicPermissionScreen(
                 onClick = onGrantMic,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = stringResource(R.string.setup_grant_mic))
+                Text(text = stringResource(R.string.setup_continue))
             }
         }
     )

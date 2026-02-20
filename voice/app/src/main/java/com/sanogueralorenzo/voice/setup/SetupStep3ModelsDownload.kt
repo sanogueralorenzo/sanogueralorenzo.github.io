@@ -575,7 +575,7 @@ private fun SetupStep3ModelsDownloadContent(
                 enabled = presentation.canStartDownload,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = stringResource(R.string.setup_download_models))
+                Text(text = stringResource(R.string.setup_continue))
             }
         }
     )
