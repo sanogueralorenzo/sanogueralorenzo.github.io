@@ -39,6 +39,7 @@ interface AppGraph {
     fun provideComposePreLlmRules(): ComposePreLlmRules = ComposePreLlmRules()
 
     @Provides
+    @SingleIn(AppScope::class)
     fun provideSummaryEngine(
         context: Context,
         composePostLlmRules: ComposePostLlmRules,
