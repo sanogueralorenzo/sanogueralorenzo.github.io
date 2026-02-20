@@ -110,7 +110,14 @@ fun HomeScreen(
     if (showLanguagesComingSoonDialog) {
         AlertDialog(
             onDismissRequest = { showLanguagesComingSoonDialog = false },
-            text = { Text(text = stringResource(R.string.settings_languages_coming_soon_message)) },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.settings_languages_coming_soon_message,
+                        stringResource(R.string.app_name)
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { showLanguagesComingSoonDialog = false }) {
                     Text(text = stringResource(android.R.string.ok))
