@@ -13,7 +13,7 @@ class LiteRtComposePolicyTest {
             bulletMode = false
         )
 
-        assertEquals("Hey mia, Can you buy apples. Actually get milk? Thanks", cleaned)
+        assertEquals("Hey mia, can you buy apples. Actually get milk? Thanks", cleaned)
     }
 
     @Test
@@ -23,7 +23,7 @@ class LiteRtComposePolicyTest {
             bulletMode = false
         )
 
-        assertEquals("Hello, This is fine. Maybe? Yes", cleaned)
+        assertEquals("Hello, this is fine. Maybe? Yes", cleaned)
     }
 
     @Test

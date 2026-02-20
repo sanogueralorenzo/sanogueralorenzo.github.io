@@ -38,7 +38,7 @@ class BenchmarkCoreTest {
         )
         val calls = ArrayList<String>()
         val gateway = object : BenchmarkGateway {
-            override fun runCompose(input: String): RewriteResult {
+            override fun runCompose(input: String, promptTemplateOverride: String?): RewriteResult {
                 calls += "compose:$input"
                 return RewriteResult.Success(text = input.uppercase(), latencyMs = 10L, backend = Backend.CPU)
             }
@@ -55,8 +55,8 @@ class BenchmarkCoreTest {
             suiteVersion = "test",
             repeats = 3,
             modelId = "model",
-            customInstructions = "",
-            promptInstructionsSnapshot = "snapshot"
+            promptInstructionsSnapshot = "snapshot",
+            runtimeConfigSnapshot = "runtime"
         )
 
         assertEquals(
@@ -83,7 +83,7 @@ class BenchmarkCoreTest {
         )
         var callCount = 0
         val gateway = object : BenchmarkGateway {
-            override fun runCompose(input: String): RewriteResult {
+            override fun runCompose(input: String, promptTemplateOverride: String?): RewriteResult {
                 callCount += 1
                 val output = when (callCount) {
                     1, 2 -> "same"
@@ -103,8 +103,8 @@ class BenchmarkCoreTest {
             suiteVersion = "test",
             repeats = 3,
             modelId = "model",
-            customInstructions = "",
-            promptInstructionsSnapshot = "snapshot"
+            promptInstructionsSnapshot = "snapshot",
+            runtimeConfigSnapshot = "runtime"
         )
 
         val caseResult = result.cases.single()
@@ -126,7 +126,7 @@ class BenchmarkCoreTest {
             editInstruction = "change"
         )
         val gateway = object : BenchmarkGateway {
-            override fun runCompose(input: String): RewriteResult {
+            override fun runCompose(input: String, promptTemplateOverride: String?): RewriteResult {
                 return RewriteResult.Success(text = input, latencyMs = 1L, backend = Backend.CPU)
             }
 
@@ -148,8 +148,8 @@ class BenchmarkCoreTest {
             suiteVersion = "test",
             repeats = 3,
             modelId = "model",
-            customInstructions = "",
-            promptInstructionsSnapshot = "snapshot"
+            promptInstructionsSnapshot = "snapshot",
+            runtimeConfigSnapshot = "runtime"
         )
 
         val run = result.cases.single().runs.first()
@@ -173,8 +173,8 @@ class BenchmarkCoreTest {
             timestampMs = 1700000000000L,
             totalElapsedMs = 500L,
             modelId = "gemma3-1b-it-litertlm",
-            customInstructions = "none",
             promptInstructionsSnapshot = "rewrite_system_instruction:\nR\n\nedit_system_instruction:\nE",
+            runtimeConfigSnapshot = "compose_enabled=true",
             cases = listOf(
                 BenchmarkCaseResult(
                     caseDef = case,
@@ -193,6 +193,7 @@ class BenchmarkCoreTest {
 
         val text = BenchmarkReportFormatter.toPlainText(session)
         assertTrue(text.contains("[prompt_instructions]"))
+        assertTrue(text.contains("[runtime_config]"))
         assertTrue(text.contains("rewrite_system_instruction"))
         assertTrue(text.contains("run_1_after: out1"))
         assertTrue(text.contains("run_3_after: out3"))
