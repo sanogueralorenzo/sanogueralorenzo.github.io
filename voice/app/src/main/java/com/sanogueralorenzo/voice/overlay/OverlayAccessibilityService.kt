@@ -43,15 +43,6 @@ import java.util.concurrent.RejectedExecutionException
 class OverlayAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val processingExecutor = Executors.newSingleThreadExecutor()
-    private val visibilityCheckRunnable = object : Runnable {
-        override fun run() {
-            if (overlayView == null) return
-            evaluateOverlayVisibility()
-            if (overlayView != null) {
-                mainHandler.postDelayed(this, VISIBILITY_POLL_INTERVAL_MS)
-            }
-        }
-    }
 
     @Volatile
     private var inFlight: Future<*>? = null
@@ -113,7 +104,6 @@ class OverlayAccessibilityService : AccessibilityService() {
         if (runningService === this) {
             runningService = null
         }
-        stopVisibilityChecks()
         stopForegroundIfNeeded()
         hideBubble()
         stopRecordingDiscard()
@@ -131,9 +121,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
         if (shouldShow) {
             showOrUpdateBubble(config)
-            scheduleVisibilityChecks()
         } else {
-            stopVisibilityChecks()
             hideBubble()
             stopRecordingDiscard()
         }
@@ -205,22 +193,11 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun hideBubble() {
-        stopVisibilityChecks()
         val view = overlayView ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         runCatching { wm.removeView(view) }
         overlayView = null
         overlayParams = null
-    }
-
-    private fun scheduleVisibilityChecks() {
-        if (overlayView == null) return
-        mainHandler.removeCallbacks(visibilityCheckRunnable)
-        mainHandler.postDelayed(visibilityCheckRunnable, VISIBILITY_POLL_INTERVAL_MS)
-    }
-
-    private fun stopVisibilityChecks() {
-        mainHandler.removeCallbacks(visibilityCheckRunnable)
     }
 
     private fun buildBubbleView(): TextView {
@@ -522,7 +499,6 @@ class OverlayAccessibilityService : AccessibilityService() {
 
         private const val TAG = "OverlayService"
         private const val BUBBLE_SIZE_DP = 56
-        private const val VISIBILITY_POLL_INTERVAL_MS = 40L
         private const val NOTIFICATION_CHANNEL_ID = "overlay_recording"
         private const val NOTIFICATION_ID = 12057
     }
