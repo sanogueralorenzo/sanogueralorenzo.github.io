@@ -5,4 +5,4 @@
     android:accessibilityFlags="flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/overlay_accessibility_description"
-    android:notificationTimeout="80" />
+    android:notificationTimeout="0" />
