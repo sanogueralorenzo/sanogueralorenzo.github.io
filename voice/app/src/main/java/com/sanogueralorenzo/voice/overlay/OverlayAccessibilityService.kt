@@ -74,6 +74,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        runningService = this
         serviceInfo = serviceInfo.apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOWS_CHANGED or
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
@@ -100,6 +101,9 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        if (runningService === this) {
+            runningService = null
+        }
         stopForegroundIfNeeded()
         hideBubble()
         stopRecordingDiscard()
@@ -496,12 +500,13 @@ class OverlayAccessibilityService : AccessibilityService() {
         const val ACTION_REFRESH = "com.sanogueralorenzo.voice.overlay.REFRESH"
 
         fun requestRefresh(context: Context) {
-            runCatching {
-                context.startService(Intent(context, OverlayAccessibilityService::class.java).apply {
-                    action = ACTION_REFRESH
-                })
+            runningService?.mainHandler?.post {
+                runningService?.evaluateOverlayVisibility()
             }
         }
+
+        @Volatile
+        private var runningService: OverlayAccessibilityService? = null
 
         private const val TAG = "OverlayService"
         private const val BUBBLE_SIZE_DP = 56
