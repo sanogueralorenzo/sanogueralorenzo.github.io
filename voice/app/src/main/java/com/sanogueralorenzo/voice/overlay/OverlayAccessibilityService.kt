@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Point
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -113,7 +114,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         val keyboardVisible = isInputMethodWindowVisible() || hasFocusedEditableInput()
         val shouldShow = config.overlayEnabled &&
             !overlayRepository.isVoiceImeSelected() &&
-            keyboardVisible
+            (keyboardVisible || config.positioningMode)
 
         if (shouldShow) {
             showOrUpdateBubble(config)
@@ -141,19 +142,29 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun showOrUpdateBubble(config: OverlayConfig) {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val bubbleSizePx = dpToPx(BUBBLE_SIZE_DP)
+        val safePosition = clampBubblePosition(
+            x = config.bubbleX,
+            y = config.bubbleY,
+            bubbleSizePx = bubbleSizePx,
+            windowManager = wm
+        )
+        if (safePosition.first != config.bubbleX || safePosition.second != config.bubbleY) {
+            overlayRepository.setBubblePosition(safePosition.first, safePosition.second)
+        }
         val view = overlayView
         if (view == null) {
             val bubble = buildBubbleView()
             val params = WindowManager.LayoutParams(
-                dpToPx(BUBBLE_SIZE_DP),
-                dpToPx(BUBBLE_SIZE_DP),
+                bubbleSizePx,
+                bubbleSizePx,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
-                x = config.bubbleX
-                y = config.bubbleY
+                x = safePosition.first
+                y = safePosition.second
             }
             wm.addView(bubble, params)
             overlayView = bubble
@@ -163,11 +174,29 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
 
         val params = overlayParams ?: return
-        if (params.x != config.bubbleX || params.y != config.bubbleY) {
-            params.x = config.bubbleX
-            params.y = config.bubbleY
+        if (params.x != safePosition.first || params.y != safePosition.second) {
+            params.x = safePosition.first
+            params.y = safePosition.second
             wm.updateViewLayout(view, params)
         }
+    }
+
+    private fun clampBubblePosition(
+        x: Int,
+        y: Int,
+        bubbleSizePx: Int,
+        windowManager: WindowManager
+    ): Pair<Int, Int> {
+        val displaySize = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bounds = windowManager.currentWindowMetrics.bounds
+            Point(bounds.width(), bounds.height())
+        } else {
+            @Suppress("DEPRECATION")
+            Point().also { point -> windowManager.defaultDisplay.getRealSize(point) }
+        }
+        val maxX = (displaySize.x - bubbleSizePx).coerceAtLeast(0)
+        val maxY = (displaySize.y - bubbleSizePx).coerceAtLeast(0)
+        return x.coerceIn(0, maxX) to y.coerceIn(0, maxY)
     }
 
     private fun hideBubble() {
