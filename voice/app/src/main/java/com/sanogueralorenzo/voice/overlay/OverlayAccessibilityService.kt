@@ -10,6 +10,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Point
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -52,6 +53,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private var overlayView: TextView? = null
     private var overlayParams: WindowManager.LayoutParams? = null
+    private var lastImeTopPx: Int? = null
 
     private val appGraph by lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
     private val overlayRepository by lazy(LazyThreadSafetyMode.NONE) {
@@ -88,6 +90,9 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (maybeHideOnImeDismissStart(event)) {
+            return
+        }
         evaluateOverlayVisibility()
     }
 
@@ -115,22 +120,15 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
-        val imeVisible = isInputMethodWindowVisible()
-        val focusedEditable = hasFocusedEditableInput()
-        val shouldShow = if (overlayView == null) {
-            config.overlayEnabled &&
-                !overlayRepository.isVoiceImeSelected() &&
-                imeVisible
-        } else {
-            config.overlayEnabled &&
-                !overlayRepository.isVoiceImeSelected() &&
-                imeVisible &&
-                focusedEditable
-        }
+        val shouldShow = config.overlayEnabled &&
+            !overlayRepository.isVoiceImeSelected() &&
+            isInputMethodWindowVisible()
 
         if (shouldShow) {
+            lastImeTopPx = currentImeWindowTopPx()
             showOrUpdateBubble(config)
         } else {
+            lastImeTopPx = null
             hideBubble()
             stopRecordingDiscard()
         }
@@ -142,14 +140,38 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun hasFocusedEditableInput(): Boolean {
-        val directFocused = rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        if (directFocused?.isEditable == true) return true
-        return windows.any { window ->
-            window.root
-                ?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-                ?.isEditable == true
+    private fun currentImeWindowTopPx(): Int? {
+        val imeWindow = windows.firstOrNull { window ->
+            window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
+        } ?: return null
+        val bounds = Rect()
+        imeWindow.getBoundsInScreen(bounds)
+        return bounds.top
+    }
+
+    private fun maybeHideOnImeDismissStart(event: AccessibilityEvent?): Boolean {
+        if (overlayView == null) return false
+        if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return false
+
+        val currentTop = currentImeWindowTopPx()
+        if (currentTop == null) {
+            lastImeTopPx = null
+            hideBubble()
+            stopRecordingDiscard()
+            return true
         }
+
+        val previousTop = lastImeTopPx
+        lastImeTopPx = currentTop
+        if (previousTop == null) return false
+
+        val movedDownPx = currentTop - previousTop
+        if (movedDownPx >= dpToPx(IME_DISMISS_START_THRESHOLD_DP)) {
+            hideBubble()
+            stopRecordingDiscard()
+            return true
+        }
+        return false
     }
 
     private fun showOrUpdateBubble(config: OverlayConfig) {
@@ -518,6 +540,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
         private const val TAG = "OverlayService"
         private const val BUBBLE_SIZE_DP = 56
+        private const val IME_DISMISS_START_THRESHOLD_DP = 8
         private const val NOTIFICATION_CHANNEL_ID = "overlay_recording"
         private const val NOTIFICATION_ID = 12057
     }
