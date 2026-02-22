@@ -44,6 +44,14 @@ import java.util.concurrent.RejectedExecutionException
 class OverlayAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val processingExecutor = Executors.newSingleThreadExecutor()
+    private val imeDismissMonitorRunnable = object : Runnable {
+        override fun run() {
+            if (overlayView == null) return
+            if (!maybeHideOnImeDismissBySnapshot()) {
+                mainHandler.postDelayed(this, IME_DISMISS_MONITOR_INTERVAL_MS)
+            }
+        }
+    }
 
     @Volatile
     private var inFlight: Future<*>? = null
@@ -109,6 +117,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         if (runningService === this) {
             runningService = null
         }
+        stopImeDismissMonitor()
         stopForegroundIfNeeded()
         hideBubble()
         stopRecordingDiscard()
@@ -127,8 +136,10 @@ class OverlayAccessibilityService : AccessibilityService() {
         if (shouldShow) {
             lastImeTopPx = currentImeWindowTopPx()
             showOrUpdateBubble(config)
+            startImeDismissMonitor()
         } else {
             lastImeTopPx = null
+            stopImeDismissMonitor()
             hideBubble()
             stopRecordingDiscard()
         }
@@ -153,7 +164,15 @@ class OverlayAccessibilityService : AccessibilityService() {
         if (overlayView == null) return false
         if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return false
 
-        val currentTop = currentImeWindowTopPx()
+        return evaluateImeTopForDismiss(currentImeWindowTopPx())
+    }
+
+    private fun maybeHideOnImeDismissBySnapshot(): Boolean {
+        if (overlayView == null) return false
+        return evaluateImeTopForDismiss(currentImeWindowTopPx())
+    }
+
+    private fun evaluateImeTopForDismiss(currentTop: Int?): Boolean {
         if (currentTop == null) {
             lastImeTopPx = null
             hideBubble()
@@ -234,11 +253,22 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun hideBubble() {
+        stopImeDismissMonitor()
         val view = overlayView ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         runCatching { wm.removeView(view) }
         overlayView = null
         overlayParams = null
+    }
+
+    private fun startImeDismissMonitor() {
+        if (overlayView == null) return
+        mainHandler.removeCallbacks(imeDismissMonitorRunnable)
+        mainHandler.postDelayed(imeDismissMonitorRunnable, IME_DISMISS_MONITOR_INTERVAL_MS)
+    }
+
+    private fun stopImeDismissMonitor() {
+        mainHandler.removeCallbacks(imeDismissMonitorRunnable)
     }
 
     private fun buildBubbleView(): TextView {
@@ -541,6 +571,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         private const val TAG = "OverlayService"
         private const val BUBBLE_SIZE_DP = 56
         private const val IME_DISMISS_START_THRESHOLD_DP = 8
+        private const val IME_DISMISS_MONITOR_INTERVAL_MS = 120L
         private const val NOTIFICATION_CHANNEL_ID = "overlay_recording"
         private const val NOTIFICATION_ID = 12057
     }
