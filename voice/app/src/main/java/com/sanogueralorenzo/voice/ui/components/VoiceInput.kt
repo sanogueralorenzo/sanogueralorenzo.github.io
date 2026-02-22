@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.ui.components
 
+import androidx.lifecycle.Lifecycle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -13,7 +14,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun VoiceInput(
@@ -34,7 +35,7 @@ fun VoiceInput(
         }
     )
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         if (autoFocusOnResume && voiceImeSelected) {
             latestFocusAction()
         }

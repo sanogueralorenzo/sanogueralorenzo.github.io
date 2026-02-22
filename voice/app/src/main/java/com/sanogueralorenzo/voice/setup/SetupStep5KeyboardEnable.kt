@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.setup
 
+import androidx.lifecycle.Lifecycle
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +20,7 @@ import com.airbnb.mvrx.compose.mavericksViewModel
 import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.VoiceApp
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -102,7 +103,7 @@ fun SetupStep5KeyboardSetupScreen(
     val viewModel = mavericksViewModel<SetupStep5KeyboardSetupViewModel, SetupStep5KeyboardSetupState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshKeyboardStatus()
     }
 

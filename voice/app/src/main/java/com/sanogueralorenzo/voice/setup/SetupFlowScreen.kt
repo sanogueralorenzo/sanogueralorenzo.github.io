@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.setup
 
+import androidx.lifecycle.Lifecycle
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -19,7 +20,7 @@ import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.VoiceApp
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -127,7 +128,7 @@ fun SetupFlowScreen(
         setupViewModel.refreshRequiredStep()
     }
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         setupViewModel.refreshRequiredStep()
     }
 

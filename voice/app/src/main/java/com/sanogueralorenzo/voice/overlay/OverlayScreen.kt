@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.overlay
 
+import androidx.lifecycle.Lifecycle
 import android.Manifest
 import android.content.Intent
 import android.provider.Settings
@@ -29,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun OverlayScreen() {
@@ -44,7 +45,7 @@ fun OverlayScreen() {
         OverlayAccessibilityService.requestRefresh(context)
     }
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshStatus()
         OverlayAccessibilityService.requestRefresh(context)
     }

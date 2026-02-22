@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.settings
 
+import androidx.lifecycle.Lifecycle
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.runtime.Composable
@@ -22,7 +23,7 @@ import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.di.appGraph
 import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -134,7 +135,7 @@ fun SettingsFlowScreen() {
     val state by viewModel.collectAsStateWithLifecycle()
     val keyboardThemeMode by appGraph.themeRepository.keyboardThemeModeFlow.collectFlowAsStateWithLifecycle()
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshOnResume()
     }
 

@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.setup
 
+import androidx.lifecycle.Lifecycle
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -36,7 +37,7 @@ import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -473,7 +474,7 @@ fun SetupStep3ModelsDownloadScreen(
         onDispose { viewModel.shutdown() }
     }
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshModelReadiness()
     }
 

@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.preferences
 
+import androidx.lifecycle.Lifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,14 +25,14 @@ import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun PreferencesScreen() {
     val viewModel = mavericksViewModel<PreferencesViewModel, PreferencesState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshPreferences()
     }
 

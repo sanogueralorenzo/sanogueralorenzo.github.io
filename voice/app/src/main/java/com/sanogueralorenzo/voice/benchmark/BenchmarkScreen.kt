@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.benchmark
 
+import androidx.lifecycle.Lifecycle
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.ui.OnResume
+import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun BenchmarkScreen(
@@ -37,7 +38,7 @@ fun BenchmarkScreen(
     val viewModel = mavericksViewModel<BenchmarkViewModel, BenchmarkState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
-    OnResume {
+    OnLifecycle(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshPrerequisites()
     }
 
