@@ -25,6 +25,7 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.HomeScreen
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
 import com.sanogueralorenzo.voice.benchmark.BenchmarkScreen
+import com.sanogueralorenzo.voice.overlay.OverlayScreen
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeScreen
 import com.sanogueralorenzo.voice.ui.components.VoiceInput
@@ -36,6 +37,7 @@ private object SettingsRoute {
     const val THEME = "settings_theme"
     const val UPDATES = "settings_updates"
     const val PREFERENCES = "settings_preferences"
+    const val OVERLAY = "settings_overlay"
 }
 
 @Composable
@@ -57,6 +59,7 @@ fun SettingsNavHost(
         SettingsRoute.THEME -> stringResource(R.string.theming_section_title)
         SettingsRoute.UPDATES -> stringResource(R.string.updates_section_title)
         SettingsRoute.PREFERENCES -> stringResource(R.string.preferences_section_title)
+        SettingsRoute.OVERLAY -> stringResource(R.string.overlay_section_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
 
@@ -128,6 +131,7 @@ fun SettingsNavHost(
                     onOpenTheme = { navController.navigate(SettingsRoute.THEME) },
                     onOpenUpdates = { navController.navigate(SettingsRoute.UPDATES) },
                     onOpenPreferences = { navController.navigate(SettingsRoute.PREFERENCES) },
+                    onOpenOverlay = { navController.navigate(SettingsRoute.OVERLAY) },
                     keyboardThemeMode = keyboardThemeMode
                 )
             }
@@ -151,6 +155,10 @@ fun SettingsNavHost(
                     promptProgress = state.promptProgress,
                     onDownloadPrompt = onDownloadPrompt
                 )
+            }
+
+            composable(SettingsRoute.OVERLAY) {
+                OverlayScreen()
             }
         }
     }

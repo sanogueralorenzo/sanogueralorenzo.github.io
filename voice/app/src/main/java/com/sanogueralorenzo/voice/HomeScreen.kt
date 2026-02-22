@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Tune
@@ -47,6 +48,7 @@ fun HomeScreen(
     onOpenTheme: () -> Unit,
     onOpenUpdates: () -> Unit,
     onOpenPreferences: () -> Unit,
+    onOpenOverlay: () -> Unit,
     keyboardThemeMode: KeyboardThemeMode
 ) {
     var showLanguagesComingSoonDialog by remember { mutableStateOf(false) }
@@ -83,6 +85,11 @@ fun HomeScreen(
         icon = Icons.Outlined.ContentPaste,
         title = stringResource(R.string.settings_menu_benchmark),
         onClick = onOpenBenchmark
+    )
+    toolItems += HomeMenuItem(
+        icon = Icons.Outlined.Mic,
+        title = stringResource(R.string.settings_menu_overlay),
+        onClick = onOpenOverlay
     )
 
     val sections = listOf(
