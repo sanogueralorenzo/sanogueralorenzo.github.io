@@ -115,10 +115,9 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
-        val keyboardVisible = isInputMethodWindowVisible() || hasFocusedEditableInput()
         val shouldShow = config.overlayEnabled &&
             !overlayRepository.isVoiceImeSelected() &&
-            (keyboardVisible || config.positioningMode)
+            isInputMethodWindowVisible()
 
         if (shouldShow) {
             showOrUpdateBubble(config)
@@ -131,16 +130,6 @@ class OverlayAccessibilityService : AccessibilityService() {
     private fun isInputMethodWindowVisible(): Boolean {
         return windows.any { window ->
             window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
-        }
-    }
-
-    private fun hasFocusedEditableInput(): Boolean {
-        val directFocused = rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        if (directFocused?.isEditable == true) return true
-        return windows.any { window ->
-            window.root
-                ?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-                ?.isEditable == true
         }
     }
 
