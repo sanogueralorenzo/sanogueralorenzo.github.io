@@ -1,9 +1,12 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import process from "node:process";
 
 type BindingMap = Record<string, string>;
 
 export class BindingStore {
+  private writeQueue: Promise<void> = Promise.resolve();
+
   constructor(private readonly filePath: string) {}
 
   async get(chatId: string): Promise<string | null> {
@@ -12,19 +15,23 @@ export class BindingStore {
   }
 
   async set(chatId: string, threadId: string): Promise<void> {
-    const bindings = await this.readAll();
-    bindings[chatId] = threadId;
-    await this.writeAll(bindings);
+    await this.enqueueWrite(async () => {
+      const bindings = await this.readAll();
+      bindings[chatId] = threadId;
+      await this.writeAll(bindings);
+    });
   }
 
   async remove(chatId: string): Promise<boolean> {
-    const bindings = await this.readAll();
-    if (!bindings[chatId]) {
-      return false;
-    }
-    delete bindings[chatId];
-    await this.writeAll(bindings);
-    return true;
+    return this.enqueueWrite(async () => {
+      const bindings = await this.readAll();
+      if (!bindings[chatId]) {
+        return false;
+      }
+      delete bindings[chatId];
+      await this.writeAll(bindings);
+      return true;
+    });
   }
 
   private async readAll(): Promise<BindingMap> {
@@ -51,7 +58,9 @@ export class BindingStore {
 
   private async writeAll(bindings: BindingMap): Promise<void> {
     await this.ensureFile();
-    await writeFile(this.filePath, `${JSON.stringify(bindings, null, 2)}\n`, "utf8");
+    const tmpPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tmpPath, `${JSON.stringify(bindings, null, 2)}\n`, "utf8");
+    await rename(tmpPath, this.filePath);
   }
 
   private async ensureFile(): Promise<void> {
@@ -63,5 +72,14 @@ export class BindingStore {
     } catch {
       await writeFile(this.filePath, "{}\n", "utf8");
     }
+  }
+
+  private enqueueWrite<T>(work: () => Promise<T>): Promise<T> {
+    const next = this.writeQueue.then(work, work);
+    this.writeQueue = next.then(
+      () => undefined,
+      () => undefined
+    );
+    return next;
   }
 }

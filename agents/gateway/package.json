@@ -15,7 +15,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@openai/codex-sdk": "^0.104.0",
     "dotenv": "^17.3.1",
     "grammy": "^1.40.0"
   },
