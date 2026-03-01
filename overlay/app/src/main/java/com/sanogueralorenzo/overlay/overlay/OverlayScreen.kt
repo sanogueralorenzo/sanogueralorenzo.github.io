@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,7 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -53,6 +56,8 @@ import com.sanogueralorenzo.overlay.ui.components.SwitchSection
 import com.sanogueralorenzo.overlay.ui.components.StepSection
 import com.sanogueralorenzo.overlay.ui.theme.OverlayTheme
 import com.sanogueralorenzo.overlay.ui.components.rememberNotificationPermissionState
+import com.sanogueralorenzo.overlay.ui.components.SecureSettingsPermissionSection
+import com.sanogueralorenzo.overlay.ui.components.rememberSecureSettingsPermissionState
 
 fun NavGraphBuilder.overlayRoute(
     route: String,
@@ -91,15 +96,20 @@ fun OverlayScreen(
     onSetLongPressDismissEnabled: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val notificationPermission = rememberNotificationPermissionState()
+    val secureSettingsPermission = rememberSecureSettingsPermissionState()
     RefreshOnResume {
         onRefreshOverlay()
         notificationPermission.refresh()
+        secureSettingsPermission.refresh()
     }
 
     val allGranted = state.isOverlayGranted &&
         state.isTileAdded &&
-        notificationPermission.hasPermission
+        notificationPermission.hasPermission &&
+        secureSettingsPermission.hasPermission
 
     Scaffold(
         topBar = {
@@ -192,6 +202,20 @@ fun OverlayScreen(
                     NotificationPermissionSection(
                         hasPermission = notificationPermission.hasPermission,
                         onRequestPermission = notificationPermission.requestPermission
+                    )
+                    SecureSettingsPermissionSection(
+                        hasPermission = secureSettingsPermission.hasPermission,
+                        commandPreview = secureSettingsPermission.macSetupCommand,
+                        onCopyCommand = {
+                            clipboardManager.setText(
+                                AnnotatedString(secureSettingsPermission.macSetupCommand)
+                            )
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.adb_command_copied_message),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     )
                 }
             }
