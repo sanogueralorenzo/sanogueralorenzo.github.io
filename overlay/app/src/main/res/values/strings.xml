@@ -23,10 +23,6 @@
     <string name="quick_settings_tile_section_label">Quick Settings tile</string>
     <string name="tile_manual_hint">Add the tile from Quick Settings edit.</string>
     <string name="setup_overlay_body">Allows the black screen to sit on top of any app without stopping playback.</string>
-    <string name="secure_settings_permission_label">Secure settings (ADB)</string>
-    <string name="secure_settings_permission_body">Required to auto-hide the status bar while overlay is active. Run the command on your Mac, then return here and tap refresh.</string>
-    <string name="copy_adb_setup_command_button">Copy Mac command</string>
-    <string name="adb_command_copied_message">Command copied to clipboard.</string>
     <string name="setup_tile_body">Start the overlay from the tile so streaming apps keep playing.</string>
     <string name="long_press_dismiss_title">Long-press to dismiss</string>
     <string name="long_press_dismiss_body">When enabled, press and hold the overlay to stop it and return to your app.</string>
