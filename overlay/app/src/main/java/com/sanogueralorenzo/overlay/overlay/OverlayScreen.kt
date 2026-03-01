@@ -1,9 +1,11 @@
 package com.sanogueralorenzo.overlay.overlay
 
+import android.app.ActivityManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,16 +32,22 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.overlay.R
@@ -51,8 +59,11 @@ import com.sanogueralorenzo.overlay.ui.components.SectionCard
 import com.sanogueralorenzo.overlay.ui.components.StatusSection
 import com.sanogueralorenzo.overlay.ui.components.SwitchSection
 import com.sanogueralorenzo.overlay.ui.components.StepSection
+import com.sanogueralorenzo.overlay.ui.components.SecureSettingsPermissionSection
 import com.sanogueralorenzo.overlay.ui.theme.OverlayTheme
 import com.sanogueralorenzo.overlay.ui.components.rememberNotificationPermissionState
+import com.sanogueralorenzo.overlay.ui.components.rememberSecureSettingsPermissionState
+import androidx.core.net.toUri
 
 fun NavGraphBuilder.overlayRoute(
     route: String,
@@ -91,15 +102,35 @@ fun OverlayScreen(
     onSetLongPressDismissEnabled: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    var isOverlayRunning by remember { mutableStateOf(isOverlayServiceRunning(context)) }
+    val copyCommandAndNotify: (String) -> Unit = { command ->
+        clipboardManager.setText(AnnotatedString(command))
+        Toast.makeText(
+            context,
+            context.getString(R.string.adb_command_copied_message),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
     val notificationPermission = rememberNotificationPermissionState()
+    val secureSettingsPermission = rememberSecureSettingsPermissionState()
     RefreshOnResume {
         onRefreshOverlay()
         notificationPermission.refresh()
+        secureSettingsPermission.refresh()
+        isOverlayRunning = isOverlayServiceRunning(context)
     }
 
-    val allGranted = state.isOverlayGranted &&
-        state.isTileAdded &&
-        notificationPermission.hasPermission
+    val permissionsResolved = state.overlayPermission is Success &&
+        state.tileAdded is Success
+    val isOverlayGranted = state.overlayPermission() == true
+    val isTileAdded = state.tileAdded() == true
+    val longPressEnabled = state.longPressDismissEnabled() == true
+    val allGranted = isOverlayGranted &&
+        isTileAdded &&
+        notificationPermission.hasPermission &&
+        secureSettingsPermission.hasPermission
 
     Scaffold(
         topBar = {
@@ -125,77 +156,84 @@ fun OverlayScreen(
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.Start
         ) {
-            if (!allGranted) {
+            if (permissionsResolved && !allGranted) {
                 SectionCard(
                     title = stringResource(R.string.overlay_setup_title)
                 ) {
                     StatusSection(
                         icon = Icons.Outlined.Layers,
                         label = stringResource(R.string.overlay_permission_label),
-                        status = if (state.isOverlayGranted) {
+                        status = if (isOverlayGranted) {
                             stringResource(R.string.permission_status_granted)
                         } else {
                             stringResource(R.string.permission_status_required)
                         },
-                        statusColor = if (state.isOverlayGranted) {
+                        statusColor = if (isOverlayGranted) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.error
                         },
-                        statusContainerColor = if (state.isOverlayGranted) {
+                        statusContainerColor = if (isOverlayGranted) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
                             MaterialTheme.colorScheme.errorContainer
                         },
-                        body = if (!state.isOverlayGranted) {
+                        body = if (!isOverlayGranted) {
                             stringResource(R.string.setup_overlay_body)
                         } else {
                             null
                         },
-                        actionLabel = if (!state.isOverlayGranted) {
+                        actionLabel = if (!isOverlayGranted) {
                             stringResource(R.string.open_settings_button)
                         } else {
                             null
                         },
-                        onAction = if (!state.isOverlayGranted) onOpenOverlaySettings else null
+                        onAction = if (!isOverlayGranted) onOpenOverlaySettings else null
                     )
                     StatusSection(
                         icon = Icons.Outlined.GridView,
                         label = stringResource(R.string.quick_settings_tile_section_label),
-                        status = if (state.isTileAdded) {
+                        status = if (isTileAdded) {
                             stringResource(R.string.permission_status_granted)
                         } else {
                             stringResource(R.string.permission_status_required)
                         },
-                        statusColor = if (state.isTileAdded) {
+                        statusColor = if (isTileAdded) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.error
                         },
-                        statusContainerColor = if (state.isTileAdded) {
+                        statusContainerColor = if (isTileAdded) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
                             MaterialTheme.colorScheme.errorContainer
                         },
-                        body = if (!state.isTileAdded) {
+                        body = if (!isTileAdded) {
                             stringResource(R.string.setup_tile_body)
                         } else {
                             null
                         },
-                        actionLabel = if (!state.isTileAdded) {
+                        actionLabel = if (!isTileAdded) {
                             stringResource(R.string.request_tile_button)
                         } else {
                             null
                         },
-                        onAction = if (!state.isTileAdded) onRequestTile else null
+                        onAction = if (!isTileAdded) onRequestTile else null
                     )
                     NotificationPermissionSection(
                         hasPermission = notificationPermission.hasPermission,
                         onRequestPermission = notificationPermission.requestPermission
                     )
+                    SecureSettingsPermissionSection(
+                        hasPermission = secureSettingsPermission.hasPermission,
+                        commands = secureSettingsPermission.commands,
+                        onCopyCommand = copyCommandAndNotify
+                    )
                 }
             }
-            if (!allGranted) Spacer(modifier = Modifier.height(16.dp))
+            if (permissionsResolved && !allGranted) {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             SectionCard(title = stringResource(R.string.how_it_works_label)) {
                 StepSection(
                     icon = Icons.Outlined.PlayArrow,
@@ -224,7 +262,49 @@ fun OverlayScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
             SectionCard(title = stringResource(R.string.overlay_settings_title)) {
-                val longPressEnabled = state.isLongPressDismissEnabled
+                StatusSection(
+                    icon = Icons.Outlined.Layers,
+                    label = stringResource(R.string.overlay_direct_control_label),
+                    status = stringResource(
+                        if (isOverlayRunning) {
+                            R.string.overlay_running
+                        } else {
+                            R.string.overlay_stopped
+                        }
+                    ),
+                    statusColor = if (isOverlayRunning) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    statusContainerColor = if (isOverlayRunning) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    body = stringResource(R.string.overlay_direct_control_body),
+                    actionLabel = stringResource(
+                        if (isOverlayRunning) {
+                            R.string.stop_overlay_button
+                        } else {
+                            R.string.start_overlay_button
+                        }
+                    ),
+                    onAction = {
+                        if (!isOverlayGranted) {
+                            onOpenOverlaySettings()
+                        } else {
+                            val intent = Intent(context, OverlayService::class.java)
+                            if (isOverlayRunning) {
+                                intent.action = OverlayService.ACTION_STOP
+                                context.startService(intent)
+                            } else {
+                                context.startForegroundService(intent)
+                            }
+                            isOverlayRunning = isOverlayServiceRunning(context)
+                        }
+                    }
+                )
                 SwitchSection(
                     icon = Icons.Outlined.TouchApp,
                     label = stringResource(R.string.long_press_dismiss_title),
@@ -255,8 +335,9 @@ private fun OverlayScreenPreview() {
     OverlayTheme {
         OverlayScreen(
             state = OverlayState(
-                isOverlayGranted = false,
-                isTileAdded = false
+                overlayPermission = Success(false),
+                tileAdded = Success(false),
+                longPressDismissEnabled = Success(false)
             ),
             onOpenOverlaySettings = {},
             onRequestTile = {},
@@ -271,7 +352,7 @@ private fun OverlayScreenPreview() {
 fun ComponentActivity.openOverlaySettings() {
     val intent = Intent(
         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-        Uri.parse("package:$packageName")
+        "package:$packageName".toUri()
     )
     startActivity(intent)
 }
@@ -284,4 +365,12 @@ fun ComponentActivity.requestAddTile(onAdded: () -> Unit) {
         iconRes = R.drawable.ic_qs_black,
         onAdded = onAdded
     )
+}
+
+private fun isOverlayServiceRunning(context: Context): Boolean {
+    val manager = context.getSystemService(ActivityManager::class.java) ?: return OverlayService.isRunning
+    @Suppress("DEPRECATION")
+    return manager.getRunningServices(Integer.MAX_VALUE).any { info ->
+        info.service.className == OverlayService::class.java.name
+    }
 }

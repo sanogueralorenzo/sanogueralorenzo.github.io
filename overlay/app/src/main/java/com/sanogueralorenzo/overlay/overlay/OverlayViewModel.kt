@@ -1,16 +1,19 @@
 package com.sanogueralorenzo.overlay.overlay
 
+import com.airbnb.mvrx.Async
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
+import com.airbnb.mvrx.Success
+import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.ViewModelContext
 import com.sanogueralorenzo.overlay.OverlayApp
 import kotlinx.coroutines.launch
 
 data class OverlayState(
-    val isOverlayGranted: Boolean = false,
-    val isTileAdded: Boolean = false,
-    val isLongPressDismissEnabled: Boolean = false
+    val overlayPermission: Async<Boolean> = Uninitialized,
+    val tileAdded: Async<Boolean> = Uninitialized,
+    val longPressDismissEnabled: Async<Boolean> = Uninitialized
 ) : MavericksState
 
 class OverlayViewModel(
@@ -18,15 +21,15 @@ class OverlayViewModel(
     private val repository: OverlayRepository
 ) : MavericksViewModel<OverlayState>(initialState) {
     init {
-        repository.tileAddedFlow().setOnEach { copy(isTileAdded = it) }
+        repository.tileAddedFlow().setOnEach { copy(tileAdded = Success(it)) }
         repository.longPressDismissEnabledFlow()
-            .setOnEach { copy(isLongPressDismissEnabled = it) }
+            .setOnEach { copy(longPressDismissEnabled = Success(it)) }
         refreshOverlay()
     }
 
     fun refreshOverlay() {
-        val isOverlayGranted = repository.isOverlayGranted()
-        setState { copy(isOverlayGranted = isOverlayGranted) }
+        suspend { repository.isOverlayGranted() }
+            .execute { copy(overlayPermission = it) }
     }
 
     fun setTileAdded(added: Boolean) {

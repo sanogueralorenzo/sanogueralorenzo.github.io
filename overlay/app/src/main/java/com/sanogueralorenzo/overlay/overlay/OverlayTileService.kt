@@ -1,6 +1,5 @@
 package com.sanogueralorenzo.overlay.overlay
 
-import android.app.ActivityManager
 import android.content.Intent
 import android.provider.Settings
 import android.service.quicksettings.Tile
@@ -72,10 +71,6 @@ class OverlayTileService : TileService() {
     }
 
     private fun isServiceRunning(): Boolean {
-        val manager = getSystemService(ActivityManager::class.java) ?: return false
-        @Suppress("DEPRECATION")
-        return manager.getRunningServices(Integer.MAX_VALUE).any { info ->
-            info.service.className == OverlayService::class.java.name
-        }
+        return OverlayService.isRunning
     }
 }

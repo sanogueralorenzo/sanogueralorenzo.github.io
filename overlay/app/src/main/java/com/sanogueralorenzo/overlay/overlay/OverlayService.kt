@@ -176,6 +176,7 @@ class OverlayService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        immersiveModeController.enableStatusBarImmersiveMode()
         return START_NOT_STICKY
     }
 
