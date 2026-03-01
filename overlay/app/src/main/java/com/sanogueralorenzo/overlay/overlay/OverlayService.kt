@@ -16,6 +16,7 @@ import android.os.Looper
 import android.service.quicksettings.TileService
 import android.view.MotionEvent
 import android.view.ViewConfiguration
+import android.view.Gravity
 import android.view.WindowManager
 import android.widget.FrameLayout
 import com.sanogueralorenzo.overlay.OVERLAY_NOTIFICATION_ID
@@ -46,6 +47,7 @@ class OverlayService : Service() {
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (Intent.ACTION_SCREEN_OFF == intent.action) {
+                immersiveModeController.disableStatusBarImmersiveMode()
                 stopSelf()
             }
         }
@@ -63,6 +65,7 @@ class OverlayService : Service() {
         }
     }
     private val settingsRepository by lazy { SettingsRepository(applicationContext) }
+    private val immersiveModeController by lazy { ImmersiveModeController(applicationContext) }
     private val autoLockScheduler by lazy {
         AutoLockScheduler(
             context = this,
@@ -113,15 +116,22 @@ class OverlayService : Service() {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_FULLSCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.OPAQUE
         )
+        // Request edge-to-edge layout; system bars still remain above application overlays.
+        params.gravity = Gravity.TOP or Gravity.START
+        params.layoutInDisplayCutoutMode =
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        params.setFitInsetsTypes(0)
         try {
             windowManager?.addView(overlayView, params)
         } catch (_: SecurityException) {
             stopSelf()
             return
         }
+        immersiveModeController.enableStatusBarImmersiveMode()
         val screenOffFilter = IntentFilter(Intent.ACTION_SCREEN_OFF)
         registerReceiver(
             screenOffReceiver,
@@ -141,6 +151,7 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         stopForegroundNotification()
+        immersiveModeController.disableStatusBarImmersiveMode()
         overlayView?.let { view ->
             if (view.parent != null) {
                 windowManager?.removeView(view)
@@ -161,6 +172,7 @@ class OverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            immersiveModeController.disableStatusBarImmersiveMode()
             stopSelf()
             return START_NOT_STICKY
         }
