@@ -10,26 +10,14 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.service.quicksettings.TileService
-import android.view.MotionEvent
-import android.view.ViewConfiguration
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
-import android.widget.FrameLayout
 import com.sanogueralorenzo.overlay.OVERLAY_NOTIFICATION_ID
-import com.sanogueralorenzo.overlay.SettingsRepository
-import com.sanogueralorenzo.overlay.autolock.AutoLockScheduler
 import com.sanogueralorenzo.overlay.buildOverlayNotification
 import com.sanogueralorenzo.overlay.ensureForegroundChannel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 
 class OverlayService : Service() {
     companion object {
@@ -54,29 +42,9 @@ class OverlayService : Service() {
     }
 
     private var windowManager: WindowManager? = null
-    private var overlayView: FrameLayout? = null
+    private var overlayView: View? = null
     private var receiverRegistered: Boolean = false
-    private val handler = Handler(Looper.getMainLooper())
-    @Volatile
-    private var longPressDismissEnabled: Boolean = false
-    private val longPressRunnable = Runnable {
-        if (longPressDismissEnabled) {
-            stopSelf()
-        }
-    }
-    private val settingsRepository by lazy { SettingsRepository(applicationContext) }
     private val immersiveModeController by lazy { ImmersiveModeController(applicationContext) }
-    private val autoLockScheduler by lazy {
-        AutoLockScheduler(
-            context = this,
-            handler = handler,
-            settingsRepository = settingsRepository,
-            serviceScope = serviceScope,
-            stopSelf = { stopSelf() },
-            stopOnInvalidConfig = false
-        )
-    }
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -95,42 +63,6 @@ class OverlayService : Service() {
             buildOverlayNotification(this, stopPendingIntent)
         )
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        overlayView = FrameLayout(this).apply {
-            setBackgroundColor(Color.BLACK)
-        }
-        val longPressTimeoutMs = ViewConfiguration.getLongPressTimeout().toLong()
-        overlayView?.setOnTouchListener { _, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    handler.postDelayed(longPressRunnable, longPressTimeoutMs)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    handler.removeCallbacks(longPressRunnable)
-                }
-            }
-            true
-        }
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.OPAQUE
-        )
-        // Request edge-to-edge layout; system bars still remain above application overlays.
-        params.gravity = Gravity.TOP or Gravity.START
-        params.layoutInDisplayCutoutMode =
-            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-        params.setFitInsetsTypes(0)
-        try {
-            windowManager?.addView(overlayView, params)
-        } catch (_: SecurityException) {
-            stopSelf()
-            return
-        }
         immersiveModeController.enableStatusBarImmersiveMode()
         val screenOffFilter = IntentFilter(Intent.ACTION_SCREEN_OFF)
         registerReceiver(
@@ -140,13 +72,8 @@ class OverlayService : Service() {
         )
         receiverRegistered = true
         isRunning = true
-        serviceScope.launch {
-            settingsRepository.longPressDismissEnabledFlow().collect { enabled ->
-                longPressDismissEnabled = enabled
-            }
-        }
+        addOverlay()
         requestTileUpdate(this)
-        autoLockScheduler.start()
     }
 
     override fun onDestroy() {
@@ -162,9 +89,6 @@ class OverlayService : Service() {
             unregisterReceiver(screenOffReceiver)
             receiverRegistered = false
         }
-        autoLockScheduler.clear()
-        handler.removeCallbacks(longPressRunnable)
-        serviceScope.cancel()
         isRunning = false
         requestTileUpdate(this)
         super.onDestroy()
@@ -184,5 +108,42 @@ class OverlayService : Service() {
 
     private fun stopForegroundNotification() {
         stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    private fun addOverlay() {
+        if (overlayView != null) {
+            return
+        }
+        val blackView = View(this).apply {
+            setBackgroundColor(Color.BLACK)
+            setOnTouchListener { _, _ ->
+                true
+            }
+        }
+        try {
+            windowManager?.addView(blackView, createOverlayParams())
+            overlayView = blackView
+        } catch (_: SecurityException) {
+            stopSelf()
+        }
+    }
+
+    private fun createOverlayParams(): WindowManager.LayoutParams {
+        return WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            // Request edge-to-edge layout; system bars still remain above application overlays.
+            layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            setFitInsetsTypes(0)
+        }
     }
 }
