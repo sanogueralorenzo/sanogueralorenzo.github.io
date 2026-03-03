@@ -75,11 +75,6 @@ fun HomeScreen(
                     subtitle = stringResource(R.string.overlay_setup_title),
                     leadingEmoji = "⚠️",
                     onClick = onOpenPermissions
-                ),
-                HomeMenuItem(
-                    title = stringResource(R.string.open_metrics_button),
-                    subtitle = stringResource(R.string.metrics_coming_soon_label),
-                    leadingEmoji = "📈"
                 )
             )
         )
@@ -159,7 +154,7 @@ private data class HomeMenuSection(
 private data class HomeMenuItem(
     val title: String,
     val subtitle: String?,
-    val onClick: (() -> Unit)? = null,
+    val onClick: () -> Unit,
     val icon: ImageVector? = null,
     val leadingEmoji: String? = null
 )
@@ -196,15 +191,10 @@ private fun HomeSectionCard(section: HomeMenuSection) {
 
 @Composable
 private fun HomeMenuRow(item: HomeMenuItem) {
-    val rowModifier = if (item.onClick != null) {
-        Modifier.clickable(onClick = item.onClick)
-    } else {
-        Modifier
-    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(rowModifier)
+            .clickable(onClick = item.onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -244,13 +234,11 @@ private fun HomeMenuRow(item: HomeMenuItem) {
                 )
             }
         }
-        if (item.onClick != null) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
