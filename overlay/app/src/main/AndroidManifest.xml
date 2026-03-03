@@ -45,18 +45,6 @@
         </service>
 
         <service
-            android:name=".autotimeout.AutoTimeoutTileService"
-            android:exported="true"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.quicksettings.TILE"
-                android:resource="@xml/auto_timeout_tile" />
-        </service>
-
-        <service
             android:name=".overlay.OverlayService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
@@ -65,26 +53,6 @@
                 android:value="black_overlay" />
         </service>
 
-        <service
-            android:name=".autotimeout.AutoTimeoutService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="auto_timeout_lock" />
-        </service>
-
-        <receiver
-            android:name=".overlay.OverlayDeviceAdminReceiver"
-            android:exported="false"
-            android:permission="android.permission.BIND_DEVICE_ADMIN">
-            <meta-data
-                android:name="android.app.device_admin"
-                android:resource="@xml/device_admin_receiver" />
-            <intent-filter>
-                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
-            </intent-filter>
-        </receiver>
     </application>
 
 </manifest>

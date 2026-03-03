@@ -1,7 +1,6 @@
 package com.sanogueralorenzo.overlay.ui.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -11,24 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -36,17 +27,24 @@ fun SectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium
-            )
             content()
         }
+    }
     }
 }
 
@@ -91,67 +89,6 @@ fun StatusSection(
                 text = body,
                 buttonLabel = actionLabel,
                 onClick = onAction,
-                helperText = helperText
-            )
-        }
-    }
-}
-
-@Composable
-fun SwitchSection(
-    icon: ImageVector,
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    body: String?,
-    helperText: String? = null,
-    enabled: Boolean = true
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        val interactionSource = remember { MutableInteractionSource() }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null
-                ) { onCheckedChange(!checked) }
-                .semantics(mergeDescendants = true) {
-                    role = Role.Switch
-                    toggleableState = if (checked) {
-                        ToggleableState.On
-                    } else {
-                        ToggleableState.Off
-                    }
-                },
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = enabled,
-                modifier = Modifier.scale(0.8f)
-            )
-        }
-        if (body != null) {
-            StatusActionBlock(
-                text = body,
-                buttonLabel = null,
-                onClick = null,
                 helperText = helperText
             )
         }

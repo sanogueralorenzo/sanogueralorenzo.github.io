@@ -6,29 +6,40 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.overlay.about.aboutRoute
-import com.sanogueralorenzo.overlay.autotimeout.autoTimeoutRoute
-import com.sanogueralorenzo.overlay.overlay.overlayRoute
+import com.sanogueralorenzo.overlay.help.helpRoute
+import com.sanogueralorenzo.overlay.home.homeRoute
+import com.sanogueralorenzo.overlay.permissions.permissionsRoute
 
 @Composable
 fun AppRoot() {
     val navController = rememberNavController()
+    val navigateBackToHome: () -> Unit = {
+        if (!navController.popBackStack(NavRoutes.Home, false)) {
+            navController.navigateSingleTop(NavRoutes.Home)
+        }
+    }
     Surface(color = MaterialTheme.colorScheme.background) {
         NavHost(
             navController = navController,
-            startDestination = NavRoutes.Overlay
+            startDestination = NavRoutes.Home
         ) {
-            overlayRoute(
-                route = NavRoutes.Overlay,
-                onOpenAutoTimeout = { navController.navigateSingleTop(NavRoutes.AutoTimeout) },
+            homeRoute(
+                route = NavRoutes.Home,
+                onOpenHelp = { navController.navigateSingleTop(NavRoutes.Help) },
+                onOpenPermissions = { navController.navigateSingleTop(NavRoutes.Permissions) },
                 onOpenAbout = { navController.navigateSingleTop(NavRoutes.About) }
             )
-            autoTimeoutRoute(
-                route = NavRoutes.AutoTimeout,
-                onBack = { navController.popBackStack() }
+            helpRoute(
+                route = NavRoutes.Help,
+                onBack = navigateBackToHome
+            )
+            permissionsRoute(
+                route = NavRoutes.Permissions,
+                onBack = navigateBackToHome
             )
             aboutRoute(
                 route = NavRoutes.About,
-                onBack = { navController.popBackStack() }
+                onBack = navigateBackToHome
             )
         }
     }

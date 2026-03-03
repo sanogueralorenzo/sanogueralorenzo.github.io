@@ -3,8 +3,7 @@ package com.sanogueralorenzo.overlay.di
 import android.app.Application
 import android.content.Context
 import com.sanogueralorenzo.overlay.SettingsRepository
-import com.sanogueralorenzo.overlay.autotimeout.AutoTimeoutRepository
-import com.sanogueralorenzo.overlay.overlay.OverlayRepository
+import com.sanogueralorenzo.overlay.permissions.PermissionsRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
@@ -13,8 +12,7 @@ import dev.zacsweers.metro.SingleIn
 @SingleIn(AppScope::class)
 @DependencyGraph(AppScope::class)
 interface AppGraph {
-    val overlayRepository: OverlayRepository
-    val autoTimeoutRepository: AutoTimeoutRepository
+    val permissionsRepository: PermissionsRepository
     val settingsRepository: SettingsRepository
 
     @Provides

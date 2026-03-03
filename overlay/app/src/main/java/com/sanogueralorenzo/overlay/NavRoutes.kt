@@ -1,7 +1,8 @@
 package com.sanogueralorenzo.overlay
 
 object NavRoutes {
-    const val Overlay = "overlay"
-    const val AutoTimeout = "auto_timeout"
+    const val Home = "home"
+    const val Help = "help"
+    const val Permissions = "permissions"
     const val About = "about"
 }
