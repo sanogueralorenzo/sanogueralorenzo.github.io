@@ -17,6 +17,8 @@
     <string name="home_next_steps_title">Get started</string>
     <string name="open_help_button">How it works</string>
     <string name="open_permissions_button">Permissions</string>
+    <string name="open_metrics_button">Metrics</string>
+    <string name="metrics_coming_soon_label">Coming soon</string>
 
     <!-- Permissions screen -->
     <string name="permissions_title">Permissions</string>
