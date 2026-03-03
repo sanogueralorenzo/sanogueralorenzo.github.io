@@ -25,13 +25,14 @@ loadEnv();
 
 const token = mustGetEnv("TELEGRAM_BOT_TOKEN");
 const userHome = homedir();
-const bindingFile =
-  resolveUserPath(process.env.BINDINGS_FILE) ?? resolve(process.cwd(), "runtime/bindings.json");
+const bindingFile = resolve(process.cwd(), "runtime/bindings.json");
 const codexHome = resolveCodexHomeFromEnv(process.env.CODEX_HOME);
-const preferredSessionSource = parsePreferredSessionSource(process.env.CODEX_FORCE_SESSION_SOURCE) ?? "vscode";
-const preferredOriginator = process.env.CODEX_FORCE_ORIGINATOR?.trim() || "Codex Desktop";
-const defaultApprovalDecision = parseApprovalDecision(process.env.TELEGRAM_APPROVAL_DEFAULT_DECISION) ?? "decline";
-const echoVoiceTranscript = parseBoolean(process.env.TELEGRAM_VOICE_ECHO_TRANSCRIPT) ?? false;
+const preferredSessionSource = "vscode" as const;
+const preferredOriginator = "Codex Desktop";
+const defaultApprovalDecision: ApprovalDecision = "decline";
+const echoVoiceTranscript = false;
+const enableDraftStreaming = true;
+const draftStreamingThrottleMs = 500;
 const allowedChatIds = parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS);
 
 const store = new BindingStore(bindingFile);
@@ -77,7 +78,9 @@ const promptRunner = createPromptRunner({
   getConversationOptions,
   bindChatToThread,
   resolveThreadTitle: threadActions.resolveThreadTitle,
-  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram
+  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram,
+  enableDraftStreaming,
+  draftStreamingThrottleMs
 });
 
 const voiceService = createVoiceService({
@@ -111,7 +114,7 @@ registerBotHandlers(bot, {
     return withChatLock(chatId, async () => threadActions.tryPickFolderChoiceByText(chatId, text, reply));
   },
   onTryApprovalText: async (ctx, chatId, text) => {
-    return withChatLock(chatId, async () => approvalService.resolveApprovalFromText(ctx, chatId, text));
+    return approvalService.resolveApprovalFromText(ctx, chatId, text);
   },
   onPrompt: async (ctx, chatId, text) => {
     await withChatLock(chatId, async () => {
@@ -208,10 +211,7 @@ function getConversationOptions(): {
     options.networkAccessEnabled = networkAccess;
   }
 
-  const skipGitRepoCheck = parseBoolean(process.env.CODEX_SKIP_GIT_REPO_CHECK);
-  if (skipGitRepoCheck !== null) {
-    options.skipGitRepoCheck = skipGitRepoCheck;
-  }
+  options.skipGitRepoCheck = true;
 
   return options;
 }
@@ -246,26 +246,6 @@ function parseBoolean(value?: string): boolean | null {
   }
   if (value === "false") {
     return false;
-  }
-  return null;
-}
-
-function parseApprovalDecision(value?: string): ApprovalDecision | null {
-  if (!value) {
-    return null;
-  }
-  if (value === "accept" || value === "acceptForSession" || value === "decline" || value === "cancel") {
-    return value;
-  }
-  return null;
-}
-
-function parsePreferredSessionSource(value?: string): "vscode" | "cli" | "appServer" | null {
-  if (!value) {
-    return null;
-  }
-  if (value === "vscode" || value === "cli" || value === "appServer") {
-    return value;
   }
   return null;
 }

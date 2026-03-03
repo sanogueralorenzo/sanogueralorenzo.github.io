@@ -1,4 +1,5 @@
 import {
+  AgentTextSnapshot,
   ApprovalDecision,
   ApprovalPolicy,
   ApprovalRequest,
@@ -10,6 +11,7 @@ import {
 import { BindingStore } from "../adapters/binding-store.js";
 import { formatFailure } from "../bot/messages.js";
 import { PromptContext } from "../bot/context.js";
+import { createTelegramDraftStreamer, TelegramDraftStreamer } from "./telegram-draft-streamer.js";
 
 type ConversationOptions = {
   cwd: string;
@@ -34,6 +36,8 @@ type PromptRunnerDeps = {
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
   resolveThreadTitle: (threadId: string) => Promise<string>;
   requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
+  enableDraftStreaming: boolean;
+  draftStreamingThrottleMs: number;
 };
 
 const TELEGRAM_MESSAGE_LIMIT = 4096;
@@ -41,9 +45,13 @@ const TELEGRAM_MESSAGE_CHUNK = 3900;
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
   async function runPromptThroughCodex(ctx: PromptContext, chatId: string, text: string): Promise<void> {
+    const draftSession = createDraftSession(ctx, deps.enableDraftStreaming, deps.draftStreamingThrottleMs);
     const threadId = await deps.store.get(chatId);
     const runtimeOptions = {
-      approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request)
+      approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
+      onAgentTextSnapshot: (snapshot: AgentTextSnapshot) => {
+        draftSession.pushSnapshot(snapshot);
+      }
     };
 
     try {
@@ -58,17 +66,20 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           await deps.bindChatToThread(chatId, initialized.conversationId);
           deps.pendingNewSessionChats.delete(chatId);
           deps.clearPendingNewSessionCwd(chatId);
-          await replyFromTimedTurn(ctx, initialized);
+          await draftSession.stop(true);
+          await replyFromTimedTurn(ctx, initialized, "Delayed:", draftSession.hasDeliveredDraftText);
           return;
         }
 
+        await draftSession.stop(false);
         await deps.onThreadNotBound(ctx, chatId);
         return;
       }
 
       try {
         const turn = await sendMessageWithTimeoutContinuation(threadId, text, runtimeOptions);
-        await replyFromTimedTurn(ctx, turn);
+        await draftSession.stop(true);
+        await replyFromTimedTurn(ctx, turn, "Delayed:", draftSession.hasDeliveredDraftText);
         return;
       } catch (error) {
         if (!isNoRolloutFoundError(error)) {
@@ -78,13 +89,16 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
       try {
         const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, text, runtimeOptions);
-        await replyFromTimedTurn(ctx, firstTurn);
+        await draftSession.stop(true);
+        await replyFromTimedTurn(ctx, firstTurn, "Delayed:", draftSession.hasDeliveredDraftText);
         return;
       } catch {
-        await recoverFromUnavailableThread(ctx, chatId, text, runtimeOptions);
+        await draftSession.stop(true);
+        await recoverFromUnavailableThread(ctx, chatId, text, runtimeOptions, draftSession.hasDeliveredDraftText);
         return;
       }
     } catch (error) {
+      await draftSession.stop(false);
       const message = error instanceof Error ? error.message : String(error);
       await ctx.reply(formatFailure("Codex error.", message));
     }
@@ -93,10 +107,15 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
   async function replyFromTimedTurn(
     ctx: PromptContext,
     turn: TimedTurnLike,
-    delayedIntro = "Delayed:"
+    delayedIntro = "Delayed:",
+    hasDeliveredDraftText: (text: string) => boolean
   ): Promise<void> {
     if (turn.status === "completed") {
-      await sendTextChunks((message) => ctx.reply(message), turn.response || "(Empty Codex response)");
+      const output = turn.response || "(Empty Codex response)";
+      if (shouldSuppressCompletedMessage(output, hasDeliveredDraftText)) {
+        return;
+      }
+      await sendTextChunks((message) => ctx.reply(message), output);
       return;
     }
 
@@ -108,7 +127,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     ctx: PromptContext,
     chatId: string,
     text: string,
-    runtimeOptions: { approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision> }
+    runtimeOptions: {
+      approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
+      onAgentTextSnapshot: (snapshot: AgentTextSnapshot) => void;
+    },
+    hasDeliveredDraftText: (text: string) => boolean
   ): Promise<void> {
     const options = deps.getConversationOptions();
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
@@ -116,7 +139,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
     const title = await deps.resolveThreadTitle(initialized.conversationId);
     if (initialized.status === "completed") {
-      await sendTextChunks((message) => ctx.reply(message), initialized.response || "(Empty Codex response)");
+      const output = initialized.response || "(Empty Codex response)";
+      if (shouldSuppressCompletedMessage(output, hasDeliveredDraftText)) {
+        return;
+      }
+      await sendTextChunks((message) => ctx.reply(message), output);
       return;
     }
 
@@ -157,6 +184,63 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
   };
 }
 
+function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: number): {
+  pushSnapshot: (snapshot: AgentTextSnapshot) => void;
+  stop: (flushPending: boolean) => Promise<void>;
+  hasDeliveredDraftText: (text: string) => boolean;
+} {
+  const streamersByItemId = new Map<string, TelegramDraftStreamer>();
+  const deliveredDrafts = new Set<string>();
+  const usedDraftIds = new Set<number>();
+  const turnSeed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const messageThreadId = getMessageThreadId(ctx);
+
+  const getOrCreateStreamer = (itemId: string): TelegramDraftStreamer => {
+    const existing = streamersByItemId.get(itemId);
+    if (existing) {
+      return existing;
+    }
+
+    const draftId = allocateDraftId(`${turnSeed}:${itemId}`, usedDraftIds);
+    const streamer = createTelegramDraftStreamer({
+      enabled,
+      throttleMs,
+      sendDraft: (snapshot) =>
+        ctx.api.sendMessageDraft(
+          ctx.chat.id,
+          draftId,
+          snapshot,
+          messageThreadId === null ? undefined : { message_thread_id: messageThreadId }
+        )
+    });
+    streamersByItemId.set(itemId, streamer);
+    return streamer;
+  };
+
+  return {
+    pushSnapshot: (snapshot: AgentTextSnapshot): void => {
+      const itemId = snapshot.itemId.trim();
+      if (!itemId) {
+        return;
+      }
+      getOrCreateStreamer(itemId).pushSnapshot(snapshot.text);
+    },
+    stop: async (flushPending: boolean): Promise<void> => {
+      for (const streamer of streamersByItemId.values()) {
+        await streamer.stop(flushPending);
+        const draftText = streamer.lastDeliveredDraft()?.trim();
+        if (draftText) {
+          deliveredDrafts.add(draftText);
+        }
+      }
+    },
+    hasDeliveredDraftText: (text: string): boolean => {
+      const normalized = text.trim();
+      return normalized.length > 0 && deliveredDrafts.has(normalized);
+    }
+  };
+}
+
 function splitTextForTelegram(text: string, maxLen = TELEGRAM_MESSAGE_CHUNK): string[] {
   if (text.length <= TELEGRAM_MESSAGE_LIMIT) {
     return [text];
@@ -192,4 +276,32 @@ function isNoRolloutFoundError(error: unknown): boolean {
     return false;
   }
   return error.message.includes("no rollout found for thread id");
+}
+
+function shouldSuppressCompletedMessage(finalOutput: string, hasDeliveredDraftText: (text: string) => boolean): boolean {
+  if (!finalOutput.trim()) {
+    return false;
+  }
+  return hasDeliveredDraftText(finalOutput);
+}
+
+function getMessageThreadId(ctx: PromptContext): number | null {
+  const threadId = ctx.message?.message_thread_id;
+  return typeof threadId === "number" ? threadId : null;
+}
+
+function allocateDraftId(seed: string, usedDraftIds: Set<number>): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  let candidate = (hash >>> 1) || 1;
+  while (usedDraftIds.has(candidate)) {
+    candidate = candidate >= 2_147_483_646 ? 1 : candidate + 1;
+  }
+
+  usedDraftIds.add(candidate);
+  return candidate;
 }

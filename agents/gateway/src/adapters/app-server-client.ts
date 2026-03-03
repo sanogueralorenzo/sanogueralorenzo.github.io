@@ -52,8 +52,14 @@ export type ApprovalRequest = {
   cwd: string | null;
 };
 
+export type AgentTextSnapshot = {
+  itemId: string;
+  text: string;
+};
+
 type TurnRuntimeOptions = {
   approvalHandler?: (request: ApprovalRequest) => Promise<ApprovalDecision>;
+  onAgentTextSnapshot?: (snapshot: AgentTextSnapshot) => void;
 };
 
 const TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -165,12 +171,18 @@ async function sendMessageWithTimeoutContinuationInternal(
   resumeFirst: boolean,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedTurnResult> {
-  const client = new AppServerConnection(runtimeOptions?.approvalHandler);
+  const client = new AppServerConnection(runtimeOptions);
   await client.initialize();
 
   let handedOff = false;
   try {
-    const completion = runTurn(client, conversationId, text, resumeFirst);
+    const completion = runTurn(
+      client,
+      conversationId,
+      text,
+      resumeFirst,
+      runtimeOptions?.onAgentTextSnapshot
+    );
     const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
     if (raced.status === "completed") {
       return {
@@ -203,14 +215,20 @@ export async function createAndSendFirstMessageWithTimeoutContinuation(
   text: string,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedCreateTurnResult> {
-  const client = new AppServerConnection(runtimeOptions?.approvalHandler);
+  const client = new AppServerConnection(runtimeOptions);
   await client.initialize();
 
   let handedOff = false;
   try {
     const conversationId = await startConversationOnClient(client, options);
 
-    const completion = runTurn(client, conversationId, text, false);
+    const completion = runTurn(
+      client,
+      conversationId,
+      text,
+      false,
+      runtimeOptions?.onAgentTextSnapshot
+    );
     const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
     if (raced.status === "completed") {
       return {
@@ -256,7 +274,7 @@ class AppServerConnection {
   private nextId = 1;
   private buffer = "";
 
-  constructor(private readonly approvalHandler?: (request: ApprovalRequest) => Promise<ApprovalDecision>) {
+  constructor(private readonly runtimeOptions?: TurnRuntimeOptions) {
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk: string) => {
       this.buffer += chunk;
@@ -427,17 +445,9 @@ class AppServerConnection {
     }
 
     if (request.method === "item/tool/requestUserInput") {
-      const params = asObject(request.params);
-      const questions = asArray(params.questions);
-      const answers: Record<string, { answers: string[] }> = {};
-      for (const question of questions) {
-        const questionId = getString(asObject(question).id);
-        if (!questionId) {
-          continue;
-        }
-        answers[questionId] = { answers: [] };
-      }
-      return { answers };
+      return {
+        answers: buildEmptyToolInputAnswers(asArray(asObject(request.params).questions))
+      };
     }
 
     if (request.method === "item/tool/call") {
@@ -460,12 +470,12 @@ class AppServerConnection {
   }
 
   private async requestDecisionFromHandler(request: ApprovalRequest | null): Promise<ApprovalDecision> {
-    if (!request || !this.approvalHandler) {
+    if (!request || !this.runtimeOptions?.approvalHandler) {
       return "decline";
     }
 
     try {
-      return await this.approvalHandler(request);
+      return await this.runtimeOptions.approvalHandler(request);
     } catch {
       return "decline";
     }
@@ -514,7 +524,8 @@ async function runTurn(
   client: AppServerConnection,
   conversationId: string,
   text: string,
-  resumeFirst: boolean
+  resumeFirst: boolean,
+  onAgentTextSnapshot?: (snapshot: AgentTextSnapshot) => void
 ): Promise<string> {
   if (resumeFirst) {
     await client.send("thread/resume", {
@@ -549,6 +560,19 @@ async function runTurn(
     rejectTurn(error);
   };
 
+  const agentSnapshots = new Map<string, string>();
+
+  const emitSnapshot = (snapshot: AgentTextSnapshot): void => {
+    if (!onAgentTextSnapshot) {
+      return;
+    }
+    try {
+      onAgentTextSnapshot(snapshot);
+    } catch {
+      // Snapshot consumers are best-effort and must not break turn handling.
+    }
+  };
+
   const detachNotification = client.onNotification((notification) => {
     const params = asObject(notification.params);
 
@@ -558,21 +582,32 @@ async function runTurn(
     }
 
     if (notification.method === "item/agentMessage/delta") {
+      if (!currentTurnId) {
+        return;
+      }
       const eventTurnId = getString(params.turnId);
-      if (currentTurnId && eventTurnId && eventTurnId !== currentTurnId) {
+      if (!eventTurnId || eventTurnId !== currentTurnId) {
         return;
       }
 
       const delta = getString(params.delta);
       if (delta) {
-        lastAgentMessage += delta;
+        const itemId = getString(params.itemId) ?? "agent-message";
+        const currentSnapshot = agentSnapshots.get(itemId) ?? "";
+        const nextSnapshot = currentSnapshot + delta;
+        agentSnapshots.set(itemId, nextSnapshot);
+        lastAgentMessage = nextSnapshot;
+        emitSnapshot({ itemId, text: nextSnapshot });
       }
       return;
     }
 
     if (notification.method === "item/completed") {
+      if (!currentTurnId) {
+        return;
+      }
       const eventTurnId = getString(params.turnId);
-      if (currentTurnId && eventTurnId && eventTurnId !== currentTurnId) {
+      if (!eventTurnId || eventTurnId !== currentTurnId) {
         return;
       }
 
@@ -584,6 +619,9 @@ async function runTurn(
       const text = getString(item.text);
       if (text !== null) {
         lastAgentMessage = text;
+        const itemId = getString(item.id) ?? getString(params.itemId) ?? "agent-message";
+        agentSnapshots.set(itemId, text);
+        emitSnapshot({ itemId, text });
       }
       return;
     }
@@ -594,7 +632,7 @@ async function runTurn(
 
     const turn = asObject(params.turn);
     const eventTurnId = getString(turn.id);
-    if (currentTurnId && eventTurnId && eventTurnId !== currentTurnId) {
+    if (!currentTurnId || !eventTurnId || eventTurnId !== currentTurnId) {
       return;
     }
 
@@ -736,6 +774,18 @@ function normalizeSource(source: unknown): string {
     return `${kind}:${value}`;
   }
   return kind;
+}
+
+function buildEmptyToolInputAnswers(questions: unknown[]): Record<string, { answers: string[] }> {
+  const answers: Record<string, { answers: string[] }> = {};
+  for (const question of questions) {
+    const questionId = getString(asObject(question).id);
+    if (!questionId) {
+      continue;
+    }
+    answers[questionId] = { answers: [] };
+  }
+  return answers;
 }
 
 function toV2ApprovalRequest(
