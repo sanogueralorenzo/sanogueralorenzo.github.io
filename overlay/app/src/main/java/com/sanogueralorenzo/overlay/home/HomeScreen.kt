@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
@@ -29,7 +28,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -60,23 +58,18 @@ fun HomeScreen(
     onOpenPermissions: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
-    val sections = listOf(
-        HomeMenuSection(
-            title = stringResource(R.string.home_next_steps_title),
-            items = listOf(
-                HomeMenuItem(
-                    title = stringResource(R.string.open_help_button),
-                    subtitle = stringResource(R.string.how_it_works_label),
-                    leadingEmoji = "👀",
-                    onClick = onOpenHelp
-                ),
-                HomeMenuItem(
-                    title = stringResource(R.string.open_permissions_button),
-                    subtitle = stringResource(R.string.overlay_setup_title),
-                    leadingEmoji = "⚠️",
-                    onClick = onOpenPermissions
-                )
-            )
+    val nextStepsItems = listOf(
+        HomeMenuItem(
+            title = stringResource(R.string.open_help_button),
+            subtitle = stringResource(R.string.how_it_works_label),
+            leadingEmoji = "👀",
+            onClick = onOpenHelp
+        ),
+        HomeMenuItem(
+            title = stringResource(R.string.open_permissions_button),
+            subtitle = stringResource(R.string.overlay_setup_title),
+            leadingEmoji = "⚠️",
+            onClick = onOpenPermissions
         )
     )
 
@@ -105,8 +98,11 @@ fun HomeScreen(
             item {
                 HomeHero()
             }
-            items(sections) { section ->
-                HomeSectionCard(section = section)
+            item {
+                HomeSectionCard(
+                    title = stringResource(R.string.home_next_steps_title),
+                    items = nextStepsItems
+                )
             }
             item {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -146,26 +142,23 @@ private fun HomeHero() {
     }
 }
 
-private data class HomeMenuSection(
-    val title: String,
-    val items: List<HomeMenuItem>
-)
-
 private data class HomeMenuItem(
     val title: String,
     val subtitle: String?,
     val onClick: () -> Unit,
-    val icon: ImageVector? = null,
-    val leadingEmoji: String? = null
+    val leadingEmoji: String
 )
 
 @Composable
-private fun HomeSectionCard(section: HomeMenuSection) {
+private fun HomeSectionCard(
+    title: String,
+    items: List<HomeMenuItem>
+) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = section.title,
+            text = title,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -175,9 +168,9 @@ private fun HomeSectionCard(section: HomeMenuSection) {
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             ) {
-                section.items.forEachIndexed { index, item ->
+                items.forEachIndexed { index, item ->
                     HomeMenuRow(item = item)
-                    if (index < section.items.lastIndex) {
+                    if (index < items.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 58.dp),
                             color = MaterialTheme.colorScheme.outlineVariant
@@ -199,23 +192,14 @@ private fun HomeMenuRow(item: HomeMenuItem) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (!item.leadingEmoji.isNullOrBlank()) {
-            Box(
-                modifier = Modifier.size(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = item.leadingEmoji,
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center
-                )
-            }
-        } else if (item.icon != null) {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
+        Box(
+            modifier = Modifier.size(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = item.leadingEmoji,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center
             )
         }
         Column(
