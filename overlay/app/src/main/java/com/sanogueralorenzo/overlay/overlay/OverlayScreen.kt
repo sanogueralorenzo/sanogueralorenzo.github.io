@@ -1,8 +1,6 @@
 package com.sanogueralorenzo.overlay.overlay
 
-import android.app.ActivityManager
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.widget.Toast
@@ -32,9 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -104,7 +100,6 @@ fun OverlayScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    var isOverlayRunning by remember { mutableStateOf(isOverlayServiceRunning(context)) }
     val copyCommandAndNotify: (String) -> Unit = { command ->
         clipboardManager.setText(AnnotatedString(command))
         Toast.makeText(
@@ -119,7 +114,6 @@ fun OverlayScreen(
         onRefreshOverlay()
         notificationPermission.refresh()
         secureSettingsPermission.refresh()
-        isOverlayRunning = isOverlayServiceRunning(context)
     }
 
     val permissionsResolved = state.overlayPermission is Success &&
@@ -262,49 +256,6 @@ fun OverlayScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
             SectionCard(title = stringResource(R.string.overlay_settings_title)) {
-                StatusSection(
-                    icon = Icons.Outlined.Layers,
-                    label = stringResource(R.string.overlay_direct_control_label),
-                    status = stringResource(
-                        if (isOverlayRunning) {
-                            R.string.overlay_running
-                        } else {
-                            R.string.overlay_stopped
-                        }
-                    ),
-                    statusColor = if (isOverlayRunning) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    statusContainerColor = if (isOverlayRunning) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    body = stringResource(R.string.overlay_direct_control_body),
-                    actionLabel = stringResource(
-                        if (isOverlayRunning) {
-                            R.string.stop_overlay_button
-                        } else {
-                            R.string.start_overlay_button
-                        }
-                    ),
-                    onAction = {
-                        if (!isOverlayGranted) {
-                            onOpenOverlaySettings()
-                        } else {
-                            val intent = Intent(context, OverlayService::class.java)
-                            if (isOverlayRunning) {
-                                intent.action = OverlayService.ACTION_STOP
-                                context.startService(intent)
-                            } else {
-                                context.startForegroundService(intent)
-                            }
-                            isOverlayRunning = isOverlayServiceRunning(context)
-                        }
-                    }
-                )
                 SwitchSection(
                     icon = Icons.Outlined.TouchApp,
                     label = stringResource(R.string.long_press_dismiss_title),
@@ -365,12 +316,4 @@ fun ComponentActivity.requestAddTile(onAdded: () -> Unit) {
         iconRes = R.drawable.ic_qs_black,
         onAdded = onAdded
     )
-}
-
-private fun isOverlayServiceRunning(context: Context): Boolean {
-    val manager = context.getSystemService(ActivityManager::class.java) ?: return OverlayService.isRunning
-    @Suppress("DEPRECATION")
-    return manager.getRunningServices(Integer.MAX_VALUE).any { info ->
-        info.service.className == OverlayService::class.java.name
-    }
 }
