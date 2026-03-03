@@ -34,6 +34,7 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
   let pendingSnapshot: string | null = null;
   let lastSentSnapshot: string | null = null;
   let deliveredDraft = false;
+  let hasQueuedInitialSnapshot = false;
   let sendQueue: Promise<void> = Promise.resolve();
 
   const flushPending = (): void => {
@@ -82,6 +83,11 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
       }
 
       pendingSnapshot = normalized;
+      if (!hasQueuedInitialSnapshot) {
+        hasQueuedInitialSnapshot = true;
+        flushPending();
+        return;
+      }
       scheduleFlush();
     },
     stop: async (flushPendingSnapshot: boolean): Promise<void> => {
