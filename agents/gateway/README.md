@@ -16,7 +16,7 @@ Telegram to Codex bridge built with `grammY` + `codex app-server`.
 1. Prerequisites
 
 - Node.js 18+
-- Codex CLI installed and authenticated (`codex login`) or `CODEX_API_KEY`
+- Codex CLI installed and authenticated (`codex login`)
 - Telegram bot token from BotFather
 - `ffmpeg` and `whisper-cli` in `PATH` (required for voice notes)
 
@@ -109,8 +109,6 @@ Requirements for the provided script:
 | --- | --- | --- | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | Yes | none | bot token string | Telegram auth |
 | `TELEGRAM_ALLOWED_CHAT_IDS` | No | allow all chats | comma-separated chat ids | only process updates from listed chat ids |
-| `CODEX_API_KEY` | No | uses local Codex auth | any string | Codex auth override |
-| `OPENAI_BASE_URL` | No | provider default | URL | OpenAI-compatible endpoint override |
 | `CODEX_HOME` | No | `$HOME/.codex` | path | Codex sessions/state location |
 | `CODEX_WORKING_DIRECTORY` | No | `$HOME` | path | default working dir for new threads |
 | `CODEX_MODEL` | No | Codex default | model id | model override |

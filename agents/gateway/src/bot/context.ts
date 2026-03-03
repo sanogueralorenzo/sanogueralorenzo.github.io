@@ -22,5 +22,4 @@ export type PromptContext = {
     };
   };
   reply: (text: string, options?: { reply_markup?: Keyboard }) => Promise<unknown>;
-  replyWithDraft: (text: string, other?: { message_thread_id?: number }) => Promise<true>;
 };

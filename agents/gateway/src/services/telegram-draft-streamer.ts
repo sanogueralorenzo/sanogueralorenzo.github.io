@@ -8,7 +8,6 @@ type DraftStreamerOptions = {
 export type TelegramDraftStreamer = {
   pushSnapshot: (text: string) => void;
   stop: (flushPending: boolean) => Promise<void>;
-  hasDeliveredDraft: () => boolean;
   lastDeliveredDraft: () => string | null;
 };
 
@@ -20,7 +19,6 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
     return {
       pushSnapshot: () => undefined,
       stop: async () => undefined,
-      hasDeliveredDraft: () => false,
       lastDeliveredDraft: () => null
     };
   }
@@ -33,7 +31,6 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
   let timer: NodeJS.Timeout | null = null;
   let pendingSnapshot: string | null = null;
   let lastSentSnapshot: string | null = null;
-  let deliveredDraft = false;
   let hasQueuedInitialSnapshot = false;
   let sendQueue: Promise<void> = Promise.resolve();
 
@@ -53,7 +50,6 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
       .then(async () => {
         await options.sendDraft(snapshot);
         lastSentSnapshot = snapshot;
-        deliveredDraft = true;
       })
       .catch(() => {
         disabled = true;
@@ -105,7 +101,6 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
 
       await sendQueue;
     },
-    hasDeliveredDraft: (): boolean => deliveredDraft,
     lastDeliveredDraft: (): string | null => lastSentSnapshot
   };
 }

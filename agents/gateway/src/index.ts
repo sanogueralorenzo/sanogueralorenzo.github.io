@@ -18,7 +18,7 @@ import { HELP_TEXT, formatFailure } from "./bot/messages.js";
 import { withActionErrorBoundary, withChatLock } from "./bot/middleware.js";
 import { createPromptRunner } from "./services/prompt-runner.js";
 import { ListedFolderChoice, ListedThread, createThreadActions } from "./services/thread-actions.js";
-import { createVoiceService, limitTelegramText } from "./services/voice.js";
+import { createVoiceService } from "./services/voice.js";
 import { expandHomePath } from "./shared/path-utils.js";
 
 loadEnv();
@@ -30,7 +30,6 @@ const codexHome = resolveCodexHomeFromEnv(process.env.CODEX_HOME);
 const preferredSessionSource = "vscode" as const;
 const preferredOriginator = "Codex Desktop";
 const defaultApprovalDecision: ApprovalDecision = "decline";
-const echoVoiceTranscript = false;
 const enableDraftStreaming = true;
 const draftStreamingThrottleMs = 500;
 const allowedChatIds = parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS);
@@ -127,9 +126,6 @@ registerBotHandlers(bot, {
       await ctx.api.sendChatAction(ctx.chat.id, "typing");
       try {
         const transcript = await voiceService.transcribeVoiceMessage(ctx as PromptContext);
-        if (echoVoiceTranscript) {
-          await ctx.reply(`Voice transcript:\n\n${limitTelegramText(transcript)}`);
-        }
         await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, transcript);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
