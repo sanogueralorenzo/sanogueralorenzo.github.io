@@ -1,28 +1,10 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24"
-    android:tint="#768BC1">
-  <group android:scaleX="0.464"
-      android:scaleY="0.464"
-      android:translateX="6.432"
-      android:translateY="6.432">
+    android:viewportWidth="108"
+    android:viewportHeight="108">
     <path
-        android:fillColor="@android:color/white"
-        android:pathData="M7,3h10v1h-10z"
-        android:strokeAlpha="0.3"
-        android:fillAlpha="0.3"/>
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M7,20h10v1h-10z"
-        android:strokeAlpha="0.3"
-        android:fillAlpha="0.3"/>
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M17,1H7C5.9,1 5,1.9 5,3v18c0,1.1 0.9,2 2,2h10c1.1,0 2,-0.9 2,-2V3C19,1.9 18.1,1 17,1L17,1zM7,4V3h10v1H7L7,4zM7,18V6h10v12H7L7,18zM7,21v-1h10v1H7L7,21z"/>
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M16,7l-8,0l0,2l8,0l0,-2z"/>
-  </group>
+        android:fillType="evenOdd"
+        android:fillColor="#000000"
+        android:pathData="M54,14A40,40 0,1 1,54 94A40,40 0,1 1,54 14Z M28,70L28,42L38,27L50,34L58,34L70,27L80,42L80,70L62,82L46,82Z M43,52A6,6 0,1 1,43 64A6,6 0,1 1,43 52Z M65,52A6,6 0,1 1,65 64A6,6 0,1 1,65 52Z" />
 </vector>

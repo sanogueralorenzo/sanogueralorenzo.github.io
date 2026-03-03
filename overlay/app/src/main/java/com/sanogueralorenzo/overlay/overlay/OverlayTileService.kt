@@ -1,6 +1,7 @@
 package com.sanogueralorenzo.overlay.overlay
 
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -31,6 +32,9 @@ class OverlayTileService : TileService() {
         } else {
             startForegroundService(intent)
         }
+        applyTileState(
+            if (isRunning) Tile.STATE_INACTIVE else Tile.STATE_ACTIVE
+        )
         OverlayService.requestTileUpdate(this)
     }
 
@@ -60,12 +64,23 @@ class OverlayTileService : TileService() {
 
     private fun updateTileState() {
         val hasPermission = Settings.canDrawOverlays(this)
+        val isRunning = isServiceRunning()
+        val tileState = when {
+            !hasPermission -> Tile.STATE_UNAVAILABLE
+            isRunning -> Tile.STATE_ACTIVE
+            else -> Tile.STATE_INACTIVE
+        }
+        applyTileState(tileState)
+    }
+
+    private fun applyTileState(tileState: Int) {
         qsTile?.apply {
-            state = when {
-                !hasPermission -> Tile.STATE_UNAVAILABLE
-                isServiceRunning() -> Tile.STATE_ACTIVE
-                else -> Tile.STATE_INACTIVE
+            state = tileState
+            val iconRes = when (tileState) {
+                Tile.STATE_ACTIVE -> R.drawable.ic_qs_black_active
+                else -> R.drawable.ic_qs_black
             }
+            icon = Icon.createWithResource(this@OverlayTileService, iconRes)
             updateTile()
         }
     }
