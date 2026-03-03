@@ -53,6 +53,10 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         draftSession.pushSnapshot(snapshot);
       }
     };
+    const finalizeTurn = async (turn: TimedTurnLike, delayedIntro = "Delayed:"): Promise<void> => {
+      await draftSession.stop(true);
+      await replyFromTimedTurn(ctx, turn, delayedIntro, draftSession.shouldSuppressFinalOutput);
+    };
 
     try {
       if (!threadId) {
@@ -66,8 +70,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           await deps.bindChatToThread(chatId, initialized.conversationId);
           deps.pendingNewSessionChats.delete(chatId);
           deps.clearPendingNewSessionCwd(chatId);
-          await draftSession.stop(true);
-          await replyFromTimedTurn(ctx, initialized, "Delayed:", draftSession.hasDeliveredDraftText);
+          await finalizeTurn(initialized);
           return;
         }
 
@@ -78,8 +81,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
       try {
         const turn = await sendMessageWithTimeoutContinuation(threadId, text, runtimeOptions);
-        await draftSession.stop(true);
-        await replyFromTimedTurn(ctx, turn, "Delayed:", draftSession.hasDeliveredDraftText);
+        await finalizeTurn(turn);
         return;
       } catch (error) {
         if (!isNoRolloutFoundError(error)) {
@@ -89,12 +91,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
       try {
         const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, text, runtimeOptions);
-        await draftSession.stop(true);
-        await replyFromTimedTurn(ctx, firstTurn, "Delayed:", draftSession.hasDeliveredDraftText);
+        await finalizeTurn(firstTurn);
         return;
       } catch {
         await draftSession.stop(true);
-        await recoverFromUnavailableThread(ctx, chatId, text, runtimeOptions, draftSession.hasDeliveredDraftText);
+        await recoverFromUnavailableThread(ctx, chatId, text, runtimeOptions, draftSession.shouldSuppressFinalOutput);
         return;
       }
     } catch (error) {
@@ -108,18 +109,14 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     ctx: PromptContext,
     turn: TimedTurnLike,
     delayedIntro = "Delayed:",
-    hasDeliveredDraftText: (text: string) => boolean
+    shouldSuppressFinalOutput: (text: string) => boolean
   ): Promise<void> {
     if (turn.status === "completed") {
-      const output = turn.response || "(Empty Codex response)";
-      if (shouldSuppressCompletedMessage(output, hasDeliveredDraftText)) {
-        return;
-      }
-      await sendTextChunks((message) => ctx.reply(message), output);
+      await replyCompletedOutput(ctx, turn.response, shouldSuppressFinalOutput);
       return;
     }
 
-    await ctx.reply("Still working, I will send a message when ready");
+    await replyDelayedNotice(ctx);
     queueBackgroundReply((message) => ctx.api.sendMessage(ctx.chat.id, message), turn.completion, delayedIntro);
   }
 
@@ -131,7 +128,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
       onAgentTextSnapshot: (snapshot: AgentTextSnapshot) => void;
     },
-    hasDeliveredDraftText: (text: string) => boolean
+    shouldSuppressFinalOutput: (text: string) => boolean
   ): Promise<void> {
     const options = deps.getConversationOptions();
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
@@ -139,15 +136,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
     const title = await deps.resolveThreadTitle(initialized.conversationId);
     if (initialized.status === "completed") {
-      const output = initialized.response || "(Empty Codex response)";
-      if (shouldSuppressCompletedMessage(output, hasDeliveredDraftText)) {
-        return;
-      }
-      await sendTextChunks((message) => ctx.reply(message), output);
+      await replyCompletedOutput(ctx, initialized.response, shouldSuppressFinalOutput);
       return;
     }
 
-    await ctx.reply("Still working, I will send a message when ready");
+    await replyDelayedNotice(ctx);
     queueBackgroundReply(
       (message) => ctx.api.sendMessage(ctx.chat.id, message),
       initialized.completion,
@@ -172,13 +165,6 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       .catch(() => undefined);
   }
 
-  async function sendTextChunks(sender: (text: string) => Promise<unknown>, text: string): Promise<void> {
-    const chunks = splitTextForTelegram(text);
-    for (const chunk of chunks) {
-      await sender(chunk);
-    }
-  }
-
   return {
     runPromptThroughCodex
   };
@@ -187,13 +173,14 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: number): {
   pushSnapshot: (snapshot: AgentTextSnapshot) => void;
   stop: (flushPending: boolean) => Promise<void>;
-  hasDeliveredDraftText: (text: string) => boolean;
+  shouldSuppressFinalOutput: (text: string) => boolean;
 } {
   const streamersByItemId = new Map<string, TelegramDraftStreamer>();
-  const deliveredDrafts = new Set<string>();
   const usedDraftIds = new Set<number>();
   const turnSeed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const messageThreadId = getMessageThreadId(ctx);
+  let latestAgentItemId: string | null = null;
+  let latestDeliveredDraft: string | null = null;
 
   const getOrCreateStreamer = (itemId: string): TelegramDraftStreamer => {
     const existing = streamersByItemId.get(itemId);
@@ -223,22 +210,50 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
       if (!itemId) {
         return;
       }
+      latestAgentItemId = itemId;
       getOrCreateStreamer(itemId).pushSnapshot(snapshot.text);
     },
     stop: async (flushPending: boolean): Promise<void> => {
       for (const streamer of streamersByItemId.values()) {
         await streamer.stop(flushPending);
-        const draftText = streamer.lastDeliveredDraft()?.trim();
-        if (draftText) {
-          deliveredDrafts.add(draftText);
-        }
       }
+
+      if (!flushPending || !latestAgentItemId) {
+        latestDeliveredDraft = null;
+        return;
+      }
+
+      const latestText = streamersByItemId.get(latestAgentItemId)?.lastDeliveredDraft()?.trim();
+      latestDeliveredDraft = latestText && latestText.length > 0 ? latestText : null;
     },
-    hasDeliveredDraftText: (text: string): boolean => {
+    shouldSuppressFinalOutput: (text: string): boolean => {
       const normalized = text.trim();
-      return normalized.length > 0 && deliveredDrafts.has(normalized);
+      return normalized.length > 0 && latestDeliveredDraft !== null && normalized === latestDeliveredDraft;
     }
   };
+}
+
+async function replyCompletedOutput(
+  ctx: PromptContext,
+  response: string,
+  shouldSuppressFinalOutput: (text: string) => boolean
+): Promise<void> {
+  const output = response || "(Empty Codex response)";
+  if (shouldSuppressFinalOutput(output)) {
+    return;
+  }
+  await sendTextChunks((message) => ctx.reply(message), output);
+}
+
+async function replyDelayedNotice(ctx: PromptContext): Promise<void> {
+  await ctx.reply("Still working, I will send a message when ready");
+}
+
+async function sendTextChunks(sender: (text: string) => Promise<unknown>, text: string): Promise<void> {
+  const chunks = splitTextForTelegram(text);
+  for (const chunk of chunks) {
+    await sender(chunk);
+  }
 }
 
 function splitTextForTelegram(text: string, maxLen = TELEGRAM_MESSAGE_CHUNK): string[] {
@@ -276,13 +291,6 @@ function isNoRolloutFoundError(error: unknown): boolean {
     return false;
   }
   return error.message.includes("no rollout found for thread id");
-}
-
-function shouldSuppressCompletedMessage(finalOutput: string, hasDeliveredDraftText: (text: string) => boolean): boolean {
-  if (!finalOutput.trim()) {
-    return false;
-  }
-  return hasDeliveredDraftText(finalOutput);
 }
 
 function getMessageThreadId(ctx: PromptContext): number | null {

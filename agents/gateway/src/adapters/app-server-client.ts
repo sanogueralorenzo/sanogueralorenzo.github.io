@@ -423,50 +423,40 @@ class AppServerConnection {
   }
 
   private async handleServerRequest(request: JsonRpcRequest): Promise<unknown> {
-    if (request.method === "execCommandApproval" || request.method === "applyPatchApproval") {
-      const decision = await this.requestDecisionFromHandler(
-        toLegacyApprovalRequest(request.method, request.params)
-      );
-      return { decision: mapLegacyApprovalDecision(decision) };
+    switch (request.method) {
+      case "execCommandApproval":
+      case "applyPatchApproval": {
+        const decision = await this.requestDecisionFromHandler(
+          toLegacyApprovalRequest(request.method, request.params)
+        );
+        return { decision: mapLegacyApprovalDecision(decision) };
+      }
+      case "item/commandExecution/requestApproval":
+      case "item/fileChange/requestApproval": {
+        const decision = await this.requestDecisionFromHandler(
+          toV2ApprovalRequest(request.method, request.params)
+        );
+        return { decision };
+      }
+      case "item/tool/requestUserInput":
+        return {
+          answers: buildEmptyToolInputAnswers(asArray(asObject(request.params).questions))
+        };
+      case "item/tool/call":
+        return {
+          success: false,
+          contentItems: [
+            {
+              type: "inputText",
+              text: "Dynamic tool calls are not supported by this Telegram gateway."
+            }
+          ]
+        };
+      case "account/chatgptAuthTokens/refresh":
+        throw new Error("ChatGPT auth token refresh is not supported in this gateway runtime.");
+      default:
+        throw new Error(`Unsupported server request method: ${request.method}`);
     }
-
-    if (request.method === "item/commandExecution/requestApproval") {
-      const decision = await this.requestDecisionFromHandler(
-        toV2ApprovalRequest(request.method, request.params)
-      );
-      return { decision };
-    }
-
-    if (request.method === "item/fileChange/requestApproval") {
-      const decision = await this.requestDecisionFromHandler(
-        toV2ApprovalRequest(request.method, request.params)
-      );
-      return { decision };
-    }
-
-    if (request.method === "item/tool/requestUserInput") {
-      return {
-        answers: buildEmptyToolInputAnswers(asArray(asObject(request.params).questions))
-      };
-    }
-
-    if (request.method === "item/tool/call") {
-      return {
-        success: false,
-        contentItems: [
-          {
-            type: "inputText",
-            text: "Dynamic tool calls are not supported by this Telegram gateway."
-          }
-        ]
-      };
-    }
-
-    if (request.method === "account/chatgptAuthTokens/refresh") {
-      throw new Error("ChatGPT auth token refresh is not supported in this gateway runtime.");
-    }
-
-    throw new Error(`Unsupported server request method: ${request.method}`);
   }
 
   private async requestDecisionFromHandler(request: ApprovalRequest | null): Promise<ApprovalDecision> {
