@@ -49,6 +49,12 @@ brew install ffmpeg whisper-cpp
 
 ## Run
 
+One-command launcher (macOS/Linux):
+
+```bash
+./scripts/gateway
+```
+
 Development (watch mode):
 
 ```bash

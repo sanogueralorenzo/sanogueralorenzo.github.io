@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+cd "$PROJECT_ROOT"
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm not found. Install Node.js 18+ and npm." >&2
+  exit 1
+fi
+
+if [[ ! -f ".env" ]]; then
+  echo "Missing .env in $PROJECT_ROOT" >&2
+  echo "Create it with: cp .env.example .env" >&2
+  exit 1
+fi
+
+if [[ ! -d "node_modules" ]]; then
+  echo "Dependencies missing. Running npm install..." >&2
+  npm install
+fi
+
+echo "Starting gateway bot (watch mode)..."
+exec npm run dev
