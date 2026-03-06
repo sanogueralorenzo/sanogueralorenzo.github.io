@@ -1,6 +1,10 @@
 import { Keyboard } from "grammy";
 
 export type ReplyFn = (text: string, options?: { reply_markup?: Keyboard }) => Promise<unknown>;
+export type ReplyPhotoFn = (
+  photo: string,
+  options?: { caption?: string; reply_markup?: Keyboard }
+) => Promise<unknown>;
 
 export type PromptContext = {
   chat: { id: number };

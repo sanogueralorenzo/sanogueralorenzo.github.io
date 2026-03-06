@@ -12,7 +12,7 @@ import { BindingStore } from "./adapters/binding-store.js";
 import { forceSessionSource, resolveCodexHomeFromEnv } from "./adapters/codex-sessions.js";
 import { registerBotHandlers } from "./bot/index.js";
 import { createApprovalService } from "./bot/approvals.js";
-import { PromptContext } from "./bot/context.js";
+import { PromptContext, ReplyFn, ReplyPhotoFn } from "./bot/context.js";
 import { quickActionsKeyboard } from "./bot/keyboards.js";
 import { HELP_TEXT, formatFailure } from "./bot/messages.js";
 import { withActionErrorBoundary, withChatLock } from "./bot/middleware.js";
@@ -33,6 +33,7 @@ const defaultApprovalDecision: ApprovalDecision = "decline";
 const enableDraftStreaming = true;
 const draftStreamingThrottleMs = 500;
 const allowedChatIds = parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS);
+const startImage = parseOptionalEnv(process.env.TELEGRAM_START_IMAGE);
 
 const store = new BindingStore(bindingFile);
 const bot = new Bot(token);
@@ -94,8 +95,11 @@ registerBotHandlers(bot, {
     }
     return allowedChatIds.has(chatId);
   },
+  onStart: async (_, reply, replyPhoto) => {
+    await sendStartResponse(reply, replyPhoto, startImage);
+  },
   onHelp: async (_, reply) => {
-    await reply(HELP_TEXT, { reply_markup: quickActionsKeyboard() });
+    await sendHelpResponse(reply);
   },
   onAction: async (chatId, action, reply) => {
     await withActionErrorBoundary(
@@ -257,6 +261,32 @@ function parseAllowedChatIds(value?: string): Set<string> | null {
     .filter((part) => part.length > 0);
 
   return new Set(items);
+}
+
+async function sendHelpResponse(reply: ReplyFn): Promise<void> {
+  await reply(HELP_TEXT, { reply_markup: quickActionsKeyboard() });
+}
+
+async function sendStartResponse(reply: ReplyFn, replyPhoto: ReplyPhotoFn, image: string | null): Promise<void> {
+  if (!image) {
+    await sendHelpResponse(reply);
+    return;
+  }
+
+  await replyPhoto(image, { caption: HELP_TEXT, reply_markup: quickActionsKeyboard() });
+}
+
+function parseOptionalEnv(value?: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed;
 }
 
 function resolveUserPath(value?: string): string | null {

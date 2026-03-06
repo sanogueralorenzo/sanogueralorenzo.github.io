@@ -1,11 +1,12 @@
 import { Bot } from "grammy";
 import { ActionName } from "../shared/actions.js";
-import { PromptContext, ReplyFn } from "./context.js";
+import { PromptContext, ReplyFn, ReplyPhotoFn } from "./context.js";
 import { registerCommandHandlers } from "./commands.js";
 import { registerMessageHandlers } from "./messages-handler.js";
 
 type BotHandlers = {
   isChatAllowed?: (chatId: string) => boolean;
+  onStart: (chatId: string, reply: ReplyFn, replyPhoto: ReplyPhotoFn) => Promise<void>;
   onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
   onAction: (chatId: string, action: ActionName, reply: ReplyFn) => Promise<void>;
   onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
@@ -36,6 +37,7 @@ export function registerBotHandlers(bot: Bot, handlers: BotHandlers): void {
   });
 
   registerCommandHandlers(bot, {
+    onStart: handlers.onStart,
     onHelp: handlers.onHelp,
     onNew: (chatId, reply) => handlers.onAction(chatId, "new", reply),
     onResume: (chatId, reply) => handlers.onAction(chatId, "resume", reply),
@@ -43,6 +45,7 @@ export function registerBotHandlers(bot: Bot, handlers: BotHandlers): void {
   });
 
   registerMessageHandlers(bot, {
+    onStart: handlers.onStart,
     onHelp: handlers.onHelp,
     onAction: handlers.onAction,
     onTryResumeText: handlers.onTryResumeText,
