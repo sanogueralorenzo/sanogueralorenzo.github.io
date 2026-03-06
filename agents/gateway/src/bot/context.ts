@@ -1,8 +1,8 @@
-import { Keyboard } from "grammy";
+import { InputFile, Keyboard } from "grammy";
 
 export type ReplyFn = (text: string, options?: { reply_markup?: Keyboard }) => Promise<unknown>;
 export type ReplyPhotoFn = (
-  photo: string,
+  photo: string | InputFile,
   options?: { caption?: string; reply_markup?: Keyboard }
 ) => Promise<unknown>;
 

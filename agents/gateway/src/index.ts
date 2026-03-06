@@ -1,8 +1,10 @@
-import { isAbsolute, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { homedir } from "node:os";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
-import { Bot } from "grammy";
+import { Bot, InputFile } from "grammy";
 import {
   ApprovalDecision,
   ApprovalPolicy,
@@ -26,6 +28,8 @@ loadEnv();
 const token = mustGetEnv("TELEGRAM_BOT_TOKEN");
 const userHome = homedir();
 const bindingFile = resolve(process.cwd(), "runtime/bindings.json");
+const sourceDir = dirname(fileURLToPath(import.meta.url));
+const startImagePath = resolve(sourceDir, "../assets/start-logo.png");
 const codexHome = resolveCodexHomeFromEnv(process.env.CODEX_HOME);
 const preferredSessionSource = "vscode" as const;
 const preferredOriginator = "Codex Desktop";
@@ -33,7 +37,7 @@ const defaultApprovalDecision: ApprovalDecision = "decline";
 const enableDraftStreaming = true;
 const draftStreamingThrottleMs = 500;
 const allowedChatIds = parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS);
-const startImage = parseOptionalEnv(process.env.TELEGRAM_START_IMAGE);
+ensureStartImageExists(startImagePath);
 
 const store = new BindingStore(bindingFile);
 const bot = new Bot(token);
@@ -96,7 +100,7 @@ registerBotHandlers(bot, {
     return allowedChatIds.has(chatId);
   },
   onStart: async (_, reply, replyPhoto) => {
-    await sendStartResponse(reply, replyPhoto, startImage);
+    await sendStartResponse(reply, replyPhoto);
   },
   onHelp: async (_, reply) => {
     await sendHelpResponse(reply);
@@ -267,26 +271,15 @@ async function sendHelpResponse(reply: ReplyFn): Promise<void> {
   await reply(HELP_TEXT, { reply_markup: quickActionsKeyboard() });
 }
 
-async function sendStartResponse(reply: ReplyFn, replyPhoto: ReplyPhotoFn, image: string | null): Promise<void> {
-  if (!image) {
-    await sendHelpResponse(reply);
-    return;
-  }
-
-  await replyPhoto(image, { caption: HELP_TEXT, reply_markup: quickActionsKeyboard() });
+async function sendStartResponse(reply: ReplyFn, replyPhoto: ReplyPhotoFn): Promise<void> {
+  await replyPhoto(new InputFile(startImagePath));
+  await sendHelpResponse(reply);
 }
 
-function parseOptionalEnv(value?: string): string | null {
-  if (!value) {
-    return null;
+function ensureStartImageExists(path: string): void {
+  if (!existsSync(path)) {
+    throw new Error(`Missing Telegram start image asset at: ${path}`);
   }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  return trimmed;
 }
 
 function resolveUserPath(value?: string): string | null {
