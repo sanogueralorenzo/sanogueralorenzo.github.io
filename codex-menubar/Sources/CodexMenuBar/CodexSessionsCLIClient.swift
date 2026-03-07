@@ -95,14 +95,16 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
     }
 
     func deleteSessions(ids: [String]) throws {
-        for id in ids {
-            _ = try run([
-                "delete",
-                id,
-                "--hard",
-                "--plain"
-            ])
+        let normalizedIDs = ids
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !normalizedIDs.isEmpty else {
+            return
         }
+
+        var arguments = ["delete-many", "--hard", "--plain"]
+        arguments.append(contentsOf: normalizedIDs)
+        _ = try run(arguments)
     }
 
     func mergeSessions(targetID: String, mergeID: String) throws {

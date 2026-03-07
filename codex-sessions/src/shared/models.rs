@@ -44,6 +44,13 @@ pub struct PruneResult {
 }
 
 #[derive(Debug, Serialize)]
+pub struct DeleteManyResult {
+    pub hard: bool,
+    pub processed: usize,
+    pub sessions: Vec<DeleteResult>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct MessageResult {
     pub id: String,
     pub message: Option<String>,

@@ -1,13 +1,14 @@
 use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
 use crate::cli::{
-    ArchiveArgs, Cli, Commands, DeleteArgs, ListArgs, MergeArgs, MessageArgs, PruneArgs, ShowArgs,
-    SortBy, TitlesArgs, UnarchiveArgs, WatchArgs,
+    ArchiveArgs, Cli, Commands, DeleteArgs, DeleteManyArgs, ListArgs, MergeArgs, MessageArgs,
+    PruneArgs, ShowArgs, SortBy, TitlesArgs, UnarchiveArgs, WatchArgs,
 };
 use crate::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
 };
 use crate::shared::models::{
-    DeleteResult, ListResult, MergeResult, MessageResult, PruneResult, SessionMeta,
+    DeleteManyResult, DeleteResult, ListResult, MergeResult, MessageResult, PruneResult,
+    SessionMeta,
 };
 use crate::shared::output::OutputFormat;
 use anyhow::{Context, Result, bail};
@@ -27,6 +28,7 @@ pub fn run() -> Result<()> {
         Commands::Show(args) => cmd_show(args),
         Commands::Message(args) => cmd_message(args),
         Commands::Delete(args) => cmd_delete(args),
+        Commands::DeleteMany(args) => cmd_delete_many(args),
         Commands::Archive(args) => cmd_archive(args),
         Commands::Unarchive(args) => cmd_unarchive(args),
         Commands::Merge(args) => cmd_merge(args),
@@ -312,6 +314,29 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
     emit_delete_output(result, args.json, args.plain)
 }
 
+fn cmd_delete_many(args: DeleteManyArgs) -> Result<()> {
+    let store = SessionStore::new(args.home)?;
+    let sessions = store.collect_sessions()?;
+    let targets = resolve_targets_for_inputs(&sessions, &args.ids)?;
+
+    let results = if args.hard {
+        store.delete_sessions_hard(&targets)?
+    } else {
+        let mut archived = Vec::with_capacity(targets.len());
+        for target in &targets {
+            archived.push(store.archive_session(target)?);
+        }
+        archived
+    };
+
+    let response = DeleteManyResult {
+        hard: args.hard,
+        processed: results.len(),
+        sessions: results,
+    };
+    emit_delete_many_output(response, args.json, args.plain)
+}
+
 fn cmd_archive(args: ArchiveArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
     let result = with_target_session(&store, &args.id, |target| store.archive_session(target))?;
@@ -413,6 +438,28 @@ fn emit_delete_output(result: DeleteResult, json: bool, plain: bool) -> Result<(
     Ok(())
 }
 
+fn emit_delete_many_output(result: DeleteManyResult, json: bool, plain: bool) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+
+    if plain {
+        println!("{}\t{}", result.processed, result.hard);
+        for item in result.sessions {
+            println!("{}\t{}\t{}", item.id, item.action, item.file_path);
+        }
+        return Ok(());
+    }
+
+    let action = if result.hard { "Deleted" } else { "Archived" };
+    println!("{action} {} session(s).", result.processed);
+    for item in result.sessions {
+        println!("- {} [{}] ({})", item.id, item.action, item.file_path);
+    }
+    Ok(())
+}
+
 fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> Result<()> {
     match format {
         OutputFormat::Json => {
@@ -481,6 +528,27 @@ where
     let sessions = store.collect_sessions()?;
     let target = resolve_session_by_id(&sessions, id)?;
     action(target)
+}
+
+fn resolve_targets_for_inputs<'a>(
+    sessions: &'a [SessionMeta],
+    inputs: &[String],
+) -> Result<Vec<&'a SessionMeta>> {
+    let mut seen = HashSet::new();
+    let mut targets = Vec::with_capacity(inputs.len());
+
+    for raw in inputs {
+        let id = raw.trim();
+        if id.is_empty() {
+            bail!("session id cannot be empty");
+        }
+        let target = resolve_session_by_id(sessions, id)?;
+        if seen.insert(target.id.clone()) {
+            targets.push(target);
+        }
+    }
+
+    Ok(targets)
 }
 
 fn sort_sessions(sessions: &mut [SessionMeta], sort_by: SortBy) {

@@ -21,6 +21,7 @@
 - Remove stale sessions uses a dialog with 1/3/7-day quick dropdown and folder-ordered multi-select deletion list.
 - Session ordering data comes from `codex-sessions list --folders` (CLI is source of truth).
 - Stale session rows render folder + last updated + title from CLI list output.
+- Stale session deletion executes one `codex-sessions delete-many --hard` call with all selected session IDs.
 
 ### Storage
 
