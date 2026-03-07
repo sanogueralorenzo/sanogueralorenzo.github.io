@@ -27,6 +27,8 @@
 - D06 | pr-required | MUST | Return the PR link.
 - D07 | delivery-failure | MUST | Retry after fixing the issue.
 - D08 | blocked-after-retries | MUST | Report exact command + exact error and stop.
+- D09 | module-change | MUST | Attempt install verification for every changed module, regardless of language or source/runtime stack.
+- D10 | multi-module-change | MUST | If more than one module changes in a task, run the repository root `./install.sh` before final response.
 
 ## Tooling
 - T01 | github | MUST | Use `gh` unless explicitly told otherwise.
