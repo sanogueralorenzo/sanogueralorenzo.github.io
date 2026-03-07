@@ -1,29 +1,19 @@
-# Codex Menu Bar
+<p align="center"><strong>codex-menubar</strong> is a macOS menu bar app that orchestrates local Codex CLIs.</p>
+</br>
+---
 
-A macOS menu bar app that orchestrates Codex tools via local CLIs:
-- `codex-auth`
-- `codex-remote` (optional)
+## Quickstart
 
-## Build
+### Install and launch
 
-```bash
-cd /path/to/codex-menubar
-swift build
+```shell
+./scripts/install.sh
 ```
 
-## Install .app
+## Reference
 
-```bash
-/path/to/codex-menubar/scripts/install.sh
-```
-
-The script always packages `release/Codex Menu Bar.app`, then installs to `/Applications`.
-If installation fails, it prints:
-`Drag /release/Codex Menu Bar.app to /Applications`
-
-## Requirements
-
-- `codex-auth` CLI must be installed in npm global `bin` (via `codex-auth/scripts/install.sh`).
-- `codex-remote` CLI can be installed in npm global `bin` (via `codex-remote/scripts/install.sh`) to enable bot controls.
-
-The app starts `codex-auth watch start` on launch so auth sync runs through CLI.
+- App path: `/Applications/Codex Menu Bar.app`
+- Integrates with:
+  - `codex-auth` (required)
+  - `codex-remote` (optional)
+- On launch, it starts auth sync through `codex-auth watch start`.
