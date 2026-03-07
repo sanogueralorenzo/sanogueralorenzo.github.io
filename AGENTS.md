@@ -13,9 +13,23 @@
 - Avoid unnecessary abstraction.
 - Create packages by feature, not by layer.
 - Prefer reactive flows over one-shot patterns.
-- For any task that changes code, before the final response: commit and push directly to `main` by default.
-- Never create a branch unless explicitly requested.
-- If commit/push or install/run cannot be completed, fix the issue and try again.
+
+## Git and Delivery Rules
+- Default workflow: for any task that changes code, before the final response, commit and push directly to `main`.
+- Do not create a branch unless explicitly requested, or unless the task explicitly requires a branch/PR workflow.
+- If branch/PR workflow is required, use:
+  - Branch: `<workspace_branch_prefix>/<JIRA-KEY>_<short_summary>` (lowercase, underscores, 2 words).
+  - PR title: `<JIRA-KEY> <Title>`.
+  - First non-empty PR description line: `<JIRA-KEY>`.
+  - Preserve template content and return the PR link.
+- If commit/push/install/run fails, attempt to fix and retry.
+- If blocked by auth, permissions, branch protection, or network after retries: report the exact command and error, then stop.
+
+## Tooling and Ticket Rules
+- Use official CLIs by default: `gh` for GitHub, `acli` for Jira, unless explicitly told otherwise.
+- Jira descriptions/comments must use ADF JSON via `--description-file` / `--body-file`.
+- For `gh` / `acli` / Slack actions, return direct links for created, updated, or referenced items.
+- If CLI install or auth fails, report the exact error and stop before API/web fallback.
 
 ## Mobile Rules (Android)
 - No main-thread blocking.
@@ -33,6 +47,6 @@
 
 ## Scripting Rules
 - Scripts must be non-interactive and repeatable.
-- Shell scripts must use `set -euo pipefail`.
+- Shell scripts must use `set -euo pipefail` and a shell that supports it (for example `bash`).
 - Use clear inputs/flags and fail with non-zero exits on errors.
 - Keep script output concise and action-oriented.
