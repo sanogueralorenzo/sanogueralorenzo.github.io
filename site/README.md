@@ -1,6 +1,6 @@
 ## Intro
 
-**site** contains the static website content, templates, and generation config.
+**Site** contains the static website content, templates, and generation config.
 
 ---
 

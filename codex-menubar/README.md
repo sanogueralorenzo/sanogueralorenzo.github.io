@@ -1,6 +1,6 @@
 ## Intro
 
-**codex-menubar** is a macOS menu bar app that orchestrates local Codex CLIs.
+**Codex Menubar** is a macOS menu bar app that orchestrates local Codex CLIs.
 
 ---
 

@@ -1,6 +1,6 @@
 ## Intro
 
-**voice** is an Android on-device voice keyboard (IME) with local ASR and local rewrite/edit.
+**Voice** is an Android on-device voice keyboard (IME) with local ASR and local rewrite/edit.
 
 ---
 
