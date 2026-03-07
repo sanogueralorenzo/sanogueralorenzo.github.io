@@ -1,5 +1,7 @@
-<p align="center"><strong>sanogueralorenzo.github.io</strong> is a monorepo for local AI tooling, product apps, and orchestration harnesses.</p>
-</br>
+## Intro
+
+**sanogueralorenzo.github.io** is a monorepo for local AI tooling, product apps, and orchestration harnesses.
+
 ---
 
 ## Quickstart

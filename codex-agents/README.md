@@ -1,5 +1,7 @@
-<p align="center"><strong>codex-agents</strong> defines autonomous, headless Codex engineering workflows for ticket-to-merge execution loops.</p>
-</br>
+## Intro
+
+**codex-agents** defines autonomous, headless Codex engineering workflows for ticket-to-merge execution loops.
+
 ---
 
 ## Quickstart

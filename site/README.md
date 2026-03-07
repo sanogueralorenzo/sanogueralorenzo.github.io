@@ -1,5 +1,7 @@
-<p align="center"><strong>site</strong> contains the static website content, templates, and generation config.</p>
-</br>
+## Intro
+
+**site** contains the static website content, templates, and generation config.
+
 ---
 
 ## Quickstart

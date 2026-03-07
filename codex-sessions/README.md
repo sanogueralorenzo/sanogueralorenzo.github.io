@@ -1,5 +1,7 @@
-<p align="center"><strong>codex-sessions</strong> is a Rust CLI for local Codex session inspection and lifecycle management.</p>
-</br>
+## Intro
+
+**codex-sessions** is a Rust CLI for local Codex session inspection and lifecycle management.
+
 ---
 
 ## Quickstart

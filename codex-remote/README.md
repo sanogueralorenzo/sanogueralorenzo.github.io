@@ -1,5 +1,7 @@
-<p align="center"><strong>codex-remote</strong> is a TypeScript Telegram-to-Codex bridge for local remote operation.</p>
-</br>
+## Intro
+
+**codex-remote** is a TypeScript Telegram-to-Codex bridge for local remote operation.
+
 ---
 
 ## Quickstart

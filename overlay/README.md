@@ -1,5 +1,7 @@
-<p align="center"><strong>overlay</strong> is an Android app that provides a full-screen blackout overlay with quick-settings controls.</p>
-</br>
+## Intro
+
+**overlay** is an Android app that provides a full-screen blackout overlay with quick-settings controls.
+
 ---
 
 ## Quickstart

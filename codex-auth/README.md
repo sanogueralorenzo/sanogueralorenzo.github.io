@@ -1,5 +1,7 @@
-<p align="center"><strong>codex-auth</strong> is a local profile manager for Codex auth accounts.</p>
-</br>
+## Intro
+
+**codex-auth** is a local profile manager for Codex auth accounts.
+
 ---
 
 ## Quickstart
