@@ -98,19 +98,11 @@ extension AppDelegate {
                 sessionsMenu.addItem(mergeItem)
                 sessionsMenu.addItem(.separator())
 
-                let removeItem = NSMenuItem(title: "Remove", action: nil, keyEquivalent: "")
-                let removeMenu = NSMenu()
-                for days in [1, 3, 7] {
-                    let staleLabel = days == 1 ? "1 day stale sessions…" : "\(days) days stale sessions…"
-                    let staleItem = NSMenuItem(title: staleLabel,
-                                               action: #selector(removeStaleSessions(_:)),
-                                               keyEquivalent: "")
-                    staleItem.target = self
-                    staleItem.representedObject = days
-                    removeMenu.addItem(staleItem)
-                }
+                let removeItem = NSMenuItem(title: "Remove…",
+                                            action: #selector(removeStaleSessions(_:)),
+                                            keyEquivalent: "")
+                removeItem.target = self
                 sessionsMenu.addItem(removeItem)
-                sessionsMenu.setSubmenu(removeMenu, for: removeItem)
             }
         }
         menu.addItem(sessionsItem)

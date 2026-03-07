@@ -73,24 +73,22 @@ extension AppDelegate {
         }
     }
 
-    @objc func removeStaleSessions(_ sender: NSMenuItem) {
-        let olderThanDays: Int
-        if let value = sender.representedObject as? Int {
-            olderThanDays = value
-        } else if let value = sender.representedObject as? NSNumber {
-            olderThanDays = value.intValue
-        } else {
-            return
-        }
+    @objc func removeStaleSessions(_ sender: Any?) {
         let sessionsCLI = self.sessionsCLI
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else {
                 return
             }
             do {
-                let staleSessionCount = try sessionsCLI.staleSessionCount(olderThanDays: olderThanDays)
+                let staleByDays = try fetchStaleSessionsByDays(using: sessionsCLI)
                 DispatchQueue.main.async {
-                    guard self.confirmRemoveStaleSessions(staleSessionCount: staleSessionCount, olderThanDays: olderThanDays) else {
+                    let hasAnyStaleSessions = staleByDays.values.contains { !$0.isEmpty }
+                    guard hasAnyStaleSessions else {
+                        self.showError(CodexSessionsCLIClient.Error(message: "No stale codex sessions found for 1/3/7 day windows."))
+                        return
+                    }
+
+                    guard let selection = self.promptForStaleSessionRemoval(staleByDays: staleByDays) else {
                         return
                     }
 
@@ -100,7 +98,7 @@ extension AppDelegate {
                             return
                         }
                         do {
-                            try sessionsCLI.removeStaleSessions(olderThanDays: olderThanDays)
+                            try sessionsCLI.deleteSessions(ids: selection.sessionIDs)
                             DispatchQueue.main.async {
                                 self.refreshUI()
                             }
@@ -252,6 +250,14 @@ Log in with a different account and try again.
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
+}
+
+private func fetchStaleSessionsByDays(using sessionsCLI: CodexSessionsCLIClient) throws -> [Int: [CodexSessionsCLIClient.SessionOption]] {
+    var result: [Int: [CodexSessionsCLIClient.SessionOption]] = [:]
+    for days in [1, 3, 7] {
+        result[days] = try sessionsCLI.listStaleSessions(olderThanDays: days)
+    }
+    return result
 }
 
 private struct RemoteRestartWarning: LocalizedError {

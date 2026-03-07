@@ -16,7 +16,7 @@
   - `codex-sessions` (required)
   - `codex-remote` (optional)
 - Sessions submenu supports merge transfer (`source <- merger`) and stale hard-delete actions (1/3/7 days).
-- Stale delete confirmation shows the exact stale session count before execution.
+- Remove stale sessions uses a dialog with 1/3/7-day quick dropdown and folder-ordered multi-select deletion list.
 
 ### Storage
 

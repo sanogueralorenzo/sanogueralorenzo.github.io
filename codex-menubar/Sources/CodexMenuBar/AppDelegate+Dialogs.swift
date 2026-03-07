@@ -51,6 +51,126 @@ struct SessionMergeSelection {
     let mergerID: String
 }
 
+struct StaleSessionRemovalSelection {
+    let olderThanDays: Int
+    let sessionIDs: [String]
+}
+
+@MainActor
+private final class StaleSessionRemovalController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    private let staleByDays: [Int: [CodexSessionsCLIClient.SessionOption]]
+    private let dayOptions = [1, 3, 7]
+    private let popup: NSPopUpButton
+    private let tableView: NSTableView
+    private let confirmButton: NSButton
+    private var currentRows: [CodexSessionsCLIClient.SessionOption] = []
+
+    init(staleByDays: [Int: [CodexSessionsCLIClient.SessionOption]],
+         popup: NSPopUpButton,
+         tableView: NSTableView,
+         confirmButton: NSButton) {
+        self.staleByDays = staleByDays
+        self.popup = popup
+        self.tableView = tableView
+        self.confirmButton = confirmButton
+    }
+
+    func bootstrap(defaultDays: Int = 3) {
+        popup.removeAllItems()
+        for days in dayOptions {
+            let label = days == 1 ? "1 day stale" : "\(days) days stale"
+            popup.addItem(withTitle: label)
+            popup.lastItem?.tag = days
+        }
+        if let index = dayOptions.firstIndex(of: defaultDays) {
+            popup.selectItem(at: index)
+        }
+        popup.target = self
+        popup.action = #selector(handleDaysChanged(_:))
+
+        tableView.delegate = self
+        tableView.dataSource = self
+        reloadRows()
+    }
+
+    @objc func handleDaysChanged(_ sender: NSPopUpButton) {
+        reloadRows()
+    }
+
+    func selectedDays() -> Int {
+        let tag = popup.selectedTag()
+        if tag > 0 {
+            return tag
+        }
+        return 3
+    }
+
+    func selectedSessionIDs() -> [String] {
+        tableView.selectedRowIndexes.compactMap { index in
+            guard index >= 0 && index < currentRows.count else {
+                return nil
+            }
+            return currentRows[index].id
+        }
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        currentRows.count
+    }
+
+    func tableView(_ tableView: NSTableView,
+                   viewFor tableColumn: NSTableColumn?,
+                   row: Int) -> NSView? {
+        guard row >= 0, row < currentRows.count else {
+            return nil
+        }
+        let identifier = NSUserInterfaceItemIdentifier("StaleSessionRow")
+        let cell: NSTableCellView
+        if let reused = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSTableCellView {
+            cell = reused
+        } else {
+            cell = NSTableCellView()
+            cell.identifier = identifier
+            let textField = NSTextField(labelWithString: "")
+            textField.lineBreakMode = .byTruncatingMiddle
+            textField.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(textField)
+            cell.textField = textField
+            NSLayoutConstraint.activate([
+                textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+                textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+            ])
+        }
+
+        let session = currentRows[row]
+        cell.textField?.stringValue = "\(session.folder)  |  \(session.title) (\(shortID(session.id)))"
+        return cell
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        updateConfirmButtonState()
+    }
+
+    private func reloadRows() {
+        let days = selectedDays()
+        currentRows = staleByDays[days] ?? []
+        tableView.reloadData()
+        if !currentRows.isEmpty {
+            tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        }
+        updateConfirmButtonState()
+    }
+
+    private func updateConfirmButtonState() {
+        confirmButton.isEnabled = !selectedSessionIDs().isEmpty
+    }
+
+    private func shortID(_ fullID: String) -> String {
+        String(fullID.prefix(8))
+    }
+}
+
 extension AppDelegate {
     func promptForProfileName(existingProfiles: [String]) -> String? {
         NSApp.activate(ignoringOtherApps: true)
@@ -106,20 +226,63 @@ extension AppDelegate {
         return name
     }
 
-    func confirmRemoveStaleSessions(staleSessionCount: Int, olderThanDays: Int) -> Bool {
+    func promptForStaleSessionRemoval(staleByDays: [Int: [CodexSessionsCLIClient.SessionOption]]) -> StaleSessionRemovalSelection? {
         NSApp.activate(ignoringOtherApps: true)
 
         let alert = NSAlert()
         alert.messageText = "Remove Stale Sessions"
         alert.informativeText = """
-This will permanently delete \(staleSessionCount) codex sessions last updated more than \(olderThanDays) day(s) ago.
-
-This action cannot be undone.
+Pick stale-window (1/3/7 days), then multi-select sessions ordered by folder. Click OK to permanently delete selected codex sessions.
 """
+
+        let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 620, height: 320))
+        let quickLabel = NSTextField(labelWithString: "Quick Remove")
+        quickLabel.frame = NSRect(x: 0, y: 294, width: 120, height: 18)
+        accessory.addSubview(quickLabel)
+
+        let staleDaysPopup = NSPopUpButton(frame: NSRect(x: 124, y: 288, width: 180, height: 26), pullsDown: false)
+        accessory.addSubview(staleDaysPopup)
+
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 620, height: 276))
+        scrollView.hasVerticalScroller = true
+        scrollView.borderType = .bezelBorder
+        let tableView = NSTableView(frame: scrollView.bounds)
+        tableView.allowsMultipleSelection = true
+        tableView.headerView = nil
+        tableView.usesAlternatingRowBackgroundColors = true
+
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("SessionColumn"))
+        column.width = 610
+        tableView.addTableColumn(column)
+        scrollView.documentView = tableView
+        accessory.addSubview(scrollView)
+
+        alert.accessoryView = accessory
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Cancel")
 
-        return alert.runModal() == .alertFirstButtonReturn
+        guard let confirmButton = alert.buttons.first else {
+            return nil
+        }
+
+        let controller = StaleSessionRemovalController(staleByDays: staleByDays,
+                                                       popup: staleDaysPopup,
+                                                       tableView: tableView,
+                                                       confirmButton: confirmButton)
+        controller.bootstrap()
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else {
+            return nil
+        }
+
+        let selectedIDs = controller.selectedSessionIDs()
+        guard !selectedIDs.isEmpty else {
+            return nil
+        }
+
+        return StaleSessionRemovalSelection(olderThanDays: controller.selectedDays(),
+                                            sessionIDs: selectedIDs)
     }
 
     func promptForSessionMergeSelection(sessions: [CodexSessionsCLIClient.SessionOption]) -> SessionMergeSelection? {

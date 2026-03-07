@@ -9,6 +9,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
     struct SessionOption: Equatable {
         let id: String
         let title: String
+        let folder: String
     }
 
     struct Error: LocalizedError {
@@ -24,6 +25,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
         let id: String
         let title: String?
         let archived: Bool
+        let cwd: String?
     }
 
     private struct PruneResponse: Decodable {
@@ -61,7 +63,18 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             .map { entry in
                 let title = entry.title?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let cleanedTitle = (title?.isEmpty == false) ? title! : "(no title)"
-                return SessionOption(id: entry.id, title: cleanedTitle)
+                return SessionOption(id: entry.id,
+                                     title: cleanedTitle,
+                                     folder: folderLabel(from: entry.cwd))
+            }
+            .sorted { lhs, rhs in
+                if lhs.folder != rhs.folder {
+                    return lhs.folder.localizedCaseInsensitiveCompare(rhs.folder) == .orderedAscending
+                }
+                if lhs.title != rhs.title {
+                    return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+                }
+                return lhs.id < rhs.id
             }
     }
 
@@ -92,6 +105,50 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
         let data = Data(output.utf8)
         let response = try JSONDecoder().decode(PruneResponse.self, from: data)
         return response.pruned
+    }
+
+    func listStaleSessions(olderThanDays: Int) throws -> [SessionOption] {
+        guard olderThanDays > 0 else {
+            throw Error(message: "olderThanDays must be greater than zero.")
+        }
+
+        let output = try run([
+            "list",
+            "--all",
+            "--json",
+            "--older-than-days", String(olderThanDays)
+        ])
+        let data = Data(output.utf8)
+        let response = try JSONDecoder().decode(ListResponse.self, from: data)
+        return response.data
+            .filter { !$0.archived }
+            .map { entry in
+                let title = entry.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let cleanedTitle = (title?.isEmpty == false) ? title! : "(no title)"
+                return SessionOption(id: entry.id,
+                                     title: cleanedTitle,
+                                     folder: folderLabel(from: entry.cwd))
+            }
+            .sorted { lhs, rhs in
+                if lhs.folder != rhs.folder {
+                    return lhs.folder.localizedCaseInsensitiveCompare(rhs.folder) == .orderedAscending
+                }
+                if lhs.title != rhs.title {
+                    return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+                }
+                return lhs.id < rhs.id
+            }
+    }
+
+    func deleteSessions(ids: [String]) throws {
+        for id in ids {
+            _ = try run([
+                "delete",
+                id,
+                "--hard",
+                "--plain"
+            ])
+        }
     }
 
     func mergeSessions(targetID: String, mergeID: String) throws {
@@ -149,5 +206,16 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
 
     private static func resolveExecutablePath() -> String? {
         CLIExecutableResolver.resolve(commandName: "codex-sessions")
+    }
+
+    private func folderLabel(from cwd: String?) -> String {
+        guard let cwd else {
+            return "(unknown folder)"
+        }
+        let trimmed = cwd.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "(unknown folder)"
+        }
+        return trimmed
     }
 }
