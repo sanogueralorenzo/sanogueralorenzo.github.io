@@ -1,26 +1,240 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_PATH="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE_PATH" ]]; do
+  SOURCE_DIR="$(cd -P "$(dirname "$SOURCE_PATH")" && pwd)"
+  LINK_TARGET="$(readlink "$SOURCE_PATH")"
+  if [[ "$LINK_TARGET" == /* ]]; then
+    SOURCE_PATH="$LINK_TARGET"
+  else
+    SOURCE_PATH="$SOURCE_DIR/$LINK_TARGET"
+  fi
+done
+
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE_PATH")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+STATE_DIR="${CODEX_REMOTE_STATE_DIR:-$HOME/.codex/remote}"
+PID_FILE="$STATE_DIR/codex-remote.pid"
+LOG_FILE="$STATE_DIR/codex-remote.log"
+CAFFEINATE_PID_FILE="$STATE_DIR/codex-remote-caffeinate.pid"
 
-cd "$PROJECT_ROOT"
+print_usage() {
+  cat <<USAGE
+Usage:
+  ./scripts/codex-remote install
+  ./scripts/codex-remote start [--plain]
+  ./scripts/codex-remote stop [--plain]
+  ./scripts/codex-remote status [--plain]
+  ./scripts/codex-remote run
 
-if ! command -v npm >/dev/null 2>&1; then
-  echo "npm not found. Install Node.js 18+ and npm." >&2
-  exit 1
-fi
+Notes:
+- Default command when omitted is: run
+- start runs the bot in background and writes logs to: $LOG_FILE
+USAGE
+}
 
-if [[ ! -f ".env" ]]; then
-  echo "Missing .env in $PROJECT_ROOT" >&2
-  echo "Create it with: cp .env.example .env" >&2
-  exit 1
-fi
+ensure_npm() {
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm not found. Install Node.js 18+ and npm." >&2
+    exit 1
+  fi
+}
 
-if [[ ! -d "node_modules" ]]; then
-  echo "Dependencies missing. Running npm install..." >&2
-  npm install
-fi
+ensure_state_dir() {
+  mkdir -p "$STATE_DIR"
+}
 
-echo "Starting codex-remote bot (watch mode)..."
-exec npm run dev
+ensure_env_file() {
+  if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
+    echo "Missing .env in $PROJECT_ROOT" >&2
+    echo "Create it with: cp .env.example .env" >&2
+    exit 1
+  fi
+}
+
+ensure_dependencies() {
+  if [[ ! -d "$PROJECT_ROOT/node_modules" ]]; then
+    echo "Dependencies missing. Running npm install..." >&2
+    (cd "$PROJECT_ROOT" && npm install)
+  fi
+}
+
+read_pid() {
+  if [[ -f "$PID_FILE" ]]; then
+    tr -d '[:space:]' < "$PID_FILE"
+  fi
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid || true)"
+  [[ -n "$pid" ]] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+read_caffeinate_pid() {
+  if [[ -f "$CAFFEINATE_PID_FILE" ]]; then
+    tr -d '[:space:]' < "$CAFFEINATE_PID_FILE"
+  fi
+}
+
+is_macos() {
+  [[ "$(uname -s)" == "Darwin" ]]
+}
+
+stop_caffeinate_if_any() {
+  local pid
+  pid="$(read_caffeinate_pid || true)"
+  [[ -n "$pid" ]] || return 0
+
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null || true
+  fi
+  rm -f "$CAFFEINATE_PID_FILE"
+}
+
+start_caffeinate_for_pid() {
+  local target_pid="$1"
+  stop_caffeinate_if_any
+
+  if ! is_macos; then
+    return 0
+  fi
+  if ! command -v caffeinate >/dev/null 2>&1; then
+    return 0
+  fi
+
+  nohup caffeinate -dimsu -w "$target_pid" >/dev/null 2>&1 &
+  echo $! > "$CAFFEINATE_PID_FILE"
+}
+
+clear_pid_if_stale() {
+  if [[ -f "$PID_FILE" ]] && ! is_running; then
+    rm -f "$PID_FILE"
+    stop_caffeinate_if_any
+  fi
+}
+
+output_status() {
+  local plain="$1"
+  clear_pid_if_stale
+  if is_running; then
+    local pid
+    pid="$(read_pid)"
+    if [[ "$plain" == "true" ]]; then
+      echo "running:$pid"
+    else
+      echo "Running (PID $pid)"
+    fi
+  else
+    if [[ "$plain" == "true" ]]; then
+      echo "stopped"
+    else
+      echo "Stopped"
+    fi
+  fi
+}
+
+cmd_install() {
+  ensure_npm
+  (cd "$PROJECT_ROOT" && npm install)
+  echo "Installed dependencies"
+}
+
+cmd_start() {
+  local plain="$1"
+  ensure_npm
+  ensure_state_dir
+  ensure_env_file
+  ensure_dependencies
+
+  if is_running; then
+    start_caffeinate_for_pid "$(read_pid)"
+    output_status "$plain"
+    return 0
+  fi
+
+  (cd "$PROJECT_ROOT" && nohup npm run dev > "$LOG_FILE" 2>&1 & echo $! > "$PID_FILE")
+  start_caffeinate_for_pid "$(read_pid)"
+  output_status "$plain"
+}
+
+cmd_stop() {
+  local plain="$1"
+  clear_pid_if_stale
+
+  if ! is_running; then
+    rm -f "$PID_FILE"
+    if [[ "$plain" == "true" ]]; then
+      echo "stopped"
+    else
+      echo "Stopped"
+    fi
+    return 0
+  fi
+
+  local pid
+  pid="$(read_pid)"
+  if ! kill "$pid" 2>/dev/null; then
+    echo "Failed to stop PID $pid" >&2
+    exit 1
+  fi
+
+  rm -f "$PID_FILE"
+  stop_caffeinate_if_any
+  if [[ "$plain" == "true" ]]; then
+    echo "stopped"
+  else
+    echo "Stopped"
+  fi
+}
+
+cmd_run() {
+  ensure_npm
+  ensure_env_file
+  ensure_dependencies
+  echo "Starting codex-remote bot (watch mode)..."
+  cd "$PROJECT_ROOT"
+  if is_macos && command -v caffeinate >/dev/null 2>&1; then
+    exec caffeinate -dimsu npm run dev
+  fi
+  exec npm run dev
+}
+
+main() {
+  local command="${1:-run}"
+  local plain="false"
+
+  if [[ "$#" -ge 2 && "${2:-}" == "--plain" ]]; then
+    plain="true"
+  fi
+
+  case "$command" in
+    help|--help|-h)
+      print_usage
+      ;;
+    install)
+      cmd_install
+      ;;
+    start)
+      cmd_start "$plain"
+      ;;
+    stop)
+      cmd_stop "$plain"
+      ;;
+    status)
+      output_status "$plain"
+      ;;
+    run)
+      cmd_run
+      ;;
+    *)
+      echo "Unknown command: $command" >&2
+      print_usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

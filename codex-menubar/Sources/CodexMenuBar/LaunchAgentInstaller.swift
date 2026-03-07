@@ -9,7 +9,7 @@ struct LaunchAgentInstaller {
             .appendingPathComponent("LaunchAgents", isDirectory: true)
         try fileManager.createDirectory(at: launchAgentsDirectory, withIntermediateDirectories: true)
 
-        let label = Bundle.main.bundleIdentifier ?? "io.github.sanogueralorenzo.codexauth.menubar"
+        let label = Bundle.main.bundleIdentifier ?? "io.github.sanogueralorenzo.codex.menubar"
         guard let executablePath = Bundle.main.executableURL?.path else {
             return
         }
@@ -26,8 +26,8 @@ struct LaunchAgentInstaller {
     private static func makePlistContents(label: String, executablePath: String) -> String {
         let escapedLabel = xmlEscaped(label)
         let escapedExecutable = xmlEscaped(executablePath)
-        let stdoutPath = xmlEscaped("/tmp/codexauth-menubar.out.log")
-        let stderrPath = xmlEscaped("/tmp/codexauth-menubar.err.log")
+        let stdoutPath = xmlEscaped("/tmp/codex-menu-menubar.out.log")
+        let stderrPath = xmlEscaped("/tmp/codex-menu-menubar.err.log")
 
         return """
 <?xml version="1.0" encoding="UTF-8"?>

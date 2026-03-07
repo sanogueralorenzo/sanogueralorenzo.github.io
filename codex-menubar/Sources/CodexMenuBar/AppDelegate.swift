@@ -1,12 +1,17 @@
 import AppKit
-import CodexAuthCore
 import Foundation
+import Observation
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    let manager = ProfileManager()
+    let authCLI = CodexAuthCLIClient()
+    let remoteCLI = CodexRemoteCLIClient()
+    let skillsProvider = CodexSkillsProvider(homeDirectory: FileManager.default.homeDirectoryForCurrentUser)
+    let rateLimitsProvider = CodexRateLimitsProvider()
+    let menuDataStore = CodexMenuDataStore()
     var statusItem: NSStatusItem!
-    private var authSyncMonitor: AuthSyncMonitor?
+    private var isMenuOpen = false
+    private var needsRenderAfterMenuClose = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -16,41 +21,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         do {
-            try manager.ensureDirectories()
+            try authCLI.startWatcher()
         } catch {
-            showError(error)
-        }
-
-        do {
-            _ = try manager.syncActiveProfileWithCurrentAuth()
-        } catch {
-            fputs("Warning: failed to sync active profile with current auth: \(error)\n", stderr)
+            fputs("Warning: failed to start codex-auth watcher: \(error)\n", stderr)
         }
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = StatusBarIcon.codex()
         statusItem.button?.imagePosition = .imageOnly
         statusItem.button?.title = ""
+
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
 
-        authSyncMonitor = AuthSyncMonitor(
-            homeDirectory: manager.paths.homeDirectory,
-            onDidSync: { [weak self] in
-                self?.refreshUI()
-            },
-            onError: { error in
-                fputs("Warning: auth sync monitor error: \(error)\n", stderr)
-            }
-        )
-        authSyncMonitor?.start()
-
+        observeMenuDataChanges()
+        renderMenu()
         refreshUI()
     }
 
     func refreshTitle() {
-        let profile = try? manager.currentProfileName()
+        let profile = menuDataStore.data.currentProfileName
         let tooltip: String
         if let profile {
             tooltip = "Codex Auth (\(displayProfileName(profile)))"
@@ -69,18 +60,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func refreshUI() {
-        refreshTitle()
-        if let menu = statusItem.menu {
-            rebuildMenu(menu)
-        }
+        menuDataStore.refresh(authCLI: authCLI,
+                              remoteCLI: remoteCLI,
+                              skillsProvider: skillsProvider,
+                              rateLimitsProvider: rateLimitsProvider)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
         refreshUI()
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        authSyncMonitor?.stop()
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
+        if needsRenderAfterMenuClose {
+            needsRenderAfterMenuClose = false
+            renderMenu()
+        }
     }
 
     func showError(_ error: Error) {
@@ -94,9 +90,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         let alert = NSAlert()
-        alert.messageText = "Codex Auth"
+        alert.messageText = "Codex Menu"
         alert.informativeText = message
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+
+    private func renderMenu() {
+        refreshTitle()
+        if let menu = statusItem.menu {
+            rebuildMenu(menu)
+        }
+    }
+
+    private func observeMenuDataChanges() {
+        withObservationTracking {
+            _ = menuDataStore.data
+        } onChange: { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else {
+                    return
+                }
+                if self.isMenuOpen {
+                    self.needsRenderAfterMenuClose = true
+                } else {
+                    self.renderMenu()
+                }
+                self.observeMenuDataChanges()
+            }
+        }
     }
 }

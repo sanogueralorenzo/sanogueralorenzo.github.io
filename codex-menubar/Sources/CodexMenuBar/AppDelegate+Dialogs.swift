@@ -1,5 +1,4 @@
 import AppKit
-import CodexAuthCore
 import Foundation
 
 @MainActor
@@ -67,8 +66,6 @@ extension AppDelegate {
 
         alert.accessoryView = accessory
 
-        // Default action button is rendered as the emphasized blue button.
-        // Keep Save first so it is the default right-side action.
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
 
@@ -94,7 +91,7 @@ extension AppDelegate {
 
         let name = inputController.currentName()
         guard !name.isEmpty else {
-            showError(AuthManagerError.invalidProfileName(""))
+            showError(CodexAuthCLIClient.Error(message: "Profile name cannot be empty."))
             return nil
         }
         guard !inputController.isDuplicateName() else {

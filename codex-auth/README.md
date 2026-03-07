@@ -4,7 +4,6 @@ Most AI tools still don’t support native multi-account workflows. Separating p
 
 A local auth profile manager for Codex:
 - CLI: `codex-auth`
-- Menu bar app (macOS only): `CodexAuthMenuBar`
 
 It manages `~/.codex/auth.json` with secure profile storage in:
 - `~/.codex/auth/profiles`
@@ -25,17 +24,12 @@ swift build --show-bin-path
 
 Then run:
 - `$(swift build --show-bin-path)/codex-auth`
-- `$(swift build --show-bin-path)/CodexAuthMenuBar` (macOS only)
 
 ## Install helpers
 
 ```bash
-# Install CLI to ~/.local/bin/codex-auth
+# Install CLI to your npm global bin
 /path/to/codex-auth/scripts/install.sh
-
-# Build a standalone menu bar .app bundle (macOS only)
-/path/to/codex-auth/scripts/package-menubar-app.sh
-open /path/to/codex-auth/release/CodexAuthMenuBar.app
 ```
 
 ## CLI usage
@@ -62,6 +56,9 @@ codex-auth use --path /absolute/path/work-auth.json
 
 # Remove a saved profile
 codex-auth remove personal
+
+# Start auth sync watcher (for menu integrations)
+codex-auth watch start
 ```
 
 Optional (for testing/sandboxed runs):
@@ -69,27 +66,6 @@ Optional (for testing/sandboxed runs):
 ```bash
 codex-auth --home /tmp/demo-home list
 ```
-
-## Menu bar app
-
-macOS only.
-
-Run it:
-
-```bash
-/path/to/codex-auth/.build/arm64-apple-macosx/debug/CodexAuthMenuBar
-```
-
-On first launch, the app writes a user LaunchAgent at
-`~/Library/LaunchAgents/io.github.sanogueralorenzo.codexauth.menubar.plist`
-so it starts automatically on next login (first launch is manual once).
-
-Menu actions:
-- Add
-- Use any saved profile
-- Remove
-- Help
-- Quit
 
 ## Safety behavior
 
@@ -99,7 +75,7 @@ Menu actions:
 - Uses a lock file (`~/.codex/auth.json.lock`) during writes.
 - Uses restrictive filesystem permissions for stored auth files.
 - On `use`, automatically invalidates active Codex app and CLI sessions so new credentials are enforced immediately.
-- Menu bar app auto-syncs the active profile only when `~/.codex/auth.json` keeps the same `account_id` (for example token refresh on the same account).
+- Watcher (`codex-auth watch run`) auto-syncs the active profile only when `~/.codex/auth.json` keeps the same `account_id` (for example token refresh on the same account).
 
 ## Notes
 

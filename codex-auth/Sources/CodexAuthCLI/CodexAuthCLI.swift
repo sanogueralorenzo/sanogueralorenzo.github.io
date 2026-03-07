@@ -33,14 +33,22 @@ struct CodexAuthCLI {
             printUsage()
 
         case "list":
-            try printProfiles(manager)
+            let plain = args.first == "--plain"
+            try printProfiles(manager, plain: plain)
 
         case "current":
-            let currentProfile = try manager.currentProfileName() ?? "(untracked)"
-            print("Current profile: \(currentProfile)")
-            let document = try manager.currentAuthDocument()
-            print("auth_mode: \(document.auth_mode)")
-            print("account_id: \(masked(document.tokens.account_id))")
+            let plain = args.first == "--plain"
+            if plain {
+                if let currentProfile = try manager.currentProfileName() {
+                    print(currentProfile)
+                }
+            } else {
+                let currentProfile = try manager.currentProfileName() ?? "(untracked)"
+                print("Current profile: \(currentProfile)")
+                let document = try manager.currentAuthDocument()
+                print("auth_mode: \(document.auth_mode)")
+                print("account_id: \(masked(document.tokens.account_id))")
+            }
 
         case "save", "add":
             guard let name = args.first else {
@@ -86,7 +94,13 @@ struct CodexAuthCLI {
             }
             try manager.removeProfile(name: name)
             print("Removed profile '\(name)'")
-            try printProfiles(manager)
+            try printProfiles(manager, plain: false)
+
+        case "watch":
+            guard let action = args.first else {
+                throw AuthManagerError.ioFailure("Missing watch action. Use start, stop, status, or run.")
+            }
+            try handleWatch(action: action, manager: manager)
 
         default:
             throw AuthManagerError.ioFailure("Unknown command '\(command)'. Run: codex-auth help")
@@ -132,12 +146,21 @@ struct CodexAuthCLI {
         return url
     }
 
-    private static func printProfiles(_ manager: ProfileManager) throws {
+    private static func printProfiles(_ manager: ProfileManager, plain: Bool) throws {
         let current = try manager.currentProfileName()
         let profiles = try manager.listProfiles()
 
         if profiles.isEmpty {
-            print("No saved profiles")
+            if !plain {
+                print("No saved profiles")
+            }
+            return
+        }
+
+        if plain {
+            for name in profiles {
+                print(name)
+            }
             return
         }
 
@@ -196,9 +219,10 @@ Usage:
   codex-auth [--home <dir>] add <profile> [--path <auth.json> | --from-current]
   codex-auth [--home <dir>] use <profile>
   codex-auth [--home <dir>] use --path <auth.json>
-  codex-auth [--home <dir>] list
-  codex-auth [--home <dir>] current
+  codex-auth [--home <dir>] list [--plain]
+  codex-auth [--home <dir>] current [--plain]
   codex-auth [--home <dir>] remove <profile>
+  codex-auth [--home <dir>] watch <start|stop|status|run>
   codex-auth [--home <dir>] help
 
 Examples:
@@ -206,6 +230,32 @@ Examples:
   codex-auth save work --path ~/secrets/work-auth.json
   codex-auth use work
   codex-auth remove personal
+  codex-auth watch start
 """)
+    }
+
+    private static func handleWatch(action: String, manager: ProfileManager) throws {
+        let watcher = AuthSyncWatcher(homeDirectory: manager.paths.homeDirectory)
+
+        switch action {
+        case "start":
+            let pid = try watcher.startDaemon(executablePath: CommandLine.arguments[0],
+                                              homeDirectory: manager.paths.homeDirectory)
+            print("Watcher running (PID \(pid))")
+        case "stop":
+            try watcher.stopDaemon()
+            print("Watcher stopped")
+        case "status":
+            switch watcher.status() {
+            case .stopped:
+                print("Watcher stopped")
+            case .running(let pid):
+                print("Watcher running (PID \(pid))")
+            }
+        case "run":
+            try watcher.runLoop()
+        default:
+            throw AuthManagerError.ioFailure("Unknown watch action '\(action)'. Use start, stop, status, or run.")
+        }
     }
 }

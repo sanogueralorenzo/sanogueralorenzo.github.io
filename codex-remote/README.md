@@ -20,14 +20,20 @@ Telegram to Codex bridge built with `grammY` + `codex app-server`.
 - Telegram bot token from BotFather
 - `ffmpeg` and `whisper-cli` in `PATH` (required for voice notes)
 
-2. Install dependencies
+2. Install CLI to your npm global bin
 
 ```bash
 cd /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/codex-remote
-npm install
+./scripts/install.sh
 ```
 
-3. Configure environment
+3. Install dependencies
+
+```bash
+codex-remote install
+```
+
+4. Configure environment
 
 ```bash
 cp .env.example .env
@@ -41,7 +47,7 @@ TELEGRAM_ALLOWED_CHAT_IDS=1234567890
 WHISPER_MODEL_PATH_TINY=/absolute/path/to/ggml-tiny.en.bin
 ```
 
-4. Install voice dependencies (macOS/Homebrew)
+5. Install voice dependencies (macOS/Homebrew)
 
 ```bash
 brew install ffmpeg whisper-cpp
@@ -49,11 +55,23 @@ brew install ffmpeg whisper-cpp
 
 ## Run
 
-One-command launcher (macOS/Linux):
+Remote CLI helper:
 
 ```bash
-./scripts/codex-remote
+# Foreground (default)
+codex-remote run
+
+# Install/update dependencies
+codex-remote install
+
+# Background lifecycle helpers
+codex-remote start
+codex-remote status
+codex-remote stop
 ```
+
+On macOS, `start` and `run` automatically use `caffeinate` while the bot is running,
+so the machine does not go to sleep during active bot operation.
 
 Development (watch mode):
 

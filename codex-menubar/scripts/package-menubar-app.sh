@@ -2,10 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_EXECUTABLE_NAME="CodexAuthMenuBar"
-APP_DISPLAY_NAME="Codex Auth"
-APP_BUNDLE_IDENTIFIER="io.github.sanogueralorenzo.codexauth.menubar"
-APP_DIR="$ROOT_DIR/release/$APP_EXECUTABLE_NAME.app"
+APP_EXECUTABLE_NAME="CodexMenuBar"
+APP_DISPLAY_NAME="Codex Menu Bar"
+APP_BUNDLE_IDENTIFIER="io.github.sanogueralorenzo.codex.menubar"
+APP_BUNDLE_NAME="Codex Menu Bar"
+APP_DIR="$ROOT_DIR/release/$APP_BUNDLE_NAME.app"
 ICON_PATH="$ROOT_DIR/assets/codex.png"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
@@ -49,7 +50,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>LSUIElement</key>
   <true/>
   <key>LSMinimumSystemVersion</key>
-  <string>13.0</string>
+  <string>14.0</string>
 </dict>
 </plist>
 PLIST

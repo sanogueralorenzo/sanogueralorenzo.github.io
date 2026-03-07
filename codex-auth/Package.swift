@@ -14,16 +14,6 @@ var targets: [Target] = [
     )
 ]
 
-#if os(macOS)
-products.append(.executable(name: "CodexAuthMenuBar", targets: ["CodexAuthMenuBar"]))
-targets.append(
-    .executableTarget(
-        name: "CodexAuthMenuBar",
-        dependencies: ["CodexAuthCore"]
-    )
-)
-#endif
-
 let package = Package(
     name: "CodexAuth",
     products: products,
