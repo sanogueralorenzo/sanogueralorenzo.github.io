@@ -11,7 +11,7 @@ import {
   SandboxMode
 } from "./adapters/app-server-client.js";
 import { BindingStore } from "./adapters/binding-store.js";
-import { forceSessionSource, resolveCodexHomeFromEnv } from "./adapters/codex-sessions.js";
+import { resolveCodexHomeFromEnv } from "./adapters/codex-sessions.js";
 import { registerBotHandlers } from "./bot/index.js";
 import { createApprovalService } from "./bot/approvals.js";
 import { PromptContext, ReplyFn, ReplyPhotoFn } from "./bot/context.js";
@@ -31,8 +31,6 @@ const bindingFile = resolve(process.cwd(), "runtime/bindings.json");
 const sourceDir = dirname(fileURLToPath(import.meta.url));
 const startImagePath = resolve(sourceDir, "../assets/start-logo.png");
 const codexHome = resolveCodexHomeFromEnv(process.env.CODEX_HOME);
-const preferredSessionSource = "vscode" as const;
-const preferredOriginator = "Codex Desktop";
 const defaultApprovalDecision: ApprovalDecision = "decline";
 const enableDraftStreaming = true;
 const draftStreamingThrottleMs = 500;
@@ -147,9 +145,7 @@ bot.catch(async (error) => {
   console.error("Telegram bot error:", error.error);
 });
 
-console.log(
-  `Telegram Codex bridge is running. Codex home: ${codexHome}. Session source override: ${preferredSessionSource}`
-);
+console.log(`Telegram Codex bridge is running. Codex home: ${codexHome}.`);
 if (allowedChatIds) {
   console.log(`Telegram chat allowlist is active (${allowedChatIds.size} chat id${allowedChatIds.size === 1 ? "" : "s"}).`);
 }
@@ -222,7 +218,6 @@ function getConversationOptions(): {
 
 async function bindChatToThread(chatId: string, threadId: string): Promise<void> {
   await store.set(chatId, threadId);
-  await forceSessionSource(threadId, codexHome, preferredSessionSource, preferredOriginator);
 }
 
 function parseApprovalPolicy(value?: string): ApprovalPolicy | undefined {

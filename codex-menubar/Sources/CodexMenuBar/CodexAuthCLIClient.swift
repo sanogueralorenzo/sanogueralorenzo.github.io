@@ -17,13 +17,12 @@ final class CodexAuthCLIClient: @unchecked Sendable {
         var errorDescription: String? { message }
     }
 
-    private let executablePath: String
+    private let executablePath: String?
     private let fileManager: FileManager
 
-    init(bundleURL: URL = Bundle.main.bundleURL,
-         fileManager: FileManager = .default) {
+    init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        self.executablePath = Self.resolveExecutablePath(fileManager: fileManager)
+        self.executablePath = Self.resolveExecutablePath()
     }
 
     func listProfiles() throws -> [String] {
@@ -76,6 +75,10 @@ final class CodexAuthCLIClient: @unchecked Sendable {
     }
 
     private func run(_ arguments: [String]) throws -> String {
+        guard let executablePath else {
+            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-auth"))
+        }
+
         guard fileManager.isExecutableFile(atPath: executablePath) else {
             throw Error(message: "codex-auth CLI not found at \(executablePath). Run codex-auth/scripts/install.sh first.")
         }
@@ -106,8 +109,7 @@ final class CodexAuthCLIClient: @unchecked Sendable {
         return stdoutText
     }
 
-    private static func resolveExecutablePath(fileManager: FileManager) -> String {
-        let home = fileManager.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".local/bin/codex-auth").path
+    private static func resolveExecutablePath() -> String? {
+        CLIExecutableResolver.resolve(commandName: "codex-auth")
     }
 }

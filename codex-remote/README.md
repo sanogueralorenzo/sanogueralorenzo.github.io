@@ -7,6 +7,7 @@ Telegram to Codex bridge built with `grammY` + `codex app-server`.
 - Connects one Telegram chat to one Codex thread.
 - Starts new threads, resumes existing threads, and deletes.
 - Lists recent threads grouped by working folder with tap-to-resume buttons.
+- Delegates local session lifecycle operations to `codex-sessions`.
 - Supports approvals in Telegram (`Accept`, `Accept Session`, `Decline`, `Cancel`).
 - Voice-note transcription (local `whisper-cli`) through `scripts/transcribe-whispercpp.sh`.
 - Stores chat->thread bindings in `runtime/bindings.json`.
@@ -17,6 +18,7 @@ Telegram to Codex bridge built with `grammY` + `codex app-server`.
 
 - Node.js 18+
 - Codex CLI installed and authenticated (`codex login`)
+- `codex-sessions` CLI installed
 - Telegram bot token from BotFather
 - `ffmpeg` and `whisper-cli` in `PATH` (required for voice notes)
 
@@ -27,13 +29,20 @@ cd /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/codex-remote
 ./scripts/install.sh
 ```
 
-3. Install dependencies
+3. Install `codex-sessions` CLI
+
+```bash
+cd /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/codex-sessions
+./scripts/install.sh
+```
+
+4. Install dependencies
 
 ```bash
 codex-remote install
 ```
 
-4. Configure environment
+5. Configure environment
 
 ```bash
 cp .env.example .env
@@ -47,7 +56,7 @@ TELEGRAM_ALLOWED_CHAT_IDS=1234567890
 WHISPER_MODEL_PATH_TINY=/absolute/path/to/ggml-tiny.en.bin
 ```
 
-5. Install voice dependencies (macOS/Homebrew)
+6. Install voice dependencies (macOS/Homebrew)
 
 ```bash
 brew install ffmpeg whisper-cpp
@@ -146,8 +155,6 @@ Path vars support: `~`, `$HOME`, `${HOME}`.
 Fixed defaults (not configurable via env):
 
 - `CODEX_SKIP_GIT_REPO_CHECK=true`
-- `CODEX_FORCE_SESSION_SOURCE=vscode`
-- `CODEX_FORCE_ORIGINATOR=Codex Desktop`
 - `BINDINGS_FILE=runtime/bindings.json`
 - `TELEGRAM_VOICE_ECHO_TRANSCRIPT=false`
 - `TELEGRAM_DRAFT_STREAMING=true`
@@ -187,7 +194,3 @@ CODEX_NETWORK_ACCESS_ENABLED=true
 - `src/adapters`: external boundaries (Codex app-server client, session files, bindings store)
 - `src/shared`: shared helpers/types
 - `runtime`: local runtime files (`bindings.json`, local logs)
-
-## Session source/originator
-
-Session metadata is fixed to `vscode` + `Codex Desktop` so bot-created sessions appear in the default Codex Desktop list.

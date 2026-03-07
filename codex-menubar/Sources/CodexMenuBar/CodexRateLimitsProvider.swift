@@ -63,28 +63,25 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
 
     private func resolveCodexExecutablePath() -> String? {
         let env = ProcessInfo.processInfo.environment
-        if let custom = env["CODEX_BIN"], fileManager.fileExists(atPath: custom) {
+        if let custom = env["CODEX_BIN"], fileManager.isExecutableFile(atPath: custom) {
             return custom
         }
 
-        let home = fileManager.homeDirectoryForCurrentUser
-        let localBin = home.appendingPathComponent(".local/bin/codex").path
-        if fileManager.fileExists(atPath: localBin) {
-            return localBin
+        guard let npmGlobalCodexPath = CLIExecutableResolver.resolve(commandName: "codex") else {
+            return nil
+        }
+        if fileManager.isExecutableFile(atPath: npmGlobalCodexPath) {
+            return npmGlobalCodexPath
         }
 
-        return "/usr/bin/env"
+        return nil
     }
 
     private func run(executablePath: String, arguments: [String]) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
 
-        if executablePath == "/usr/bin/env" {
-            process.arguments = ["codex"] + arguments
-        } else {
-            process.arguments = arguments
-        }
+        process.arguments = arguments
 
         let stdout = Pipe()
         let stderr = Pipe()

@@ -23,16 +23,19 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
         var errorDescription: String? { message }
     }
 
-    private let executablePath: String
+    private let executablePath: String?
     private let fileManager: FileManager
 
-    init(bundleURL: URL = Bundle.main.bundleURL,
-         fileManager: FileManager = .default) {
+    init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        self.executablePath = Self.resolveExecutablePath(fileManager: fileManager)
+        self.executablePath = Self.resolveExecutablePath()
     }
 
     func status() throws -> Status {
+        guard let executablePath else {
+            return .notInstalled
+        }
+
         guard fileManager.isExecutableFile(atPath: executablePath) else {
             return .notInstalled
         }
@@ -84,6 +87,9 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
     }
 
     func install() throws {
+        guard let executablePath else {
+            throw Error(message: "Codex Remote CLI is not installed.")
+        }
         guard fileManager.isExecutableFile(atPath: executablePath) else {
             throw Error(message: "Codex Remote CLI is not installed.")
         }
@@ -91,6 +97,9 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
     }
 
     func start() throws {
+        guard let executablePath else {
+            throw Error(message: "Codex Remote CLI is not installed.")
+        }
         guard fileManager.isExecutableFile(atPath: executablePath) else {
             throw Error(message: "Codex Remote CLI is not installed.")
         }
@@ -98,6 +107,9 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
     }
 
     func stop() throws {
+        guard let executablePath else {
+            throw Error(message: "Codex Remote CLI is not installed.")
+        }
         guard fileManager.isExecutableFile(atPath: executablePath) else {
             throw Error(message: "Codex Remote CLI is not installed.")
         }
@@ -109,6 +121,10 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
     }
 
     private func run(_ arguments: [String]) throws -> String {
+        guard let executablePath else {
+            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-remote"))
+        }
+
         guard fileManager.isExecutableFile(atPath: executablePath) else {
             throw Error(message: "codex-remote CLI not found at \(executablePath). Run codex-remote/scripts/install.sh first.")
         }
@@ -139,8 +155,7 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
         return stdoutText
     }
 
-    private static func resolveExecutablePath(fileManager: FileManager) -> String {
-        let home = fileManager.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".local/bin/codex-remote").path
+    private static func resolveExecutablePath() -> String? {
+        CLIExecutableResolver.resolve(commandName: "codex-remote")
     }
 }

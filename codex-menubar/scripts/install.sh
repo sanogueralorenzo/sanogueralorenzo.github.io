@@ -7,6 +7,7 @@ APP_DISPLAY_NAME="Codex Menu Bar"
 APP_BUNDLE_IDENTIFIER="io.github.sanogueralorenzo.codex.menubar"
 APP_BUNDLE_NAME="Codex Menu Bar"
 APP_DIR="$ROOT_DIR/release/$APP_BUNDLE_NAME.app"
+TARGET_APP_DIR="/Applications/$APP_BUNDLE_NAME.app"
 ICON_PATH="$ROOT_DIR/assets/codex.png"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
@@ -63,3 +64,35 @@ cp "$ICON_PATH" "$APP_DIR/Contents/Resources/codex.png"
 codesign --force --sign - "$APP_DIR" >/dev/null 2>&1 || true
 
 echo "Created app bundle: $APP_DIR"
+
+install_without_sudo() {
+  rm -rf "$TARGET_APP_DIR"
+  ditto "$APP_DIR" "$TARGET_APP_DIR"
+}
+
+install_with_sudo() {
+  sudo rm -rf "$TARGET_APP_DIR"
+  sudo ditto "$APP_DIR" "$TARGET_APP_DIR"
+}
+
+if install_without_sudo >/dev/null 2>&1; then
+  echo "Installed app: $TARGET_APP_DIR"
+else
+  echo "Installing to /Applications requires admin access."
+  if command -v sudo >/dev/null 2>&1 && sudo -v; then
+    if install_with_sudo >/dev/null 2>&1; then
+      echo "Installed app: $TARGET_APP_DIR"
+    else
+      echo "Failed to install to /Applications." >&2
+      echo "Drag /release/Codex Menu Bar.app to /Applications" >&2
+      exit 1
+    fi
+  else
+    echo "Failed to install to /Applications." >&2
+    echo "Drag /release/Codex Menu Bar.app to /Applications" >&2
+    exit 1
+  fi
+fi
+
+open "$TARGET_APP_DIR" >/dev/null 2>&1 || true
+echo "Opened app: $TARGET_APP_DIR"

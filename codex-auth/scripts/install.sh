@@ -19,7 +19,13 @@ resolve_npm_bin_dir() {
   echo "$npm_prefix/bin"
 }
 
-DEST_DIR="${1:-$(resolve_npm_bin_dir)}"
+if [[ $# -gt 0 ]]; then
+  echo "Error: custom destination is no longer supported." >&2
+  echo "This installer always targets npm global bin." >&2
+  exit 1
+fi
+
+DEST_DIR="$(resolve_npm_bin_dir)"
 
 if ! command -v swift >/dev/null 2>&1; then
   echo "Error: Swift is not installed or not on PATH." >&2
@@ -40,7 +46,7 @@ BIN_PATH="$BIN_DIR/codex-auth"
 mkdir -p "$DEST_DIR"
 if [[ ! -w "$DEST_DIR" ]]; then
   echo "Error: destination is not writable: $DEST_DIR" >&2
-  echo "Fix npm global prefix permissions or pass a writable directory explicitly." >&2
+  echo "Fix npm global prefix permissions and try again." >&2
   exit 1
 fi
 

@@ -41,6 +41,19 @@ ensure_npm() {
   fi
 }
 
+ensure_codex_sessions() {
+  if ! command -v codex-sessions >/dev/null 2>&1; then
+    local sibling_install="$PROJECT_ROOT/../codex-sessions/scripts/install.sh"
+    echo "codex-sessions not found. Install it first:" >&2
+    if [[ -f "$sibling_install" ]]; then
+      echo "  $sibling_install" >&2
+    else
+      echo "  codex-sessions/scripts/install.sh" >&2
+    fi
+    exit 1
+  fi
+}
+
 ensure_state_dir() {
   mkdir -p "$STATE_DIR"
 }
@@ -145,6 +158,7 @@ cmd_install() {
 cmd_start() {
   local plain="$1"
   ensure_npm
+  ensure_codex_sessions
   ensure_state_dir
   ensure_env_file
   ensure_dependencies
@@ -192,6 +206,7 @@ cmd_stop() {
 
 cmd_run() {
   ensure_npm
+  ensure_codex_sessions
   ensure_env_file
   ensure_dependencies
   echo "Starting codex-remote bot (watch mode)..."
