@@ -73,6 +73,42 @@ extension AppDelegate {
 
         menu.addItem(.separator())
 
+        let sessionsItem = NSMenuItem(title: "Sessions", action: nil, keyEquivalent: "")
+        let sessionsMenu = NSMenu()
+        if data.isLoading {
+            let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
+            loadingItem.isEnabled = false
+            sessionsMenu.addItem(loadingItem)
+        } else {
+            switch data.sessionsStatus ?? .notInstalled {
+            case .notInstalled:
+                let missingItem = NSMenuItem(title: "codex-sessions not installed", action: nil, keyEquivalent: "")
+                missingItem.isEnabled = false
+                sessionsMenu.addItem(missingItem)
+            case .ready(let activeSessionCount):
+                let countItem = NSMenuItem(title: "Session Count: \(activeSessionCount)", action: nil, keyEquivalent: "")
+                countItem.isEnabled = false
+                sessionsMenu.addItem(countItem)
+                sessionsMenu.addItem(.separator())
+
+                let removeItem = NSMenuItem(title: "Remove", action: nil, keyEquivalent: "")
+                let removeMenu = NSMenu()
+                for days in [1, 3, 7] {
+                    let staleLabel = days == 1 ? "1 day stale sessions…" : "\(days) days stale sessions…"
+                    let staleItem = NSMenuItem(title: staleLabel,
+                                               action: #selector(removeStaleSessions(_:)),
+                                               keyEquivalent: "")
+                    staleItem.target = self
+                    staleItem.representedObject = days
+                    removeMenu.addItem(staleItem)
+                }
+                sessionsMenu.addItem(removeItem)
+                sessionsMenu.setSubmenu(removeMenu, for: removeItem)
+            }
+        }
+        menu.addItem(sessionsItem)
+        menu.setSubmenu(sessionsMenu, for: sessionsItem)
+
         let skillsItem = NSMenuItem(title: "Skills", action: nil, keyEquivalent: "")
         let skillsMenu = NSMenu()
         if !data.isLoading, data.installedSkills.isEmpty {

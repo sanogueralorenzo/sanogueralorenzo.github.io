@@ -13,6 +13,7 @@
 - This module does not expose a standalone CLI help command.
 - Integrates with:
   - `codex-auth` (required)
+  - `codex-sessions` (required)
   - `codex-remote` (optional)
 
 ### Storage

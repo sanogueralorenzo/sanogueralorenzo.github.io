@@ -6,6 +6,7 @@ import Observation
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let authCLI = CodexAuthCLIClient()
     let remoteCLI = CodexRemoteCLIClient()
+    let sessionsCLI = CodexSessionsCLIClient()
     let skillsProvider = CodexSkillsProvider(homeDirectory: FileManager.default.homeDirectoryForCurrentUser)
     let rateLimitsProvider = CodexRateLimitsProvider()
     let menuDataStore = CodexMenuDataStore()
@@ -62,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func refreshUI() {
         menuDataStore.refresh(authCLI: authCLI,
                               remoteCLI: remoteCLI,
+                              sessionsCLI: sessionsCLI,
                               skillsProvider: skillsProvider,
                               rateLimitsProvider: rateLimitsProvider)
     }

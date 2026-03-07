@@ -73,6 +73,38 @@ extension AppDelegate {
         }
     }
 
+    @objc func removeStaleSessions(_ sender: NSMenuItem) {
+        let olderThanDays: Int
+        if let value = sender.representedObject as? Int {
+            olderThanDays = value
+        } else if let value = sender.representedObject as? NSNumber {
+            olderThanDays = value.intValue
+        } else {
+            return
+        }
+
+        guard confirmRemoveStaleSessions(olderThanDays: olderThanDays) else {
+            return
+        }
+
+        let sessionsCLI = self.sessionsCLI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+            do {
+                try sessionsCLI.removeStaleSessions(olderThanDays: olderThanDays)
+                DispatchQueue.main.async {
+                    self.refreshUI()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.showError(error)
+                }
+            }
+        }
+    }
+
     @objc func openHelp(_ sender: Any?) {
         guard let url = URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex-menubar") else {
             return

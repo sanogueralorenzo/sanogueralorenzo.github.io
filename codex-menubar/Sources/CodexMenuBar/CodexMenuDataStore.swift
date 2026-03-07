@@ -4,6 +4,7 @@ import Observation
 struct CodexMenuData {
     let isLoading: Bool
     let remoteStatus: CodexRemoteCLIClient.Status?
+    let sessionsStatus: CodexSessionsCLIClient.Status?
     let currentProfileName: String?
     let profiles: [String]
     let installedSkills: [String]
@@ -12,6 +13,7 @@ struct CodexMenuData {
     static let loading = CodexMenuData(
         isLoading: true,
         remoteStatus: nil,
+        sessionsStatus: nil,
         currentProfileName: nil,
         profiles: [],
         installedSkills: [],
@@ -35,6 +37,7 @@ final class CodexMenuDataStore {
 
     func refresh(authCLI: CodexAuthCLIClient,
                  remoteCLI: CodexRemoteCLIClient,
+                 sessionsCLI: CodexSessionsCLIClient,
                  skillsProvider: CodexSkillsProvider,
                  rateLimitsProvider: CodexRateLimitsProvider) {
         refreshGeneration += 1
@@ -44,6 +47,7 @@ final class CodexMenuDataStore {
             let refreshedData = CodexMenuData(
                 isLoading: false,
                 remoteStatus: (try? remoteCLI.status()) ?? .notInstalled,
+                sessionsStatus: (try? sessionsCLI.status()) ?? .notInstalled,
                 currentProfileName: try? authCLI.currentProfileName(),
                 profiles: (try? authCLI.listProfiles()) ?? [],
                 installedSkills: skillsProvider.installedSkillNames(),
