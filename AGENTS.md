@@ -16,6 +16,7 @@
 - G09 | * | SHOULD | Prefer reactive/streaming flows over one-shot patterns when state is ongoing.
 - G10 | * | MUST | Use explicit loading/error/empty states for async UI/data flows.
 - G11 | * | MUST_NOT | Commit secrets, tokens, credentials, or local env artifacts.
+- G12 | module-change | MUST | Update the affected module README in the same change; documentation should be optimized for AI tooling efficiency over human readability.
 
 ## Delivery
 - D01 | code-change | MUST | Before final response, commit and push to `main` by default.
