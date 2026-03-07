@@ -163,9 +163,13 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     deps.lastListedFolderChoices.delete(chatId);
 
     const prompt = mode === "delete" ? "Choose thread to delete" : "Choose thread";
+    const threadLabels =
+      mode === "resume"
+        ? sessions.map((session) => session.title)
+        : sessions.map((session) => formatSessionSelectionLabel(session));
     await reply(prompt, {
       reply_markup: threadSelectionKeyboard(
-        sessions.map((session) => formatSessionSelectionLabel(session)),
+        threadLabels,
         { includeNewButton: false }
       )
     });

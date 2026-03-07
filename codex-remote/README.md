@@ -63,3 +63,5 @@ codex-remote logs --help
 
 - `/resume` and `/delete` session menus are sourced from `codex-sessions list --folders --json`.
 - Entries are ordered by folder, then last-updated descending within each folder.
+- `/resume` buttons display the `title` field directly from CLI JSON (DB-backed session title, same as Codex mac app conversation title).
+- `/delete` keeps folder + last-updated + title labels for disambiguation.
