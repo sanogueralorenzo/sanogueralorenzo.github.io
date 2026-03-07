@@ -38,7 +38,7 @@ Options:
 
 - `list --folders` orders sessions by folder, then by `last_updated_at` descending inside each folder.
 - JSON list output includes `folder` for each entry.
-- Session titles in list/titles output come from the Codex threads DB when available (`state_*.sqlite`), matching Codex app conversation titles.
+- Session titles in list/titles output prefer `~/.codex/session_index.jsonl` (`thread_name`), then fall back to `state_*.sqlite` title (and global-state fallback for file-scan mode).
 
 ### Merge Behavior
 

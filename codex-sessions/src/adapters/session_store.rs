@@ -35,12 +35,16 @@ impl SessionStore {
     }
 
     pub fn collect_sessions(&self) -> Result<Vec<SessionMeta>> {
+        let index_titles = self.load_session_index_titles()?;
         if let Some(path) = self.state_db_path()? {
-            if let Ok(sessions) = self.collect_sessions_from_db(&path) {
+            if let Ok(sessions) = self.collect_sessions_from_db(&path, &index_titles) {
                 return Ok(sessions);
             }
         }
-        let titles = self.load_titles()?;
+        let mut titles = self.load_titles()?;
+        for (id, title) in index_titles {
+            titles.insert(id, title);
+        }
         self.collect_sessions_from_files(&titles)
     }
 
@@ -74,6 +78,47 @@ impl SessionStore {
                 }
                 titles.insert(id.to_string(), trimmed.to_string());
             }
+        }
+
+        Ok(titles)
+    }
+
+    pub fn load_session_index_titles(&self) -> Result<HashMap<String, String>> {
+        let file_path = self.codex_home.join("session_index.jsonl");
+        if !file_path.exists() {
+            return Ok(HashMap::new());
+        }
+
+        let raw = fs::read_to_string(&file_path)
+            .with_context(|| format!("failed to read {}", file_path.display()))?;
+        let mut titles = HashMap::new();
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            let Ok(parsed) = serde_json::from_str::<Value>(trimmed) else {
+                continue;
+            };
+            let Some(id) = parsed.get("id").and_then(Value::as_str).map(str::trim) else {
+                continue;
+            };
+            if id.is_empty() {
+                continue;
+            }
+            let Some(title) = parsed
+                .get("thread_name")
+                .or_else(|| parsed.get("title"))
+                .and_then(Value::as_str)
+                .map(str::trim)
+            else {
+                continue;
+            };
+            if title.is_empty() {
+                continue;
+            }
+            titles.insert(id.to_string(), title.to_string());
         }
 
         Ok(titles)
@@ -257,7 +302,11 @@ impl SessionStore {
         Ok(best.map(|(_, path)| path))
     }
 
-    fn collect_sessions_from_db(&self, db_path: &Path) -> Result<Vec<SessionMeta>> {
+    fn collect_sessions_from_db(
+        &self,
+        db_path: &Path,
+        titles: &HashMap<String, String>,
+    ) -> Result<Vec<SessionMeta>> {
         let conn = Connection::open(db_path)
             .with_context(|| format!("failed to open {}", db_path.display()))?;
 
@@ -291,7 +340,10 @@ impl SessionStore {
 
             let source = normalize_optional_string(source);
             let source_kind = source_kind_from_source(source.as_deref());
-            let title = normalize_optional_string(title_from_db);
+            let title = titles
+                .get(&id)
+                .cloned()
+                .or_else(|| normalize_optional_string(title_from_db));
 
             Ok(SessionMeta {
                 id,
@@ -976,6 +1028,35 @@ mod tests {
         assert_eq!(titles.get("keep").and_then(Value::as_str), Some("Keep me"));
         assert!(!session_file_one.exists());
         assert!(!session_file_two.exists());
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
+    fn session_index_title_overrides_db_title() {
+        let temp_root =
+            std::env::temp_dir().join(format!("codex-sessions-test-{}", Uuid::new_v4()));
+        let codex_home = temp_root.join(".codex");
+        fs::create_dir_all(&codex_home).expect("create codex home");
+
+        let id = "019cc513-20f1-7452-aaf4-a8c5f32ee074";
+        let session_index_path = codex_home.join("session_index.jsonl");
+        fs::write(
+            &session_index_path,
+            format!(
+                "{{\"id\":\"{id}\",\"thread_name\":\"Refactor DeviceMode to sealed class\",\"updated_at\":\"2026-03-06T21:35:31.451739Z\"}}\n"
+            ),
+        )
+        .expect("write session index");
+
+        let store = SessionStore { codex_home };
+        let titles = store
+            .load_session_index_titles()
+            .expect("load session index titles");
+        assert_eq!(
+            titles.get(id).map(String::as_str),
+            Some("Refactor DeviceMode to sealed class")
+        );
 
         let _ = fs::remove_dir_all(temp_root);
     }
