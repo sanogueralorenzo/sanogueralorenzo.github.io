@@ -106,13 +106,13 @@ extension AppDelegate {
         return name
     }
 
-    func confirmRemoveStaleSessions(olderThanDays: Int) -> Bool {
+    func confirmRemoveStaleSessions(staleSessionCount: Int, olderThanDays: Int) -> Bool {
         NSApp.activate(ignoringOtherApps: true)
 
         let alert = NSAlert()
         alert.messageText = "Remove Stale Sessions"
         alert.informativeText = """
-This will permanently delete active Codex sessions last updated more than \(olderThanDays) day(s) ago.
+This will permanently delete \(staleSessionCount) codex sessions last updated more than \(olderThanDays) day(s) ago.
 
 This action cannot be undone.
 """

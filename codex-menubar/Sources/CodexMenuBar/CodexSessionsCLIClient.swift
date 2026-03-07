@@ -26,6 +26,10 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
         let archived: Bool
     }
 
+    private struct PruneResponse: Decodable {
+        let pruned: Int
+    }
+
     private let executablePath: String?
     private let fileManager: FileManager
 
@@ -71,6 +75,23 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             "--older-than-days", String(olderThanDays),
             "--hard"
         ])
+    }
+
+    func staleSessionCount(olderThanDays: Int) throws -> Int {
+        guard olderThanDays > 0 else {
+            throw Error(message: "olderThanDays must be greater than zero.")
+        }
+
+        let output = try run([
+            "prune",
+            "--older-than-days", String(olderThanDays),
+            "--hard",
+            "--dry-run",
+            "--json"
+        ])
+        let data = Data(output.utf8)
+        let response = try JSONDecoder().decode(PruneResponse.self, from: data)
+        return response.pruned
     }
 
     func mergeSessions(targetID: String, mergeID: String) throws {

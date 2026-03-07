@@ -82,20 +82,34 @@ extension AppDelegate {
         } else {
             return
         }
-
-        guard confirmRemoveStaleSessions(olderThanDays: olderThanDays) else {
-            return
-        }
-
         let sessionsCLI = self.sessionsCLI
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else {
                 return
             }
             do {
-                try sessionsCLI.removeStaleSessions(olderThanDays: olderThanDays)
+                let staleSessionCount = try sessionsCLI.staleSessionCount(olderThanDays: olderThanDays)
                 DispatchQueue.main.async {
-                    self.refreshUI()
+                    guard self.confirmRemoveStaleSessions(staleSessionCount: staleSessionCount, olderThanDays: olderThanDays) else {
+                        return
+                    }
+
+                    let sessionsCLI = self.sessionsCLI
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                        guard let self else {
+                            return
+                        }
+                        do {
+                            try sessionsCLI.removeStaleSessions(olderThanDays: olderThanDays)
+                            DispatchQueue.main.async {
+                                self.refreshUI()
+                            }
+                        } catch {
+                            DispatchQueue.main.async {
+                                self.showError(error)
+                            }
+                        }
+                    }
                 }
             } catch {
                 DispatchQueue.main.async {
