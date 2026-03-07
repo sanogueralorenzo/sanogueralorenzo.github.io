@@ -225,6 +225,15 @@ Usage:
   codex-auth [--home <dir>] watch <start|stop|status|run>
   codex-auth [--home <dir>] help
 
+Commands:
+  save/add   Save a profile from current auth.json or explicit --path
+  use        Apply a saved profile or explicit --path to auth.json
+  list       List saved profiles
+  current    Print current profile and auth metadata
+  remove     Delete a saved profile
+  watch      Manage auth sync watcher (start|stop|status|run)
+  help       Print this help output
+
 Examples:
   codex-auth save personal
   codex-auth save work --path ~/secrets/work-auth.json

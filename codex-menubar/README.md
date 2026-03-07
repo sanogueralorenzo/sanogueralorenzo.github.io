@@ -4,16 +4,20 @@
 
 ## Quickstart
 
-### Install and launch
-
 ```shell
 ./scripts/install.sh
 ```
 
 ## Reference
 
-- App path: `/Applications/Codex Menu Bar.app`
+- This module does not expose a standalone CLI help command.
 - Integrates with:
   - `codex-auth` (required)
   - `codex-remote` (optional)
-- On launch, it starts auth sync through `codex-auth watch start`.
+
+### Storage
+
+- `/Applications/Codex Menu Bar.app`
+- `~/Library/LaunchAgents/io.github.sanogueralorenzo.codex.menubar.plist`
+- `/tmp/codex-menu-menubar.out.log`
+- `/tmp/codex-menu-menubar.err.log`

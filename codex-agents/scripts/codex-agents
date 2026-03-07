@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+print_usage() {
+  cat <<USAGE
+Usage:
+  codex-agents help
+  codex-agents config init
+  codex-agents task create <TICKET-KEY>
+  codex-agents task list
+  codex-agents task show <TICKET-KEY>
+  codex-agents worker start
+
+Commands:
+  config init         Initialize local codex-agents configuration.
+  task create         Create a task from a ticket key.
+  task list           List tracked tasks.
+  task show           Show task details by ticket key.
+  worker start        Start autonomous worker loop.
+  help                Print this help output.
+USAGE
+}
+
+main() {
+  local command="${1:-help}"
+  case "$command" in
+    help|--help|-h)
+      if [[ "$#" -gt 1 ]]; then
+        echo "Unexpected arguments for help: ${*:2}" >&2
+        exit 1
+      fi
+      print_usage
+      ;;
+    config)
+      if [[ "${2:-}" == "init" ]]; then
+        echo "config init is not implemented yet." >&2
+        exit 2
+      fi
+      echo "Unknown config command. Run: codex-agents help" >&2
+      exit 1
+      ;;
+    task)
+      case "${2:-}" in
+        create)
+          if [[ -z "${3:-}" ]]; then
+            echo "Missing ticket key. Example: codex-agents task create TS-1234" >&2
+            exit 1
+          fi
+          echo "task create is not implemented yet." >&2
+          exit 2
+          ;;
+        list)
+          echo "task list is not implemented yet." >&2
+          exit 2
+          ;;
+        show)
+          if [[ -z "${3:-}" ]]; then
+            echo "Missing ticket key. Example: codex-agents task show TS-1234" >&2
+            exit 1
+          fi
+          echo "task show is not implemented yet." >&2
+          exit 2
+          ;;
+        *)
+          echo "Unknown task command. Run: codex-agents help" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    worker)
+      if [[ "${2:-}" == "start" ]]; then
+        echo "worker start is not implemented yet." >&2
+        exit 2
+      fi
+      echo "Unknown worker command. Run: codex-agents help" >&2
+      exit 1
+      ;;
+    *)
+      echo "Unknown command: $command" >&2
+      print_usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

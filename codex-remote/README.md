@@ -4,35 +4,46 @@
 
 ## Quickstart
 
-### Install and start
-
 ```shell
-../codex-sessions/scripts/install.sh
 ./scripts/install.sh
-cp .env.example .env
-codex-remote install
-codex-remote start
 ```
 
 ## Reference
 
-- Required env:
+### Help (`codex-remote help`)
 
-```env
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_ALLOWED_CHAT_IDS=...
-TELEGRAM_ADMIN_CHAT_IDS=...
+```text
+Usage:
+  ./scripts/codex-remote install
+  ./scripts/codex-remote start [--plain]
+  ./scripts/codex-remote stop [--plain]
+  ./scripts/codex-remote status [--plain]
+  ./scripts/codex-remote restart [--plain]
+  ./scripts/codex-remote logs [-f|--follow]
+
+Commands:
+  install    Install npm dependencies in project root.
+  start      Start background bot process and persist PID/log state.
+  stop       Stop managed background bot process.
+  status     Print managed process status.
+  restart    Stop and then start managed process.
+  logs       Show recent logs (or follow with -f).
+
+Notes:
+- Default command when omitted is: start
+- start runs the bot in background and writes logs to: $HOME/.codex/remote/codex-remote.log
 ```
 
-- Common commands:
+### Required Runtime Config
 
-```shell
-codex-remote start
-codex-remote status
-codex-remote stop
-codex-remote restart
-codex-remote logs -f
-```
+- `.env` file in module root with at least:
+  - `TELEGRAM_BOT_TOKEN`
+  - `TELEGRAM_ALLOWED_CHAT_IDS` (optional allowlist)
+  - `TELEGRAM_ADMIN_CHAT_IDS` (optional restart-admin allowlist)
 
-- Optional voice-note transcription requires `ffmpeg` + `whisper-cli` and `WHISPER_MODEL_PATH_TINY`.
-- Runtime binding store: `runtime/bindings.json`.
+### Storage
+
+- `runtime/bindings.json`
+- `~/.codex/remote/codex-remote.pid`
+- `~/.codex/remote/codex-remote.log`
+- `~/.codex/remote/codex-remote-caffeinate.pid`

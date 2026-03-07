@@ -11,14 +11,23 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    /// List sessions with optional filters/pagination.
     List(ListArgs),
+    /// List desktop thread-title mappings.
     Titles(TitlesArgs),
+    /// Show one session by id or unique id prefix.
     Show(ShowArgs),
+    /// Print latest assistant message for a session.
     Message(MessageArgs),
+    /// Archive by default, or hard delete with --hard.
     Delete(DeleteArgs),
+    /// Move one session to archived storage.
     Archive(ArchiveArgs),
+    /// Move one session from archived storage to active storage.
     Unarchive(UnarchiveArgs),
+    /// Prune old active sessions once.
     Prune(PruneArgs),
+    /// Run prune repeatedly on an interval.
     Watch(WatchArgs),
 }
 
