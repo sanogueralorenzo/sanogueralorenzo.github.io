@@ -92,6 +92,43 @@ struct CodexAuthCLI {
         }
     }
 
+    private enum WatchAction: CaseIterable {
+        case start
+        case stop
+        case status
+        case run
+
+        var token: String {
+            switch self {
+            case .start:
+                return "start"
+            case .stop:
+                return "stop"
+            case .status:
+                return "status"
+            case .run:
+                return "run"
+            }
+        }
+
+        var summary: String {
+            switch self {
+            case .start:
+                return "Start auth sync watcher in background."
+            case .stop:
+                return "Stop background auth sync watcher."
+            case .status:
+                return "Print watcher status."
+            case .run:
+                return "Run watcher loop in foreground."
+            }
+        }
+
+        static func resolve(_ token: String) -> WatchAction? {
+            allCases.first { $0.token == token }
+        }
+    }
+
     static func main() {
         do {
             try run()
@@ -112,13 +149,37 @@ struct CodexAuthCLI {
         let customHome = try parseGlobalHomeFlag(&args)
         let manager = customHome.map { ProfileManager(homeDirectory: $0) } ?? ProfileManager()
 
-        guard let commandToken = args.first else {
+        guard let firstToken = args.first else {
             printUsage()
             return
         }
         args.removeFirst()
-        guard let command = Command.resolve(commandToken) else {
-            throw AuthManagerError.ioFailure("Unknown command '\(commandToken)'. Run: codex-auth help")
+
+        if isHelpToken(firstToken) {
+            if args.isEmpty {
+                printUsage()
+                return
+            }
+            guard args.count == 1 else {
+                throw AuthManagerError.ioFailure("Unexpected arguments for help: \(args.dropFirst().joined(separator: " "))")
+            }
+            guard let command = Command.resolve(args[0]) else {
+                throw AuthManagerError.ioFailure("Unknown command '\(args[0])'. Run: codex-auth help")
+            }
+            printCommandUsage(command)
+            return
+        }
+
+        guard let command = Command.resolve(firstToken) else {
+            throw AuthManagerError.ioFailure("Unknown command '\(firstToken)'. Run: codex-auth help")
+        }
+
+        if let option = args.first, isHelpToken(option) {
+            guard args.count == 1 else {
+                throw AuthManagerError.ioFailure("Unexpected arguments for \(firstToken) --help: \(args.dropFirst().joined(separator: " "))")
+            }
+            printCommandUsage(command)
+            return
         }
 
         switch command {
@@ -199,14 +260,36 @@ struct CodexAuthCLI {
             try printProfiles(manager, plain: false)
 
         case .watch:
-            guard let action = args.first else {
-                throw AuthManagerError.ioFailure("Missing watch action. Use start, stop, status, or run.")
+            guard let actionToken = args.first else {
+                throw AuthManagerError.ioFailure("Missing watch action. Use start, stop, status, or run. Run: codex-auth watch --help")
             }
+            if isHelpToken(actionToken) {
+                guard args.count == 1 else {
+                    throw AuthManagerError.ioFailure("Unexpected arguments for watch --help: \(args.dropFirst().joined(separator: " "))")
+                }
+                printWatchUsage()
+                return
+            }
+
+            guard let action = WatchAction.resolve(actionToken) else {
+                throw AuthManagerError.ioFailure("Unknown watch action '\(actionToken)'. Use start, stop, status, or run.")
+            }
+
             if args.count > 1 {
-                throw AuthManagerError.ioFailure("Unexpected arguments for watch: \(args.dropFirst().joined(separator: " "))")
+                let tail = args.dropFirst()
+                if tail.count == 1, let token = tail.first, isHelpToken(token) {
+                    printWatchActionUsage(action)
+                    return
+                }
+                throw AuthManagerError.ioFailure("Unexpected arguments for watch \(actionToken): \(tail.joined(separator: " "))")
             }
+
             try handleWatch(action: action, manager: manager)
         }
+    }
+
+    private static func isHelpToken(_ token: String) -> Bool {
+        token == "--help" || token == "-h" || token == "help"
     }
 
     private static func parsePlainFlag(_ args: [String], command: String) throws -> Bool {
@@ -350,28 +433,67 @@ struct CodexAuthCLI {
         print("  codex-auth watch start")
     }
 
-    private static func handleWatch(action: String, manager: ProfileManager) throws {
+    private static func printCommandUsage(_ command: Command) {
+        print("Usage:")
+        print("  codex-auth [--home <dir>] \(command.usageLine)")
+        if command == .watch {
+            print("  codex-auth [--home <dir>] watch --help")
+            print("  codex-auth [--home <dir>] watch <start|stop|status|run> --help")
+        }
+        print("")
+        print("Description:")
+        print("  \(command.summary)")
+
+        if command == .watch {
+            print("")
+            print("Actions:")
+            for action in WatchAction.allCases {
+                let padded = action.token.padding(toLength: 6, withPad: " ", startingAt: 0)
+                print("  \(padded)  \(action.summary)")
+            }
+        }
+    }
+
+    private static func printWatchUsage() {
+        print("Usage:")
+        print("  codex-auth [--home <dir>] watch <start|stop|status|run>")
+        print("  codex-auth [--home <dir>] watch <start|stop|status|run> --help")
+        print("")
+        print("Actions:")
+        for action in WatchAction.allCases {
+            let padded = action.token.padding(toLength: 6, withPad: " ", startingAt: 0)
+            print("  \(padded)  \(action.summary)")
+        }
+    }
+
+    private static func printWatchActionUsage(_ action: WatchAction) {
+        print("Usage:")
+        print("  codex-auth [--home <dir>] watch \(action.token)")
+        print("")
+        print("Description:")
+        print("  \(action.summary)")
+    }
+
+    private static func handleWatch(action: WatchAction, manager: ProfileManager) throws {
         let watcher = AuthSyncWatcher(homeDirectory: manager.paths.homeDirectory)
 
         switch action {
-        case "start":
+        case .start:
             let pid = try watcher.startDaemon(executablePath: CommandLine.arguments[0],
                                               homeDirectory: manager.paths.homeDirectory)
             print("Watcher running (PID \(pid))")
-        case "stop":
+        case .stop:
             try watcher.stopDaemon()
             print("Watcher stopped")
-        case "status":
+        case .status:
             switch watcher.status() {
             case .stopped:
                 print("Watcher stopped")
             case .running(let pid):
                 print("Watcher running (PID \(pid))")
             }
-        case "run":
+        case .run:
             try watcher.runLoop()
-        default:
-            throw AuthManagerError.ioFailure("Unknown watch action '\(action)'. Use start, stop, status, or run.")
         }
     }
 }

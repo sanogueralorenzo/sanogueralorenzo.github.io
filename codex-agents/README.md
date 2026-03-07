@@ -26,6 +26,15 @@ Commands:
   help    Print this help output.
 ```
 
+### Help Patterns
+
+```shell
+codex-agents --help
+codex-agents help task
+codex-agents task --help
+codex-agents task create --help
+```
+
 ### Storage
 
 - Persistent storage is not implemented yet in this module.

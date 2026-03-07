@@ -92,6 +92,43 @@ print_usage() {
   echo "- start runs the bot in background and writes logs to: $LOG_FILE"
 }
 
+print_command_help_by_index() {
+  local index="$1"
+  local name="${COMMAND_NAMES[$index]}"
+  local usage="${COMMAND_USAGES[$index]}"
+  local description="${COMMAND_DESCRIPTIONS[$index]}"
+
+  echo "Usage:"
+  echo "  ./scripts/codex-remote $usage"
+  echo
+  echo "Description:"
+  echo "  $description"
+
+  case "$name" in
+    start|stop|status|restart)
+      echo
+      echo "Options:"
+      echo "  --plain  Print machine-readable output when supported."
+      ;;
+    logs)
+      echo
+      echo "Options:"
+      echo "  -f, --follow  Stream log output continuously."
+      ;;
+  esac
+}
+
+print_command_help_by_name() {
+  local name="$1"
+  local index
+  if ! index="$(command_index_by_name "$name")"; then
+    echo "Unknown command: $name" >&2
+    print_usage >&2
+    exit 1
+  fi
+  print_command_help_by_index "$index"
+}
+
 ensure_npm() {
   if ! command -v npm >/dev/null 2>&1; then
     echo "npm not found. Install Node.js 18+ and npm." >&2
@@ -293,12 +330,17 @@ cmd_logs() {
 }
 
 command_help() {
-  if [[ "$#" -gt 0 ]]; then
-    echo "Unexpected arguments for help: $*" >&2
-    print_usage >&2
-    exit 1
+  if [[ "$#" -eq 0 ]]; then
+    print_usage
+    return
   fi
-  print_usage
+  if [[ "$#" -eq 1 ]]; then
+    print_command_help_by_name "$1"
+    return
+  fi
+  echo "Unexpected arguments for help: $*" >&2
+  print_usage >&2
+  exit 1
 }
 
 command_install() {
@@ -381,6 +423,18 @@ dispatch_command() {
 
   if [[ "$command" == "--help" || "$command" == "-h" ]]; then
     command="help"
+  fi
+
+  if [[ "$command" != "help" ]]; then
+    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+      shift
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for $command --help: $*" >&2
+        exit 1
+      fi
+      print_command_help_by_name "$command"
+      return
+    fi
   fi
 
   local index

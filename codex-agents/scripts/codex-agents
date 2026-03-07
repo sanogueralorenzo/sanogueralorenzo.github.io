@@ -67,16 +67,117 @@ print_usage() {
   done
 }
 
-command_help() {
-  if [[ "$#" -gt 0 ]]; then
-    echo "Unexpected arguments for help: $*" >&2
+print_command_help_by_index() {
+  local index="$1"
+  local name="${COMMAND_NAMES[$index]}"
+  local usage="${COMMAND_USAGES[$index]}"
+  local description="${COMMAND_DESCRIPTIONS[$index]}"
+
+  echo "Usage:"
+  echo "  codex-agents $usage"
+  echo
+  echo "Description:"
+  echo "  $description"
+
+  case "$name" in
+    config)
+      echo
+      echo "Subcommands:"
+      echo "  init  Initialize local codex-agents configuration."
+      ;;
+    task)
+      echo
+      echo "Subcommands:"
+      echo "  create <TICKET-KEY>  Create task from ticket key."
+      echo "  list                 List tracked tasks."
+      echo "  show <TICKET-KEY>    Show task details by ticket key."
+      ;;
+    worker)
+      echo
+      echo "Subcommands:"
+      echo "  start  Start autonomous worker loop."
+      ;;
+  esac
+}
+
+print_command_help_by_name() {
+  local name="$1"
+  local index
+  if ! index="$(command_index_by_name "$name")"; then
+    echo "Unknown command: $name" >&2
+    print_usage >&2
     exit 1
   fi
-  print_usage
+  print_command_help_by_index "$index"
+}
+
+print_task_subcommand_help() {
+  local subcommand="$1"
+  case "$subcommand" in
+    create)
+      echo "Usage:"
+      echo "  codex-agents task create <TICKET-KEY>"
+      echo
+      echo "Description:"
+      echo "  Create task from ticket key."
+      ;;
+    list)
+      echo "Usage:"
+      echo "  codex-agents task list"
+      echo
+      echo "Description:"
+      echo "  List tracked tasks."
+      ;;
+    show)
+      echo "Usage:"
+      echo "  codex-agents task show <TICKET-KEY>"
+      echo
+      echo "Description:"
+      echo "  Show task details by ticket key."
+      ;;
+    *)
+      echo "Unknown task command: $subcommand" >&2
+      exit 1
+      ;;
+  esac
+}
+
+command_help() {
+  if [[ "$#" -eq 0 ]]; then
+    print_usage
+    return
+  fi
+  if [[ "$#" -eq 1 ]]; then
+    print_command_help_by_name "$1"
+    return
+  fi
+  echo "Unexpected arguments for help: $*" >&2
+  exit 1
 }
 
 command_config() {
+  if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    if [[ "$#" -gt 1 ]]; then
+      echo "Unexpected arguments for config --help: ${*:2}" >&2
+      exit 1
+    fi
+    print_command_help_by_name "config"
+    return
+  fi
+
   if [[ "${1:-}" == "init" ]]; then
+    if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
+      if [[ "$#" -gt 2 ]]; then
+        echo "Unexpected arguments for config init --help: ${*:3}" >&2
+        exit 1
+      fi
+      echo "Usage:"
+      echo "  codex-agents config init"
+      echo
+      echo "Description:"
+      echo "  Initialize local codex-agents configuration."
+      return
+    fi
     if [[ "$#" -gt 1 ]]; then
       echo "Unexpected arguments for config init: ${*:2}" >&2
       exit 1
@@ -91,8 +192,24 @@ command_config() {
 
 command_task() {
   local subcommand="${1:-}"
+  if [[ "$subcommand" == "--help" || "$subcommand" == "-h" ]]; then
+    if [[ "$#" -gt 1 ]]; then
+      echo "Unexpected arguments for task --help: ${*:2}" >&2
+      exit 1
+    fi
+    print_command_help_by_name "task"
+    return
+  fi
   case "$subcommand" in
     create)
+      if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
+        if [[ "$#" -gt 2 ]]; then
+          echo "Unexpected arguments for task create --help: ${*:3}" >&2
+          exit 1
+        fi
+        print_task_subcommand_help "create"
+        return
+      fi
       if [[ -z "${2:-}" ]]; then
         echo "Missing ticket key. Example: codex-agents task create TS-1234" >&2
         exit 1
@@ -105,6 +222,14 @@ command_task() {
       exit 2
       ;;
     list)
+      if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
+        if [[ "$#" -gt 2 ]]; then
+          echo "Unexpected arguments for task list --help: ${*:3}" >&2
+          exit 1
+        fi
+        print_task_subcommand_help "list"
+        return
+      fi
       if [[ "$#" -gt 1 ]]; then
         echo "Unexpected arguments for task list: ${*:2}" >&2
         exit 1
@@ -113,6 +238,14 @@ command_task() {
       exit 2
       ;;
     show)
+      if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
+        if [[ "$#" -gt 2 ]]; then
+          echo "Unexpected arguments for task show --help: ${*:3}" >&2
+          exit 1
+        fi
+        print_task_subcommand_help "show"
+        return
+      fi
       if [[ -z "${2:-}" ]]; then
         echo "Missing ticket key. Example: codex-agents task show TS-1234" >&2
         exit 1
@@ -132,7 +265,28 @@ command_task() {
 }
 
 command_worker() {
+  if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    if [[ "$#" -gt 1 ]]; then
+      echo "Unexpected arguments for worker --help: ${*:2}" >&2
+      exit 1
+    fi
+    print_command_help_by_name "worker"
+    return
+  fi
+
   if [[ "${1:-}" == "start" ]]; then
+    if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
+      if [[ "$#" -gt 2 ]]; then
+        echo "Unexpected arguments for worker start --help: ${*:3}" >&2
+        exit 1
+      fi
+      echo "Usage:"
+      echo "  codex-agents worker start"
+      echo
+      echo "Description:"
+      echo "  Start autonomous worker loop."
+      return
+    fi
     if [[ "$#" -gt 1 ]]; then
       echo "Unexpected arguments for worker start: ${*:2}" >&2
       exit 1
@@ -151,6 +305,18 @@ dispatch_command() {
 
   if [[ "$command" == "--help" || "$command" == "-h" ]]; then
     command="help"
+  fi
+
+  if [[ "$command" != "help" ]]; then
+    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+      shift
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for $command --help: $*" >&2
+        exit 1
+      fi
+      print_command_help_by_name "$command"
+      return
+    fi
   fi
 
   local index

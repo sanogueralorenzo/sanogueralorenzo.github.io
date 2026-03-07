@@ -39,6 +39,15 @@ Examples:
   codex-auth watch start
 ```
 
+### Help Patterns
+
+```shell
+codex-auth --help
+codex-auth help watch
+codex-auth watch --help
+codex-auth watch start --help
+```
+
 ### Storage
 
 - `~/.codex/auth.json`

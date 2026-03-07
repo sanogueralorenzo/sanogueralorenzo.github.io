@@ -36,6 +36,15 @@ Notes:
 - start runs the bot in background and writes logs to: $HOME/.codex/remote/codex-remote.log
 ```
 
+### Help Patterns
+
+```shell
+codex-remote --help
+codex-remote help start
+codex-remote start --help
+codex-remote logs --help
+```
+
 ### Required Runtime Config
 
 - `.env` file in module root with at least:
