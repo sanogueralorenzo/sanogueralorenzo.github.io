@@ -19,7 +19,7 @@ Usage: codex-sessions <COMMAND>
 
 Commands:
   list       List sessions with optional filters/pagination
-  titles     List desktop thread-title mappings
+  titles     List resolved conversation titles by session id
   show       Show one session by id or unique id prefix
   message    Print latest assistant message for a session
   delete     Archive by default, or hard delete with --hard
@@ -38,12 +38,13 @@ Options:
 
 - `list --folders` orders sessions by folder, then by `last_updated_at` descending inside each folder.
 - JSON list output includes `folder` for each entry.
+- Session titles in list/titles output come from the Codex threads DB when available (`state_*.sqlite`), matching Codex app conversation titles.
 
 ### Merge Behavior
 
-- `merge --target <source> --merge <merger>` runs a two-pass context transfer:
+- `merge --target <target> --merge <merger>` runs a two-pass context transfer:
   1) resume merger session to generate compact transfer summary,
-  2) resume source session with that summary,
+  2) resume target session with that summary,
   then hard-delete the merger session on success.
 
 ### Storage

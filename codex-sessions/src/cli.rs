@@ -13,7 +13,7 @@ pub struct Cli {
 pub enum Commands {
     /// List sessions with optional filters/pagination.
     List(ListArgs),
-    /// List desktop thread-title mappings.
+    /// List resolved conversation titles by session id.
     Titles(TitlesArgs),
     /// Show one session by id or unique id prefix.
     Show(ShowArgs),

@@ -35,12 +35,12 @@ impl SessionStore {
     }
 
     pub fn collect_sessions(&self) -> Result<Vec<SessionMeta>> {
-        let titles = self.load_titles()?;
         if let Some(path) = self.state_db_path()? {
-            if let Ok(sessions) = self.collect_sessions_from_db(&path, &titles) {
+            if let Ok(sessions) = self.collect_sessions_from_db(&path) {
                 return Ok(sessions);
             }
         }
+        let titles = self.load_titles()?;
         self.collect_sessions_from_files(&titles)
     }
 
@@ -209,11 +209,7 @@ impl SessionStore {
         Ok(best.map(|(_, path)| path))
     }
 
-    fn collect_sessions_from_db(
-        &self,
-        db_path: &Path,
-        titles: &HashMap<String, String>,
-    ) -> Result<Vec<SessionMeta>> {
+    fn collect_sessions_from_db(&self, db_path: &Path) -> Result<Vec<SessionMeta>> {
         let conn = Connection::open(db_path)
             .with_context(|| format!("failed to open {}", db_path.display()))?;
 
@@ -228,7 +224,7 @@ impl SessionStore {
             let updated_at: i64 = row.get(3)?;
             let source: Option<String> = row.get(4)?;
             let cwd: String = row.get(5)?;
-            let title_from_db: String = row.get(6)?;
+            let title_from_db: Option<String> = row.get(6)?;
             let archived_raw: i64 = row.get(7)?;
 
             let mut file_path = PathBuf::from(rollout_path);
@@ -247,10 +243,7 @@ impl SessionStore {
 
             let source = normalize_optional_string(source);
             let source_kind = source_kind_from_source(source.as_deref());
-            let title = titles
-                .get(&id)
-                .cloned()
-                .or_else(|| normalize_optional_string(Some(title_from_db)));
+            let title = normalize_optional_string(title_from_db);
 
             Ok(SessionMeta {
                 id,

@@ -141,7 +141,7 @@ extension AppDelegate {
                             return
                         }
                         do {
-                            try sessionsCLI.mergeSessions(targetID: selection.sourceID, mergeID: selection.mergerID)
+                            try sessionsCLI.mergeSessions(targetID: selection.targetID, mergeID: selection.mergerID)
                             DispatchQueue.main.async {
                                 self.refreshUI()
                             }

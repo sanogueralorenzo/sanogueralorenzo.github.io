@@ -47,7 +47,7 @@ private final class ProfileNameInputController: NSObject, NSTextFieldDelegate {
 }
 
 struct SessionMergeSelection {
-    let sourceID: String
+    let targetID: String
     let mergerID: String
 }
 
@@ -298,22 +298,22 @@ Pick stale-window (1/3/7 days), then multi-select sessions ordered by folder. Cl
         let alert = NSAlert()
         alert.messageText = "Merge Sessions"
         alert.informativeText = """
-Pick a Source session and a Merger session.
+Pick a Target session and a Merger session.
 
-Codex will summarize the Merger session and append compacted non-actionable context into the Source session. After that succeeds, the Merger session is permanently deleted.
+Codex will summarize the Merger session and append compacted non-actionable context into the Target session. After that succeeds, the Merger session is permanently deleted.
 """
 
         let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 92))
 
-        let sourceLabel = NSTextField(labelWithString: "Source")
-        sourceLabel.frame = NSRect(x: 0, y: 68, width: 120, height: 18)
-        accessory.addSubview(sourceLabel)
+        let targetLabel = NSTextField(labelWithString: "Target")
+        targetLabel.frame = NSRect(x: 0, y: 68, width: 120, height: 18)
+        accessory.addSubview(targetLabel)
 
-        let sourcePopup = NSPopUpButton(frame: NSRect(x: 0, y: 44, width: 420, height: 24), pullsDown: false)
+        let targetPopup = NSPopUpButton(frame: NSRect(x: 0, y: 44, width: 420, height: 24), pullsDown: false)
         for session in sessions {
-            sourcePopup.addItem(withTitle: "\(session.title) (\(session.id))")
+            targetPopup.addItem(withTitle: "\(session.title) (\(session.id))")
         }
-        accessory.addSubview(sourcePopup)
+        accessory.addSubview(targetPopup)
 
         let mergerLabel = NSTextField(labelWithString: "Merger")
         mergerLabel.frame = NSRect(x: 0, y: 22, width: 120, height: 18)
@@ -337,18 +337,18 @@ Codex will summarize the Merger session and append compacted non-actionable cont
             return nil
         }
 
-        let sourceIndex = sourcePopup.indexOfSelectedItem
+        let targetIndex = targetPopup.indexOfSelectedItem
         let mergerIndex = mergerPopup.indexOfSelectedItem
-        guard sourceIndex >= 0, sourceIndex < sessions.count, mergerIndex >= 0, mergerIndex < sessions.count else {
+        guard targetIndex >= 0, targetIndex < sessions.count, mergerIndex >= 0, mergerIndex < sessions.count else {
             return nil
         }
-        guard sourceIndex != mergerIndex else {
-            showError(CodexSessionsCLIClient.Error(message: "Source and Merger must be different sessions."))
+        guard targetIndex != mergerIndex else {
+            showError(CodexSessionsCLIClient.Error(message: "Target and Merger must be different sessions."))
             return nil
         }
 
         return SessionMergeSelection(
-            sourceID: sessions[sourceIndex].id,
+            targetID: sessions[targetIndex].id,
             mergerID: sessions[mergerIndex].id
         )
     }

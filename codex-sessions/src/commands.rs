@@ -173,7 +173,17 @@ fn cmd_list(args: ListArgs) -> Result<()> {
 
 fn cmd_titles(args: TitlesArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
-    let titles = store.load_titles()?;
+    let sessions = store.collect_sessions()?;
+    let mut titles = std::collections::HashMap::new();
+    for session in sessions {
+        if let Some(title) = session.title {
+            let cleaned = title.trim();
+            if cleaned.is_empty() {
+                continue;
+            }
+            titles.insert(session.id, cleaned.to_string());
+        }
+    }
 
     if args.json {
         println!("{}", serde_json::to_string_pretty(&titles)?);
@@ -568,7 +578,7 @@ fn build_merger_summary_prompt(target: &SessionMeta, merge: &SessionMeta) -> Str
     format!(
         "You are resuming merger session {merge_id}.\n\
          \n\
-         Task: build a compact context-transfer summary that will be injected into source session {target_id} ({target_title}).\n\
+         Task: build a compact context-transfer summary that will be injected into target session {target_id} ({target_title}).\n\
          \n\
          Merger session metadata:\n\
          - id: {merge_id}\n\
@@ -612,9 +622,9 @@ fn build_target_apply_prompt(merge: &SessionMeta, transfer_summary: &str) -> Str
     let summary = truncate_chars(transfer_summary.trim(), 12000);
 
     format!(
-        "Merge context into this source session.\n\
+        "Merge context into this target session.\n\
          \n\
-         Context source session metadata:\n\
+         Context merger session metadata:\n\
          - merger_id: {merge_id}\n\
          - merger_title: {merge_title}\n\
          - merger_cwd: {merge_cwd}\n\
@@ -625,7 +635,7 @@ fn build_target_apply_prompt(merge: &SessionMeta, transfer_summary: &str) -> Str
          \n\
          Instructions:\n\
          1. Acknowledge this merge context briefly.\n\
-         2. Preserve this context for future reasoning in this source session.\n\
+         2. Preserve this context for future reasoning in this target session.\n\
          3. Do not run tools or modify files.",
         merge_id = merge.id,
         merge_title = merge_title,

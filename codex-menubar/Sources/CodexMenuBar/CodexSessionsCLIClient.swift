@@ -113,7 +113,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             throw Error(message: "Merge session cannot be empty.")
         }
         guard targetID != mergeID else {
-            throw Error(message: "Source and merger sessions must be different.")
+            throw Error(message: "Target and merger sessions must be different.")
         }
 
         _ = try run([
