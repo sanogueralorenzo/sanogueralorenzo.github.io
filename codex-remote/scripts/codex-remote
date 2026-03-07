@@ -22,5 +22,5 @@ if [[ ! -d "node_modules" ]]; then
   npm install
 fi
 
-echo "Starting gateway bot (watch mode)..."
+echo "Starting codex-remote bot (watch mode)..."
 exec npm run dev

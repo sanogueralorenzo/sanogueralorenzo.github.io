@@ -1,5 +1,5 @@
 export const HELP_TEXT = [
-  "Agent Gateway, your remote AI tool",
+  "Codex Remote, your remote AI tool",
   "",
   "Tip: Voice notes work!"
 ].join("\n");

@@ -1,4 +1,4 @@
-# gateway
+# codex-remote
 
 Telegram to Codex bridge built with `grammY` + `codex app-server`.
 
@@ -23,7 +23,7 @@ Telegram to Codex bridge built with `grammY` + `codex app-server`.
 2. Install dependencies
 
 ```bash
-cd /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/agents/gateway
+cd /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/codex-remote
 npm install
 ```
 
@@ -52,7 +52,7 @@ brew install ffmpeg whisper-cpp
 One-command launcher (macOS/Linux):
 
 ```bash
-./scripts/gateway
+./scripts/codex-remote
 ```
 
 Development (watch mode):

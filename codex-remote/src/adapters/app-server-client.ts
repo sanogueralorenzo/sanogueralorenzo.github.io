@@ -297,7 +297,7 @@ class AppServerConnection {
   async initialize(): Promise<void> {
     await this.send("initialize", {
       clientInfo: {
-        name: "telegram-gateway",
+        name: "telegram-codex-remote",
         title: null,
         version: "1.0"
       },
@@ -448,12 +448,12 @@ class AppServerConnection {
           contentItems: [
             {
               type: "inputText",
-              text: "Dynamic tool calls are not supported by this Telegram gateway."
+              text: "Dynamic tool calls are not supported by this Telegram codex-remote runtime."
             }
           ]
         };
       case "account/chatgptAuthTokens/refresh":
-        throw new Error("ChatGPT auth token refresh is not supported in this gateway runtime.");
+        throw new Error("ChatGPT auth token refresh is not supported in this codex-remote runtime.");
       default:
         throw new Error(`Unsupported server request method: ${request.method}`);
     }
