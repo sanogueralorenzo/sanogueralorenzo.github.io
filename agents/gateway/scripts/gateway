@@ -17,10 +17,10 @@ if [[ ! -f ".env" ]]; then
   exit 1
 fi
 
-if ! command -v cargo >/dev/null 2>&1; then
-  echo "cargo not found. Install Rust toolchain first." >&2
-  exit 1
+if [[ ! -d "node_modules" ]]; then
+  echo "Dependencies missing. Running npm install..." >&2
+  npm install
 fi
 
-echo "Starting gateway bot..."
-exec cargo run
+echo "Starting gateway bot (watch mode)..."
+exec npm run dev

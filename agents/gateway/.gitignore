@@ -1,6 +1,5 @@
 node_modules/
 dist/
-target/
 .env
 runtime/
 models/*.bin
