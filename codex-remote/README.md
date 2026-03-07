@@ -2,8 +2,6 @@
 
 **Codex Remote** is a TypeScript Telegram-to-Codex bridge for local remote operation.
 
----
-
 ## Quickstart
 
 ### Install and run

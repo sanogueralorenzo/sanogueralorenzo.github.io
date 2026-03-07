@@ -2,8 +2,6 @@
 
 **Codex Menubar** is a macOS menu bar app that orchestrates local Codex CLIs.
 
----
-
 ## Quickstart
 
 ### Install and launch

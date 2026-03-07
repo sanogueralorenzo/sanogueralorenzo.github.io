@@ -2,8 +2,6 @@
 
 **Codex Agents** defines autonomous, headless Codex engineering workflows for ticket-to-merge execution loops.
 
----
-
 ## Quickstart
 
 ### Prepare required local tools

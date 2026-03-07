@@ -2,8 +2,6 @@
 
 **SanogueraLorenzo GitHub IO** is a monorepo for local AI tooling, product apps, and orchestration harnesses.
 
----
-
 ## Quickstart
 
 ### Install local tools from source

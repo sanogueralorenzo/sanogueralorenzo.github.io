@@ -2,8 +2,6 @@
 
 **Site** contains the static website content, templates, and generation config.
 
----
-
 ## Quickstart
 
 ### Run local site server

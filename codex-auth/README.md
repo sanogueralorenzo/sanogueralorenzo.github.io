@@ -2,8 +2,6 @@
 
 **Codex Auth** is a local profile manager for Codex auth accounts.
 
----
-
 ## Quickstart
 
 ### Install and run

@@ -2,8 +2,6 @@
 
 **Codex Sessions** is a Rust CLI for local Codex session inspection and lifecycle management.
 
----
-
 ## Quickstart
 
 ### Install and run
