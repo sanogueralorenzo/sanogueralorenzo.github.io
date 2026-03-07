@@ -12,7 +12,7 @@ Hello 👋 continuing with the spirit of this repo I want to use it to an AI too
 
 ## Index
 
-- [Codex Auth](./codex-auth/README.md): Swift CLI for Codex auth profile management.
+- [Codex Auth](./codex-auth/README.md): Rust CLI for Codex auth profile management.
 - [Codex Sessions](./codex-sessions/README.md): Rust CLI for local Codex session lifecycle.
 - [Codex Remote](./codex-remote/README.md): TypeScript Telegram bridge to Codex app-server.
 - [Codex Menubar](./codex-menubar/README.md): macOS menu bar app orchestrating local Codex tooling.

@@ -26,22 +26,16 @@ if [[ $# -gt 0 ]]; then
 fi
 
 DEST_DIR="$(resolve_npm_bin_dir)"
+TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/codex-auth-target}"
 
-if ! command -v swift >/dev/null 2>&1; then
-  echo "Error: Swift is not installed or not on PATH." >&2
-  echo "Install Swift first, then re-run this script." >&2
-  exit 1
-fi
-
-if ! command -v bash >/dev/null 2>&1; then
-  echo "Error: bash is not available on PATH." >&2
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "Error: cargo is not installed or not on PATH." >&2
   exit 1
 fi
 
 cd "$ROOT_DIR"
-swift build -c release --product codex-auth >/dev/null
-BIN_DIR="$(swift build -c release --show-bin-path)"
-BIN_PATH="$BIN_DIR/codex-auth"
+cargo build --release --target-dir "$TARGET_DIR" >/dev/null
+BIN_PATH="$TARGET_DIR/release/codex-auth"
 
 mkdir -p "$DEST_DIR"
 if [[ ! -w "$DEST_DIR" ]]; then

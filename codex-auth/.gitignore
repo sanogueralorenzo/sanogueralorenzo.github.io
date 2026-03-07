@@ -15,13 +15,11 @@ Desktop.ini
 !example.env
 .netrc
 
-# -------------------- Swift / SwiftPM --------------------
-/.build
-/Packages
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/
-xcuserdata/
-DerivedData/
+# -------------------- Rust / Cargo --------------------
+target/
+
+# -------------------- Local Build Artifacts --------------------
+.build/
 
 # -------------------- Packaged Artifacts --------------------
 release/

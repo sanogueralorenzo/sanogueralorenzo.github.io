@@ -1,6 +1,6 @@
 ## Intro
 
-**Codex Auth** is a local profile manager for Codex auth accounts.
+**Codex Auth** is a Rust CLI for Codex auth profile lifecycle and watcher sync.
 
 ## Quickstart
 
@@ -13,36 +13,48 @@
 ### Help (`codex-auth --help`)
 
 ```text
-Usage:
-  codex-auth [--home <dir>] save|add <profile> [--path <auth.json> | --from-current]
-  codex-auth [--home <dir>] use <profile> | use --path <auth.json>
-  codex-auth [--home <dir>] list [--plain]
-  codex-auth [--home <dir>] current [--plain]
-  codex-auth [--home <dir>] remove|rm|delete <profile>
-  codex-auth [--home <dir>] watch <start|stop|status|run>
-  codex-auth [--home <dir>] help
+Manage Codex auth profiles
+
+Usage: codex-auth [OPTIONS] <COMMAND>
 
 Commands:
-  save|add          Save a profile from current auth.json or explicit --path
-  use               Apply a saved profile or explicit --path to auth.json
-  list              List saved profiles
-  current           Print current profile and auth metadata
-  remove|rm|delete  Delete a saved profile
-  watch             Manage auth sync watcher (start|stop|status|run)
-  help              Print this help output
+  save     Save a profile from current auth.json or explicit --path
+  use      Apply a saved profile or explicit --path to auth.json
+  list     List saved profiles
+  current  Print current profile and auth metadata
+  remove   Delete a saved profile
+  watch    Manage auth sync watcher (start|stop|status|run)
+  help     Print this message or the help of the given subcommand(s)
 
-Examples:
-  codex-auth save personal
-  codex-auth save work --path ~/secrets/work-auth.json
-  codex-auth use work
-  codex-auth remove personal
-  codex-auth watch start
+Options:
+      --home <dir>
+  -h, --help        Print help
+```
+
+### Help (`codex-auth watch --help`)
+
+```text
+Manage auth sync watcher (start|stop|status|run)
+
+Usage: codex-auth watch [OPTIONS] <COMMAND>
+
+Commands:
+  start   Start auth sync watcher in background
+  stop    Stop background auth sync watcher
+  status  Print watcher status
+  run     Run watcher loop in foreground
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+      --home <dir>
+  -h, --help        Print help
 ```
 
 ### Help Patterns
 
 ```shell
 codex-auth --help
+codex-auth -h
 codex-auth help watch
 codex-auth watch --help
 codex-auth watch start --help
