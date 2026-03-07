@@ -140,6 +140,7 @@ impl SessionStore {
         }
 
         self.delete_thread_row(&target.id)?;
+        self.delete_thread_title(&target.id)?;
 
         Ok(DeleteResult {
             deleted: true,
@@ -364,6 +365,41 @@ impl SessionStore {
             .with_context(|| format!("failed to open {}", path.display()))?;
         conn.execute("DELETE FROM threads WHERE id = ?1", params![id])?;
 
+        Ok(())
+    }
+
+    fn delete_thread_title(&self, id: &str) -> Result<()> {
+        let file_path = self.codex_home.join(".codex-global-state.json");
+        if !file_path.exists() {
+            return Ok(());
+        }
+
+        let raw = fs::read_to_string(&file_path)
+            .with_context(|| format!("failed to read {}", file_path.display()))?;
+        let mut parsed: Value = serde_json::from_str(&raw)
+            .with_context(|| format!("failed to parse {}", file_path.display()))?;
+
+        let Some(root) = parsed.as_object_mut() else {
+            return Ok(());
+        };
+        let Some(thread_titles) = root.get_mut("thread-titles").and_then(Value::as_object_mut)
+        else {
+            return Ok(());
+        };
+        let Some(titles) = thread_titles
+            .get_mut("titles")
+            .and_then(Value::as_object_mut)
+        else {
+            return Ok(());
+        };
+
+        if titles.remove(id).is_none() {
+            return Ok(());
+        }
+
+        let serialized = serde_json::to_string_pretty(&parsed)?;
+        fs::write(&file_path, format!("{serialized}\n"))
+            .with_context(|| format!("failed to write {}", file_path.display()))?;
         Ok(())
     }
 }
@@ -714,5 +750,65 @@ mod tests {
             value,
             Some(("2026".to_string(), "03".to_string(), "06".to_string()))
         );
+    }
+
+    #[test]
+    fn hard_delete_removes_global_state_title_entry() {
+        let id = "019cc5d1-ec61-7c90-a7d8-2524f8828fd9";
+        let temp_root =
+            std::env::temp_dir().join(format!("codex-sessions-test-{}", Uuid::new_v4()));
+        let codex_home = temp_root.join(".codex");
+        let sessions_dir = codex_home
+            .join("sessions")
+            .join("2026")
+            .join("03")
+            .join("06");
+        fs::create_dir_all(&sessions_dir).expect("create sessions dir");
+
+        let session_file = sessions_dir
+            .join("rollout-2026-03-06T17-03-15-019cc5d1-ec61-7c90-a7d8-2524f8828fd9.jsonl");
+        fs::write(&session_file, "{\"type\":\"session_meta\"}\n").expect("write session file");
+
+        let global_state_path = codex_home.join(".codex-global-state.json");
+        fs::write(
+            &global_state_path,
+            format!(
+                "{{\"thread-titles\":{{\"titles\":{{\"{id}\":\"Delete me\",\"keep\":\"Keep me\"}}}}}}\n"
+            ),
+        )
+        .expect("write global state");
+
+        let store = SessionStore { codex_home };
+        let now = Utc::now();
+        let session = SessionMeta {
+            id: id.to_string(),
+            title: Some("Delete me".to_string()),
+            file_path: session_file.clone(),
+            relative_path: "sessions/2026/03/06/test.jsonl".to_string(),
+            cwd: None,
+            source: None,
+            source_kind: "unknown".to_string(),
+            archived: false,
+            created_at: now,
+            last_updated_at: now,
+            size_bytes: 0,
+        };
+
+        store
+            .delete_session_hard(&session)
+            .expect("hard delete succeeds");
+
+        let raw = fs::read_to_string(&global_state_path).expect("read global state");
+        let parsed: Value = serde_json::from_str(&raw).expect("parse global state");
+        let titles = parsed
+            .get("thread-titles")
+            .and_then(|value| value.get("titles"))
+            .and_then(Value::as_object)
+            .expect("titles object");
+        assert!(!titles.contains_key(id));
+        assert_eq!(titles.get("keep").and_then(Value::as_str), Some("Keep me"));
+        assert!(!session_file.exists());
+
+        let _ = fs::remove_dir_all(temp_root);
     }
 }

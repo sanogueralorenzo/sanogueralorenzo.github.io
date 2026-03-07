@@ -47,6 +47,13 @@ Options:
   2) resume target session with that summary,
   then hard-delete the merger session on success.
 
+### Delete Behavior
+
+- Hard delete removes:
+  - session file
+  - `threads` row in `state_*.sqlite` (when present)
+  - matching title key in `~/.codex/.codex-global-state.json` (`thread-titles.titles.<session_id>`) when present
+
 ### Storage
 
 - `~/.codex/state_*.sqlite`
