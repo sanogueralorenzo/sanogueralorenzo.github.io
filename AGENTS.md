@@ -18,9 +18,9 @@
 - Default workflow: for any task that changes code, before the final response, commit and push directly to `main`.
 - Do not create a branch unless explicitly requested, or unless the task explicitly requires a branch/PR workflow.
 - If branch/PR workflow is required, use:
-  - Branch: `<workspace_branch_prefix>/<JIRA-KEY>_<short_summary>` (lowercase, underscores, 2 words).
-  - PR title: `<JIRA-KEY> <Title>`.
-  - First non-empty PR description line: `<JIRA-KEY>`.
+  - Branch: `<workspace_branch_prefix>/<TICKET-KEY>_<short_summary>` (lowercase, underscores, 2 words).
+  - PR title: `<TICKET-KEY> <Title>`.
+  - First non-empty PR description line: `<TICKET-KEY>`.
   - Preserve template content and return the PR link.
 - If commit/push/install/run fails, attempt to fix and retry.
 - If blocked by auth, permissions, branch protection, or network after retries: report the exact command and error, then stop.
