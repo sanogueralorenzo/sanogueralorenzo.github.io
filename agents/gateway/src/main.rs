@@ -216,7 +216,6 @@ struct Config {
     codex_approval_policy: Option<ApprovalPolicy>,
     codex_sandbox_mode: Option<SandboxMode>,
     codex_network_access_enabled: Option<bool>,
-    benchmark_reply_latency: bool,
     project_root: PathBuf,
     start_image_path: PathBuf,
 }
@@ -264,8 +263,6 @@ impl Config {
                 .ok()
                 .as_deref(),
         );
-        let benchmark_reply_latency =
-            parse_bool(std::env::var("BENCHMARK_REPLY_LATENCY").ok().as_deref()).unwrap_or(false);
 
         Ok(Self {
             telegram_bot_token,
@@ -276,7 +273,6 @@ impl Config {
             codex_approval_policy,
             codex_sandbox_mode,
             codex_network_access_enabled,
-            benchmark_reply_latency,
             project_root,
             start_image_path,
         })
@@ -1684,29 +1680,7 @@ async fn main() -> Result<()> {
     teloxide::repl(bot.clone(), move |bot: Bot, msg: Message| {
         let gateway = Arc::clone(&gateway);
         async move {
-            let benchmark_enabled = gateway.config.benchmark_reply_latency;
-            let chat_id = msg.chat.id.0;
-            let message_id = msg.id.0;
-            let kind = if msg.text().is_some() {
-                "text"
-            } else if msg.voice().is_some() {
-                "voice"
-            } else {
-                "other"
-            };
-            let started_at = Instant::now();
-
-            let result = gateway.handle_message(bot, msg).await;
-            let elapsed_ms = started_at.elapsed().as_millis();
-
-            if benchmark_enabled && kind != "other" {
-                let status = if result.is_ok() { "ok" } else { "error" };
-                info!(
-                    "BENCHMARK_REPLY runtime=rust kind={kind} chat_id={chat_id} message_id={message_id} status={status} elapsed_ms={elapsed_ms}"
-                );
-            }
-
-            if let Err(error) = result {
+            if let Err(error) = gateway.handle_message(bot, msg).await {
                 error!("Telegram bot error: {error}");
             }
             respond(())

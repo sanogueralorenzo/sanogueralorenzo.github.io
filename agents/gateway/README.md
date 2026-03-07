@@ -47,33 +47,6 @@ Direct with Cargo:
 cargo run
 ```
 
-## Measure Reply Latency (Rust vs TypeScript)
-
-This benchmark measures real bot reply time from message receipt until handler completion.
-
-1. Record Rust latency logs for a fixed window (for example, 120s):
-
-```bash
-./scripts/record-reply-latency.sh rust 120
-```
-
-2. Send a fixed prompt set in Telegram during that window (same prompts/order for both runs).
-
-3. Record TypeScript latency logs:
-
-```bash
-./scripts/record-reply-latency.sh ts 120
-```
-
-4. Compare both log files:
-
-```bash
-./scripts/compare-reply-latency.sh <rust_log_path> <ts_log_path>
-```
-
-The comparison prints `p50`, `p95`, `p99`, average, and max reply latency in milliseconds.
-Only lines with `BENCHMARK_REPLY ... status=ok` are included in latency percentiles.
-
 ## Build
 
 ```bash
