@@ -1,6 +1,6 @@
 ## Intro
 
-**SanogueraLorenzo GitHub IO** is a monorepo for local AI tooling, product apps, and orchestration harnesses.
+Hello 👋 continuing with the spirit of this repo I want to use it to an AI tools, first orchestration playground.
 
 ## Quickstart
 
@@ -10,24 +10,16 @@
 ./install.sh
 ```
 
-### Run core CLIs
+## Index
 
-```shell
-codex-auth list
-codex-sessions list --all
-codex-remote status
-```
-
-## Monorepo Index
-
-- `codex-auth`: Swift CLI for Codex auth profile management.
-- `codex-sessions`: Rust CLI for local Codex session lifecycle.
-- `codex-remote`: TypeScript Telegram bridge to Codex app-server.
-- `codex-menubar`: macOS menu bar app orchestrating local Codex tooling.
-- `codex-agents`: autonomous/headless agent workflow contract.
-- `overlay`: Android blackout overlay utility app.
-- `voice`: Android on-device voice keyboard (ASR + rewrite).
-- `site`: static site content and generation.
+- [Codex Auth](./codex-auth/README.md): Swift CLI for Codex auth profile management.
+- [Codex Sessions](./codex-sessions/README.md): Rust CLI for local Codex session lifecycle.
+- [Codex Remote](./codex-remote/README.md): TypeScript Telegram bridge to Codex app-server.
+- [Codex Menubar](./codex-menubar/README.md): macOS menu bar app orchestrating local Codex tooling.
+- [Codex Agents](./codex-agents/README.md): autonomous/headless agent workflow contract.
+- [Overlay](./overlay/README.md): Android blackout overlay utility app.
+- [Voice](./voice/README.md): Android on-device voice keyboard (ASR + rewrite).
+- [Site](./site/README.md): static site content and generation.
 
 ## Harness Engineering Model
 
