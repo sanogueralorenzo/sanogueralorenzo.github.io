@@ -38,8 +38,34 @@ final class ProfileFileIO {
         try fileManager.removeItem(at: url)
     }
 
+    func removeItemIfExists(at url: URL) throws {
+        guard fileManager.fileExists(atPath: url.path) else {
+            return
+        }
+        try fileManager.removeItem(at: url)
+    }
+
     func profileURL(for name: String) -> URL {
         paths.profilesDirectory.appendingPathComponent(name).appendingPathExtension("json")
+    }
+
+    func readActiveAccountID() -> String? {
+        guard fileManager.fileExists(atPath: paths.activeAccountIDFile.path),
+              let data = try? Data(contentsOf: paths.activeAccountIDFile),
+              let raw = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    func writeActiveAccountID(_ accountID: String) throws {
+        let data = Data(accountID.utf8)
+        try writeSecureAtomically(data: data, to: paths.activeAccountIDFile)
+    }
+
+    func clearActiveAccountID() throws {
+        try removeItemIfExists(at: paths.activeAccountIDFile)
     }
 
     func readValidatedAuthFile(at url: URL) throws -> ValidatedAuthFile {

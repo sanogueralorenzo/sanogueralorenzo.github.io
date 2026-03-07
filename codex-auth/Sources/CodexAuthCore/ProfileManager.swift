@@ -50,6 +50,9 @@ public final class ProfileManager {
         try profileService.ensureUniqueProfile(normalizedName: normalizedName, payload: payload)
 
         try fileIO.writeSecureAtomically(data: payload.rawData, to: profileURL)
+        if payload.document.tokens.account_id == currentAuth.document.tokens.account_id {
+            try fileIO.writeActiveAccountID(payload.document.tokens.account_id)
+        }
         return normalizedName
     }
 
@@ -59,7 +62,12 @@ public final class ProfileManager {
         guard fileIO.fileExists(at: url) else {
             throw AuthManagerError.missingProfile(normalizedName)
         }
+        let removed = try fileIO.readValidatedAuthFile(at: url)
         try fileIO.removeItem(at: url)
+        if fileIO.readActiveAccountID() == removed.document.tokens.account_id,
+           try profileService.profileName(forAccountID: removed.document.tokens.account_id) == nil {
+            try fileIO.clearActiveAccountID()
+        }
     }
 
     public func applyProfile(name: String) throws -> SwitchResult {
@@ -69,16 +77,60 @@ public final class ProfileManager {
             throw AuthManagerError.missingProfile(normalizedName)
         }
         let payload = try fileIO.readValidatedAuthFile(at: url)
-        return try applyValidatedAuth(payload, sourceDescription: "profile '\(normalizedName)'")
+        return try applyValidatedAuth(payload,
+                                      sourceDescription: "profile '\(normalizedName)'",
+                                      activeAccountID: payload.document.tokens.account_id)
     }
 
     public func applyAuthFile(path: URL) throws -> SwitchResult {
         let payload = try fileIO.readValidatedAuthFile(at: path)
-        return try applyValidatedAuth(payload, sourceDescription: path.path)
+        return try applyValidatedAuth(payload,
+                                      sourceDescription: path.path,
+                                      activeAccountID: payload.document.tokens.account_id)
     }
 
     public func currentProfileName() throws -> String? {
         try profileService.currentProfileName(currentAuthURL: paths.codexAuthFile)
+    }
+
+    public func activeProfileName() throws -> String? {
+        try fileIO.ensureDirectories()
+        guard let activeAccountID = fileIO.readActiveAccountID() else {
+            return nil
+        }
+        guard let normalizedName = try profileService.profileName(forAccountID: activeAccountID) else {
+            try fileIO.clearActiveAccountID()
+            return nil
+        }
+        return normalizedName
+    }
+
+    public func syncActiveProfileWithCurrentAuth() throws -> Bool {
+        try fileIO.ensureDirectories()
+
+        guard let activeAccountID = fileIO.readActiveAccountID() else {
+            return false
+        }
+
+        let current = try fileIO.readValidatedAuthFile(at: paths.codexAuthFile)
+        guard current.document.tokens.account_id == activeAccountID else {
+            return false
+        }
+
+        guard let activeName = try profileService.profileName(forAccountID: activeAccountID) else {
+            try fileIO.clearActiveAccountID()
+            return false
+        }
+
+        let profileURL = fileIO.profileURL(for: activeName)
+        let existing = try fileIO.readValidatedAuthFile(at: profileURL)
+
+        guard existing.document != current.document else {
+            return false
+        }
+
+        try fileIO.writeSecureAtomically(data: current.rawData, to: profileURL)
+        return true
     }
 
     public func currentAuthDocument() throws -> CodexAuthDocument {
@@ -86,11 +138,17 @@ public final class ProfileManager {
     }
 
     private func applyValidatedAuth(_ payload: ValidatedAuthFile,
-                                    sourceDescription: String) throws -> SwitchResult {
+                                    sourceDescription: String,
+                                    activeAccountID: String?) throws -> SwitchResult {
         try fileIO.ensureDirectories()
         let lock = try FileLock(lockFile: paths.codexAuthLockFile)
 
         try fileIO.writeSecureAtomically(data: payload.rawData, to: paths.codexAuthFile)
+        if let activeAccountID {
+            try fileIO.writeActiveAccountID(activeAccountID)
+        } else {
+            try fileIO.clearActiveAccountID()
+        }
         _ = lock
         let invalidation = sessionInvalidator.invalidateRunningCodexSessions()
 

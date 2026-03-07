@@ -6,7 +6,7 @@ public enum AuthManagerError: LocalizedError {
     case missingProfile(String)
     case missingCurrentToken(URL)
     case duplicateProfileName(existingProfile: String)
-    case duplicateProfileToken(existingProfile: String)
+    case duplicateProfileAccount(existingProfile: String)
     case ioFailure(String)
 
     public var errorDescription: String? {
@@ -21,8 +21,8 @@ public enum AuthManagerError: LocalizedError {
             return "Cannot save profile because current Codex token is missing or invalid at \(path.path)."
         case .duplicateProfileName(let existingProfile):
             return "A profile with the same normalized name already exists: '\(existingProfile)'."
-        case .duplicateProfileToken(let existingProfile):
-            return "A profile with the same token payload already exists: '\(existingProfile)'."
+        case .duplicateProfileAccount(let existingProfile):
+            return "A profile for this account already exists: '\(existingProfile)'."
         case .ioFailure(let message):
             return message
         }

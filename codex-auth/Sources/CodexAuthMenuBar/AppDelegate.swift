@@ -6,6 +6,7 @@ import Foundation
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let manager = ProfileManager()
     var statusItem: NSStatusItem!
+    private var authSyncMonitor: AuthSyncMonitor?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -20,23 +21,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             showError(error)
         }
 
+        do {
+            _ = try manager.syncActiveProfileWithCurrentAuth()
+        } catch {
+            fputs("Warning: failed to sync active profile with current auth: \(error)\n", stderr)
+        }
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "CA"
+        statusItem.button?.image = StatusBarIcon.codex()
+        statusItem.button?.imagePosition = .imageOnly
+        statusItem.button?.title = ""
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+
+        authSyncMonitor = AuthSyncMonitor(
+            homeDirectory: manager.paths.homeDirectory,
+            onDidSync: { [weak self] in
+                self?.refreshUI()
+            },
+            onError: { error in
+                fputs("Warning: auth sync monitor error: \(error)\n", stderr)
+            }
+        )
+        authSyncMonitor?.start()
+
         refreshUI()
     }
 
     func refreshTitle() {
         let profile = try? manager.currentProfileName()
-        let title: String
-        if let profile, let first = profile.first {
-            title = "CA-\(String(first).uppercased())"
+        let tooltip: String
+        if let profile {
+            tooltip = "Codex Auth (\(displayProfileName(profile)))"
         } else {
-            title = "CA"
+            tooltip = "Codex Auth"
         }
-        statusItem.button?.title = title
+        statusItem.button?.toolTip = tooltip
     }
 
     func displayProfileName(_ normalizedName: String) -> String {
@@ -56,6 +77,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         refreshUI()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        authSyncMonitor?.stop()
     }
 
     func showError(_ error: Error) {

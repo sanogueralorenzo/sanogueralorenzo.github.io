@@ -16,9 +16,16 @@ cd /path/to/codex-auth
 swift build
 ```
 
-Binaries are generated at:
-- `/path/to/codex-auth/.build/arm64-apple-macosx/debug/codex-auth`
-- `/path/to/codex-auth/.build/arm64-apple-macosx/debug/CodexAuthMenuBar` (macOS only)
+Binaries are generated in:
+
+```bash
+cd /path/to/codex-auth
+swift build --show-bin-path
+```
+
+Then run:
+- `$(swift build --show-bin-path)/codex-auth`
+- `$(swift build --show-bin-path)/CodexAuthMenuBar` (macOS only)
 
 ## Install helpers
 
@@ -88,10 +95,11 @@ Menu actions:
 
 - Validates auth JSON structure before save/use.
 - Requires a valid current token at `~/.codex/auth.json` before any profile save.
-- Rejects creating a new profile if its token payload matches an existing saved profile.
+- Rejects creating a new profile if another saved profile already uses the same `account_id`.
 - Uses a lock file (`~/.codex/auth.json.lock`) during writes.
 - Uses restrictive filesystem permissions for stored auth files.
 - On `use`, automatically invalidates active Codex app and CLI sessions so new credentials are enforced immediately.
+- Menu bar app auto-syncs the active profile only when `~/.codex/auth.json` keeps the same `account_id` (for example token refresh on the same account).
 
 ## Notes
 

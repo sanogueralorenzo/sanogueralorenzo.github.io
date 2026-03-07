@@ -6,6 +6,7 @@ APP_EXECUTABLE_NAME="CodexAuthMenuBar"
 APP_DISPLAY_NAME="Codex Auth"
 APP_BUNDLE_IDENTIFIER="io.github.sanogueralorenzo.codexauth.menubar"
 APP_DIR="$ROOT_DIR/release/$APP_EXECUTABLE_NAME.app"
+ICON_PATH="$ROOT_DIR/assets/codex.png"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This script packages a macOS .app and must be run on macOS." >&2
@@ -55,6 +56,8 @@ PLIST
 
 cp "$BIN_PATH" "$APP_DIR/Contents/MacOS/$APP_EXECUTABLE_NAME"
 chmod +x "$APP_DIR/Contents/MacOS/$APP_EXECUTABLE_NAME"
+
+cp "$ICON_PATH" "$APP_DIR/Contents/Resources/codex.png"
 
 codesign --force --sign - "$APP_DIR" >/dev/null 2>&1 || true
 

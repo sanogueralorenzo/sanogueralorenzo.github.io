@@ -40,8 +40,8 @@ final class ProfileService {
     func ensureUniqueProfile(normalizedName: String, payload: ValidatedAuthFile) throws {
         for existingName in try fileIO.listProfiles() where existingName != normalizedName {
             let existing = try fileIO.readValidatedAuthFile(at: fileIO.profileURL(for: existingName))
-            if existing.document == payload.document {
-                throw AuthManagerError.duplicateProfileToken(existingProfile: existingName)
+            if existing.document.tokens.account_id == payload.document.tokens.account_id {
+                throw AuthManagerError.duplicateProfileAccount(existingProfile: existingName)
             }
         }
     }
@@ -52,9 +52,13 @@ final class ProfileService {
 
     func currentProfileName(currentAuthURL: URL) throws -> String? {
         let current = try fileIO.readValidatedAuthFile(at: currentAuthURL)
+        return try profileName(forAccountID: current.document.tokens.account_id)
+    }
+
+    func profileName(forAccountID accountID: String) throws -> String? {
         for normalizedName in try fileIO.listProfiles() {
             let profile = try fileIO.readValidatedAuthFile(at: fileIO.profileURL(for: normalizedName))
-            if profile.document == current.document {
+            if profile.document.tokens.account_id == accountID {
                 return normalizedName
             }
         }
