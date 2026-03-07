@@ -22,9 +22,9 @@ Commands:
   titles     List resolved conversation titles by session id
   show       Show one session by id or unique id prefix
   message    Print latest assistant message for a session
-  delete     Archive by default, or hard delete one or more sessions with --hard
-  archive    Move one session to archived storage
-  unarchive  Move one session from archived storage to active storage
+  delete     Archive by default, or hard delete sessions with --hard
+  archive    Move one or more sessions to archived storage
+  unarchive  Move one or more sessions from archived storage to active storage
   merge      Summarize one session into another and delete the merged session
   prune      Prune old active sessions once
   watch      Run prune repeatedly on an interval
@@ -54,6 +54,15 @@ Options:
   - `threads` row in `state_*.sqlite` (when present)
   - matching title key in `~/.codex/.codex-global-state.json` (`thread-titles.titles.<session_id>`) when present
 - `delete --hard <ids...>` resolves all ids/prefixes once, then processes them in one CLI invocation.
+- `delete` also supports selector mode (no IDs):
+  - `--all`
+  - `--older-than-days <n>`
+  - `--folder <folder_label>`
+  - `--search <substring>`
+  - destructive selector mode requires `--yes` (or use `--dry-run`)
+- selector example:
+  - `codex-sessions delete --hard --older-than-days 7 --all --yes`
+- batch JSON output includes: `processed`, `succeeded`, `failed`, `skipped`.
 - `prune --hard` batches stale-session row deletes in one DB transaction and rewrites global titles once per prune run.
 
 ### Storage

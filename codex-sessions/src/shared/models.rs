@@ -31,6 +31,7 @@ pub struct DeleteResult {
     pub id: String,
     pub file_path: String,
     pub action: String,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -44,9 +45,14 @@ pub struct PruneResult {
 }
 
 #[derive(Debug, Serialize)]
-pub struct DeleteBatchResult {
+pub struct OperationBatchResult {
+    pub action: String,
+    pub dry_run: bool,
     pub hard: bool,
     pub processed: usize,
+    pub succeeded: usize,
+    pub failed: usize,
+    pub skipped: usize,
     pub sessions: Vec<DeleteResult>,
 }
 

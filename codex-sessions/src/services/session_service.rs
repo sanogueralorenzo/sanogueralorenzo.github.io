@@ -88,6 +88,7 @@ pub fn prune_sessions(
                 } else {
                     "archived".to_string()
                 },
+                error: None,
             });
         }
     } else if hard {
@@ -104,7 +105,7 @@ pub fn prune_sessions(
         hard,
         older_than_days,
         scanned: sessions.iter().filter(|session| !session.archived).count(),
-        pruned: deleted.len(),
+        pruned: deleted.iter().filter(|session| session.deleted).count(),
         sessions: deleted,
     })
 }

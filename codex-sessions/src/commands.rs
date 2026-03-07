@@ -7,7 +7,7 @@ use crate::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
 };
 use crate::shared::models::{
-    DeleteBatchResult, DeleteResult, ListResult, MergeResult, MessageResult, PruneResult,
+    DeleteResult, ListResult, MergeResult, MessageResult, OperationBatchResult, PruneResult,
     SessionMeta,
 };
 use crate::shared::output::OutputFormat;
@@ -301,11 +301,29 @@ fn cmd_message(args: MessageArgs) -> Result<()> {
 }
 
 fn cmd_delete(args: DeleteArgs) -> Result<()> {
-    let store = SessionStore::new(args.home)?;
+    validate_delete_args(&args)?;
+    let store = SessionStore::new(args.home.clone())?;
     let sessions = store.collect_sessions()?;
-    let targets = resolve_targets_for_inputs(&sessions, &args.ids)?;
+    let targets = resolve_delete_targets(&sessions, &args)?;
 
-    let results = if args.hard {
+    let action_name = if args.hard { "delete" } else { "archive" };
+
+    let results = if args.dry_run {
+        targets
+            .iter()
+            .map(|target| DeleteResult {
+                deleted: false,
+                id: target.id.clone(),
+                file_path: target.file_path.display().to_string(),
+                action: if args.hard {
+                    "deleted".to_string()
+                } else {
+                    "archived".to_string()
+                },
+                error: None,
+            })
+            .collect()
+    } else if args.hard {
         store.delete_sessions_hard(&targets)?
     } else {
         let mut archived = Vec::with_capacity(targets.len());
@@ -315,28 +333,84 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
         archived
     };
 
-    let response = DeleteBatchResult {
-        hard: args.hard,
-        processed: results.len(),
-        sessions: results,
-    };
-    if response.processed == 1 {
+    let response = build_operation_batch_result(action_name, args.dry_run, args.hard, results);
+    if response.processed == 1
+        && args.ids.len() == 1
+        && !has_selector_flags(&args)
+        && response.failed == 0
+    {
         let mut sessions = response.sessions;
         return emit_delete_output(sessions.remove(0), args.json, args.plain);
     }
-    emit_delete_many_output(response, args.json, args.plain)
+    emit_operation_batch_output(response, args.json, args.plain)
 }
 
 fn cmd_archive(args: ArchiveArgs) -> Result<()> {
-    let store = SessionStore::new(args.home)?;
-    let result = with_target_session(&store, &args.id, |target| store.archive_session(target))?;
-    emit_delete_output(result, args.json, args.plain)
+    let store = SessionStore::new(args.home.clone())?;
+    let sessions = store.collect_sessions()?;
+    let targets = resolve_targets_for_inputs(&sessions, &args.ids)?;
+
+    let mut results = Vec::with_capacity(targets.len());
+    for target in targets {
+        results.push(store.archive_session(target)?);
+    }
+
+    let response = build_operation_batch_result("archive", false, false, results);
+    if response.processed == 1 && args.ids.len() == 1 && response.failed == 0 {
+        let mut sessions = response.sessions;
+        return emit_delete_output(sessions.remove(0), args.json, args.plain);
+    }
+    emit_operation_batch_output(response, args.json, args.plain)
 }
 
 fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
-    let store = SessionStore::new(args.home)?;
-    let result = with_target_session(&store, &args.id, |target| store.unarchive_session(target))?;
-    emit_delete_output(result, args.json, args.plain)
+    let store = SessionStore::new(args.home.clone())?;
+    let sessions = store.collect_sessions()?;
+    let targets = resolve_targets_for_inputs(&sessions, &args.ids)?;
+
+    let mut results = Vec::with_capacity(targets.len());
+    for target in targets {
+        results.push(store.unarchive_session(target)?);
+    }
+
+    let response = build_operation_batch_result("unarchive", false, false, results);
+    if response.processed == 1 && args.ids.len() == 1 && response.failed == 0 {
+        let mut sessions = response.sessions;
+        return emit_delete_output(sessions.remove(0), args.json, args.plain);
+    }
+    emit_operation_batch_output(response, args.json, args.plain)
+}
+
+fn build_operation_batch_result(
+    action: &str,
+    dry_run: bool,
+    hard: bool,
+    sessions: Vec<DeleteResult>,
+) -> OperationBatchResult {
+    let processed = sessions.len();
+    let failed = sessions
+        .iter()
+        .filter(|session| session.error.is_some())
+        .count();
+    let succeeded = sessions
+        .iter()
+        .filter(|session| session.error.is_none() && session.deleted)
+        .count();
+    let skipped = sessions
+        .iter()
+        .filter(|session| session.error.is_none() && !session.deleted)
+        .count();
+
+    OperationBatchResult {
+        action: action.to_string(),
+        dry_run,
+        hard,
+        processed,
+        succeeded,
+        failed,
+        skipped,
+        sessions,
+    }
 }
 
 fn cmd_merge(args: MergeArgs) -> Result<()> {
@@ -415,37 +489,80 @@ fn emit_delete_output(result: DeleteResult, json: bool, plain: bool) -> Result<(
     if json {
         println!("{}", serde_json::to_string_pretty(&result)?);
     } else if plain {
-        println!("{}\t{}\t{}", result.id, result.action, result.file_path);
+        let error = result.error.clone().unwrap_or_default();
+        println!(
+            "{}\t{}\t{}\t{}",
+            result.id, result.action, result.file_path, error
+        );
     } else {
+        let is_failed = result.error.is_some();
         match result.action.as_str() {
             "archived" => println!("Archived session {}", result.id),
             "unarchived" => println!("Unarchived session {}", result.id),
+            "deleted" if is_failed => println!("Delete incomplete for session {}", result.id),
             _ => println!("Deleted session {}", result.id),
         }
         println!("Path: {}", result.file_path);
+        if let Some(error) = result.error {
+            println!("Error: {}", error);
+        }
     }
 
     Ok(())
 }
 
-fn emit_delete_many_output(result: DeleteBatchResult, json: bool, plain: bool) -> Result<()> {
+fn emit_operation_batch_output(
+    result: OperationBatchResult,
+    json: bool,
+    plain: bool,
+) -> Result<()> {
     if json {
         println!("{}", serde_json::to_string_pretty(&result)?);
         return Ok(());
     }
 
     if plain {
-        println!("{}\t{}", result.processed, result.hard);
+        println!(
+            "{}\t{}\t{}\t{}\t{}\t{}",
+            result.action,
+            result.processed,
+            result.succeeded,
+            result.failed,
+            result.skipped,
+            result.dry_run
+        );
         for item in result.sessions {
-            println!("{}\t{}\t{}", item.id, item.action, item.file_path);
+            let error = item.error.unwrap_or_default();
+            println!(
+                "{}\t{}\t{}\t{}",
+                item.id, item.action, item.file_path, error
+            );
         }
         return Ok(());
     }
 
-    let action = if result.hard { "Deleted" } else { "Archived" };
-    println!("{action} {} session(s).", result.processed);
+    let verb = match result.action.as_str() {
+        "delete" if result.dry_run => "Would delete",
+        "delete" => "Deleted",
+        "archive" if result.dry_run => "Would archive",
+        "archive" => "Archived",
+        "unarchive" if result.dry_run => "Would unarchive",
+        "unarchive" => "Unarchived",
+        _ => "Processed",
+    };
+    println!(
+        "{} {} session(s). Succeeded: {}. Failed: {}. Skipped: {}.",
+        verb, result.processed, result.succeeded, result.failed, result.skipped
+    );
     for item in result.sessions {
-        println!("- {} [{}] ({})", item.id, item.action, item.file_path);
+        if let Some(error) = item.error {
+            println!(
+                "- {} [{}] ({}) error={}",
+                item.id, item.action, item.file_path, error
+            );
+        } else {
+            println!("- {} [{}] ({})", item.id, item.action, item.file_path);
+        }
     }
     Ok(())
 }
@@ -461,7 +578,11 @@ fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> Result<()> {
                 report.scanned, report.pruned, report.dry_run, report.hard
             );
             for session in &report.sessions {
-                println!("{}\t{}\t{}", session.id, session.action, session.file_path);
+                let error = session.error.clone().unwrap_or_default();
+                println!(
+                    "{}\t{}\t{}\t{}",
+                    session.id, session.action, session.file_path, error
+                );
             }
         }
         OutputFormat::Human => {
@@ -478,10 +599,17 @@ fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> Result<()> {
                 verb, report.pruned, report.scanned, report.older_than_days
             );
             for session in &report.sessions {
-                println!(
-                    "- {} [{}] ({})",
-                    session.id, session.action, session.file_path
-                );
+                if let Some(error) = &session.error {
+                    println!(
+                        "- {} [{}] ({}) error={}",
+                        session.id, session.action, session.file_path, error
+                    );
+                } else {
+                    println!(
+                        "- {} [{}] ({})",
+                        session.id, session.action, session.file_path
+                    );
+                }
             }
         }
     }
@@ -518,6 +646,100 @@ where
     let sessions = store.collect_sessions()?;
     let target = resolve_session_by_id(&sessions, id)?;
     action(target)
+}
+
+fn validate_delete_args(args: &DeleteArgs) -> Result<()> {
+    if let Some(days) = args.older_than_days {
+        validate_days(days)?;
+    }
+
+    let has_ids = !args.ids.is_empty();
+    let has_selector = has_selector_flags(args);
+    if !has_ids && !has_selector {
+        bail!(
+            "provide one or more <IDS> or at least one selector flag (--all, --older-than-days, --folder, --search)"
+        );
+    }
+    if has_ids && has_selector {
+        bail!("cannot combine explicit <IDS> with selector flags");
+    }
+    if !has_ids && !args.dry_run && !args.yes {
+        bail!("selector-based delete requires --yes (or run with --dry-run)");
+    }
+
+    Ok(())
+}
+
+fn has_selector_flags(args: &DeleteArgs) -> bool {
+    args.all
+        || args.older_than_days.is_some()
+        || args
+            .folder
+            .as_deref()
+            .map(str::trim)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false)
+        || args
+            .search
+            .as_deref()
+            .map(str::trim)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false)
+}
+
+fn resolve_delete_targets<'a>(
+    sessions: &'a [SessionMeta],
+    args: &DeleteArgs,
+) -> Result<Vec<&'a SessionMeta>> {
+    if !args.ids.is_empty() {
+        return resolve_targets_for_inputs(sessions, &args.ids);
+    }
+
+    let folder_filter = args
+        .folder
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_ascii_lowercase());
+    let search_filter = args
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_ascii_lowercase());
+
+    let mut targets = Vec::new();
+    for session in sessions {
+        if session.archived {
+            continue;
+        }
+        if let Some(days) = args.older_than_days {
+            if age_days(session.last_updated_at) < days {
+                continue;
+            }
+        }
+        if let Some(folder) = folder_filter.as_deref() {
+            let session_folder = session_folder_key(session.cwd.as_deref());
+            if session_folder != folder {
+                continue;
+            }
+        }
+        if let Some(needle) = search_filter.as_deref() {
+            if !matches_search(session, needle) {
+                continue;
+            }
+        }
+        if !args.all
+            && args.older_than_days.is_none()
+            && folder_filter.is_none()
+            && search_filter.is_none()
+        {
+            continue;
+        }
+        targets.push(session);
+    }
+
+    Ok(targets)
 }
 
 fn resolve_targets_for_inputs<'a>(

@@ -19,11 +19,11 @@ pub enum Commands {
     Show(ShowArgs),
     /// Print latest assistant message for a session.
     Message(MessageArgs),
-    /// Archive by default, or hard delete one or more sessions with --hard.
+    /// Archive by default, or hard delete sessions with --hard.
     Delete(DeleteArgs),
-    /// Move one session to archived storage.
+    /// Move one or more sessions to archived storage.
     Archive(ArchiveArgs),
-    /// Move one session from archived storage to active storage.
+    /// Move one or more sessions from archived storage to active storage.
     Unarchive(UnarchiveArgs),
     /// Summarize one session into another and delete the merged session.
     Merge(MergeArgs),
@@ -159,14 +159,37 @@ pub struct MessageArgs {
 #[derive(Args, Debug)]
 pub struct DeleteArgs {
     /// One or more full thread ids or unique thread id prefixes
-    #[arg(required = true, num_args = 1..)]
+    #[arg(num_args = 1..)]
     pub ids: Vec<String>,
+
+    /// Select all active sessions (useful with selector flags)
+    #[arg(long)]
+    pub all: bool,
+
+    /// Select sessions older than N days by last update time
+    #[arg(long = "older-than-days")]
+    pub older_than_days: Option<i64>,
+
+    /// Select sessions by folder label (same value shown in list --folders)
+    #[arg(long)]
+    pub folder: Option<String>,
+
+    /// Select sessions by title/id/cwd substring (case-insensitive)
+    #[arg(long)]
+    pub search: Option<String>,
 
     #[arg(long)]
     pub home: Option<PathBuf>,
 
     #[arg(long)]
     pub hard: bool,
+
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Required for selector-based destructive runs (non dry-run) without explicit IDs
+    #[arg(long)]
+    pub yes: bool,
 
     #[arg(long)]
     pub json: bool,
@@ -177,8 +200,9 @@ pub struct DeleteArgs {
 
 #[derive(Args, Debug)]
 pub struct ArchiveArgs {
-    /// Full thread id or unique thread id prefix
-    pub id: String,
+    /// One or more full thread ids or unique thread id prefixes
+    #[arg(required = true, num_args = 1..)]
+    pub ids: Vec<String>,
 
     #[arg(long)]
     pub home: Option<PathBuf>,
@@ -192,8 +216,9 @@ pub struct ArchiveArgs {
 
 #[derive(Args, Debug)]
 pub struct UnarchiveArgs {
-    /// Full thread id or unique thread id prefix
-    pub id: String,
+    /// One or more full thread ids or unique thread id prefixes
+    #[arg(required = true, num_args = 1..)]
+    pub ids: Vec<String>,
 
     #[arg(long)]
     pub home: Option<PathBuf>,

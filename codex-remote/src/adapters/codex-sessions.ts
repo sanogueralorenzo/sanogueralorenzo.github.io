@@ -11,6 +11,19 @@ type DeleteResponse = {
   deleted: boolean;
   id: string;
   file_path: string;
+  action?: string;
+  error?: string | null;
+};
+
+type DeleteBatchResponse = {
+  action: string;
+  dry_run: boolean;
+  hard: boolean;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  sessions: DeleteResponse[];
 };
 
 type MessageResponse = {
@@ -109,13 +122,18 @@ export async function deleteSessionByThreadId(
   codexHome: string
 ): Promise<{ deleted: boolean; filePath: string | null; from: "sessions" | null }> {
   try {
-    const result = await runCodexSessionsJson<DeleteResponse>([
+    const payload = await runCodexSessionsJson<DeleteResponse | DeleteBatchResponse>([
       "delete",
       threadId,
       "--json",
       "--home",
       codexHome,
     ]);
+
+    const result = normalizeDeleteResponse(payload, threadId);
+    if (!result) {
+      return { deleted: false, filePath: null, from: null };
+    }
 
     return {
       deleted: Boolean(result.deleted),
@@ -185,4 +203,25 @@ function isNotFoundError(error: unknown): boolean {
   const err = error as { stderr?: string; message?: string } | null;
   const text = `${err?.stderr ?? ""}\n${err?.message ?? ""}`.toLowerCase();
   return text.includes("no session matches id or prefix");
+}
+
+function normalizeDeleteResponse(
+  payload: DeleteResponse | DeleteBatchResponse,
+  requestedId: string
+): DeleteResponse | null {
+  if (isDeleteBatchResponse(payload)) {
+    const match = payload.sessions.find((session) => session.id === requestedId);
+    if (match) {
+      return match;
+    }
+    return payload.sessions[0] ?? null;
+  }
+  return payload;
+}
+
+function isDeleteBatchResponse(value: unknown): value is DeleteBatchResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return Array.isArray((value as { sessions?: unknown }).sessions);
 }
