@@ -15,6 +15,21 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+stop_running_app() {
+  osascript -e "tell application \"$APP_BUNDLE_NAME\" to quit" >/dev/null 2>&1 || true
+  pkill -x "$APP_EXECUTABLE_NAME" >/dev/null 2>&1 || true
+
+  local attempts=0
+  while pgrep -x "$APP_EXECUTABLE_NAME" >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    if (( attempts > 20 )); then
+      echo "Failed to stop existing $APP_EXECUTABLE_NAME process." >&2
+      exit 1
+    fi
+    sleep 0.1
+  done
+}
+
 cd "$ROOT_DIR"
 swift build -c release --product "$APP_EXECUTABLE_NAME" >/dev/null
 BIN_DIR="$(swift build -c release --show-bin-path)"
@@ -64,6 +79,7 @@ cp "$ICON_PATH" "$APP_DIR/Contents/Resources/codex.png"
 codesign --force --sign - "$APP_DIR" >/dev/null 2>&1 || true
 
 echo "Created app bundle: $APP_DIR"
+stop_running_app
 
 install_without_sudo() {
   rm -rf "$TARGET_APP_DIR"

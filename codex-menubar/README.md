@@ -8,6 +8,8 @@
 ./scripts/install.sh
 ```
 
+- Installer behavior: stops any running `CodexMenuBar` process before replacing `/Applications/Codex Menu Bar.app`, then relaunches.
+
 ## Reference
 
 - This module does not expose a standalone CLI help command.
