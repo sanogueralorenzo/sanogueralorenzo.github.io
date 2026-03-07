@@ -1,13 +1,13 @@
 use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
 use crate::cli::{
-    ArchiveArgs, Cli, Commands, DeleteArgs, DeleteManyArgs, ListArgs, MergeArgs, MessageArgs,
-    PruneArgs, ShowArgs, SortBy, TitlesArgs, UnarchiveArgs, WatchArgs,
+    ArchiveArgs, Cli, Commands, DeleteArgs, ListArgs, MergeArgs, MessageArgs, PruneArgs, ShowArgs,
+    SortBy, TitlesArgs, UnarchiveArgs, WatchArgs,
 };
 use crate::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
 };
 use crate::shared::models::{
-    DeleteManyResult, DeleteResult, ListResult, MergeResult, MessageResult, PruneResult,
+    DeleteBatchResult, DeleteResult, ListResult, MergeResult, MessageResult, PruneResult,
     SessionMeta,
 };
 use crate::shared::output::OutputFormat;
@@ -28,7 +28,6 @@ pub fn run() -> Result<()> {
         Commands::Show(args) => cmd_show(args),
         Commands::Message(args) => cmd_message(args),
         Commands::Delete(args) => cmd_delete(args),
-        Commands::DeleteMany(args) => cmd_delete_many(args),
         Commands::Archive(args) => cmd_archive(args),
         Commands::Unarchive(args) => cmd_unarchive(args),
         Commands::Merge(args) => cmd_merge(args),
@@ -303,19 +302,6 @@ fn cmd_message(args: MessageArgs) -> Result<()> {
 
 fn cmd_delete(args: DeleteArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
-    let result = with_target_session(&store, &args.id, |target| {
-        if args.hard {
-            store.delete_session_hard(target)
-        } else {
-            store.archive_session(target)
-        }
-    })?;
-
-    emit_delete_output(result, args.json, args.plain)
-}
-
-fn cmd_delete_many(args: DeleteManyArgs) -> Result<()> {
-    let store = SessionStore::new(args.home)?;
     let sessions = store.collect_sessions()?;
     let targets = resolve_targets_for_inputs(&sessions, &args.ids)?;
 
@@ -329,11 +315,15 @@ fn cmd_delete_many(args: DeleteManyArgs) -> Result<()> {
         archived
     };
 
-    let response = DeleteManyResult {
+    let response = DeleteBatchResult {
         hard: args.hard,
         processed: results.len(),
         sessions: results,
     };
+    if response.processed == 1 {
+        let mut sessions = response.sessions;
+        return emit_delete_output(sessions.remove(0), args.json, args.plain);
+    }
     emit_delete_many_output(response, args.json, args.plain)
 }
 
@@ -438,7 +428,7 @@ fn emit_delete_output(result: DeleteResult, json: bool, plain: bool) -> Result<(
     Ok(())
 }
 
-fn emit_delete_many_output(result: DeleteManyResult, json: bool, plain: bool) -> Result<()> {
+fn emit_delete_many_output(result: DeleteBatchResult, json: bool, plain: bool) -> Result<()> {
     if json {
         println!("{}", serde_json::to_string_pretty(&result)?);
         return Ok(());

@@ -44,7 +44,7 @@ pub struct PruneResult {
 }
 
 #[derive(Debug, Serialize)]
-pub struct DeleteManyResult {
+pub struct DeleteBatchResult {
     pub hard: bool,
     pub processed: usize,
     pub sessions: Vec<DeleteResult>,

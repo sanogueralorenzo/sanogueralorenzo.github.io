@@ -102,7 +102,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             return
         }
 
-        var arguments = ["delete-many", "--hard", "--plain"]
+        var arguments = ["delete", "--hard", "--plain"]
         arguments.append(contentsOf: normalizedIDs)
         _ = try run(arguments)
     }

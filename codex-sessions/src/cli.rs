@@ -19,10 +19,8 @@ pub enum Commands {
     Show(ShowArgs),
     /// Print latest assistant message for a session.
     Message(MessageArgs),
-    /// Archive by default, or hard delete with --hard.
+    /// Archive by default, or hard delete one or more sessions with --hard.
     Delete(DeleteArgs),
-    /// Archive or hard-delete multiple sessions in one invocation.
-    DeleteMany(DeleteManyArgs),
     /// Move one session to archived storage.
     Archive(ArchiveArgs),
     /// Move one session from archived storage to active storage.
@@ -160,24 +158,6 @@ pub struct MessageArgs {
 
 #[derive(Args, Debug)]
 pub struct DeleteArgs {
-    /// Full thread id or unique thread id prefix
-    pub id: String,
-
-    #[arg(long)]
-    pub home: Option<PathBuf>,
-
-    #[arg(long)]
-    pub hard: bool,
-
-    #[arg(long)]
-    pub json: bool,
-
-    #[arg(long)]
-    pub plain: bool,
-}
-
-#[derive(Args, Debug)]
-pub struct DeleteManyArgs {
     /// One or more full thread ids or unique thread id prefixes
     #[arg(required = true, num_args = 1..)]
     pub ids: Vec<String>,
