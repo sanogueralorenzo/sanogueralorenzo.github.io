@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { homedir } from "node:os";
 import process from "node:process";
@@ -35,6 +36,7 @@ const defaultApprovalDecision: ApprovalDecision = "decline";
 const enableDraftStreaming = true;
 const draftStreamingThrottleMs = 500;
 const allowedChatIds = parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS);
+const adminChatIds = parseAllowedChatIds(process.env.TELEGRAM_ADMIN_CHAT_IDS);
 ensureStartImageExists(startImagePath);
 
 const store = new BindingStore(bindingFile);
@@ -103,6 +105,9 @@ registerBotHandlers(bot, {
   onHelp: async (_, reply) => {
     await sendHelpResponse(reply);
   },
+  onRestart: async (chatId, reply) => {
+    await handleRestartRequest(chatId, reply);
+  },
   onAction: async (chatId, action, reply) => {
     await withActionErrorBoundary(
       () =>
@@ -148,6 +153,13 @@ bot.catch(async (error) => {
 console.log(`Telegram Codex bridge is running. Codex home: ${codexHome}.`);
 if (allowedChatIds) {
   console.log(`Telegram chat allowlist is active (${allowedChatIds.size} chat id${allowedChatIds.size === 1 ? "" : "s"}).`);
+}
+if (adminChatIds) {
+  console.log(
+    `Telegram restart admin allowlist is active (${adminChatIds.size} chat id${adminChatIds.size === 1 ? "" : "s"}).`
+  );
+} else {
+  console.log("Telegram restart command is disabled (TELEGRAM_ADMIN_CHAT_IDS is not set).");
 }
 try {
   const me = await bot.api.getMe();
@@ -266,6 +278,28 @@ async function sendHelpResponse(reply: ReplyFn): Promise<void> {
   await reply(HELP_TEXT, { reply_markup: quickActionsKeyboard() });
 }
 
+async function handleRestartRequest(chatId: string, reply: ReplyFn): Promise<void> {
+  if (!isRestartAdminChat(chatId)) {
+    await reply("Restart denied. This command is restricted to admin chats.");
+    return;
+  }
+
+  const cliPath = resolve(process.cwd(), "scripts/codex-remote");
+  if (!existsSync(cliPath)) {
+    await reply(`Restart failed. Missing CLI script at ${cliPath}.`);
+    return;
+  }
+
+  await reply("Restarting Codex Remote...");
+
+  const child = spawn(cliPath, ["restart", "--plain"], {
+    detached: true,
+    stdio: "ignore",
+    cwd: process.cwd()
+  });
+  child.unref();
+}
+
 async function sendStartResponse(reply: ReplyFn, replyPhoto: ReplyPhotoFn): Promise<void> {
   await replyPhoto(new InputFile(startImagePath));
   await sendHelpResponse(reply);
@@ -287,4 +321,12 @@ function resolveUserPath(value?: string): string | null {
     return expanded;
   }
   return resolve(process.cwd(), expanded);
+}
+
+function isRestartAdminChat(chatId: string): boolean {
+  if (!adminChatIds) {
+    return false;
+  }
+
+  return adminChatIds.has(chatId);
 }

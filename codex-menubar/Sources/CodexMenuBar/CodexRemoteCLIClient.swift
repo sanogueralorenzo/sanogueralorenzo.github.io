@@ -116,6 +116,16 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
         _ = try run(["stop", "--plain"])
     }
 
+    func restart() throws {
+        guard let executablePath else {
+            throw Error(message: "Codex Remote CLI is not installed.")
+        }
+        guard fileManager.isExecutableFile(atPath: executablePath) else {
+            throw Error(message: "Codex Remote CLI is not installed.")
+        }
+        _ = try run(["restart", "--plain"])
+    }
+
     func installGuideURL() -> URL {
         URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex-remote")!
     }

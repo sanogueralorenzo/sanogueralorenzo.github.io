@@ -26,10 +26,11 @@ Usage:
   ./scripts/codex-remote start [--plain]
   ./scripts/codex-remote stop [--plain]
   ./scripts/codex-remote status [--plain]
-  ./scripts/codex-remote run
+  ./scripts/codex-remote restart [--plain]
+  ./scripts/codex-remote logs [-f|--follow]
 
 Notes:
-- Default command when omitted is: run
+- Default command when omitted is: start
 - start runs the bot in background and writes logs to: $LOG_FILE
 USAGE
 }
@@ -204,45 +205,121 @@ cmd_stop() {
   fi
 }
 
-cmd_run() {
-  ensure_npm
-  ensure_codex_sessions
-  ensure_env_file
-  ensure_dependencies
-  echo "Starting codex-remote bot (watch mode)..."
-  cd "$PROJECT_ROOT"
-  if is_macos && command -v caffeinate >/dev/null 2>&1; then
-    exec caffeinate -dimsu npm run dev
+cmd_restart() {
+  local plain="$1"
+  cmd_stop "true" >/dev/null
+  cmd_start "$plain"
+}
+
+cmd_logs() {
+  local follow="false"
+  local arg="${1:-}"
+  if [[ "$arg" == "-f" || "$arg" == "--follow" ]]; then
+    follow="true"
+  elif [[ -n "$arg" ]]; then
+    echo "Unknown logs option: $arg" >&2
+    print_usage >&2
+    exit 1
   fi
-  exec npm run dev
+
+  ensure_state_dir
+  if [[ ! -f "$LOG_FILE" ]]; then
+    echo "Log file not found: $LOG_FILE" >&2
+    exit 1
+  fi
+
+  if [[ "$follow" == "true" ]]; then
+    exec tail -n 200 -f "$LOG_FILE"
+  fi
+
+  tail -n 200 "$LOG_FILE"
 }
 
 main() {
-  local command="${1:-run}"
-  local plain="false"
-
-  if [[ "$#" -ge 2 && "${2:-}" == "--plain" ]]; then
-    plain="true"
+  local command
+  if [[ "$#" -gt 0 ]]; then
+    command="$1"
+    shift
+  else
+    command="start"
   fi
 
   case "$command" in
     help|--help|-h)
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for $command: $*" >&2
+        print_usage >&2
+        exit 1
+      fi
       print_usage
       ;;
     install)
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for install: $*" >&2
+        print_usage >&2
+        exit 1
+      fi
       cmd_install
       ;;
     start)
+      local plain="false"
+      if [[ "${1:-}" == "--plain" ]]; then
+        plain="true"
+        shift
+      fi
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for start: $*" >&2
+        print_usage >&2
+        exit 1
+      fi
       cmd_start "$plain"
       ;;
     stop)
+      local plain="false"
+      if [[ "${1:-}" == "--plain" ]]; then
+        plain="true"
+        shift
+      fi
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for stop: $*" >&2
+        print_usage >&2
+        exit 1
+      fi
       cmd_stop "$plain"
       ;;
     status)
+      local plain="false"
+      if [[ "${1:-}" == "--plain" ]]; then
+        plain="true"
+        shift
+      fi
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for status: $*" >&2
+        print_usage >&2
+        exit 1
+      fi
       output_status "$plain"
       ;;
-    run)
-      cmd_run
+    restart)
+      local plain="false"
+      if [[ "${1:-}" == "--plain" ]]; then
+        plain="true"
+        shift
+      fi
+      if [[ "$#" -gt 0 ]]; then
+        echo "Unexpected arguments for restart: $*" >&2
+        print_usage >&2
+        exit 1
+      fi
+      cmd_restart "$plain"
+      ;;
+    logs)
+      if [[ "$#" -gt 1 ]]; then
+        echo "Unexpected arguments for logs: $*" >&2
+        print_usage >&2
+        exit 1
+      fi
+      cmd_logs "${1:-}"
       ;;
     *)
       echo "Unknown command: $command" >&2

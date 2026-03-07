@@ -38,15 +38,12 @@ extension AppDelegate {
             }
             do {
                 let shouldRestartRemote = try remoteCLI.isRunning()
-                if shouldRestartRemote {
-                    try remoteCLI.stop()
-                }
 
                 try authCLI.useProfile(name: name)
 
                 if shouldRestartRemote {
                     do {
-                        try remoteCLI.start()
+                        try remoteCLI.restart()
                     } catch {
                         throw RemoteRestartWarning(profileName: name, underlyingError: error)
                     }
