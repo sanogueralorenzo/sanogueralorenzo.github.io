@@ -34,6 +34,13 @@ Options:
   -h, --help  Print help
 ```
 
+### Merge Behavior
+
+- `merge --target <source> --merge <merger>` runs a two-pass context transfer:
+  1) resume merger session to generate compact transfer summary,
+  2) resume source session with that summary,
+  then hard-delete the merger session on success.
+
 ### Storage
 
 - `~/.codex/state_*.sqlite`

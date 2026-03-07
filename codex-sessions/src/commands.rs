@@ -13,9 +13,10 @@ use crate::shared::output::OutputFormat;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use std::collections::HashSet;
+use std::fs;
 use std::process::Command;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
@@ -326,9 +327,10 @@ fn cmd_merge(args: MergeArgs) -> Result<()> {
     let target = resolve_session_by_id(&sessions, &target_id)?.clone();
     let merge = resolve_session_by_id(&sessions, &merge_id)?.clone();
 
-    let latest_merge_message = store.read_latest_assistant_message(&merge.file_path)?;
-    let prompt = build_merge_prompt(&target, &merge, latest_merge_message.as_deref());
-    run_codex_exec_resume(&target, &prompt)?;
+    let summary_prompt = build_merger_summary_prompt(&target, &merge);
+    let transfer_summary = run_codex_exec_resume_capture_last_message(&merge, &summary_prompt)?;
+    let apply_prompt = build_target_apply_prompt(&merge, &transfer_summary);
+    run_codex_exec_resume(&target, &apply_prompt)?;
 
     let deleted = store.delete_session_hard(&merge)?;
     let result = MergeResult {
@@ -525,40 +527,36 @@ fn matches_search(session: &SessionMeta, needle: &str) -> bool {
             .unwrap_or(false)
 }
 
-fn build_merge_prompt(
-    target: &SessionMeta,
-    merge: &SessionMeta,
-    latest_merge_message: Option<&str>,
-) -> String {
+fn build_merger_summary_prompt(target: &SessionMeta, merge: &SessionMeta) -> String {
     let merge_title = merge.title.as_deref().unwrap_or("(no title)");
     let merge_cwd = merge.cwd.as_deref().unwrap_or("(unknown cwd)");
     let merge_source = merge.source.as_deref().unwrap_or("(unknown source)");
     let target_title = target.title.as_deref().unwrap_or("(no title)");
-    let latest = latest_merge_message
-        .map(|value| truncate_chars(value.trim(), 4000))
-        .unwrap_or_else(|| "(none)".to_string());
 
     format!(
-        "You are resuming source session {target_id} ({target_title}).\n\
+        "You are resuming merger session {merge_id}.\n\
          \n\
-         Merge another session into this source context.\n\
+         Task: build a compact context-transfer summary that will be injected into source session {target_id} ({target_title}).\n\
          \n\
-         Merge session metadata:\n\
+         Merger session metadata:\n\
          - id: {merge_id}\n\
          - title: {merge_title}\n\
          - cwd: {merge_cwd}\n\
          - source: {merge_source}\n\
          - file_path: {merge_path}\n\
          \n\
-         Latest assistant message from merge session (for reference):\n\
-         {latest}\n\
-         \n\
-         Task:\n\
-         1. Produce a compact context-transfer summary from the merge session.\n\
+         Requirements:\n\
+         1. Produce a compact context-transfer summary from this merger session.\n\
          2. Include only non-actionable context (decisions, constraints, preferences, resolved facts).\n\
          3. Exclude pending tasks, TODO lists, or execution instructions.\n\
-         4. Keep it concise and structured so this source session can continue with stronger context.\n\
-         5. Do not run tools or modify files.",
+         4. Use this structure exactly:\n\
+            - Decisions\n\
+            - Constraints\n\
+            - Preferences\n\
+            - Resolved Facts\n\
+            - Relevant Open Questions (only if still needed for context)\n\
+         5. Keep it concise and transferable.\n\
+         6. Do not run tools or modify files.",
         target_id = target.id,
         target_title = target_title,
         merge_id = merge.id,
@@ -566,7 +564,6 @@ fn build_merge_prompt(
         merge_cwd = merge_cwd,
         merge_source = merge_source,
         merge_path = merge.file_path.display(),
-        latest = latest,
     )
 }
 
@@ -578,7 +575,108 @@ fn truncate_chars(value: &str, max_chars: usize) -> String {
     format!("{truncated}...")
 }
 
+fn build_target_apply_prompt(merge: &SessionMeta, transfer_summary: &str) -> String {
+    let merge_title = merge.title.as_deref().unwrap_or("(no title)");
+    let summary = truncate_chars(transfer_summary.trim(), 12000);
+
+    format!(
+        "Merge context into this source session.\n\
+         \n\
+         Context source session metadata:\n\
+         - merger_id: {merge_id}\n\
+         - merger_title: {merge_title}\n\
+         - merger_cwd: {merge_cwd}\n\
+         - merger_file_path: {merge_path}\n\
+         \n\
+         Context transfer summary:\n\
+         {summary}\n\
+         \n\
+         Instructions:\n\
+         1. Acknowledge this merge context briefly.\n\
+         2. Preserve this context for future reasoning in this source session.\n\
+         3. Do not run tools or modify files.",
+        merge_id = merge.id,
+        merge_title = merge_title,
+        merge_cwd = merge.cwd.as_deref().unwrap_or("(unknown cwd)"),
+        merge_path = merge.file_path.display(),
+        summary = summary,
+    )
+}
+
 fn run_codex_exec_resume(target: &SessionMeta, prompt: &str) -> Result<()> {
+    let mut command = base_codex_exec_resume_command(target, prompt);
+
+    let output = command
+        .output()
+        .with_context(|| format!("failed running codex exec resume for target {}", target.id))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let detail = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        format!("process exited with status {}", output.status)
+    };
+    bail!("codex exec resume failed while merging sessions: {detail}");
+}
+
+fn run_codex_exec_resume_capture_last_message(
+    target: &SessionMeta,
+    prompt: &str,
+) -> Result<String> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0));
+    let output_file = std::env::temp_dir().join(format!(
+        "codex-sessions-merge-last-message-{}-{}.txt",
+        std::process::id(),
+        now.as_nanos()
+    ));
+
+    let mut command = base_codex_exec_resume_command(target, prompt);
+    command.arg("--output-last-message").arg(&output_file);
+
+    let output = command
+        .output()
+        .with_context(|| format!("failed running codex exec resume for session {}", target.id))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let detail = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("process exited with status {}", output.status)
+        };
+        let _ = fs::remove_file(&output_file);
+        bail!("codex exec resume failed while generating merge summary: {detail}");
+    }
+
+    let summary = fs::read_to_string(&output_file).with_context(|| {
+        format!(
+            "failed reading generated merge summary from {}",
+            output_file.display()
+        )
+    })?;
+    let _ = fs::remove_file(&output_file);
+
+    let trimmed = summary.trim();
+    if trimmed.is_empty() {
+        bail!("merge summary generation produced an empty result");
+    }
+
+    Ok(trimmed.to_string())
+}
+
+fn base_codex_exec_resume_command(target: &SessionMeta, prompt: &str) -> Command {
     let mut command = Command::new("codex");
     command
         .arg("-a")
@@ -600,22 +698,5 @@ fn run_codex_exec_resume(target: &SessionMeta, prompt: &str) -> Result<()> {
         .arg(&target.id)
         .arg(prompt);
 
-    let output = command
-        .output()
-        .with_context(|| format!("failed running codex exec resume for target {}", target.id))?;
-
-    if output.status.success() {
-        return Ok(());
-    }
-
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let detail = if !stderr.is_empty() {
-        stderr
-    } else if !stdout.is_empty() {
-        stdout
-    } else {
-        format!("process exited with status {}", output.status)
-    };
-    bail!("codex exec resume failed while merging sessions: {detail}");
+    command
 }
