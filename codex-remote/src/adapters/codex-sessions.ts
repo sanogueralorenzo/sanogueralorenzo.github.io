@@ -18,6 +18,25 @@ type MessageResponse = {
   message: string | null;
 };
 
+type ListResponse = {
+  data: Array<{
+    id: string;
+    title: string | null;
+    folder: string;
+    cwd: string | null;
+    archived: boolean;
+    last_updated_at: string;
+  }>;
+};
+
+export type ListedSession = {
+  id: string;
+  title: string;
+  folder: string;
+  cwd: string;
+  lastUpdatedAt: string;
+};
+
 export function resolveCodexHomeFromEnv(value: string | undefined): string {
   if (value && value.trim()) {
     return expandHomePath(value.trim());
@@ -51,6 +70,38 @@ export async function loadDesktopThreadTitles(codexHome: string): Promise<Map<st
   } catch {
     return new Map();
   }
+}
+
+export async function listSessionsForSelection(
+  codexHome: string,
+  limit: number
+): Promise<ListedSession[]> {
+  const result = await runCodexSessionsJson<ListResponse>([
+    "list",
+    "--json",
+    "--all",
+    "--folders",
+    "--home",
+    codexHome,
+    "--limit",
+    String(Math.max(1, Math.trunc(limit))),
+  ]);
+
+  return result.data
+    .filter((session) => !session.archived)
+    .map((session) => {
+      const rawTitle = typeof session.title === "string" ? session.title.trim() : "";
+      const rawFolder = typeof session.folder === "string" ? session.folder.trim() : "";
+      const rawCwd = typeof session.cwd === "string" ? session.cwd.trim() : "";
+
+      return {
+        id: session.id,
+        title: rawTitle || "Untitled thread",
+        folder: rawFolder || "unknown",
+        cwd: rawCwd || process.cwd(),
+        lastUpdatedAt: typeof session.last_updated_at === "string" ? session.last_updated_at : "",
+      };
+    });
 }
 
 export async function deleteSessionByThreadId(

@@ -10,6 +10,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
         let id: String
         let title: String
         let folder: String
+        let lastUpdatedAt: String
     }
 
     struct Error: LocalizedError {
@@ -24,12 +25,9 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
     private struct ListEntry: Decodable {
         let id: String
         let title: String?
+        let folder: String
         let archived: Bool
-        let cwd: String?
-    }
-
-    private struct PruneResponse: Decodable {
-        let pruned: Int
+        let last_updated_at: String
     }
 
     private let executablePath: String?
@@ -55,7 +53,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
     }
 
     func listActiveSessions() throws -> [SessionOption] {
-        let output = try run(["list", "--all", "--json"])
+        let output = try run(["list", "--all", "--json", "--folders"])
         let data = Data(output.utf8)
         let response = try JSONDecoder().decode(ListResponse.self, from: data)
         return response.data
@@ -65,46 +63,9 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
                 let cleanedTitle = (title?.isEmpty == false) ? title! : "(no title)"
                 return SessionOption(id: entry.id,
                                      title: cleanedTitle,
-                                     folder: folderLabel(from: entry.cwd))
+                                     folder: folderLabel(from: entry.folder),
+                                     lastUpdatedAt: entry.last_updated_at)
             }
-            .sorted { lhs, rhs in
-                if lhs.folder != rhs.folder {
-                    return lhs.folder.localizedCaseInsensitiveCompare(rhs.folder) == .orderedAscending
-                }
-                if lhs.title != rhs.title {
-                    return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-                }
-                return lhs.id < rhs.id
-            }
-    }
-
-    func removeStaleSessions(olderThanDays: Int) throws {
-        guard olderThanDays > 0 else {
-            throw Error(message: "olderThanDays must be greater than zero.")
-        }
-
-        _ = try run([
-            "prune",
-            "--older-than-days", String(olderThanDays),
-            "--hard"
-        ])
-    }
-
-    func staleSessionCount(olderThanDays: Int) throws -> Int {
-        guard olderThanDays > 0 else {
-            throw Error(message: "olderThanDays must be greater than zero.")
-        }
-
-        let output = try run([
-            "prune",
-            "--older-than-days", String(olderThanDays),
-            "--hard",
-            "--dry-run",
-            "--json"
-        ])
-        let data = Data(output.utf8)
-        let response = try JSONDecoder().decode(PruneResponse.self, from: data)
-        return response.pruned
     }
 
     func listStaleSessions(olderThanDays: Int) throws -> [SessionOption] {
@@ -116,6 +77,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             "list",
             "--all",
             "--json",
+            "--folders",
             "--older-than-days", String(olderThanDays)
         ])
         let data = Data(output.utf8)
@@ -127,16 +89,8 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
                 let cleanedTitle = (title?.isEmpty == false) ? title! : "(no title)"
                 return SessionOption(id: entry.id,
                                      title: cleanedTitle,
-                                     folder: folderLabel(from: entry.cwd))
-            }
-            .sorted { lhs, rhs in
-                if lhs.folder != rhs.folder {
-                    return lhs.folder.localizedCaseInsensitiveCompare(rhs.folder) == .orderedAscending
-                }
-                if lhs.title != rhs.title {
-                    return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-                }
-                return lhs.id < rhs.id
+                                     folder: folderLabel(from: entry.folder),
+                                     lastUpdatedAt: entry.last_updated_at)
             }
     }
 
@@ -208,13 +162,10 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
         CLIExecutableResolver.resolve(commandName: "codex-sessions")
     }
 
-    private func folderLabel(from cwd: String?) -> String {
-        guard let cwd else {
-            return "(unknown folder)"
-        }
-        let trimmed = cwd.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func folderLabel(from folder: String) -> String {
+        let trimmed = folder.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            return "(unknown folder)"
+            return "unknown"
         }
         return trimmed
     }

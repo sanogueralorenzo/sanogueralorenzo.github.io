@@ -2,6 +2,7 @@ use crate::adapters::session_store::SessionStore;
 use crate::shared::models::{DeleteResult, PruneResult, SessionEntry, SessionMeta};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
+use std::path::Path;
 
 pub fn validate_days(days: i64) -> Result<()> {
     if days < 0 {
@@ -27,6 +28,7 @@ pub fn to_output_entry(session: &SessionMeta) -> SessionEntry {
     SessionEntry {
         id: session.id.clone(),
         title: session.title.clone(),
+        folder: folder_from_cwd(session.cwd.as_deref()),
         file_path: session.file_path.display().to_string(),
         relative_path: session.relative_path.clone(),
         cwd: session.cwd.clone(),
@@ -38,6 +40,24 @@ pub fn to_output_entry(session: &SessionMeta) -> SessionEntry {
         age_days: age_days(session.last_updated_at),
         size_bytes: session.size_bytes,
     }
+}
+
+fn folder_from_cwd(cwd: Option<&str>) -> String {
+    let Some(cwd) = cwd else {
+        return "unknown".to_string();
+    };
+    let trimmed = cwd.trim();
+    if trimmed.is_empty() {
+        return "unknown".to_string();
+    }
+
+    let path = Path::new(trimmed);
+    path.file_name()
+        .and_then(|value| value.to_str())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .unwrap_or(trimmed)
+        .to_string()
 }
 
 pub fn prune_sessions(

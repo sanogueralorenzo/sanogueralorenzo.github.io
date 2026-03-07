@@ -102,6 +102,9 @@ pub struct ListArgs {
     pub sort_by: SortBy,
 
     #[arg(long)]
+    pub folders: bool,
+
+    #[arg(long)]
     pub search: Option<String>,
 
     #[arg(long)]

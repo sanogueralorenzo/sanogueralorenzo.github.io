@@ -58,3 +58,8 @@ codex-remote logs --help
 - `~/.codex/remote/codex-remote.pid`
 - `~/.codex/remote/codex-remote.log`
 - `~/.codex/remote/codex-remote-caffeinate.pid`
+
+### Session Listing Source
+
+- `/resume` and `/delete` session menus are sourced from `codex-sessions list --folders --json`.
+- Entries are ordered by folder, then last-updated descending within each folder.

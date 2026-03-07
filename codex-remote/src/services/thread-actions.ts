@@ -7,6 +7,7 @@ import {
 import { BindingStore } from "../adapters/binding-store.js";
 import {
   deleteSessionByThreadId,
+  listSessionsForSelection,
   loadDesktopThreadTitles,
   loadLatestAssistantMessageByThreadId
 } from "../adapters/codex-sessions.js";
@@ -22,7 +23,13 @@ import { cleanPreview, formatActionTitle, formatFolderLabel } from "../bot/messa
 import { ReplyFn } from "../bot/context.js";
 import { ActionName } from "../shared/actions.js";
 
-export type ListedThread = ThreadSummary & { title: string };
+export type ListedThread = {
+  id: string;
+  title: string;
+  folder: string;
+  cwd: string;
+  lastUpdatedAt: string;
+};
 export type ListedFolderChoice = {
   cwd: string;
   label: string;
@@ -145,17 +152,11 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     reply: ReplyFn,
     mode: "resume" | "delete"
   ): Promise<void> {
-    const threads = await listThreads(limit);
-    if (!threads.length) {
+    const sessions = await listSessionsForSelection(deps.codexHome, limit);
+    if (!sessions.length) {
       await reply("No Codex sessions found.");
       return;
     }
-
-    const desktopTitles = await loadDesktopThreadTitles(deps.codexHome);
-    const sessions = threads.map((thread) => ({
-      ...thread,
-      title: resolveSessionTitle(thread, desktopTitles)
-    }));
 
     deps.lastListedSessions.set(chatId, sessions);
     deps.lastListedSessionModes.set(chatId, mode);
@@ -164,7 +165,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     const prompt = mode === "delete" ? "Choose thread to delete" : "Choose thread";
     await reply(prompt, {
       reply_markup: threadSelectionKeyboard(
-        sessions.map((session) => session.title),
+        sessions.map((session) => formatSessionSelectionLabel(session)),
         { includeNewButton: false }
       )
     });
@@ -300,20 +301,6 @@ function splitTextForTelegram(text: string, maxLen = TELEGRAM_MESSAGE_CHUNK): st
   return chunks.length ? chunks : [""];
 }
 
-function resolveSessionTitle(thread: ThreadSummary, desktopTitles: Map<string, string>): string {
-  const desktopTitle = desktopTitles.get(thread.id);
-  if (desktopTitle) {
-    return desktopTitle;
-  }
-
-  const preview = cleanPreview(thread.preview);
-  if (preview) {
-    return preview;
-  }
-
-  return "Untitled thread";
-}
-
 function listFolderChoices(threads: ThreadSummary[], defaultCwd: string): ListedFolderChoice[] {
   const byUpdateDesc = [...threads].sort((a, b) => b.updatedAt - a.updatedAt);
   const seen = new Set<string>();
@@ -348,4 +335,19 @@ function toFolderButtonLabel(cwd: string): string {
     return formatted;
   }
   return `${formatted.slice(0, 21)}...`;
+}
+
+function formatSessionSelectionLabel(session: ListedThread): string {
+  const updated = formatUpdatedDate(session.lastUpdatedAt);
+  return `${session.folder} | ${updated} | ${session.title}`;
+}
+
+function formatUpdatedDate(value: string): string {
+  if (!value) {
+    return "unknown";
+  }
+  if (value.length >= 10) {
+    return value.slice(0, 10);
+  }
+  return value;
 }

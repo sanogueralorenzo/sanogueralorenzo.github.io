@@ -144,7 +144,7 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
         }
 
         let session = currentRows[row]
-        cell.textField?.stringValue = "\(session.folder)  |  \(session.title) (\(shortID(session.id)))"
+        cell.textField?.stringValue = "\(session.folder)  |  \(shortTimestamp(session.lastUpdatedAt))  |  \(session.title) (\(shortID(session.id)))"
         return cell
     }
 
@@ -168,6 +168,13 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
 
     private func shortID(_ fullID: String) -> String {
         String(fullID.prefix(8))
+    }
+
+    private func shortTimestamp(_ value: String) -> String {
+        if value.count >= 19 {
+            return String(value.prefix(19)).replacingOccurrences(of: "T", with: " ")
+        }
+        return value
     }
 }
 

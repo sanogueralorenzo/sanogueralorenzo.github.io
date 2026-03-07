@@ -34,6 +34,11 @@ Options:
   -h, --help  Print help
 ```
 
+### List Ordering
+
+- `list --folders` orders sessions by folder, then by `last_updated_at` descending inside each folder.
+- JSON list output includes `folder` for each entry.
+
 ### Merge Behavior
 
 - `merge --target <source> --merge <merger>` runs a two-pass context transfer:

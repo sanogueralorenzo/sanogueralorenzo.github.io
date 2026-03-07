@@ -6,6 +6,7 @@ use std::path::PathBuf;
 pub struct SessionEntry {
     pub id: String,
     pub title: Option<String>,
+    pub folder: String,
     pub file_path: String,
     pub relative_path: String,
     pub cwd: Option<String>,
