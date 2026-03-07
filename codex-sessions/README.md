@@ -53,6 +53,7 @@ Options:
   - session file
   - `threads` row in `state_*.sqlite` (when present)
   - matching title key in `~/.codex/.codex-global-state.json` (`thread-titles.titles.<session_id>`) when present
+- `prune --hard` batches stale-session row deletes in one DB transaction and rewrites global titles once per prune run.
 
 ### Storage
 

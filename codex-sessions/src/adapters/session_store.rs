@@ -124,30 +124,32 @@ impl SessionStore {
     }
 
     pub fn delete_session_hard(&self, target: &SessionMeta) -> Result<DeleteResult> {
-        if target.file_path.exists() {
-            fs::remove_file(&target.file_path)
-                .with_context(|| format!("failed to delete {}", target.file_path.display()))?;
-            if let Some(parent) = target.file_path.parent() {
-                let sessions_root = self.sessions_root();
-                if parent.starts_with(&sessions_root) {
-                    prune_empty_parent_dirs(parent, &sessions_root)?;
-                }
-                let archived_root = self.archived_root();
-                if parent.starts_with(&archived_root) {
-                    prune_empty_parent_dirs(parent, &archived_root)?;
-                }
-            }
+        let mut results = self.delete_sessions_hard(&[target])?;
+        Ok(results.remove(0))
+    }
+
+    pub fn delete_sessions_hard(&self, targets: &[&SessionMeta]) -> Result<Vec<DeleteResult>> {
+        if targets.is_empty() {
+            return Ok(Vec::new());
         }
 
-        self.delete_thread_row(&target.id)?;
-        self.delete_thread_title(&target.id)?;
+        for target in targets {
+            self.delete_session_file(target)?;
+        }
 
-        Ok(DeleteResult {
-            deleted: true,
-            id: target.id.clone(),
-            file_path: target.file_path.display().to_string(),
-            action: "deleted".to_string(),
-        })
+        let ids: Vec<String> = targets.iter().map(|target| target.id.clone()).collect();
+        self.delete_thread_rows(&ids)?;
+        self.delete_thread_titles(&ids)?;
+
+        Ok(targets
+            .iter()
+            .map(|target| DeleteResult {
+                deleted: true,
+                id: target.id.clone(),
+                file_path: target.file_path.display().to_string(),
+                action: "deleted".to_string(),
+            })
+            .collect())
     }
 
     pub fn read_latest_assistant_message(&self, path: &Path) -> Result<Option<String>> {
@@ -356,19 +358,34 @@ impl SessionStore {
         Ok(())
     }
 
-    fn delete_thread_row(&self, id: &str) -> Result<()> {
+    fn delete_thread_rows(&self, ids: &[String]) -> Result<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+
         let Some(path) = self.state_db_path()? else {
             return Ok(());
         };
 
-        let conn = Connection::open(&path)
+        let mut conn = Connection::open(&path)
             .with_context(|| format!("failed to open {}", path.display()))?;
-        conn.execute("DELETE FROM threads WHERE id = ?1", params![id])?;
+        let transaction = conn.transaction()?;
+        {
+            let mut statement = transaction.prepare("DELETE FROM threads WHERE id = ?1")?;
+            for id in ids {
+                statement.execute(params![id])?;
+            }
+        }
+        transaction.commit()?;
 
         Ok(())
     }
 
-    fn delete_thread_title(&self, id: &str) -> Result<()> {
+    fn delete_thread_titles(&self, ids: &[String]) -> Result<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+
         let file_path = self.codex_home.join(".codex-global-state.json");
         if !file_path.exists() {
             return Ok(());
@@ -393,13 +410,38 @@ impl SessionStore {
             return Ok(());
         };
 
-        if titles.remove(id).is_none() {
+        let mut changed = false;
+        for id in ids {
+            if titles.remove(id).is_some() {
+                changed = true;
+            }
+        }
+        if !changed {
             return Ok(());
         }
 
         let serialized = serde_json::to_string_pretty(&parsed)?;
         fs::write(&file_path, format!("{serialized}\n"))
             .with_context(|| format!("failed to write {}", file_path.display()))?;
+        Ok(())
+    }
+
+    fn delete_session_file(&self, target: &SessionMeta) -> Result<()> {
+        if target.file_path.exists() {
+            fs::remove_file(&target.file_path)
+                .with_context(|| format!("failed to delete {}", target.file_path.display()))?;
+            if let Some(parent) = target.file_path.parent() {
+                let sessions_root = self.sessions_root();
+                if parent.starts_with(&sessions_root) {
+                    prune_empty_parent_dirs(parent, &sessions_root)?;
+                }
+                let archived_root = self.archived_root();
+                if parent.starts_with(&archived_root) {
+                    prune_empty_parent_dirs(parent, &archived_root)?;
+                }
+            }
+        }
+
         Ok(())
     }
 }
@@ -808,6 +850,87 @@ mod tests {
         assert!(!titles.contains_key(id));
         assert_eq!(titles.get("keep").and_then(Value::as_str), Some("Keep me"));
         assert!(!session_file.exists());
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
+    fn batch_hard_delete_removes_multiple_titles() {
+        let id_one = "019cc5d1-ec61-7c90-a7d8-2524f8828fd9";
+        let id_two = "019cc5d1-ec61-7c90-a7d8-2524f8828fda";
+        let temp_root =
+            std::env::temp_dir().join(format!("codex-sessions-test-{}", Uuid::new_v4()));
+        let codex_home = temp_root.join(".codex");
+        let sessions_dir = codex_home
+            .join("sessions")
+            .join("2026")
+            .join("03")
+            .join("06");
+        fs::create_dir_all(&sessions_dir).expect("create sessions dir");
+
+        let session_file_one = sessions_dir
+            .join("rollout-2026-03-06T17-03-15-019cc5d1-ec61-7c90-a7d8-2524f8828fd9.jsonl");
+        let session_file_two = sessions_dir
+            .join("rollout-2026-03-06T17-03-15-019cc5d1-ec61-7c90-a7d8-2524f8828fda.jsonl");
+        fs::write(&session_file_one, "{\"type\":\"session_meta\"}\n")
+            .expect("write session file 1");
+        fs::write(&session_file_two, "{\"type\":\"session_meta\"}\n")
+            .expect("write session file 2");
+
+        let global_state_path = codex_home.join(".codex-global-state.json");
+        fs::write(
+            &global_state_path,
+            format!(
+                "{{\"thread-titles\":{{\"titles\":{{\"{id_one}\":\"Delete one\",\"{id_two}\":\"Delete two\",\"keep\":\"Keep me\"}}}}}}\n"
+            ),
+        )
+        .expect("write global state");
+
+        let store = SessionStore { codex_home };
+        let now = Utc::now();
+        let session_one = SessionMeta {
+            id: id_one.to_string(),
+            title: Some("Delete one".to_string()),
+            file_path: session_file_one.clone(),
+            relative_path: "sessions/2026/03/06/one.jsonl".to_string(),
+            cwd: None,
+            source: None,
+            source_kind: "unknown".to_string(),
+            archived: false,
+            created_at: now,
+            last_updated_at: now,
+            size_bytes: 0,
+        };
+        let session_two = SessionMeta {
+            id: id_two.to_string(),
+            title: Some("Delete two".to_string()),
+            file_path: session_file_two.clone(),
+            relative_path: "sessions/2026/03/06/two.jsonl".to_string(),
+            cwd: None,
+            source: None,
+            source_kind: "unknown".to_string(),
+            archived: false,
+            created_at: now,
+            last_updated_at: now,
+            size_bytes: 0,
+        };
+
+        store
+            .delete_sessions_hard(&[&session_one, &session_two])
+            .expect("batch hard delete succeeds");
+
+        let raw = fs::read_to_string(&global_state_path).expect("read global state");
+        let parsed: Value = serde_json::from_str(&raw).expect("parse global state");
+        let titles = parsed
+            .get("thread-titles")
+            .and_then(|value| value.get("titles"))
+            .and_then(Value::as_object)
+            .expect("titles object");
+        assert!(!titles.contains_key(id_one));
+        assert!(!titles.contains_key(id_two));
+        assert_eq!(titles.get("keep").and_then(Value::as_str), Some("Keep me"));
+        assert!(!session_file_one.exists());
+        assert!(!session_file_two.exists());
 
         let _ = fs::remove_dir_all(temp_root);
     }

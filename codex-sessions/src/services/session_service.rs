@@ -77,8 +77,8 @@ pub fn prune_sessions(
 
     let mut deleted = Vec::with_capacity(to_prune.len());
 
-    for session in to_prune {
-        if dry_run {
+    if dry_run {
+        for session in to_prune {
             deleted.push(DeleteResult {
                 deleted: false,
                 id: session.id.clone(),
@@ -89,15 +89,14 @@ pub fn prune_sessions(
                     "archived".to_string()
                 },
             });
-            continue;
         }
-
-        let result = if hard {
-            store.delete_session_hard(session)?
-        } else {
-            store.archive_session(session)?
-        };
-        deleted.push(result);
+    } else if hard {
+        deleted = store.delete_sessions_hard(&to_prune)?;
+    } else {
+        for session in to_prune {
+            let result = store.archive_session(session)?;
+            deleted.push(result);
+        }
     }
 
     Ok(PruneResult {
