@@ -105,6 +105,49 @@ extension AppDelegate {
         }
     }
 
+    @objc func mergeSessions(_ sender: Any?) {
+        let sessionsCLI = self.sessionsCLI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+            do {
+                let sessions = try sessionsCLI.listActiveSessions()
+                DispatchQueue.main.async {
+                    guard sessions.count >= 2 else {
+                        self.showError(CodexSessionsCLIClient.Error(message: "Need at least two active sessions to merge."))
+                        return
+                    }
+
+                    guard let selection = self.promptForSessionMergeSelection(sessions: sessions) else {
+                        return
+                    }
+
+                    let sessionsCLI = self.sessionsCLI
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                        guard let self else {
+                            return
+                        }
+                        do {
+                            try sessionsCLI.mergeSessions(targetID: selection.sourceID, mergeID: selection.mergerID)
+                            DispatchQueue.main.async {
+                                self.refreshUI()
+                            }
+                        } catch {
+                            DispatchQueue.main.async {
+                                self.showError(error)
+                            }
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.showError(error)
+                }
+            }
+        }
+    }
+
     @objc func openHelp(_ sender: Any?) {
         guard let url = URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex-menubar") else {
             return

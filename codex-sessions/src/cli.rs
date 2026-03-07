@@ -25,6 +25,8 @@ pub enum Commands {
     Archive(ArchiveArgs),
     /// Move one session from archived storage to active storage.
     Unarchive(UnarchiveArgs),
+    /// Summarize one session into another and delete the merged session.
+    Merge(MergeArgs),
     /// Prune old active sessions once.
     Prune(PruneArgs),
     /// Run prune repeatedly on an interval.
@@ -188,6 +190,24 @@ pub struct ArchiveArgs {
 pub struct UnarchiveArgs {
     /// Full thread id or unique thread id prefix
     pub id: String,
+
+    #[arg(long)]
+    pub home: Option<PathBuf>,
+
+    #[arg(long)]
+    pub json: bool,
+
+    #[arg(long)]
+    pub plain: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct MergeArgs {
+    #[arg(long)]
+    pub target: String,
+
+    #[arg(long)]
+    pub merge: String,
 
     #[arg(long)]
     pub home: Option<PathBuf>,

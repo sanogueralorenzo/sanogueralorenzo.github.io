@@ -46,6 +46,11 @@ private final class ProfileNameInputController: NSObject, NSTextFieldDelegate {
     }
 }
 
+struct SessionMergeSelection {
+    let sourceID: String
+    let mergerID: String
+}
+
 extension AppDelegate {
     func promptForProfileName(existingProfiles: [String]) -> String? {
         NSApp.activate(ignoringOtherApps: true)
@@ -115,5 +120,66 @@ This action cannot be undone.
         alert.addButton(withTitle: "Cancel")
 
         return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    func promptForSessionMergeSelection(sessions: [CodexSessionsCLIClient.SessionOption]) -> SessionMergeSelection? {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = "Merge Sessions"
+        alert.informativeText = """
+Pick a Source session and a Merger session.
+
+Codex will summarize the Merger session and append compacted non-actionable context into the Source session. After that succeeds, the Merger session is permanently deleted.
+"""
+
+        let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 92))
+
+        let sourceLabel = NSTextField(labelWithString: "Source")
+        sourceLabel.frame = NSRect(x: 0, y: 68, width: 120, height: 18)
+        accessory.addSubview(sourceLabel)
+
+        let sourcePopup = NSPopUpButton(frame: NSRect(x: 0, y: 44, width: 420, height: 24), pullsDown: false)
+        for session in sessions {
+            sourcePopup.addItem(withTitle: "\(session.title) (\(session.id))")
+        }
+        accessory.addSubview(sourcePopup)
+
+        let mergerLabel = NSTextField(labelWithString: "Merger")
+        mergerLabel.frame = NSRect(x: 0, y: 22, width: 120, height: 18)
+        accessory.addSubview(mergerLabel)
+
+        let mergerPopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 420, height: 24), pullsDown: false)
+        for session in sessions {
+            mergerPopup.addItem(withTitle: "\(session.title) (\(session.id))")
+        }
+        if sessions.count > 1 {
+            mergerPopup.selectItem(at: 1)
+        }
+        accessory.addSubview(mergerPopup)
+
+        alert.accessoryView = accessory
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else {
+            return nil
+        }
+
+        let sourceIndex = sourcePopup.indexOfSelectedItem
+        let mergerIndex = mergerPopup.indexOfSelectedItem
+        guard sourceIndex >= 0, sourceIndex < sessions.count, mergerIndex >= 0, mergerIndex < sessions.count else {
+            return nil
+        }
+        guard sourceIndex != mergerIndex else {
+            showError(CodexSessionsCLIClient.Error(message: "Source and Merger must be different sessions."))
+            return nil
+        }
+
+        return SessionMergeSelection(
+            sourceID: sessions[sourceIndex].id,
+            mergerID: sessions[mergerIndex].id
+        )
     }
 }

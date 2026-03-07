@@ -25,6 +25,7 @@ Commands:
   delete     Archive by default, or hard delete with --hard
   archive    Move one session to archived storage
   unarchive  Move one session from archived storage to active storage
+  merge      Summarize one session into another and delete the merged session
   prune      Prune old active sessions once
   watch      Run prune repeatedly on an interval
   help       Print this message or the help of the given subcommand(s)

@@ -1,16 +1,19 @@
 use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
 use crate::cli::{
-    ArchiveArgs, Cli, Commands, DeleteArgs, ListArgs, MessageArgs, PruneArgs, ShowArgs, SortBy,
-    TitlesArgs, UnarchiveArgs, WatchArgs,
+    ArchiveArgs, Cli, Commands, DeleteArgs, ListArgs, MergeArgs, MessageArgs, PruneArgs, ShowArgs,
+    SortBy, TitlesArgs, UnarchiveArgs, WatchArgs,
 };
 use crate::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
 };
-use crate::shared::models::{DeleteResult, ListResult, MessageResult, PruneResult, SessionMeta};
+use crate::shared::models::{
+    DeleteResult, ListResult, MergeResult, MessageResult, PruneResult, SessionMeta,
+};
 use crate::shared::output::OutputFormat;
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use std::collections::HashSet;
+use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
@@ -25,6 +28,7 @@ pub fn run() -> Result<()> {
         Commands::Delete(args) => cmd_delete(args),
         Commands::Archive(args) => cmd_archive(args),
         Commands::Unarchive(args) => cmd_unarchive(args),
+        Commands::Merge(args) => cmd_merge(args),
         Commands::Prune(args) => cmd_prune(args),
         Commands::Watch(args) => cmd_watch(args),
     }
@@ -304,6 +308,39 @@ fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
     emit_delete_output(result, args.json, args.plain)
 }
 
+fn cmd_merge(args: MergeArgs) -> Result<()> {
+    let target_id = args.target.trim().to_string();
+    let merge_id = args.merge.trim().to_string();
+    if target_id.is_empty() {
+        bail!("--target cannot be empty");
+    }
+    if merge_id.is_empty() {
+        bail!("--merge cannot be empty");
+    }
+    if target_id == merge_id {
+        bail!("--target and --merge must be different sessions");
+    }
+
+    let store = SessionStore::new(args.home)?;
+    let sessions = store.collect_sessions()?;
+    let target = resolve_session_by_id(&sessions, &target_id)?.clone();
+    let merge = resolve_session_by_id(&sessions, &merge_id)?.clone();
+
+    let latest_merge_message = store.read_latest_assistant_message(&merge.file_path)?;
+    let prompt = build_merge_prompt(&target, &merge, latest_merge_message.as_deref());
+    run_codex_exec_resume(&target, &prompt)?;
+
+    let deleted = store.delete_session_hard(&merge)?;
+    let result = MergeResult {
+        target_id: target.id,
+        merged_id: merge.id,
+        merged_deleted: deleted.deleted,
+        merged_file_path: deleted.file_path,
+    };
+
+    emit_merge_output(result, args.json, args.plain)
+}
+
 fn cmd_prune(args: PruneArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
     let format = OutputFormat::from_flags(args.json, args.plain);
@@ -398,6 +435,28 @@ fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> Result<()> {
     Ok(())
 }
 
+fn emit_merge_output(result: MergeResult, json: bool, plain: bool) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+
+    if plain {
+        println!(
+            "{}\t{}\t{}\t{}",
+            result.target_id, result.merged_id, result.merged_deleted, result.merged_file_path
+        );
+        return Ok(());
+    }
+
+    println!(
+        "Merged session {} into session {}.",
+        result.merged_id, result.target_id
+    );
+    println!("Deleted merged session file: {}", result.merged_file_path);
+    Ok(())
+}
+
 fn with_target_session<T, F>(store: &SessionStore, id: &str, action: F) -> Result<T>
 where
     F: FnOnce(&SessionMeta) -> Result<T>,
@@ -464,4 +523,99 @@ fn matches_search(session: &SessionMeta, needle: &str) -> bool {
             .as_deref()
             .map(|cwd| cwd.to_ascii_lowercase().contains(needle))
             .unwrap_or(false)
+}
+
+fn build_merge_prompt(
+    target: &SessionMeta,
+    merge: &SessionMeta,
+    latest_merge_message: Option<&str>,
+) -> String {
+    let merge_title = merge.title.as_deref().unwrap_or("(no title)");
+    let merge_cwd = merge.cwd.as_deref().unwrap_or("(unknown cwd)");
+    let merge_source = merge.source.as_deref().unwrap_or("(unknown source)");
+    let target_title = target.title.as_deref().unwrap_or("(no title)");
+    let latest = latest_merge_message
+        .map(|value| truncate_chars(value.trim(), 4000))
+        .unwrap_or_else(|| "(none)".to_string());
+
+    format!(
+        "You are resuming source session {target_id} ({target_title}).\n\
+         \n\
+         Merge another session into this source context.\n\
+         \n\
+         Merge session metadata:\n\
+         - id: {merge_id}\n\
+         - title: {merge_title}\n\
+         - cwd: {merge_cwd}\n\
+         - source: {merge_source}\n\
+         - file_path: {merge_path}\n\
+         \n\
+         Latest assistant message from merge session (for reference):\n\
+         {latest}\n\
+         \n\
+         Task:\n\
+         1. Produce a compact context-transfer summary from the merge session.\n\
+         2. Include only non-actionable context (decisions, constraints, preferences, resolved facts).\n\
+         3. Exclude pending tasks, TODO lists, or execution instructions.\n\
+         4. Keep it concise and structured so this source session can continue with stronger context.\n\
+         5. Do not run tools or modify files.",
+        target_id = target.id,
+        target_title = target_title,
+        merge_id = merge.id,
+        merge_title = merge_title,
+        merge_cwd = merge_cwd,
+        merge_source = merge_source,
+        merge_path = merge.file_path.display(),
+        latest = latest,
+    )
+}
+
+fn truncate_chars(value: &str, max_chars: usize) -> String {
+    if value.chars().count() <= max_chars {
+        return value.to_string();
+    }
+    let truncated: String = value.chars().take(max_chars).collect();
+    format!("{truncated}...")
+}
+
+fn run_codex_exec_resume(target: &SessionMeta, prompt: &str) -> Result<()> {
+    let mut command = Command::new("codex");
+    command
+        .arg("-a")
+        .arg("never")
+        .arg("-s")
+        .arg("workspace-write");
+
+    if let Some(cwd) = target.cwd.as_deref() {
+        let cwd_path = std::path::Path::new(cwd);
+        if cwd_path.exists() {
+            command.arg("-C").arg(cwd);
+        }
+    }
+
+    command
+        .arg("exec")
+        .arg("resume")
+        .arg("--skip-git-repo-check")
+        .arg(&target.id)
+        .arg(prompt);
+
+    let output = command
+        .output()
+        .with_context(|| format!("failed running codex exec resume for target {}", target.id))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let detail = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        format!("process exited with status {}", output.status)
+    };
+    bail!("codex exec resume failed while merging sessions: {detail}");
 }

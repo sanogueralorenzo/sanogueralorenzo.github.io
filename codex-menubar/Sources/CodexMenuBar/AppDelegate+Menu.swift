@@ -91,6 +91,13 @@ extension AppDelegate {
                 sessionsMenu.addItem(countItem)
                 sessionsMenu.addItem(.separator())
 
+                let mergeItem = NSMenuItem(title: "Merge…",
+                                           action: #selector(mergeSessions(_:)),
+                                           keyEquivalent: "")
+                mergeItem.target = self
+                sessionsMenu.addItem(mergeItem)
+                sessionsMenu.addItem(.separator())
+
                 let removeItem = NSMenuItem(title: "Remove", action: nil, keyEquivalent: "")
                 let removeMenu = NSMenu()
                 for days in [1, 3, 7] {

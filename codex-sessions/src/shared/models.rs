@@ -48,6 +48,14 @@ pub struct MessageResult {
     pub message: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct MergeResult {
+    pub target_id: String,
+    pub merged_id: String,
+    pub merged_deleted: bool,
+    pub merged_file_path: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct SessionMeta {
     pub id: String,

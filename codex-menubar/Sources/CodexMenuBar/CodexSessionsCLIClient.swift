@@ -6,9 +6,24 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
         case ready(activeSessionCount: Int)
     }
 
+    struct SessionOption: Equatable {
+        let id: String
+        let title: String
+    }
+
     struct Error: LocalizedError {
         let message: String
         var errorDescription: String? { message }
+    }
+
+    private struct ListResponse: Decodable {
+        let data: [ListEntry]
+    }
+
+    private struct ListEntry: Decodable {
+        let id: String
+        let title: String?
+        let archived: Bool
     }
 
     private let executablePath: String?
@@ -28,16 +43,22 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             return .notInstalled
         }
 
-        let output = try run(["list", "--plain"])
-        let activeSessionCount = output
-            .split(whereSeparator: \.isNewline)
-            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { line in
-                !line.isEmpty && !line.hasPrefix("next_cursor\t")
-            }
-            .count
+        let activeSessionCount = try listActiveSessions().count
 
         return .ready(activeSessionCount: activeSessionCount)
+    }
+
+    func listActiveSessions() throws -> [SessionOption] {
+        let output = try run(["list", "--all", "--json"])
+        let data = Data(output.utf8)
+        let response = try JSONDecoder().decode(ListResponse.self, from: data)
+        return response.data
+            .filter { !$0.archived }
+            .map { entry in
+                let title = entry.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let cleanedTitle = (title?.isEmpty == false) ? title! : "(no title)"
+                return SessionOption(id: entry.id, title: cleanedTitle)
+            }
     }
 
     func removeStaleSessions(olderThanDays: Int) throws {
@@ -49,6 +70,24 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             "prune",
             "--older-than-days", String(olderThanDays),
             "--hard"
+        ])
+    }
+
+    func mergeSessions(targetID: String, mergeID: String) throws {
+        guard !targetID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw Error(message: "Target session cannot be empty.")
+        }
+        guard !mergeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw Error(message: "Merge session cannot be empty.")
+        }
+        guard targetID != mergeID else {
+            throw Error(message: "Source and merger sessions must be different.")
+        }
+
+        _ = try run([
+            "merge",
+            "--target", targetID,
+            "--merge", mergeID
         ])
     }
 
