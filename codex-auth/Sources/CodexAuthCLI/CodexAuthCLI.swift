@@ -2,6 +2,96 @@ import CodexAuthCore
 import Foundation
 
 struct CodexAuthCLI {
+    private enum Command: CaseIterable {
+        case save
+        case use
+        case list
+        case current
+        case remove
+        case watch
+        case help
+
+        var aliases: [String] {
+            switch self {
+            case .save:
+                return ["save", "add"]
+            case .use:
+                return ["use"]
+            case .list:
+                return ["list"]
+            case .current:
+                return ["current"]
+            case .remove:
+                return ["remove", "rm", "delete"]
+            case .watch:
+                return ["watch"]
+            case .help:
+                return ["help", "--help", "-h"]
+            }
+        }
+
+        var usageLine: String {
+            switch self {
+            case .save:
+                return "save|add <profile> [--path <auth.json> | --from-current]"
+            case .use:
+                return "use <profile> | use --path <auth.json>"
+            case .list:
+                return "list [--plain]"
+            case .current:
+                return "current [--plain]"
+            case .remove:
+                return "remove|rm|delete <profile>"
+            case .watch:
+                return "watch <start|stop|status|run>"
+            case .help:
+                return "help"
+            }
+        }
+
+        var helpLabel: String {
+            switch self {
+            case .save:
+                return "save|add"
+            case .use:
+                return "use"
+            case .list:
+                return "list"
+            case .current:
+                return "current"
+            case .remove:
+                return "remove|rm|delete"
+            case .watch:
+                return "watch"
+            case .help:
+                return "help"
+            }
+        }
+
+        var summary: String {
+            switch self {
+            case .save:
+                return "Save a profile from current auth.json or explicit --path"
+            case .use:
+                return "Apply a saved profile or explicit --path to auth.json"
+            case .list:
+                return "List saved profiles"
+            case .current:
+                return "Print current profile and auth metadata"
+            case .remove:
+                return "Delete a saved profile"
+            case .watch:
+                return "Manage auth sync watcher (start|stop|status|run)"
+            case .help:
+                return "Print this help output"
+            }
+        }
+
+        static func resolve(_ token: String) -> Command? {
+            allCases.first { $0.aliases.contains(token) }
+        }
+    }
+
     static func main() {
         do {
             try run()
@@ -22,22 +112,25 @@ struct CodexAuthCLI {
         let customHome = try parseGlobalHomeFlag(&args)
         let manager = customHome.map { ProfileManager(homeDirectory: $0) } ?? ProfileManager()
 
-        guard let command = args.first else {
+        guard let commandToken = args.first else {
             printUsage()
             return
         }
         args.removeFirst()
+        guard let command = Command.resolve(commandToken) else {
+            throw AuthManagerError.ioFailure("Unknown command '\(commandToken)'. Run: codex-auth help")
+        }
 
         switch command {
-        case "help", "--help", "-h":
+        case .help:
             printUsage()
 
-        case "list":
-            let plain = args.first == "--plain"
+        case .list:
+            let plain = try parsePlainFlag(args, command: "list")
             try printProfiles(manager, plain: plain)
 
-        case "current":
-            let plain = args.first == "--plain"
+        case .current:
+            let plain = try parsePlainFlag(args, command: "current")
             if plain {
                 if let currentProfile = try manager.currentProfileName() {
                     print(currentProfile)
@@ -50,7 +143,7 @@ struct CodexAuthCLI {
                 print("account_id: \(masked(document.tokens.account_id))")
             }
 
-        case "save", "add":
+        case .save:
             guard let name = args.first else {
                 throw AuthManagerError.ioFailure("Missing profile name. Example: codex-auth save personal")
             }
@@ -70,7 +163,7 @@ struct CodexAuthCLI {
             let after = try manager.listProfiles()
             print("Available profiles: \(after.joined(separator: ", "))")
 
-        case "use":
+        case .use:
             guard let first = args.first else {
                 throw AuthManagerError.ioFailure("Missing profile name or --path option")
             }
@@ -79,32 +172,51 @@ struct CodexAuthCLI {
                 guard args.count >= 2 else {
                     throw AuthManagerError.ioFailure("Missing value for --path")
                 }
+                if args.count > 2 {
+                    throw AuthManagerError.ioFailure("Unexpected arguments for use --path: \(args.dropFirst(2).joined(separator: " "))")
+                }
                 let url = URL(fileURLWithPath: expandPath(args[1]))
                 let result = try manager.applyAuthFile(path: url)
                 printUseResult(result)
                 return
             }
+            if args.count > 1 {
+                throw AuthManagerError.ioFailure("Unexpected arguments for use: \(args.dropFirst().joined(separator: " "))")
+            }
 
             let result = try manager.applyProfile(name: first)
             printUseResult(result)
 
-        case "remove", "rm", "delete":
+        case .remove:
             guard let name = args.first else {
                 throw AuthManagerError.ioFailure("Missing profile name")
+            }
+            if args.count > 1 {
+                throw AuthManagerError.ioFailure("Unexpected arguments for remove: \(args.dropFirst().joined(separator: " "))")
             }
             try manager.removeProfile(name: name)
             print("Removed profile '\(name)'")
             try printProfiles(manager, plain: false)
 
-        case "watch":
+        case .watch:
             guard let action = args.first else {
                 throw AuthManagerError.ioFailure("Missing watch action. Use start, stop, status, or run.")
             }
+            if args.count > 1 {
+                throw AuthManagerError.ioFailure("Unexpected arguments for watch: \(args.dropFirst().joined(separator: " "))")
+            }
             try handleWatch(action: action, manager: manager)
-
-        default:
-            throw AuthManagerError.ioFailure("Unknown command '\(command)'. Run: codex-auth help")
         }
+    }
+
+    private static func parsePlainFlag(_ args: [String], command: String) throws -> Bool {
+        if args.isEmpty {
+            return false
+        }
+        if args.count == 1, args[0] == "--plain" {
+            return true
+        }
+        throw AuthManagerError.ioFailure("Unknown option(s) for \(command): \(args.joined(separator: " "))")
     }
 
     private static func parseSaveSource(_ args: [String]) throws -> ProfileSource {
@@ -213,34 +325,29 @@ struct CodexAuthCLI {
     }
 
     private static func printUsage() {
-        print("""
-Usage:
-  codex-auth [--home <dir>] save <profile> [--path <auth.json> | --from-current]
-  codex-auth [--home <dir>] add <profile> [--path <auth.json> | --from-current]
-  codex-auth [--home <dir>] use <profile>
-  codex-auth [--home <dir>] use --path <auth.json>
-  codex-auth [--home <dir>] list [--plain]
-  codex-auth [--home <dir>] current [--plain]
-  codex-auth [--home <dir>] remove <profile>
-  codex-auth [--home <dir>] watch <start|stop|status|run>
-  codex-auth [--home <dir>] help
-
-Commands:
-  save/add   Save a profile from current auth.json or explicit --path
-  use        Apply a saved profile or explicit --path to auth.json
-  list       List saved profiles
-  current    Print current profile and auth metadata
-  remove     Delete a saved profile
-  watch      Manage auth sync watcher (start|stop|status|run)
-  help       Print this help output
-
-Examples:
-  codex-auth save personal
-  codex-auth save work --path ~/secrets/work-auth.json
-  codex-auth use work
-  codex-auth remove personal
-  codex-auth watch start
-""")
+        let commands = Command.allCases
+        print("Usage:")
+        for command in commands {
+            print("  codex-auth [--home <dir>] \(command.usageLine)")
+        }
+        print("")
+        print("Commands:")
+        let maxLabelLength = commands.map { $0.helpLabel.count }.max() ?? 0
+        for command in commands {
+            let paddedLabel = command.helpLabel.padding(
+                toLength: maxLabelLength,
+                withPad: " ",
+                startingAt: 0
+            )
+            print("  \(paddedLabel)  \(command.summary)")
+        }
+        print("")
+        print("Examples:")
+        print("  codex-auth save personal")
+        print("  codex-auth save work --path ~/secrets/work-auth.json")
+        print("  codex-auth use work")
+        print("  codex-auth remove personal")
+        print("  codex-auth watch start")
     }
 
     private static func handleWatch(action: String, manager: ProfileManager) throws {

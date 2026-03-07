@@ -10,7 +10,7 @@
 
 ## Reference
 
-### Help (`codex-remote help`)
+### Help (`codex-remote --help`)
 
 ```text
 Usage:
@@ -20,14 +20,16 @@ Usage:
   ./scripts/codex-remote status [--plain]
   ./scripts/codex-remote restart [--plain]
   ./scripts/codex-remote logs [-f|--follow]
+  ./scripts/codex-remote help
 
 Commands:
-  install    Install npm dependencies in project root.
-  start      Start background bot process and persist PID/log state.
-  stop       Stop managed background bot process.
-  status     Print managed process status.
-  restart    Stop and then start managed process.
-  logs       Show recent logs (or follow with -f).
+  install  Install npm dependencies in project root.
+  start    Start background bot process and persist PID/log state.
+  stop     Stop managed background bot process.
+  status   Print managed process status.
+  restart  Stop and then start managed process.
+  logs     Show recent logs (or follow with -f).
+  help     Print this help output.
 
 Notes:
 - Default command when omitted is: start

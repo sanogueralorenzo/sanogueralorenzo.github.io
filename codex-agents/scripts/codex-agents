@@ -1,86 +1,184 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-print_usage() {
-  cat <<USAGE
-Usage:
-  codex-agents help
-  codex-agents config init
-  codex-agents task create <TICKET-KEY>
-  codex-agents task list
-  codex-agents task show <TICKET-KEY>
-  codex-agents worker start
+COMMAND_NAMES=()
+COMMAND_USAGES=()
+COMMAND_DESCRIPTIONS=()
+COMMAND_HANDLERS=()
 
-Commands:
-  config init         Initialize local codex-agents configuration.
-  task create         Create a task from a ticket key.
-  task list           List tracked tasks.
-  task show           Show task details by ticket key.
-  worker start        Start autonomous worker loop.
-  help                Print this help output.
-USAGE
+register_command() {
+  local name="$1"
+  local usage="$2"
+  local description="$3"
+  local handler="$4"
+
+  if [[ -z "$name" || -z "$usage" || -z "$description" || -z "$handler" ]]; then
+    echo "Internal error: invalid command registration." >&2
+    exit 1
+  fi
+
+  if command_index_by_name "$name" >/dev/null; then
+    echo "Internal error: duplicated command registration '$name'." >&2
+    exit 1
+  fi
+
+  COMMAND_NAMES+=("$name")
+  COMMAND_USAGES+=("$usage")
+  COMMAND_DESCRIPTIONS+=("$description")
+  COMMAND_HANDLERS+=("$handler")
 }
 
-main() {
-  local command="${1:-help}"
-  case "$command" in
-    help|--help|-h)
-      if [[ "$#" -gt 1 ]]; then
-        echo "Unexpected arguments for help: ${*:2}" >&2
+command_index_by_name() {
+  local target="$1"
+  local i
+  for (( i=0; i<${#COMMAND_NAMES[@]}; i++ )); do
+    if [[ "${COMMAND_NAMES[$i]}" == "$target" ]]; then
+      echo "$i"
+      return 0
+    fi
+  done
+  return 1
+}
+
+init_command_registry() {
+  register_command "config" "config init" "Initialize local codex-agents configuration." "command_config"
+  register_command "task" "task create|list|show ..." "Create/list/show tasks." "command_task"
+  register_command "worker" "worker start" "Start autonomous worker loop." "command_worker"
+  register_command "help" "help" "Print this help output." "command_help"
+}
+
+print_usage() {
+  local max_len=0
+  local i
+  for (( i=0; i<${#COMMAND_NAMES[@]}; i++ )); do
+    if (( ${#COMMAND_NAMES[$i]} > max_len )); then
+      max_len=${#COMMAND_NAMES[$i]}
+    fi
+  done
+
+  echo "Usage:"
+  for (( i=0; i<${#COMMAND_NAMES[@]}; i++ )); do
+    echo "  codex-agents ${COMMAND_USAGES[$i]}"
+  done
+  echo
+  echo "Commands:"
+  for (( i=0; i<${#COMMAND_NAMES[@]}; i++ )); do
+    printf "  %-*s  %s\n" "$max_len" "${COMMAND_NAMES[$i]}" "${COMMAND_DESCRIPTIONS[$i]}"
+  done
+}
+
+command_help() {
+  if [[ "$#" -gt 0 ]]; then
+    echo "Unexpected arguments for help: $*" >&2
+    exit 1
+  fi
+  print_usage
+}
+
+command_config() {
+  if [[ "${1:-}" == "init" ]]; then
+    if [[ "$#" -gt 1 ]]; then
+      echo "Unexpected arguments for config init: ${*:2}" >&2
+      exit 1
+    fi
+    echo "config init is not implemented yet." >&2
+    exit 2
+  fi
+
+  echo "Unknown config command. Run: codex-agents help" >&2
+  exit 1
+}
+
+command_task() {
+  local subcommand="${1:-}"
+  case "$subcommand" in
+    create)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing ticket key. Example: codex-agents task create TS-1234" >&2
         exit 1
       fi
-      print_usage
-      ;;
-    config)
-      if [[ "${2:-}" == "init" ]]; then
-        echo "config init is not implemented yet." >&2
-        exit 2
+      if [[ "$#" -gt 2 ]]; then
+        echo "Unexpected arguments for task create: ${*:3}" >&2
+        exit 1
       fi
-      echo "Unknown config command. Run: codex-agents help" >&2
-      exit 1
+      echo "task create is not implemented yet." >&2
+      exit 2
       ;;
-    task)
-      case "${2:-}" in
-        create)
-          if [[ -z "${3:-}" ]]; then
-            echo "Missing ticket key. Example: codex-agents task create TS-1234" >&2
-            exit 1
-          fi
-          echo "task create is not implemented yet." >&2
-          exit 2
-          ;;
-        list)
-          echo "task list is not implemented yet." >&2
-          exit 2
-          ;;
-        show)
-          if [[ -z "${3:-}" ]]; then
-            echo "Missing ticket key. Example: codex-agents task show TS-1234" >&2
-            exit 1
-          fi
-          echo "task show is not implemented yet." >&2
-          exit 2
-          ;;
-        *)
-          echo "Unknown task command. Run: codex-agents help" >&2
-          exit 1
-          ;;
-      esac
-      ;;
-    worker)
-      if [[ "${2:-}" == "start" ]]; then
-        echo "worker start is not implemented yet." >&2
-        exit 2
+    list)
+      if [[ "$#" -gt 1 ]]; then
+        echo "Unexpected arguments for task list: ${*:2}" >&2
+        exit 1
       fi
-      echo "Unknown worker command. Run: codex-agents help" >&2
-      exit 1
+      echo "task list is not implemented yet." >&2
+      exit 2
+      ;;
+    show)
+      if [[ -z "${2:-}" ]]; then
+        echo "Missing ticket key. Example: codex-agents task show TS-1234" >&2
+        exit 1
+      fi
+      if [[ "$#" -gt 2 ]]; then
+        echo "Unexpected arguments for task show: ${*:3}" >&2
+        exit 1
+      fi
+      echo "task show is not implemented yet." >&2
+      exit 2
       ;;
     *)
-      echo "Unknown command: $command" >&2
-      print_usage >&2
+      echo "Unknown task command. Run: codex-agents help" >&2
       exit 1
       ;;
   esac
+}
+
+command_worker() {
+  if [[ "${1:-}" == "start" ]]; then
+    if [[ "$#" -gt 1 ]]; then
+      echo "Unexpected arguments for worker start: ${*:2}" >&2
+      exit 1
+    fi
+    echo "worker start is not implemented yet." >&2
+    exit 2
+  fi
+
+  echo "Unknown worker command. Run: codex-agents help" >&2
+  exit 1
+}
+
+dispatch_command() {
+  local command="$1"
+  shift
+
+  if [[ "$command" == "--help" || "$command" == "-h" ]]; then
+    command="help"
+  fi
+
+  local index
+  if ! index="$(command_index_by_name "$command")"; then
+    echo "Unknown command: $command" >&2
+    print_usage >&2
+    exit 1
+  fi
+
+  local handler="${COMMAND_HANDLERS[$index]}"
+  if ! declare -F "$handler" >/dev/null 2>&1; then
+    echo "Internal error: handler '$handler' is not implemented for command '$command'." >&2
+    exit 1
+  fi
+
+  "$handler" "$@"
+}
+
+main() {
+  init_command_registry
+
+  local command="help"
+  if [[ "$#" -gt 0 ]]; then
+    command="$1"
+    shift
+  fi
+
+  dispatch_command "$command" "$@"
 }
 
 main "$@"
