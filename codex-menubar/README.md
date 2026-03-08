@@ -18,6 +18,7 @@
   - `codex-sessions` (required)
   - `codex-remote` (optional)
 - `CodexRemoteCLIClient` uses a single executable-availability check path for install/start/stop/restart calls.
+- Codex Remote menu actions are labeled `Start` and `Stop`.
 - On app launch, menubar runs `codex-auth watch start`.
 - On app launch, menubar always runs `codex-sessions watch thread-titles start`.
 - `Quit` performs best-effort stop for managed background processes (`codex-remote`, `codex-sessions` thread-title watcher, `codex-auth` watcher) before terminating the app.

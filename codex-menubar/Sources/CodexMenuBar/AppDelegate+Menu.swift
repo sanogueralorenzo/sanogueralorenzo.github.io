@@ -27,13 +27,13 @@ extension AppDelegate {
             install.target = self
             menu.addItem(install)
         case .start:
-            let start = NSMenuItem(title: "Start Bot",
+            let start = NSMenuItem(title: "Start",
                                    action: #selector(startCodexRemote(_:)),
                                    keyEquivalent: "")
             start.target = self
             menu.addItem(start)
         case .stop:
-            let stop = NSMenuItem(title: "Stop Bot",
+            let stop = NSMenuItem(title: "Stop",
                                   action: #selector(stopCodexRemote(_:)),
                                   keyEquivalent: "")
             stop.target = self
