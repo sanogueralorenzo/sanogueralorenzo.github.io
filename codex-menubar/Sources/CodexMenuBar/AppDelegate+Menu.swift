@@ -96,7 +96,7 @@ extension AppDelegate {
                 titleGenerationItem.target = self
                 titleGenerationItem.state = data.isSessionTitleWatcherRunning ? .on : .off
                 titleGenerationItem.representedObject = data.isSessionTitleWatcherRunning
-                titleGenerationItem.toolTip = "Auto-generate short thread titles"
+                titleGenerationItem.toolTip = "Auto-generate thread titles"
                 sessionsMenu.addItem(titleGenerationItem)
 
                 let mergeItem = NSMenuItem(title: "Merge…",
