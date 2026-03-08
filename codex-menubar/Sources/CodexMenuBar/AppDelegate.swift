@@ -17,7 +17,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var rateLimitsSnapshot: CodexRateLimitsSnapshot?
     private var isRateLimitsLoading = false
     private var rateLimitsRequestGeneration = 0
-    private let sessionTitleWatcherPreferenceKey = "codex.menubar.sessions.watch-thread-titles.enabled"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -32,17 +31,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             fputs("Warning: failed to start codex-auth watcher: \(error)\n", stderr)
         }
 
-        if isSessionTitleWatcherPreferredEnabled() {
-            let sessionsCLI = self.sessionsCLI
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                do {
-                    try sessionsCLI.startTitleWatcher()
-                } catch {
-                    fputs("Warning: failed to start codex-sessions thread-title watcher: \(error)\n", stderr)
-                }
-                DispatchQueue.main.async {
-                    self?.refreshUI()
-                }
+        let sessionsCLI = self.sessionsCLI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                try sessionsCLI.startTitleWatcher()
+            } catch {
+                fputs("Warning: failed to start codex-sessions thread-title watcher: \(error)\n", stderr)
+            }
+            DispatchQueue.main.async {
+                self?.refreshUI()
             }
         }
 
@@ -77,18 +74,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return withSpaces
         }
         return String(first).uppercased() + withSpaces.dropFirst()
-    }
-
-    func isSessionTitleWatcherPreferredEnabled() -> Bool {
-        let defaults = UserDefaults.standard
-        if defaults.object(forKey: sessionTitleWatcherPreferenceKey) == nil {
-            return true
-        }
-        return defaults.bool(forKey: sessionTitleWatcherPreferenceKey)
-    }
-
-    func setSessionTitleWatcherPreferredEnabled(_ isEnabled: Bool) {
-        UserDefaults.standard.set(isEnabled, forKey: sessionTitleWatcherPreferenceKey)
     }
 
     func refreshUI() {

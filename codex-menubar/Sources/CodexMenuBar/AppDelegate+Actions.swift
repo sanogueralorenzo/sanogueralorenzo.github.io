@@ -160,36 +160,6 @@ extension AppDelegate {
         }
     }
 
-    @objc func toggleSessionTitleWatcher(_ sender: NSMenuItem) {
-        let isCurrentlyRunning = (sender.representedObject as? Bool) ?? false
-        let shouldEnable = !isCurrentlyRunning
-        setSessionTitleWatcherPreferredEnabled(shouldEnable)
-        let sessionsCLI = self.sessionsCLI
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else {
-                return
-            }
-
-            do {
-                if shouldEnable {
-                    try sessionsCLI.startTitleWatcher()
-                } else {
-                    try sessionsCLI.stopTitleWatcher()
-                }
-
-                DispatchQueue.main.async {
-                    self.refreshUI()
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.setSessionTitleWatcherPreferredEnabled(isCurrentlyRunning)
-                    self.showError(error)
-                }
-            }
-        }
-    }
-
     @objc func openHelp(_ sender: Any?) {
         guard let url = URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex-menubar") else {
             return
