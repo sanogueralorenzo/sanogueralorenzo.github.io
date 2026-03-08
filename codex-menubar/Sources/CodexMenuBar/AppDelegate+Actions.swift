@@ -162,6 +162,8 @@ extension AppDelegate {
 
     @objc func toggleSessionTitleWatcher(_ sender: NSMenuItem) {
         let isCurrentlyRunning = (sender.representedObject as? Bool) ?? false
+        let shouldEnable = !isCurrentlyRunning
+        setSessionTitleWatcherPreferredEnabled(shouldEnable)
         let sessionsCLI = self.sessionsCLI
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -170,10 +172,10 @@ extension AppDelegate {
             }
 
             do {
-                if isCurrentlyRunning {
-                    try sessionsCLI.stopTitleWatcher()
-                } else {
+                if shouldEnable {
                     try sessionsCLI.startTitleWatcher()
+                } else {
+                    try sessionsCLI.stopTitleWatcher()
                 }
 
                 DispatchQueue.main.async {
@@ -181,6 +183,7 @@ extension AppDelegate {
                 }
             } catch {
                 DispatchQueue.main.async {
+                    self.setSessionTitleWatcherPreferredEnabled(isCurrentlyRunning)
                     self.showError(error)
                 }
             }

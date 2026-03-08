@@ -18,8 +18,10 @@
   - `codex-sessions` (required)
   - `codex-remote` (optional)
 - On app launch, menubar runs `codex-auth watch start`.
+- On app launch, menubar runs `codex-sessions watch thread-titles start` by default.
+- `Watch Thread Titles` preference is persisted; if user disables it, launch auto-start remains disabled until re-enabled.
 - Sessions submenu includes `Watch Thread Titles` toggle (mapped to `codex-sessions watch thread-titles start|stop|status`), merge transfer (`target <- merger`), and stale hard-delete actions (1/3/7 days).
-- `Watch Thread Titles` includes a tooltip summary in-menu for quick behavior/context discovery.
+- `Watch Thread Titles` tooltip: `Auto-generate short thread titles`.
 - Sessions submenu is rendered as a compact list without divider lines between those actions.
 - Merge Target/Merger pickers display conversation titles only (no session IDs).
 - Remove stale sessions uses a compact dialog with 1d/3d/7d stale-window segmented control and folder-ordered multi-select deletion list.
