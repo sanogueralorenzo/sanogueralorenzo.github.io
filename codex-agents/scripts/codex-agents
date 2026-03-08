@@ -111,29 +111,27 @@ print_command_help_by_name() {
   print_command_help_by_index "$index"
 }
 
+print_usage_and_description() {
+  local usage="$1"
+  local description="$2"
+  echo "Usage:"
+  echo "  $usage"
+  echo
+  echo "Description:"
+  echo "  $description"
+}
+
 print_task_subcommand_help() {
   local subcommand="$1"
   case "$subcommand" in
     create)
-      echo "Usage:"
-      echo "  codex-agents task create <TICKET-KEY>"
-      echo
-      echo "Description:"
-      echo "  Create task from ticket key."
+      print_usage_and_description "codex-agents task create <TICKET-KEY>" "Create task from ticket key."
       ;;
     list)
-      echo "Usage:"
-      echo "  codex-agents task list"
-      echo
-      echo "Description:"
-      echo "  List tracked tasks."
+      print_usage_and_description "codex-agents task list" "List tracked tasks."
       ;;
     show)
-      echo "Usage:"
-      echo "  codex-agents task show <TICKET-KEY>"
-      echo
-      echo "Description:"
-      echo "  Show task details by ticket key."
+      print_usage_and_description "codex-agents task show <TICKET-KEY>" "Show task details by ticket key."
       ;;
     *)
       echo "Unknown task command: $subcommand" >&2
@@ -171,11 +169,7 @@ command_config() {
         echo "Unexpected arguments for config init --help: ${*:3}" >&2
         exit 1
       fi
-      echo "Usage:"
-      echo "  codex-agents config init"
-      echo
-      echo "Description:"
-      echo "  Initialize local codex-agents configuration."
+      print_usage_and_description "codex-agents config init" "Initialize local codex-agents configuration."
       return
     fi
     if [[ "$#" -gt 1 ]]; then
@@ -280,11 +274,7 @@ command_worker() {
         echo "Unexpected arguments for worker start --help: ${*:3}" >&2
         exit 1
       fi
-      echo "Usage:"
-      echo "  codex-agents worker start"
-      echo
-      echo "Description:"
-      echo "  Start autonomous worker loop."
+      print_usage_and_description "codex-agents worker start" "Start autonomous worker loop."
       return
     fi
     if [[ "$#" -gt 1 ]]; then

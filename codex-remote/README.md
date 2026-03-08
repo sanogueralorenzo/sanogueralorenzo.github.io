@@ -36,6 +36,7 @@ Notes:
 - start builds (`npm run build`) then runs `node dist/index.js` in background.
 - start writes logs to: $HOME/.codex/remote/codex-remote.log
 - start/stop also reconcile orphan bot runtime PIDs for this repo path.
+- runtime PID reconciliation parses `ps` output in one pass (PID + command tokens) to avoid extra subprocess parsing overhead.
 ```
 
 ### Help Patterns

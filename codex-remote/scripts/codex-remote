@@ -190,13 +190,8 @@ is_running() {
 }
 
 list_codex_remote_runtime_pids() {
-  /bin/ps -axo pid=,command= | while IFS= read -r line; do
-    local pid
-    local command
-    pid="$(echo "$line" | awk '{print $1}')"
-    command="$(echo "$line" | cut -d' ' -f2-)"
-
-    [[ -n "$pid" && -n "$command" ]] || continue
+  /bin/ps -axo pid=,command= | while IFS= read -r pid command; do
+    [[ -n "$pid" && -n "${command:-}" ]] || continue
     if [[ "$command" == *"$PROJECT_ROOT/node_modules/.bin/tsx watch src/index.ts"* ]]; then
       echo "$pid"
       continue
@@ -206,6 +201,15 @@ list_codex_remote_runtime_pids() {
       continue
     fi
   done | sort -n | uniq
+}
+
+print_stopped_status() {
+  local plain="$1"
+  if [[ "$plain" == "true" ]]; then
+    echo "stopped"
+  else
+    echo "Stopped"
+  fi
 }
 
 kill_pid_with_grace() {
@@ -344,11 +348,7 @@ cmd_stop() {
   if ! is_running; then
     rm -f "$PID_FILE"
     kill_codex_remote_runtime_pids_excluding ""
-    if [[ "$plain" == "true" ]]; then
-      echo "stopped"
-    else
-      echo "Stopped"
-    fi
+    print_stopped_status "$plain"
     return 0
   fi
 
@@ -359,11 +359,7 @@ cmd_stop() {
   kill_codex_remote_runtime_pids_excluding ""
   rm -f "$PID_FILE"
   stop_caffeinate_if_any
-  if [[ "$plain" == "true" ]]; then
-    echo "stopped"
-  else
-    echo "Stopped"
-  fi
+  print_stopped_status "$plain"
 }
 
 cmd_restart() {

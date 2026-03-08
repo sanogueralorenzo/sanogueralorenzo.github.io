@@ -39,18 +39,8 @@ pub(crate) fn validate_delete_args(args: &DeleteArgs) -> Result<()> {
 pub(crate) fn has_selector_flags(args: &DeleteArgs) -> bool {
     args.all
         || args.older_than_days.is_some()
-        || args
-            .folder
-            .as_deref()
-            .map(str::trim)
-            .map(|value| !value.is_empty())
-            .unwrap_or(false)
-        || args
-            .search
-            .as_deref()
-            .map(str::trim)
-            .map(|value| !value.is_empty())
-            .unwrap_or(false)
+        || has_non_empty_value(args.folder.as_deref())
+        || has_non_empty_value(args.search.as_deref())
 }
 
 pub(crate) fn resolve_delete_targets<'a>(
@@ -208,15 +198,17 @@ pub(crate) fn resolve_cwd_filter(
 }
 
 pub(crate) fn matches_search(session: &SessionMeta, needle: &str) -> bool {
-    session
-        .title
-        .as_deref()
-        .map(|title| title.to_ascii_lowercase().contains(needle))
-        .unwrap_or(false)
+    contains_normalized_needle(session.title.as_deref(), needle)
         || session.id.to_ascii_lowercase().contains(needle)
-        || session
-            .cwd
-            .as_deref()
-            .map(|cwd| cwd.to_ascii_lowercase().contains(needle))
-            .unwrap_or(false)
+        || contains_normalized_needle(session.cwd.as_deref(), needle)
+}
+
+fn has_non_empty_value(value: Option<&str>) -> bool {
+    value.map(str::trim).is_some_and(|v| !v.is_empty())
+}
+
+fn contains_normalized_needle(value: Option<&str>, needle: &str) -> bool {
+    value
+        .map(|v| v.to_ascii_lowercase().contains(needle))
+        .unwrap_or(false)
 }

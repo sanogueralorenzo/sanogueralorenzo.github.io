@@ -39,7 +39,7 @@ Options:
 
 - Command implementation is split by responsibility under `src/commands/`:
   - `handlers.rs` (CLI command handlers/dispatch)
-  - `selection.rs` (target resolution/filter/sort helpers)
+  - `selection.rs` (target resolution/filter/sort helpers + shared selector/search normalization helpers)
   - `output.rs` (human/plain/json emitters)
   - `watcher.rs` (thread-title watcher daemon/run loop)
   - `title_generation.rs` (title prompt + normalization + tests)

@@ -35,6 +35,8 @@ codex-agents task --help
 codex-agents task create --help
 ```
 
+- Subcommand help output uses a shared usage/description formatter to keep text consistent.
+
 ### Storage
 
 - Persistent storage is not implemented yet in this module.
