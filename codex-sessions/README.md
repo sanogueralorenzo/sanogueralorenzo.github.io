@@ -35,6 +35,17 @@ Options:
   -h, --help  Print help
 ```
 
+### Source Layout
+
+- Command implementation is split by responsibility under `src/commands/`:
+  - `handlers.rs` (CLI command handlers/dispatch)
+  - `selection.rs` (target resolution/filter/sort helpers)
+  - `output.rs` (human/plain/json emitters)
+  - `watcher.rs` (thread-title watcher daemon/run loop)
+  - `title_generation.rs` (title prompt + normalization + tests)
+  - `prompts.rs` (merge/apply prompt builders)
+  - `codex_exec.rs` (shared `codex exec resume` runners)
+
 ### List Ordering
 
 - `list --folders` orders sessions by folder, then by `last_updated_at` descending inside each folder.
