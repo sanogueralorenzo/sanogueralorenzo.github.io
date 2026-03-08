@@ -396,7 +396,7 @@ Codex will summarize the Merger session and append compacted non-actionable cont
 
         let targetPopup = NSPopUpButton(frame: NSRect(x: 0, y: 44, width: 420, height: 24), pullsDown: false)
         for session in sessions {
-            targetPopup.addItem(withTitle: "\(session.title) (\(session.id))")
+            targetPopup.addItem(withTitle: session.title)
         }
         accessory.addSubview(targetPopup)
 
@@ -406,7 +406,7 @@ Codex will summarize the Merger session and append compacted non-actionable cont
 
         let mergerPopup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 420, height: 24), pullsDown: false)
         for session in sessions {
-            mergerPopup.addItem(withTitle: "\(session.title) (\(session.id))")
+            mergerPopup.addItem(withTitle: session.title)
         }
         if sessions.count > 1 {
             mergerPopup.selectItem(at: 1)

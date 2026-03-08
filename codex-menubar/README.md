@@ -18,6 +18,7 @@
   - `codex-sessions` (required)
   - `codex-remote` (optional)
 - Sessions submenu supports merge transfer (`target <- merger`) and stale hard-delete actions (1/3/7 days).
+- Merge Target/Merger pickers display conversation titles only (no session IDs).
 - Remove stale sessions uses a compact dialog with 1d/3d/7d stale-window segmented control and folder-ordered multi-select deletion list.
 - Stale-session rows are two-line: title + folder/updated/id metadata.
 - Stale-session dialog includes `Select All` and `Clear` actions plus a dynamic `Delete N` primary button.
