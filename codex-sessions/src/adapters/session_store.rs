@@ -4,14 +4,47 @@ use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
-use std::fs;
-use std::io::{BufRead, BufReader};
+use std::fs::{self, File, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
+use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
 pub struct SessionStore {
     codex_home: PathBuf,
+}
+
+const TITLE_WRITE_LOCK_PATH: &str = ".locks/title-write.lock";
+const TITLE_WRITE_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
+const TITLE_WRITE_LOCK_POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+#[derive(Debug)]
+struct TitleWriteLock {
+    file: File,
+    lock_path: PathBuf,
+}
+
+impl Drop for TitleWriteLock {
+    fn drop(&mut self) {
+        let result = unsafe { libc::flock(self.file.as_raw_fd(), libc::LOCK_UN) };
+        if result != 0 {
+            let error = std::io::Error::last_os_error();
+            eprintln!(
+                "[codex-sessions:title-lock] release failed path={} error={}",
+                self.lock_path.display(),
+                error
+            );
+            return;
+        }
+
+        eprintln!(
+            "[codex-sessions:title-lock] released path={}",
+            self.lock_path.display()
+        );
+    }
 }
 
 impl SessionStore {
@@ -278,10 +311,76 @@ impl SessionStore {
         }
 
         self.update_thread_title_in_db(id, title)?;
+        let _lock = self.acquire_title_write_lock()?;
         self.upsert_thread_title_in_global_state(id, title)?;
         self.upsert_thread_title_in_session_index(id, title)?;
 
         Ok(())
+    }
+
+    fn title_write_lock_path(&self) -> PathBuf {
+        self.codex_home.join(TITLE_WRITE_LOCK_PATH)
+    }
+
+    fn acquire_title_write_lock(&self) -> Result<TitleWriteLock> {
+        self.acquire_title_write_lock_with_timeout(TITLE_WRITE_LOCK_TIMEOUT)
+    }
+
+    fn acquire_title_write_lock_with_timeout(&self, timeout: Duration) -> Result<TitleWriteLock> {
+        let lock_path = self.title_write_lock_path();
+        let Some(parent) = lock_path.parent() else {
+            bail!("invalid lock path: {}", lock_path.display());
+        };
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .open(&lock_path)
+            .with_context(|| format!("failed to open {}", lock_path.display()))?;
+
+        eprintln!(
+            "[codex-sessions:title-lock] waiting path={} timeout_ms={}",
+            lock_path.display(),
+            timeout.as_millis()
+        );
+
+        let start = Instant::now();
+        loop {
+            let result = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+            if result == 0 {
+                eprintln!(
+                    "[codex-sessions:title-lock] acquired path={} waited_ms={}",
+                    lock_path.display(),
+                    start.elapsed().as_millis()
+                );
+                return Ok(TitleWriteLock { file, lock_path });
+            }
+
+            let error = std::io::Error::last_os_error();
+            let raw = error.raw_os_error().unwrap_or_default();
+            let is_contended = raw == libc::EWOULDBLOCK || raw == libc::EAGAIN;
+            if !is_contended {
+                return Err(error).with_context(|| {
+                    format!(
+                        "failed acquiring title-write lock at {}",
+                        lock_path.display()
+                    )
+                });
+            }
+
+            if start.elapsed() >= timeout {
+                bail!(
+                    "timed out waiting {}s for title-write lock at {}",
+                    timeout.as_secs(),
+                    lock_path.display()
+                );
+            }
+
+            thread::sleep(TITLE_WRITE_LOCK_POLL_INTERVAL);
+        }
     }
 
     fn state_db_path(&self) -> Result<Option<PathBuf>> {
@@ -586,9 +685,8 @@ impl SessionStore {
             }
         }
 
-        let serialized = serde_json::to_string_pretty(&parsed)?;
-        fs::write(&file_path, format!("{serialized}\n"))
-            .with_context(|| format!("failed to write {}", file_path.display()))?;
+        let serialized = format!("{}\n", serde_json::to_string_pretty(&parsed)?);
+        write_text_file_atomic(&file_path, &serialized)?;
 
         Ok(())
     }
@@ -640,8 +738,8 @@ impl SessionStore {
             }))?);
         }
 
-        fs::write(&file_path, format!("{}\n", lines.join("\n")))
-            .with_context(|| format!("failed to write {}", file_path.display()))?;
+        let serialized = format!("{}\n", lines.join("\n"));
+        write_text_file_atomic(&file_path, &serialized)?;
 
         Ok(())
     }
@@ -1098,6 +1196,57 @@ fn extract_thread_id(path: &Path) -> Option<String> {
     None
 }
 
+fn write_text_file_atomic(path: &Path, contents: &str) -> Result<()> {
+    let Some(parent) = path.parent() else {
+        bail!("path has no parent: {}", path.display());
+    };
+    fs::create_dir_all(parent).with_context(|| format!("failed to create {}", parent.display()))?;
+
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| anyhow!("invalid file name for {}", path.display()))?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_nanos();
+    let tmp_path = parent.join(format!(".{file_name}.tmp-{}-{nonce}", std::process::id()));
+
+    let result = (|| -> Result<()> {
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&tmp_path)
+            .with_context(|| format!("failed to create {}", tmp_path.display()))?;
+        file.write_all(contents.as_bytes())
+            .with_context(|| format!("failed to write {}", tmp_path.display()))?;
+        file.sync_all()
+            .with_context(|| format!("failed to fsync {}", tmp_path.display()))?;
+        drop(file);
+
+        fs::rename(&tmp_path, path).with_context(|| {
+            format!(
+                "failed to rename {} to {}",
+                tmp_path.display(),
+                path.display()
+            )
+        })?;
+
+        let dir = File::open(parent)
+            .with_context(|| format!("failed to open directory {}", parent.display()))?;
+        dir.sync_all()
+            .with_context(|| format!("failed to fsync directory {}", parent.display()))?;
+
+        Ok(())
+    })();
+
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp_path);
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1295,6 +1444,27 @@ mod tests {
             titles.get(id).map(String::as_str),
             Some("Refactor DeviceMode to sealed class")
         );
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
+    fn title_write_lock_times_out_when_contended() {
+        let temp_root =
+            std::env::temp_dir().join(format!("codex-sessions-test-{}", Uuid::new_v4()));
+        let codex_home = temp_root.join(".codex");
+        fs::create_dir_all(&codex_home).expect("create codex home");
+
+        let store = SessionStore { codex_home };
+        let _first = store
+            .acquire_title_write_lock_with_timeout(Duration::from_millis(200))
+            .expect("first lock acquired");
+
+        let error = store
+            .acquire_title_write_lock_with_timeout(Duration::from_millis(100))
+            .expect_err("second lock should time out");
+        let message = error.to_string();
+        assert!(message.contains("timed out waiting"));
 
         let _ = fs::remove_dir_all(temp_root);
     }

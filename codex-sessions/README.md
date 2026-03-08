@@ -78,6 +78,10 @@ Options:
   - `threads.title` in `state_*.sqlite` (when present)
   - `thread-titles.titles.<id>` in `~/.codex/.codex-global-state.json`
   - `thread_name` (and `title`) in `~/.codex/session_index.jsonl`
+- write concurrency for title persistence uses advisory `flock` at `~/.codex/.locks/title-write.lock`:
+  - waits up to 10s to acquire lock, then fails with timeout error
+  - lock scope covers only JSON file persistence (model generation runs outside lock)
+  - JSON writes use atomic `tmp + fsync + rename` while lock is held
 
 ### Storage
 
