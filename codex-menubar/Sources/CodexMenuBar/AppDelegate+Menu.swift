@@ -98,14 +98,11 @@ extension AppDelegate {
                 titleGenerationItem.representedObject = data.isSessionTitleWatcherRunning
                 sessionsMenu.addItem(titleGenerationItem)
 
-                sessionsMenu.addItem(.separator())
-
                 let mergeItem = NSMenuItem(title: "Merge…",
                                            action: #selector(mergeSessions(_:)),
                                            keyEquivalent: "")
                 mergeItem.target = self
                 sessionsMenu.addItem(mergeItem)
-                sessionsMenu.addItem(.separator())
 
                 let removeItem = NSMenuItem(title: "Remove…",
                                             action: #selector(removeStaleSessions(_:)),

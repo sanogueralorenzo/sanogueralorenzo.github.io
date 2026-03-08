@@ -19,6 +19,7 @@
   - `codex-remote` (optional)
 - On app launch, menubar runs `codex-auth watch start`.
 - Sessions submenu includes `watch-title` toggle (mapped to `codex-sessions watch-title start|stop|status`), merge transfer (`target <- merger`), and stale hard-delete actions (1/3/7 days).
+- Sessions submenu is rendered as a compact list without divider lines between those actions.
 - Merge Target/Merger pickers display conversation titles only (no session IDs).
 - Remove stale sessions uses a compact dialog with 1d/3d/7d stale-window segmented control and folder-ordered multi-select deletion list.
 - Stale-session rows are two-line: title + folder/updated/id metadata.
