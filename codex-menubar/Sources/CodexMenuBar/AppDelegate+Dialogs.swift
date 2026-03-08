@@ -58,50 +58,55 @@ struct StaleSessionRemovalSelection {
 
 @MainActor
 private final class StaleSessionRemovalController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    private struct DisplayRow {
+        let title: String
+        let meta: String
+    }
+
     private let staleByDays: [Int: [CodexSessionsCLIClient.SessionOption]]
     private let dayOptions = [1, 3, 7]
-    private let popup: NSPopUpButton
+    private let segmentedControl: NSSegmentedControl
     private let tableView: NSTableView
     private let confirmButton: NSButton
     private var currentRows: [CodexSessionsCLIClient.SessionOption] = []
-    private var currentRowLabels: [String] = []
+    private var displayRows: [DisplayRow] = []
 
     init(staleByDays: [Int: [CodexSessionsCLIClient.SessionOption]],
-         popup: NSPopUpButton,
+         segmentedControl: NSSegmentedControl,
          tableView: NSTableView,
          confirmButton: NSButton) {
         self.staleByDays = staleByDays
-        self.popup = popup
+        self.segmentedControl = segmentedControl
         self.tableView = tableView
         self.confirmButton = confirmButton
     }
 
     func bootstrap(defaultDays: Int = 3) {
-        popup.removeAllItems()
-        for days in dayOptions {
-            let label = days == 1 ? "1 day stale" : "\(days) days stale"
-            popup.addItem(withTitle: label)
-            popup.lastItem?.tag = days
+        segmentedControl.segmentCount = dayOptions.count
+        for (index, days) in dayOptions.enumerated() {
+            segmentedControl.setLabel("\(days)d", forSegment: index)
         }
         if let index = dayOptions.firstIndex(of: defaultDays) {
-            popup.selectItem(at: index)
+            segmentedControl.selectedSegment = index
+        } else {
+            segmentedControl.selectedSegment = 1
         }
-        popup.target = self
-        popup.action = #selector(handleDaysChanged(_:))
+        segmentedControl.target = self
+        segmentedControl.action = #selector(handleDaysChanged(_:))
 
         tableView.delegate = self
         tableView.dataSource = self
         reloadRows()
     }
 
-    @objc func handleDaysChanged(_ sender: NSPopUpButton) {
+    @objc func handleDaysChanged(_ sender: NSSegmentedControl) {
         reloadRows()
     }
 
     func selectedDays() -> Int {
-        let tag = popup.selectedTag()
-        if tag > 0 {
-            return tag
+        let index = segmentedControl.selectedSegment
+        if index >= 0 && index < dayOptions.count {
+            return dayOptions[index]
         }
         return 3
     }
@@ -122,7 +127,7 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
     func tableView(_ tableView: NSTableView,
                    viewFor tableColumn: NSTableColumn?,
                    row: Int) -> NSView? {
-        guard row >= 0, row < currentRowLabels.count else {
+        guard row >= 0, row < displayRows.count else {
             return nil
         }
         let identifier = NSUserInterfaceItemIdentifier("StaleSessionRow")
@@ -132,19 +137,36 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
         } else {
             cell = NSTableCellView()
             cell.identifier = identifier
-            let textField = NSTextField(labelWithString: "")
-            textField.lineBreakMode = .byTruncatingMiddle
-            textField.translatesAutoresizingMaskIntoConstraints = false
-            cell.addSubview(textField)
-            cell.textField = textField
+
+            let titleField = NSTextField(labelWithString: "")
+            titleField.tag = 1001
+            titleField.font = .systemFont(ofSize: 12, weight: .medium)
+            titleField.lineBreakMode = .byTruncatingTail
+            titleField.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(titleField)
+
+            let metaField = NSTextField(labelWithString: "")
+            metaField.tag = 1002
+            metaField.font = .systemFont(ofSize: 11)
+            metaField.textColor = .secondaryLabelColor
+            metaField.lineBreakMode = .byTruncatingTail
+            metaField.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(metaField)
+
             NSLayoutConstraint.activate([
-                textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
-                textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
-                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+                titleField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+                titleField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+                titleField.topAnchor.constraint(equalTo: cell.topAnchor, constant: 3),
+                metaField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+                metaField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+                metaField.topAnchor.constraint(equalTo: titleField.bottomAnchor, constant: 1),
+                metaField.bottomAnchor.constraint(lessThanOrEqualTo: cell.bottomAnchor, constant: -3)
             ])
         }
 
-        cell.textField?.stringValue = currentRowLabels[row]
+        let rowModel = displayRows[row]
+        (cell.viewWithTag(1001) as? NSTextField)?.stringValue = rowModel.title
+        (cell.viewWithTag(1002) as? NSTextField)?.stringValue = rowModel.meta
         return cell
     }
 
@@ -176,21 +198,41 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
         updateConfirmButtonState()
     }
 
+    @objc func selectAllRows(_ sender: Any?) {
+        guard !currentRows.isEmpty else {
+            return
+        }
+        tableView.selectRowIndexes(IndexSet(integersIn: 0..<currentRows.count), byExtendingSelection: false)
+        updateConfirmButtonState()
+    }
+
+    @objc func clearSelection(_ sender: Any?) {
+        tableView.deselectAll(nil)
+        updateConfirmButtonState()
+    }
+
     private func reloadRows() {
         let days = selectedDays()
         currentRows = staleByDays[days] ?? []
-        currentRowLabels = currentRows.map {
-            "\($0.folder)  |  \(shortTimestamp($0.lastUpdatedAt))  |  \($0.title) (\(shortID($0.id)))"
+        displayRows = currentRows.map {
+            DisplayRow(
+                title: $0.title,
+                meta: "\($0.folder) • \(shortTimestamp($0.lastUpdatedAt)) • \(shortID($0.id))"
+            )
         }
         tableView.reloadData()
         if !currentRows.isEmpty {
             tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        } else {
+            tableView.deselectAll(nil)
         }
         updateConfirmButtonState()
     }
 
     private func updateConfirmButtonState() {
-        confirmButton.isEnabled = !selectedSessionIDs().isEmpty
+        let count = selectedSessionIDs().count
+        confirmButton.title = "Delete \(count)"
+        confirmButton.isEnabled = count > 0
     }
 
     private func shortID(_ fullID: String) -> String {
@@ -265,17 +307,27 @@ extension AppDelegate {
 
         let alert = NSAlert()
         alert.messageText = "Remove Stale Sessions"
-        alert.informativeText = """
-Pick stale-window (1/3/7 days), then multi-select sessions ordered by folder. Click OK to permanently delete selected codex sessions.
-"""
+        alert.informativeText = "Select stale sessions to permanently delete."
 
         let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 620, height: 320))
-        let quickLabel = NSTextField(labelWithString: "Quick Remove")
-        quickLabel.frame = NSRect(x: 0, y: 294, width: 120, height: 18)
-        accessory.addSubview(quickLabel)
+        let staleWindowLabel = NSTextField(labelWithString: "Stale Window")
+        staleWindowLabel.frame = NSRect(x: 0, y: 294, width: 90, height: 18)
+        accessory.addSubview(staleWindowLabel)
 
-        let staleDaysPopup = NSPopUpButton(frame: NSRect(x: 124, y: 288, width: 180, height: 26), pullsDown: false)
-        accessory.addSubview(staleDaysPopup)
+        let staleWindowControl = NSSegmentedControl(frame: NSRect(x: 94, y: 288, width: 170, height: 26))
+        staleWindowControl.segmentStyle = .rounded
+        staleWindowControl.trackingMode = .selectOne
+        accessory.addSubview(staleWindowControl)
+
+        let selectAllButton = NSButton(frame: NSRect(x: 274, y: 288, width: 94, height: 26))
+        selectAllButton.bezelStyle = .rounded
+        selectAllButton.title = "Select All"
+        accessory.addSubview(selectAllButton)
+
+        let clearButton = NSButton(frame: NSRect(x: 374, y: 288, width: 74, height: 26))
+        clearButton.bezelStyle = .rounded
+        clearButton.title = "Clear"
+        accessory.addSubview(clearButton)
 
         let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 620, height: 276))
         scrollView.hasVerticalScroller = true
@@ -284,8 +336,8 @@ Pick stale-window (1/3/7 days), then multi-select sessions ordered by folder. Cl
         tableView.allowsMultipleSelection = true
         tableView.headerView = nil
         tableView.usesAlternatingRowBackgroundColors = true
-        tableView.rowHeight = 22
-        tableView.intercellSpacing = NSSize(width: 0, height: 2)
+        tableView.rowHeight = 36
+        tableView.intercellSpacing = NSSize(width: 0, height: 1)
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("SessionColumn"))
         column.width = 610
@@ -294,7 +346,7 @@ Pick stale-window (1/3/7 days), then multi-select sessions ordered by folder. Cl
         accessory.addSubview(scrollView)
 
         alert.accessoryView = accessory
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Delete 0")
         alert.addButton(withTitle: "Cancel")
 
         guard let confirmButton = alert.buttons.first else {
@@ -302,9 +354,13 @@ Pick stale-window (1/3/7 days), then multi-select sessions ordered by folder. Cl
         }
 
         let controller = StaleSessionRemovalController(staleByDays: staleByDays,
-                                                       popup: staleDaysPopup,
+                                                       segmentedControl: staleWindowControl,
                                                        tableView: tableView,
                                                        confirmButton: confirmButton)
+        selectAllButton.target = controller
+        selectAllButton.action = #selector(StaleSessionRemovalController.selectAllRows(_:))
+        clearButton.target = controller
+        clearButton.action = #selector(StaleSessionRemovalController.clearSelection(_:))
         controller.bootstrap()
 
         let response = alert.runModal()
