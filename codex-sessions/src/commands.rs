@@ -1,7 +1,7 @@
 use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
 use crate::cli::{
-    ArchiveArgs, Cli, Commands, DeleteArgs, ListArgs, MergeArgs, MessageArgs, PruneArgs, ShowArgs,
-    SortBy, TitleArgs, TitlesArgs, UnarchiveArgs, WatchArgs,
+    ArchiveArgs, Cli, Commands, DeleteArgs, GenerateThreadTitleArgs, ListArgs, MergeArgs,
+    MessageArgs, PruneArgs, ShowArgs, SortBy, TitlesArgs, UnarchiveArgs, WatchArgs,
 };
 use crate::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
@@ -30,7 +30,7 @@ pub fn run() -> Result<()> {
     match cli.command {
         Commands::List(args) => cmd_list(args),
         Commands::Titles(args) => cmd_titles(args),
-        Commands::Title(args) => cmd_title(args),
+        Commands::GenerateThreadTitle(args) => cmd_generate_thread_title(args),
         Commands::Show(args) => cmd_show(args),
         Commands::Message(args) => cmd_message(args),
         Commands::Delete(args) => cmd_delete(args),
@@ -220,7 +220,7 @@ fn cmd_titles(args: TitlesArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_title(args: TitleArgs) -> Result<()> {
+fn cmd_generate_thread_title(args: GenerateThreadTitleArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
     let sessions = store.collect_sessions()?;
     let target = resolve_session_by_id(&sessions, &args.id)?;

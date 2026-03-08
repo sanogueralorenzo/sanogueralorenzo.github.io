@@ -16,7 +16,7 @@ pub enum Commands {
     /// List resolved conversation titles by session id.
     Titles(TitlesArgs),
     /// Generate and persist a session title from first user input.
-    Title(TitleArgs),
+    GenerateThreadTitle(GenerateThreadTitleArgs),
     /// Show one session by id or unique id prefix.
     Show(ShowArgs),
     /// Print latest assistant message for a session.
@@ -129,7 +129,7 @@ pub struct TitlesArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct TitleArgs {
+pub struct GenerateThreadTitleArgs {
     /// Full thread id or unique thread id prefix
     pub id: String,
 

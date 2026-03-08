@@ -20,7 +20,7 @@ Usage: codex-sessions <COMMAND>
 Commands:
   list       List sessions with optional filters/pagination
   titles     List resolved conversation titles by session id
-  title      Generate and persist a session title from first user input
+  generate-thread-title  Generate and persist a session title from first user input
   show       Show one session by id or unique id prefix
   message    Print latest assistant message for a session
   delete     Archive by default, or hard delete sessions with --hard
@@ -68,7 +68,7 @@ Options:
 
 ### Title Generation
 
-- `title <id>` generates a title using the same Codex desktop rules:
+- `generate-thread-title <id>` generates a title using the same Codex desktop rules:
   - model: `gpt-5.1-codex-mini`
   - effort: `low`
   - prompt input truncated to 2000 chars
