@@ -1334,17 +1334,23 @@ fn build_merger_summary_prompt(target: &SessionMeta, merge: &SessionMeta) -> Str
          - file_path: {merge_path}\n\
          \n\
          Requirements:\n\
-         1. Produce a compact context-transfer summary from this merger session.\n\
-         2. Include only non-actionable context (decisions, constraints, preferences, resolved facts).\n\
-         3. Exclude pending tasks, TODO lists, or execution instructions.\n\
-         4. Use this structure exactly:\n\
-            - Decisions\n\
-            - Constraints\n\
-            - Preferences\n\
-            - Resolved Facts\n\
-            - Relevant Open Questions (only if still needed for context)\n\
-         5. Keep it concise and transferable.\n\
-         6. Do not run tools or modify files.",
+         - Produce a compact context-transfer summary from this merger session.\n\
+         - Include only non-actionable context: decisions, constraints, preferences, resolved facts.\n\
+         - Exclude pending tasks, TODO lists, and execution instructions.\n\
+         - If merger context conflicts with existing target context, include a short note in the summary without trying to resolve or overwrite facts.\n\
+         - Keep the summary concise and transferable.\n\
+         - Do not run tools or modify files.\n\
+         \n\
+         Output format (exact headings, in this order):\n\
+         ## Decisions\n\
+         ## Constraints\n\
+         ## Preferences\n\
+         ## Resolved Facts\n\
+         ## Relevant Open Questions\n\
+         \n\
+         Open-questions rule:\n\
+         - Include this section only if a question is still needed to interpret context.\n\
+         - If none apply, write: None.",
         target_id = target.id,
         target_title = target_title,
         merge_id = merge.id,
@@ -1606,9 +1612,10 @@ fn build_target_apply_prompt(merge: &SessionMeta, transfer_summary: &str) -> Str
          {summary}\n\
          \n\
          Instructions:\n\
-         1. Acknowledge this merge context briefly.\n\
-         2. Preserve this context for future reasoning in this target session.\n\
-         3. Do not run tools or modify files.",
+         - Preserve this context for future reasoning in this target session.\n\
+         - If incoming context conflicts with existing target context, note the conflict internally and prefer existing target context unless explicitly asked to change it.\n\
+         - Do not run tools or modify files.\n\
+         - Respond with exactly: Thread merged",
         merge_id = merge.id,
         merge_title = merge_title,
         merge_cwd = merge.cwd.as_deref().unwrap_or("(unknown cwd)"),

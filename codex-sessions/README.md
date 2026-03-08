@@ -47,6 +47,13 @@ Options:
   1) resume merger session to generate compact transfer summary,
   2) resume target session with that summary,
   then hard-delete the merger session on success.
+- Merger summary prompt enforces deterministic markdown headings:
+  - `## Decisions`
+  - `## Constraints`
+  - `## Preferences`
+  - `## Resolved Facts`
+  - `## Relevant Open Questions`
+- Merge prompts avoid actionable instructions, include conflict-handling guidance, and target apply step responds with exactly `Thread merged`.
 
 ### Delete Behavior
 
