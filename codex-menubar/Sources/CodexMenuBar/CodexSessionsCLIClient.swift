@@ -53,7 +53,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
     }
 
     func listActiveSessions() throws -> [SessionOption] {
-        let output = try run(["list", "--all", "--json", "--folders"])
+        let output = try run(["list", "--all", "--json", "--sort-by", "updated_at"])
         let data = Data(output.utf8)
         let response = try JSONDecoder().decode(ListResponse.self, from: data)
         return response.data
@@ -77,7 +77,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             "list",
             "--all",
             "--json",
-            "--folders",
+            "--sort-by", "updated_at",
             "--older-than-days", String(olderThanDays)
         ])
         let data = Data(output.utf8)
