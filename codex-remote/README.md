@@ -33,7 +33,9 @@ Commands:
 
 Notes:
 - Default command when omitted is: start
-- start runs the bot in background and writes logs to: $HOME/.codex/remote/codex-remote.log
+- start builds (`npm run build`) then runs `node dist/index.js` in background.
+- start writes logs to: $HOME/.codex/remote/codex-remote.log
+- start/stop also reconcile orphan bot runtime PIDs for this repo path.
 ```
 
 ### Help Patterns

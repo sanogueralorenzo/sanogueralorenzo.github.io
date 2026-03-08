@@ -89,6 +89,7 @@ print_usage() {
   echo
   echo "Notes:"
   echo "- Default command when omitted is: start"
+  echo "- start builds the app (npm run build) and runs node dist/index.js"
   echo "- start runs the bot in background and writes logs to: $LOG_FILE"
 }
 
@@ -136,6 +137,13 @@ ensure_npm() {
   fi
 }
 
+ensure_node() {
+  if ! command -v node >/dev/null 2>&1; then
+    echo "node not found. Install Node.js 18+." >&2
+    exit 1
+  fi
+}
+
 ensure_codex_sessions() {
   if ! command -v codex-sessions >/dev/null 2>&1; then
     local sibling_install="$PROJECT_ROOT/../codex-sessions/scripts/install.sh"
@@ -179,6 +187,53 @@ is_running() {
   pid="$(read_pid || true)"
   [[ -n "$pid" ]] || return 1
   kill -0 "$pid" 2>/dev/null
+}
+
+list_codex_remote_runtime_pids() {
+  /bin/ps -axo pid=,command= | while IFS= read -r line; do
+    local pid
+    local command
+    pid="$(echo "$line" | awk '{print $1}')"
+    command="$(echo "$line" | cut -d' ' -f2-)"
+
+    [[ -n "$pid" && -n "$command" ]] || continue
+    if [[ "$command" == *"$PROJECT_ROOT/node_modules/.bin/tsx watch src/index.ts"* ]]; then
+      echo "$pid"
+      continue
+    fi
+    if [[ "$command" == *"$PROJECT_ROOT/node_modules/tsx/dist/loader.mjs src/index.ts"* ]]; then
+      echo "$pid"
+      continue
+    fi
+  done | sort -n | uniq
+}
+
+kill_pid_with_grace() {
+  local pid="$1"
+  kill -TERM "$pid" 2>/dev/null || return 0
+
+  local retries=20
+  while (( retries > 0 )); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+    sleep 0.1
+    retries=$((retries - 1))
+  done
+
+  kill -KILL "$pid" 2>/dev/null || true
+}
+
+kill_codex_remote_runtime_pids_excluding() {
+  local exclude_pid="${1:-}"
+  local pid
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    if [[ -n "$exclude_pid" && "$pid" == "$exclude_pid" ]]; then
+      continue
+    fi
+    kill_pid_with_grace "$pid"
+  done < <(list_codex_remote_runtime_pids)
 }
 
 read_caffeinate_pid() {
@@ -253,10 +308,17 @@ cmd_install() {
 cmd_start() {
   local plain="$1"
   ensure_npm
+  ensure_node
   ensure_codex_sessions
   ensure_state_dir
   ensure_env_file
   ensure_dependencies
+  (cd "$PROJECT_ROOT" && npm run build >/dev/null)
+  clear_pid_if_stale
+
+  local managed_pid
+  managed_pid="$(read_pid || true)"
+  kill_codex_remote_runtime_pids_excluding "$managed_pid"
 
   if is_running; then
     start_caffeinate_for_pid "$(read_pid)"
@@ -264,7 +326,11 @@ cmd_start() {
     return 0
   fi
 
-  (cd "$PROJECT_ROOT" && nohup npm run dev > "$LOG_FILE" 2>&1 & echo $! > "$PID_FILE")
+  (
+    cd "$PROJECT_ROOT"
+    nohup node dist/index.js > "$LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
+  )
   start_caffeinate_for_pid "$(read_pid)"
   output_status "$plain"
 }
@@ -273,8 +339,11 @@ cmd_stop() {
   local plain="$1"
   clear_pid_if_stale
 
+  local managed_pid
+  managed_pid="$(read_pid || true)"
   if ! is_running; then
     rm -f "$PID_FILE"
+    kill_codex_remote_runtime_pids_excluding ""
     if [[ "$plain" == "true" ]]; then
       echo "stopped"
     else
@@ -283,13 +352,11 @@ cmd_stop() {
     return 0
   fi
 
-  local pid
-  pid="$(read_pid)"
-  if ! kill "$pid" 2>/dev/null; then
-    echo "Failed to stop PID $pid" >&2
-    exit 1
+  if [[ -n "$managed_pid" ]]; then
+    kill_pid_with_grace "$managed_pid"
   fi
 
+  kill_codex_remote_runtime_pids_excluding ""
   rm -f "$PID_FILE"
   stop_caffeinate_if_any
   if [[ "$plain" == "true" ]]; then
