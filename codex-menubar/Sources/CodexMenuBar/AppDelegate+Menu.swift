@@ -90,7 +90,7 @@ extension AppDelegate {
                 countItem.isEnabled = false
                 sessionsMenu.addItem(countItem)
 
-                let titleGenerationItem = NSMenuItem(title: "watch-title",
+                let titleGenerationItem = NSMenuItem(title: "Watch Thread Titles",
                                                      action: #selector(toggleSessionTitleWatcher(_:)),
                                                      keyEquivalent: "")
                 titleGenerationItem.target = self

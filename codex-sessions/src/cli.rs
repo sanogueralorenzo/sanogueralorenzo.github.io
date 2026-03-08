@@ -31,10 +31,19 @@ pub enum Commands {
     Merge(MergeArgs),
     /// Prune old active sessions once.
     Prune(PruneArgs),
+    /// Watchers for session maintenance flows.
+    Watch {
+        #[command(subcommand)]
+        action: WatchCommand,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WatchCommand {
     /// Run prune repeatedly on an interval.
-    Watch(WatchArgs),
-    /// Manage title watcher (start|stop|status|run).
-    WatchTitle {
+    Prune(WatchArgs),
+    /// Manage thread-title watcher (start|stop|status|run).
+    ThreadTitles {
         #[command(subcommand)]
         action: WatchTitleCommand,
     },

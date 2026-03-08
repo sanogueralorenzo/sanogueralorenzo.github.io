@@ -1,7 +1,7 @@
 use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
 use crate::cli::{
     ArchiveArgs, Cli, Commands, DeleteArgs, GenerateThreadTitleArgs, ListArgs, MergeArgs,
-    MessageArgs, PruneArgs, ShowArgs, SortBy, TitlesArgs, UnarchiveArgs, WatchArgs,
+    MessageArgs, PruneArgs, ShowArgs, SortBy, TitlesArgs, UnarchiveArgs, WatchArgs, WatchCommand,
     WatchTitleCommand,
 };
 use crate::services::session_service::{
@@ -30,9 +30,9 @@ const TITLE_INPUT_MAX_CHARS: usize = 2000;
 const TITLE_MODEL: &str = "gpt-5.1-codex-mini";
 const WATCH_TITLE_INTERVAL: Duration = Duration::from_secs(10);
 const WATCH_TITLE_BATCH_LIMIT: usize = 100;
-const WATCH_TITLE_PID_FILE: &str = "codex-sessions-watch-title.pid";
-const WATCH_TITLE_LOG_FILE: &str = "codex-sessions-watch-title.log";
-const WATCH_TITLE_STATE_FILE: &str = "codex-sessions-watch-title.state.json";
+const WATCH_TITLE_PID_FILE: &str = "codex-sessions-watch-thread-titles.pid";
+const WATCH_TITLE_LOG_FILE: &str = "codex-sessions-watch-thread-titles.log";
+const WATCH_TITLE_STATE_FILE: &str = "codex-sessions-watch-thread-titles.state.json";
 
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
@@ -48,8 +48,7 @@ pub fn run() -> Result<()> {
         Commands::Unarchive(args) => cmd_unarchive(args),
         Commands::Merge(args) => cmd_merge(args),
         Commands::Prune(args) => cmd_prune(args),
-        Commands::Watch(args) => cmd_watch(args),
-        Commands::WatchTitle { action } => cmd_watch_title(action),
+        Commands::Watch { action } => cmd_watch(action),
     }
 }
 
@@ -501,7 +500,14 @@ fn cmd_prune(args: PruneArgs) -> Result<()> {
     emit_prune_output(&report, format)
 }
 
-fn cmd_watch(args: WatchArgs) -> Result<()> {
+fn cmd_watch(action: WatchCommand) -> Result<()> {
+    match action {
+        WatchCommand::Prune(args) => cmd_watch_prune(args),
+        WatchCommand::ThreadTitles { action } => cmd_watch_thread_titles(action),
+    }
+}
+
+fn cmd_watch_prune(args: WatchArgs) -> Result<()> {
     validate_days(args.older_than_days)?;
     if args.interval_minutes == 0 {
         bail!("--interval-minutes must be >= 1");
@@ -532,26 +538,26 @@ fn cmd_watch(args: WatchArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_watch_title(action: WatchTitleCommand) -> Result<()> {
+fn cmd_watch_thread_titles(action: WatchTitleCommand) -> Result<()> {
     match action {
         WatchTitleCommand::Start(args) => {
             let watcher = TitleWatcher::new(args.home)?;
             let executable =
                 std::env::current_exe().context("failed to resolve current executable")?;
             let pid = watcher.start_daemon(&executable)?;
-            println!("Title watcher running (PID {pid})");
+            println!("Thread-titles watcher running (PID {pid})");
         }
         WatchTitleCommand::Stop(args) => {
             let watcher = TitleWatcher::new(args.home)?;
             watcher.stop_daemon()?;
-            println!("Title watcher stopped");
+            println!("Thread-titles watcher stopped");
         }
         WatchTitleCommand::Status(args) => {
             let watcher = TitleWatcher::new(args.home)?;
             match watcher.status() {
-                TitleWatcherStatus::Stopped => println!("Title watcher stopped"),
+                TitleWatcherStatus::Stopped => println!("Thread-titles watcher stopped"),
                 TitleWatcherStatus::Running(pid) => {
-                    println!("Title watcher running (PID {pid})")
+                    println!("Thread-titles watcher running (PID {pid})")
                 }
             }
         }
@@ -637,7 +643,8 @@ impl TitleWatcher {
 
         let mut command = Command::new(executable_path);
         command
-            .arg("watch-title")
+            .arg("watch")
+            .arg("thread-titles")
             .arg("run")
             .arg("--home")
             .arg(&self.codex_home)
@@ -685,7 +692,7 @@ impl TitleWatcher {
             let report = self.process_cycle(&store, &mut state)?;
             self.save_state(&state)?;
             eprintln!(
-                "[codex-sessions:watch-title] scanned={} generated={} skipped_non_empty={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
+                "[codex-sessions:watch-thread-titles] scanned={} generated={} skipped_non_empty={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
                 report.scanned,
                 report.generated,
                 report.skipped_non_empty,
@@ -775,7 +782,7 @@ impl TitleWatcher {
                     report.errors += 1;
                     state_blocked = true;
                     eprintln!(
-                        "[codex-sessions:watch-title] generate failed id={} error={}",
+                        "[codex-sessions:watch-thread-titles] generate failed id={} error={}",
                         candidate.id, error
                     );
                     continue;
@@ -792,7 +799,7 @@ impl TitleWatcher {
                 report.errors += 1;
                 state_blocked = true;
                 eprintln!(
-                    "[codex-sessions:watch-title] persist failed id={} error={}",
+                    "[codex-sessions:watch-thread-titles] persist failed id={} error={}",
                     candidate.id, error
                 );
                 continue;

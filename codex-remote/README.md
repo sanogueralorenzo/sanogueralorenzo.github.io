@@ -69,4 +69,4 @@ codex-remote logs --help
 ### Thread Title Ownership
 
 - codex-remote does not generate titles directly.
-- Title generation/backfill is owned by `codex-sessions watch-title`.
+- Title generation/backfill is owned by `codex-sessions watch thread-titles`.

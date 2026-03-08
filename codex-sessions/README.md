@@ -28,8 +28,7 @@ Commands:
   unarchive  Move one or more sessions from archived storage to active storage
   merge      Summarize one session into another and delete the merged session
   prune      Prune old active sessions once
-  watch      Run prune repeatedly on an interval
-  watch-title  Manage title watcher (start|stop|status|run)
+  watch      Watchers for session maintenance flows
   help       Print this message or the help of the given subcommand(s)
 
 Options:
@@ -86,10 +85,10 @@ Options:
 
 ### Title Watcher
 
-- `watch-title start` starts a single background watcher process.
-- `watch-title stop` stops that background process.
-- `watch-title status` prints running/stopped state and PID when running.
-- `watch-title run` runs foreground polling loop; `watch-title run --once` runs one scan.
+- `watch thread-titles start` starts a single background watcher process.
+- `watch thread-titles stop` stops that background process.
+- `watch thread-titles status` prints running/stopped state and PID when running.
+- `watch thread-titles run` runs foreground polling loop; `watch thread-titles run --once` runs one scan.
 - Poll interval is fixed at 10 seconds.
 - Scan source is latest `state_*.sqlite`, selecting threads with empty `threads.title`.
 - Each candidate is re-checked before persist; non-empty titles are skipped.
@@ -101,6 +100,6 @@ Options:
 - `~/.codex/archived_sessions/**`
 - `~/.codex/.codex-global-state.json`
 - `~/.codex/.locks/title-write.lock`
-- `~/.codex/sessions/codex-sessions-watch-title.pid`
-- `~/.codex/sessions/codex-sessions-watch-title.log`
-- `~/.codex/sessions/codex-sessions-watch-title.state.json`
+- `~/.codex/sessions/codex-sessions-watch-thread-titles.pid`
+- `~/.codex/sessions/codex-sessions-watch-thread-titles.log`
+- `~/.codex/sessions/codex-sessions-watch-thread-titles.state.json`
