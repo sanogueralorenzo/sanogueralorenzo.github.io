@@ -36,6 +36,7 @@ type PromptRunnerDeps = {
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
   resolveThreadTitle: (threadId: string) => Promise<string>;
   requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
+  generateThreadTitle: (threadId: string) => Promise<void>;
   enableDraftStreaming: boolean;
   draftStreamingThrottleMs: number;
 };
@@ -68,6 +69,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           }
           const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
           await deps.bindChatToThread(chatId, initialized.conversationId);
+          scheduleFirstTurnTitleGeneration(initialized.conversationId, initialized);
           deps.pendingNewSessionChats.delete(chatId);
           deps.clearPendingNewSessionCwd(chatId);
           await finalizeTurn(initialized);
@@ -133,6 +135,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     const options = deps.getConversationOptions();
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
     await deps.bindChatToThread(chatId, initialized.conversationId);
+    scheduleFirstTurnTitleGeneration(initialized.conversationId, initialized);
 
     const title = await deps.resolveThreadTitle(initialized.conversationId);
     if (initialized.status === "completed") {
@@ -146,6 +149,19 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       initialized.completion,
       `Delayed for "${title}":`
     );
+  }
+
+  function scheduleFirstTurnTitleGeneration(threadId: string, turn: TimedTurnLike): void {
+    if (turn.status === "completed") {
+      void deps.generateThreadTitle(threadId).catch(() => undefined);
+      return;
+    }
+
+    void turn.completion
+      .then(async () => {
+        await deps.generateThreadTitle(threadId);
+      })
+      .catch(() => undefined);
   }
 
   function queueBackgroundReply(

@@ -65,3 +65,9 @@ codex-remote logs --help
 - Entries are ordered by folder, then last-updated descending within each folder.
 - `/resume` buttons display the `title` field directly from CLI JSON (DB-backed session title, same as Codex mac app conversation title).
 - `/delete` keeps folder + last-updated + title labels for disambiguation.
+
+### First-Turn Title Generation
+
+- After creating a new thread and once the first turn completes, codex-remote calls:
+  - `codex-sessions generate-thread-title <thread_id> --home <CODEX_HOME> --plain`
+- The call is routed through the centralized CLI adapter at `src/adapters/codex-sessions.ts`.
