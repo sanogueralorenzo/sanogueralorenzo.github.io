@@ -52,6 +52,12 @@ codex-remote logs --help
   - `TELEGRAM_ALLOWED_CHAT_IDS` (optional allowlist)
   - `TELEGRAM_ADMIN_CHAT_IDS` (optional restart-admin allowlist)
 
+### Voice Transcription
+
+- Uses `scripts/transcribe-whispercpp.sh` (`whisper-cli` + `ffmpeg`).
+- Model resolution order:
+  - `WHISPER_MODEL_PATH_TINY` when set and file exists.
+  - fallback `./models/ggml-tiny.en.bin`.
 ### Storage
 
 - `runtime/bindings.json`

@@ -15,10 +15,17 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
   exit 1
 fi
 
-: "${WHISPER_MODEL_PATH_TINY:?Set WHISPER_MODEL_PATH_TINY to your local ggml-tiny(.en).bin path.}"
-model_path="$WHISPER_MODEL_PATH_TINY"
+SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+default_model_path="${PROJECT_ROOT}/models/ggml-tiny.en.bin"
+model_path="${WHISPER_MODEL_PATH_TINY:-$default_model_path}"
+if [[ ! -f "$model_path" && -f "$default_model_path" ]]; then
+  model_path="$default_model_path"
+fi
 if [[ ! -f "$model_path" ]]; then
-  echo "Whisper model not found: $model_path" >&2
+  echo "Whisper model not found. Checked:" >&2
+  echo "- WHISPER_MODEL_PATH_TINY=${WHISPER_MODEL_PATH_TINY:-<unset>}" >&2
+  echo "- default=${default_model_path}" >&2
   exit 1
 fi
 
