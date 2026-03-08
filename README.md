@@ -1,10 +1,10 @@
-<p align="center">
-  <img src="./assets/codex-menu-app.png" alt="Codex Menu Bar" width="360" />
-</p>
-
 ## Intro
 
 Hello 👋 continuing with the spirit of this repo I want to use it to an AI tools, first orchestration playground.
+
+<p align="center">
+  <img src="./assets/codex-menu-app.png" alt="Codex Menu Bar" width="280" />
+</p>
 
 ## Quickstart
 
