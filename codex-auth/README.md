@@ -60,6 +60,16 @@ codex-auth watch --help
 codex-auth watch start --help
 ```
 
+### Source Layout
+
+- `src/main.rs` (thin command dispatcher)
+- `src/cli.rs` (clap commands/args)
+- `src/manager.rs` (profile lifecycle + auth apply/sync)
+- `src/watcher.rs` (watch start/stop/status/run loop)
+- `src/process.rs` (Codex process invalidation)
+- `src/util.rs` (path, fs, auth-JSON helpers)
+- `src/models.rs` (shared structs/enums)
+
 ### Storage
 
 - `~/.codex/auth.json`
