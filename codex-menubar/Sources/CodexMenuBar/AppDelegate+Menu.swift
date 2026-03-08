@@ -99,13 +99,13 @@ extension AppDelegate {
                 titleGenerationItem.toolTip = "Auto-generate thread titles"
                 sessionsMenu.addItem(titleGenerationItem)
 
-                let mergeItem = NSMenuItem(title: "Merge…",
+                let mergeItem = NSMenuItem(title: "Merge Threads",
                                            action: #selector(mergeSessions(_:)),
                                            keyEquivalent: "")
                 mergeItem.target = self
                 sessionsMenu.addItem(mergeItem)
 
-                let removeItem = NSMenuItem(title: "Remove…",
+                let removeItem = NSMenuItem(title: "Remove Threads",
                                             action: #selector(removeStaleSessions(_:)),
                                             keyEquivalent: "")
                 removeItem.target = self
