@@ -3,7 +3,7 @@
 Hello 👋 continuing with the spirit of this repo I want to use it to an AI tools, first orchestration playground.
 
 <p align="center">
-  <img src="./assets/codex-menu-app.png" alt="Codex Menu Bar" width="520" />
+  <img src="./assets/codex-menu-app.png" alt="Codex Menu Bar" width="100%" />
 </p>
 
 ## Quickstart
