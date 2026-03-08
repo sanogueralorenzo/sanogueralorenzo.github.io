@@ -13,7 +13,6 @@ import {
 } from "./adapters/app-server-client.js";
 import { BindingStore } from "./adapters/binding-store.js";
 import {
-  generateThreadTitleByThreadId,
   resolveCodexHomeFromEnv
 } from "./adapters/codex-sessions.js";
 import { registerBotHandlers } from "./bot/index.js";
@@ -85,7 +84,6 @@ const promptRunner = createPromptRunner({
   getConversationOptions,
   bindChatToThread,
   resolveThreadTitle: threadActions.resolveThreadTitle,
-  generateThreadTitle: (threadId) => generateThreadTitleByThreadId(threadId, codexHome),
   requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram,
   enableDraftStreaming,
   draftStreamingThrottleMs

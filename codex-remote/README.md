@@ -66,8 +66,7 @@ codex-remote logs --help
 - `/resume` buttons display the `title` field directly from CLI JSON (DB-backed session title, same as Codex mac app conversation title).
 - `/delete` keeps folder + last-updated + title labels for disambiguation.
 
-### First-Turn Title Generation
+### Thread Title Ownership
 
-- After creating a new thread and once the first turn completes, codex-remote calls:
-  - `codex-sessions generate-thread-title <thread_id> --home <CODEX_HOME> --plain`
-- The call is routed through the centralized CLI adapter at `src/adapters/codex-sessions.ts`.
+- codex-remote does not generate titles directly.
+- Title generation/backfill is owned by `codex-sessions watch-title`.

@@ -29,6 +29,7 @@ Commands:
   merge      Summarize one session into another and delete the merged session
   prune      Prune old active sessions once
   watch      Run prune repeatedly on an interval
+  watch-title  Manage title watcher (start|stop|status|run)
   help       Print this message or the help of the given subcommand(s)
 
 Options:
@@ -83,9 +84,23 @@ Options:
   - lock scope covers only JSON file persistence (model generation runs outside lock)
   - JSON writes use atomic `tmp + fsync + rename` while lock is held
 
+### Title Watcher
+
+- `watch-title start` starts a single background watcher process.
+- `watch-title stop` stops that background process.
+- `watch-title status` prints running/stopped state and PID when running.
+- `watch-title run` runs foreground polling loop; `watch-title run --once` runs one scan.
+- Poll interval is fixed at 10 seconds.
+- Scan source is latest `state_*.sqlite`, selecting threads with empty `threads.title`.
+- Each candidate is re-checked before persist; non-empty titles are skipped.
+
 ### Storage
 
 - `~/.codex/state_*.sqlite`
 - `~/.codex/sessions/**`
 - `~/.codex/archived_sessions/**`
 - `~/.codex/.codex-global-state.json`
+- `~/.codex/.locks/title-write.lock`
+- `~/.codex/sessions/codex-sessions-watch-title.pid`
+- `~/.codex/sessions/codex-sessions-watch-title.log`
+- `~/.codex/sessions/codex-sessions-watch-title.state.json`

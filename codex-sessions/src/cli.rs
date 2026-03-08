@@ -33,6 +33,23 @@ pub enum Commands {
     Prune(PruneArgs),
     /// Run prune repeatedly on an interval.
     Watch(WatchArgs),
+    /// Manage title watcher (start|stop|status|run).
+    WatchTitle {
+        #[command(subcommand)]
+        action: WatchTitleCommand,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WatchTitleCommand {
+    /// Start title watcher in background.
+    Start(WatchTitleCommonArgs),
+    /// Stop background title watcher.
+    Stop(WatchTitleCommonArgs),
+    /// Print title watcher status.
+    Status(WatchTitleCommonArgs),
+    /// Run title watcher loop in foreground.
+    Run(WatchTitleRunArgs),
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
@@ -311,4 +328,19 @@ pub struct WatchArgs {
 
     #[arg(long)]
     pub plain: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct WatchTitleCommonArgs {
+    #[arg(long)]
+    pub home: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+pub struct WatchTitleRunArgs {
+    #[arg(long)]
+    pub home: Option<PathBuf>,
+
+    #[arg(long)]
+    pub once: bool,
 }

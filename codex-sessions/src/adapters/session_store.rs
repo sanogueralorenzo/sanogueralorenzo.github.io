@@ -17,6 +17,12 @@ pub struct SessionStore {
     codex_home: PathBuf,
 }
 
+#[derive(Debug, Clone)]
+pub struct UntitledThreadCandidate {
+    pub id: String,
+    pub updated_at: i64,
+}
+
 const TITLE_WRITE_LOCK_PATH: &str = ".locks/title-write.lock";
 const TITLE_WRITE_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 const TITLE_WRITE_LOCK_POLL_INTERVAL: Duration = Duration::from_millis(50);
@@ -61,6 +67,10 @@ impl SessionStore {
 
     pub fn sessions_root(&self) -> PathBuf {
         self.codex_home.join("sessions")
+    }
+
+    pub fn codex_home(&self) -> &Path {
+        &self.codex_home
     }
 
     pub fn archived_root(&self) -> PathBuf {
@@ -316,6 +326,77 @@ impl SessionStore {
         self.upsert_thread_title_in_session_index(id, title)?;
 
         Ok(())
+    }
+
+    pub fn has_non_empty_thread_title(&self, id: &str) -> Result<bool> {
+        let Some(path) = self.state_db_path()? else {
+            return Ok(false);
+        };
+
+        let conn = Connection::open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+
+        let mut statement = match conn.prepare("SELECT title FROM threads WHERE id = ?1 LIMIT 1") {
+            Ok(statement) => statement,
+            Err(_) => return Ok(false),
+        };
+
+        let title: Option<String> = statement
+            .query_row(params![id], |row| row.get(0))
+            .optional()?;
+
+        Ok(title
+            .as_deref()
+            .map(str::trim)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false))
+    }
+
+    pub fn list_untitled_thread_candidates(
+        &self,
+        after_updated_at: Option<i64>,
+        after_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<UntitledThreadCandidate>> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+
+        let Some(path) = self.state_db_path()? else {
+            return Ok(Vec::new());
+        };
+
+        let conn = Connection::open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+
+        let after_updated_at = after_updated_at.unwrap_or(i64::MIN);
+        let after_id = after_id.unwrap_or("");
+        let mut statement = match conn.prepare(
+            "SELECT id, updated_at
+             FROM threads
+             WHERE trim(COALESCE(title, '')) = ''
+               AND (updated_at > ?1 OR (updated_at = ?1 AND id > ?2))
+             ORDER BY updated_at ASC, id ASC
+             LIMIT ?3",
+        ) {
+            Ok(statement) => statement,
+            Err(_) => return Ok(Vec::new()),
+        };
+
+        let rows =
+            statement.query_map(params![after_updated_at, after_id, limit as i64], |row| {
+                Ok(UntitledThreadCandidate {
+                    id: row.get(0)?,
+                    updated_at: row.get(1)?,
+                })
+            })?;
+
+        let mut candidates = Vec::new();
+        for row in rows {
+            candidates.push(row?);
+        }
+
+        Ok(candidates)
     }
 
     fn title_write_lock_path(&self) -> PathBuf {

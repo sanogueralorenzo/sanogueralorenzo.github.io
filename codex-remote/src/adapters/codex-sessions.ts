@@ -173,19 +173,6 @@ export async function loadLatestAssistantMessageByThreadId(
   }
 }
 
-export async function generateThreadTitleByThreadId(
-  threadId: string,
-  codexHome: string
-): Promise<void> {
-  await runCodexSessions([
-    "generate-thread-title",
-    threadId,
-    "--home",
-    codexHome,
-    "--plain",
-  ]);
-}
-
 async function runCodexSessionsJson<T>(args: string[]): Promise<T> {
   const stdout = await runCodexSessions(args);
   try {
