@@ -163,20 +163,7 @@ if (adminChatIds) {
 } else {
   console.log("Telegram restart command is disabled (TELEGRAM_ADMIN_CHAT_IDS is not set).");
 }
-try {
-  const me = await bot.api.getMe();
-  console.log(`Telegram auth OK: @${me.username ?? me.first_name}`);
-  await bot.start({
-    drop_pending_updates: true,
-    onStart: (info) => {
-      console.log(`Telegram polling started as @${info.username ?? info.first_name}`);
-    }
-  });
-} catch (error) {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
-  console.error(`Telegram bot failed to start: ${message}`);
-  process.exit(1);
-}
+await runBotLoop();
 
 function mustGetEnv(name: string): string {
   const value = process.env[name];
@@ -184,6 +171,33 @@ function mustGetEnv(name: string): string {
     throw new Error(`Missing required env var: ${name}`);
   }
   return value;
+}
+
+async function runBotLoop(): Promise<never> {
+  while (true) {
+    try {
+      const me = await bot.api.getMe();
+      console.log(`Telegram auth OK: @${me.username ?? me.first_name}`);
+      await bot.start({
+        drop_pending_updates: true,
+        onStart: (info) => {
+          console.log(`Telegram polling started as @${info.username ?? info.first_name}`);
+        }
+      });
+      console.error("Telegram polling stopped unexpectedly; retrying in 2s.");
+    } catch (error) {
+      const message = error instanceof Error ? error.stack ?? error.message : String(error);
+      console.error(`Telegram bot loop error: ${message}`);
+    }
+
+    await delay(2000);
+  }
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 }
 
 function getConversationOptions(): {

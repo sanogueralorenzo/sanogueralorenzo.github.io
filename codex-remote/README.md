@@ -60,6 +60,7 @@ codex-remote logs --help
 - Model resolution order:
   - `WHISPER_MODEL_PATH_TINY` when set and file exists.
   - fallback `./models/ggml-tiny.en.bin`.
+- Telegram polling runs in an auto-retry loop (2s backoff) instead of exiting on transient failures.
 ### Storage
 
 - `runtime/bindings.json`
