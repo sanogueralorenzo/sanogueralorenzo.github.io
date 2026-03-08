@@ -45,6 +45,10 @@ Options:
   - `title_generation.rs` (title prompt + normalization + tests)
   - `prompts.rs` (merge/apply prompt builders)
   - `codex_exec.rs` (shared `codex exec resume` runners)
+- Session store adapter is split under `src/adapters/session_store/`:
+  - `impl.rs` (SessionStore methods)
+  - `helpers.rs` (file/db parsing + shared helpers)
+  - `tests.rs` (adapter tests)
 
 ### List Ordering
 
