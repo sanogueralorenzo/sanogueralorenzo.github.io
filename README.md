@@ -16,10 +16,10 @@ Hello 👋 continuing with the spirit of this repo I want to use it to an AI too
 
 ## Index
 
-- [Codex Auth](./codex-auth/README.md): Rust CLI for Codex auth profile management.
-- [Codex Sessions](./codex-sessions/README.md): Rust CLI for local Codex session lifecycle.
-- [Codex Remote](./codex-remote/README.md): TypeScript Telegram bridge to Codex app-server.
-- [Codex Menubar](./codex-menubar/README.md): macOS menu bar app orchestrating local Codex tooling.
+- [Codex Auth](./codex-auth/README.md): CLI for Codex auth profile management.
+- [Codex Sessions](./codex-sessions/README.md): CLI for local Codex session lifecycle.
+- [Codex Remote](./codex-remote/README.md): Telegram bridge to Codex app-server.
+- [Codex Menubar](./codex-menubar/README.md): Menu bar app orchestrating local Codex tooling.
 - [Codex Agents](./codex-agents/README.md): autonomous/headless agent workflow contract.
 - [Overlay](./overlay/README.md): Android blackout overlay utility app.
 - [Voice](./voice/README.md): Android on-device voice keyboard (ASR + rewrite).
