@@ -94,6 +94,20 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             }
     }
 
+    func isTitleWatcherRunning() throws -> Bool {
+        let output = try run(["watch-title", "status"])
+        let normalized = output.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized.contains("running")
+    }
+
+    func startTitleWatcher() throws {
+        _ = try run(["watch-title", "start"])
+    }
+
+    func stopTitleWatcher() throws {
+        _ = try run(["watch-title", "stop"])
+    }
+
     func deleteSessions(ids: [String]) throws {
         let normalizedIDs = ids
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

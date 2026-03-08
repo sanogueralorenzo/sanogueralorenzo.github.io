@@ -89,6 +89,15 @@ extension AppDelegate {
                 let countItem = NSMenuItem(title: "Session Count: \(activeSessionCount)", action: nil, keyEquivalent: "")
                 countItem.isEnabled = false
                 sessionsMenu.addItem(countItem)
+
+                let titleGenerationItem = NSMenuItem(title: "watch-title",
+                                                     action: #selector(toggleSessionTitleWatcher(_:)),
+                                                     keyEquivalent: "")
+                titleGenerationItem.target = self
+                titleGenerationItem.state = data.isSessionTitleWatcherRunning ? .on : .off
+                titleGenerationItem.representedObject = data.isSessionTitleWatcherRunning
+                sessionsMenu.addItem(titleGenerationItem)
+
                 sessionsMenu.addItem(.separator())
 
                 let mergeItem = NSMenuItem(title: "Merge…",
