@@ -8,8 +8,6 @@ use std::thread;
 use std::time::Duration;
 
 pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
-    request_codex_app_quit();
-
     let current_pid = std::process::id() as i32;
     let entries = running_processes();
     let official_cli_entrypoints = resolve_official_codex_cli_entrypoints();
@@ -37,18 +35,13 @@ pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
     let mut failed_pids = Vec::new();
 
     for (pid, kind) in targets {
-        match kind {
-            SessionKind::App => {
-                // App quit is requested once via AppleScript above; avoid a second explicit kill path.
-                terminated_app_pids.push(pid);
+        if terminate_process(pid) {
+            match kind {
+                SessionKind::App => terminated_app_pids.push(pid),
+                SessionKind::Cli => terminated_cli_pids.push(pid),
             }
-            SessionKind::Cli => {
-                if terminate_process(pid) {
-                    terminated_cli_pids.push(pid);
-                } else {
-                    failed_pids.push(pid);
-                }
-            }
+        } else {
+            failed_pids.push(pid);
         }
     }
 
@@ -56,15 +49,6 @@ pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
         terminated_app_pids,
         terminated_cli_pids,
         failed_pids,
-    }
-}
-
-fn request_codex_app_quit() {
-    #[cfg(target_os = "macos")]
-    {
-        let _ = Command::new("/usr/bin/osascript")
-            .args(["-e", "tell application \"Codex\" to quit"])
-            .output();
     }
 }
 

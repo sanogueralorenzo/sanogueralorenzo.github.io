@@ -81,4 +81,4 @@ codex-auth watch start --help
 
 ### Session Invalidation
 
-- `use` switches request one graceful Codex app quit (AppleScript) and then terminate matching Codex CLI processes.
+- `use` switches force-terminate matching Codex app and Codex CLI processes (SIGTERM, then SIGKILL fallback).
