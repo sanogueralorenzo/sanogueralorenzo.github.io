@@ -15,7 +15,7 @@ class ImmersiveModeController(
 ) {
     fun enableStatusBarImmersiveMode() {
         updatePolicyControl { policies ->
-            if (policies.contains(IMMERSIVE_STATUS_POLICY)) {
+            if (IMMERSIVE_STATUS_POLICY in policies) {
                 policies
             } else {
                 policies + IMMERSIVE_STATUS_POLICY

@@ -58,14 +58,19 @@ pub fn resolve_home(override_home: Option<PathBuf>) -> Result<PathBuf> {
 
 pub fn expand_tilde(path: PathBuf) -> PathBuf {
     let raw = path.to_string_lossy();
-    if raw == "~" || raw.starts_with("~/") {
+    if raw == "~" {
         if let Ok(home) = env::var("HOME") {
-            if raw == "~" {
-                return PathBuf::from(home);
-            }
-            return PathBuf::from(home).join(raw.trim_start_matches("~/"));
+            return PathBuf::from(home);
         }
+        return path;
     }
+
+    if let Some(rest) = raw.strip_prefix("~/")
+        && let Ok(home) = env::var("HOME")
+    {
+        return PathBuf::from(home).join(rest);
+    }
+
     path
 }
 
@@ -234,9 +239,7 @@ pub fn write_secure_atomically(data: &[u8], destination: &Path) -> Result<()> {
 }
 
 pub fn is_executable(path: &Path) -> bool {
-    if let Ok(metadata) = fs::metadata(path) {
-        metadata.permissions().mode() & 0o111 != 0
-    } else {
-        false
-    }
+    fs::metadata(path)
+        .map(|metadata| metadata.permissions().mode() & 0o111 != 0)
+        .unwrap_or(false)
 }

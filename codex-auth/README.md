@@ -67,7 +67,7 @@ codex-auth watch start --help
 - `src/manager.rs` (profile lifecycle + auth apply/sync)
 - `src/watcher.rs` (watch start/stop/status/run loop)
 - `src/process.rs` (Codex process invalidation)
-- `src/util.rs` (path, fs, auth-JSON helpers)
+- `src/util.rs` (path, fs, auth-JSON helpers; includes explicit `~`/`~/...` expansion helpers)
 - `src/models.rs` (shared structs/enums)
 
 ### Storage
