@@ -19,6 +19,7 @@
   - `codex-remote` (optional)
 - Sessions submenu supports merge transfer (`target <- merger`) and stale hard-delete actions (1/3/7 days).
 - Remove stale sessions uses a dialog with 1/3/7-day quick dropdown and folder-ordered multi-select deletion list.
+- Stale-session list supports click-to-toggle multi-select (no modifier key required), plus Cmd/Shift multi-select.
 - Session ordering data comes from `codex-sessions list --folders` (CLI is source of truth).
 - Stale session rows render folder + last updated + title from CLI list output.
 - Stale session deletion executes one `codex-sessions delete --hard` call with all selected session IDs.

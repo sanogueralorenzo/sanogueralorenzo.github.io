@@ -64,6 +64,7 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
     private let tableView: NSTableView
     private let confirmButton: NSButton
     private var currentRows: [CodexSessionsCLIClient.SessionOption] = []
+    private var currentRowLabels: [String] = []
 
     init(staleByDays: [Int: [CodexSessionsCLIClient.SessionOption]],
          popup: NSPopUpButton,
@@ -121,7 +122,7 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
     func tableView(_ tableView: NSTableView,
                    viewFor tableColumn: NSTableColumn?,
                    row: Int) -> NSView? {
-        guard row >= 0, row < currentRows.count else {
+        guard row >= 0, row < currentRowLabels.count else {
             return nil
         }
         let identifier = NSUserInterfaceItemIdentifier("StaleSessionRow")
@@ -143,9 +144,32 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
             ])
         }
 
-        let session = currentRows[row]
-        cell.textField?.stringValue = "\(session.folder)  |  \(shortTimestamp(session.lastUpdatedAt))  |  \(session.title) (\(shortID(session.id)))"
+        cell.textField?.stringValue = currentRowLabels[row]
         return cell
+    }
+
+    func tableView(_ tableView: NSTableView,
+                   selectionIndexesForProposedSelection proposedSelectionIndexes: IndexSet) -> IndexSet {
+        guard let event = NSApp.currentEvent else {
+            return proposedSelectionIndexes
+        }
+
+        if event.type == .leftMouseDown {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if !modifiers.contains(.command) && !modifiers.contains(.shift) {
+                var toggled = tableView.selectedRowIndexes
+                for row in proposedSelectionIndexes {
+                    if toggled.contains(row) {
+                        toggled.remove(row)
+                    } else {
+                        toggled.insert(row)
+                    }
+                }
+                return toggled
+            }
+        }
+
+        return proposedSelectionIndexes
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
@@ -155,6 +179,9 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
     private func reloadRows() {
         let days = selectedDays()
         currentRows = staleByDays[days] ?? []
+        currentRowLabels = currentRows.map {
+            "\($0.folder)  |  \(shortTimestamp($0.lastUpdatedAt))  |  \($0.title) (\(shortID($0.id)))"
+        }
         tableView.reloadData()
         if !currentRows.isEmpty {
             tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
@@ -257,6 +284,8 @@ Pick stale-window (1/3/7 days), then multi-select sessions ordered by folder. Cl
         tableView.allowsMultipleSelection = true
         tableView.headerView = nil
         tableView.usesAlternatingRowBackgroundColors = true
+        tableView.rowHeight = 22
+        tableView.intercellSpacing = NSSize(width: 0, height: 2)
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("SessionColumn"))
         column.width = 610
