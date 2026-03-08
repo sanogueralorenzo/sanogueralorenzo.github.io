@@ -84,7 +84,7 @@ extension AppDelegate {
                 DispatchQueue.main.async {
                     let hasAnyStaleSessions = staleByDays.values.contains { !$0.isEmpty }
                     guard hasAnyStaleSessions else {
-                        self.showError(CodexSessionsCLIClient.Error(message: "No stale codex sessions found for 1/3/7 day windows."))
+                        self.showError(CodexSessionsCLIClient.Error(message: "No stale codex threads found for 1/3/7 day windows."))
                         return
                     }
 
@@ -127,7 +127,7 @@ extension AppDelegate {
                 let sessions = try sessionsCLI.listActiveSessions()
                 DispatchQueue.main.async {
                     guard sessions.count >= 2 else {
-                        self.showError(CodexSessionsCLIClient.Error(message: "Need at least two active sessions to merge."))
+                        self.showError(CodexSessionsCLIClient.Error(message: "Need at least two active threads to merge."))
                         return
                     }
 

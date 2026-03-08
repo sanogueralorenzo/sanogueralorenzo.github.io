@@ -20,17 +20,17 @@
 - On app launch, menubar runs `codex-auth watch start`.
 - On app launch, menubar runs `codex-sessions watch thread-titles start` by default.
 - `Watch Thread Titles` preference is persisted; if user disables it, launch auto-start remains disabled until re-enabled.
-- Sessions submenu includes `Watch Thread Titles` toggle (mapped to `codex-sessions watch thread-titles start|stop|status`), merge transfer (`target <- merger`), and stale hard-delete actions (1/3/7 days).
+- Threads submenu includes `Watch Thread Titles` toggle (mapped to `codex-sessions watch thread-titles start|stop|status`), merge transfer (`target <- merger`), and stale hard-delete actions (1/3/7 days).
 - `Watch Thread Titles` tooltip: `Auto-generate short thread titles`.
-- Sessions submenu is rendered as a compact list without divider lines between those actions.
-- Merge Target/Merger pickers display conversation titles only (no session IDs).
-- Remove stale sessions uses a compact dialog with 1d/3d/7d stale-window segmented control and folder-ordered multi-select deletion list.
-- Stale-session rows are two-line: title + folder/updated/id metadata.
-- Stale-session dialog includes `Select All` and `Clear` actions plus a dynamic `Delete N` primary button.
-- Stale-session list supports click-to-toggle multi-select (no modifier key required), plus Cmd/Shift multi-select.
-- Session ordering data comes from `codex-sessions list --folders` (CLI is source of truth).
-- Stale session rows render folder + last updated + title from CLI list output.
-- Stale session deletion executes one `codex-sessions delete --hard` call with all selected session IDs.
+- Threads submenu is rendered as a compact list without divider lines between those actions.
+- Merge Target/Merger pickers display conversation titles only (no thread IDs).
+- Remove stale threads uses a compact dialog with 1d/3d/7d stale-window segmented control and folder-ordered multi-select deletion list.
+- Stale-thread rows are two-line: title + folder/updated/id metadata.
+- Stale-thread dialog includes `Select All` and `Clear` actions plus a dynamic `Delete N` primary button.
+- Stale-thread list supports click-to-toggle multi-select (no modifier key required), plus Cmd/Shift multi-select.
+- Thread ordering data comes from `codex-sessions list --folders` (CLI is source of truth).
+- Stale thread rows render folder + last updated + title from CLI list output.
+- Stale thread deletion executes one `codex-sessions delete --hard` call with all selected thread IDs.
 
 ### Storage
 

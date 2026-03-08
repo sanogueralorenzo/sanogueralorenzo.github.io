@@ -306,8 +306,8 @@ extension AppDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         let alert = NSAlert()
-        alert.messageText = "Remove Stale Sessions"
-        alert.informativeText = "Select stale sessions to permanently delete."
+        alert.messageText = "Remove Stale Threads"
+        alert.informativeText = "Select stale threads to permanently delete."
 
         let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 620, height: 320))
         let staleWindowLabel = NSTextField(labelWithString: "Stale Window")
@@ -381,11 +381,11 @@ extension AppDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         let alert = NSAlert()
-        alert.messageText = "Merge Sessions"
+        alert.messageText = "Merge Threads"
         alert.informativeText = """
-Pick a Target session and a Merger session.
+Pick a Target thread and a Merger thread.
 
-Codex will summarize the Merger session and append compacted non-actionable context into the Target session. After that succeeds, the Merger session is permanently deleted.
+Codex will summarize the Merger thread and append compacted non-actionable context into the Target thread. After that succeeds, the Merger thread is permanently deleted.
 """
 
         let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 92))
@@ -428,7 +428,7 @@ Codex will summarize the Merger session and append compacted non-actionable cont
             return nil
         }
         guard targetIndex != mergerIndex else {
-            showError(CodexSessionsCLIClient.Error(message: "Target and Merger must be different sessions."))
+            showError(CodexSessionsCLIClient.Error(message: "Target and Merger must be different threads."))
             return nil
         }
 

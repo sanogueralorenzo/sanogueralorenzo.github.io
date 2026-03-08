@@ -73,7 +73,7 @@ extension AppDelegate {
 
         menu.addItem(.separator())
 
-        let sessionsItem = NSMenuItem(title: "Sessions", action: nil, keyEquivalent: "")
+        let sessionsItem = NSMenuItem(title: "Threads", action: nil, keyEquivalent: "")
         let sessionsMenu = NSMenu()
         if data.isLoading {
             let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
@@ -82,11 +82,11 @@ extension AppDelegate {
         } else {
             switch data.sessionsStatus ?? .notInstalled {
             case .notInstalled:
-                let missingItem = NSMenuItem(title: "codex-sessions not installed", action: nil, keyEquivalent: "")
+                let missingItem = NSMenuItem(title: "Threads CLI not installed (codex-sessions)", action: nil, keyEquivalent: "")
                 missingItem.isEnabled = false
                 sessionsMenu.addItem(missingItem)
             case .ready(let activeSessionCount):
-                let countItem = NSMenuItem(title: "Session Count: \(activeSessionCount)", action: nil, keyEquivalent: "")
+                let countItem = NSMenuItem(title: "Thread Count: \(activeSessionCount)", action: nil, keyEquivalent: "")
                 countItem.isEnabled = false
                 sessionsMenu.addItem(countItem)
 

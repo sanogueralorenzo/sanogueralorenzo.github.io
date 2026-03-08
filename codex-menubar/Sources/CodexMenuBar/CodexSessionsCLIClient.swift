@@ -123,13 +123,13 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
 
     func mergeSessions(targetID: String, mergeID: String) throws {
         guard !targetID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw Error(message: "Target session cannot be empty.")
+            throw Error(message: "Target thread cannot be empty.")
         }
         guard !mergeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw Error(message: "Merge session cannot be empty.")
+            throw Error(message: "Merger thread cannot be empty.")
         }
         guard targetID != mergeID else {
-            throw Error(message: "Target and merger sessions must be different.")
+            throw Error(message: "Target and merger threads must be different.")
         }
 
         _ = try run([
