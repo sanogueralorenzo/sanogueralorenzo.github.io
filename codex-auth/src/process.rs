@@ -37,13 +37,18 @@ pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
     let mut failed_pids = Vec::new();
 
     for (pid, kind) in targets {
-        if terminate_process(pid) {
-            match kind {
-                SessionKind::App => terminated_app_pids.push(pid),
-                SessionKind::Cli => terminated_cli_pids.push(pid),
+        match kind {
+            SessionKind::App => {
+                // App quit is requested once via AppleScript above; avoid a second explicit kill path.
+                terminated_app_pids.push(pid);
             }
-        } else {
-            failed_pids.push(pid);
+            SessionKind::Cli => {
+                if terminate_process(pid) {
+                    terminated_cli_pids.push(pid);
+                } else {
+                    failed_pids.push(pid);
+                }
+            }
         }
     }
 

@@ -78,3 +78,7 @@ codex-auth watch start --help
 - `~/.codex/auth/active-account-id`
 - `~/.codex/auth/codex-auth-watch.pid`
 - `~/.codex/auth/codex-auth-watch.log`
+
+### Session Invalidation
+
+- `use` switches request one graceful Codex app quit (AppleScript) and then terminate matching Codex CLI processes.
