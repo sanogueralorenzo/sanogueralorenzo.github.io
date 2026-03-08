@@ -2,7 +2,6 @@ import Foundation
 
 struct CodexRateLimitsSnapshot {
     let entries: [String]
-    let sourceNote: String
 }
 
 final class CodexRateLimitsProvider: @unchecked Sendable {
@@ -63,35 +62,20 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
 
     private func unavailableSnapshot(reason: String) -> CodexRateLimitsSnapshot {
         return CodexRateLimitsSnapshot(
-            entries: ["Unavailable: \(reason)"],
-            sourceNote: "Codex app-server"
+            entries: ["Unavailable: \(reason)"]
         )
     }
 
     private func buildSnapshot(from result: RateLimitsResult) -> CodexRateLimitsSnapshot {
-        var entries: [String] = []
+        let primaryLimit = result.rateLimitsByLimitId?["codex"] ?? result.rateLimits
+        let primaryLine = compactLine(label: primaryLabel(windowDurationMins: primaryLimit.primary?.windowDurationMins),
+                                      window: primaryLimit.primary,
+                                      isWeekly: false)
+        let weeklyLine = compactLine(label: "Weekly",
+                                     window: primaryLimit.secondary,
+                                     isWeekly: true)
 
-        let allLimits = sortedLimits(from: result)
-
-        if let planType = result.rateLimits.planType?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !planType.isEmpty {
-            entries.append("Plan: \(planType)")
-        }
-
-        if let credits = creditsLine(from: result.rateLimits) {
-            entries.append(credits)
-        }
-
-        for limit in allLimits {
-            entries.append(contentsOf: lines(for: limit))
-        }
-
-        if entries.isEmpty {
-            entries = ["No rate limit data available"]
-        }
-
-        return CodexRateLimitsSnapshot(entries: entries,
-                                       sourceNote: "Codex app-server")
+        return CodexRateLimitsSnapshot(entries: [primaryLine, weeklyLine])
     }
 
     private func resolveCodexExecutablePath() -> String? {
@@ -196,130 +180,32 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
                       userInfo: [NSLocalizedDescriptionKey: stderrText])
     }
 
-    private func sortedLimits(from result: RateLimitsResult) -> [RateLimitEntry] {
-        let raw = result.rateLimitsByLimitId?.values.map { $0 } ?? [result.rateLimits]
-
-        return raw.sorted { lhs, rhs in
-            let lhsPriority = sortPriority(for: lhs)
-            let rhsPriority = sortPriority(for: rhs)
-            if lhsPriority != rhsPriority {
-                return lhsPriority < rhsPriority
-            }
-            return displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedAscending
-        }
+    private func compactLine(label: String, window: RateLimitWindow?, isWeekly: Bool) -> String {
+        let percentText = window?.usedPercent.map { "\($0)%" } ?? "--"
+        let resetText = formattedResetText(unixTimestamp: window?.resetsAt, isWeekly: isWeekly)
+        return "\(label) \(percentText) \(resetText)"
     }
 
-    private func sortPriority(for limit: RateLimitEntry) -> Int {
-        if limit.limitId == "codex" {
-            return 0
+    private func primaryLabel(windowDurationMins: Int?) -> String {
+        guard let minutes = windowDurationMins, minutes > 0 else {
+            return "5h"
         }
-        return 1
+        if minutes % 60 == 0 {
+            return "\(minutes / 60)h"
+        }
+        return "\(minutes)m"
     }
 
-    private func displayName(for limit: RateLimitEntry) -> String {
-        if let name = limit.limitName?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !name.isEmpty {
-            return name
-        }
-        if let id = limit.limitId?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !id.isEmpty {
-            return id
-        }
-        return "default"
-    }
-
-    private func lines(for limit: RateLimitEntry) -> [String] {
-        var lines: [String] = []
-        let name = displayName(for: limit)
-
-        if let primaryLine = windowLine(prefix: "\(name) (primary)", window: limit.primary) {
-            lines.append(primaryLine)
-        }
-        if let secondaryLine = windowLine(prefix: "\(name) (secondary)", window: limit.secondary) {
-            lines.append(secondaryLine)
+    private func formattedResetText(unixTimestamp: Int?, isWeekly: Bool) -> String {
+        guard let unixTimestamp else {
+            return "--"
         }
 
-        if lines.isEmpty {
-            lines.append("\(name): no active window")
-        }
-
-        return lines
-    }
-
-    private func windowLine(prefix: String, window: RateLimitWindow?) -> String? {
-        guard let window else {
-            return nil
-        }
-
-        let usageText: String
-        if let usedPercent = window.usedPercent {
-            usageText = "\(usedPercent)%"
-        } else {
-            usageText = "unknown usage"
-        }
-
-        let durationText: String
-        if let minutes = window.windowDurationMins {
-            durationText = "\(minutes)m"
-        } else {
-            durationText = "unknown window"
-        }
-
-        let resetText: String
-        if let resetsAt = window.resetsAt {
-            resetText = "resets \(relativeResetText(unixTimestamp: resetsAt))"
-        } else {
-            resetText = "reset unknown"
-        }
-
-        return "\(prefix): \(usageText) of \(durationText), \(resetText)"
-    }
-
-    private func creditsLine(from primary: RateLimitEntry) -> String? {
-        guard let credits = primary.credits else {
-            return nil
-        }
-
-        let availability = (credits.hasCredits == true) ? "available" : "none"
-        if credits.unlimited == true {
-            return "Credits: unlimited"
-        }
-        if let balance = credits.balance, !balance.isEmpty {
-            return "Credits: \(availability), balance \(balance)"
-        }
-        return "Credits: \(availability)"
-    }
-
-    private func relativeResetText(unixTimestamp: Int) -> String {
-        let now = Date()
-        let resetDate = Date(timeIntervalSince1970: TimeInterval(unixTimestamp))
-        let delta = Int(resetDate.timeIntervalSince(now))
-        if delta <= 0 {
-            return "now"
-        }
-        if delta < 60 {
-            return "in \(delta)s"
-        }
-
-        let minutes = delta / 60
-        if minutes < 60 {
-            return "in \(minutes)m"
-        }
-
-        let hours = minutes / 60
-        let remainingMinutes = minutes % 60
-        if hours < 24 {
-            if remainingMinutes == 0 {
-                return "in \(hours)h"
-            }
-            return "in \(hours)h \(remainingMinutes)m"
-        }
-
-        let days = hours / 24
-        let remainingHours = hours % 24
-        if remainingHours == 0 {
-            return "in \(days)d"
-        }
-        return "in \(days)d \(remainingHours)h"
+        let date = Date(timeIntervalSince1970: TimeInterval(unixTimestamp))
+        let formatter = DateFormatter()
+        formatter.timeZone = .current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = isWeekly ? "MMM d" : "h:mma"
+        return formatter.string(from: date)
     }
 }

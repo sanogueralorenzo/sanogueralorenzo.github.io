@@ -165,11 +165,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
 
-        let source = NSMenuItem(title: "Source: \(snapshot.sourceNote)", action: nil, keyEquivalent: "")
-        source.isEnabled = false
-        menu.addItem(source)
-        menu.addItem(.separator())
-
         for line in snapshot.entries {
             let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
             item.isEnabled = false
