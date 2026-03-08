@@ -1,7 +1,7 @@
 use crate::shared::models::{DeleteResult, SessionMeta};
 use anyhow::{Context, Result, anyhow, bail};
-use chrono::{DateTime, TimeZone, Utc};
-use rusqlite::{Connection, params};
+use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
@@ -263,6 +263,27 @@ impl SessionStore {
         Ok(latest)
     }
 
+    pub fn read_first_user_message(&self, target: &SessionMeta) -> Result<Option<String>> {
+        if let Some(from_db) = self.read_first_user_message_from_db(&target.id)? {
+            return Ok(Some(from_db));
+        }
+
+        self.read_first_user_message_from_rollout(&target.file_path)
+    }
+
+    pub fn set_thread_title(&self, id: &str, title: &str) -> Result<()> {
+        let title = title.trim();
+        if title.is_empty() {
+            bail!("title cannot be empty");
+        }
+
+        self.update_thread_title_in_db(id, title)?;
+        self.upsert_thread_title_in_global_state(id, title)?;
+        self.upsert_thread_title_in_session_index(id, title)?;
+
+        Ok(())
+    }
+
     fn state_db_path(&self) -> Result<Option<PathBuf>> {
         if !self.codex_home.exists() {
             return Ok(None);
@@ -300,6 +321,46 @@ impl SessionStore {
         }
 
         Ok(best.map(|(_, path)| path))
+    }
+
+    fn read_first_user_message_from_db(&self, id: &str) -> Result<Option<String>> {
+        let Some(path) = self.state_db_path()? else {
+            return Ok(None);
+        };
+
+        let conn = Connection::open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        let mut statement =
+            match conn.prepare("SELECT first_user_message FROM threads WHERE id = ?1 LIMIT 1") {
+                Ok(statement) => statement,
+                Err(_) => return Ok(None),
+            };
+
+        let value: Option<String> = statement
+            .query_row(params![id], |row| row.get(0))
+            .optional()?;
+
+        Ok(normalize_optional_string(value))
+    }
+
+    fn read_first_user_message_from_rollout(&self, path: &Path) -> Result<Option<String>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+
+        let file =
+            fs::File::open(path).with_context(|| format!("failed to open {}", path.display()))?;
+        let reader = BufReader::new(file);
+
+        for line in reader.lines() {
+            let line =
+                line.with_context(|| format!("failed to read line from {}", path.display()))?;
+            if let Some(text) = extract_user_text_from_line(&line) {
+                return Ok(Some(text));
+            }
+        }
+
+        Ok(None)
     }
 
     fn collect_sessions_from_db(
@@ -451,6 +512,136 @@ impl SessionStore {
                 id
             ],
         )?;
+
+        Ok(())
+    }
+
+    fn update_thread_title_in_db(&self, id: &str, title: &str) -> Result<()> {
+        let Some(path) = self.state_db_path()? else {
+            return Ok(());
+        };
+
+        let conn = Connection::open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+
+        conn.execute(
+            "UPDATE threads SET title = ?1 WHERE id = ?2",
+            params![title, id],
+        )?;
+
+        Ok(())
+    }
+
+    fn upsert_thread_title_in_global_state(&self, id: &str, title: &str) -> Result<()> {
+        let file_path = self.codex_home.join(".codex-global-state.json");
+        let mut parsed = if file_path.exists() {
+            let raw = fs::read_to_string(&file_path)
+                .with_context(|| format!("failed to read {}", file_path.display()))?;
+            serde_json::from_str::<Value>(&raw)
+                .with_context(|| format!("failed to parse {}", file_path.display()))?
+        } else {
+            Value::Object(serde_json::Map::new())
+        };
+
+        if !parsed.is_object() {
+            parsed = Value::Object(serde_json::Map::new());
+        }
+
+        let Some(root) = parsed.as_object_mut() else {
+            return Ok(());
+        };
+
+        let thread_titles_entry = root
+            .entry("thread-titles".to_string())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if !thread_titles_entry.is_object() {
+            *thread_titles_entry = Value::Object(serde_json::Map::new());
+        }
+        let Some(thread_titles) = thread_titles_entry.as_object_mut() else {
+            return Ok(());
+        };
+
+        let titles_entry = thread_titles
+            .entry("titles".to_string())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if !titles_entry.is_object() {
+            *titles_entry = Value::Object(serde_json::Map::new());
+        }
+        let Some(titles) = titles_entry.as_object_mut() else {
+            return Ok(());
+        };
+        titles.insert(id.to_string(), Value::String(title.to_string()));
+
+        let order_entry = thread_titles
+            .entry("order".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if !order_entry.is_array() {
+            *order_entry = Value::Array(Vec::new());
+        }
+        if let Some(order) = order_entry.as_array_mut() {
+            order.retain(|value| value.as_str() != Some(id));
+            order.insert(0, Value::String(id.to_string()));
+            if order.len() > 200 {
+                order.truncate(200);
+            }
+        }
+
+        let serialized = serde_json::to_string_pretty(&parsed)?;
+        fs::write(&file_path, format!("{serialized}\n"))
+            .with_context(|| format!("failed to write {}", file_path.display()))?;
+
+        Ok(())
+    }
+
+    fn upsert_thread_title_in_session_index(&self, id: &str, title: &str) -> Result<()> {
+        let file_path = self.codex_home.join("session_index.jsonl");
+        let raw = if file_path.exists() {
+            fs::read_to_string(&file_path)
+                .with_context(|| format!("failed to read {}", file_path.display()))?
+        } else {
+            String::new()
+        };
+
+        let mut lines = Vec::new();
+        let mut found = false;
+
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            let Ok(mut parsed) = serde_json::from_str::<Value>(trimmed) else {
+                lines.push(trimmed.to_string());
+                continue;
+            };
+
+            if parsed.get("id").and_then(Value::as_str).map(str::trim) == Some(id) {
+                if let Some(object) = parsed.as_object_mut() {
+                    object.insert("thread_name".to_string(), Value::String(title.to_string()));
+                    object.insert("title".to_string(), Value::String(title.to_string()));
+                    object.insert(
+                        "updated_at".to_string(),
+                        Value::String(Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true)),
+                    );
+                }
+                found = true;
+            }
+
+            lines.push(serde_json::to_string(&parsed)?);
+        }
+
+        if !found {
+            lines.push(serde_json::to_string(&serde_json::json!({
+                "id": id,
+                "thread_name": title,
+                "title": title,
+                "updated_at": Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
+            }))?);
+        }
+
+        fs::write(&file_path, format!("{}\n", lines.join("\n")))
+            .with_context(|| format!("failed to write {}", file_path.display()))?;
 
         Ok(())
     }
@@ -814,6 +1005,53 @@ fn extract_assistant_text_from_line(line: &str) -> Option<String> {
     } else {
         Some(parts.join("\n\n"))
     }
+}
+
+fn extract_user_text_from_line(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let parsed: Value = serde_json::from_str(trimmed).ok()?;
+    if parsed.get("type").and_then(Value::as_str) != Some("response_item") {
+        return None;
+    }
+
+    let payload = parsed.get("payload")?;
+    if payload.get("type").and_then(Value::as_str) != Some("message") {
+        return None;
+    }
+    if payload.get("role").and_then(Value::as_str) != Some("user") {
+        return None;
+    }
+
+    let content = payload.get("content")?.as_array()?;
+    let mut parts = Vec::new();
+    for item in content {
+        let Some(text) = item.get("text").and_then(Value::as_str) else {
+            continue;
+        };
+        let value = text.trim();
+        if value.is_empty() || is_instruction_payload_text(value) {
+            continue;
+        }
+        parts.push(value.to_string());
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("\n\n"))
+    }
+}
+
+fn is_instruction_payload_text(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.starts_with("# agents.md instructions for ")
+        || lower.starts_with("<environment_context>")
+        || lower.starts_with("<instructions>")
+        || lower.starts_with("<skill>")
 }
 
 fn prune_empty_parent_dirs(start: &Path, root: &Path) -> Result<()> {

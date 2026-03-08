@@ -70,6 +70,12 @@ pub struct MergeResult {
     pub merged_file_path: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct TitleResult {
+    pub id: String,
+    pub title: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct SessionMeta {
     pub id: String,

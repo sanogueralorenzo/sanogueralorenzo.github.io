@@ -15,6 +15,8 @@ pub enum Commands {
     List(ListArgs),
     /// List resolved conversation titles by session id.
     Titles(TitlesArgs),
+    /// Generate and persist a session title from first user input.
+    Title(TitleArgs),
     /// Show one session by id or unique id prefix.
     Show(ShowArgs),
     /// Print latest assistant message for a session.
@@ -116,6 +118,21 @@ pub struct ListArgs {
 
 #[derive(Args, Debug)]
 pub struct TitlesArgs {
+    #[arg(long)]
+    pub home: Option<PathBuf>,
+
+    #[arg(long)]
+    pub json: bool,
+
+    #[arg(long)]
+    pub plain: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct TitleArgs {
+    /// Full thread id or unique thread id prefix
+    pub id: String,
+
     #[arg(long)]
     pub home: Option<PathBuf>,
 

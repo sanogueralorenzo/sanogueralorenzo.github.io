@@ -20,6 +20,7 @@ Usage: codex-sessions <COMMAND>
 Commands:
   list       List sessions with optional filters/pagination
   titles     List resolved conversation titles by session id
+  title      Generate and persist a session title from first user input
   show       Show one session by id or unique id prefix
   message    Print latest assistant message for a session
   delete     Archive by default, or hard delete sessions with --hard
@@ -64,6 +65,19 @@ Options:
   - `codex-sessions delete --hard --older-than-days 7 --all --yes`
 - batch JSON output includes: `processed`, `succeeded`, `failed`, `skipped`.
 - `prune --hard` batches stale-session row deletes in one DB transaction and rewrites global titles once per prune run.
+
+### Title Generation
+
+- `title <id>` generates a title using the same Codex desktop rules:
+  - model: `gpt-5.1-codex-mini`
+  - effort: `low`
+  - prompt input truncated to 2000 chars
+  - post-normalization strips `title:` prefix, trims quotes/spacing, strips trailing `.?!`, enforces 18-36 chars
+- command requires an existing first user prompt and at least one assistant response in the target session.
+- title writes are applied to:
+  - `threads.title` in `state_*.sqlite` (when present)
+  - `thread-titles.titles.<id>` in `~/.codex/.codex-global-state.json`
+  - `thread_name` (and `title`) in `~/.codex/session_index.jsonl`
 
 ### Storage
 
