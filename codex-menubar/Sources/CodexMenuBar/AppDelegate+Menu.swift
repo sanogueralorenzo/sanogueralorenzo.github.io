@@ -133,26 +133,7 @@ extension AppDelegate {
 
         let limitsItem = NSMenuItem(title: "Rate Limits", action: nil, keyEquivalent: "")
         let limitsMenu = NSMenu()
-
-        if !data.isLoading {
-            let source = NSMenuItem(title: "Source: \(data.limitsSnapshot.sourceNote)", action: nil, keyEquivalent: "")
-            source.isEnabled = false
-            limitsMenu.addItem(source)
-            limitsMenu.addItem(.separator())
-
-            for line in data.limitsSnapshot.entries {
-                let entry = NSMenuItem(title: line, action: nil, keyEquivalent: "")
-                entry.isEnabled = false
-                limitsMenu.addItem(entry)
-            }
-
-            if data.limitsSnapshot.isMock {
-                limitsMenu.addItem(.separator())
-                let mockTag = NSMenuItem(title: "Mock data", action: nil, keyEquivalent: "")
-                mockTag.isEnabled = false
-                limitsMenu.addItem(mockTag)
-            }
-        }
+        attachRateLimitsSubmenu(limitsMenu)
 
         menu.addItem(limitsItem)
         menu.setSubmenu(limitsMenu, for: limitsItem)

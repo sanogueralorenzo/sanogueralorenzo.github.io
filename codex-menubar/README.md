@@ -21,6 +21,8 @@
 - On app launch, menubar runs `codex-sessions watch thread-titles start` by default.
 - `Watch Thread Titles` preference is persisted; if user disables it, launch auto-start remains disabled until re-enabled.
 - `Quit` performs best-effort stop for managed background processes (`codex-remote`, `codex-sessions` thread-title watcher, `codex-auth` watcher) before terminating the app.
+- `Rate Limits` submenu is computed lazily on open (not during global menu refresh).
+- Rate limits are fetched from `codex app-server` via `initialize` + `account/rateLimits/read` on demand.
 - Threads submenu includes `Watch Thread Titles` toggle (mapped to `codex-sessions watch thread-titles start|stop|status`), merge transfer (`target <- merger`), and stale hard-delete actions (1/3/7 days).
 - Threads submenu actions are labeled `Merge Threads` and `Remove Threads`.
 - `Watch Thread Titles` tooltip: `Auto-generate thread titles`.
