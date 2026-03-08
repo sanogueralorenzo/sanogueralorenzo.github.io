@@ -264,7 +264,22 @@ extension AppDelegate {
     }
 
     @objc func quit(_ sender: Any?) {
-        NSApp.terminate(nil)
+        let remoteCLI = self.remoteCLI
+        let sessionsCLI = self.sessionsCLI
+        let authCLI = self.authCLI
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            if (try? remoteCLI.isRunning()) == true {
+                try? remoteCLI.stop()
+            }
+
+            try? sessionsCLI.stopTitleWatcher()
+            try? authCLI.stopWatcher()
+
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     private func showCurrentAuthAlreadyRegisteredWarning(profileName: String) {

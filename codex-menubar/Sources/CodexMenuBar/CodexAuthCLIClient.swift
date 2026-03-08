@@ -58,6 +58,10 @@ final class CodexAuthCLIClient: @unchecked Sendable {
         _ = try run(["watch", "start"])
     }
 
+    func stopWatcher() throws {
+        _ = try run(["watch", "stop"])
+    }
+
     func menuProfiles(currentProfileName: String?,
                       profiles: [String],
                       isLoading: Bool) -> [MenuProfile] {
