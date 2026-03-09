@@ -27,9 +27,10 @@
 - D06 | pr-required | MUST | Return the PR link.
 - D07 | delivery-failure | MUST | Retry after fixing the issue.
 - D08 | blocked-after-retries | MUST | Report exact command + exact error and stop.
-- D10 | code-change | MUST | Run repository root `./install.sh` as the final validation step when install-gate paths change.
+- D10 | install-gate | MUST | Run repository root `./install.sh` as the final validation step only when install-gate paths change.
 - D10a | install-gate | MUST | Install gate is active when any changed path matches `codex-*/**` and does not match `codex-*/README.md`.
 - D10b | install-gate | MUST | Skip `./install.sh` when the change set is docs-only (`AGENTS.md`, top-level `README.md`, or only `*/README.md` updates).
+- D10c | android-only-change | MUST_NOT | Run repository root `./install.sh` for Android app-only changes (`voice/**`, `overlay/**`); validate via Android install/launch flow instead.
 - D11 | install-semantics | MUST | `install` means install + launch for runnable apps; for CLI/scripts it means install only.
 
 ## Tooling
@@ -52,6 +53,7 @@
 - A04 | android | MUST | Use Mavericks `Async` + `execute` with suspend requests.
 - A05 | android | MUST | Use feature-scoped repositories for storage and network.
 - A06 | android-behavior-change | MUST | Install and launch app when a device is available.
+- A07 | android-behavior-change | MUST | Use `./gradlew :app:installDebug` and `adb shell monkey -p <applicationId> -c android.intent.category.LAUNCHER 1` as default install/launch validation commands.
 
 ## Web + TypeScript Apps
 - W01 | web/ts-app | MUST | Feature-scoped modules, not layer-scoped.
