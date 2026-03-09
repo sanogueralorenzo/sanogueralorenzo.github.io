@@ -10,10 +10,7 @@
 - G02 | * | MUST | Make forward-only changes; no legacy/back-compat unless requested.
 - G03 | * | MUST | Update call sites and tests in the same change.
 - G04 | * | MUST | Delete replaced code and keep one source of truth.
-- G05 | * | MUST | Keep functions small, explicit, and side-effect aware.
 - G07 | * | MUST_NOT | Add unnecessary abstraction or layer-oriented packaging.
-- G08 | * | MUST | Use feature-scoped modules.
-- G10 | * | MUST | Use explicit loading/error/empty states for async UI/data flows unless explicitly told otherwise.
 - G11 | * | MUST_NOT | Commit secrets, tokens, credentials, or local env artifacts.
 - G12 | module-change | MUST | Update affected module README when CLI/help output, setup/install, storage paths, or user-visible behavior changes.
 
@@ -47,36 +44,14 @@
 
 ## Android Apps
 - A01 | android | MUST | No main-thread blocking.
-- A03 | android | MUST | Keep presentation as Compose + Mavericks `ViewModel` + Mavericks `State`.
-- A04 | android | MUST | Use Mavericks `Async` + `execute` with suspend requests.
-- A05 | android | MUST | Use feature-scoped repositories for storage and network.
 - A06 | android-behavior-change | MUST | Install and launch app when a device is available.
 - A07 | android-behavior-change | MUST | Use `./gradlew :app:installDebug` and `adb shell monkey -p <applicationId> -c android.intent.category.LAUNCHER 1` by default.
-
-## Web + TypeScript Apps
-- W01 | web/ts-app | MUST | Use feature-scoped modules, not layer-scoped modules.
-- W02 | web/ts-app | MUST | Keep UI state deterministic with one source of truth per feature.
-- W04 | typescript | MUST | Use strict typing; avoid `any` unless justified inline.
 
 ## CLI + Scripts
 - C01 | cli/script | MUST | Keep execution non-interactive and repeatable.
 - C02 | cli/script | MUST | Use deterministic exit codes; non-zero on errors.
 - C03 | shell-script | MUST | Use `set -euo pipefail` with a compatible shell.
 - C05 | cli/script | MUST | Use clear flags/inputs; avoid hidden defaults with side effects.
-
-## Telegram Bot (TypeScript)
-- B01 | telegram-bot | MUST | Keep handlers thin; move business logic into pure/testable services.
-- B02 | telegram-bot | MUST | Handle async errors explicitly; no unhandled promise rejections.
-- B03 | telegram-bot | MUST | Make outbound calls resilient (timeouts, retry/backoff, bounded attempts).
-- B04 | telegram-bot | MUST | Ensure idempotency/deduplication for update handling and side effects.
-
-## Agent Orchestration Systems
-- O01 | orchestration | MUST | Workflows/tasks must be idempotent and resumable.
-- O02 | orchestration | MUST | Define explicit step inputs/outputs and stable contracts.
-- O03 | orchestration | MUST | Persist checkpoints/state needed for recovery before irreversible operations.
-- O04 | orchestration | MUST | Enforce per-step timeout, cancellation, and retry budgets.
-- O05 | orchestration | MUST | Emit structured logs/metrics/traces with correlation IDs.
-- O06 | orchestration | MUST_NOT | Hide cross-step mutable state or rely on implicit global context.
 
 ## Validation
 - V01 | any-change | MUST | Run the narrowest relevant tests/checks for changed scope before final response and before any active install gate.
