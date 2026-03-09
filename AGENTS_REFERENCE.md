@@ -6,55 +6,25 @@
 - `AGENTS_REFERENCE.md` is non-normative. `AGENTS.md` is normative.
 
 ## Intent
-- R01 | * | SHOULD | Optimize for AI tooling execution quality over prose readability.
-- R02 | * | SHOULD | Keep enforceable rules in `AGENTS.md`; keep rationale/examples in `AGENTS_REFERENCE.md`.
+- R01 | * | SHOULD | Keep `AGENTS.md` execution-only and deterministic.
+- R02 | * | SHOULD | Keep this file compact and optional.
 
-## Global Guidance
-- R05 | * | SHOULD | Keep functions small, explicit, and side-effect aware.
-- R08 | * | SHOULD | Use feature-scoped modules.
-- R10 | * | SHOULD | Use explicit loading/error/empty states for async UI/data flows unless explicitly told otherwise.
+## Module Map
+- M01 | codex-auth/** | INFO | Rust CLI; install: `codex-auth/scripts/install.sh`; verify: `cargo test`.
+- M02 | codex-sessions/** | INFO | Rust CLI; install: `codex-sessions/scripts/install.sh`; verify: `cargo test`.
+- M03 | codex-remote/** | INFO | TypeScript CLI; install: `codex-remote/scripts/install.sh`; verify: `npm run typecheck && npm run build`.
+- M04 | codex-menubar/** | INFO | Swift macOS app; install/launch: `codex-menubar/scripts/install.sh`; verify: `swift build -c release --product CodexMenuBar`.
+- M05 | codex-agents/** | INFO | Bash CLI; install: `codex-agents/scripts/install.sh`; verify: `bash scripts/codex-agents --help`.
+- M06 | voice/** | INFO | Android app `com.sanogueralorenzo.voice`; verify: `./gradlew :app:assembleDebug`; runtime: `installDebug + monkey`.
+- M07 | overlay/** | INFO | Android app `com.sanogueralorenzo.overlay`; verify: `./gradlew :app:assembleDebug`; runtime: `installDebug + monkey`.
+- M08 | site/** | INFO | Hugo site; verify/build: `hugo --minify`.
 
-## Android Guidance
-- R20 | android | SHOULD | Prefer child feature `NavHost` over a monolithic app-wide `NavHost` when a feature owns multi-screen navigation state.
-- R23 | android | SHOULD | Keep presentation as Compose + Mavericks `ViewModel` + Mavericks `State`.
-- R24 | android | SHOULD | Use Mavericks `Async` + `execute` with suspend requests.
-- R25 | android | SHOULD | Use feature-scoped repositories for storage and network.
+## Fallbacks
+- F01 | rust-check | SHOULD | If `cargo test` blocked, fallback to `cargo check` and report blocker.
+- F02 | ts-check | SHOULD | If `npm run typecheck && npm run build` fails from dependency drift, run `npm install` once then retry.
+- F03 | android-runtime | SHOULD | If no device available, run assemble-only and report missing device for install/launch.
+- F04 | site-check | SHOULD | If `hugo` missing, report missing binary and next install command.
 
-## Web + TypeScript Guidance
-- R30 | web/ts-app | SHOULD | Use feature-scoped modules instead of layer-scoped modules.
-- R31 | web/ts-app | SHOULD | Keep UI state deterministic with one source of truth per feature.
-- R32 | typescript | SHOULD | Use strict typing and avoid `any` unless justified inline.
-- R33 | web/ts-app | SHOULD | Prefer simple composable components over framework-heavy abstractions.
-
-## Telegram Bot Guidance
-- R40 | telegram-bot | SHOULD | Keep handlers thin; move business logic into pure/testable services.
-- R41 | telegram-bot | SHOULD | Handle async errors explicitly; avoid unhandled promise rejections.
-- R42 | telegram-bot | SHOULD | Make outbound calls resilient with timeouts and bounded retry/backoff.
-- R43 | telegram-bot | SHOULD | Ensure idempotency/deduplication for update handling and side effects.
-
-## Orchestration Guidance
-- R50 | orchestration | SHOULD | Keep workflows/tasks idempotent and resumable.
-- R51 | orchestration | SHOULD | Define explicit step inputs/outputs with stable contracts.
-- R52 | orchestration | SHOULD | Persist checkpoints/state needed for recovery before irreversible operations.
-- R53 | orchestration | SHOULD | Enforce per-step timeout, cancellation, and retry budgets.
-- R54 | orchestration | SHOULD | Emit structured logs/metrics/traces with correlation IDs.
-- R55 | orchestration | SHOULD_NOT | Hide cross-step mutable state or rely on implicit global context.
-
-## Validation Matrix
-- R60 | install-gate | SHOULD | If changed paths match `codex-*/**` (excluding `codex-*/README.md`), run narrow checks then root `./install.sh`.
-- R61 | android-only-change | SHOULD | If only `voice/**` or `overlay/**` changed, run narrow checks then `./gradlew :app:installDebug` and `adb shell monkey -p <applicationId> -c android.intent.category.LAUNCHER 1`.
-- R62 | docs-only-change | SHOULD | If changes are docs-only (`AGENTS.md`, root `README.md`, or only `*/README.md`), skip install gates.
-
-## Delivery Patterns
-- R70 | code-change | SHOULD | Use default flow: edit -> validate -> commit -> push `main`.
-- R71 | pr-flow | SHOULD | Use branch/PR flow only when explicitly requested or workflow-required.
-
-## Tooling Patterns
-- R80 | github | SHOULD | Use `gh` for GitHub workflows.
-- R81 | jira | SHOULD | Use `acli` for Jira workflows and ADF JSON files for description/comment bodies.
-- R82 | artifact-links | SHOULD | Include direct links for created/updated/referenced artifacts.
-- R83 | cli-auth-failure | SHOULD | On required CLI/auth failures, report exact error and stop before fallback.
-
-## Update Checklist
-- R90 | module-change | SHOULD | If module behavior/help/setup/storage changed, update that module README in the same change.
-- R91 | rule-maintenance | SHOULD | Keep rule IDs stable; append new IDs instead of reusing old IDs for new semantics.
+## Reporting
+- X01 | validation-report | SHOULD | Report checks run, checks skipped, and blockers with exact commands.
+- X02 | install-report | SHOULD | Report which install/runtime gates fired and which commands executed.
