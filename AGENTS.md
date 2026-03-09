@@ -27,8 +27,10 @@
 - D06 | pr-required | MUST | Return the PR link.
 - D07 | delivery-failure | MUST | Retry after fixing the issue.
 - D08 | blocked-after-retries | MUST | Report exact command + exact error and stop.
-- D09 | code-change | MUST | Always run install verification before final response.
-- D10 | code-change | MUST | Run repository root `./install.sh` before final response (exclude android).
+- D09 | code-change | MUST | Run the narrowest relevant tests/checks for changed scope before final response.
+- D10 | code-change | MUST | Run repository root `./install.sh` before final response only when install-gate paths change.
+- D10a | install-gate | MUST | Install gate is active when any changed path matches `codex-*/**` and does not match `codex-*/README.md`.
+- D10b | install-gate | MUST | Skip `./install.sh` when the change set is docs-only (`AGENTS.md`, top-level `README.md`, or only `*/README.md` updates).
 - D11 | install-semantics | MUST | `install` means install + launch for runnable apps; for CLI/scripts it means install only.
 
 ## Tooling
