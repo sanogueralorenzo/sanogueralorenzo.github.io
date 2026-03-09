@@ -5,10 +5,9 @@
 - Precedence: `task-specific > scope-specific > global`
 - `AGENTS_V2` is normative. `AGENTS_REFERENCE_V2` is non-normative.
 
-## Core
+## Hard Guards
 - G01 | * | MUST_NOT | Commit secrets, tokens, credentials, or local env artifacts.
-- G02 | * | MUST | Make forward-only changes; do not add legacy/back-compat paths unless explicitly requested.
-- G03 | module-change | MUST | Update affected module README when CLI/help output, setup/install, storage paths, or user-visible behavior changes.
+- G02 | module-change | MUST | Update affected module README when CLI/help output, setup/install, storage paths, or user-visible behavior changes.
 
 ## Delivery
 - D01 | code-change | MUST | Before final response, commit and push to `main` by default.
@@ -30,7 +29,7 @@
 - V01 | any-change | MUST | Run the narrowest relevant checks for changed scope before final response.
 - V02 | behavior-change | MUST | Verify runtime behavior on an available target when feasible.
 - V03 | unable-to-validate | MUST | Report what could not run, exact blocker, and next actionable command.
-- V04 | docs-only-change | MUST | Skip install/runtime gates when change set is docs-only (`AGENTS*.md`, root `README.md`, or only `*/README.md`).
+- V04 | docs-only-change | MUST | Skip install/runtime gates when change set is docs-only (`AGENTS*`, root `README.md`, or only `*/README.md`).
 
 ## Path Checks
 - P01 | codex-auth/** !codex-auth/README.md | MUST | Run `cd codex-auth && cargo test`.
@@ -41,6 +40,7 @@
 - P06 | voice/** !voice/README.md | MUST | Run `cd voice && ./gradlew :app:assembleDebug`.
 - P07 | overlay/** !overlay/README.md | MUST | Run `cd overlay && ./gradlew :app:assembleDebug`.
 - P08 | site/** !site/README.md | MUST | Run `cd site && hugo --minify`.
+- P09 | install.sh | MUST | Run root `./install.sh`.
 
 ## Install Gates
 - I01 | install-gate | MUST | Root install gate targets only `codex-auth/**`, `codex-sessions/**`, `codex-remote/**`, `codex-menubar/**` excluding each module README.
@@ -54,8 +54,6 @@
 - R02 | mac-app-behavior-change | MUST | If runnable target available, run `cd codex-menubar && ./scripts/install.sh`.
 - R03 | cli-behavior-change | MUST | Reinstall affected CLI module via its `scripts/install.sh`.
 
-## Safety
-- S01 | mac-app | MUST | No UI/main-thread blocking.
-- S02 | android | MUST | No main-thread blocking.
-- S03 | cli/script | MUST | Keep execution non-interactive and deterministic; use non-zero exit on errors.
-- S04 | shell-script | MUST | Use `set -euo pipefail` with a compatible shell.
+## Script Determinism
+- S01 | cli/script | MUST | Keep execution non-interactive and deterministic; use non-zero exit on errors.
+- S02 | shell-script | MUST | Use `set -euo pipefail` with a compatible shell.

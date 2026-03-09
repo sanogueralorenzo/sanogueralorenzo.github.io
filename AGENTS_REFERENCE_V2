@@ -5,38 +5,47 @@
 - Precedence: `task-specific > scope-specific > global`
 - `AGENTS_REFERENCE_V2` is non-normative. `AGENTS_V2` is normative.
 
+## Intent
+- R01 | * | SHOULD | Keep `AGENTS_V2` execution-only; keep architecture/rationale/fallbacks here.
+- R02 | * | SHOULD | Optimize for AI tooling determinism and low prompt overhead.
+
+## Optional Engineering Guidance
+- R10 | * | SHOULD | Prefer explicit code paths over clever/implicit behavior.
+- R11 | * | SHOULD | Keep forward-only changes and avoid legacy/back-compat unless explicitly requested.
+- R12 | * | SHOULD | Keep one source of truth and remove replaced code.
+- R13 | * | SHOULD | Keep functions small, explicit, and side-effect aware.
+- R14 | * | SHOULD | Use feature-scoped modules where possible.
+
+## Optional Platform Guidance
+- R20 | mac-app | SHOULD | Avoid UI/main-thread blocking and keep state deterministic per feature.
+- R21 | android | SHOULD | Avoid main-thread blocking; keep feature state boundaries explicit.
+- R22 | android | SHOULD | Prefer child feature `NavHost` when a feature owns multi-screen navigation state.
+- R23 | android | SHOULD | Keep Compose + Mavericks `ViewModel` + Mavericks `State` boundaries explicit.
+- R24 | web/ts-app | SHOULD | Keep one source of truth per feature state and avoid layer-heavy structure.
+- R25 | typescript | SHOULD | Keep strict typing and justify `any` inline.
+
+## Optional Domain Guidance
+- R30 | telegram-bot | SHOULD | Keep handlers thin; isolate side-effecting business logic in services.
+- R31 | telegram-bot | SHOULD | Handle async errors explicitly and apply bounded retries/timeouts.
+- R32 | orchestration | SHOULD | Keep workflows idempotent/resumable with explicit step contracts and persisted checkpoints.
+
 ## Module Map
-- M01 | codex-auth/** | INFO | Rust CLI (`cargo`), installer: `codex-auth/scripts/install.sh`, runtime watcher: `codex-auth watch`.
-- M02 | codex-sessions/** | INFO | Rust CLI (`cargo`), installer: `codex-sessions/scripts/install.sh`, runtime watcher: `codex-sessions watch thread-titles`.
-- M03 | codex-remote/** | INFO | TypeScript CLI (`npm`), installer: `codex-remote/scripts/install.sh`, bot lifecycle: `codex-remote start|stop|status|restart|logs`.
-- M04 | codex-menubar/** | INFO | Swift macOS app (`swift build`), installer/launcher: `codex-menubar/scripts/install.sh`.
-- M05 | codex-agents/** | INFO | Bash CLI, installer: `codex-agents/scripts/install.sh`, command surface via `scripts/codex-agents`.
-- M06 | voice/** | INFO | Android app (Gradle, package `com.sanogueralorenzo.voice`).
-- M07 | overlay/** | INFO | Android app (Gradle, package `com.sanogueralorenzo.overlay`).
-- M08 | site/** | INFO | Hugo static site (`hugo --minify`), CI deploy via `.github/workflows/hugo.yml`.
+- M01 | codex-auth/** | INFO | Rust CLI (`cargo`), installer: `codex-auth/scripts/install.sh`, watcher: `codex-auth watch`.
+- M02 | codex-sessions/** | INFO | Rust CLI (`cargo`), installer: `codex-sessions/scripts/install.sh`, watcher: `codex-sessions watch thread-titles`.
+- M03 | codex-remote/** | INFO | TypeScript CLI (`npm`), installer: `codex-remote/scripts/install.sh`, runtime: `codex-remote start|stop|status|restart|logs`.
+- M04 | codex-menubar/** | INFO | Swift macOS app, installer/launcher: `codex-menubar/scripts/install.sh`.
+- M05 | codex-agents/** | INFO | Bash CLI, installer: `codex-agents/scripts/install.sh`, command surface: `scripts/codex-agents`.
+- M06 | voice/** | INFO | Android app, package: `com.sanogueralorenzo.voice`.
+- M07 | overlay/** | INFO | Android app, package: `com.sanogueralorenzo.overlay`.
+- M08 | site/** | INFO | Hugo site, build: `hugo --minify`, deploy workflow: `.github/workflows/hugo.yml`.
 
-## Check Fallbacks
-- F01 | rust-check | SHOULD | If `cargo test` is blocked by env/tooling, fallback to `cargo check`; report blocker and failed command.
+## Fallback Matrix
+- F01 | rust-check | SHOULD | If `cargo test` is blocked by env/tooling, fallback to `cargo check`; report blocker + command.
 - F02 | ts-check | SHOULD | If `npm run typecheck && npm run build` fails from dependency drift, run `npm install` once then retry.
-- F03 | android-check | SHOULD | If no Android device is available, run `:app:assembleDebug` and report missing device for install/launch.
-- F04 | site-check | SHOULD | If `hugo` is unavailable, report missing binary and next command to install/verify.
-
-## Install-Gate Decision
-- G01 | changed-paths | SHOULD | Evaluate docs-only short-circuit first.
-- G02 | changed-paths | SHOULD | Apply root install gate only for install-gated codex modules (`auth/sessions/remote/menubar`).
-- G03 | changed-paths | SHOULD | Never apply root install gate for Android-only or site-only changes.
-- G04 | changed-paths | SHOULD | For mixed changes, run narrow checks first, then required module installs, then root install gate if active.
-
-## Optional Architecture Guidance
-- A01 | * | SHOULD | Prefer explicit code paths and feature-scoped modules.
-- A02 | android | SHOULD | Prefer child feature `NavHost` when a feature owns multi-screen state.
-- A03 | android | SHOULD | Keep Compose + Mavericks `ViewModel` + Mavericks `State` boundaries explicit.
-- A04 | web/ts-app | SHOULD | Keep UI state deterministic with one source of truth per feature.
-- A05 | typescript | SHOULD | Keep strict typing and justify any `any` inline.
-- A06 | telegram-bot | SHOULD | Keep handlers thin; isolate side-effecting business logic in services.
-- A07 | orchestration | SHOULD | Keep workflows idempotent/resumable with explicit step contracts and persisted checkpoints.
+- F03 | android-runtime | SHOULD | If no device available, run assemble-only and report missing device for install/launch.
+- F04 | site-check | SHOULD | If `hugo` is unavailable, report missing binary and next install/verify command.
 
 ## Reporting
-- R01 | validation-report | SHOULD | Report checks run, checks skipped, and blockers with exact commands.
-- R02 | install-report | SHOULD | Report which install gate fired and which install/launch commands were executed.
-- R03 | links | SHOULD | Return direct links for PR/Jira/Slack artifacts when touched.
+- X01 | validation-report | SHOULD | Report checks run, checks skipped, and blockers with exact commands.
+- X02 | install-report | SHOULD | Report which install gate fired and which install/launch commands executed.
+- X03 | link-report | SHOULD | Return direct links for PR/Jira/Slack artifacts when touched.
