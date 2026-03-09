@@ -1,0 +1,17 @@
+# AGENTS_V4
+- Format: `<ID>|<scope>|<level>|<instruction>`; precedence `task-specific>scope-specific>global`; normative file.
+- G01|*|MUST_NOT|Commit secrets/tokens/credentials/local env artifacts.
+- G02|module-change|MUST|Update module README when behavior/help/setup/storage/user-visible output changes.
+- D01|code-change|MUST|Commit+push to `main` before final response.
+- D02|code-change|MUST_NOT|Create branch unless explicitly requested/workflow-required.
+- D03|pr-required|MUST|PR title `<TICKET-KEY> <Title>`, first non-empty body line `<TICKET-KEY>`, return PR link.
+- D04|blocked-after-retries|MUST|Report exact command + exact error and stop.
+- T01|tooling|MUST|Use `gh` for GitHub, `acli` for Jira, ADF JSON for Jira writes, and direct links for gh/acli/slack artifacts.
+- T02|cli-install-or-auth-failure|MUST|Stop before API/web fallback and report exact error.
+- V01|any-change|MUST|Run narrowest relevant checks; V02 verify runtime on available targets; V03 report unvalidated scope+blocker+next command.
+- V04|docs-only-change|MUST|Skip install/runtime gates for `AGENTS*`, root `README.md`, or only `*/README.md` changes.
+- P01|path-checks|MUST|`codex-auth:cargo test`; `codex-sessions:cargo test`; `codex-remote:npm run typecheck && npm run build`; `codex-menubar:swift build -c release --product CodexMenuBar`; `codex-agents:bash scripts/codex-agents --help`; `voice/overlay:./gradlew :app:assembleDebug`; `site:hugo --minify`.
+- I01|install-gate|MUST|If changed paths include `codex-auth|codex-sessions|codex-remote|codex-menubar` (excluding module README), run root `./install.sh` last.
+- I02|android-only-change|MUST_NOT|Run root `./install.sh` for `voice/**` or `overlay/**` only.
+- I03|runtime-install|MUST|Android behavior change: `./gradlew :app:installDebug` + `adb shell monkey -p <applicationId> -c android.intent.category.LAUNCHER 1`; mac app behavior change: `cd codex-menubar && ./scripts/install.sh`; CLI behavior change: reinstall affected module.
+- S01|scripts|MUST|Non-interactive deterministic execution, non-zero on errors, `set -euo pipefail` for shell scripts.
