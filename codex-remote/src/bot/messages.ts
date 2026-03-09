@@ -1,12 +1,12 @@
 export const HELP_TEXT = [
-  "Codex Remote",
+  "Codex Remote, your remote AI tool",
   "",
-  "Send a message to start or continue a thread.",
-  "Use the buttons below for thread actions.",
+  "Commands: /new /resume /delete /help",
+  "Admin: /restart",
   "Tip: Voice notes work!"
 ].join("\n");
 
-export const THREAD_NOT_BOUND_MESSAGE = "No thread bound.\n\nUse the menu to pick or create one.";
+export const THREAD_NOT_BOUND_MESSAGE = "No thread bound.\n\nUse /resume and pick one, or /new.";
 
 export function formatFailure(prefix: string, message: string): string {
   return `${prefix}\n\n${message}`;
