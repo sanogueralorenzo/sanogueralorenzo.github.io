@@ -27,8 +27,7 @@
 - D06 | pr-required | MUST | Return the PR link.
 - D07 | delivery-failure | MUST | Retry after fixing the issue.
 - D08 | blocked-after-retries | MUST | Report exact command + exact error and stop.
-- D09 | code-change | MUST | Run the narrowest relevant tests/checks for changed scope before final response.
-- D10 | code-change | MUST | Run repository root `./install.sh` before final response only when install-gate paths change.
+- D10 | code-change | MUST | Run repository root `./install.sh` as the final validation step when install-gate paths change.
 - D10a | install-gate | MUST | Install gate is active when any changed path matches `codex-*/**` and does not match `codex-*/README.md`.
 - D10b | install-gate | MUST | Skip `./install.sh` when the change set is docs-only (`AGENTS.md`, top-level `README.md`, or only `*/README.md` updates).
 - D11 | install-semantics | MUST | `install` means install + launch for runnable apps; for CLI/scripts it means install only.
@@ -82,6 +81,6 @@
 - O06 | orchestration | MUST_NOT | Hide cross-step mutable state or rely on implicit global context.
 
 ## Validation
-- V01 | any-change | MUST | Run the narrowest relevant tests/checks for changed scope before final response.
+- V01 | any-change | MUST | Run the narrowest relevant tests/checks for changed scope before final response and before any active D10 install gate.
 - V02 | behavior-change | MUST | Verify runtime behavior on an available target when feasible.
 - V03 | unable-to-validate | MUST | Report what could not run, exact blocker, and next actionable command.
