@@ -12,8 +12,8 @@
 - G05 | * | MUST | Keep functions small, explicit, and side-effect aware.
 - G06 | * | MUST | Encapsulate/reuse only when it improves clarity.
 - G07 | * | MUST_NOT | Add unnecessary abstraction or layer-oriented packaging.
-- G08 | * | SHOULD | Prefer feature-scoped modules.
-- G09 | * | SHOULD | Prefer reactive/streaming flows over one-shot patterns when state is ongoing.
+- G08 | * | MUST | Use feature-scoped modules.
+- G09 | * | MUST | Use reactive/streaming flows over one-shot patterns when state is ongoing.
 - G10 | * | MUST | Use explicit loading/error/empty states for async UI/data flows.
 - G11 | * | MUST_NOT | Commit secrets, tokens, credentials, or local env artifacts.
 - G12 | module-change | MUST | Update the affected module README in the same change; documentation should be optimized for AI tooling efficiency over human readability.
