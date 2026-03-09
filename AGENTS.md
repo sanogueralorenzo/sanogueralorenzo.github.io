@@ -46,7 +46,7 @@
 
 ## Android Apps
 - A01 | android | MUST | No main-thread blocking.
-- A02 | android | MUST | Use child `NavHost`s for multiple screens flow over one monolithic `NavHost`.
+- A02 | android | MUST | Use child `NavHost` per feature when a feature owns multi-screen navigation state; avoid a single app-wide monolithic `NavHost`.
 - A03 | android | MUST | Keep presentation as Compose + Mavericks `ViewModel` + Mavericks `State`.
 - A04 | android | MUST | Use Mavericks `Async` + `execute` with suspend requests.
 - A05 | android | MUST | Use feature-scoped repositories for storage and network.
