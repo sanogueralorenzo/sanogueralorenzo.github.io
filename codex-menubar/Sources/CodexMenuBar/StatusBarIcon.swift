@@ -8,7 +8,7 @@ enum StatusBarIcon {
             return NSImage(named: NSImage.cautionName) ?? NSImage()
         }
         image.size = NSSize(width: size, height: size)
-        image.isTemplate = false
+        image.isTemplate = true
         return image
     }
 }
