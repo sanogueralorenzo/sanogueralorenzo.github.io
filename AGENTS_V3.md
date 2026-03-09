@@ -1,0 +1,55 @@
+# AGENTS_V3
+
+## Rule Format
+- `<ID> | <scope> | <level> | <instruction>`
+- Precedence: `task-specific > scope-specific > global`
+- `AGENTS_V3.md` is normative. `AGENTS_REFERENCE_V3.md` is non-normative.
+
+## Hard Guards
+- G01 | * | MUST_NOT | Commit secrets, tokens, credentials, or local env artifacts.
+- G02 | module-change | MUST | Update affected module README when CLI/help output, setup/install, storage paths, or user-visible behavior changes.
+
+## Delivery
+- D01 | code-change | MUST | Before final response, commit and push to `main` by default.
+- D02 | code-change | MUST_NOT | Create a branch unless explicitly requested or workflow-required.
+- D03 | branch-required | MUST | Branch format: `<workspace_branch_prefix>/<TICKET-KEY>_<short_summary>` (lowercase, underscores, 2 words).
+- D04 | pr-required | MUST | PR title format: `<TICKET-KEY> <Title>`.
+- D05 | pr-required | MUST | First non-empty PR description line must be `<TICKET-KEY>`; preserve template content.
+- D06 | pr-required | MUST | Return the PR link.
+- D07 | blocked-after-retries | MUST | Report exact command + exact error and stop.
+
+## Tooling
+- T01 | github | MUST | Use `gh` unless explicitly told otherwise.
+- T02 | jira | MUST | Use `acli` unless explicitly told otherwise.
+- T03 | jira-write | MUST | Use ADF JSON with `--description-file` / `--body-file`.
+- T04 | gh/acli/slack | MUST | Return direct links for created/updated/referenced items.
+- T05 | cli-install-or-auth-failure | MUST | Report exact error and stop before API/web fallback.
+
+## Validation
+- V01 | any-change | MUST | Run the narrowest relevant checks for changed scope before final response.
+- V02 | behavior-change | MUST | Verify runtime behavior on an available target when feasible.
+- V03 | unable-to-validate | MUST | Report what could not run, exact blocker, and next actionable command.
+- V04 | docs-only-change | MUST | Skip install/runtime gates when change set is docs-only (`AGENTS*`, root `README.md`, or only `*/README.md`).
+
+## Path Checks
+- P01 | codex-auth/** !codex-auth/README.md | MUST | Run `cd codex-auth && cargo test`.
+- P02 | codex-sessions/** !codex-sessions/README.md | MUST | Run `cd codex-sessions && cargo test`.
+- P03 | codex-remote/** !codex-remote/README.md | MUST | Run `cd codex-remote && npm run typecheck && npm run build`.
+- P04 | codex-menubar/** !codex-menubar/README.md | MUST | Run `cd codex-menubar && swift build -c release --product CodexMenuBar`.
+- P05 | codex-agents/** !codex-agents/README.md | MUST | Run `bash codex-agents/scripts/codex-agents --help`.
+- P06 | voice/** !voice/README.md | MUST | Run `cd voice && ./gradlew :app:assembleDebug`.
+- P07 | overlay/** !overlay/README.md | MUST | Run `cd overlay && ./gradlew :app:assembleDebug`.
+- P08 | site/** !site/README.md | MUST | Run `cd site && hugo --minify`.
+
+## Install + Runtime
+- I01 | install-gate | MUST | Root install gate applies only to `codex-auth/**`, `codex-sessions/**`, `codex-remote/**`, `codex-menubar/**` excluding module README.
+- I02 | install-gate | MUST | When I01 is active, run root `./install.sh` as final validation step.
+- I03 | android-only-change | MUST_NOT | Run root `./install.sh` for Android app-only changes (`voice/**`, `overlay/**`).
+- I04 | codex-agents-change | MUST | For `codex-agents/**` changes, run `cd codex-agents && ./scripts/install.sh`.
+- I05 | android-behavior-change | MUST | If device available, run `./gradlew :app:installDebug` then `adb shell monkey -p <applicationId> -c android.intent.category.LAUNCHER 1`.
+- I06 | mac-app-behavior-change | MUST | If runnable target available, run `cd codex-menubar && ./scripts/install.sh`.
+- I07 | cli-behavior-change | MUST | Reinstall affected CLI module via its `scripts/install.sh`.
+
+## Script Determinism
+- S01 | cli/script | MUST | Keep execution non-interactive and deterministic; non-zero exit on errors.
+- S02 | shell-script | MUST | Use `set -euo pipefail` with a compatible shell.
