@@ -14,9 +14,9 @@
 - G07 | * | MUST_NOT | Add unnecessary abstraction or layer-oriented packaging.
 - G08 | * | MUST | Use feature-scoped modules.
 - G09 | * | MUST | Use reactive/streaming flows over one-shot patterns when state is ongoing.
-- G10 | * | MUST | Use explicit loading/error/empty states for async UI/data flows.
+- G10 | * | MUST | Use explicit loading/error/empty states for async UI/data flows unless explicitly told otherwise.
 - G11 | * | MUST_NOT | Commit secrets, tokens, credentials, or local env artifacts.
-- G12 | module-change | MUST | Update the affected module README in the same change; documentation should be optimized for AI tooling efficiency over human readability.
+- G12 | module-change | MUST | Update the affected module README when CLI commands/flags/output, setup/install steps, storage paths, or user-visible behavior changes.
 
 ## Delivery
 - D01 | code-change | MUST | Before final response, commit and push to `main` by default.
@@ -28,7 +28,7 @@
 - D07 | delivery-failure | MUST | Retry after fixing the issue.
 - D08 | blocked-after-retries | MUST | Report exact command + exact error and stop.
 - D09 | code-change | MUST | Always run install verification before final response.
-- D10 | code-change | MUST | Run repository root `./install.sh` before final response.
+- D10 | code-change | MUST | Run repository root `./install.sh` before final response (exclude android).
 - D11 | install-semantics | MUST | `install` means install + launch for runnable apps; for CLI/scripts it means install only.
 
 ## Tooling
@@ -41,12 +41,12 @@
 ## macOS Apps
 - M01 | mac-app | MUST | No UI/main-thread blocking.
 - M02 | mac-app | MUST | Keep UI state deterministic with a single source of truth per feature.
-- M03 | mac-app | SHOULD | Prefer structured concurrency and explicit cancellation/timeouts.
+- M03 | mac-app | MUST | Use structured concurrency and explicit cancellation/timeouts.
 - M04 | mac-app-behavior-change | MUST | Build, install, and launch when a runnable target/device is available.
 
 ## Android Apps
 - A01 | android | MUST | No main-thread blocking.
-- A02 | android | SHOULD | Prefer child `NavHost`s over one monolithic `NavHost`.
+- A02 | android | MUST | Use child `NavHost`s for multiple screens flow over one monolithic `NavHost`.
 - A03 | android | MUST | Keep presentation as Compose + Mavericks `ViewModel` + Mavericks `State`.
 - A04 | android | MUST | Use Mavericks `Async` + `execute` with suspend requests.
 - A05 | android | MUST | Use feature-scoped repositories for storage and network.
