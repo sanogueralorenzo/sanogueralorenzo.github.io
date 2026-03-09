@@ -7,14 +7,14 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
 activityCompose = "1.12.4"
 kotlin = "2.3.10"
-composeBom = "2026.02.00"
+composeBom = "2026.02.01"
 navigationCompose = "2.9.7"
-litertlm = "0.9.0-alpha03"
+litertlm = "0.9.0-alpha06"
 coroutines = "1.10.2"
-datastore = "1.1.7"
+datastore = "1.2.0"
 mavericks = "3.1.0"
 moonshineVoice = "0.0.48"
-metro = "0.10.4"
+metro = "0.11.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

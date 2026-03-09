@@ -24,7 +24,7 @@ class SummaryWarmupTest {
                 RewriteResult.Success(
                     text = text,
                     latencyMs = 1L,
-                    backend = Backend.CPU
+                    backend = Backend.CPU()
                 )
             },
             modelReadyFlow = modelReadyFlow,
@@ -53,7 +53,7 @@ class SummaryWarmupTest {
                 RewriteResult.Success(
                     text = text,
                     latencyMs = 1L,
-                    backend = Backend.CPU
+                    backend = Backend.CPU()
                 )
             },
             modelReadyFlow = MutableStateFlow(true),

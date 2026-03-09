@@ -15,9 +15,9 @@ class LiteRtBackendOrderPolicy {
 
     fun preferredBackends(): List<Backend> {
         return if (isEmulatorDevice) {
-            listOf(Backend.CPU, Backend.GPU)
+            listOf(Backend.CPU(), Backend.GPU())
         } else {
-            listOf(Backend.GPU, Backend.CPU)
+            listOf(Backend.GPU(), Backend.CPU())
         }
     }
 

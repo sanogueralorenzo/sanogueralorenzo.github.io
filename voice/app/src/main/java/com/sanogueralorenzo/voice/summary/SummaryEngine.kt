@@ -116,7 +116,7 @@ class SummaryEngine(
             return RewriteResult.Success(
                 text = "",
                 latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
+                backend = initializedBackend ?: Backend.GPU()
             )
         }
 
@@ -149,14 +149,14 @@ class SummaryEngine(
             return RewriteResult.Success(
                 text = originalText,
                 latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
+                backend = initializedBackend ?: Backend.GPU()
             )
         }
         if (!isConfiguredModelSupported() || !isModelAvailable()) {
             return RewriteResult.Success(
                 text = originalText,
                 latencyMs = 0L,
-                backend = initializedBackend ?: Backend.GPU
+                backend = initializedBackend ?: Backend.GPU()
             )
         }
 
@@ -206,7 +206,7 @@ class SummaryEngine(
             return RewriteResult.Success(
                 text = normalizedInput,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
+                backend = initializedBackend ?: Backend.GPU()
             )
         }
 
@@ -217,7 +217,7 @@ class SummaryEngine(
             return RewriteResult.Success(
                 text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
+                backend = initializedBackend ?: Backend.GPU()
             )
         }
 
@@ -228,14 +228,14 @@ class SummaryEngine(
             ?: return RewriteResult.Success(
                 text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU,
+                backend = initializedBackend ?: Backend.GPU(),
             )
 
         val modelFile = ModelStore.ensureModelFile(appContext, ModelCatalog.liteRtLm)
             ?: return RewriteResult.Success(
                 text = deterministicOutput,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
+                backend = initializedBackend ?: Backend.GPU()
             )
 
         val localEngine = try {
@@ -248,7 +248,7 @@ class SummaryEngine(
             )
         }
 
-        val backend = initializedBackend ?: Backend.GPU
+        val backend = initializedBackend ?: Backend.GPU()
         return try {
             val llmInput = deterministicOutput
             val listMode = looksLikeList(llmInput)
@@ -318,7 +318,7 @@ class SummaryEngine(
             ?: return RewriteResult.Success(
                 text = originalText,
                 latencyMs = elapsedSince(startedAtMs),
-                backend = initializedBackend ?: Backend.GPU
+                backend = initializedBackend ?: Backend.GPU()
             )
 
         val instructionAnalysis = EditInstructionRules.analyzeInstruction(instructionText)
@@ -339,7 +339,7 @@ class SummaryEngine(
             )
         }
 
-        val backend = initializedBackend ?: Backend.GPU
+        val backend = initializedBackend ?: Backend.GPU()
         return try {
             val output = editOnce(
                 localEngine = localEngine,

@@ -40,12 +40,12 @@ class BenchmarkCoreTest {
         val gateway = object : BenchmarkGateway {
             override fun runCompose(input: String, promptTemplateOverride: String?): RewriteResult {
                 calls += "compose:$input"
-                return RewriteResult.Success(text = input.uppercase(), latencyMs = 10L, backend = Backend.CPU)
+                return RewriteResult.Success(text = input.uppercase(), latencyMs = 10L, backend = Backend.CPU())
             }
 
             override fun runEdit(original: String, instruction: String): RewriteResult {
                 calls += "edit:$original|$instruction"
-                return RewriteResult.Success(text = original, latencyMs = 10L, backend = Backend.CPU)
+                return RewriteResult.Success(text = original, latencyMs = 10L, backend = Backend.CPU())
             }
         }
 
@@ -89,11 +89,11 @@ class BenchmarkCoreTest {
                     1, 2 -> "same"
                     else -> "different"
                 }
-                return RewriteResult.Success(text = output, latencyMs = (callCount * 10).toLong(), backend = Backend.GPU)
+                return RewriteResult.Success(text = output, latencyMs = (callCount * 10).toLong(), backend = Backend.GPU())
             }
 
             override fun runEdit(original: String, instruction: String): RewriteResult {
-                return RewriteResult.Success(text = original, latencyMs = 1L, backend = Backend.CPU)
+                return RewriteResult.Success(text = original, latencyMs = 1L, backend = Backend.CPU())
             }
         }
 
@@ -127,13 +127,13 @@ class BenchmarkCoreTest {
         )
         val gateway = object : BenchmarkGateway {
             override fun runCompose(input: String, promptTemplateOverride: String?): RewriteResult {
-                return RewriteResult.Success(text = input, latencyMs = 1L, backend = Backend.CPU)
+                return RewriteResult.Success(text = input, latencyMs = 1L, backend = Backend.CPU())
             }
 
             override fun runEdit(original: String, instruction: String): RewriteResult {
                 return RewriteResult.Failure(
                     latencyMs = 123L,
-                    backend = Backend.GPU,
+                    backend = Backend.GPU(),
                     error = LiteRtFailureException(
                         type = LiteRtFailureException.TYPE_INVALID_ARGUMENT,
                         litertError = "INVALID_ARGUMENT"

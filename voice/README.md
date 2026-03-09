@@ -12,4 +12,5 @@
 
 - Package: `com.sanogueralorenzo.voice`
 - Module: `voice/app`
+- Version catalog: `voice/gradle/libs.versions.toml`
 - Runtime models: Moonshine ASR + LiteRT-LM rewrite/edit.
