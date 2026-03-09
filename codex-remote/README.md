@@ -48,6 +48,8 @@ codex-remote start --help
 codex-remote logs --help
 ```
 
+- Telegram `/start` and `/help` copy is button-first (no command/admin text in the message body).
+
 ### Required Runtime Config
 
 - `.env` file in module root with at least:
