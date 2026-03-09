@@ -1,26 +1,17 @@
 ## Intro
 
-**Site** contains the static website content, templates, and generation config.
+**Site** contains static website content, templates, and generation config.
 
 ## Quickstart
-
-### Run local site server
 
 ```shell
 hugo server
 ```
 
-### Build static output
-
-```shell
-hugo --minify
-```
-
 ## Reference
 
-- Theme/module source is declared in `config/_default/config.yaml` and `go.mod`.
-- Main directories:
-  - `content/`: posts/pages.
-  - `layouts/`: template overrides.
-  - `assets/` + `static/`: styles and static files.
-  - `public/`: generated output.
+- Build: `hugo --minify`
+- Config: `site/config/_default/config.yaml`
+- Content: `site/content`
+- Templates: `site/layouts`
+- Generated output: `site/public`
