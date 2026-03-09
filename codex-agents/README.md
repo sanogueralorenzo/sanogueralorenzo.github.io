@@ -8,6 +8,8 @@
 ./scripts/install.sh
 ```
 
+- Installer behavior: best-effort stops running `codex-agents worker start` processes before relinking the CLI.
+
 ## Reference
 
 ### Help (`codex-agents -h`)

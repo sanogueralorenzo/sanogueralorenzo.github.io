@@ -4,6 +4,34 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_SCRIPT="$ROOT_DIR/scripts/codex-agents"
 
+kill_pid_with_grace() {
+  local pid="$1"
+  kill -TERM "$pid" 2>/dev/null || return 0
+
+  local retries=20
+  while (( retries > 0 )); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+    sleep 0.1
+    retries=$((retries - 1))
+  done
+
+  kill -KILL "$pid" 2>/dev/null || true
+}
+
+stop_existing_runtime() {
+  if ! command -v pgrep >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local pid
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    kill_pid_with_grace "$pid"
+  done < <(pgrep -f "codex-agents worker start" || true)
+}
+
 resolve_npm_bin_dir() {
   if ! command -v npm >/dev/null 2>&1; then
     echo "Error: npm is required to resolve global install location." >&2
@@ -25,6 +53,8 @@ if [[ $# -gt 0 ]]; then
   echo "This installer always targets npm global bin." >&2
   exit 1
 fi
+
+stop_existing_runtime
 
 DEST_DIR="$(resolve_npm_bin_dir)"
 DEST_PATH="$DEST_DIR/codex-agents"

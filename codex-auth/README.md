@@ -8,6 +8,8 @@
 ./scripts/install.sh
 ```
 
+- Installer behavior: best-effort stops existing `codex-auth` watcher before reinstalling the CLI binary.
+
 ## Reference
 
 ### Help (`codex-auth --help`)

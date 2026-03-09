@@ -3,6 +3,14 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+stop_existing_runtime() {
+  if ! command -v codex-auth >/dev/null 2>&1; then
+    return 0
+  fi
+
+  codex-auth watch stop >/dev/null 2>&1 || true
+}
+
 resolve_npm_bin_dir() {
   if ! command -v npm >/dev/null 2>&1; then
     echo "Error: npm is required to resolve global install location." >&2
@@ -24,6 +32,8 @@ if [[ $# -gt 0 ]]; then
   echo "This installer always targets npm global bin." >&2
   exit 1
 fi
+
+stop_existing_runtime
 
 DEST_DIR="$(resolve_npm_bin_dir)"
 TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/codex-auth-target}"

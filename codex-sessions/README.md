@@ -8,6 +8,8 @@
 ./scripts/install.sh
 ```
 
+- Installer behavior: best-effort stops existing `codex-sessions watch thread-titles` background watcher before reinstalling the CLI binary.
+
 ## Reference
 
 ### Help (`codex-sessions --help`)

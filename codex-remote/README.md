@@ -8,6 +8,8 @@
 ./scripts/install.sh
 ```
 
+- Installer behavior: best-effort stops existing managed `codex-remote` background bot before relinking the CLI.
+
 ## Reference
 
 ### Help (`codex-remote --help`)
