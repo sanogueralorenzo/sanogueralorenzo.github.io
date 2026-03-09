@@ -27,8 +27,3 @@
 
 Harness-first engineering with explicit contracts, deterministic checks, and resumable workflows.
 Reference: [Harness Engineering](https://openai.com/index/harness-engineering/).
-
-## Validation
-
-- Android app changes (`voice`, `overlay`): `./gradlew :app:installDebug` + `adb shell monkey -p <applicationId> -c android.intent.category.LAUNCHER 1`.
-- Root `./install.sh`: only for active `codex-*` install-gate changes.
