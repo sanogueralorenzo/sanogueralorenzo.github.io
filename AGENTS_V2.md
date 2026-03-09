@@ -3,7 +3,7 @@
 ## Rule Format
 - `<ID> | <scope> | <level> | <instruction>`
 - Precedence: `task-specific > scope-specific > global`
-- `AGENTS_V2` is normative. `AGENTS_REFERENCE_V2` is non-normative.
+- `AGENTS_V2.md` is normative. `AGENTS_REFERENCE_V2.md` is non-normative.
 
 ## Hard Guards
 - G01 | * | MUST_NOT | Commit secrets, tokens, credentials, or local env artifacts.

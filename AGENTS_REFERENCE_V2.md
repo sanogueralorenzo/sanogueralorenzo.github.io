@@ -3,10 +3,10 @@
 ## Rule Format
 - `<ID> | <scope> | <level> | <instruction>`
 - Precedence: `task-specific > scope-specific > global`
-- `AGENTS_REFERENCE_V2` is non-normative. `AGENTS_V2` is normative.
+- `AGENTS_REFERENCE_V2.md` is non-normative. `AGENTS_V2.md` is normative.
 
 ## Intent
-- R01 | * | SHOULD | Keep `AGENTS_V2` execution-only; keep architecture/rationale/fallbacks here.
+- R01 | * | SHOULD | Keep `AGENTS_V2.md` execution-only; keep architecture/rationale/fallbacks here.
 - R02 | * | SHOULD | Optimize for AI tooling determinism and low prompt overhead.
 
 ## Optional Engineering Guidance
