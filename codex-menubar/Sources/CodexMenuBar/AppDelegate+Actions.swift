@@ -207,6 +207,7 @@ extension AppDelegate {
                 try remoteCLI.start()
                 DispatchQueue.main.async {
                     self.refreshUI()
+                    self.reopenMenuIfClosed()
                 }
             } catch {
                 DispatchQueue.main.async {

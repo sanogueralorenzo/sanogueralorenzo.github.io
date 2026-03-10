@@ -20,6 +20,7 @@
 - Launch starts `codex-auth watch start`.
 - Launch starts `codex-sessions watch thread-titles start`.
 - Menu includes `Open` as the first action; it launches Codex if needed or brings it to focus when already running.
+- `Codex Remote > Start` reopens the menu immediately after startup so the action updates to `Stop`.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - Threads actions: `Merge Threads`, `Remove Threads`.
 - Thread lists are sourced from `codex-sessions list` and sorted latest-updated first.
