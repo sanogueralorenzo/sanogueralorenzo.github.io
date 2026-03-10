@@ -2,8 +2,7 @@ use crate::models::{
     AuthPaths, CodexAppRelaunchStatus, ProfileSource, SwitchResult, ValidatedAuthFile,
 };
 use crate::process::{
-    invalidate_running_codex_sessions, is_codex_app_running, relaunch_codex_app,
-    terminate_running_codex_app_sessions,
+    is_codex_app_running, relaunch_codex_app, terminate_running_codex_app_sessions,
 };
 use crate::util::{
     create_directory_if_needed, list_profile_names, normalize_profile_name, profile_path_for,
@@ -142,7 +141,7 @@ impl ProfileManager {
         let payload = read_validated_auth_file(&profile_path)?;
         self.apply_validated_auth(
             payload,
-            format!("profile '{}'", normalized_name),
+            name.trim().to_string(),
             Some(self.read_validated_auth_account_id(&profile_path)?),
         )
     }
@@ -193,17 +192,14 @@ impl ProfileManager {
     fn apply_validated_auth(
         &self,
         payload: ValidatedAuthFile,
-        source_description: String,
+        applied_profile_name: String,
         active_account_id: Option<String>,
     ) -> Result<SwitchResult> {
         let codex_app_was_running = is_codex_app_running();
-        let mut invalidation = if codex_app_was_running {
-            let pre_switch_invalidation = terminate_running_codex_app_sessions();
+        if codex_app_was_running {
+            terminate_running_codex_app_sessions()?;
             thread::sleep(APP_RESTART_DELAY);
-            pre_switch_invalidation
-        } else {
-            Default::default()
-        };
+        }
 
         self.ensure_directories()?;
         let _lock = FileLock::acquire(&self.paths.codex_auth_lock_file)?;
@@ -214,8 +210,6 @@ impl ProfileManager {
         } else {
             self.clear_active_account_id()?;
         }
-
-        invalidation.merge(invalidate_running_codex_sessions());
 
         let codex_app_relaunch_status = if codex_app_was_running {
             thread::sleep(APP_RESTART_DELAY);
@@ -228,9 +222,7 @@ impl ProfileManager {
         };
 
         Ok(SwitchResult {
-            destination: self.paths.codex_auth_file.clone(),
-            source_description,
-            invalidation,
+            applied_profile_name,
             codex_app_relaunch_status,
         })
     }

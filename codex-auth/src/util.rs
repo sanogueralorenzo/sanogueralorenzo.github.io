@@ -237,9 +237,3 @@ pub fn write_secure_atomically(data: &[u8], destination: &Path) -> Result<()> {
 
     Ok(())
 }
-
-pub fn is_executable(path: &Path) -> bool {
-    fs::metadata(path)
-        .map(|metadata| metadata.permissions().mode() & 0o111 != 0)
-        .unwrap_or(false)
-}

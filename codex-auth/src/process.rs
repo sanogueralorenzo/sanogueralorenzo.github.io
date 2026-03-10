@@ -1,23 +1,33 @@
-use crate::models::{SessionInvalidationResult, SessionKind};
-use crate::util::is_executable;
 use anyhow::{Context, Result, bail};
-use std::collections::{BTreeMap, HashSet};
-use std::fs;
-use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
-pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
-    terminate_targets(collect_codex_targets(None))
-}
+pub fn terminate_running_codex_app_sessions() -> Result<bool> {
+    let targets = collect_codex_app_pids();
+    if targets.is_empty() {
+        return Ok(false);
+    }
 
-pub fn terminate_running_codex_app_sessions() -> SessionInvalidationResult {
-    terminate_targets(collect_codex_targets(Some(SessionKind::App)))
+    let mut failed_pids = Vec::new();
+    for pid in targets {
+        if !terminate_process(pid) {
+            failed_pids.push(pid);
+        }
+    }
+
+    if !failed_pids.is_empty() {
+        bail!(
+            "Failed to terminate running Codex app process(es): {}",
+            join_i32(&failed_pids)
+        );
+    }
+
+    Ok(true)
 }
 
 pub fn is_codex_app_running() -> bool {
-    !collect_codex_targets(Some(SessionKind::App)).is_empty()
+    !collect_codex_app_pids().is_empty()
 }
 
 pub fn relaunch_codex_app() -> Result<()> {
@@ -41,59 +51,24 @@ pub fn relaunch_codex_app() -> Result<()> {
     }
 }
 
-fn collect_codex_targets(kind_filter: Option<SessionKind>) -> BTreeMap<i32, SessionKind> {
+fn collect_codex_app_pids() -> Vec<i32> {
     let current_pid = std::process::id() as i32;
     let entries = running_processes();
-    let official_cli_entrypoints = resolve_official_codex_cli_entrypoints();
 
-    let mut targets: BTreeMap<i32, SessionKind> = BTreeMap::new();
-    for (pid, command) in entries {
-        if pid == current_pid {
+    let mut targets = Vec::new();
+    for (pid, command) in &entries {
+        if *pid == current_pid {
             continue;
         }
 
-        let Some(kind) = classify_process(&command, &official_cli_entrypoints) else {
-            continue;
-        };
-
-        if let Some(filter_kind) = kind_filter
-            && kind != filter_kind
-        {
+        if !is_codex_app_command(command) {
             continue;
         }
 
-        if let Some(existing) = targets.get(&pid) {
-            if *existing == SessionKind::App {
-                continue;
-            }
-        }
-        targets.insert(pid, kind);
+        targets.push(*pid);
     }
 
     targets
-}
-
-fn terminate_targets(targets: BTreeMap<i32, SessionKind>) -> SessionInvalidationResult {
-    let mut terminated_app_pids = Vec::new();
-    let mut terminated_cli_pids = Vec::new();
-    let mut failed_pids = Vec::new();
-
-    for (pid, kind) in targets {
-        if terminate_process(pid) {
-            match kind {
-                SessionKind::App => terminated_app_pids.push(pid),
-                SessionKind::Cli => terminated_cli_pids.push(pid),
-            }
-        } else {
-            failed_pids.push(pid);
-        }
-    }
-
-    SessionInvalidationResult {
-        terminated_app_pids,
-        terminated_cli_pids,
-        failed_pids,
-    }
 }
 
 fn running_processes() -> Vec<(i32, String)> {
@@ -140,81 +115,8 @@ fn running_processes() -> Vec<(i32, String)> {
     result
 }
 
-fn classify_process(
-    command: &str,
-    official_cli_entrypoints: &HashSet<String>,
-) -> Option<SessionKind> {
-    if is_codex_app_command(command) {
-        return Some(SessionKind::App);
-    }
-
-    if command.contains("codex-auth") {
-        return None;
-    }
-
-    for token in command.split_whitespace() {
-        let raw = token.trim_matches('"').trim_matches('\'');
-        if raw.is_empty() {
-            continue;
-        }
-
-        if official_cli_entrypoints.contains(raw) {
-            return Some(SessionKind::Cli);
-        }
-
-        if raw.contains("/node_modules/@openai/codex/")
-            || raw.contains("/node_modules/@openai/codex-")
-        {
-            return Some(SessionKind::Cli);
-        }
-    }
-
-    if command.to_lowercase().contains("@openai/codex") {
-        return Some(SessionKind::Cli);
-    }
-
-    None
-}
-
 fn is_codex_app_command(command: &str) -> bool {
     command.contains("/Codex.app/Contents/")
-}
-
-fn resolve_official_codex_cli_entrypoints() -> HashSet<String> {
-    let which_path = if is_executable(Path::new("/usr/bin/which")) {
-        PathBuf::from("/usr/bin/which")
-    } else {
-        PathBuf::from("/bin/which")
-    };
-
-    let Ok(output) = Command::new(which_path).args(["-a", "codex"]).output() else {
-        return HashSet::new();
-    };
-
-    if !output.status.success() {
-        return HashSet::new();
-    }
-
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut set = HashSet::new();
-
-    for line in text.lines() {
-        let path = line.trim();
-        if path.is_empty() {
-            continue;
-        }
-
-        let resolved = fs::canonicalize(path)
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|_| path.to_string());
-
-        if resolved.contains("/@openai/codex/") || path.contains("/@openai/codex/") {
-            set.insert(path.to_string());
-            set.insert(resolved);
-        }
-    }
-
-    set
 }
 
 fn terminate_process(pid: i32) -> bool {
@@ -275,21 +177,27 @@ fn last_errno() -> i32 {
     }
 }
 
+fn join_i32(values: &[i32]) -> String {
+    values
+        .iter()
+        .map(|pid| pid.to_string())
+        .collect::<Vec<String>>()
+        .join(", ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn classify_process_marks_codex_app_as_app_session() {
+    fn codex_app_command_is_detected() {
         let command = "/Applications/Codex.app/Contents/MacOS/Codex";
-        let kind = classify_process(command, &HashSet::new());
-        assert_eq!(kind, Some(SessionKind::App));
+        assert!(is_codex_app_command(command));
     }
 
     #[test]
-    fn classify_process_ignores_codex_auth_process() {
-        let command = "/usr/local/bin/codex-auth use work";
-        let kind = classify_process(command, &HashSet::new());
-        assert_eq!(kind, None);
+    fn non_codex_app_command_is_ignored() {
+        let command = "/opt/homebrew/bin/codex exec \"hello\"";
+        assert!(!is_codex_app_command(command));
     }
 }

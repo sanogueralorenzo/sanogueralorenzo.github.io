@@ -33,49 +33,25 @@ pub fn print_profiles(manager: &ProfileManager, plain: bool) -> Result<()> {
 }
 
 pub fn print_use_result(result: SwitchResult) {
-    println!("Applied auth from {}", result.source_description);
-    println!("Updated: {}", result.destination.display());
-
-    if result.invalidation.had_targets() {
-        println!("Invalidated Codex sessions:");
-        println!(
-            "  app processes terminated: {}",
-            result.invalidation.terminated_app_pids.len()
-        );
-        println!(
-            "  cli processes terminated: {}",
-            result.invalidation.terminated_cli_pids.len()
-        );
-
-        if !result.invalidation.terminated_app_pids.is_empty() {
-            println!(
-                "  app PIDs: {}",
-                join_i32(&result.invalidation.terminated_app_pids)
-            );
-        }
-        if !result.invalidation.terminated_cli_pids.is_empty() {
-            println!(
-                "  cli PIDs: {}",
-                join_i32(&result.invalidation.terminated_cli_pids)
-            );
-        }
-        if !result.invalidation.failed_pids.is_empty() {
-            println!(
-                "  failed to terminate PIDs: {}",
-                join_i32(&result.invalidation.failed_pids)
-            );
-        }
-    } else {
-        println!("No running Codex app/CLI sessions were detected.");
-    }
-
     match result.codex_app_relaunch_status {
-        CodexAppRelaunchStatus::NotAttempted => {}
+        CodexAppRelaunchStatus::NotAttempted => {
+            println!(
+                "Profile {} applied, please restart Codex",
+                result.applied_profile_name
+            );
+        }
         CodexAppRelaunchStatus::Relaunched => {
-            println!("Codex app was running before switch and has been reopened.");
+            println!(
+                "Profile {} applied, restarting Codex",
+                result.applied_profile_name
+            );
         }
         CodexAppRelaunchStatus::Failed(message) => {
-            println!("Codex app was running before switch, but reopening failed: {message}");
+            println!(
+                "Profile {} applied, restarting Codex",
+                result.applied_profile_name
+            );
+            println!("Failed to reopen Codex automatically: {message}");
         }
     }
 }
@@ -95,12 +71,4 @@ pub fn masked(value: &str) -> String {
         .rev()
         .collect();
     format!("{prefix}...{suffix}")
-}
-
-fn join_i32(values: &[i32]) -> String {
-    values
-        .iter()
-        .map(|v| v.to_string())
-        .collect::<Vec<String>>()
-        .join(", ")
 }

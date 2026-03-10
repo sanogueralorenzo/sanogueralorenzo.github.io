@@ -31,13 +31,14 @@ help     Print help
 
 ### Runtime Behavior
 
-- `use` invalidates running Codex app/CLI sessions after writing `~/.codex/auth.json`.
-- If the Codex macOS app is running when `use` starts, `codex-auth` now:
+- `use` only manages the Codex macOS app lifecycle (it does not terminate terminal sessions).
+- If the Codex macOS app is running when `use` starts, `codex-auth`:
   1. closes the app,
   2. waits 3 seconds,
   3. applies the new profile/auth file,
   4. waits 3 seconds,
   5. reopens the app.
+- If the Codex macOS app is not running, `use` applies the profile/auth file and asks you to restart Codex manually.
 
 ### Commands (`codex-auth watch --help`)
 
