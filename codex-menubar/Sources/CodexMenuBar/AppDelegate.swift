@@ -122,20 +122,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.runModal()
     }
 
-    func reopenMenuIfClosed() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            guard let self else {
-                return
-            }
-
-            guard !self.isMenuOpen else {
-                return
-            }
-
-            self.statusItem.button?.performClick(nil)
-        }
-    }
-
     private func renderMenu() {
         refreshTitle()
         if let menu = statusItem.menu {
