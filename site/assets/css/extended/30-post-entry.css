@@ -6,9 +6,15 @@
   transition: border-color 160ms ease;
 }
 
+/* Keep click/tap from shrinking post cards while preserving hover visuals. */
+.post-entry:active {
+  transform: none !important;
+}
+
 /* Apply hover treatment only on devices with real hover support. */
 @media (hover: hover) and (pointer: fine) {
-  .post-entry:hover {
+  .post-entry:hover,
+  .post-entry:active {
     /* Slight border shift to signal clickability without extra motion. */
     border-color: var(--tertiary);
   }
