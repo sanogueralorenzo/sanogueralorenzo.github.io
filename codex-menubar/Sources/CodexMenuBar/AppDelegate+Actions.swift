@@ -261,6 +261,7 @@ extension AppDelegate {
 
             try? sessionsCLI.stopTitleWatcher()
             try? authCLI.stopWatcher()
+            try? terminateCodexAppIfRunning()
 
             DispatchQueue.main.async {
                 NSApp.terminate(nil)
@@ -308,7 +309,38 @@ private func launchCodexApp() throws {
     }
 }
 
+private func terminateCodexAppIfRunning() throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+    process.arguments = ["-f", "/Codex.app/Contents/"]
+
+    let stderr = Pipe()
+    process.standardError = stderr
+
+    try process.run()
+    process.waitUntilExit()
+
+    // pkill returns 1 when no matching process exists.
+    guard process.terminationStatus == 0 || process.terminationStatus == 1 else {
+        let errorOutput = String(
+            data: stderr.fileHandleForReading.readDataToEndOfFile(),
+            encoding: .utf8
+        )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if errorOutput.isEmpty {
+            throw CodexAppTerminationError(message: "Failed to terminate Codex app.")
+        }
+
+        throw CodexAppTerminationError(message: errorOutput)
+    }
+}
+
 private struct CodexAppLaunchError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+}
+
+private struct CodexAppTerminationError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
 }
