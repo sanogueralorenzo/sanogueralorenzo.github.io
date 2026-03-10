@@ -6,6 +6,12 @@ extension AppDelegate {
         let data = menuDataStore.data
         menu.removeAllItems()
 
+        let openItem = NSMenuItem(title: "Open", action: #selector(openCodexApp(_:)), keyEquivalent: "")
+        openItem.target = self
+        menu.addItem(openItem)
+
+        menu.addItem(.separator())
+
         addCodexAgentSection(to: menu)
 
         menu.addItem(.separator())

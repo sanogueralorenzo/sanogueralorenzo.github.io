@@ -2,6 +2,22 @@ import AppKit
 import Foundation
 
 extension AppDelegate {
+    @objc func openCodexApp(_ sender: Any?) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                try launchCodexApp()
+            } catch {
+                DispatchQueue.main.async {
+                    self.showError(error)
+                }
+            }
+        }
+    }
+
     @objc func noopHeader(_ sender: Any?) {
         // Intentionally empty: keeps the title row clickable without side effects.
     }
@@ -265,6 +281,36 @@ Log in with a different account and try again.
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
+}
+
+private func launchCodexApp() throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+    process.arguments = ["-a", "Codex"]
+
+    let stderr = Pipe()
+    process.standardError = stderr
+
+    try process.run()
+    process.waitUntilExit()
+
+    guard process.terminationStatus == 0 else {
+        let errorOutput = String(
+            data: stderr.fileHandleForReading.readDataToEndOfFile(),
+            encoding: .utf8
+        )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if errorOutput.isEmpty {
+            throw CodexAppLaunchError(message: "Failed to open Codex app.")
+        }
+
+        throw CodexAppLaunchError(message: errorOutput)
+    }
+}
+
+private struct CodexAppLaunchError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }
 
 private func fetchStaleSessionsByDays(using sessionsCLI: CodexSessionsCLIClient) throws -> [Int: [CodexSessionsCLIClient.SessionOption]] {
