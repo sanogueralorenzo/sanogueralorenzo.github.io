@@ -1,5 +1,10 @@
-use crate::models::{AuthPaths, ProfileSource, SwitchResult, ValidatedAuthFile};
-use crate::process::invalidate_running_codex_sessions;
+use crate::models::{
+    AuthPaths, CodexAppRelaunchStatus, ProfileSource, SwitchResult, ValidatedAuthFile,
+};
+use crate::process::{
+    invalidate_running_codex_sessions, is_codex_app_running, relaunch_codex_app,
+    terminate_running_codex_app_sessions,
+};
 use crate::util::{
     create_directory_if_needed, list_profile_names, normalize_profile_name, profile_path_for,
     read_validated_auth_file, set_file_permissions, write_secure_atomically,
@@ -9,6 +14,10 @@ use fs2::FileExt;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::Duration;
+
+const APP_RESTART_DELAY: Duration = Duration::from_secs(3);
 
 struct FileLock {
     file: File,
@@ -187,6 +196,15 @@ impl ProfileManager {
         source_description: String,
         active_account_id: Option<String>,
     ) -> Result<SwitchResult> {
+        let codex_app_was_running = is_codex_app_running();
+        let mut invalidation = if codex_app_was_running {
+            let pre_switch_invalidation = terminate_running_codex_app_sessions();
+            thread::sleep(APP_RESTART_DELAY);
+            pre_switch_invalidation
+        } else {
+            Default::default()
+        };
+
         self.ensure_directories()?;
         let _lock = FileLock::acquire(&self.paths.codex_auth_lock_file)?;
 
@@ -197,12 +215,23 @@ impl ProfileManager {
             self.clear_active_account_id()?;
         }
 
-        let invalidation = invalidate_running_codex_sessions();
+        invalidation.merge(invalidate_running_codex_sessions());
+
+        let codex_app_relaunch_status = if codex_app_was_running {
+            thread::sleep(APP_RESTART_DELAY);
+            match relaunch_codex_app() {
+                Ok(()) => CodexAppRelaunchStatus::Relaunched,
+                Err(error) => CodexAppRelaunchStatus::Failed(error.to_string()),
+            }
+        } else {
+            CodexAppRelaunchStatus::NotAttempted
+        };
 
         Ok(SwitchResult {
             destination: self.paths.codex_auth_file.clone(),
             source_description,
             invalidation,
+            codex_app_relaunch_status,
         })
     }
 

@@ -37,7 +37,7 @@ pub struct ValidatedAuthFile {
     pub account_id: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SessionInvalidationResult {
     pub terminated_app_pids: Vec<i32>,
     pub terminated_cli_pids: Vec<i32>,
@@ -50,6 +50,21 @@ impl SessionInvalidationResult {
             || !self.terminated_cli_pids.is_empty()
             || !self.failed_pids.is_empty()
     }
+
+    pub fn merge(&mut self, mut other: SessionInvalidationResult) {
+        self.terminated_app_pids
+            .append(&mut other.terminated_app_pids);
+        self.terminated_cli_pids
+            .append(&mut other.terminated_cli_pids);
+        self.failed_pids.append(&mut other.failed_pids);
+    }
+}
+
+#[derive(Debug)]
+pub enum CodexAppRelaunchStatus {
+    NotAttempted,
+    Relaunched,
+    Failed(String),
 }
 
 #[derive(Debug)]
@@ -57,6 +72,7 @@ pub struct SwitchResult {
     pub destination: PathBuf,
     pub source_description: String,
     pub invalidation: SessionInvalidationResult,
+    pub codex_app_relaunch_status: CodexAppRelaunchStatus,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +95,7 @@ pub enum WatcherStatus {
     Running(i32),
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SessionKind {
     App,
     Cli,

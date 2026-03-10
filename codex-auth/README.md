@@ -29,6 +29,16 @@ watch    Manage auth sync watcher (start|stop|status|run)
 help     Print help
 ```
 
+### Runtime Behavior
+
+- `use` invalidates running Codex app/CLI sessions after writing `~/.codex/auth.json`.
+- If the Codex macOS app is running when `use` starts, `codex-auth` now:
+  1. closes the app,
+  2. waits 3 seconds,
+  3. applies the new profile/auth file,
+  4. waits 3 seconds,
+  5. reopens the app.
+
 ### Commands (`codex-auth watch --help`)
 
 ```text

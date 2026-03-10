@@ -1,5 +1,5 @@
 use crate::manager::ProfileManager;
-use crate::models::SwitchResult;
+use crate::models::{CodexAppRelaunchStatus, SwitchResult};
 use anyhow::Result;
 
 pub fn print_profiles(manager: &ProfileManager, plain: bool) -> Result<()> {
@@ -67,6 +67,16 @@ pub fn print_use_result(result: SwitchResult) {
         }
     } else {
         println!("No running Codex app/CLI sessions were detected.");
+    }
+
+    match result.codex_app_relaunch_status {
+        CodexAppRelaunchStatus::NotAttempted => {}
+        CodexAppRelaunchStatus::Relaunched => {
+            println!("Codex app was running before switch and has been reopened.");
+        }
+        CodexAppRelaunchStatus::Failed(message) => {
+            println!("Codex app was running before switch, but reopening failed: {message}");
+        }
     }
 }
 

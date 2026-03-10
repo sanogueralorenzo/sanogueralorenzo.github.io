@@ -1,5 +1,6 @@
 use crate::models::{SessionInvalidationResult, SessionKind};
 use crate::util::is_executable;
+use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,6 +9,39 @@ use std::thread;
 use std::time::Duration;
 
 pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
+    terminate_targets(collect_codex_targets(None))
+}
+
+pub fn terminate_running_codex_app_sessions() -> SessionInvalidationResult {
+    terminate_targets(collect_codex_targets(Some(SessionKind::App)))
+}
+
+pub fn is_codex_app_running() -> bool {
+    !collect_codex_targets(Some(SessionKind::App)).is_empty()
+}
+
+pub fn relaunch_codex_app() -> Result<()> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        bail!("Relaunching Codex app is only supported on macOS.");
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = Command::new("/usr/bin/open")
+            .args(["-a", "Codex"])
+            .status()
+            .context("Failed to launch '/usr/bin/open' for Codex app relaunch")?;
+
+        if !status.success() {
+            bail!("Failed to relaunch Codex app with '/usr/bin/open -a Codex'.");
+        }
+
+        Ok(())
+    }
+}
+
+fn collect_codex_targets(kind_filter: Option<SessionKind>) -> BTreeMap<i32, SessionKind> {
     let current_pid = std::process::id() as i32;
     let entries = running_processes();
     let official_cli_entrypoints = resolve_official_codex_cli_entrypoints();
@@ -22,6 +56,12 @@ pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
             continue;
         };
 
+        if let Some(filter_kind) = kind_filter
+            && kind != filter_kind
+        {
+            continue;
+        }
+
         if let Some(existing) = targets.get(&pid) {
             if *existing == SessionKind::App {
                 continue;
@@ -30,6 +70,10 @@ pub fn invalidate_running_codex_sessions() -> SessionInvalidationResult {
         targets.insert(pid, kind);
     }
 
+    targets
+}
+
+fn terminate_targets(targets: BTreeMap<i32, SessionKind>) -> SessionInvalidationResult {
     let mut terminated_app_pids = Vec::new();
     let mut terminated_cli_pids = Vec::new();
     let mut failed_pids = Vec::new();
@@ -100,7 +144,7 @@ fn classify_process(
     command: &str,
     official_cli_entrypoints: &HashSet<String>,
 ) -> Option<SessionKind> {
-    if command.contains("/Codex.app/Contents/") {
+    if is_codex_app_command(command) {
         return Some(SessionKind::App);
     }
 
@@ -130,6 +174,10 @@ fn classify_process(
     }
 
     None
+}
+
+fn is_codex_app_command(command: &str) -> bool {
+    command.contains("/Codex.app/Contents/")
 }
 
 fn resolve_official_codex_cli_entrypoints() -> HashSet<String> {
@@ -224,5 +272,24 @@ fn last_errno() -> i32 {
     #[cfg(not(target_os = "macos"))]
     unsafe {
         *libc::__errno_location()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classify_process_marks_codex_app_as_app_session() {
+        let command = "/Applications/Codex.app/Contents/MacOS/Codex";
+        let kind = classify_process(command, &HashSet::new());
+        assert_eq!(kind, Some(SessionKind::App));
+    }
+
+    #[test]
+    fn classify_process_ignores_codex_auth_process() {
+        let command = "/usr/local/bin/codex-auth use work";
+        let kind = classify_process(command, &HashSet::new());
+        assert_eq!(kind, None);
     }
 }
