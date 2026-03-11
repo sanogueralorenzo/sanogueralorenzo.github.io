@@ -1,6 +1,8 @@
 import Foundation
 
 struct LaunchAgentInstaller {
+    private static let preferredAppExecutablePath = "/Applications/Codex Menu Bar.app/Contents/MacOS/CodexMenuBar"
+
     static func ensureLaunchAgentPlistExists() throws {
         let fileManager = FileManager.default
         let home = fileManager.homeDirectoryForCurrentUser
@@ -10,7 +12,8 @@ struct LaunchAgentInstaller {
         try fileManager.createDirectory(at: launchAgentsDirectory, withIntermediateDirectories: true)
 
         let label = Bundle.main.bundleIdentifier ?? "io.github.sanogueralorenzo.codex.menubar"
-        guard let executablePath = Bundle.main.executableURL?.path else {
+        let executablePath = resolveExecutablePath(fileManager: fileManager)
+        guard let executablePath else {
             return
         }
 
@@ -21,6 +24,13 @@ struct LaunchAgentInstaller {
         if existingContents != plistContents {
             try plistContents.write(to: plistURL, atomically: true, encoding: .utf8)
         }
+    }
+
+    private static func resolveExecutablePath(fileManager: FileManager) -> String? {
+        if fileManager.isExecutableFile(atPath: preferredAppExecutablePath) {
+            return preferredAppExecutablePath
+        }
+        return Bundle.main.executableURL?.path
     }
 
     private static func makePlistContents(label: String, executablePath: String) -> String {
