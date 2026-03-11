@@ -34,14 +34,6 @@ watch                  Watchers for session maintenance flows
 help                   Print help
 ```
 
-### Hard Delete Notes
-
-- `delete --hard` performs best-effort `thread/archive` calls through `codex app-server` first, then removes local rollout files and session metadata.
-- Hard delete also removes matching title entries from:
-  - `~/.codex/.codex-global-state.json` (`thread-titles.titles` + `thread-titles.order`)
-  - `~/.codex/session_index.jsonl`
-- Session rows pointing to missing rollout files are ignored by `list/show` to avoid ghost entries.
-
 ### Commands (`codex-sessions watch thread-titles --help`)
 
 ```text
