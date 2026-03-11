@@ -67,6 +67,7 @@ pub fn prune_sessions(
     older_than_days: i64,
     dry_run: bool,
     hard: bool,
+    mode: &str,
 ) -> Result<PruneResult> {
     validate_days(older_than_days)?;
 
@@ -105,7 +106,7 @@ pub fn prune_sessions(
 
     Ok(PruneResult {
         dry_run,
-        hard,
+        mode: mode.to_string(),
         older_than_days,
         scanned: sessions.iter().filter(|session| !session.archived).count(),
         pruned: deleted
@@ -154,7 +155,7 @@ mod tests {
         .expect("write global state");
 
         let store = SessionStore::new(Some(codex_home)).expect("create store");
-        let report = prune_sessions(&store, 1, true, true).expect("prune sessions");
+        let report = prune_sessions(&store, 1, true, true, "delete").expect("prune sessions");
 
         assert_eq!(report.scanned, 2);
         assert_eq!(report.pruned, 0);

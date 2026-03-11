@@ -54,7 +54,7 @@ pub struct DeleteResult {
 #[derive(Debug, Serialize)]
 pub struct PruneResult {
     pub dry_run: bool,
-    pub hard: bool,
+    pub mode: String,
     pub older_than_days: i64,
     pub scanned: usize,
     pub pruned: usize,
@@ -65,7 +65,6 @@ pub struct PruneResult {
 pub struct OperationBatchResult {
     pub operation: String,
     pub dry_run: bool,
-    pub hard: bool,
     pub processed: usize,
     pub succeeded: usize,
     pub failed: usize,

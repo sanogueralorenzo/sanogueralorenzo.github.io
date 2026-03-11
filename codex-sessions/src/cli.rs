@@ -21,7 +21,7 @@ pub enum Commands {
     Show(ShowArgs),
     /// Print latest assistant message for a session.
     Message(MessageArgs),
-    /// Archive by default, or hard delete sessions with --hard.
+    /// Permanently delete one or more sessions.
     Delete(DeleteArgs),
     /// Move one or more sessions to archived storage.
     Archive(ArchiveArgs),
@@ -29,8 +29,8 @@ pub enum Commands {
     Unarchive(UnarchiveArgs),
     /// Summarize one session into another and delete the merged session.
     Merge(MergeArgs),
-    /// Prune old active sessions once.
-    Prune(PruneArgs),
+    /// Auto-remove old active sessions once.
+    AutoRemove(AutoRemoveArgs),
     /// Watchers for session maintenance flows.
     Watch {
         #[command(subcommand)]
@@ -40,13 +40,20 @@ pub enum Commands {
 
 #[derive(Subcommand, Debug)]
 pub enum WatchCommand {
-    /// Run prune repeatedly on an interval.
-    Prune(WatchArgs),
+    /// Run auto-remove repeatedly on an interval.
+    AutoRemove(WatchAutoRemoveArgs),
     /// Manage thread-title watcher (start|stop|status|run).
     ThreadTitles {
         #[command(subcommand)]
         action: WatchTitleCommand,
     },
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub enum AutoRemoveMode {
+    Archive,
+    Delete,
 }
 
 #[derive(Subcommand, Debug)]
@@ -225,9 +232,6 @@ pub struct DeleteArgs {
     pub home: Option<PathBuf>,
 
     #[arg(long)]
-    pub hard: bool,
-
-    #[arg(long)]
     pub dry_run: bool,
 
     /// Required for selector-based destructive runs (non dry-run) without explicit IDs
@@ -292,18 +296,18 @@ pub struct MergeArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct PruneArgs {
+pub struct AutoRemoveArgs {
     #[arg(long = "older-than-days")]
     pub older_than_days: i64,
+
+    #[arg(long, value_enum)]
+    pub mode: AutoRemoveMode,
 
     #[arg(long)]
     pub home: Option<PathBuf>,
 
     #[arg(long)]
     pub dry_run: bool,
-
-    #[arg(long)]
-    pub hard: bool,
 
     #[arg(long)]
     pub json: bool,
@@ -313,9 +317,12 @@ pub struct PruneArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct WatchArgs {
+pub struct WatchAutoRemoveArgs {
     #[arg(long = "older-than-days")]
     pub older_than_days: i64,
+
+    #[arg(long, value_enum)]
+    pub mode: AutoRemoveMode,
 
     #[arg(long = "interval-minutes", default_value_t = 60)]
     pub interval_minutes: u64,
@@ -325,9 +332,6 @@ pub struct WatchArgs {
 
     #[arg(long)]
     pub dry_run: bool,
-
-    #[arg(long)]
-    pub hard: bool,
 
     #[arg(long)]
     pub once: bool,

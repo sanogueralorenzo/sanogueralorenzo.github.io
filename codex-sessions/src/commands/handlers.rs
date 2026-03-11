@@ -1,7 +1,8 @@
 use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
 use crate::cli::{
-    ArchiveArgs, Commands, DeleteArgs, GenerateThreadTitleArgs, ListArgs, MergeArgs, MessageArgs,
-    PruneArgs, ShowArgs, TitlesArgs, UnarchiveArgs, WatchArgs, WatchCommand,
+    ArchiveArgs, AutoRemoveArgs, AutoRemoveMode, Commands, DeleteArgs, GenerateThreadTitleArgs,
+    ListArgs, MergeArgs, MessageArgs, ShowArgs, TitlesArgs, UnarchiveArgs, WatchAutoRemoveArgs,
+    WatchCommand,
 };
 use crate::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
@@ -40,7 +41,7 @@ pub(crate) fn dispatch(command: Commands) -> Result<()> {
         Commands::Archive(args) => cmd_archive(args),
         Commands::Unarchive(args) => cmd_unarchive(args),
         Commands::Merge(args) => cmd_merge(args),
-        Commands::Prune(args) => cmd_prune(args),
+        Commands::AutoRemove(args) => cmd_auto_remove(args),
         Commands::Watch { action } => cmd_watch(action),
     }
 }
@@ -351,7 +352,7 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
         .filter(|target| !pinned_ids.contains(&target.id))
         .collect();
 
-    let operation = if args.hard { "delete" } else { "archive" };
+    let operation = "delete";
 
     let mut result_by_id: HashMap<String, DeleteResult> = if args.dry_run {
         unpinned_targets
@@ -367,19 +368,12 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
                 (result.id.clone(), result)
             })
             .collect()
-    } else if args.hard {
+    } else {
         store
             .delete_sessions_hard(&unpinned_targets)?
             .into_iter()
             .map(|result| (result.id.clone(), result))
             .collect()
-    } else {
-        let mut archived_by_id = HashMap::with_capacity(unpinned_targets.len());
-        for target in &unpinned_targets {
-            let result = store.archive_session(target)?;
-            archived_by_id.insert(result.id.clone(), result);
-        }
-        archived_by_id
     };
 
     let mut results = Vec::with_capacity(targets.len());
@@ -403,7 +397,7 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
         results.push(result);
     }
 
-    let response = build_operation_batch_result(operation, args.dry_run, args.hard, results);
+    let response = build_operation_batch_result(operation, args.dry_run, results);
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
@@ -417,7 +411,7 @@ fn cmd_archive(args: ArchiveArgs) -> Result<()> {
         results.push(store.archive_session(target)?);
     }
 
-    let response = build_operation_batch_result("archive", false, false, results);
+    let response = build_operation_batch_result("archive", false, results);
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
@@ -431,14 +425,13 @@ fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
         results.push(store.unarchive_session(target)?);
     }
 
-    let response = build_operation_batch_result("unarchive", false, false, results);
+    let response = build_operation_batch_result("unarchive", false, results);
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
 fn build_operation_batch_result(
     operation: &str,
     dry_run: bool,
-    hard: bool,
     sessions: Vec<DeleteResult>,
 ) -> OperationBatchResult {
     let processed = sessions.len();
@@ -458,7 +451,6 @@ fn build_operation_batch_result(
     OperationBatchResult {
         operation: operation.to_string(),
         dry_run,
-        hard,
         processed,
         succeeded,
         failed,
@@ -511,21 +503,23 @@ fn cmd_merge(args: MergeArgs) -> Result<()> {
     emit_merge_output(result, args.json, args.plain)
 }
 
-fn cmd_prune(args: PruneArgs) -> Result<()> {
+fn cmd_auto_remove(args: AutoRemoveArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
     let format = OutputFormat::from_flags(args.json, args.plain);
-    let report = prune_sessions(&store, args.older_than_days, args.dry_run, args.hard)?;
+    let hard = matches!(args.mode, AutoRemoveMode::Delete);
+    let mode = if hard { "delete" } else { "archive" };
+    let report = prune_sessions(&store, args.older_than_days, args.dry_run, hard, mode)?;
     emit_prune_output(&report, format)
 }
 
 fn cmd_watch(action: WatchCommand) -> Result<()> {
     match action {
-        WatchCommand::Prune(args) => cmd_watch_prune(args),
+        WatchCommand::AutoRemove(args) => cmd_watch_auto_remove(args),
         WatchCommand::ThreadTitles { action } => cmd_watch_thread_titles(action),
     }
 }
 
-fn cmd_watch_prune(args: WatchArgs) -> Result<()> {
+fn cmd_watch_auto_remove(args: WatchAutoRemoveArgs) -> Result<()> {
     validate_days(args.older_than_days)?;
     if args.interval_minutes == 0 {
         bail!("--interval-minutes must be >= 1");
@@ -534,9 +528,11 @@ fn cmd_watch_prune(args: WatchArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
     let format = OutputFormat::from_flags(args.json, args.plain);
     let interval = Duration::from_secs(args.interval_minutes * 60);
+    let hard = matches!(args.mode, AutoRemoveMode::Delete);
+    let mode = if hard { "delete" } else { "archive" };
 
     loop {
-        let report = prune_sessions(&store, args.older_than_days, args.dry_run, args.hard)?;
+        let report = prune_sessions(&store, args.older_than_days, args.dry_run, hard, mode)?;
         emit_prune_output(&report, format)?;
 
         if args.once {
@@ -545,7 +541,7 @@ fn cmd_watch_prune(args: WatchArgs) -> Result<()> {
 
         if !args.json && !args.plain {
             println!(
-                "Waiting {} minute(s) before next prune...",
+                "Waiting {} minute(s) before next auto-remove...",
                 args.interval_minutes
             );
         }

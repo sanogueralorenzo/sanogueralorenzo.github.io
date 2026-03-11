@@ -18,7 +18,6 @@ type DeleteResponse = {
 type DeleteBatchResponse = {
   operation: string;
   dry_run: boolean;
-  hard: boolean;
   processed: number;
   succeeded: number;
   failed: number;

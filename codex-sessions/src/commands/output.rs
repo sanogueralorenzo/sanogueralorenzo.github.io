@@ -81,7 +81,7 @@ pub(crate) fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> R
         OutputFormat::Plain => {
             println!(
                 "{}\t{}\t{}\t{}",
-                report.scanned, report.pruned, report.dry_run, report.hard
+                report.scanned, report.pruned, report.dry_run, report.mode
             );
             for session in &report.sessions {
                 let message = session.message.clone().unwrap_or_default();
@@ -96,13 +96,15 @@ pub(crate) fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> R
             }
         }
         OutputFormat::Human => {
-            let action = if report.hard { "delete" } else { "archive" };
+            let action = report.mode.as_str();
             let verb = if report.dry_run {
                 format!("Would {action}")
-            } else if report.hard {
+            } else if action == "delete" {
                 "Deleted".to_string()
-            } else {
+            } else if action == "archive" {
                 "Archived".to_string()
+            } else {
+                "Processed".to_string()
             };
             println!(
                 "{} {} of {} active session(s) older than {} day(s).",
