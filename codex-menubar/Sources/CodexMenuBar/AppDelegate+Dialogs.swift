@@ -52,7 +52,7 @@ extension AppDelegate {
 
         let alert = NSAlert()
         alert.messageText = "Add Profile"
-        alert.informativeText = "Current Codex Auth will be linked to this profile."
+        alert.informativeText = "This auth will be linked to this profile."
 
         let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 76))
         let nameField = NSTextField(frame: NSRect(x: 0, y: 34, width: 320, height: 24))

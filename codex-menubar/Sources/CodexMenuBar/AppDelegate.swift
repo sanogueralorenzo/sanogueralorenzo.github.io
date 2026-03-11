@@ -63,9 +63,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let profile = menuDataStore.data.currentProfileName
         let tooltip: String
         if let profile {
-            tooltip = "Codex Auth (\(displayProfileName(profile)))"
+            tooltip = "Profiles (\(displayProfileName(profile)))"
         } else {
-            tooltip = "Codex Auth"
+            tooltip = "Profiles"
         }
         statusItem.button?.toolTip = tooltip
     }

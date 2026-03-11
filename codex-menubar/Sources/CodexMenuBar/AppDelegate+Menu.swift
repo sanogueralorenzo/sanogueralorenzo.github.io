@@ -50,7 +50,7 @@ extension AppDelegate {
 
         let authHeader = NSMenuItem(title: "", action: #selector(noopHeader(_:)), keyEquivalent: "")
         authHeader.attributedTitle = NSAttributedString(
-            string: "Codex Auth",
+            string: "Profiles",
             attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
         )
         authHeader.target = self

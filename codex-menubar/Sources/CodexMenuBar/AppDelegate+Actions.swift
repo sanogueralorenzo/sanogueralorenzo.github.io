@@ -247,7 +247,7 @@ extension AppDelegate {
         let alert = NSAlert()
         alert.messageText = "Add Profile"
         alert.informativeText = """
-This Codex Auth is already linked to the \(displayProfileName(profileName)) profile.
+This auth is already linked to the \(displayProfileName(profileName)) profile.
 
 Log in with a different account and try again.
 """
