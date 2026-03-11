@@ -23,6 +23,7 @@
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Threads actions: `Merge Threads`, `Remove Threads`.
+- `Remove Threads` offers `All`, `1d`, `3d`, `7d` filters; default view is `All` active threads.
 - Thread lists are sourced from `codex-sessions list` and sorted latest-updated first.
 - Rate limits are fetched on-demand from `codex app-server` (`account/rateLimits/read`).
 

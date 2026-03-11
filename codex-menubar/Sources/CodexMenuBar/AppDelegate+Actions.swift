@@ -347,6 +347,7 @@ private struct CodexAppTerminationError: LocalizedError {
 
 private func fetchStaleSessionsByDays(using sessionsCLI: CodexSessionsCLIClient) throws -> [Int: [CodexSessionsCLIClient.SessionOption]] {
     var result: [Int: [CodexSessionsCLIClient.SessionOption]] = [:]
+    result[0] = try sessionsCLI.listActiveSessions()
     for days in [1, 3, 7] {
         result[days] = try sessionsCLI.listStaleSessions(olderThanDays: days)
     }

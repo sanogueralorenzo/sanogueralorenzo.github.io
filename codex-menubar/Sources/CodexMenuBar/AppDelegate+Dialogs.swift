@@ -64,7 +64,7 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
     }
 
     private let staleByDays: [Int: [CodexSessionsCLIClient.SessionOption]]
-    private let dayOptions = [1, 3, 7]
+    private let dayOptions = [0, 1, 3, 7]
     private let segmentedControl: NSSegmentedControl
     private let tableView: NSTableView
     private let confirmButton: NSButton
@@ -81,10 +81,10 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
         self.confirmButton = confirmButton
     }
 
-    func bootstrap(defaultDays: Int = 3) {
+    func bootstrap(defaultDays: Int = 0) {
         segmentedControl.segmentCount = dayOptions.count
         for (index, days) in dayOptions.enumerated() {
-            segmentedControl.setLabel("\(days)d", forSegment: index)
+            segmentedControl.setLabel(days == 0 ? "All" : "\(days)d", forSegment: index)
         }
         if let index = dayOptions.firstIndex(of: defaultDays) {
             segmentedControl.selectedSegment = index
@@ -108,7 +108,7 @@ private final class StaleSessionRemovalController: NSObject, NSTableViewDataSour
         if index >= 0 && index < dayOptions.count {
             return dayOptions[index]
         }
-        return 3
+        return 0
     }
 
     func selectedSessionIDs() -> [String] {
@@ -306,8 +306,8 @@ extension AppDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         let alert = NSAlert()
-        alert.messageText = "Remove Stale Threads"
-        alert.informativeText = "Select stale threads to permanently delete."
+        alert.messageText = "Remove Threads"
+        alert.informativeText = "Select threads to permanently delete. Use All to view every active thread."
 
         let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 620, height: 320))
         let staleWindowLabel = NSTextField(labelWithString: "Stale Window")
