@@ -19,13 +19,13 @@
 
 - Launch starts `codex-auth watch start`.
 - Launch starts `codex-sessions watch thread-titles start`.
-- Launch starts background auto-remove runs using the persisted Threads settings.
+- Launch starts background auto-remove runs only when a day+mode selection is configured.
 - Menu includes `Open` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Profile management section is labeled `Profiles` and includes profile switch/remove actions plus `Add`.
 - Threads menu includes:
-  - `Auto-Remove` title row is clickable no-op (enabled, not grayed).
+  - `Auto-Remove` title row clears the saved day+mode selection (disables auto-remove).
   - `Auto-Remove` window: `1 day`, `3 days`, `7 days` (single-select checkmark)
   - Each day option has a submenu with `Archive` and `Delete`.
 - Selecting a day+mode persists immediately and restarts auto-remove runs.

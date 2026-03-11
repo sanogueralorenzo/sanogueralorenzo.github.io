@@ -140,36 +140,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 }
 
-struct AutoRemoveSettings {
-    let olderThanDays: Int
-    let mode: CodexSessionsCLIClient.AutoRemoveMode
+struct AutoRemoveSettings: Equatable {
+    let olderThanDays: Int?
+    let mode: CodexSessionsCLIClient.AutoRemoveMode?
 
     static let supportedDays = [1, 3, 7]
-    static let `default` = AutoRemoveSettings(olderThanDays: 7, mode: .archive)
+    static let none = AutoRemoveSettings(olderThanDays: nil, mode: nil)
 
     private static let daysKey = "threads.autoRemove.days"
     private static let modeKey = "threads.autoRemove.mode"
 
     static func load(defaults: UserDefaults = .standard) -> AutoRemoveSettings {
-        let storedDays = defaults.integer(forKey: daysKey)
-        let days = supportedDays.contains(storedDays) ? storedDays : Self.default.olderThanDays
+        let days = (defaults.object(forKey: daysKey) as? NSNumber)
+            .map(\.intValue)
+            .flatMap { supportedDays.contains($0) ? $0 : nil }
+        let mode = defaults.string(forKey: modeKey)
+            .flatMap(CodexSessionsCLIClient.AutoRemoveMode.init(rawValue:))
 
-        let modeRaw = defaults.string(forKey: modeKey) ?? Self.default.mode.rawValue
-        let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: modeRaw) ?? Self.default.mode
-
+        guard let days, let mode else {
+            return .none
+        }
         return AutoRemoveSettings(olderThanDays: days, mode: mode)
     }
 
     func save(defaults: UserDefaults = .standard) {
+        guard let olderThanDays, let mode else {
+            defaults.removeObject(forKey: Self.daysKey)
+            defaults.removeObject(forKey: Self.modeKey)
+            return
+        }
         defaults.set(olderThanDays, forKey: Self.daysKey)
         defaults.set(mode.rawValue, forKey: Self.modeKey)
     }
 
-    func withDays(_ days: Int) -> AutoRemoveSettings {
-        AutoRemoveSettings(olderThanDays: days, mode: mode)
+    var isConfigured: Bool {
+        olderThanDays != nil && mode != nil
     }
 
-    func withMode(_ nextMode: CodexSessionsCLIClient.AutoRemoveMode) -> AutoRemoveSettings {
-        AutoRemoveSettings(olderThanDays: olderThanDays, mode: nextMode)
+    func withSelection(days: Int, mode: CodexSessionsCLIClient.AutoRemoveMode) -> AutoRemoveSettings {
+        AutoRemoveSettings(olderThanDays: days, mode: mode)
     }
 }

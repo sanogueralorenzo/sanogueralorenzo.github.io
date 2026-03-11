@@ -22,6 +22,16 @@ extension AppDelegate {
         // Intentionally empty: keeps the title row clickable without side effects.
     }
 
+    @objc func clearAutoRemoveSelection(_ sender: Any?) {
+        guard autoRemoveSettings.isConfigured else {
+            return
+        }
+        autoRemoveSettings = .none
+        autoRemoveSettings.save()
+        stopAutoRemoveWatcher()
+        refreshUI()
+    }
+
     @objc func addProfileFromCurrent(_ sender: Any?) {
         do {
             if let currentProfileName = try authCLI.currentProfileName() {
@@ -102,9 +112,8 @@ extension AppDelegate {
             return
         }
 
-        let nextSettings = autoRemoveSettings.withDays(days).withMode(mode)
-        guard nextSettings.olderThanDays != autoRemoveSettings.olderThanDays
-                || nextSettings.mode != autoRemoveSettings.mode else {
+        let nextSettings = autoRemoveSettings.withSelection(days: days, mode: mode)
+        guard nextSettings != autoRemoveSettings else {
             return
         }
 
@@ -211,9 +220,12 @@ extension AppDelegate {
 
     func startAutoRemoveWatcher() {
         stopAutoRemoveWatcher()
-        scheduleAutoRemoveRun(using: autoRemoveSettings)
+        guard let olderThanDays = autoRemoveSettings.olderThanDays,
+              let mode = autoRemoveSettings.mode else {
+            return
+        }
+        scheduleAutoRemoveRun(olderThanDays: olderThanDays, mode: mode)
 
-        let settings = autoRemoveSettings
         let sessionsCLI = self.sessionsCLI
         let intervalSeconds = max(60, autoRemoveIntervalMinutes * 60)
 
@@ -223,7 +235,11 @@ extension AppDelegate {
             repeating: .seconds(intervalSeconds)
         )
         timer.setEventHandler {
-            runAutoRemovePass(sessionsCLI: sessionsCLI, settings: settings)
+            runAutoRemovePass(
+                sessionsCLI: sessionsCLI,
+                olderThanDays: olderThanDays,
+                mode: mode
+            )
         }
         timer.resume()
         autoRemoveTimer = timer
@@ -234,10 +250,17 @@ extension AppDelegate {
         autoRemoveTimer = nil
     }
 
-    private func scheduleAutoRemoveRun(using settings: AutoRemoveSettings) {
+    private func scheduleAutoRemoveRun(
+        olderThanDays: Int,
+        mode: CodexSessionsCLIClient.AutoRemoveMode
+    ) {
         let sessionsCLI = self.sessionsCLI
         autoRemoveQueue.async {
-            runAutoRemovePass(sessionsCLI: sessionsCLI, settings: settings)
+            runAutoRemovePass(
+                sessionsCLI: sessionsCLI,
+                olderThanDays: olderThanDays,
+                mode: mode
+            )
         }
     }
 
@@ -319,16 +342,17 @@ private struct CodexAppTerminationError: LocalizedError {
 
 private func runAutoRemovePass(
     sessionsCLI: CodexSessionsCLIClient,
-    settings: AutoRemoveSettings
+    olderThanDays: Int,
+    mode: CodexSessionsCLIClient.AutoRemoveMode
 ) {
     do {
         try sessionsCLI.runAutoRemove(
-            olderThanDays: settings.olderThanDays,
-            mode: settings.mode
+            olderThanDays: olderThanDays,
+            mode: mode
         )
     } catch {
         fputs(
-            "Warning: auto-remove run failed (days=\(settings.olderThanDays), mode=\(settings.mode.rawValue)): \(error)\n",
+            "Warning: auto-remove run failed (days=\(olderThanDays), mode=\(mode.rawValue)): \(error)\n",
             stderr
         )
     }
