@@ -28,7 +28,7 @@ extension AppDelegate {
         }
         autoRemoveSettings = .none
         autoRemoveSettings.save()
-        stopAutoRemoveWatcher()
+        stopAutoRemoveScheduler()
         refreshUI()
     }
 
@@ -119,7 +119,7 @@ extension AppDelegate {
 
         autoRemoveSettings = nextSettings
         autoRemoveSettings.save()
-        startAutoRemoveWatcher()
+        startAutoRemoveScheduler()
         refreshUI()
     }
 
@@ -197,7 +197,7 @@ extension AppDelegate {
     }
 
     @objc func quit(_ sender: Any?) {
-        stopAutoRemoveWatcher()
+        stopAutoRemoveScheduler()
 
         let remoteCLI = self.remoteCLI
         let sessionsCLI = self.sessionsCLI
@@ -218,8 +218,8 @@ extension AppDelegate {
         }
     }
 
-    func startAutoRemoveWatcher() {
-        stopAutoRemoveWatcher()
+    func startAutoRemoveScheduler() {
+        stopAutoRemoveScheduler()
         guard let olderThanDays = autoRemoveSettings.olderThanDays,
               let mode = autoRemoveSettings.mode else {
             return
@@ -242,12 +242,12 @@ extension AppDelegate {
             )
         }
         timer.resume()
-        autoRemoveTimer = timer
+        autoRemoveSchedulerTimer = timer
     }
 
-    func stopAutoRemoveWatcher() {
-        autoRemoveTimer?.cancel()
-        autoRemoveTimer = nil
+    func stopAutoRemoveScheduler() {
+        autoRemoveSchedulerTimer?.cancel()
+        autoRemoveSchedulerTimer = nil
     }
 
     private func scheduleAutoRemoveRun(

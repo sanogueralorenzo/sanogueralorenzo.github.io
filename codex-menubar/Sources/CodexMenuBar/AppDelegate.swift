@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         label: "io.github.sanogueralorenzo.codex-menubar.auto-remove",
         qos: .utility
     )
-    var autoRemoveTimer: DispatchSourceTimer?
+    var autoRemoveSchedulerTimer: DispatchSourceTimer?
     let autoRemoveIntervalMinutes = 60
     var statusItem: NSStatusItem!
     private var isMenuOpen = false
@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
-        startAutoRemoveWatcher()
+        startAutoRemoveScheduler()
         observeMenuDataChanges()
         renderMenu()
         refreshUI()
