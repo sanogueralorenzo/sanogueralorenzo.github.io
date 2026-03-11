@@ -89,91 +89,42 @@ extension AppDelegate {
         }
     }
 
-    @objc func removeStaleSessions(_ sender: Any?) {
-        let sessionsCLI = self.sessionsCLI
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else {
-                return
-            }
-            do {
-                let staleByDays = try fetchStaleSessionsByDays(using: sessionsCLI)
-                DispatchQueue.main.async {
-                    let hasAnyStaleSessions = staleByDays.values.contains { !$0.isEmpty }
-                    guard hasAnyStaleSessions else {
-                        self.showError(CodexSessionsCLIClient.Error(message: "No stale codex threads found for 1/3/7 day windows."))
-                        return
-                    }
-
-                    guard let selection = self.promptForStaleSessionRemoval(staleByDays: staleByDays) else {
-                        return
-                    }
-
-                    let sessionsCLI = self.sessionsCLI
-                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                        guard let self else {
-                            return
-                        }
-                        do {
-                            try sessionsCLI.deleteSessions(ids: selection.sessionIDs)
-                            DispatchQueue.main.async {
-                                self.refreshUI()
-                            }
-                        } catch {
-                            DispatchQueue.main.async {
-                                self.showError(error)
-                            }
-                        }
-                    }
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.showError(error)
-                }
-            }
+    @objc func setAutoRemoveDays(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? NSNumber else {
+            return
         }
+
+        let days = value.intValue
+        guard AutoRemoveSettings.supportedDays.contains(Int(days)) else {
+            return
+        }
+
+        let nextSettings = autoRemoveSettings.withDays(Int(days))
+        guard nextSettings.olderThanDays != autoRemoveSettings.olderThanDays else {
+            return
+        }
+
+        autoRemoveSettings = nextSettings
+        autoRemoveSettings.save()
+        startAutoRemoveWatcher()
+        refreshUI()
     }
 
-    @objc func mergeSessions(_ sender: Any?) {
-        let sessionsCLI = self.sessionsCLI
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else {
-                return
-            }
-            do {
-                let sessions = try sessionsCLI.listActiveSessions()
-                DispatchQueue.main.async {
-                    guard sessions.count >= 2 else {
-                        self.showError(CodexSessionsCLIClient.Error(message: "Need at least two active threads to merge."))
-                        return
-                    }
-
-                    guard let selection = self.promptForSessionMergeSelection(sessions: sessions) else {
-                        return
-                    }
-
-                    let sessionsCLI = self.sessionsCLI
-                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                        guard let self else {
-                            return
-                        }
-                        do {
-                            try sessionsCLI.mergeSessions(targetID: selection.targetID, mergeID: selection.mergerID)
-                            DispatchQueue.main.async {
-                                self.refreshUI()
-                            }
-                        } catch {
-                            DispatchQueue.main.async {
-                                self.showError(error)
-                            }
-                        }
-                    }
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    self.showError(error)
-                }
-            }
+    @objc func setAutoRemoveMode(_ sender: NSMenuItem) {
+        guard let rawMode = sender.representedObject as? String,
+              let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: rawMode) else {
+            return
         }
+
+        let nextSettings = autoRemoveSettings.withMode(mode)
+        guard nextSettings.mode != autoRemoveSettings.mode else {
+            return
+        }
+
+        autoRemoveSettings = nextSettings
+        autoRemoveSettings.save()
+        startAutoRemoveWatcher()
+        refreshUI()
     }
 
     @objc func openHelp(_ sender: Any?) {
@@ -250,6 +201,8 @@ extension AppDelegate {
     }
 
     @objc func quit(_ sender: Any?) {
+        stopAutoRemoveWatcher()
+
         let remoteCLI = self.remoteCLI
         let sessionsCLI = self.sessionsCLI
         let authCLI = self.authCLI
@@ -266,6 +219,38 @@ extension AppDelegate {
             DispatchQueue.main.async {
                 NSApp.terminate(nil)
             }
+        }
+    }
+
+    func startAutoRemoveWatcher() {
+        stopAutoRemoveWatcher()
+        scheduleAutoRemoveRun(using: autoRemoveSettings)
+
+        let settings = autoRemoveSettings
+        let sessionsCLI = self.sessionsCLI
+        let intervalSeconds = max(60, autoRemoveIntervalMinutes * 60)
+
+        let timer = DispatchSource.makeTimerSource(queue: autoRemoveQueue)
+        timer.schedule(
+            deadline: .now() + .seconds(intervalSeconds),
+            repeating: .seconds(intervalSeconds)
+        )
+        timer.setEventHandler {
+            runAutoRemovePass(sessionsCLI: sessionsCLI, settings: settings)
+        }
+        timer.resume()
+        autoRemoveTimer = timer
+    }
+
+    func stopAutoRemoveWatcher() {
+        autoRemoveTimer?.cancel()
+        autoRemoveTimer = nil
+    }
+
+    private func scheduleAutoRemoveRun(using settings: AutoRemoveSettings) {
+        let sessionsCLI = self.sessionsCLI
+        autoRemoveQueue.async {
+            runAutoRemovePass(sessionsCLI: sessionsCLI, settings: settings)
         }
     }
 
@@ -345,13 +330,21 @@ private struct CodexAppTerminationError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-private func fetchStaleSessionsByDays(using sessionsCLI: CodexSessionsCLIClient) throws -> [Int: [CodexSessionsCLIClient.SessionOption]] {
-    var result: [Int: [CodexSessionsCLIClient.SessionOption]] = [:]
-    result[0] = try sessionsCLI.listActiveSessions()
-    for days in [1, 3, 7] {
-        result[days] = try sessionsCLI.listStaleSessions(olderThanDays: days)
+private func runAutoRemovePass(
+    sessionsCLI: CodexSessionsCLIClient,
+    settings: AutoRemoveSettings
+) {
+    do {
+        try sessionsCLI.runAutoRemove(
+            olderThanDays: settings.olderThanDays,
+            mode: settings.mode
+        )
+    } catch {
+        fputs(
+            "Warning: auto-remove run failed (days=\(settings.olderThanDays), mode=\(settings.mode.rawValue)): \(error)\n",
+            stderr
+        )
     }
-    return result
 }
 
 private struct RemoteRestartWarning: LocalizedError {

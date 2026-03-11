@@ -1,6 +1,11 @@
 import Foundation
 
 final class CodexSessionsCLIClient: @unchecked Sendable {
+    enum AutoRemoveMode: String {
+        case archive
+        case delete
+    }
+
     enum Status: Equatable {
         case notInstalled
         case ready(activeSessionCount: Int)
@@ -68,30 +73,16 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             }
     }
 
-    func listStaleSessions(olderThanDays: Int) throws -> [SessionOption] {
+    func runAutoRemove(olderThanDays: Int, mode: AutoRemoveMode) throws {
         guard olderThanDays > 0 else {
             throw Error(message: "olderThanDays must be greater than zero.")
         }
 
-        let output = try run([
-            "list",
-            "--all",
-            "--json",
-            "--sort-by", "updated_at",
-            "--older-than-days", String(olderThanDays)
+        _ = try run([
+            "auto-remove",
+            "--older-than-days", String(olderThanDays),
+            "--mode", mode.rawValue
         ])
-        let data = Data(output.utf8)
-        let response = try JSONDecoder().decode(ListResponse.self, from: data)
-        return response.data
-            .filter { !$0.archived }
-            .map { entry in
-                let title = entry.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let cleanedTitle = (title?.isEmpty == false) ? title! : "(no title)"
-                return SessionOption(id: entry.id,
-                                     title: cleanedTitle,
-                                     folder: folderLabel(from: entry.folder),
-                                     lastUpdatedAt: entry.last_updated_at)
-            }
     }
 
     func isTitleWatcherRunning() throws -> Bool {
@@ -106,37 +97,6 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
 
     func stopTitleWatcher() throws {
         _ = try run(["watch", "thread-titles", "stop"])
-    }
-
-    func deleteSessions(ids: [String]) throws {
-        let normalizedIDs = ids
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        guard !normalizedIDs.isEmpty else {
-            return
-        }
-
-        var arguments = ["delete", "--plain"]
-        arguments.append(contentsOf: normalizedIDs)
-        _ = try run(arguments)
-    }
-
-    func mergeSessions(targetID: String, mergeID: String) throws {
-        guard !targetID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw Error(message: "Target thread cannot be empty.")
-        }
-        guard !mergeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw Error(message: "Merger thread cannot be empty.")
-        }
-        guard targetID != mergeID else {
-            throw Error(message: "Target and merger threads must be different.")
-        }
-
-        _ = try run([
-            "merge",
-            "--target", targetID,
-            "--merge", mergeID
-        ])
     }
 
     private func run(_ arguments: [String]) throws -> String {

@@ -92,21 +92,27 @@ extension AppDelegate {
                 missingItem.isEnabled = false
                 sessionsMenu.addItem(missingItem)
             case .ready(let activeSessionCount):
+                let autoRemoveHeader = NSMenuItem(title: "Auto-Remove", action: nil, keyEquivalent: "")
+                autoRemoveHeader.isEnabled = false
+                sessionsMenu.addItem(autoRemoveHeader)
+
+                sessionsMenu.addItem(autoRemoveDayMenuItem(days: 1))
+                sessionsMenu.addItem(autoRemoveDayMenuItem(days: 3))
+                sessionsMenu.addItem(autoRemoveDayMenuItem(days: 7))
+
+                sessionsMenu.addItem(.separator())
+
+                let modeHeader = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
+                modeHeader.isEnabled = false
+                sessionsMenu.addItem(modeHeader)
+                sessionsMenu.addItem(autoRemoveModeMenuItem(mode: .archive))
+                sessionsMenu.addItem(autoRemoveModeMenuItem(mode: .delete))
+
+                sessionsMenu.addItem(.separator())
+
                 let countItem = NSMenuItem(title: "Thread Count: \(activeSessionCount)", action: nil, keyEquivalent: "")
                 countItem.isEnabled = false
                 sessionsMenu.addItem(countItem)
-
-                let mergeItem = NSMenuItem(title: "Merge Threads",
-                                           action: #selector(mergeSessions(_:)),
-                                           keyEquivalent: "")
-                mergeItem.target = self
-                sessionsMenu.addItem(mergeItem)
-
-                let removeItem = NSMenuItem(title: "Remove Threads",
-                                            action: #selector(removeStaleSessions(_:)),
-                                            keyEquivalent: "")
-                removeItem.target = self
-                sessionsMenu.addItem(removeItem)
             }
         }
         menu.addItem(sessionsItem)
@@ -231,6 +237,30 @@ extension AppDelegate {
 
         item.target = self
         item.representedObject = profileName
+        return item
+    }
+
+    private func autoRemoveDayMenuItem(days: Int) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: "\(days) day" + (days == 1 ? "" : "s"),
+            action: #selector(setAutoRemoveDays(_:)),
+            keyEquivalent: ""
+        )
+        item.target = self
+        item.representedObject = NSNumber(value: days)
+        item.state = autoRemoveSettings.olderThanDays == days ? .on : .off
+        return item
+    }
+
+    private func autoRemoveModeMenuItem(mode: CodexSessionsCLIClient.AutoRemoveMode) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: mode == .archive ? "Archive" : "Delete",
+            action: #selector(setAutoRemoveMode(_:)),
+            keyEquivalent: ""
+        )
+        item.target = self
+        item.representedObject = mode.rawValue
+        item.state = autoRemoveSettings.mode == mode ? .on : .off
         return item
     }
 }

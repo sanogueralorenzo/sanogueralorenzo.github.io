@@ -19,12 +19,14 @@
 
 - Launch starts `codex-auth watch start`.
 - Launch starts `codex-sessions watch thread-titles start`.
+- Launch starts background auto-remove runs using the persisted Threads settings.
 - Menu includes `Open` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
-- Threads actions: `Merge Threads`, `Remove Threads`.
-- `Remove Threads` offers `All`, `1d`, `3d`, `7d` filters; default view is `All` active threads.
-- Thread lists are sourced from `codex-sessions list` and sorted latest-updated first.
+- Threads menu includes:
+  - `Auto-Remove` window: `1 day`, `3 days`, `7 days` (single-select checkmark)
+  - `Mode`: `Archive`, `Delete` (single-select checkmark)
+- Setting either option persists immediately and restarts auto-remove runs.
 
 ### Storage
 

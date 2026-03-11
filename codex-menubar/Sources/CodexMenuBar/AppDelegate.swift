@@ -8,6 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let remoteCLI = CodexRemoteCLIClient()
     let sessionsCLI = CodexSessionsCLIClient()
     let menuDataStore = CodexMenuDataStore()
+    var autoRemoveSettings = AutoRemoveSettings.load()
+    let autoRemoveQueue = DispatchQueue(
+        label: "io.github.sanogueralorenzo.codex-menubar.auto-remove",
+        qos: .utility
+    )
+    var autoRemoveTimer: DispatchSourceTimer?
+    let autoRemoveIntervalMinutes = 60
     var statusItem: NSStatusItem!
     private var isMenuOpen = false
     private var needsRenderAfterMenuClose = false
@@ -46,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
+        startAutoRemoveWatcher()
         observeMenuDataChanges()
         renderMenu()
         refreshUI()
@@ -129,5 +137,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.observeMenuDataChanges()
             }
         }
+    }
+}
+
+struct AutoRemoveSettings {
+    let olderThanDays: Int
+    let mode: CodexSessionsCLIClient.AutoRemoveMode
+
+    static let supportedDays = [1, 3, 7]
+    static let `default` = AutoRemoveSettings(olderThanDays: 7, mode: .archive)
+
+    private static let daysKey = "threads.autoRemove.days"
+    private static let modeKey = "threads.autoRemove.mode"
+
+    static func load(defaults: UserDefaults = .standard) -> AutoRemoveSettings {
+        let storedDays = defaults.integer(forKey: daysKey)
+        let days = supportedDays.contains(storedDays) ? storedDays : Self.default.olderThanDays
+
+        let modeRaw = defaults.string(forKey: modeKey) ?? Self.default.mode.rawValue
+        let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: modeRaw) ?? Self.default.mode
+
+        return AutoRemoveSettings(olderThanDays: days, mode: mode)
+    }
+
+    func save(defaults: UserDefaults = .standard) {
+        defaults.set(olderThanDays, forKey: Self.daysKey)
+        defaults.set(mode.rawValue, forKey: Self.modeKey)
+    }
+
+    func withDays(_ days: Int) -> AutoRemoveSettings {
+        AutoRemoveSettings(olderThanDays: days, mode: mode)
+    }
+
+    func withMode(_ nextMode: CodexSessionsCLIClient.AutoRemoveMode) -> AutoRemoveSettings {
+        AutoRemoveSettings(olderThanDays: olderThanDays, mode: nextMode)
     }
 }
