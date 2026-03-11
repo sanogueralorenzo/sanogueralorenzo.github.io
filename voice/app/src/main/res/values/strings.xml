@@ -72,13 +72,21 @@
     <string name="overlay_status_required">Required</string>
     <string name="overlay_toggle_enable">Enable overlay bubble</string>
     <string name="overlay_toggle_enable_description">Shows only when a non-Voice keyboard is visible.</string>
-    <string name="overlay_toggle_position_mode">Position mode</string>
-    <string name="overlay_toggle_position_mode_description">Open another keyboard, drag the bubble, then tap it once to save.</string>
-    <string name="overlay_position_value">Position: x=%1$d, y=%2$d</string>
-    <string name="overlay_position_reset">Reset</string>
+    <string name="overlay_position_action_title">Position</string>
+    <string name="overlay_position_action_description">Open a positioning screen with keyboard + size controls.</string>
+    <string name="overlay_position_instructions_title">Position Voice Overlay</string>
+    <string name="overlay_position_instructions_body">Drag to place. Use arrows for 1dp nudges.</string>
+    <string name="overlay_position_mic_indicator_note">Regular use keeps the pill invisible. Android\'s green mic indicator shows when recording is active.</string>
+    <string name="overlay_position_size_label">Size: %1$ddp</string>
+    <string name="overlay_position_number_input_label">Number input test</string>
+    <string name="overlay_position_nudge_label">Fine position (1dp)</string>
+    <string name="overlay_position_nudge_up">Move up</string>
+    <string name="overlay_position_nudge_left">Move left</string>
+    <string name="overlay_position_nudge_down">Move down</string>
+    <string name="overlay_position_nudge_right">Move right</string>
+    <string name="overlay_position_enable_accessibility_note">Enable the Overlay accessibility service first to preview and position the circle.</string>
     <string name="overlay_voice_ime_selected_warning">Voice Keyboard is selected. Switch to another keyboard to use this overlay.</string>
     <string name="overlay_non_voice_ready_message">Overlay appears only when another keyboard is open and focused on an editable input.</string>
-    <string name="overlay_position_saved">Bubble position saved.</string>
     <string name="overlay_microphone_required">Microphone permission is required.</string>
     <string name="overlay_asr_not_ready">ASR model is not ready yet.</string>
     <string name="overlay_recording_start_failed">Could not start recording.</string>

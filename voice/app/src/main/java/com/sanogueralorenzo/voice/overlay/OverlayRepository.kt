@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
+import android.util.TypedValue
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -17,10 +18,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlin.math.roundToInt
 
 private val Context.overlayDataStore: DataStore<Preferences> by preferencesDataStore(
     name = OverlayRepository.DATASTORE_NAME
@@ -28,9 +32,9 @@ private val Context.overlayDataStore: DataStore<Preferences> by preferencesDataS
 
 data class OverlayConfig(
     val overlayEnabled: Boolean,
-    val positioningMode: Boolean,
     val bubbleX: Int,
-    val bubbleY: Int
+    val bubbleY: Int,
+    val bubbleSizeDp: Int
 )
 
 class OverlayRepository(
@@ -42,23 +46,23 @@ class OverlayRepository(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val overlayEnabledState = MutableStateFlow(DEFAULT_OVERLAY_ENABLED)
-    private val positioningModeState = MutableStateFlow(DEFAULT_POSITIONING_MODE)
-    private val bubbleXState = MutableStateFlow(DEFAULT_BUBBLE_X_PX)
-    private val bubbleYState = MutableStateFlow(DEFAULT_BUBBLE_Y_PX)
+    private val bubbleXState = sharedBubbleXState
+    private val bubbleYState = sharedBubbleYState
+    private val bubbleSizeDpState = sharedBubbleSizeDpState
 
     init {
         val initialSnapshot = runBlocking { dataStore.data.first() }
         overlayEnabledState.value = initialSnapshot[KEY_OVERLAY_ENABLED] ?: DEFAULT_OVERLAY_ENABLED
-        positioningModeState.value = initialSnapshot[KEY_POSITIONING_MODE] ?: DEFAULT_POSITIONING_MODE
         bubbleXState.value = initialSnapshot[KEY_BUBBLE_X] ?: DEFAULT_BUBBLE_X_PX
         bubbleYState.value = initialSnapshot[KEY_BUBBLE_Y] ?: DEFAULT_BUBBLE_Y_PX
+        bubbleSizeDpState.value = initialSnapshot[KEY_BUBBLE_SIZE_DP] ?: DEFAULT_BUBBLE_SIZE_DP
 
         scope.launch {
             dataStore.data.collectLatest { prefs ->
                 overlayEnabledState.value = prefs[KEY_OVERLAY_ENABLED] ?: DEFAULT_OVERLAY_ENABLED
-                positioningModeState.value = prefs[KEY_POSITIONING_MODE] ?: DEFAULT_POSITIONING_MODE
                 bubbleXState.value = prefs[KEY_BUBBLE_X] ?: DEFAULT_BUBBLE_X_PX
                 bubbleYState.value = prefs[KEY_BUBBLE_Y] ?: DEFAULT_BUBBLE_Y_PX
+                bubbleSizeDpState.value = prefs[KEY_BUBBLE_SIZE_DP] ?: DEFAULT_BUBBLE_SIZE_DP
             }
         }
     }
@@ -66,9 +70,9 @@ class OverlayRepository(
     fun currentConfig(): OverlayConfig {
         return OverlayConfig(
             overlayEnabled = overlayEnabledState.value,
-            positioningMode = positioningModeState.value,
             bubbleX = bubbleXState.value,
-            bubbleY = bubbleYState.value
+            bubbleY = bubbleYState.value,
+            bubbleSizeDp = bubbleSizeDpState.value
         )
     }
 
@@ -81,28 +85,57 @@ class OverlayRepository(
         }
     }
 
-    fun setPositioningMode(enabled: Boolean) {
-        positioningModeState.value = enabled
-        scope.launch {
-            dataStore.edit { prefs ->
-                prefs[KEY_POSITIONING_MODE] = enabled
-            }
-        }
-    }
-
     fun setBubblePosition(x: Int, y: Int) {
-        bubbleXState.value = x
-        bubbleYState.value = y
+        val clampedX = x.coerceAtLeast(0)
+        val clampedY = y.coerceAtLeast(0)
+        bubbleXState.value = clampedX
+        bubbleYState.value = clampedY
         scope.launch {
             dataStore.edit { prefs ->
-                prefs[KEY_BUBBLE_X] = x
-                prefs[KEY_BUBBLE_Y] = y
+                prefs[KEY_BUBBLE_X] = clampedX
+                prefs[KEY_BUBBLE_Y] = clampedY
             }
         }
     }
 
-    fun resetBubblePosition() {
-        setBubblePosition(DEFAULT_BUBBLE_X_PX, DEFAULT_BUBBLE_Y_PX)
+    fun nudgeBubblePositionByDp(deltaXDp: Int, deltaYDp: Int) {
+        val deltaXPx = dpToPx(deltaXDp)
+        val deltaYPx = dpToPx(deltaYDp)
+        setBubblePosition(
+            x = bubbleXState.value + deltaXPx,
+            y = bubbleYState.value + deltaYPx
+        )
+    }
+
+    fun setBubbleSizeDp(sizeDp: Int): Int {
+        val clamped = clampBubbleSizeDp(sizeDp)
+        bubbleSizeDpState.value = clamped
+        scope.launch {
+            dataStore.edit { prefs ->
+                prefs[KEY_BUBBLE_SIZE_DP] = clamped
+            }
+        }
+        return clamped
+    }
+
+    fun bubbleSizeDpFlow(): StateFlow<Int> = bubbleSizeDpState.asStateFlow()
+    fun bubbleXFlow(): StateFlow<Int> = bubbleXState.asStateFlow()
+    fun bubbleYFlow(): StateFlow<Int> = bubbleYState.asStateFlow()
+
+    fun clampBubbleSizeDp(sizeDp: Int): Int {
+        return sizeDp.coerceIn(MIN_BUBBLE_SIZE_DP, MAX_BUBBLE_SIZE_DP)
+    }
+
+    fun adjustBubbleSizeDp(deltaDp: Int): Int {
+        return setBubbleSizeDp(bubbleSizeDpState.value + deltaDp)
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp.toFloat(),
+            appContext.resources.displayMetrics
+        ).roundToInt()
     }
 
     fun hasRecordAudioPermission(): Boolean {
@@ -140,13 +173,20 @@ class OverlayRepository(
         internal const val DATASTORE_NAME = "overlay_store"
 
         private val KEY_OVERLAY_ENABLED = booleanPreferencesKey("overlay_enabled")
-        private val KEY_POSITIONING_MODE = booleanPreferencesKey("overlay_positioning_mode")
         private val KEY_BUBBLE_X = intPreferencesKey("overlay_bubble_x")
         private val KEY_BUBBLE_Y = intPreferencesKey("overlay_bubble_y")
+        private val KEY_BUBBLE_SIZE_DP = intPreferencesKey("overlay_bubble_size_dp")
 
         private const val DEFAULT_OVERLAY_ENABLED = false
-        private const val DEFAULT_POSITIONING_MODE = false
         private const val DEFAULT_BUBBLE_X_PX = 24
         private const val DEFAULT_BUBBLE_Y_PX = 520
+        private const val DEFAULT_BUBBLE_SIZE_DP = 32
+        private const val MIN_BUBBLE_SIZE_DP = 32
+        private const val MAX_BUBBLE_SIZE_DP = 96
+
+        // Shared across repository instances (UI + service) so size changes propagate immediately.
+        private val sharedBubbleXState = MutableStateFlow(DEFAULT_BUBBLE_X_PX)
+        private val sharedBubbleYState = MutableStateFlow(DEFAULT_BUBBLE_Y_PX)
+        private val sharedBubbleSizeDpState = MutableStateFlow(DEFAULT_BUBBLE_SIZE_DP)
     }
 }

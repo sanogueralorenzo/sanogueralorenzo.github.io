@@ -25,6 +25,7 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.HomeScreen
 import com.sanogueralorenzo.voice.preferences.PreferencesScreen
 import com.sanogueralorenzo.voice.benchmark.BenchmarkScreen
+import com.sanogueralorenzo.voice.overlay.OverlayPositionScreen
 import com.sanogueralorenzo.voice.overlay.OverlayScreen
 import com.sanogueralorenzo.voice.theme.KeyboardThemeMode
 import com.sanogueralorenzo.voice.theme.ThemeScreen
@@ -38,6 +39,7 @@ private object SettingsRoute {
     const val UPDATES = "settings_updates"
     const val PREFERENCES = "settings_preferences"
     const val OVERLAY = "settings_overlay"
+    const val OVERLAY_POSITION = "settings_overlay_position"
 }
 
 @Composable
@@ -47,6 +49,7 @@ fun SettingsNavHost(
     keyboardThemeMode: KeyboardThemeMode,
     onHomeInputChange: (String) -> Unit,
     onThemeInputChange: (String) -> Unit,
+    onOverlayPositionInputChange: (String) -> Unit,
     onDownloadPrompt: () -> Unit,
     onShowImePicker: () -> Unit
 ) {
@@ -60,6 +63,7 @@ fun SettingsNavHost(
         SettingsRoute.UPDATES -> stringResource(R.string.updates_section_title)
         SettingsRoute.PREFERENCES -> stringResource(R.string.preferences_section_title)
         SettingsRoute.OVERLAY -> stringResource(R.string.overlay_section_title)
+        SettingsRoute.OVERLAY_POSITION -> stringResource(R.string.overlay_position_action_title)
         else -> stringResource(R.string.main_title_voice_keyboard)
     }
 
@@ -114,6 +118,17 @@ fun SettingsNavHost(
                     )
                 }
 
+                SettingsRoute.OVERLAY_POSITION -> key("overlay_position_input_bar") {
+                    VoiceInput(
+                        value = state.overlayPositionInput,
+                        onValueChange = onOverlayPositionInputChange,
+                        voiceImeSelected = state.voiceImeSelected,
+                        onRequestKeyboardPicker = onShowImePicker,
+                        autoFocusOnResume = true,
+                        enforceVoiceIme = false
+                    )
+                }
+
                 else -> Unit
             }
         }
@@ -158,7 +173,13 @@ fun SettingsNavHost(
             }
 
             composable(SettingsRoute.OVERLAY) {
-                OverlayScreen()
+                OverlayScreen(
+                    onOpenPosition = { navController.navigate(SettingsRoute.OVERLAY_POSITION) }
+                )
+            }
+
+            composable(SettingsRoute.OVERLAY_POSITION) {
+                OverlayPositionScreen()
             }
         }
     }

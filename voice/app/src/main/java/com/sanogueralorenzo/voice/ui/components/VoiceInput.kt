@@ -22,21 +22,23 @@ fun VoiceInput(
     onValueChange: (String) -> Unit,
     voiceImeSelected: Boolean,
     onRequestKeyboardPicker: () -> Unit,
-    autoFocusOnResume: Boolean = false
+    autoFocusOnResume: Boolean = false,
+    enforceVoiceIme: Boolean = true
 ) {
     var showKeyboardDialog by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val isInputEnabled = voiceImeSelected || !enforceVoiceIme
     val latestFocusAction by rememberUpdatedState(
         newValue = {
-            if (!voiceImeSelected) return@rememberUpdatedState
+            if (!isInputEnabled) return@rememberUpdatedState
             focusRequester.requestFocus()
             keyboardController?.show()
         }
     )
 
     OnLifecycle(Lifecycle.Event.ON_RESUME) {
-        if (autoFocusOnResume && voiceImeSelected) {
+        if (autoFocusOnResume && isInputEnabled) {
             latestFocusAction()
         }
     }
@@ -45,11 +47,15 @@ fun VoiceInput(
         value = value,
         onValueChange = onValueChange,
         focusRequester = focusRequester,
-        enabled = voiceImeSelected,
-        onBlockedTap = { showKeyboardDialog = true }
+        enabled = isInputEnabled,
+        onBlockedTap = if (enforceVoiceIme) {
+            { showKeyboardDialog = true }
+        } else {
+            null
+        }
     )
 
-    if (showKeyboardDialog) {
+    if (enforceVoiceIme && showKeyboardDialog) {
         AlertDialog(
             onDismissRequest = { showKeyboardDialog = false },
             title = { Text(text = stringResource(R.string.setup_input_keyboard_required_title)) },

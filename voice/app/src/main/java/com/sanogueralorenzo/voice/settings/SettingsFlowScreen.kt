@@ -33,6 +33,7 @@ data class SettingsFlowState(
     val voiceImeSelected: Boolean = false,
     val homeKeyboardInput: String = "",
     val themeKeyboardInput: String = "",
+    val overlayPositionInput: String = "",
     val promptVersion: String? = null,
     val promptDownloading: Boolean = false,
     val promptProgress: Int = 0
@@ -66,6 +67,10 @@ class SettingsFlowViewModel(
 
     fun setThemeKeyboardInput(value: String) {
         setState { copy(themeKeyboardInput = value) }
+    }
+
+    fun setOverlayPositionInput(value: String) {
+        setState { copy(overlayPositionInput = value) }
     }
 
     fun startPromptDownload() {
@@ -144,6 +149,7 @@ fun SettingsFlowScreen() {
         keyboardThemeMode = keyboardThemeMode,
         onHomeInputChange = viewModel::setHomeKeyboardInput,
         onThemeInputChange = viewModel::setThemeKeyboardInput,
+        onOverlayPositionInputChange = viewModel::setOverlayPositionInput,
         onDownloadPrompt = viewModel::startPromptDownload,
         onShowImePicker = {
             showImePicker(context)

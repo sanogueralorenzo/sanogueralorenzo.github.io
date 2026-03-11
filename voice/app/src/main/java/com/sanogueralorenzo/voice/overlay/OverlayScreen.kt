@@ -33,7 +33,9 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
-fun OverlayScreen() {
+fun OverlayScreen(
+    onOpenPosition: () -> Unit
+) {
     val context = LocalContext.current
     val viewModel = mavericksViewModel<OverlayViewModel, OverlayState>()
     val state by viewModel.collectAsStateWithLifecycle()
@@ -64,14 +66,7 @@ fun OverlayScreen() {
             viewModel.setOverlayEnabled(it)
             OverlayAccessibilityService.requestRefresh(context)
         },
-        onPositioningModeChange = {
-            viewModel.setPositioningMode(it)
-            OverlayAccessibilityService.requestRefresh(context)
-        },
-        onResetPosition = {
-            viewModel.resetBubblePosition()
-            OverlayAccessibilityService.requestRefresh(context)
-        }
+        onOpenPosition = onOpenPosition
     )
 }
 
@@ -81,8 +76,7 @@ private fun OverlayScreenContent(
     onGrantMicrophone: () -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
     onOverlayEnabledChange: (Boolean) -> Unit,
-    onPositioningModeChange: (Boolean) -> Unit,
-    onResetPosition: () -> Unit
+    onOpenPosition: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -137,16 +131,6 @@ private fun OverlayScreenContent(
                     modifier = Modifier.padding(start = 16.dp),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
-                OverlayToggleRow(
-                    title = stringResource(R.string.overlay_toggle_position_mode),
-                    description = stringResource(R.string.overlay_toggle_position_mode_description),
-                    checked = state.positioningMode,
-                    onCheckedChange = onPositioningModeChange
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -155,12 +139,13 @@ private fun OverlayScreenContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = stringResource(R.string.overlay_position_value, state.bubbleX, state.bubbleY),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = stringResource(R.string.overlay_position_action_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
-                    Button(onClick = onResetPosition) {
-                        Text(text = stringResource(R.string.overlay_position_reset))
+                    Button(onClick = onOpenPosition) {
+                        Text(text = stringResource(R.string.overlay_position_action_title))
                     }
                 }
             }
