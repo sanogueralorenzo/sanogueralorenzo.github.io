@@ -8,31 +8,12 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
 
     enum Status: Equatable {
         case notInstalled
-        case ready(activeSessionCount: Int)
-    }
-
-    struct SessionOption: Equatable {
-        let id: String
-        let title: String
-        let folder: String
-        let lastUpdatedAt: String
+        case ready
     }
 
     struct Error: LocalizedError {
         let message: String
         var errorDescription: String? { message }
-    }
-
-    private struct ListResponse: Decodable {
-        let data: [ListEntry]
-    }
-
-    private struct ListEntry: Decodable {
-        let id: String
-        let title: String?
-        let folder: String
-        let archived: Bool
-        let last_updated_at: String
     }
 
     private let executablePath: String?
@@ -52,25 +33,7 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             return .notInstalled
         }
 
-        let activeSessionCount = try listActiveSessions().count
-
-        return .ready(activeSessionCount: activeSessionCount)
-    }
-
-    func listActiveSessions() throws -> [SessionOption] {
-        let output = try run(["list", "--all", "--json", "--sort-by", "updated_at"])
-        let data = Data(output.utf8)
-        let response = try JSONDecoder().decode(ListResponse.self, from: data)
-        return response.data
-            .filter { !$0.archived }
-            .map { entry in
-                let title = entry.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let cleanedTitle = (title?.isEmpty == false) ? title! : "(no title)"
-                return SessionOption(id: entry.id,
-                                     title: cleanedTitle,
-                                     folder: folderLabel(from: entry.folder),
-                                     lastUpdatedAt: entry.last_updated_at)
-            }
+        return .ready
     }
 
     func runAutoRemove(olderThanDays: Int, mode: AutoRemoveMode) throws {
@@ -136,13 +99,5 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
 
     private static func resolveExecutablePath() -> String? {
         CLIExecutableResolver.resolve(commandName: "codex-sessions")
-    }
-
-    private func folderLabel(from folder: String) -> String {
-        let trimmed = folder.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            return "unknown"
-        }
-        return trimmed
     }
 }

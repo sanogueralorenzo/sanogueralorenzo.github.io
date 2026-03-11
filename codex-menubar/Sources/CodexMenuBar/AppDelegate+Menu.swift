@@ -91,7 +91,7 @@ extension AppDelegate {
                 let missingItem = NSMenuItem(title: "Threads CLI not installed (codex-sessions)", action: nil, keyEquivalent: "")
                 missingItem.isEnabled = false
                 sessionsMenu.addItem(missingItem)
-            case .ready(let activeSessionCount):
+            case .ready:
                 let autoRemoveHeader = NSMenuItem(title: "Auto-Remove", action: nil, keyEquivalent: "")
                 autoRemoveHeader.isEnabled = false
                 sessionsMenu.addItem(autoRemoveHeader)
@@ -101,10 +101,6 @@ extension AppDelegate {
                 sessionsMenu.addItem(autoRemoveDayMenuItem(days: 7))
 
                 sessionsMenu.addItem(.separator())
-
-                let countItem = NSMenuItem(title: "Thread Count: \(activeSessionCount)", action: nil, keyEquivalent: "")
-                countItem.isEnabled = false
-                sessionsMenu.addItem(countItem)
             }
         }
         menu.addItem(sessionsItem)
