@@ -8,15 +8,23 @@ const execFileAsync = promisify(execFile);
 const CODEX_SESSIONS_BIN = process.env.CODEX_SESSIONS_BIN?.trim() || "codex-sessions";
 
 type DeleteResponse = {
-  deleted: boolean;
   id: string;
   file_path: string;
-  action?: string;
-  error?: string | null;
+  operation: "delete" | "archive" | "unarchive";
+  status: "succeeded" | "skipped" | "failed";
+  reason:
+    | "completed"
+    | "dry_run"
+    | "pinned"
+    | "file_delete_failed"
+    | "db_delete_failed"
+    | "title_cleanup_failed"
+    | "internal_error";
+  message?: string | null;
 };
 
 type DeleteBatchResponse = {
-  action: string;
+  operation: "delete" | "archive" | "unarchive";
   dry_run: boolean;
   hard: boolean;
   processed: number;
@@ -120,7 +128,14 @@ export async function listSessionsForSelection(
 export async function deleteSessionByThreadId(
   threadId: string,
   codexHome: string
-): Promise<{ deleted: boolean; filePath: string | null; from: "sessions" | null }> {
+): Promise<{
+  deleted: boolean;
+  filePath: string | null;
+  from: "sessions" | null;
+  status: DeleteResponse["status"] | null;
+  reason: DeleteResponse["reason"] | null;
+  message: string | null;
+}> {
   try {
     const payload = await runCodexSessionsJson<DeleteResponse | DeleteBatchResponse>([
       "delete",
@@ -132,17 +147,20 @@ export async function deleteSessionByThreadId(
 
     const result = normalizeDeleteResponse(payload, threadId);
     if (!result) {
-      return { deleted: false, filePath: null, from: null };
+      return { deleted: false, filePath: null, from: null, status: null, reason: null, message: null };
     }
 
     return {
-      deleted: Boolean(result.deleted),
+      deleted: result.status === "succeeded",
       filePath: typeof result.file_path === "string" ? result.file_path : null,
       from: "sessions",
+      status: result.status,
+      reason: result.reason,
+      message: typeof result.message === "string" ? result.message : null
     };
   } catch (error) {
     if (isNotFoundError(error)) {
-      return { deleted: false, filePath: null, from: null };
+      return { deleted: false, filePath: null, from: null, status: null, reason: null, message: null };
     }
     throw error;
   }

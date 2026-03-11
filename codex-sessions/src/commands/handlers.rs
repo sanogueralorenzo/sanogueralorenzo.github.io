@@ -8,7 +8,7 @@ use crate::services::session_service::{
 };
 use crate::shared::models::{
     DeleteResult, ListResult, MergeResult, MessageResult, OperationBatchResult, SessionMeta,
-    TitleResult,
+    SessionOperation, SessionResultReason, SessionResultStatus, TitleResult,
 };
 use crate::shared::output::OutputFormat;
 use anyhow::{Result, bail};
@@ -352,22 +352,23 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
         .filter(|target| !pinned_ids.contains(&target.id))
         .collect();
 
-    let action_name = if args.hard { "delete" } else { "archive" };
+    let operation = if args.hard {
+        SessionOperation::Delete
+    } else {
+        SessionOperation::Archive
+    };
 
     let mut result_by_id: HashMap<String, DeleteResult> = if args.dry_run {
         unpinned_targets
             .iter()
             .map(|target| {
                 let result = DeleteResult {
-                    deleted: false,
                     id: target.id.clone(),
                     file_path: target.file_path.display().to_string(),
-                    action: if args.hard {
-                        "deleted".to_string()
-                    } else {
-                        "archived".to_string()
-                    },
-                    error: None,
+                    operation,
+                    status: SessionResultStatus::Skipped,
+                    reason: SessionResultReason::DryRun,
+                    message: None,
                 };
                 (result.id.clone(), result)
             })
@@ -396,15 +397,12 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
 
         let Some(result) = result_by_id.remove(&target.id) else {
             results.push(DeleteResult {
-                deleted: false,
                 id: target.id.clone(),
                 file_path: target.file_path.display().to_string(),
-                action: if args.hard {
-                    "deleted".to_string()
-                } else {
-                    "archived".to_string()
-                },
-                error: Some("internal error: missing result for resolved target".to_string()),
+                operation,
+                status: SessionResultStatus::Failed,
+                reason: SessionResultReason::InternalError,
+                message: Some("internal error: missing result for resolved target".to_string()),
             });
             continue;
         };
@@ -412,7 +410,7 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
         results.push(result);
     }
 
-    let response = build_operation_batch_result(action_name, args.dry_run, args.hard, results);
+    let response = build_operation_batch_result(operation, args.dry_run, args.hard, results);
     if response.processed == 1
         && response.succeeded == 1
         && args.ids.len() == 1
@@ -434,8 +432,8 @@ fn cmd_archive(args: ArchiveArgs) -> Result<()> {
         results.push(store.archive_session(target)?);
     }
 
-    let response = build_operation_batch_result("archive", false, false, results);
-    if response.processed == 1 && args.ids.len() == 1 && response.failed == 0 {
+    let response = build_operation_batch_result(SessionOperation::Archive, false, false, results);
+    if response.processed == 1 && args.ids.len() == 1 && response.succeeded == 1 {
         let mut sessions = response.sessions;
         return emit_delete_output(sessions.remove(0), args.json, args.plain);
     }
@@ -452,8 +450,8 @@ fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
         results.push(store.unarchive_session(target)?);
     }
 
-    let response = build_operation_batch_result("unarchive", false, false, results);
-    if response.processed == 1 && args.ids.len() == 1 && response.failed == 0 {
+    let response = build_operation_batch_result(SessionOperation::Unarchive, false, false, results);
+    if response.processed == 1 && args.ids.len() == 1 && response.succeeded == 1 {
         let mut sessions = response.sessions;
         return emit_delete_output(sessions.remove(0), args.json, args.plain);
     }
@@ -461,7 +459,7 @@ fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
 }
 
 fn build_operation_batch_result(
-    action: &str,
+    operation: SessionOperation,
     dry_run: bool,
     hard: bool,
     sessions: Vec<DeleteResult>,
@@ -469,19 +467,19 @@ fn build_operation_batch_result(
     let processed = sessions.len();
     let failed = sessions
         .iter()
-        .filter(|session| session.error.is_some())
+        .filter(|session| session.status == SessionResultStatus::Failed)
         .count();
     let succeeded = sessions
         .iter()
-        .filter(|session| session.error.is_none() && session.deleted)
+        .filter(|session| session.status == SessionResultStatus::Succeeded)
         .count();
     let skipped = sessions
         .iter()
-        .filter(|session| session.error.is_none() && !session.deleted)
+        .filter(|session| session.status == SessionResultStatus::Skipped)
         .count();
 
     OperationBatchResult {
-        action: action.to_string(),
+        operation,
         dry_run,
         hard,
         processed,
@@ -494,15 +492,16 @@ fn build_operation_batch_result(
 
 fn build_pinned_skip_result(target: &SessionMeta, hard: bool) -> DeleteResult {
     DeleteResult {
-        deleted: false,
         id: target.id.clone(),
         file_path: target.file_path.display().to_string(),
-        action: if hard {
-            "skipped-delete-pinned".to_string()
+        operation: if hard {
+            SessionOperation::Delete
         } else {
-            "skipped-archive-pinned".to_string()
+            SessionOperation::Archive
         },
-        error: None,
+        status: SessionResultStatus::Skipped,
+        reason: SessionResultReason::Pinned,
+        message: None,
     }
 }
 
@@ -533,7 +532,7 @@ fn cmd_merge(args: MergeArgs) -> Result<()> {
     let result = MergeResult {
         target_id: target.id,
         merged_id: merge.id,
-        merged_deleted: deleted.deleted,
+        merged_deleted: deleted.status == SessionResultStatus::Succeeded,
         merged_file_path: deleted.file_path,
     };
 

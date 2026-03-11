@@ -144,11 +144,12 @@ impl SessionStore {
     pub fn archive_session(&self, target: &SessionMeta) -> Result<DeleteResult> {
         if target.archived {
             return Ok(DeleteResult {
-                deleted: true,
                 id: target.id.clone(),
                 file_path: target.file_path.display().to_string(),
-                action: "archived".to_string(),
-                error: None,
+                operation: SessionOperation::Archive,
+                status: SessionResultStatus::Succeeded,
+                reason: SessionResultReason::Completed,
+                message: None,
             });
         }
 
@@ -157,22 +158,24 @@ impl SessionStore {
         self.update_thread_archive_state(&target.id, true, &destination)?;
 
         Ok(DeleteResult {
-            deleted: true,
             id: target.id.clone(),
             file_path: destination.display().to_string(),
-            action: "archived".to_string(),
-            error: None,
+            operation: SessionOperation::Archive,
+            status: SessionResultStatus::Succeeded,
+            reason: SessionResultReason::Completed,
+            message: None,
         })
     }
 
     pub fn unarchive_session(&self, target: &SessionMeta) -> Result<DeleteResult> {
         if !target.archived {
             return Ok(DeleteResult {
-                deleted: true,
                 id: target.id.clone(),
                 file_path: target.file_path.display().to_string(),
-                action: "unarchived".to_string(),
-                error: None,
+                operation: SessionOperation::Unarchive,
+                status: SessionResultStatus::Succeeded,
+                reason: SessionResultReason::Completed,
+                message: None,
             });
         }
 
@@ -181,11 +184,12 @@ impl SessionStore {
         self.update_thread_archive_state(&target.id, false, &destination)?;
 
         Ok(DeleteResult {
-            deleted: true,
             id: target.id.clone(),
             file_path: destination.display().to_string(),
-            action: "unarchived".to_string(),
-            error: None,
+            operation: SessionOperation::Unarchive,
+            status: SessionResultStatus::Succeeded,
+            reason: SessionResultReason::Completed,
+            message: None,
         })
     }
 
@@ -207,11 +211,12 @@ impl SessionStore {
                 Ok(_) => ready.push((index, target)),
                 Err(error) => {
                     outputs[index] = Some(DeleteResult {
-                        deleted: false,
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: Some(error.to_string()),
+                        operation: SessionOperation::Delete,
+                        status: SessionResultStatus::Failed,
+                        reason: SessionResultReason::FileDeleteFailed,
+                        message: Some(error.to_string()),
                     });
                 }
             }
@@ -224,11 +229,12 @@ impl SessionStore {
                 let detail = format!("file removed but failed deleting DB rows: {error}");
                 for (index, target) in &ready {
                     outputs[*index] = Some(DeleteResult {
-                        deleted: false,
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: Some(detail.clone()),
+                        operation: SessionOperation::Delete,
+                        status: SessionResultStatus::Failed,
+                        reason: SessionResultReason::DbDeleteFailed,
+                        message: Some(detail.clone()),
                     });
                 }
             } else if let Err(error) = self.delete_thread_titles(&ids) {
@@ -236,21 +242,23 @@ impl SessionStore {
                     format!("file removed and DB row deleted but failed title cleanup: {error}");
                 for (index, target) in &ready {
                     outputs[*index] = Some(DeleteResult {
-                        deleted: false,
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: Some(detail.clone()),
+                        operation: SessionOperation::Delete,
+                        status: SessionResultStatus::Failed,
+                        reason: SessionResultReason::TitleCleanupFailed,
+                        message: Some(detail.clone()),
                     });
                 }
             } else {
                 for (index, target) in &ready {
                     outputs[*index] = Some(DeleteResult {
-                        deleted: true,
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: None,
+                        operation: SessionOperation::Delete,
+                        status: SessionResultStatus::Succeeded,
+                        reason: SessionResultReason::Completed,
+                        message: None,
                     });
                 }
             }

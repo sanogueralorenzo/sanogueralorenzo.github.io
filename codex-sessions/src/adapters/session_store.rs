@@ -1,4 +1,6 @@
-use crate::shared::models::{DeleteResult, SessionMeta};
+use crate::shared::models::{
+    DeleteResult, SessionMeta, SessionOperation, SessionResultReason, SessionResultStatus,
+};
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use rusqlite::{Connection, OptionalExtension, params};

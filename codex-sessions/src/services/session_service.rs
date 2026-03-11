@@ -1,5 +1,8 @@
 use crate::adapters::session_store::SessionStore;
-use crate::shared::models::{DeleteResult, PruneResult, SessionEntry, SessionMeta};
+use crate::shared::models::{
+    DeleteResult, PruneResult, SessionEntry, SessionMeta, SessionOperation, SessionResultReason,
+    SessionResultStatus,
+};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use std::path::Path;
@@ -85,15 +88,16 @@ pub fn prune_sessions(
     if dry_run {
         for session in to_prune {
             deleted.push(DeleteResult {
-                deleted: false,
                 id: session.id.clone(),
                 file_path: session.file_path.display().to_string(),
-                action: if hard {
-                    "deleted".to_string()
+                operation: if hard {
+                    SessionOperation::Delete
                 } else {
-                    "archived".to_string()
+                    SessionOperation::Archive
                 },
-                error: None,
+                status: SessionResultStatus::Skipped,
+                reason: SessionResultReason::DryRun,
+                message: None,
             });
         }
     } else if hard {
@@ -110,7 +114,10 @@ pub fn prune_sessions(
         hard,
         older_than_days,
         scanned: sessions.iter().filter(|session| !session.archived).count(),
-        pruned: deleted.iter().filter(|session| session.deleted).count(),
+        pruned: deleted
+            .iter()
+            .filter(|session| session.status == SessionResultStatus::Succeeded)
+            .count(),
         sessions: deleted,
     })
 }

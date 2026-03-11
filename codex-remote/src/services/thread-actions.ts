@@ -99,13 +99,13 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     deps.lastListedSessionModes.delete(chatId);
     deps.lastListedFolderChoices.delete(chatId);
 
-    if (boundId === selected.id) {
-      deps.pendingNewSessionChats.add(chatId);
-      deps.pendingNewSessionCwds.set(chatId, selected.cwd || deps.resolveDefaultCwd());
-      await deps.store.remove(chatId);
-    }
-
     if (result.deleted) {
+      if (boundId === selected.id) {
+        deps.pendingNewSessionChats.add(chatId);
+        deps.pendingNewSessionCwds.set(chatId, selected.cwd || deps.resolveDefaultCwd());
+        await deps.store.remove(chatId);
+      }
+
       if (boundId === selected.id) {
         await reply(`${formatActionTitle("Deleted", selected.title)}\n\nSend a message to start a new thread.`, {
           reply_markup: quickActionsKeyboard()
@@ -113,7 +113,19 @@ export function createThreadActions(deps: ThreadActionsDeps) {
       } else {
         await reply(formatActionTitle("Deleted", selected.title), { reply_markup: quickActionsKeyboard() });
       }
+      return;
     }
+
+    if (result.status === "skipped" && result.reason === "pinned") {
+      await reply(
+        `Skipped: ${selected.title}\n\nThis thread is pinned in Codex. Unpin it first, then delete again.`,
+        { reply_markup: quickActionsKeyboard() }
+      );
+      return;
+    }
+
+    const details = result.message ? `\n\n${result.message}` : "";
+    await reply(`Delete failed: ${selected.title}${details}`, { reply_markup: quickActionsKeyboard() });
   }
 
   async function pickFolderChoiceByIndex(chatId: string, index: number, reply: ReplyFn): Promise<void> {

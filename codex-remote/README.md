@@ -43,3 +43,8 @@ help     Print this help output.
 - `~/.codex/remote/codex-remote.pid`
 - `~/.codex/remote/codex-remote.log`
 - `~/.codex/remote/codex-remote-caffeinate.pid`
+
+### Thread Delete Behavior
+
+- When Codex marks a thread as pinned, remote delete is skipped and the bot tells you to unpin first.
+- Chat-to-thread binding is cleared only when delete/archive succeeds.

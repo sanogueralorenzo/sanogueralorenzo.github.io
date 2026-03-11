@@ -58,3 +58,12 @@ help     Print help
 
 - `delete` and `prune` skip thread IDs listed in `~/.codex/.codex-global-state.json` under `pinned-thread-ids`.
 - To delete a pinned thread, unpin it first in Codex so the ID is removed from `pinned-thread-ids`.
+
+### Delete/Prune Result Schema
+
+- `delete` / `archive` / `unarchive` item results now use typed fields:
+  - `operation`: `delete | archive | unarchive`
+  - `status`: `succeeded | skipped | failed`
+  - `reason`: `completed | dry_run | pinned | file_delete_failed | db_delete_failed | title_cleanup_failed | internal_error`
+  - `message`: optional detail text
+- Batch result objects use `operation` (not `action`) as the top-level operation field.
