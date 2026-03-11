@@ -3,7 +3,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::os::fd::AsRawFd;

@@ -53,3 +53,8 @@ help     Print help
 - `~/.codex/.locks/title-write.lock`
 - `~/.codex/sessions/codex-sessions-watch-thread-titles.pid`
 - `~/.codex/sessions/codex-sessions-watch-thread-titles.log`
+
+### Pinned Thread Protection
+
+- `delete` and `prune` skip thread IDs listed in `~/.codex/.codex-global-state.json` under `pinned-thread-ids`.
+- To delete a pinned thread, unpin it first in Codex so the ID is removed from `pinned-thread-ids`.

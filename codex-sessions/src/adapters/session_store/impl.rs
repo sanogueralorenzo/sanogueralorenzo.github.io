@@ -71,6 +71,35 @@ impl SessionStore {
         Ok(titles)
     }
 
+    pub fn load_pinned_thread_ids(&self) -> Result<HashSet<String>> {
+        let file_path = self.codex_home.join(".codex-global-state.json");
+        if !file_path.exists() {
+            return Ok(HashSet::new());
+        }
+
+        let raw = fs::read_to_string(&file_path)
+            .with_context(|| format!("failed to read {}", file_path.display()))?;
+        let parsed: Value = serde_json::from_str(&raw)
+            .with_context(|| format!("failed to parse {}", file_path.display()))?;
+
+        let mut pinned_ids = HashSet::new();
+        let Some(values) = parsed.get("pinned-thread-ids").and_then(Value::as_array) else {
+            return Ok(pinned_ids);
+        };
+
+        for value in values {
+            let Some(id) = value.as_str().map(str::trim) else {
+                continue;
+            };
+            if id.is_empty() {
+                continue;
+            }
+            pinned_ids.insert(id.to_string());
+        }
+
+        Ok(pinned_ids)
+    }
+
     pub fn load_session_index_titles(&self) -> Result<HashMap<String, String>> {
         let file_path = self.codex_home.join("session_index.jsonl");
         if !file_path.exists() {
@@ -857,4 +886,3 @@ impl SessionStore {
         Ok(())
     }
 }
-

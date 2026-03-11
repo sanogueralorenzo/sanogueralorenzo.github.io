@@ -219,4 +219,34 @@ mod tests {
 
         let _ = fs::remove_dir_all(temp_root);
     }
+
+    #[test]
+    fn load_pinned_thread_ids_reads_global_state_array() {
+        let temp_root =
+            std::env::temp_dir().join(format!("codex-sessions-test-{}", Uuid::new_v4()));
+        let codex_home = temp_root.join(".codex");
+        fs::create_dir_all(&codex_home).expect("create codex home");
+
+        let id_one = "019cc5d1-ec61-7c90-a7d8-2524f8828fd9";
+        let id_two = "019cc5d1-ec61-7c90-a7d8-2524f8828fda";
+        let global_state_path = codex_home.join(".codex-global-state.json");
+        fs::write(
+            &global_state_path,
+            format!(
+                "{{\"pinned-thread-ids\":[\"{id_one}\",\"\",123,\"{id_two}\",\"{id_one}\"]}}\n"
+            ),
+        )
+        .expect("write global state");
+
+        let store = SessionStore { codex_home };
+        let pinned_ids = store
+            .load_pinned_thread_ids()
+            .expect("load pinned thread ids");
+
+        assert_eq!(pinned_ids.len(), 2);
+        assert!(pinned_ids.contains(id_one));
+        assert!(pinned_ids.contains(id_two));
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
 }

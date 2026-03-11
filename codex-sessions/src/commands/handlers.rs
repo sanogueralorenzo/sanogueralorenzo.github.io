@@ -7,11 +7,12 @@ use crate::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
 };
 use crate::shared::models::{
-    DeleteResult, ListResult, MergeResult, MessageResult, OperationBatchResult, TitleResult,
+    DeleteResult, ListResult, MergeResult, MessageResult, OperationBatchResult, SessionMeta,
+    TitleResult,
 };
 use crate::shared::output::OutputFormat;
 use anyhow::{Result, bail};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::thread;
 use std::time::Duration;
 
@@ -344,13 +345,57 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
     let store = SessionStore::new(args.home.clone())?;
     let sessions = store.collect_sessions()?;
     let targets = resolve_delete_targets(&sessions, &args)?;
+    let pinned_ids = store.load_pinned_thread_ids()?;
+    let unpinned_targets: Vec<&SessionMeta> = targets
+        .iter()
+        .copied()
+        .filter(|target| !pinned_ids.contains(&target.id))
+        .collect();
 
     let action_name = if args.hard { "delete" } else { "archive" };
 
-    let results = if args.dry_run {
-        targets
+    let mut result_by_id: HashMap<String, DeleteResult> = if args.dry_run {
+        unpinned_targets
             .iter()
-            .map(|target| DeleteResult {
+            .map(|target| {
+                let result = DeleteResult {
+                    deleted: false,
+                    id: target.id.clone(),
+                    file_path: target.file_path.display().to_string(),
+                    action: if args.hard {
+                        "deleted".to_string()
+                    } else {
+                        "archived".to_string()
+                    },
+                    error: None,
+                };
+                (result.id.clone(), result)
+            })
+            .collect()
+    } else if args.hard {
+        store
+            .delete_sessions_hard(&unpinned_targets)?
+            .into_iter()
+            .map(|result| (result.id.clone(), result))
+            .collect()
+    } else {
+        let mut archived_by_id = HashMap::with_capacity(unpinned_targets.len());
+        for target in &unpinned_targets {
+            let result = store.archive_session(target)?;
+            archived_by_id.insert(result.id.clone(), result);
+        }
+        archived_by_id
+    };
+
+    let mut results = Vec::with_capacity(targets.len());
+    for target in targets {
+        if pinned_ids.contains(&target.id) {
+            results.push(build_pinned_skip_result(target, args.hard));
+            continue;
+        }
+
+        let Some(result) = result_by_id.remove(&target.id) else {
+            results.push(DeleteResult {
                 deleted: false,
                 id: target.id.clone(),
                 file_path: target.file_path.display().to_string(),
@@ -359,24 +404,19 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
                 } else {
                     "archived".to_string()
                 },
-                error: None,
-            })
-            .collect()
-    } else if args.hard {
-        store.delete_sessions_hard(&targets)?
-    } else {
-        let mut archived = Vec::with_capacity(targets.len());
-        for target in &targets {
-            archived.push(store.archive_session(target)?);
-        }
-        archived
-    };
+                error: Some("internal error: missing result for resolved target".to_string()),
+            });
+            continue;
+        };
+
+        results.push(result);
+    }
 
     let response = build_operation_batch_result(action_name, args.dry_run, args.hard, results);
     if response.processed == 1
+        && response.succeeded == 1
         && args.ids.len() == 1
         && !has_selector_flags(&args)
-        && response.failed == 0
     {
         let mut sessions = response.sessions;
         return emit_delete_output(sessions.remove(0), args.json, args.plain);
@@ -449,6 +489,20 @@ fn build_operation_batch_result(
         failed,
         skipped,
         sessions,
+    }
+}
+
+fn build_pinned_skip_result(target: &SessionMeta, hard: bool) -> DeleteResult {
+    DeleteResult {
+        deleted: false,
+        id: target.id.clone(),
+        file_path: target.file_path.display().to_string(),
+        action: if hard {
+            "skipped-delete-pinned".to_string()
+        } else {
+            "skipped-archive-pinned".to_string()
+        },
+        error: None,
     }
 }
 

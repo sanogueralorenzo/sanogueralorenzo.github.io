@@ -69,9 +69,14 @@ pub fn prune_sessions(
     validate_days(older_than_days)?;
 
     let sessions = store.collect_sessions()?;
+    let pinned_ids = store.load_pinned_thread_ids()?;
     let mut to_prune: Vec<&SessionMeta> = sessions
         .iter()
-        .filter(|session| !session.archived && age_days(session.last_updated_at) >= older_than_days)
+        .filter(|session| {
+            !session.archived
+                && !pinned_ids.contains(&session.id)
+                && age_days(session.last_updated_at) >= older_than_days
+        })
         .collect();
     to_prune.sort_by(|a, b| a.last_updated_at.cmp(&b.last_updated_at));
 
@@ -108,4 +113,53 @@ pub fn prune_sessions(
         pruned: deleted.iter().filter(|session| session.deleted).count(),
         sessions: deleted,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use uuid::Uuid;
+
+    #[test]
+    fn prune_sessions_excludes_pinned_threads() {
+        let temp_root =
+            std::env::temp_dir().join(format!("codex-sessions-test-{}", Uuid::new_v4()));
+        let codex_home = temp_root.join(".codex");
+        let sessions_dir = codex_home
+            .join("sessions")
+            .join("2020")
+            .join("01")
+            .join("01");
+        fs::create_dir_all(&sessions_dir).expect("create sessions dir");
+
+        let pinned_id = "019cc5d1-ec61-7c90-a7d8-2524f8828fd9";
+        let unpinned_id = "019cc5d1-ec61-7c90-a7d8-2524f8828fda";
+
+        let pinned_file =
+            sessions_dir.join(format!("rollout-2020-01-01T00-00-00-{pinned_id}.jsonl"));
+        let unpinned_file =
+            sessions_dir.join(format!("rollout-2020-01-01T00-00-01-{unpinned_id}.jsonl"));
+
+        let old_session_line = "{\"type\":\"session_meta\",\"payload\":{\"cwd\":\"/tmp\",\"source\":\"cli\"},\"timestamp\":\"2020-01-01T00:00:00Z\"}\n";
+        fs::write(&pinned_file, old_session_line).expect("write pinned session");
+        fs::write(&unpinned_file, old_session_line).expect("write unpinned session");
+
+        let global_state_path = codex_home.join(".codex-global-state.json");
+        fs::write(
+            &global_state_path,
+            format!("{{\"pinned-thread-ids\":[\"{pinned_id}\"]}}\n"),
+        )
+        .expect("write global state");
+
+        let store = SessionStore::new(Some(codex_home)).expect("create store");
+        let report = prune_sessions(&store, 1, true, true).expect("prune sessions");
+
+        assert_eq!(report.scanned, 2);
+        assert_eq!(report.pruned, 0);
+        assert_eq!(report.sessions.len(), 1);
+        assert_eq!(report.sessions[0].id, unpinned_id);
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
 }

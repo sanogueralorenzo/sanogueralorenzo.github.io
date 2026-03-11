@@ -62,10 +62,13 @@ pub(crate) fn emit_operation_batch_output(
 
     let verb = match result.action.as_str() {
         "delete" if result.dry_run => "Would delete",
+        "delete" if result.failed > 0 || result.skipped > 0 => "Processed delete for",
         "delete" => "Deleted",
         "archive" if result.dry_run => "Would archive",
+        "archive" if result.failed > 0 || result.skipped > 0 => "Processed archive for",
         "archive" => "Archived",
         "unarchive" if result.dry_run => "Would unarchive",
+        "unarchive" if result.failed > 0 || result.skipped > 0 => "Processed unarchive for",
         "unarchive" => "Unarchived",
         _ => "Processed",
     };
