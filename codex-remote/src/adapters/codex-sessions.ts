@@ -129,7 +129,7 @@ export async function deleteSessionByThreadId(
   message: string | null;
 }> {
   try {
-    const payload = await runCodexSessionsJson<DeleteResponse | DeleteBatchResponse>([
+    const payload = await runCodexSessionsJson<DeleteBatchResponse>([
       "delete",
       threadId,
       "--json",
@@ -137,7 +137,8 @@ export async function deleteSessionByThreadId(
       codexHome,
     ]);
 
-    const result = normalizeDeleteResponse(payload, threadId);
+    const result =
+      payload.sessions.find((session) => session.id === threadId) ?? payload.sessions[0] ?? null;
     if (!result) {
       return { deleted: false, filePath: null, from: null, status: null, reason: null, message: null };
     }
@@ -213,25 +214,4 @@ function isNotFoundError(error: unknown): boolean {
   const err = error as { stderr?: string; message?: string } | null;
   const text = `${err?.stderr ?? ""}\n${err?.message ?? ""}`.toLowerCase();
   return text.includes("no session matches id or prefix");
-}
-
-function normalizeDeleteResponse(
-  payload: DeleteResponse | DeleteBatchResponse,
-  requestedId: string
-): DeleteResponse | null {
-  if (isDeleteBatchResponse(payload)) {
-    const match = payload.sessions.find((session) => session.id === requestedId);
-    if (match) {
-      return match;
-    }
-    return payload.sessions[0] ?? null;
-  }
-  return payload;
-}
-
-function isDeleteBatchResponse(value: unknown): value is DeleteBatchResponse {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  return Array.isArray((value as { sessions?: unknown }).sessions);
 }
