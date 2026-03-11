@@ -50,7 +50,7 @@ mod tests {
         fs::write(
             &global_state_path,
             format!(
-                "{{\"thread-titles\":{{\"titles\":{{\"{id}\":\"Delete me\",\"keep\":\"Keep me\"}}}}}}\n"
+                "{{\"thread-titles\":{{\"titles\":{{\"{id}\":\"Delete me\",\"keep\":\"Keep me\"}},\"order\":[\"{id}\",\"keep\"]}}}}\n"
             ),
         )
         .expect("write global state");
@@ -84,6 +84,12 @@ mod tests {
             .expect("titles object");
         assert!(!titles.contains_key(id));
         assert_eq!(titles.get("keep").and_then(Value::as_str), Some("Keep me"));
+        let order = parsed
+            .get("thread-titles")
+            .and_then(|value| value.get("order"))
+            .and_then(Value::as_array)
+            .expect("order array");
+        assert_eq!(order.iter().filter(|value| value.as_str() == Some(id)).count(), 0);
         assert!(!session_file.exists());
 
         let _ = fs::remove_dir_all(temp_root);
@@ -116,10 +122,18 @@ mod tests {
         fs::write(
             &global_state_path,
             format!(
-                "{{\"thread-titles\":{{\"titles\":{{\"{id_one}\":\"Delete one\",\"{id_two}\":\"Delete two\",\"keep\":\"Keep me\"}}}}}}\n"
+                "{{\"thread-titles\":{{\"titles\":{{\"{id_one}\":\"Delete one\",\"{id_two}\":\"Delete two\",\"keep\":\"Keep me\"}},\"order\":[\"{id_one}\",\"keep\",\"{id_two}\"]}}}}\n"
             ),
         )
         .expect("write global state");
+        let session_index_path = codex_home.join("session_index.jsonl");
+        fs::write(
+            &session_index_path,
+            format!(
+                "{{\"id\":\"{id_one}\",\"thread_name\":\"Delete one\"}}\n{{\"id\":\"{id_two}\",\"thread_name\":\"Delete two\"}}\n{{\"id\":\"keep\",\"thread_name\":\"Keep me\"}}\n"
+            ),
+        )
+        .expect("write session index");
 
         let store = SessionStore { codex_home };
         let now = Utc::now();
@@ -164,6 +178,22 @@ mod tests {
         assert!(!titles.contains_key(id_one));
         assert!(!titles.contains_key(id_two));
         assert_eq!(titles.get("keep").and_then(Value::as_str), Some("Keep me"));
+        let order = parsed
+            .get("thread-titles")
+            .and_then(|value| value.get("order"))
+            .and_then(Value::as_array)
+            .expect("order array");
+        assert_eq!(
+            order
+                .iter()
+                .filter(|value| value.as_str() == Some(id_one) || value.as_str() == Some(id_two))
+                .count(),
+            0
+        );
+        let session_index_raw = fs::read_to_string(&session_index_path).expect("read session index");
+        assert!(!session_index_raw.contains(id_one));
+        assert!(!session_index_raw.contains(id_two));
+        assert!(session_index_raw.contains("\"id\":\"keep\""));
         assert!(!session_file_one.exists());
         assert!(!session_file_two.exists());
 
@@ -216,6 +246,69 @@ mod tests {
             .expect_err("second lock should time out");
         let message = error.to_string();
         assert!(message.contains("timed out waiting"));
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
+    fn collect_sessions_from_db_skips_missing_rollout_paths() {
+        let temp_root =
+            std::env::temp_dir().join(format!("codex-sessions-test-{}", Uuid::new_v4()));
+        let codex_home = temp_root.join(".codex");
+        fs::create_dir_all(&codex_home).expect("create codex home");
+
+        let state_db = codex_home.join("state_5.sqlite");
+        let conn = Connection::open(&state_db).expect("open sqlite");
+        conn.execute_batch(
+            "CREATE TABLE threads (
+                id TEXT PRIMARY KEY,
+                rollout_path TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                source TEXT NOT NULL,
+                model_provider TEXT NOT NULL,
+                cwd TEXT NOT NULL,
+                title TEXT NOT NULL,
+                sandbox_policy TEXT NOT NULL,
+                approval_mode TEXT NOT NULL,
+                tokens_used INTEGER NOT NULL DEFAULT 0,
+                has_user_event INTEGER NOT NULL DEFAULT 0,
+                archived INTEGER NOT NULL DEFAULT 0,
+                archived_at INTEGER,
+                git_sha TEXT,
+                git_branch TEXT,
+                git_origin_url TEXT,
+                cli_version TEXT NOT NULL DEFAULT '',
+                first_user_message TEXT NOT NULL DEFAULT '',
+                agent_nickname TEXT,
+                agent_role TEXT,
+                memory_mode TEXT NOT NULL DEFAULT 'enabled'
+            );",
+        )
+        .expect("create threads table");
+        conn.execute(
+            "INSERT INTO threads (
+                id, rollout_path, created_at, updated_at, source, model_provider, cwd, title,
+                sandbox_policy, approval_mode, archived
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0)",
+            params![
+                "019cc5d1-ec61-7c90-a7d8-2524f8828fd9",
+                "/tmp/does-not-exist-rollout.jsonl",
+                1_i64,
+                1_i64,
+                "cli",
+                "openai",
+                "/tmp",
+                "ghost row",
+                "workspace-write",
+                "never"
+            ],
+        )
+        .expect("insert row");
+
+        let store = SessionStore { codex_home };
+        let sessions = store.collect_sessions().expect("collect sessions");
+        assert!(sessions.is_empty());
 
         let _ = fs::remove_dir_all(temp_root);
     }

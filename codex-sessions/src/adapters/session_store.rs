@@ -3,11 +3,13 @@ use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
@@ -55,4 +57,5 @@ impl Drop for TitleWriteLock {
 
 include!("session_store/impl.rs");
 include!("session_store/helpers.rs");
+include!("session_store/app_server.rs");
 include!("session_store/tests.rs");

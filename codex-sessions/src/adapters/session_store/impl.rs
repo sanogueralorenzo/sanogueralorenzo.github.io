@@ -170,6 +170,9 @@ impl SessionStore {
             return Ok(Vec::new());
         }
 
+        let target_ids: Vec<String> = targets.iter().map(|target| target.id.clone()).collect();
+        let app_archive_failures = self.archive_threads_via_app_server(&target_ids);
+
         let mut outputs: Vec<Option<DeleteResult>> = (0..targets.len()).map(|_| None).collect();
         let mut ready: Vec<(usize, &SessionMeta)> = Vec::with_capacity(targets.len());
 
@@ -214,6 +217,19 @@ impl SessionStore {
                         error: Some(detail.clone()),
                     });
                 }
+            } else if let Err(error) = self.delete_session_index_entries(&ids) {
+                let detail = format!(
+                    "file removed and DB row deleted but failed session index cleanup: {error}"
+                );
+                for (index, target) in &ready {
+                    outputs[*index] = Some(DeleteResult {
+                        deleted: false,
+                        id: target.id.clone(),
+                        file_path: target.file_path.display().to_string(),
+                        action: "deleted".to_string(),
+                        error: Some(detail.clone()),
+                    });
+                }
             } else {
                 for (index, target) in &ready {
                     outputs[*index] = Some(DeleteResult {
@@ -225,6 +241,26 @@ impl SessionStore {
                     });
                 }
             }
+        }
+
+        let check_ids: Vec<String> = ready.iter().map(|(_, target)| target.id.clone()).collect();
+        let lingering_unarchived =
+            self.wait_for_lingering_unarchived_thread_rows(&check_ids, Duration::from_millis(1200))?;
+        for (index, target) in &ready {
+            if !lingering_unarchived.contains(&target.id) {
+                continue;
+            }
+            let mut detail = "thread still exists in Codex state after hard delete (likely loaded by Codex app)".to_string();
+            if let Some(app_server_error) = app_archive_failures.get(&target.id) {
+                detail.push_str(&format!("; app-server archive also failed: {app_server_error}"));
+            }
+            outputs[*index] = Some(DeleteResult {
+                deleted: false,
+                id: target.id.clone(),
+                file_path: target.file_path.display().to_string(),
+                action: "deleted".to_string(),
+                error: Some(detail),
+            });
         }
 
         Ok(outputs.into_iter().flatten().collect())
@@ -514,6 +550,9 @@ impl SessionStore {
             if !file_path.is_absolute() {
                 file_path = self.codex_home.join(file_path);
             }
+            if !file_path.exists() {
+                return Ok(None);
+            }
 
             let relative = file_path
                 .strip_prefix(&self.codex_home)
@@ -531,7 +570,7 @@ impl SessionStore {
                 .cloned()
                 .or_else(|| normalize_optional_string(title_from_db));
 
-            Ok(SessionMeta {
+            Ok(Some(SessionMeta {
                 id,
                 title,
                 file_path,
@@ -543,12 +582,14 @@ impl SessionStore {
                 created_at: unix_to_utc(created_at),
                 last_updated_at: unix_to_utc(updated_at),
                 size_bytes,
-            })
+            }))
         })?;
 
         let mut sessions = Vec::new();
         for row in rows {
-            sessions.push(row?);
+            if let Some(session) = row? {
+                sessions.push(session);
+            }
         }
 
         Ok(sessions)
@@ -828,14 +869,127 @@ impl SessionStore {
                 changed = true;
             }
         }
+
+        if let Some(order) = thread_titles.get_mut("order").and_then(Value::as_array_mut) {
+            let previous_len = order.len();
+            order.retain(|value| {
+                let Some(thread_id) = value.as_str() else {
+                    return true;
+                };
+                !ids.iter().any(|id| id == thread_id)
+            });
+            if order.len() != previous_len {
+                changed = true;
+            }
+        }
+
         if !changed {
             return Ok(());
         }
 
-        let serialized = serde_json::to_string_pretty(&parsed)?;
-        fs::write(&file_path, format!("{serialized}\n"))
-            .with_context(|| format!("failed to write {}", file_path.display()))?;
+        let serialized = format!("{}\n", serde_json::to_string_pretty(&parsed)?);
+        write_text_file_atomic(&file_path, &serialized)?;
         Ok(())
+    }
+
+    fn delete_session_index_entries(&self, ids: &[String]) -> Result<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+
+        let file_path = self.codex_home.join("session_index.jsonl");
+        if !file_path.exists() {
+            return Ok(());
+        }
+
+        let raw = fs::read_to_string(&file_path)
+            .with_context(|| format!("failed to read {}", file_path.display()))?;
+        let mut changed = false;
+        let mut retained_lines = Vec::new();
+
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            let Ok(parsed) = serde_json::from_str::<Value>(trimmed) else {
+                retained_lines.push(trimmed.to_string());
+                continue;
+            };
+
+            let Some(thread_id) = parsed.get("id").and_then(Value::as_str).map(str::trim) else {
+                retained_lines.push(trimmed.to_string());
+                continue;
+            };
+
+            if ids.iter().any(|id| id == thread_id) {
+                changed = true;
+                continue;
+            }
+
+            retained_lines.push(trimmed.to_string());
+        }
+
+        if !changed {
+            return Ok(());
+        }
+
+        let serialized = if retained_lines.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", retained_lines.join("\n"))
+        };
+        write_text_file_atomic(&file_path, &serialized)?;
+
+        Ok(())
+    }
+
+    fn find_unarchived_thread_rows(&self, ids: &[String]) -> Result<HashSet<String>> {
+        if ids.is_empty() {
+            return Ok(HashSet::new());
+        }
+
+        let Some(path) = self.state_db_path()? else {
+            return Ok(HashSet::new());
+        };
+        let conn = Connection::open(&path)
+            .with_context(|| format!("failed to open {}", path.display()))?;
+        let mut statement = match conn.prepare("SELECT archived FROM threads WHERE id = ?1 LIMIT 1") {
+            Ok(statement) => statement,
+            Err(_) => return Ok(HashSet::new()),
+        };
+
+        let mut lingering = HashSet::new();
+        for id in ids {
+            let archived: Option<i64> = statement
+                .query_row(params![id], |row| row.get(0))
+                .optional()?;
+            if archived == Some(0) {
+                lingering.insert(id.clone());
+            }
+        }
+
+        Ok(lingering)
+    }
+
+    fn wait_for_lingering_unarchived_thread_rows(
+        &self,
+        ids: &[String],
+        timeout: Duration,
+    ) -> Result<HashSet<String>> {
+        if ids.is_empty() {
+            return Ok(HashSet::new());
+        }
+
+        let started = Instant::now();
+        loop {
+            let lingering = self.find_unarchived_thread_rows(ids)?;
+            if lingering.is_empty() || started.elapsed() >= timeout {
+                return Ok(lingering);
+            }
+            thread::sleep(Duration::from_millis(120));
+        }
     }
 
     fn delete_session_file(&self, target: &SessionMeta) -> Result<()> {
@@ -857,4 +1011,3 @@ impl SessionStore {
         Ok(())
     }
 }
-
