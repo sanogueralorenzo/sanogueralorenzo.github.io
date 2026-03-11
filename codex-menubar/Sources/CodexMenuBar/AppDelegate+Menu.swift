@@ -136,29 +136,36 @@ extension AppDelegate {
         createAgent.target = self
         menu.addItem(createAgent)
 
-        addAgentTaskGroup(title: "Running Tasks",
-                          tasks: CodexAgentMockData.runningTasks,
-                          to: menu) { [self] task in
-            let taskMenu = baseAgentTaskMenu(for: task)
-            let pauseOrResumeTitle = task.isPaused ? "Resume Task" : "Pause Task"
-            taskMenu.addItem(agentTaskActionItem(title: pauseOrResumeTitle,
-                                                 action: #selector(togglePauseCodexAgentTask(_:)),
-                                                 ticket: task.ticket))
-            taskMenu.addItem(agentTaskActionItem(title: "Delete Task",
-                                                 action: #selector(deleteCodexAgentTask(_:)),
-                                                 ticket: task.ticket))
-            return taskMenu
-        }
+        let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
+        let viewMenu = NSMenu()
+        let runningTasks = CodexAgentMockData.runningTasks
+        let recentTasks = CodexAgentMockData.recentTasks
 
-        addAgentTaskGroup(title: "Recent Tasks",
-                          tasks: CodexAgentMockData.recentTasks,
-                          to: menu) { [self] task in
-            let taskMenu = baseAgentTaskMenu(for: task)
-            taskMenu.addItem(agentTaskActionItem(title: "Re-run Task",
-                                                 action: #selector(rerunCodexAgentTask(_:)),
-                                                 ticket: task.ticket))
-            return taskMenu
+        if runningTasks.isEmpty && recentTasks.isEmpty {
+            viewItem.isEnabled = false
+        } else {
+            for task in runningTasks {
+                let taskItem = NSMenuItem(title: task.ticket, action: nil, keyEquivalent: "")
+                viewMenu.addItem(taskItem)
+                viewMenu.setSubmenu(agentTaskMenu(for: task, isRecentTask: false), for: taskItem)
+            }
+
+            if !runningTasks.isEmpty && !recentTasks.isEmpty {
+                viewMenu.addItem(.separator())
+            }
+
+            for task in recentTasks {
+                let taskItem = NSMenuItem(
+                    title: "\(agentRecentTaskPrefix(for: task.status)) \(task.ticket)",
+                    action: nil,
+                    keyEquivalent: ""
+                )
+                viewMenu.addItem(taskItem)
+                viewMenu.setSubmenu(agentTaskMenu(for: task, isRecentTask: true), for: taskItem)
+            }
         }
+        menu.addItem(viewItem)
+        menu.setSubmenu(viewMenu, for: viewItem)
 
         let settingsItem = NSMenuItem(title: "Settings…",
                                       action: #selector(openCodexAgentSettings(_:)),
@@ -167,25 +174,33 @@ extension AppDelegate {
         menu.addItem(settingsItem)
     }
 
-    private func addAgentTaskGroup(title: String,
-                                   tasks: [CodexAgentMockTask],
-                                   to menu: NSMenu,
-                                   taskMenuBuilder: (CodexAgentMockTask) -> NSMenu) {
-        let groupItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        let groupMenu = NSMenu()
-
-        if tasks.isEmpty {
-            groupItem.isEnabled = false
+    private func agentTaskMenu(for task: CodexAgentMockTask, isRecentTask: Bool) -> NSMenu {
+        let taskMenu = baseAgentTaskMenu(for: task)
+        if isRecentTask {
+            taskMenu.addItem(agentTaskActionItem(title: "Re-run Task",
+                                                 action: #selector(rerunCodexAgentTask(_:)),
+                                                 ticket: task.ticket))
         } else {
-            for task in tasks {
-                let taskItem = NSMenuItem(title: task.ticket, action: nil, keyEquivalent: "")
-                groupMenu.addItem(taskItem)
-                groupMenu.setSubmenu(taskMenuBuilder(task), for: taskItem)
-            }
+            let pauseOrResumeTitle = task.isPaused ? "Resume Task" : "Pause Task"
+            taskMenu.addItem(agentTaskActionItem(title: pauseOrResumeTitle,
+                                                 action: #selector(togglePauseCodexAgentTask(_:)),
+                                                 ticket: task.ticket))
+            taskMenu.addItem(agentTaskActionItem(title: "Delete Task",
+                                                 action: #selector(deleteCodexAgentTask(_:)),
+                                                 ticket: task.ticket))
         }
+        return taskMenu
+    }
 
-        menu.addItem(groupItem)
-        menu.setSubmenu(groupMenu, for: groupItem)
+    private func agentRecentTaskPrefix(for status: CodexAgentMockTask.Status) -> String {
+        switch status {
+        case .completed:
+            return "✓"
+        case .failed:
+            return "X"
+        default:
+            return "•"
+        }
     }
 
     private func baseAgentTaskMenu(for task: CodexAgentMockTask) -> NSMenu {
