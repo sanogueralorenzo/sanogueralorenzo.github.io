@@ -170,64 +170,58 @@ impl SessionStore {
             return Ok(Vec::new());
         }
 
-        let mut outputs: Vec<Option<DeleteResult>> = (0..targets.len()).map(|_| None).collect();
-        let mut ready: Vec<(usize, &SessionMeta)> = Vec::with_capacity(targets.len());
+        let mut outputs = Vec::with_capacity(targets.len());
+        for target in targets {
+            let thread_id = target.id.clone();
+            let thread_ids = vec![thread_id.clone()];
 
-        for (index, target) in targets.iter().copied().enumerate() {
-            match self.delete_session_file(target) {
-                Ok(_) => ready.push((index, target)),
-                Err(error) => {
-                    outputs[index] = Some(DeleteResult {
-                        deleted: false,
-                        id: target.id.clone(),
-                        file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: Some(error.to_string()),
-                    });
-                }
+            if let Err(error) = self.delete_thread_rows(&thread_ids) {
+                outputs.push(DeleteResult {
+                    deleted: false,
+                    id: thread_id,
+                    file_path: target.file_path.display().to_string(),
+                    action: "deleted".to_string(),
+                    error: Some(format!("failed deleting DB row before file removal: {error}")),
+                });
+                continue;
             }
+
+            if let Err(error) = self.delete_session_file(target) {
+                outputs.push(DeleteResult {
+                    deleted: false,
+                    id: thread_id,
+                    file_path: target.file_path.display().to_string(),
+                    action: "deleted".to_string(),
+                    error: Some(format!(
+                        "DB row deleted but failed deleting rollout file: {error}"
+                    )),
+                });
+                continue;
+            }
+
+            if let Err(error) = self.delete_thread_titles(&thread_ids) {
+                outputs.push(DeleteResult {
+                    deleted: false,
+                    id: thread_id,
+                    file_path: target.file_path.display().to_string(),
+                    action: "deleted".to_string(),
+                    error: Some(format!(
+                        "DB row and rollout file deleted but failed title cleanup: {error}"
+                    )),
+                });
+                continue;
+            }
+
+            outputs.push(DeleteResult {
+                deleted: true,
+                id: thread_id,
+                file_path: target.file_path.display().to_string(),
+                action: "deleted".to_string(),
+                error: None,
+            });
         }
 
-        let ids: Vec<String> = ready.iter().map(|(_, target)| target.id.clone()).collect();
-
-        if !ids.is_empty() {
-            if let Err(error) = self.delete_thread_rows(&ids) {
-                let detail = format!("file removed but failed deleting DB rows: {error}");
-                for (index, target) in &ready {
-                    outputs[*index] = Some(DeleteResult {
-                        deleted: false,
-                        id: target.id.clone(),
-                        file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: Some(detail.clone()),
-                    });
-                }
-            } else if let Err(error) = self.delete_thread_titles(&ids) {
-                let detail =
-                    format!("file removed and DB row deleted but failed title cleanup: {error}");
-                for (index, target) in &ready {
-                    outputs[*index] = Some(DeleteResult {
-                        deleted: false,
-                        id: target.id.clone(),
-                        file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: Some(detail.clone()),
-                    });
-                }
-            } else {
-                for (index, target) in &ready {
-                    outputs[*index] = Some(DeleteResult {
-                        deleted: true,
-                        id: target.id.clone(),
-                        file_path: target.file_path.display().to_string(),
-                        action: "deleted".to_string(),
-                        error: None,
-                    });
-                }
-            }
-        }
-
-        Ok(outputs.into_iter().flatten().collect())
+        Ok(outputs)
     }
 
     pub fn read_latest_assistant_message(&self, path: &Path) -> Result<Option<String>> {
@@ -857,4 +851,3 @@ impl SessionStore {
         Ok(())
     }
 }
-

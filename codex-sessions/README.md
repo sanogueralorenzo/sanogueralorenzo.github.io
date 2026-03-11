@@ -34,6 +34,11 @@ watch                  Watchers for session maintenance flows
 help                   Print help
 ```
 
+### Hard Delete Order
+
+- `delete --hard` removes the `threads` SQLite row first, then deletes the rollout `.jsonl` file.
+- This ordering is intentional to prevent stale DB rows from outliving a file delete.
+
 ### Commands (`codex-sessions watch thread-titles --help`)
 
 ```text
