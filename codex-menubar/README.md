@@ -25,6 +25,7 @@
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Profile management section is labeled `Profiles` and includes profile switch/remove actions plus `Add`.
 - Threads menu includes:
+  - `Auto-Remove` title row is clickable no-op (enabled, not grayed).
   - `Auto-Remove` window: `1 day`, `3 days`, `7 days` (single-select checkmark)
   - Each day option has a submenu with `Archive` and `Delete`.
 - Selecting a day+mode persists immediately and restarts auto-remove runs.

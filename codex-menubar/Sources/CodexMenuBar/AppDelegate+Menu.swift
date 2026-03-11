@@ -92,8 +92,9 @@ extension AppDelegate {
                 missingItem.isEnabled = false
                 sessionsMenu.addItem(missingItem)
             case .ready:
-                let autoRemoveHeader = NSMenuItem(title: "Auto-Remove", action: nil, keyEquivalent: "")
-                autoRemoveHeader.isEnabled = false
+                let autoRemoveHeader = NSMenuItem(title: "Auto-Remove", action: #selector(noopHeader(_:)), keyEquivalent: "")
+                autoRemoveHeader.target = self
+                autoRemoveHeader.isEnabled = true
                 sessionsMenu.addItem(autoRemoveHeader)
 
                 sessionsMenu.addItem(autoRemoveDayMenuItem(days: 1))
