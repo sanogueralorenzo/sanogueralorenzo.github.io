@@ -7,15 +7,13 @@ struct CodexMenuData {
     let sessionsStatus: CodexSessionsCLIClient.Status?
     let currentProfileName: String?
     let profiles: [String]
-    let installedSkills: [String]
 
     static let loading = CodexMenuData(
         isLoading: true,
         remoteStatus: nil,
         sessionsStatus: nil,
         currentProfileName: nil,
-        profiles: [],
-        installedSkills: []
+        profiles: []
     )
 }
 
@@ -31,8 +29,7 @@ final class CodexMenuDataStore {
 
     func refresh(authCLI: CodexAuthCLIClient,
                  remoteCLI: CodexRemoteCLIClient,
-                 sessionsCLI: CodexSessionsCLIClient,
-                 skillsProvider: CodexSkillsProvider) {
+                 sessionsCLI: CodexSessionsCLIClient) {
         refreshGeneration += 1
         let generation = refreshGeneration
 
@@ -44,8 +41,7 @@ final class CodexMenuDataStore {
                 remoteStatus: (try? remoteCLI.status()) ?? .notInstalled,
                 sessionsStatus: sessionsStatus,
                 currentProfileName: try? authCLI.currentProfileName(),
-                profiles: (try? authCLI.listProfiles()) ?? [],
-                installedSkills: skillsProvider.installedSkillNames()
+                profiles: (try? authCLI.listProfiles()) ?? []
             )
 
             DispatchQueue.main.async {

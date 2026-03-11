@@ -112,29 +112,6 @@ extension AppDelegate {
         menu.addItem(sessionsItem)
         menu.setSubmenu(sessionsMenu, for: sessionsItem)
 
-        let skillsItem = NSMenuItem(title: "Skills", action: nil, keyEquivalent: "")
-        let skillsMenu = NSMenu()
-        if !data.isLoading, data.installedSkills.isEmpty {
-            let empty = NSMenuItem(title: "No installed skills", action: nil, keyEquivalent: "")
-            empty.isEnabled = false
-            skillsMenu.addItem(empty)
-        } else if !data.isLoading {
-            for name in data.installedSkills {
-                let skill = NSMenuItem(title: name, action: nil, keyEquivalent: "")
-                skill.isEnabled = false
-                skillsMenu.addItem(skill)
-            }
-        }
-        menu.addItem(skillsItem)
-        menu.setSubmenu(skillsMenu, for: skillsItem)
-
-        let limitsItem = NSMenuItem(title: "Rate Limits", action: nil, keyEquivalent: "")
-        let limitsMenu = NSMenu()
-        attachRateLimitsSubmenu(limitsMenu)
-
-        menu.addItem(limitsItem)
-        menu.setSubmenu(limitsMenu, for: limitsItem)
-
         menu.addItem(.separator())
 
         let help = NSMenuItem(title: "Help", action: #selector(openHelp(_:)), keyEquivalent: "")

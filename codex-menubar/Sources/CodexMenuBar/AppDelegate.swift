@@ -7,16 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let authCLI = CodexAuthCLIClient()
     let remoteCLI = CodexRemoteCLIClient()
     let sessionsCLI = CodexSessionsCLIClient()
-    let skillsProvider = CodexSkillsProvider(homeDirectory: FileManager.default.homeDirectoryForCurrentUser)
-    let rateLimitsProvider = CodexRateLimitsProvider()
     let menuDataStore = CodexMenuDataStore()
     var statusItem: NSStatusItem!
     private var isMenuOpen = false
     private var needsRenderAfterMenuClose = false
-    private var rateLimitsMenu: NSMenu?
-    private var rateLimitsSnapshot: CodexRateLimitsSnapshot?
-    private var isRateLimitsLoading = false
-    private var rateLimitsRequestGeneration = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -79,25 +73,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func refreshUI() {
         menuDataStore.refresh(authCLI: authCLI,
                               remoteCLI: remoteCLI,
-                              sessionsCLI: sessionsCLI,
-                              skillsProvider: skillsProvider)
+                              sessionsCLI: sessionsCLI)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        if menu === rateLimitsMenu {
-            refreshRateLimitsSubmenu()
-            return
-        }
-
         isMenuOpen = true
         refreshUI()
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        if menu === rateLimitsMenu {
-            return
-        }
-
         isMenuOpen = false
         if needsRenderAfterMenuClose {
             needsRenderAfterMenuClose = false
@@ -126,60 +110,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshTitle()
         if let menu = statusItem.menu {
             rebuildMenu(menu)
-        }
-    }
-
-    func renderRateLimitsSubmenu() {
-        guard let menu = rateLimitsMenu else {
-            return
-        }
-
-        menu.removeAllItems()
-
-        if isRateLimitsLoading {
-            let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
-            loadingItem.isEnabled = false
-            menu.addItem(loadingItem)
-            return
-        }
-
-        guard let snapshot = rateLimitsSnapshot else {
-            let idleItem = NSMenuItem(title: "Open to load", action: nil, keyEquivalent: "")
-            idleItem.isEnabled = false
-            menu.addItem(idleItem)
-            return
-        }
-
-        for line in snapshot.entries {
-            let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            menu.addItem(item)
-        }
-    }
-
-    func attachRateLimitsSubmenu(_ menu: NSMenu) {
-        rateLimitsMenu = menu
-        menu.delegate = self
-        renderRateLimitsSubmenu()
-    }
-
-    private func refreshRateLimitsSubmenu() {
-        rateLimitsRequestGeneration += 1
-        let generation = rateLimitsRequestGeneration
-        isRateLimitsLoading = true
-        renderRateLimitsSubmenu()
-
-        let provider = rateLimitsProvider
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let snapshot = provider.snapshot()
-            DispatchQueue.main.async {
-                guard let self, generation == self.rateLimitsRequestGeneration else {
-                    return
-                }
-                self.rateLimitsSnapshot = snapshot
-                self.isRateLimitsLoading = false
-                self.renderRateLimitsSubmenu()
-            }
         }
     }
 

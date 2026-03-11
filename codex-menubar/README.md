@@ -25,8 +25,6 @@
 - Threads actions: `Merge Threads`, `Remove Threads`.
 - `Remove Threads` offers `All`, `1d`, `3d`, `7d` filters; default view is `All` active threads.
 - Thread lists are sourced from `codex-sessions list` and sorted latest-updated first.
-- Rate limits are fetched on-demand from `codex app-server` (`account/rateLimits/read`).
-- Rate limits wait for the `account/rateLimits/read` JSON-RPC response (`id: 2`) before terminating the app-server process.
 
 ### Storage
 
