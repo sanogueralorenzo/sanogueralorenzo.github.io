@@ -6,7 +6,7 @@ extension AppDelegate {
         let data = menuDataStore.data
         menu.removeAllItems()
 
-        let openItem = NSMenuItem(title: "Open", action: #selector(openCodexApp(_:)), keyEquivalent: "")
+        let openItem = NSMenuItem(title: "Codex", action: #selector(openCodexApp(_:)), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
 
@@ -18,7 +18,7 @@ extension AppDelegate {
 
         let remoteHeader = NSMenuItem(title: "", action: #selector(noopHeader(_:)), keyEquivalent: "")
         remoteHeader.attributedTitle = NSAttributedString(
-            string: "Codex Remote",
+            string: "Remote",
             attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
         )
         remoteHeader.target = self
@@ -27,7 +27,7 @@ extension AppDelegate {
 
         switch remoteCLI.menuAction(remoteStatus: data.remoteStatus, isLoading: data.isLoading) {
         case .install:
-            let install = NSMenuItem(title: "Install Codex Remote…",
+            let install = NSMenuItem(title: "Install Remote…",
                                      action: #selector(installCodexRemote(_:)),
                                      keyEquivalent: "")
             install.target = self
@@ -123,7 +123,7 @@ extension AppDelegate {
     private func addCodexAgentSection(to menu: NSMenu) {
         let agentHeader = NSMenuItem(title: "", action: #selector(noopHeader(_:)), keyEquivalent: "")
         agentHeader.attributedTitle = NSAttributedString(
-            string: "Codex Agent",
+            string: "Agents",
             attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
         )
         agentHeader.target = self

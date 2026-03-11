@@ -20,7 +20,8 @@
 - Launch starts `codex-auth watch start`.
 - Launch starts `codex-sessions watch thread-titles start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.
-- Menu includes `Open` as the first action; it launches Codex if needed or brings it to focus when already running.
+- Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
+- Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Profile management section is labeled `Profiles` and includes profile switch/remove actions plus `Add`.
