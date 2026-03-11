@@ -134,6 +134,7 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
         final class StreamState: @unchecked Sendable {
             var stdoutText = ""
             var pendingLine = ""
+            var didReceiveAnyOutput = false
             var didReceiveRateLimitsResponse = false
         }
 
@@ -171,6 +172,7 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
                 }
 
                 stateQueue.sync {
+                    streamState.didReceiveAnyOutput = true
                     streamState.stdoutText.append(chunk)
                     streamState.pendingLine.append(chunk)
 
@@ -191,29 +193,70 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
                     }
                 }
             }
+
+            stateQueue.sync {
+                let line = streamState.pendingLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !line.isEmpty,
+                      let lineData = line.data(using: .utf8),
+                      let response = try? decoder.decode(JSONRPCResponse.self, from: lineData) else {
+                    return
+                }
+
+                if response.id == 2 {
+                    streamState.didReceiveRateLimitsResponse = true
+                }
+            }
         }
 
-        let requestPayload = """
+        let initializePayload = """
 {"id":1,"method":"initialize","params":{"clientInfo":{"name":"codex_menubar","title":"Codex Menu Bar","version":"1.0.0"}}}
+"""
+        if let payloadData = initializePayload.data(using: .utf8) {
+            stdin.fileHandleForWriting.write(payloadData)
+        }
+
+        let initializeTimeoutDate = Date().addingTimeInterval(3)
+        while Date() < initializeTimeoutDate {
+            let didReceiveAnyOutput = stateQueue.sync { streamState.didReceiveAnyOutput }
+            if didReceiveAnyOutput || !process.isRunning {
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        let followupPayload = """
 {"method":"initialized","params":{}}
 {"id":2,"method":"account/rateLimits/read"}
 """
-        if let payloadData = requestPayload.data(using: .utf8) {
+        if process.isRunning, let payloadData = followupPayload.data(using: .utf8) {
             stdin.fileHandleForWriting.write(payloadData)
         }
-        stdin.fileHandleForWriting.synchronizeFile()
 
         let timeoutDate = Date().addingTimeInterval(10)
+        var didResponseTimeOut = true
+        var stdinClosed = false
         while Date() < timeoutDate {
-            let shouldStop = stateQueue.sync { streamState.didReceiveRateLimitsResponse || !process.isRunning }
+            let state = stateQueue.sync {
+                (didReceiveAnyOutput: streamState.didReceiveAnyOutput,
+                 didReceiveRateLimits: streamState.didReceiveRateLimitsResponse)
+            }
+            if state.didReceiveAnyOutput, !stdinClosed {
+                stdin.fileHandleForWriting.closeFile()
+                stdinClosed = true
+            }
+
+            let shouldStop = state.didReceiveRateLimits || !process.isRunning
             if shouldStop {
+                didResponseTimeOut = false
                 break
             }
             Thread.sleep(forTimeInterval: 0.05)
         }
 
         let receivedRateLimits = stateQueue.sync { streamState.didReceiveRateLimitsResponse }
-        stdin.fileHandleForWriting.closeFile()
+        if !stdinClosed {
+            stdin.fileHandleForWriting.closeFile()
+        }
 
         if process.isRunning {
             process.terminate()
@@ -241,10 +284,18 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
                           userInfo: [NSLocalizedDescriptionKey: stderrText])
         }
 
+        if didResponseTimeOut {
+            throw NSError(
+                domain: "CodexRateLimitsProvider",
+                code: 4,
+                userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for account/rateLimits/read response"]
+            )
+        }
+
         throw NSError(
             domain: "CodexRateLimitsProvider",
-            code: 4,
-            userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for account/rateLimits/read response"]
+            code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "account/rateLimits/read returned no result"]
         )
     }
 
