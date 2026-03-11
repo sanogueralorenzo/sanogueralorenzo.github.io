@@ -89,35 +89,22 @@ extension AppDelegate {
         }
     }
 
-    @objc func setAutoRemoveDays(_ sender: NSMenuItem) {
-        guard let value = sender.representedObject as? NSNumber else {
+    @objc func setAutoRemoveSelection(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String else {
             return
         }
 
-        let days = value.intValue
-        guard AutoRemoveSettings.supportedDays.contains(Int(days)) else {
+        let components = value.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true)
+        guard components.count == 2,
+              let days = Int(components[0]),
+              AutoRemoveSettings.supportedDays.contains(days),
+              let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: String(components[1])) else {
             return
         }
 
-        let nextSettings = autoRemoveSettings.withDays(Int(days))
-        guard nextSettings.olderThanDays != autoRemoveSettings.olderThanDays else {
-            return
-        }
-
-        autoRemoveSettings = nextSettings
-        autoRemoveSettings.save()
-        startAutoRemoveWatcher()
-        refreshUI()
-    }
-
-    @objc func setAutoRemoveMode(_ sender: NSMenuItem) {
-        guard let rawMode = sender.representedObject as? String,
-              let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: rawMode) else {
-            return
-        }
-
-        let nextSettings = autoRemoveSettings.withMode(mode)
-        guard nextSettings.mode != autoRemoveSettings.mode else {
+        let nextSettings = autoRemoveSettings.withDays(days).withMode(mode)
+        guard nextSettings.olderThanDays != autoRemoveSettings.olderThanDays
+                || nextSettings.mode != autoRemoveSettings.mode else {
             return
         }
 

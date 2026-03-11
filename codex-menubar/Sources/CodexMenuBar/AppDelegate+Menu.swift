@@ -102,14 +102,6 @@ extension AppDelegate {
 
                 sessionsMenu.addItem(.separator())
 
-                let modeHeader = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
-                modeHeader.isEnabled = false
-                sessionsMenu.addItem(modeHeader)
-                sessionsMenu.addItem(autoRemoveModeMenuItem(mode: .archive))
-                sessionsMenu.addItem(autoRemoveModeMenuItem(mode: .delete))
-
-                sessionsMenu.addItem(.separator())
-
                 let countItem = NSMenuItem(title: "Thread Count: \(activeSessionCount)", action: nil, keyEquivalent: "")
                 countItem.isEnabled = false
                 sessionsMenu.addItem(countItem)
@@ -243,24 +235,27 @@ extension AppDelegate {
     private func autoRemoveDayMenuItem(days: Int) -> NSMenuItem {
         let item = NSMenuItem(
             title: "\(days) day" + (days == 1 ? "" : "s"),
-            action: #selector(setAutoRemoveDays(_:)),
+            action: nil,
             keyEquivalent: ""
         )
-        item.target = self
-        item.representedObject = NSNumber(value: days)
         item.state = autoRemoveSettings.olderThanDays == days ? .on : .off
+        let submenu = NSMenu()
+        submenu.addItem(autoRemoveModeSubmenuItem(days: days, mode: .archive))
+        submenu.addItem(autoRemoveModeSubmenuItem(days: days, mode: .delete))
+        item.submenu = submenu
         return item
     }
 
-    private func autoRemoveModeMenuItem(mode: CodexSessionsCLIClient.AutoRemoveMode) -> NSMenuItem {
+    private func autoRemoveModeSubmenuItem(days: Int,
+                                           mode: CodexSessionsCLIClient.AutoRemoveMode) -> NSMenuItem {
         let item = NSMenuItem(
             title: mode == .archive ? "Archive" : "Delete",
-            action: #selector(setAutoRemoveMode(_:)),
+            action: #selector(setAutoRemoveSelection(_:)),
             keyEquivalent: ""
         )
         item.target = self
-        item.representedObject = mode.rawValue
-        item.state = autoRemoveSettings.mode == mode ? .on : .off
+        item.representedObject = "\(days):\(mode.rawValue)"
+        item.state = (autoRemoveSettings.olderThanDays == days && autoRemoveSettings.mode == mode) ? .on : .off
         return item
     }
 }

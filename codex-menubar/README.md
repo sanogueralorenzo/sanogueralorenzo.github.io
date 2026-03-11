@@ -25,8 +25,8 @@
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Threads menu includes:
   - `Auto-Remove` window: `1 day`, `3 days`, `7 days` (single-select checkmark)
-  - `Mode`: `Archive`, `Delete` (single-select checkmark)
-- Setting either option persists immediately and restarts auto-remove runs.
+  - Each day option has a submenu with `Archive` and `Delete`.
+- Selecting a day+mode persists immediately and restarts auto-remove runs.
 
 ### Storage
 
