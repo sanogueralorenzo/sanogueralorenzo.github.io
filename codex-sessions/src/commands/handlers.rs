@@ -8,7 +8,7 @@ use crate::services::session_service::{
 };
 use crate::shared::models::{
     DeleteResult, ListResult, MergeResult, MessageResult, OperationBatchResult, SessionMeta,
-    SessionOperation, SessionResultReason, SessionResultStatus, TitleResult,
+    SessionResultReason, SessionResultStatus, TitleResult,
 };
 use crate::shared::output::OutputFormat;
 use anyhow::{Result, bail};
@@ -18,14 +18,13 @@ use std::time::Duration;
 
 use super::codex_exec::{run_codex_exec_resume, run_codex_exec_resume_capture_last_message};
 use super::output::{
-    emit_delete_output, emit_merge_output, emit_operation_batch_output, emit_prune_output,
-    emit_title_output,
+    emit_merge_output, emit_operation_batch_output, emit_prune_output, emit_title_output,
 };
 use super::prompts::{build_merger_summary_prompt, build_target_apply_prompt};
 use super::selection::{
-    has_selector_flags, matches_search, resolve_cursor_start, resolve_cwd_filter,
-    resolve_delete_targets, resolve_targets_for_inputs, sort_sessions,
-    sort_sessions_by_folder_then_updated, validate_delete_args, with_target_session,
+    matches_search, resolve_cursor_start, resolve_cwd_filter, resolve_delete_targets,
+    resolve_targets_for_inputs, sort_sessions, sort_sessions_by_folder_then_updated,
+    validate_delete_args, with_target_session,
 };
 use super::title_generation::generate_session_title;
 use super::watcher::cmd_watch_thread_titles;
@@ -352,11 +351,7 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
         .filter(|target| !pinned_ids.contains(&target.id))
         .collect();
 
-    let operation = if args.hard {
-        SessionOperation::Delete
-    } else {
-        SessionOperation::Archive
-    };
+    let operation = if args.hard { "delete" } else { "archive" };
 
     let mut result_by_id: HashMap<String, DeleteResult> = if args.dry_run {
         unpinned_targets
@@ -365,7 +360,6 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
                 let result = DeleteResult {
                     id: target.id.clone(),
                     file_path: target.file_path.display().to_string(),
-                    operation,
                     status: SessionResultStatus::Skipped,
                     reason: SessionResultReason::DryRun,
                     message: None,
@@ -391,7 +385,7 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
     let mut results = Vec::with_capacity(targets.len());
     for target in targets {
         if pinned_ids.contains(&target.id) {
-            results.push(build_pinned_skip_result(target, args.hard));
+            results.push(build_pinned_skip_result(target));
             continue;
         }
 
@@ -399,9 +393,8 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
             results.push(DeleteResult {
                 id: target.id.clone(),
                 file_path: target.file_path.display().to_string(),
-                operation,
                 status: SessionResultStatus::Failed,
-                reason: SessionResultReason::InternalError,
+                reason: SessionResultReason::Error,
                 message: Some("internal error: missing result for resolved target".to_string()),
             });
             continue;
@@ -411,14 +404,6 @@ fn cmd_delete(args: DeleteArgs) -> Result<()> {
     }
 
     let response = build_operation_batch_result(operation, args.dry_run, args.hard, results);
-    if response.processed == 1
-        && response.succeeded == 1
-        && args.ids.len() == 1
-        && !has_selector_flags(&args)
-    {
-        let mut sessions = response.sessions;
-        return emit_delete_output(sessions.remove(0), args.json, args.plain);
-    }
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
@@ -432,11 +417,7 @@ fn cmd_archive(args: ArchiveArgs) -> Result<()> {
         results.push(store.archive_session(target)?);
     }
 
-    let response = build_operation_batch_result(SessionOperation::Archive, false, false, results);
-    if response.processed == 1 && args.ids.len() == 1 && response.succeeded == 1 {
-        let mut sessions = response.sessions;
-        return emit_delete_output(sessions.remove(0), args.json, args.plain);
-    }
+    let response = build_operation_batch_result("archive", false, false, results);
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
@@ -450,16 +431,12 @@ fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
         results.push(store.unarchive_session(target)?);
     }
 
-    let response = build_operation_batch_result(SessionOperation::Unarchive, false, false, results);
-    if response.processed == 1 && args.ids.len() == 1 && response.succeeded == 1 {
-        let mut sessions = response.sessions;
-        return emit_delete_output(sessions.remove(0), args.json, args.plain);
-    }
+    let response = build_operation_batch_result("unarchive", false, false, results);
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
 fn build_operation_batch_result(
-    operation: SessionOperation,
+    operation: &str,
     dry_run: bool,
     hard: bool,
     sessions: Vec<DeleteResult>,
@@ -479,7 +456,7 @@ fn build_operation_batch_result(
         .count();
 
     OperationBatchResult {
-        operation,
+        operation: operation.to_string(),
         dry_run,
         hard,
         processed,
@@ -490,15 +467,10 @@ fn build_operation_batch_result(
     }
 }
 
-fn build_pinned_skip_result(target: &SessionMeta, hard: bool) -> DeleteResult {
+fn build_pinned_skip_result(target: &SessionMeta) -> DeleteResult {
     DeleteResult {
         id: target.id.clone(),
         file_path: target.file_path.display().to_string(),
-        operation: if hard {
-            SessionOperation::Delete
-        } else {
-            SessionOperation::Archive
-        },
         status: SessionResultStatus::Skipped,
         reason: SessionResultReason::Pinned,
         message: None,

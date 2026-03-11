@@ -1,7 +1,6 @@
 use crate::adapters::session_store::SessionStore;
 use crate::shared::models::{
-    DeleteResult, PruneResult, SessionEntry, SessionMeta, SessionOperation, SessionResultReason,
-    SessionResultStatus,
+    DeleteResult, PruneResult, SessionEntry, SessionMeta, SessionResultReason, SessionResultStatus,
 };
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
@@ -90,11 +89,6 @@ pub fn prune_sessions(
             deleted.push(DeleteResult {
                 id: session.id.clone(),
                 file_path: session.file_path.display().to_string(),
-                operation: if hard {
-                    SessionOperation::Delete
-                } else {
-                    SessionOperation::Archive
-                },
                 status: SessionResultStatus::Skipped,
                 reason: SessionResultReason::DryRun,
                 message: None,

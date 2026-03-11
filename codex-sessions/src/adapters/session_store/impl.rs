@@ -146,7 +146,6 @@ impl SessionStore {
             return Ok(DeleteResult {
                 id: target.id.clone(),
                 file_path: target.file_path.display().to_string(),
-                operation: SessionOperation::Archive,
                 status: SessionResultStatus::Succeeded,
                 reason: SessionResultReason::Completed,
                 message: None,
@@ -160,7 +159,6 @@ impl SessionStore {
         Ok(DeleteResult {
             id: target.id.clone(),
             file_path: destination.display().to_string(),
-            operation: SessionOperation::Archive,
             status: SessionResultStatus::Succeeded,
             reason: SessionResultReason::Completed,
             message: None,
@@ -172,7 +170,6 @@ impl SessionStore {
             return Ok(DeleteResult {
                 id: target.id.clone(),
                 file_path: target.file_path.display().to_string(),
-                operation: SessionOperation::Unarchive,
                 status: SessionResultStatus::Succeeded,
                 reason: SessionResultReason::Completed,
                 message: None,
@@ -186,7 +183,6 @@ impl SessionStore {
         Ok(DeleteResult {
             id: target.id.clone(),
             file_path: destination.display().to_string(),
-            operation: SessionOperation::Unarchive,
             status: SessionResultStatus::Succeeded,
             reason: SessionResultReason::Completed,
             message: None,
@@ -213,9 +209,8 @@ impl SessionStore {
                     outputs[index] = Some(DeleteResult {
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        operation: SessionOperation::Delete,
                         status: SessionResultStatus::Failed,
-                        reason: SessionResultReason::FileDeleteFailed,
+                        reason: SessionResultReason::Error,
                         message: Some(error.to_string()),
                     });
                 }
@@ -231,9 +226,8 @@ impl SessionStore {
                     outputs[*index] = Some(DeleteResult {
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        operation: SessionOperation::Delete,
                         status: SessionResultStatus::Failed,
-                        reason: SessionResultReason::DbDeleteFailed,
+                        reason: SessionResultReason::Error,
                         message: Some(detail.clone()),
                     });
                 }
@@ -244,9 +238,8 @@ impl SessionStore {
                     outputs[*index] = Some(DeleteResult {
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        operation: SessionOperation::Delete,
                         status: SessionResultStatus::Failed,
-                        reason: SessionResultReason::TitleCleanupFailed,
+                        reason: SessionResultReason::Error,
                         message: Some(detail.clone()),
                     });
                 }
@@ -255,7 +248,6 @@ impl SessionStore {
                     outputs[*index] = Some(DeleteResult {
                         id: target.id.clone(),
                         file_path: target.file_path.display().to_string(),
-                        operation: SessionOperation::Delete,
                         status: SessionResultStatus::Succeeded,
                         reason: SessionResultReason::Completed,
                         message: None,

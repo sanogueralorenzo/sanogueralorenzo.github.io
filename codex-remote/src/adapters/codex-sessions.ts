@@ -10,21 +10,13 @@ const CODEX_SESSIONS_BIN = process.env.CODEX_SESSIONS_BIN?.trim() || "codex-sess
 type DeleteResponse = {
   id: string;
   file_path: string;
-  operation: "delete" | "archive" | "unarchive";
   status: "succeeded" | "skipped" | "failed";
-  reason:
-    | "completed"
-    | "dry_run"
-    | "pinned"
-    | "file_delete_failed"
-    | "db_delete_failed"
-    | "title_cleanup_failed"
-    | "internal_error";
+  reason: "completed" | "dry_run" | "pinned" | "error";
   message?: string | null;
 };
 
 type DeleteBatchResponse = {
-  operation: "delete" | "archive" | "unarchive";
+  operation: string;
   dry_run: boolean;
   hard: boolean;
   processed: number;

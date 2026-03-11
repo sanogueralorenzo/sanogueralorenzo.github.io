@@ -62,8 +62,7 @@ help     Print help
 ### Delete/Prune Result Schema
 
 - `delete` / `archive` / `unarchive` item results now use typed fields:
-  - `operation`: `delete | archive | unarchive`
   - `status`: `succeeded | skipped | failed`
-  - `reason`: `completed | dry_run | pinned | file_delete_failed | db_delete_failed | title_cleanup_failed | internal_error`
+  - `reason`: `completed | dry_run | pinned | error`
   - `message`: optional detail text
-- Batch result objects use `operation` (not `action`) as the top-level operation field.
+- Batch result objects use `operation` as the top-level field.

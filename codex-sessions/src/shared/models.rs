@@ -27,14 +27,6 @@ pub struct ListResult {
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum SessionOperation {
-    Delete,
-    Archive,
-    Unarchive,
-}
-
-#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
 pub enum SessionResultStatus {
     Succeeded,
     Skipped,
@@ -47,17 +39,13 @@ pub enum SessionResultReason {
     Completed,
     DryRun,
     Pinned,
-    FileDeleteFailed,
-    DbDeleteFailed,
-    TitleCleanupFailed,
-    InternalError,
+    Error,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DeleteResult {
     pub id: String,
     pub file_path: String,
-    pub operation: SessionOperation,
     pub status: SessionResultStatus,
     pub reason: SessionResultReason,
     pub message: Option<String>,
@@ -75,7 +63,7 @@ pub struct PruneResult {
 
 #[derive(Debug, Serialize)]
 pub struct OperationBatchResult {
-    pub operation: SessionOperation,
+    pub operation: String,
     pub dry_run: bool,
     pub hard: bool,
     pub processed: usize,

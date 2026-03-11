@@ -1,58 +1,9 @@
 use crate::shared::models::{
-    DeleteResult, MergeResult, OperationBatchResult, PruneResult, SessionOperation,
-    SessionResultReason, SessionResultStatus, TitleResult,
+    MergeResult, OperationBatchResult, PruneResult, SessionResultReason, SessionResultStatus,
+    TitleResult,
 };
 use crate::shared::output::OutputFormat;
 use anyhow::Result;
-
-pub(crate) fn emit_delete_output(result: DeleteResult, json: bool, plain: bool) -> Result<()> {
-    if json {
-        println!("{}", serde_json::to_string_pretty(&result)?);
-    } else if plain {
-        let message = result.message.clone().unwrap_or_default();
-        println!(
-            "{}\t{}\t{}\t{}\t{}\t{}",
-            result.id,
-            operation_label(result.operation),
-            status_label(result.status),
-            reason_label(result.reason),
-            result.file_path,
-            message
-        );
-    } else {
-        match result.status {
-            SessionResultStatus::Succeeded => {
-                println!(
-                    "{} session {}",
-                    operation_past_tense(result.operation),
-                    result.id
-                );
-            }
-            SessionResultStatus::Skipped => {
-                println!(
-                    "Skipped {} for session {}",
-                    operation_infinitive(result.operation),
-                    result.id
-                );
-            }
-            SessionResultStatus::Failed => {
-                println!(
-                    "Failed to {} session {}",
-                    operation_infinitive(result.operation),
-                    result.id
-                );
-            }
-        }
-        println!("Path: {}", result.file_path);
-        println!("Status: {}", status_label(result.status));
-        println!("Reason: {}", reason_label(result.reason));
-        if let Some(message) = result.message {
-            println!("Message: {}", message);
-        }
-    }
-
-    Ok(())
-}
 
 pub(crate) fn emit_operation_batch_output(
     result: OperationBatchResult,
@@ -67,7 +18,7 @@ pub(crate) fn emit_operation_batch_output(
     if plain {
         println!(
             "{}\t{}\t{}\t{}\t{}\t{}",
-            operation_label(result.operation),
+            result.operation,
             result.processed,
             result.succeeded,
             result.failed,
@@ -77,9 +28,8 @@ pub(crate) fn emit_operation_batch_output(
         for item in result.sessions {
             let message = item.message.unwrap_or_default();
             println!(
-                "{}\t{}\t{}\t{}\t{}\t{}",
+                "{}\t{}\t{}\t{}\t{}",
                 item.id,
-                operation_label(item.operation),
                 status_label(item.status),
                 reason_label(item.reason),
                 item.file_path,
@@ -90,11 +40,11 @@ pub(crate) fn emit_operation_batch_output(
     }
 
     let verb = if result.dry_run {
-        format!("Would {}", operation_infinitive(result.operation))
+        format!("Would {}", result.operation)
     } else if result.failed > 0 || result.skipped > 0 {
-        format!("Processed {} for", operation_infinitive(result.operation))
+        format!("Processed {} for", result.operation)
     } else {
-        operation_past_tense(result.operation).to_string()
+        past_tense_operation(&result.operation).to_string()
     };
     println!(
         "{} {} session(s). Succeeded: {}. Failed: {}. Skipped: {}.",
@@ -103,9 +53,8 @@ pub(crate) fn emit_operation_batch_output(
     for item in result.sessions {
         if let Some(message) = item.message {
             println!(
-                "- {} [{} {} {}] ({}) message={}",
+                "- {} [{} {}] ({}) message={}",
                 item.id,
-                operation_label(item.operation),
                 status_label(item.status),
                 reason_label(item.reason),
                 item.file_path,
@@ -113,9 +62,8 @@ pub(crate) fn emit_operation_batch_output(
             );
         } else {
             println!(
-                "- {} [{} {} {}] ({})",
+                "- {} [{} {}] ({})",
                 item.id,
-                operation_label(item.operation),
                 status_label(item.status),
                 reason_label(item.reason),
                 item.file_path
@@ -138,9 +86,8 @@ pub(crate) fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> R
             for session in &report.sessions {
                 let message = session.message.clone().unwrap_or_default();
                 println!(
-                    "{}\t{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{}\t{}\t{}",
                     session.id,
-                    operation_label(session.operation),
                     status_label(session.status),
                     reason_label(session.reason),
                     session.file_path,
@@ -164,9 +111,8 @@ pub(crate) fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> R
             for session in &report.sessions {
                 if let Some(message) = &session.message {
                     println!(
-                        "- {} [{} {} {}] ({}) message={}",
+                        "- {} [{} {}] ({}) message={}",
                         session.id,
-                        operation_label(session.operation),
                         status_label(session.status),
                         reason_label(session.reason),
                         session.file_path,
@@ -174,9 +120,8 @@ pub(crate) fn emit_prune_output(report: &PruneResult, format: OutputFormat) -> R
                     );
                 } else {
                     println!(
-                        "- {} [{} {} {}] ({})",
+                        "- {} [{} {}] ({})",
                         session.id,
-                        operation_label(session.operation),
                         status_label(session.status),
                         reason_label(session.reason),
                         session.file_path
@@ -227,27 +172,12 @@ pub(crate) fn emit_title_output(result: TitleResult, json: bool, plain: bool) ->
     Ok(())
 }
 
-fn operation_label(operation: SessionOperation) -> &'static str {
+fn past_tense_operation(operation: &str) -> &'static str {
     match operation {
-        SessionOperation::Delete => "delete",
-        SessionOperation::Archive => "archive",
-        SessionOperation::Unarchive => "unarchive",
-    }
-}
-
-fn operation_infinitive(operation: SessionOperation) -> &'static str {
-    match operation {
-        SessionOperation::Delete => "delete",
-        SessionOperation::Archive => "archive",
-        SessionOperation::Unarchive => "unarchive",
-    }
-}
-
-fn operation_past_tense(operation: SessionOperation) -> &'static str {
-    match operation {
-        SessionOperation::Delete => "Deleted",
-        SessionOperation::Archive => "Archived",
-        SessionOperation::Unarchive => "Unarchived",
+        "delete" => "Deleted",
+        "archive" => "Archived",
+        "unarchive" => "Unarchived",
+        _ => "Processed",
     }
 }
 
@@ -264,9 +194,6 @@ fn reason_label(reason: SessionResultReason) -> &'static str {
         SessionResultReason::Completed => "completed",
         SessionResultReason::DryRun => "dry_run",
         SessionResultReason::Pinned => "pinned",
-        SessionResultReason::FileDeleteFailed => "file_delete_failed",
-        SessionResultReason::DbDeleteFailed => "db_delete_failed",
-        SessionResultReason::TitleCleanupFailed => "title_cleanup_failed",
-        SessionResultReason::InternalError => "internal_error",
+        SessionResultReason::Error => "error",
     }
 }
