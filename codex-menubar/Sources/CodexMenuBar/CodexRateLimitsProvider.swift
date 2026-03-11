@@ -131,6 +131,12 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
     }
 
     private func runAppServerRateLimitRequest(executablePath: String) throws -> String {
+        final class StreamState: @unchecked Sendable {
+            var stdoutText = ""
+            var pendingLine = ""
+            var didReceiveRateLimitsResponse = false
+        }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
         process.arguments = ["app-server"]
@@ -148,6 +154,45 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
         }
 
         try process.run()
+        let stateQueue = DispatchQueue(label: "CodexRateLimitsProvider.runAppServerRateLimitRequest.state")
+        let stdoutQueue = DispatchQueue(label: "CodexRateLimitsProvider.runAppServerRateLimitRequest.stdout")
+        let streamState = StreamState()
+        let decoder = JSONDecoder()
+
+        stdoutQueue.async {
+            while true {
+                let data = stdout.fileHandleForReading.availableData
+                if data.isEmpty {
+                    break
+                }
+
+                guard let chunk = String(data: data, encoding: .utf8) else {
+                    continue
+                }
+
+                stateQueue.sync {
+                    streamState.stdoutText.append(chunk)
+                    streamState.pendingLine.append(chunk)
+
+                    while let newlineIndex = streamState.pendingLine.firstIndex(of: "\n") {
+                        let rawLine = String(streamState.pendingLine[..<newlineIndex])
+                        streamState.pendingLine.removeSubrange(streamState.pendingLine.startIndex...newlineIndex)
+
+                        let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !line.isEmpty,
+                              let lineData = line.data(using: .utf8),
+                              let response = try? decoder.decode(JSONRPCResponse.self, from: lineData) else {
+                            continue
+                        }
+
+                        if response.id == 2 {
+                            streamState.didReceiveRateLimitsResponse = true
+                        }
+                    }
+                }
+            }
+        }
+
         let requestPayload = """
 {"id":1,"method":"initialize","params":{"clientInfo":{"name":"codex_menubar","title":"Codex Menu Bar","version":"1.0.0"}}}
 {"method":"initialized","params":{}}
@@ -156,28 +201,51 @@ final class CodexRateLimitsProvider: @unchecked Sendable {
         if let payloadData = requestPayload.data(using: .utf8) {
             stdin.fileHandleForWriting.write(payloadData)
         }
+        stdin.fileHandleForWriting.synchronizeFile()
+
+        let timeoutDate = Date().addingTimeInterval(10)
+        while Date() < timeoutDate {
+            let shouldStop = stateQueue.sync { streamState.didReceiveRateLimitsResponse || !process.isRunning }
+            if shouldStop {
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        let receivedRateLimits = stateQueue.sync { streamState.didReceiveRateLimitsResponse }
         stdin.fileHandleForWriting.closeFile()
 
-        let didTerminate = waitSemaphore.wait(timeout: .now() + 10) == .success
-        if !didTerminate {
+        if process.isRunning {
             process.terminate()
+        }
+        let didTerminate = waitSemaphore.wait(timeout: .now() + 2) == .success || !process.isRunning
+        if !didTerminate {
             throw NSError(
                 domain: "CodexRateLimitsProvider",
                 code: 4,
-                userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for codex app-server response"]
+                userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for codex app-server termination"]
             )
         }
 
-        let stdoutText = String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        stdoutQueue.sync {}
+        let stdoutSnapshot = stateQueue.sync { streamState.stdoutText }
         let stderrText = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
 
-        if process.terminationStatus == 0 {
-            return stdoutText
+        if receivedRateLimits {
+            return stdoutSnapshot
         }
 
-        throw NSError(domain: "CodexRateLimitsProvider",
-                      code: Int(process.terminationStatus),
-                      userInfo: [NSLocalizedDescriptionKey: stderrText])
+        if process.terminationStatus != 0 {
+            throw NSError(domain: "CodexRateLimitsProvider",
+                          code: Int(process.terminationStatus),
+                          userInfo: [NSLocalizedDescriptionKey: stderrText])
+        }
+
+        throw NSError(
+            domain: "CodexRateLimitsProvider",
+            code: 4,
+            userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for account/rateLimits/read response"]
+        )
     }
 
     private func compactLine(label: String, window: RateLimitWindow?, isWeekly: Bool) -> String {
