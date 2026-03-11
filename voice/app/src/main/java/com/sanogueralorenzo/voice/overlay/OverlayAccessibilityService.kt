@@ -431,7 +431,7 @@ class OverlayAccessibilityService : AccessibilityService() {
                     if (moved) {
                         overlayRepository.setBubblePosition(params.x, params.y)
                         captureResizeAnchorFromParams(params)
-                    } else if (!positionPreviewActive) {
+                    } else {
                         onBubbleTapped()
                     }
                     true

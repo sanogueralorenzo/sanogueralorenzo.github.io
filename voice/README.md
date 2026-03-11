@@ -1,6 +1,7 @@
 ## Intro
 
 **Voice** is an Android local-first voice keyboard (IME) with on-device ASR and rewrite.
+The overlay positioning screen keeps the bubble visible while a non-Voice keyboard is open, and tapping the bubble starts/stops overlay recording.
 
 ## Quickstart
 

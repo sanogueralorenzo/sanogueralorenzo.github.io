@@ -78,7 +78,7 @@
     <string name="overlay_position_instructions_body">Drag to place. Use arrows for 1dp nudges.</string>
     <string name="overlay_position_mic_indicator_note">Regular use keeps the pill invisible. Android\'s green mic indicator shows when recording is active.</string>
     <string name="overlay_position_size_label">Size: %1$ddp</string>
-    <string name="overlay_position_number_input_label">Number input test</string>
+    <string name="overlay_position_number_input_label">Input test</string>
     <string name="overlay_position_nudge_label">Fine position (1dp)</string>
     <string name="overlay_position_nudge_up">Move up</string>
     <string name="overlay_position_nudge_left">Move left</string>
