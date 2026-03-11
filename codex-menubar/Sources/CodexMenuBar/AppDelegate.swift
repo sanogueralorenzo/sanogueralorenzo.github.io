@@ -147,30 +147,30 @@ struct AutoRemoveSettings: Equatable {
     static let supportedDays = [1, 3, 7]
     static let none = AutoRemoveSettings(olderThanDays: nil, mode: nil)
 
-    private static let daysKey = "threads.autoRemove.days"
-    private static let modeKey = "threads.autoRemove.mode"
+    private static let selectionKey = "threads.autoRemove.selection"
 
     static func load(defaults: UserDefaults = .standard) -> AutoRemoveSettings {
-        let days = (defaults.object(forKey: daysKey) as? NSNumber)
-            .map(\.intValue)
-            .flatMap { supportedDays.contains($0) ? $0 : nil }
-        let mode = defaults.string(forKey: modeKey)
-            .flatMap(CodexSessionsCLIClient.AutoRemoveMode.init(rawValue:))
-
-        guard let days, let mode else {
+        guard let selection = defaults.string(forKey: selectionKey) else {
             return .none
         }
+
+        let components = selection.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true)
+        guard components.count == 2,
+              let days = Int(components[0]),
+              supportedDays.contains(days),
+              let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: String(components[1])) else {
+            return .none
+        }
+
         return AutoRemoveSettings(olderThanDays: days, mode: mode)
     }
 
     func save(defaults: UserDefaults = .standard) {
         guard let olderThanDays, let mode else {
-            defaults.removeObject(forKey: Self.daysKey)
-            defaults.removeObject(forKey: Self.modeKey)
+            defaults.removeObject(forKey: Self.selectionKey)
             return
         }
-        defaults.set(olderThanDays, forKey: Self.daysKey)
-        defaults.set(mode.rawValue, forKey: Self.modeKey)
+        defaults.set("\(olderThanDays):\(mode.rawValue)", forKey: Self.selectionKey)
     }
 
     var isConfigured: Bool {
