@@ -224,9 +224,14 @@ extension AppDelegate {
               let mode = autoRemoveSettings.mode else {
             return
         }
-        scheduleAutoRemoveRun(olderThanDays: olderThanDays, mode: mode)
-
         let sessionsCLI = self.sessionsCLI
+        let handler = Self.makeAutoRemovePassHandler(
+            sessionsCLI: sessionsCLI,
+            olderThanDays: olderThanDays,
+            mode: mode
+        )
+        scheduleAutoRemoveRun(handler: handler)
+
         let intervalSeconds = max(60, autoRemoveIntervalMinutes * 60)
 
         let timer = DispatchSource.makeTimerSource(queue: autoRemoveQueue)
@@ -234,13 +239,7 @@ extension AppDelegate {
             deadline: .now() + .seconds(intervalSeconds),
             repeating: .seconds(intervalSeconds)
         )
-        timer.setEventHandler {
-            runAutoRemovePass(
-                sessionsCLI: sessionsCLI,
-                olderThanDays: olderThanDays,
-                mode: mode
-            )
-        }
+        timer.setEventHandler(handler: handler)
         timer.resume()
         autoRemoveSchedulerTimer = timer
     }
@@ -250,12 +249,16 @@ extension AppDelegate {
         autoRemoveSchedulerTimer = nil
     }
 
-    private func scheduleAutoRemoveRun(
+    private func scheduleAutoRemoveRun(handler: @escaping @Sendable () -> Void) {
+        autoRemoveQueue.async(execute: handler)
+    }
+
+    private nonisolated static func makeAutoRemovePassHandler(
+        sessionsCLI: CodexSessionsCLIClient,
         olderThanDays: Int,
         mode: CodexSessionsCLIClient.AutoRemoveMode
-    ) {
-        let sessionsCLI = self.sessionsCLI
-        autoRemoveQueue.async {
+    ) -> @Sendable () -> Void {
+        {
             runAutoRemovePass(
                 sessionsCLI: sessionsCLI,
                 olderThanDays: olderThanDays,
