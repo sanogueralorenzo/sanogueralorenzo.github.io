@@ -21,6 +21,7 @@
 - Launch starts `codex-sessions watch thread-titles start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.
 - Launch agent executable path prefers `/Applications/Codex Menu Bar.app` when available.
+- Launch and install both clean up legacy `io.github.sanogueralorenzo.codexauth.menubar` startup entries.
 - Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
 - `Agents` includes a `View` submenu that combines running + recent tasks.

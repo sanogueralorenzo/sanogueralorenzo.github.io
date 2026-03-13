@@ -3,12 +3,15 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_EXECUTABLE_NAME="CodexMenuBar"
+LEGACY_EXECUTABLE_NAME="CodexAuthMenuBar"
 APP_DISPLAY_NAME="Codex Menu Bar"
 APP_BUNDLE_IDENTIFIER="io.github.sanogueralorenzo.codex.menubar"
 APP_BUNDLE_NAME="Codex Menu Bar"
+LEGACY_LAUNCH_AGENT_LABEL="io.github.sanogueralorenzo.codexauth.menubar"
 APP_DIR="$ROOT_DIR/release/$APP_BUNDLE_NAME.app"
 TARGET_APP_DIR="/Applications/$APP_BUNDLE_NAME.app"
 ICON_PATH="$ROOT_DIR/assets/codex.png"
+LEGACY_LAUNCH_AGENT_PLIST="$HOME/Library/LaunchAgents/$LEGACY_LAUNCH_AGENT_LABEL.plist"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This script packages a macOS .app and must be run on macOS." >&2
@@ -30,7 +33,15 @@ stop_running_app() {
   done
 }
 
+cleanup_legacy_install() {
+  launchctl bootout "gui/$(id -u)/$LEGACY_LAUNCH_AGENT_LABEL" >/dev/null 2>&1 || true
+  launchctl unload "$LEGACY_LAUNCH_AGENT_PLIST" >/dev/null 2>&1 || true
+  rm -f "$LEGACY_LAUNCH_AGENT_PLIST"
+  pkill -x "$LEGACY_EXECUTABLE_NAME" >/dev/null 2>&1 || true
+}
+
 cd "$ROOT_DIR"
+cleanup_legacy_install
 swift build -c release --product "$APP_EXECUTABLE_NAME" >/dev/null
 BIN_DIR="$(swift build -c release --show-bin-path)"
 BIN_PATH="$BIN_DIR/$APP_EXECUTABLE_NAME"
