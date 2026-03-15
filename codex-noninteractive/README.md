@@ -41,6 +41,7 @@ codex-noninteractive run --prompt "Reply with exactly OK"
 codex-noninteractive --help
 codex-noninteractive run --help
 codex-noninteractive resume --help
+codex-noninteractive review --help
 ```
 
 ### Commands (`codex-noninteractive --help`)
@@ -48,13 +49,15 @@ codex-noninteractive resume --help
 ```text
 run     Start a new non-interactive Codex exec turn
 resume  Resume an existing Codex exec thread non-interactively
+review  Run codex exec review
 help    Print this message or the help of the given subcommand(s)
 ```
 
 ### Runtime Behavior
 
 - The wrapper always runs `codex exec --json`.
-- Final assistant text is emitted to stdout.
+- Default stdout behavior prints final assistant text.
+- `--raw-jsonl` prints raw `codex exec --json` events to stdout.
 - `--result-json <PATH>` writes a machine-readable summary for scripts/CI:
   - `status`: `completed | failed`
   - `exit_code`: Codex process exit code
@@ -63,6 +66,7 @@ help    Print this message or the help of the given subcommand(s)
   - `stderr`: captured codex stderr output
 - `--prompt`, `--prompt-file`, and `--prompt-stdin` are mutually exclusive.
 - `resume` requires either `<thread_id>` or `--last`.
+- All non-interactive flags from the Codex docs are exposed as explicit typed flags (no passthrough `--extra-arg`).
 
 ### CI Auth
 

@@ -15,6 +15,8 @@ pub enum Command {
     Run(RunArgs),
     /// Resume an existing Codex exec thread non-interactively.
     Resume(ResumeArgs),
+    /// Run codex exec review.
+    Review(ReviewArgs),
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -73,6 +75,22 @@ impl ColorMode {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+#[value(rename_all = "lowercase")]
+pub enum OssProvider {
+    Lmstudio,
+    Ollama,
+}
+
+impl OssProvider {
+    pub fn as_cli_flag(self) -> &'static str {
+        match self {
+            Self::Lmstudio => "lmstudio",
+            Self::Ollama => "ollama",
+        }
+    }
+}
+
 #[derive(Args, Debug, Clone)]
 pub struct PromptArgs {
     /// Prompt text. Mutually exclusive with --prompt-file/--prompt-stdin.
@@ -89,22 +107,144 @@ pub struct PromptArgs {
 }
 
 #[derive(Args, Debug, Clone)]
-pub struct SharedExecArgs {
-    /// Working directory for Codex run.
-    #[arg(long, value_name = "DIR")]
-    pub cd: Option<PathBuf>,
+pub struct ConfigFlagArgs {
+    /// Config override value (`key=value`). Repeatable.
+    #[arg(short = 'c', long = "config", value_name = "KEY=VALUE", action = ArgAction::Append)]
+    pub config: Vec<String>,
+
+    /// Enable feature flags. Repeatable.
+    #[arg(long = "enable", value_name = "FEATURE", action = ArgAction::Append)]
+    pub enable: Vec<String>,
+
+    /// Disable feature flags. Repeatable.
+    #[arg(long = "disable", value_name = "FEATURE", action = ArgAction::Append)]
+    pub disable: Vec<String>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct WrapperOutputArgs {
+    /// Write final assistant message to this file.
+    #[arg(short = 'o', long, value_name = "PATH")]
+    pub output_last_message: Option<PathBuf>,
+
+    /// Mirror parsed JSON events to stderr.
+    #[arg(long)]
+    pub emit_events: bool,
+
+    /// Print raw codex JSONL events to stdout instead of final message output.
+    #[arg(long)]
+    pub raw_jsonl: bool,
+
+    /// Write machine-readable result JSON to this file.
+    #[arg(long, value_name = "PATH")]
+    pub result_json: Option<PathBuf>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct RunArgs {
+    #[command(flatten)]
+    pub prompt: PromptArgs,
+
+    #[command(flatten)]
+    pub output: WrapperOutputArgs,
+
+    #[command(flatten)]
+    pub config: ConfigFlagArgs,
+
+    /// Optional image(s) to attach to the initial prompt.
+    #[arg(short = 'i', long = "image", value_name = "FILE", action = ArgAction::Append)]
+    pub image: Vec<PathBuf>,
 
     /// Model name for Codex.
-    #[arg(long)]
+    #[arg(short = 'm', long)]
     pub model: Option<String>,
 
+    /// Use open-source provider.
+    #[arg(long)]
+    pub oss: bool,
+
+    /// Local provider to use when --oss is enabled.
+    #[arg(long = "local-provider", value_enum)]
+    pub local_provider: Option<OssProvider>,
+
     /// Codex sandbox mode.
-    #[arg(long, value_enum)]
+    #[arg(short = 's', long, value_enum)]
     pub sandbox: Option<SandboxMode>,
 
+    /// Config profile name from codex config.
+    #[arg(short = 'p', long)]
+    pub profile: Option<String>,
+
     /// Codex approval policy.
-    #[arg(long = "ask-for-approval", value_enum)]
+    #[arg(short = 'a', long = "ask-for-approval", value_enum)]
     pub approval: Option<ApprovalPolicy>,
+
+    /// Enable Codex full-auto shorthand.
+    #[arg(long)]
+    pub full_auto: bool,
+
+    /// Bypass Codex approvals and sandbox.
+    #[arg(long)]
+    pub dangerously_bypass_approvals_and_sandbox: bool,
+
+    /// Working directory for Codex run.
+    #[arg(short = 'C', long = "cd", value_name = "DIR")]
+    pub cd: Option<PathBuf>,
+
+    /// Allow running outside git repo.
+    #[arg(long)]
+    pub skip_git_repo_check: bool,
+
+    /// Additional writable directories. Repeatable.
+    #[arg(long = "add-dir", value_name = "DIR", action = ArgAction::Append)]
+    pub add_dir: Vec<PathBuf>,
+
+    /// Run without persisted Codex session files.
+    #[arg(long)]
+    pub ephemeral: bool,
+
+    /// Output schema file passed to codex exec.
+    #[arg(long = "output-schema", value_name = "PATH")]
+    pub output_schema: Option<PathBuf>,
+
+    /// Color mode forwarded to codex exec.
+    #[arg(long, value_enum)]
+    pub color: Option<ColorMode>,
+
+    /// Force cursor-based progress updates in exec mode.
+    #[arg(long)]
+    pub progress_cursor: bool,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct ResumeArgs {
+    /// Thread/session id to resume.
+    pub thread_id: Option<String>,
+
+    /// Resume the most recent session.
+    #[arg(long)]
+    pub last: bool,
+
+    /// Show all sessions (disables cwd filtering).
+    #[arg(long)]
+    pub all: bool,
+
+    #[command(flatten)]
+    pub prompt: PromptArgs,
+
+    #[command(flatten)]
+    pub output: WrapperOutputArgs,
+
+    #[command(flatten)]
+    pub config: ConfigFlagArgs,
+
+    /// Optional image(s) to attach to the resume prompt.
+    #[arg(short = 'i', long = "image", value_name = "FILE", action = ArgAction::Append)]
+    pub image: Vec<PathBuf>,
+
+    /// Model name for Codex.
+    #[arg(short = 'm', long)]
+    pub model: Option<String>,
 
     /// Enable Codex full-auto shorthand.
     #[arg(long)]
@@ -121,53 +261,52 @@ pub struct SharedExecArgs {
     /// Run without persisted Codex session files.
     #[arg(long)]
     pub ephemeral: bool,
-
-    /// Output schema file passed to codex exec.
-    #[arg(long, value_name = "PATH")]
-    pub output_schema: Option<PathBuf>,
-
-    /// Write final assistant message to this file.
-    #[arg(long, value_name = "PATH")]
-    pub output_last_message: Option<PathBuf>,
-
-    /// Color mode forwarded to codex exec.
-    #[arg(long, value_enum)]
-    pub color: Option<ColorMode>,
-
-    /// Mirror raw codex --json events to stderr.
-    #[arg(long)]
-    pub emit_events: bool,
-
-    /// Write machine-readable result JSON to this file.
-    #[arg(long, value_name = "PATH")]
-    pub result_json: Option<PathBuf>,
-
-    /// Extra arguments forwarded to codex exec. Repeat for each token.
-    #[arg(long = "extra-arg", action = ArgAction::Append)]
-    pub extra_args: Vec<String>,
 }
 
 #[derive(Args, Debug, Clone)]
-pub struct RunArgs {
+pub struct ReviewArgs {
     #[command(flatten)]
     pub prompt: PromptArgs,
 
     #[command(flatten)]
-    pub shared: SharedExecArgs,
-}
+    pub output: WrapperOutputArgs,
 
-#[derive(Args, Debug, Clone)]
-pub struct ResumeArgs {
-    /// Thread id to resume.
-    pub thread_id: Option<String>,
+    #[command(flatten)]
+    pub config: ConfigFlagArgs,
 
-    /// Resume the most recent session.
+    /// Review staged, unstaged, and untracked changes.
     #[arg(long)]
-    pub last: bool,
+    pub uncommitted: bool,
 
-    #[command(flatten)]
-    pub prompt: PromptArgs,
+    /// Review changes against this base branch.
+    #[arg(long)]
+    pub base: Option<String>,
 
-    #[command(flatten)]
-    pub shared: SharedExecArgs,
+    /// Review changes introduced by a commit.
+    #[arg(long)]
+    pub commit: Option<String>,
+
+    /// Model name for Codex.
+    #[arg(short = 'm', long)]
+    pub model: Option<String>,
+
+    /// Optional commit title shown in summary.
+    #[arg(long)]
+    pub title: Option<String>,
+
+    /// Enable Codex full-auto shorthand.
+    #[arg(long)]
+    pub full_auto: bool,
+
+    /// Bypass Codex approvals and sandbox.
+    #[arg(long)]
+    pub dangerously_bypass_approvals_and_sandbox: bool,
+
+    /// Allow running outside git repo.
+    #[arg(long)]
+    pub skip_git_repo_check: bool,
+
+    /// Run without persisted Codex session files.
+    #[arg(long)]
+    pub ephemeral: bool,
 }
