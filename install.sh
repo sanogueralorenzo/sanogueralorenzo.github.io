@@ -14,7 +14,6 @@ run_step() {
 
 run_step "Install codex-auth CLI" "$ROOT_DIR/codex-auth/scripts/install.sh"
 run_step "Install codex-sessions CLI" "$ROOT_DIR/codex-sessions/scripts/install.sh"
-run_step "Install codex-noninteractive CLI" "$ROOT_DIR/codex-noninteractive/scripts/install.sh"
 run_step "Install codex-remote CLI" "$ROOT_DIR/codex-remote/scripts/install.sh"
 run_step "Install Codex Menu Bar app" "$ROOT_DIR/codex-menubar/scripts/install.sh"
 

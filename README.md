@@ -16,7 +16,6 @@
 
 - [Codex Auth](./codex-auth/README.md)
 - [Codex Sessions](./codex-sessions/README.md)
-- [Codex Noninteractive](./codex-noninteractive/README.md)
 - [Codex Remote](./codex-remote/README.md)
 - [Codex Menubar](./codex-menubar/README.md)
 - [Codex Agents](./codex-agents/README.md)
