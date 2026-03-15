@@ -19,7 +19,8 @@ where
         Ok(cli) => cli,
         Err(error) => {
             let kind = error.kind();
-            let is_help_or_version = matches!(kind, ErrorKind::DisplayHelp | ErrorKind::DisplayVersion);
+            let is_help_or_version =
+                matches!(kind, ErrorKind::DisplayHelp | ErrorKind::DisplayVersion);
             let _ = error.print();
             return if is_help_or_version { 0 } else { 2 };
         }

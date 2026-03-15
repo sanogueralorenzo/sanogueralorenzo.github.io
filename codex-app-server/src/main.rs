@@ -1,12 +1,13 @@
 mod adapters;
 mod cli;
 mod commands;
+mod noninteractive;
 mod services;
 mod shared;
 
 use std::env;
-use std::os::unix::process::ExitStatusExt;
 use std::ffi::OsString;
+use std::os::unix::process::ExitStatusExt;
 use std::process::{Command, ExitCode, Stdio};
 
 fn main() -> ExitCode {
@@ -16,6 +17,9 @@ fn main() -> ExitCode {
     if should_route_to_sessions(&forwarded_args) {
         let sessions_args = normalize_sessions_args(forwarded_args);
         return ExitCode::from(commands::run_from(sessions_args));
+    }
+    if should_route_to_noninteractive(&forwarded_args) {
+        return ExitCode::from(noninteractive::run_from(forwarded_args));
     }
 
     let app_server_args = normalize_app_server_args(forwarded_args);
@@ -49,6 +53,10 @@ fn main() -> ExitCode {
 
 fn should_route_to_sessions(args: &[OsString]) -> bool {
     args.first().and_then(|value| value.to_str()) == Some("sessions")
+}
+
+fn should_route_to_noninteractive(args: &[OsString]) -> bool {
+    args.first().and_then(|value| value.to_str()) == Some("noninteractive")
 }
 
 fn normalize_sessions_args(args: Vec<OsString>) -> Vec<OsString> {
