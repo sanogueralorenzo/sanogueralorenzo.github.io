@@ -50,7 +50,7 @@ help     Print this help output.
 
 - Draft streaming is disabled by default (`enableDraftStreaming = false` in `src/index.ts`).
 - The bot sends normal Telegram messages for completed output.
-- For long-running turns, the bot sends one status line (`Still working, I will send a message when ready`) and then posts the final result when ready.
+- For long-running turns, the bot stays silent and posts only the final result when ready.
 
 ### Thread Delete Behavior
 

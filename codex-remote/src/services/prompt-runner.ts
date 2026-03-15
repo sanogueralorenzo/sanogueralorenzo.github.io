@@ -213,7 +213,7 @@ async function replyCompletedOutput(ctx: PromptContext, response: string): Promi
 }
 
 async function replyDelayedNotice(ctx: PromptContext): Promise<void> {
-  await ctx.reply("Still working, I will send a message when ready");
+  void ctx;
 }
 
 async function sendTextChunks(sender: (text: string) => Promise<unknown>, text: string): Promise<void> {
