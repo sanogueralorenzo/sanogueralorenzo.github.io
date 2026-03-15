@@ -35,8 +35,6 @@ const sourceDir = dirname(fileURLToPath(import.meta.url));
 const startImagePath = resolve(sourceDir, "../assets/start-logo.png");
 const codexHome = resolveCodexHomeFromEnv(process.env.CODEX_HOME);
 const defaultApprovalDecision: ApprovalDecision = "decline";
-const enableDraftStreaming = false;
-const draftStreamingThrottleMs = 500;
 const allowedChatIds = parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS);
 const adminChatIds = parseAllowedChatIds(process.env.TELEGRAM_ADMIN_CHAT_IDS);
 ensureStartImageExists(startImagePath);
@@ -85,9 +83,7 @@ const promptRunner = createPromptRunner({
   getConversationOptions,
   bindChatToThread,
   resolveThreadTitle: threadActions.resolveThreadTitle,
-  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram,
-  enableDraftStreaming,
-  draftStreamingThrottleMs
+  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram
 });
 
 const voiceService = createVoiceService({

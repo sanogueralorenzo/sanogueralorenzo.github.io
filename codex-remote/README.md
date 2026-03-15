@@ -57,10 +57,10 @@ help     Print this help output.
 - `~/.codex/remote/codex-remote.log`
 - `~/.codex/remote/codex-remote-caffeinate.pid`
 
-### Draft Streaming
+### Output Behavior
 
-- Draft streaming is disabled by default (`enableDraftStreaming = false` in `src/index.ts`).
-- The bot sends normal Telegram messages for completed output.
+- The bot sends only final Telegram messages after each Codex turn.
+- If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
 - For long-running turns, the bot stays silent and posts only the final result when ready.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.
 

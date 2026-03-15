@@ -1,5 +1,4 @@
 import {
-  AgentTextSnapshot,
   ApprovalDecision,
   ApprovalPolicy,
   ApprovalRequest,
@@ -11,7 +10,6 @@ import {
 import { BindingStore } from "../adapters/binding-store.js";
 import { formatFailure } from "../bot/messages.js";
 import { PromptContext } from "../bot/context.js";
-import { createTelegramDraftStreamer } from "./telegram-draft-streamer.js";
 
 type ConversationOptions = {
   cwd: string;
@@ -36,8 +34,6 @@ type PromptRunnerDeps = {
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
   resolveThreadTitle: (threadId: string) => Promise<string>;
   requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
-  enableDraftStreaming: boolean;
-  draftStreamingThrottleMs: number;
 };
 
 const TELEGRAM_MESSAGE_LIMIT = 4096;
@@ -45,18 +41,12 @@ const TELEGRAM_MESSAGE_CHUNK = 3900;
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
   async function runPromptThroughCodex(ctx: PromptContext, chatId: string, text: string): Promise<void> {
-    const draftSession = createDraftSession(ctx, deps.enableDraftStreaming, deps.draftStreamingThrottleMs);
     const threadId = await deps.store.get(chatId);
     const runtimeOptions = {
-      approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
-      onAgentTextSnapshot: (snapshot: AgentTextSnapshot) => {
-        draftSession.pushSnapshot(snapshot);
-      }
+      approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request)
     };
     const finalizeTurn = async (turn: TimedTurnLike, delayedIntro = "Delayed:"): Promise<void> => {
-      await draftSession.stop(true);
       await replyFromTimedTurn(ctx, turn, delayedIntro);
-      await draftSession.clear();
     };
 
     try {
@@ -75,7 +65,6 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           return;
         }
 
-        await draftSession.stop(false);
         await deps.onThreadNotBound(ctx, chatId);
         return;
       }
@@ -95,12 +84,10 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         await finalizeTurn(firstTurn);
         return;
       } catch {
-        await draftSession.stop(true);
         await recoverFromUnavailableThread(ctx, chatId, text, runtimeOptions);
         return;
       }
     } catch (error) {
-      await draftSession.stop(false);
       const message = error instanceof Error ? error.message : String(error);
       await ctx.reply(formatFailure("Codex error.", message));
     }
@@ -126,7 +113,6 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     text: string,
     runtimeOptions: {
       approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
-      onAgentTextSnapshot: (snapshot: AgentTextSnapshot) => void;
     }
   ): Promise<void> {
     const options = deps.getConversationOptions();
@@ -166,44 +152,6 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
   return {
     runPromptThroughCodex
-  };
-}
-
-function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: number): {
-  pushSnapshot: (snapshot: AgentTextSnapshot) => void;
-  stop: (flushPending: boolean) => Promise<void>;
-  clear: () => Promise<void>;
-} {
-  const turnSeed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  const draftId = allocateDraftId(turnSeed);
-  const messageThreadId = getMessageThreadId(ctx);
-
-  const streamer = createTelegramDraftStreamer({
-    enabled,
-    throttleMs,
-    sendDraft: (snapshot) =>
-      ctx.api.sendMessageDraft(
-        ctx.chat.id,
-        draftId,
-        snapshot,
-        messageThreadId === null ? undefined : { message_thread_id: messageThreadId }
-      )
-  });
-
-  return {
-    pushSnapshot: (snapshot: AgentTextSnapshot): void => {
-      const itemId = snapshot.itemId.trim();
-      if (!itemId) {
-        return;
-      }
-      streamer.pushSnapshot(snapshot.text);
-    },
-    stop: async (flushPending: boolean): Promise<void> => {
-      await streamer.stop(flushPending);
-    },
-    clear: async (): Promise<void> => {
-      await streamer.clear();
-    }
   };
 }
 
@@ -258,18 +206,4 @@ function isNoRolloutFoundError(error: unknown): boolean {
     return false;
   }
   return error.message.includes("no rollout found for thread id");
-}
-
-function getMessageThreadId(ctx: PromptContext): number | null {
-  const threadId = ctx.message?.message_thread_id;
-  return typeof threadId === "number" ? threadId : null;
-}
-
-function allocateDraftId(seed: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 1) || 1;
 }

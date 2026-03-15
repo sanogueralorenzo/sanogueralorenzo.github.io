@@ -52,14 +52,8 @@ export type ApprovalRequest = {
   cwd: string | null;
 };
 
-export type AgentTextSnapshot = {
-  itemId: string;
-  text: string;
-};
-
 type TurnRuntimeOptions = {
   approvalHandler?: (request: ApprovalRequest) => Promise<ApprovalDecision>;
-  onAgentTextSnapshot?: (snapshot: AgentTextSnapshot) => void;
 };
 
 const TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -180,8 +174,7 @@ async function sendMessageWithTimeoutContinuationInternal(
       client,
       conversationId,
       text,
-      resumeFirst,
-      runtimeOptions?.onAgentTextSnapshot
+      resumeFirst
     );
     const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
     if (raced.status === "completed") {
@@ -226,8 +219,7 @@ export async function createAndSendFirstMessageWithTimeoutContinuation(
       client,
       conversationId,
       text,
-      false,
-      runtimeOptions?.onAgentTextSnapshot
+      false
     );
     const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
     if (raced.status === "completed") {
@@ -514,8 +506,7 @@ async function runTurn(
   client: AppServerConnection,
   conversationId: string,
   text: string,
-  resumeFirst: boolean,
-  onAgentTextSnapshot?: (snapshot: AgentTextSnapshot) => void
+  resumeFirst: boolean
 ): Promise<string> {
   if (resumeFirst) {
     await client.send("thread/resume", {
@@ -552,17 +543,6 @@ async function runTurn(
 
   const agentSnapshots = new Map<string, string>();
 
-  const emitSnapshot = (snapshot: AgentTextSnapshot): void => {
-    if (!onAgentTextSnapshot) {
-      return;
-    }
-    try {
-      onAgentTextSnapshot(snapshot);
-    } catch {
-      // Snapshot consumers are best-effort and must not break turn handling.
-    }
-  };
-
   const detachNotification = client.onNotification((notification) => {
     const params = asObject(notification.params);
 
@@ -587,7 +567,6 @@ async function runTurn(
         const nextSnapshot = currentSnapshot + delta;
         agentSnapshots.set(itemId, nextSnapshot);
         lastAgentMessage = nextSnapshot;
-        emitSnapshot({ itemId, text: nextSnapshot });
       }
       return;
     }
@@ -611,7 +590,6 @@ async function runTurn(
         lastAgentMessage = text;
         const itemId = getString(item.id) ?? getString(params.itemId) ?? "agent-message";
         agentSnapshots.set(itemId, text);
-        emitSnapshot({ itemId, text });
       }
       return;
     }
