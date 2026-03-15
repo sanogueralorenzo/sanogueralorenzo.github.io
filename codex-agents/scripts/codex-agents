@@ -42,6 +42,7 @@ command_index_by_name() {
 
 init_command_registry() {
   register_command "config" "config init" "Initialize local codex-agents configuration." "command_config"
+  register_command "noninteractive" "noninteractive run|resume|review ..." "Run standardized non-interactive Codex wrappers." "command_noninteractive"
   register_command "task" "task create|list|show ..." "Create/list/show tasks." "command_task"
   register_command "worker" "worker start" "Start autonomous worker loop." "command_worker"
   register_command "help" "help" "Print this help output." "command_help"
@@ -84,6 +85,13 @@ print_command_help_by_index() {
       echo
       echo "Subcommands:"
       echo "  init  Initialize local codex-agents configuration."
+      ;;
+    noninteractive)
+      echo
+      echo "Subcommands:"
+      echo "  run     Start a new codex exec turn with standardized wrapper output."
+      echo "  resume  Resume a codex exec thread with standardized wrapper output."
+      echo "  review  Run codex exec review with standardized wrapper output."
       ;;
     task)
       echo
@@ -182,6 +190,363 @@ command_config() {
 
   echo "Unknown config command. Run: codex-agents help" >&2
   exit 1
+}
+
+print_noninteractive_subcommand_help() {
+  local subcommand="$1"
+  case "$subcommand" in
+    run)
+      cat <<'EOF'
+Usage:
+  codex-agents noninteractive run [wrapper-options] [-- codex-exec-options]
+
+Description:
+  Runs `codex exec --json` with standardized wrapper behavior.
+
+Wrapper options:
+  --prompt <TEXT>        Prompt text
+  --prompt-file <PATH>   Read prompt from file
+  --prompt-stdin         Read prompt from stdin
+  --result-json <PATH>   Write normalized result JSON
+  -o, --output-last-message <PATH>
+                         Persist final message path (forwarded to codex)
+  --raw-jsonl            Print raw codex JSONL events to stdout
+  --emit-events          Mirror parsed JSONL events to stderr
+
+Notes:
+  - Prompt options are mutually exclusive.
+  - Remaining args are forwarded to `codex exec` after wrapper parsing.
+EOF
+      ;;
+    resume)
+      cat <<'EOF'
+Usage:
+  codex-agents noninteractive resume [wrapper-options] [-- codex-exec-resume-options]
+
+Description:
+  Runs `codex exec resume --json` with standardized wrapper behavior.
+
+Wrapper options:
+  --prompt <TEXT>        Prompt text
+  --prompt-file <PATH>   Read prompt from file
+  --prompt-stdin         Read prompt from stdin
+  --result-json <PATH>   Write normalized result JSON
+  -o, --output-last-message <PATH>
+                         Persist final message path (forwarded to codex)
+  --raw-jsonl            Print raw codex JSONL events to stdout
+  --emit-events          Mirror parsed JSONL events to stderr
+
+Notes:
+  - Prompt options are mutually exclusive.
+  - Remaining args are forwarded to `codex exec resume` after wrapper parsing.
+EOF
+      ;;
+    review)
+      cat <<'EOF'
+Usage:
+  codex-agents noninteractive review [wrapper-options] [-- codex-exec-review-options]
+
+Description:
+  Runs `codex exec review --json` with standardized wrapper behavior.
+
+Wrapper options:
+  --prompt <TEXT>        Prompt text
+  --prompt-file <PATH>   Read prompt from file
+  --prompt-stdin         Read prompt from stdin
+  --result-json <PATH>   Write normalized result JSON
+  -o, --output-last-message <PATH>
+                         Persist final message path (forwarded to codex)
+  --raw-jsonl            Print raw codex JSONL events to stdout
+  --emit-events          Mirror parsed JSONL events to stderr
+
+Notes:
+  - Prompt options are mutually exclusive.
+  - Remaining args are forwarded to `codex exec review` after wrapper parsing.
+EOF
+      ;;
+    *)
+      echo "Unknown noninteractive command: $subcommand" >&2
+      exit 1
+      ;;
+  esac
+}
+
+json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "$value"
+}
+
+write_noninteractive_result_json() {
+  local path="$1"
+  local status="$2"
+  local exit_code="$3"
+  local thread_id="$4"
+  local final_message="$5"
+  local stderr_text="$6"
+
+  {
+    echo "{"
+    printf '  "status": "%s",\n' "$(json_escape "$status")"
+    printf '  "exit_code": %s,\n' "$exit_code"
+    if [[ -n "$thread_id" ]]; then
+      printf '  "thread_id": "%s",\n' "$(json_escape "$thread_id")"
+    else
+      echo '  "thread_id": null,'
+    fi
+    printf '  "final_message": "%s",\n' "$(json_escape "$final_message")"
+    printf '  "stderr": "%s"\n' "$(json_escape "$stderr_text")"
+    echo "}"
+  } >"$path"
+}
+
+parse_thread_id_from_events() {
+  local events_file="$1"
+  sed -n 's/.*"thread_id":"\([^"]*\)".*/\1/p' "$events_file" | head -n 1
+}
+
+parse_last_agent_message_from_events() {
+  local events_file="$1"
+  perl -ne '
+    if (/"item":\{.*"type":"agent_message","text":"((?:\\.|[^"\\])*)"/) {
+      $last = $1;
+    }
+    END {
+      print $last if defined $last;
+    }
+  ' "$events_file" \
+    | perl -pe 's/\\n/\n/g; s/\\r/\r/g; s/\\t/\t/g; s/\\"/"/g; s/\\\\/\\/g'
+}
+
+run_noninteractive_wrapper() {
+  local mode="$1"
+  shift
+
+  local prompt_text=""
+  local prompt_file=""
+  local prompt_stdin=0
+  local result_json=""
+  local output_last_message=""
+  local emit_events=0
+  local raw_jsonl=0
+  local passthrough_args=()
+
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      --prompt)
+        if [[ "$#" -lt 2 ]]; then
+          echo "Missing value for --prompt" >&2
+          exit 1
+        fi
+        prompt_text="$2"
+        shift 2
+        ;;
+      --prompt-file)
+        if [[ "$#" -lt 2 ]]; then
+          echo "Missing value for --prompt-file" >&2
+          exit 1
+        fi
+        prompt_file="$2"
+        shift 2
+        ;;
+      --prompt-stdin)
+        prompt_stdin=1
+        shift
+        ;;
+      --result-json)
+        if [[ "$#" -lt 2 ]]; then
+          echo "Missing value for --result-json" >&2
+          exit 1
+        fi
+        result_json="$2"
+        shift 2
+        ;;
+      --output-last-message|-o)
+        if [[ "$#" -lt 2 ]]; then
+          echo "Missing value for $1" >&2
+          exit 1
+        fi
+        output_last_message="$2"
+        shift 2
+        ;;
+      --emit-events)
+        emit_events=1
+        shift
+        ;;
+      --raw-jsonl)
+        raw_jsonl=1
+        shift
+        ;;
+      --)
+        shift
+        while [[ "$#" -gt 0 ]]; do
+          passthrough_args+=("$1")
+          shift
+        done
+        ;;
+      *)
+        passthrough_args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  local prompt_mode_count=0
+  [[ -n "$prompt_text" ]] && prompt_mode_count=$((prompt_mode_count + 1))
+  [[ -n "$prompt_file" ]] && prompt_mode_count=$((prompt_mode_count + 1))
+  [[ "$prompt_stdin" -eq 1 ]] && prompt_mode_count=$((prompt_mode_count + 1))
+  if [[ "$prompt_mode_count" -gt 1 ]]; then
+    echo "Use only one of --prompt, --prompt-file, or --prompt-stdin." >&2
+    exit 1
+  fi
+
+  if [[ -n "$prompt_file" && ! -f "$prompt_file" ]]; then
+    echo "Prompt file not found: $prompt_file" >&2
+    exit 1
+  fi
+
+  if ! command -v codex >/dev/null 2>&1; then
+    echo "Missing 'codex' CLI in PATH." >&2
+    exit 1
+  fi
+
+  local managed_output_last_message=0
+  if [[ -z "$output_last_message" ]]; then
+    output_last_message="$(mktemp -t codex-agents-last-message-XXXXXX.txt)"
+    managed_output_last_message=1
+  fi
+
+  local events_file
+  local stderr_file
+  local stdin_file=""
+  events_file="$(mktemp -t codex-agents-events-XXXXXX.jsonl)"
+  stderr_file="$(mktemp -t codex-agents-stderr-XXXXXX.log)"
+
+  local cleanup_stdin_file=0
+  if [[ "$prompt_stdin" -eq 1 ]]; then
+    stdin_file="$(mktemp -t codex-agents-prompt-XXXXXX.txt)"
+    cat >"$stdin_file"
+    cleanup_stdin_file=1
+  elif [[ -n "$prompt_file" ]]; then
+    stdin_file="$prompt_file"
+  fi
+
+  local command_args=("codex" "exec")
+  case "$mode" in
+    run) ;;
+    resume) command_args+=("resume") ;;
+    review) command_args+=("review") ;;
+    *)
+      echo "Internal error: unsupported mode '$mode'" >&2
+      exit 1
+      ;;
+  esac
+  command_args+=("--json" "--output-last-message" "$output_last_message")
+  if [[ "${#passthrough_args[@]}" -gt 0 ]]; then
+    command_args+=("${passthrough_args[@]}")
+  fi
+
+  if [[ -n "$prompt_text" ]]; then
+    command_args+=("$prompt_text")
+  elif [[ -n "$stdin_file" ]]; then
+    command_args+=("-")
+  fi
+
+  local exit_code
+  set +e
+  if [[ -n "$stdin_file" ]]; then
+    "${command_args[@]}" <"$stdin_file" >"$events_file" 2>"$stderr_file"
+  else
+    "${command_args[@]}" >"$events_file" 2>"$stderr_file"
+  fi
+  exit_code=$?
+  set -e
+
+  local stderr_text=""
+  if [[ -f "$stderr_file" ]]; then
+    stderr_text="$(cat "$stderr_file" 2>/dev/null || true)"
+    if [[ -n "$stderr_text" ]]; then
+      printf "%s" "$stderr_text" >&2
+    fi
+  fi
+
+  if [[ "$emit_events" -eq 1 ]]; then
+    cat "$events_file" >&2
+  fi
+
+  if [[ "$raw_jsonl" -eq 1 ]]; then
+    cat "$events_file"
+  fi
+
+  local final_message=""
+  if [[ "$raw_jsonl" -eq 0 ]]; then
+    final_message="$(cat "$output_last_message" 2>/dev/null || true)"
+    if [[ -z "$final_message" ]]; then
+      final_message="$(parse_last_agent_message_from_events "$events_file" || true)"
+    fi
+    printf "%s" "$final_message"
+  fi
+
+  local thread_id=""
+  thread_id="$(parse_thread_id_from_events "$events_file" || true)"
+
+  if [[ -n "$result_json" ]]; then
+    local status="failed"
+    if [[ "$exit_code" -eq 0 ]]; then
+      status="completed"
+    fi
+    write_noninteractive_result_json \
+      "$result_json" \
+      "$status" \
+      "$exit_code" \
+      "$thread_id" \
+      "$final_message" \
+      "$stderr_text"
+  fi
+
+  rm -f "$events_file" "$stderr_file"
+  if [[ "$cleanup_stdin_file" -eq 1 ]]; then
+    rm -f "$stdin_file"
+  fi
+  if [[ "$managed_output_last_message" -eq 1 ]]; then
+    rm -f "$output_last_message"
+  fi
+
+  if [[ "$exit_code" -ne 0 ]]; then
+    echo "codex exec failed with exit code $exit_code" >&2
+    return "$exit_code"
+  fi
+}
+
+command_noninteractive() {
+  local subcommand="${1:-}"
+  if [[ -z "$subcommand" || "$subcommand" == "--help" || "$subcommand" == "-h" ]]; then
+    print_command_help_by_name "noninteractive"
+    return
+  fi
+  shift
+
+  case "$subcommand" in
+    run|resume|review)
+      if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+        if [[ "$#" -gt 1 ]]; then
+          echo "Unexpected arguments for noninteractive $subcommand --help: ${*:2}" >&2
+          exit 1
+        fi
+        print_noninteractive_subcommand_help "$subcommand"
+        return
+      fi
+      run_noninteractive_wrapper "$subcommand" "$@"
+      ;;
+    *)
+      echo "Unknown noninteractive command: $subcommand" >&2
+      exit 1
+      ;;
+  esac
 }
 
 command_task() {
