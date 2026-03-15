@@ -302,7 +302,7 @@ impl SessionStore {
         Ok(())
     }
 
-    pub fn should_rewrite_thread_title(&self, id: &str) -> Result<bool> {
+    pub fn should_rewrite_thread_title(&self, id: &str, first_user_prompt: &str) -> Result<bool> {
         let Some(path) = self.state_db_path()? else {
             return Ok(false);
         };
@@ -321,7 +321,7 @@ impl SessionStore {
 
         Ok(title
             .as_deref()
-            .map(Self::title_is_rewrite_candidate)
+            .map(|value| Self::title_is_rewrite_candidate(value, first_user_prompt))
             .unwrap_or(false))
     }
 
@@ -347,17 +347,7 @@ impl SessionStore {
         let mut statement = match conn.prepare(
             "SELECT id, updated_at
              FROM threads
-             WHERE (
-               trim(COALESCE(title, '')) = ''
-               OR (
-                 (
-                   length(trim(replace(replace(replace(COALESCE(title, ''), char(10), ' '), char(13), ' '), char(9), ' ')))
-                   - length(replace(trim(replace(replace(replace(COALESCE(title, ''), char(10), ' '), char(13), ' '), char(9), ' ')), ' ', ''))
-                   + 1
-                 ) >= 6
-               )
-             )
-             AND (updated_at > ?1 OR (updated_at = ?1 AND id > ?2))
+             WHERE updated_at > ?1 OR (updated_at = ?1 AND id > ?2)
              ORDER BY updated_at ASC, id ASC
              LIMIT ?3",
         ) {
@@ -381,12 +371,15 @@ impl SessionStore {
         Ok(candidates)
     }
 
-    fn title_is_rewrite_candidate(title: &str) -> bool {
+    fn title_is_rewrite_candidate(title: &str, first_user_prompt: &str) -> bool {
         let trimmed = title.trim();
         if trimmed.is_empty() {
             return true;
         }
-        trimmed.split_whitespace().count() >= 6
+
+        let normalized_title = normalize_title_compare_text(trimmed);
+        let normalized_first_prompt = normalize_title_compare_text(first_user_prompt);
+        !normalized_first_prompt.is_empty() && normalized_title == normalized_first_prompt
     }
 
     fn title_write_lock_path(&self) -> PathBuf {

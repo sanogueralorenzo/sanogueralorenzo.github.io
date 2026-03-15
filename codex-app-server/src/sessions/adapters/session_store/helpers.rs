@@ -204,6 +204,10 @@ fn normalize_optional_string(value: Option<String>) -> Option<String> {
     })
 }
 
+fn normalize_title_compare_text(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 fn source_kind_from_source(source: Option<&str>) -> String {
     let normalized = source
         .map(str::trim)
@@ -412,4 +416,3 @@ fn write_text_file_atomic(path: &Path, contents: &str) -> Result<()> {
 
     result
 }
-

@@ -251,15 +251,24 @@ mod tests {
     }
 
     #[test]
-    fn title_rewrite_candidate_allows_empty_or_six_words() {
-        assert!(SessionStore::title_is_rewrite_candidate(""));
-        assert!(SessionStore::title_is_rewrite_candidate("one two three four five six"));
-        assert!(SessionStore::title_is_rewrite_candidate("  one two three four five six  "));
+    fn title_rewrite_candidate_allows_empty_or_first_prompt_match() {
+        assert!(SessionStore::title_is_rewrite_candidate("", "Any first prompt"));
+        assert!(SessionStore::title_is_rewrite_candidate(
+            "Please summarize this repository layout",
+            "Please summarize this repository layout"
+        ));
+        assert!(SessionStore::title_is_rewrite_candidate(
+            "Please summarize this repository layout",
+            "Please   summarize\nthis repository\tlayout"
+        ));
     }
 
     #[test]
-    fn title_rewrite_candidate_rejects_short_titles() {
-        assert!(!SessionStore::title_is_rewrite_candidate("one two three four five"));
-        assert!(!SessionStore::title_is_rewrite_candidate("simple title"));
+    fn title_rewrite_candidate_rejects_non_matching_prompt() {
+        assert!(!SessionStore::title_is_rewrite_candidate(
+            "Compare assert vs kotest performance",
+            "Compare Mockito vs MockK performance"
+        ));
+        assert!(!SessionStore::title_is_rewrite_candidate("simple title", ""));
     }
 }

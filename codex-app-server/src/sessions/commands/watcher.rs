@@ -232,12 +232,6 @@ impl TitleWatcher {
                 }
             };
 
-            if !store.should_rewrite_thread_title(&candidate.id)? {
-                report.skipped_not_eligible += 1;
-                advance_state();
-                continue;
-            }
-
             let Some(session) = sessions_by_id.get(&candidate.id) else {
                 report.missing += 1;
                 advance_state();
@@ -259,6 +253,12 @@ impl TitleWatcher {
                 continue;
             };
 
+            if !store.should_rewrite_thread_title(&candidate.id, &first_user_prompt)? {
+                report.skipped_not_eligible += 1;
+                advance_state();
+                continue;
+            }
+
             let generated_title = match generate_session_title(session, &first_user_prompt) {
                 Ok(title) => title,
                 Err(error) => {
@@ -272,7 +272,7 @@ impl TitleWatcher {
                 }
             };
 
-            if !store.should_rewrite_thread_title(&candidate.id)? {
+            if !store.should_rewrite_thread_title(&candidate.id, &first_user_prompt)? {
                 report.skipped_not_eligible += 1;
                 advance_state();
                 continue;

@@ -21,7 +21,7 @@ codex-app-server noninteractive run --help
   - `codex-app-server rpc app-server --listen stdio://` is also accepted.
 - Sessions commands:
   - `codex-app-server sessions ...` manages session lifecycle, titles, merge, and cleanup.
-  - Thread-title watcher rewrites titles when empty or when current title has 6+ words.
+  - Thread-title watcher rewrites titles when empty or when current title matches the first user message.
 - Noninteractive wrappers:
   - `codex-app-server noninteractive run` wraps `codex exec --json`.
   - `codex-app-server noninteractive resume` wraps `codex exec resume --json`.
