@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let remoteCLI = CodexRemoteCLIClient()
     let sessionsCLI = CodexSessionsCLIClient()
     let menuDataStore = CodexMenuDataStore()
+    var remoteLaunchPreference = RemoteLaunchPreference.load()
     var autoRemoveSettings = AutoRemoveSettings.load()
     let autoRemoveQueue = DispatchQueue(
         label: "io.github.sanogueralorenzo.codex-menubar.auto-remove",
@@ -57,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         observeMenuDataChanges()
         renderMenu()
         refreshUI()
+        startCodexRemoteIfNeededOnLaunch()
     }
 
     func refreshTitle() {
@@ -137,6 +139,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.observeMenuDataChanges()
             }
         }
+    }
+
+    private func startCodexRemoteIfNeededOnLaunch() {
+        guard remoteLaunchPreference.shouldAutoStart else {
+            return
+        }
+
+        let remoteCLI = self.remoteCLI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                if try remoteCLI.isRunning() {
+                    return
+                }
+                try remoteCLI.start()
+            } catch {
+                fputs("Warning: failed to auto-start codex-remote: \(error)\n", stderr)
+            }
+
+            DispatchQueue.main.async {
+                self?.refreshUI()
+            }
+        }
+    }
+}
+
+struct RemoteLaunchPreference: Equatable {
+    let shouldAutoStart: Bool
+
+    static let disabled = RemoteLaunchPreference(shouldAutoStart: false)
+    static let enabled = RemoteLaunchPreference(shouldAutoStart: true)
+    private static let key = "remote.shouldAutoStart"
+
+    static func load(defaults: UserDefaults = .standard) -> RemoteLaunchPreference {
+        RemoteLaunchPreference(shouldAutoStart: defaults.bool(forKey: key))
+    }
+
+    func save(defaults: UserDefaults = .standard) {
+        defaults.set(shouldAutoStart, forKey: Self.key)
     }
 }
 

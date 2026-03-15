@@ -153,6 +153,8 @@ extension AppDelegate {
             do {
                 try remoteCLI.start()
                 DispatchQueue.main.async {
+                    self.remoteLaunchPreference = .enabled
+                    self.remoteLaunchPreference.save()
                     self.refreshUI()
                 }
             } catch {
@@ -166,6 +168,8 @@ extension AppDelegate {
     @objc func stopCodexRemote(_ sender: Any?) {
         do {
             try remoteCLI.stop()
+            remoteLaunchPreference = .disabled
+            remoteLaunchPreference.save()
             refreshUI()
         } catch {
             showError(error)

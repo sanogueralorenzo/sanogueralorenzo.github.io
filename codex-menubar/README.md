@@ -19,10 +19,13 @@
 
 - Launch starts `codex-auth watch start`.
 - Launch starts `codex-sessions watch thread-titles start`.
+- Launch starts `codex-remote start --plain` only when remote auto-start has been enabled by a prior successful `Remote -> Start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.
 - Launch agent executable path prefers `/Applications/Codex Menu Bar.app` when available.
 - Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
+- `Remote -> Start` enables remote auto-start for future app launches.
+- `Remote -> Stop` disables remote auto-start for future app launches.
 - `Agents` includes a `View` submenu that combines running + recent tasks.
 - In `Agents -> View`, recent task labels are prefixed by status: `•` in progress, `✓` completed, `X` failed.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
