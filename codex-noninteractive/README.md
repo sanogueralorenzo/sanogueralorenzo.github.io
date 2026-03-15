@@ -8,6 +8,31 @@
 ./scripts/install.sh
 ```
 
+## Auth Modes
+
+Use one of these two auth paths depending on where you run:
+
+| Mode | Use this when | Setup |
+| --- | --- | --- |
+| Codex subscription login | Local/dev machine with your Codex account session | `codex login` |
+| API key (`CODEX_API_KEY`) | CI/headless automation or ephemeral machines | `export CODEX_API_KEY="<your-openai-api-key>"` |
+
+### Local Subscription Auth (Recommended for local runs)
+
+```shell
+unset CODEX_API_KEY OPENAI_API_KEY
+codex login
+codex login status
+codex-noninteractive run --prompt "Reply with exactly OK"
+```
+
+### API Key Auth (Recommended for CI)
+
+```shell
+export CODEX_API_KEY="<your-openai-api-key>"
+codex-noninteractive run --prompt "Reply with exactly OK"
+```
+
 ## Reference
 
 ### CLI
@@ -42,6 +67,7 @@ help    Print this message or the help of the given subcommand(s)
 ### CI Auth
 
 - `codex exec` supports headless auth with `CODEX_API_KEY`.
+- This is the preferred path for CI runners.
 - Example:
 
 ```shell
