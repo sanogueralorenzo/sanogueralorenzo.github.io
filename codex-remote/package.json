@@ -9,7 +9,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/node": "^25.3.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }
