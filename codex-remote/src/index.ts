@@ -52,6 +52,7 @@ const lastListedFolderChoices = new Map<string, ListedFolderChoice[]>();
 
 const DEFAULT_THREADS_LIMIT = 25;
 const APPROVAL_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+const TYPING_KEEPALIVE_INTERVAL_MS = 4000;
 
 const threadActions = createThreadActions({
   codexHome,
@@ -130,20 +131,22 @@ registerBotHandlers(bot, {
   },
   onPrompt: async (ctx, chatId, text) => {
     await withChatLock(chatId, async () => {
-      await ctx.api.sendChatAction(ctx.chat.id, "typing");
-      await promptRunner.runPromptThroughCodex(ctx, chatId, text);
+      await withTypingKeepalive(ctx as PromptContext, async () => {
+        await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, text);
+      });
     });
   },
   onVoice: async (ctx, chatId) => {
     await withChatLock(chatId, async () => {
-      await ctx.api.sendChatAction(ctx.chat.id, "typing");
-      try {
-        const transcript = await voiceService.transcribeVoiceMessage(ctx as PromptContext);
-        await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, transcript);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        await ctx.reply(formatFailure("Voice transcription failed.", message));
-      }
+      await withTypingKeepalive(ctx as PromptContext, async () => {
+        try {
+          const transcript = await voiceService.transcribeVoiceMessage(ctx as PromptContext);
+          await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, transcript);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          await ctx.reply(formatFailure("Voice transcription failed.", message));
+        }
+      });
     });
   },
 });
@@ -198,6 +201,30 @@ function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
   });
+}
+
+async function withTypingKeepalive<T>(
+  ctx: PromptContext,
+  run: () => Promise<T>
+): Promise<T> {
+  const sendTyping = async () => {
+    try {
+      await ctx.api.sendChatAction(ctx.chat.id, "typing");
+    } catch {
+      // Ignore transient chat-action failures; request flow should continue.
+    }
+  };
+
+  await sendTyping();
+  const interval = setInterval(() => {
+    void sendTyping();
+  }, TYPING_KEEPALIVE_INTERVAL_MS);
+
+  try {
+    return await run();
+  } finally {
+    clearInterval(interval);
+  }
 }
 
 function getConversationOptions(): {
