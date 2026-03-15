@@ -48,15 +48,9 @@ help     Print this help output.
 
 ### Draft Streaming
 
-- Agent text snapshots are streamed through Telegram drafts.
-- Each turn reuses a single draft id, so draft updates animate in place.
-- Snapshot sends are serialized in app-server arrival order, so the latest snapshot is sent last.
-- Completed turn output is always sent as a normal Telegram message (never draft-only).
-- After final output is sent, the streamer performs a best-effort draft clear (`sendMessageDraft` empty-text, then invisible-char fallback for strict validators).
-- Snapshots are stabilized before send (prefer paragraph/line/sentence boundaries and closed code fences) and initial preview waits for a minimum stable chunk to reduce transient malformed formatting.
-- Draft previews cap at 800 chars for readability; final output still sends complete text via normal Telegram messages.
-- Draft streaming internals follow OpenClaw-aligned file layout:
-  `draft-chunking.ts`, `draft-stream-loop.ts`, `draft-stream-controls.ts`, `draft-stream.ts`.
+- Draft streaming is disabled by default (`enableDraftStreaming = false` in `src/index.ts`).
+- The bot sends normal Telegram messages for completed output.
+- For long-running turns, the bot sends one status line (`Still working, I will send a message when ready`) and then posts the final result when ready.
 
 ### Thread Delete Behavior
 
