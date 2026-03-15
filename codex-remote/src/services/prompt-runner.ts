@@ -177,6 +177,11 @@ type TurnProgressReporter = {
   flush: () => Promise<void>;
 };
 
+type ResolvedSubagentThread = {
+  title: string;
+  source: string | null;
+};
+
 function createTurnProgressReporter(
   ctx: PromptContext,
   resolveThreadTitle: (threadId: string) => Promise<string>
@@ -220,8 +225,11 @@ function createTurnProgressReporter(
     announcedSubagentThreads.add(threadId);
     sendQueue = sendQueue
       .then(async () => {
-        const title = await resolveSubagentTitle(threadId, resolveThreadTitle);
-        await postMessage(`Sub-agent thread: ${title} (${threadId})`);
+        const thread = await resolveSubagentThread(threadId, resolveThreadTitle);
+        if (shouldSuppressSubagentAnnouncement(thread)) {
+          return;
+        }
+        await postMessage(`Sub-agent thread: ${thread.title} (${threadId})`);
       })
       .catch(() => undefined);
   };
@@ -323,14 +331,19 @@ function createTurnProgressReporter(
   };
 }
 
-async function resolveSubagentTitle(
+async function resolveSubagentThread(
   threadId: string,
   resolveThreadTitle: (threadId: string) => Promise<string>
-): Promise<string> {
+): Promise<ResolvedSubagentThread> {
   try {
     const title = await resolveThreadTitle(threadId);
-    if (title.trim().length > 0) {
-      return title.trim();
+    const normalizedTitle = title.trim();
+    if (normalizedTitle.length > 0) {
+      const thread = await readThreadById(threadId);
+      return {
+        title: normalizedTitle,
+        source: thread?.source?.trim() ? thread.source.trim() : null
+      };
     }
   } catch {
     // Ignore and fallback.
@@ -339,16 +352,46 @@ async function resolveSubagentTitle(
   try {
     const thread = await readThreadById(threadId);
     if (thread?.preview?.trim()) {
-      return thread.preview.trim();
+      return {
+        title: thread.preview.trim(),
+        source: thread.source?.trim() ? thread.source.trim() : null
+      };
     }
     if (thread?.source?.trim()) {
-      return `${thread.source.trim()} thread`;
+      return {
+        title: `${thread.source.trim()} thread`,
+        source: thread.source.trim()
+      };
     }
   } catch {
     // Ignore and fallback.
   }
 
-  return "Untitled";
+  return {
+    title: "Untitled",
+    source: null
+  };
+}
+
+function shouldSuppressSubagentAnnouncement(thread: ResolvedSubagentThread): boolean {
+  const normalizedTitle = normalizeSuppressionText(thread.title);
+  const normalizedSource = normalizeSuppressionText(thread.source ?? "");
+
+  if (normalizedTitle === "summarize in one line") {
+    return true;
+  }
+  if (normalizedSource.includes("subagentreview") || normalizedSource.includes("subagent:review")) {
+    return true;
+  }
+  return false;
+}
+
+function normalizeSuppressionText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9:\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function truncateProgressText(text: string | null, maxLength: number): string | null {
