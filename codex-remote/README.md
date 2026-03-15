@@ -48,6 +48,7 @@ help     Print this help output.
 
 - Agent text snapshots are streamed through Telegram drafts.
 - Each streamed snapshot uses a new draft id, so newly streamed text does not overwrite earlier draft messages.
+- Snapshot sends are serialized in app-server arrival order, so the latest snapshot is sent last.
 
 ### Thread Delete Behavior
 

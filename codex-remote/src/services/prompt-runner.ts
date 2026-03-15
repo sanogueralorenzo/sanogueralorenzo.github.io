@@ -175,34 +175,23 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
   stop: (flushPending: boolean) => Promise<void>;
   shouldSuppressFinalOutput: (text: string) => boolean;
 } {
-  const streamersByItemId = new Map<string, TelegramDraftStreamer>();
   const usedDraftIds = new Set<number>();
   const turnSeed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const messageThreadId = getMessageThreadId(ctx);
-  let latestAgentItemId: string | null = null;
+  let draftSequence = 0;
   let latestDeliveredDraft: string | null = null;
 
-  const getOrCreateStreamer = (itemId: string): TelegramDraftStreamer => {
-    const existing = streamersByItemId.get(itemId);
-    if (existing) {
-      return existing;
-    }
-
-    let sendSequence = 0;
-    const streamer = createTelegramDraftStreamer({
-      enabled,
-      throttleMs,
-      sendDraft: (snapshot) =>
-        ctx.api.sendMessageDraft(
-          ctx.chat.id,
-          allocateDraftId(`${turnSeed}:${itemId}:${sendSequence++}`, usedDraftIds),
-          snapshot,
-          messageThreadId === null ? undefined : { message_thread_id: messageThreadId }
-        )
-    });
-    streamersByItemId.set(itemId, streamer);
-    return streamer;
-  };
+  const streamer = createTelegramDraftStreamer({
+    enabled,
+    throttleMs,
+    sendDraft: (snapshot) =>
+      ctx.api.sendMessageDraft(
+        ctx.chat.id,
+        allocateDraftId(`${turnSeed}:${draftSequence++}`, usedDraftIds),
+        snapshot,
+        messageThreadId === null ? undefined : { message_thread_id: messageThreadId }
+      )
+  });
 
   return {
     pushSnapshot: (snapshot: AgentTextSnapshot): void => {
@@ -210,20 +199,15 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
       if (!itemId) {
         return;
       }
-      latestAgentItemId = itemId;
-      getOrCreateStreamer(itemId).pushSnapshot(snapshot.text);
+      streamer.pushSnapshot(snapshot.text);
     },
     stop: async (flushPending: boolean): Promise<void> => {
-      for (const streamer of streamersByItemId.values()) {
-        await streamer.stop(flushPending);
-      }
-
-      if (!flushPending || !latestAgentItemId) {
+      await streamer.stop(flushPending);
+      if (!flushPending) {
         latestDeliveredDraft = null;
         return;
       }
-
-      const latestText = streamersByItemId.get(latestAgentItemId)?.lastDeliveredDraft()?.trim();
+      const latestText = streamer.lastDeliveredDraft()?.trim();
       latestDeliveredDraft = latestText && latestText.length > 0 ? latestText : null;
     },
     shouldSuppressFinalOutput: (text: string): boolean => {
