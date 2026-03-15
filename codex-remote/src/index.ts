@@ -131,14 +131,14 @@ registerBotHandlers(bot, {
   },
   onPrompt: async (ctx, chatId, text) => {
     await withChatLock(chatId, async () => {
-      await withTypingKeepalive(ctx as PromptContext, async () => {
+      await withTelegramTypingKeepAlive(ctx as PromptContext, async () => {
         await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, text);
       });
     });
   },
   onVoice: async (ctx, chatId) => {
     await withChatLock(chatId, async () => {
-      await withTypingKeepalive(ctx as PromptContext, async () => {
+      await withTelegramTypingKeepAlive(ctx as PromptContext, async () => {
         try {
           const transcript = await voiceService.transcribeVoiceMessage(ctx as PromptContext);
           await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, transcript);
@@ -203,7 +203,7 @@ function delay(milliseconds: number): Promise<void> {
   });
 }
 
-async function withTypingKeepalive<T>(
+async function withTelegramTypingKeepAlive<T>(
   ctx: PromptContext,
   run: () => Promise<T>
 ): Promise<T> {
