@@ -13,6 +13,7 @@ export type TelegramDraftStreamer = {
 
 const DEFAULT_MAX_DRAFT_LENGTH = 4096;
 const OVERFLOW_PREFIX = "...";
+const MIN_STABLE_BOUNDARY_OFFSET = 64;
 
 export function createTelegramDraftStreamer(options: DraftStreamerOptions): TelegramDraftStreamer {
   if (!options.enabled) {
@@ -73,7 +74,7 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
         return;
       }
 
-      const normalized = normalizeSnapshot(text, maxLength);
+      const normalized = normalizeSnapshot(stabilizeSnapshot(text), maxLength);
       if (!normalized || normalized === pendingSnapshot || normalized === lastSentSnapshot) {
         return;
       }
@@ -112,4 +113,33 @@ function normalizeSnapshot(text: string, maxLength: number): string {
 
   const keepLength = Math.max(1, maxLength - OVERFLOW_PREFIX.length);
   return `${OVERFLOW_PREFIX}${text.slice(-keepLength)}`;
+}
+
+function stabilizeSnapshot(text: string): string {
+  const normalized = text.replaceAll("\r\n", "\n");
+  if (!normalized) {
+    return normalized;
+  }
+
+  const completeLineIndex = normalized.lastIndexOf("\n");
+  if (completeLineIndex >= MIN_STABLE_BOUNDARY_OFFSET) {
+    return normalized.slice(0, completeLineIndex);
+  }
+
+  const sentenceEndIndex = findLastSentenceBoundary(normalized);
+  if (sentenceEndIndex >= MIN_STABLE_BOUNDARY_OFFSET) {
+    return normalized.slice(0, sentenceEndIndex + 1);
+  }
+
+  return normalized;
+}
+
+function findLastSentenceBoundary(text: string): number {
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    const char = text[index];
+    if (char === "." || char === "!" || char === "?" || char === ";") {
+      return index;
+    }
+  }
+  return -1;
 }

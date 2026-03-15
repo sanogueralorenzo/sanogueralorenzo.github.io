@@ -11,7 +11,7 @@ import {
 import { BindingStore } from "../adapters/binding-store.js";
 import { formatFailure } from "../bot/messages.js";
 import { PromptContext } from "../bot/context.js";
-import { createTelegramDraftStreamer, TelegramDraftStreamer } from "./telegram-draft-streamer.js";
+import { createTelegramDraftStreamer } from "./telegram-draft-streamer.js";
 
 type ConversationOptions = {
   cwd: string;
@@ -55,7 +55,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     };
     const finalizeTurn = async (turn: TimedTurnLike, delayedIntro = "Delayed:"): Promise<void> => {
       await draftSession.stop(true);
-      await replyFromTimedTurn(ctx, turn, delayedIntro, draftSession.shouldSuppressFinalOutput);
+      await replyFromTimedTurn(ctx, turn, delayedIntro);
     };
 
     try {
@@ -95,7 +95,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         return;
       } catch {
         await draftSession.stop(true);
-        await recoverFromUnavailableThread(ctx, chatId, text, runtimeOptions, draftSession.shouldSuppressFinalOutput);
+        await recoverFromUnavailableThread(ctx, chatId, text, runtimeOptions);
         return;
       }
     } catch (error) {
@@ -108,11 +108,10 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
   async function replyFromTimedTurn(
     ctx: PromptContext,
     turn: TimedTurnLike,
-    delayedIntro = "Delayed:",
-    shouldSuppressFinalOutput: (text: string) => boolean
+    delayedIntro = "Delayed:"
   ): Promise<void> {
     if (turn.status === "completed") {
-      await replyCompletedOutput(ctx, turn.response, shouldSuppressFinalOutput);
+      await replyCompletedOutput(ctx, turn.response);
       return;
     }
 
@@ -127,8 +126,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     runtimeOptions: {
       approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
       onAgentTextSnapshot: (snapshot: AgentTextSnapshot) => void;
-    },
-    shouldSuppressFinalOutput: (text: string) => boolean
+    }
   ): Promise<void> {
     const options = deps.getConversationOptions();
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
@@ -136,7 +134,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
     const title = await deps.resolveThreadTitle(initialized.conversationId);
     if (initialized.status === "completed") {
-      await replyCompletedOutput(ctx, initialized.response, shouldSuppressFinalOutput);
+      await replyCompletedOutput(ctx, initialized.response);
       return;
     }
 
@@ -173,13 +171,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: number): {
   pushSnapshot: (snapshot: AgentTextSnapshot) => void;
   stop: (flushPending: boolean) => Promise<void>;
-  shouldSuppressFinalOutput: (text: string) => boolean;
 } {
   const usedDraftIds = new Set<number>();
   const turnSeed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const messageThreadId = getMessageThreadId(ctx);
   let draftSequence = 0;
-  let latestDeliveredDraft: string | null = null;
 
   const streamer = createTelegramDraftStreamer({
     enabled,
@@ -203,29 +199,12 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
     },
     stop: async (flushPending: boolean): Promise<void> => {
       await streamer.stop(flushPending);
-      if (!flushPending) {
-        latestDeliveredDraft = null;
-        return;
-      }
-      const latestText = streamer.lastDeliveredDraft()?.trim();
-      latestDeliveredDraft = latestText && latestText.length > 0 ? latestText : null;
-    },
-    shouldSuppressFinalOutput: (text: string): boolean => {
-      const normalized = text.trim();
-      return normalized.length > 0 && latestDeliveredDraft !== null && normalized === latestDeliveredDraft;
     }
   };
 }
 
-async function replyCompletedOutput(
-  ctx: PromptContext,
-  response: string,
-  shouldSuppressFinalOutput: (text: string) => boolean
-): Promise<void> {
+async function replyCompletedOutput(ctx: PromptContext, response: string): Promise<void> {
   const output = response || "(Empty Codex response)";
-  if (shouldSuppressFinalOutput(output)) {
-    return;
-  }
   await sendTextChunks((message) => ctx.reply(message), output);
 }
 
