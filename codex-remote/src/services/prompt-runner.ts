@@ -172,10 +172,9 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
   pushSnapshot: (snapshot: AgentTextSnapshot) => void;
   stop: (flushPending: boolean) => Promise<void>;
 } {
-  const usedDraftIds = new Set<number>();
   const turnSeed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const draftId = allocateDraftId(turnSeed);
   const messageThreadId = getMessageThreadId(ctx);
-  let draftSequence = 0;
 
   const streamer = createTelegramDraftStreamer({
     enabled,
@@ -183,7 +182,7 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
     sendDraft: (snapshot) =>
       ctx.api.sendMessageDraft(
         ctx.chat.id,
-        allocateDraftId(`${turnSeed}:${draftSequence++}`, usedDraftIds),
+        draftId,
         snapshot,
         messageThreadId === null ? undefined : { message_thread_id: messageThreadId }
       )
@@ -261,18 +260,11 @@ function getMessageThreadId(ctx: PromptContext): number | null {
   return typeof threadId === "number" ? threadId : null;
 }
 
-function allocateDraftId(seed: string, usedDraftIds: Set<number>): number {
+function allocateDraftId(seed: string): number {
   let hash = 2166136261;
   for (let index = 0; index < seed.length; index += 1) {
     hash ^= seed.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-
-  let candidate = (hash >>> 1) || 1;
-  while (usedDraftIds.has(candidate)) {
-    candidate = candidate >= 2_147_483_646 ? 1 : candidate + 1;
-  }
-
-  usedDraftIds.add(candidate);
-  return candidate;
+  return (hash >>> 1) || 1;
 }

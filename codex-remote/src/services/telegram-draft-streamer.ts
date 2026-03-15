@@ -14,6 +14,8 @@ export type TelegramDraftStreamer = {
 const DEFAULT_MAX_DRAFT_LENGTH = 4096;
 const OVERFLOW_PREFIX = "...";
 const MIN_STABLE_BOUNDARY_OFFSET = 64;
+const MIN_PROGRESS_DELTA = 48;
+const CODE_FENCE = "```";
 
 export function createTelegramDraftStreamer(options: DraftStreamerOptions): TelegramDraftStreamer {
   if (!options.enabled) {
@@ -79,6 +81,10 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
         return;
       }
 
+      if (isMinorIncrement(normalized, lastSentSnapshot)) {
+        return;
+      }
+
       pendingSnapshot = normalized;
       if (!hasQueuedInitialSnapshot) {
         hasQueuedInitialSnapshot = true;
@@ -121,17 +127,36 @@ function stabilizeSnapshot(text: string): string {
     return normalized;
   }
 
-  const completeLineIndex = normalized.lastIndexOf("\n");
-  if (completeLineIndex >= MIN_STABLE_BOUNDARY_OFFSET) {
-    return normalized.slice(0, completeLineIndex);
+  const stableBoundary = findStableBoundary(normalized);
+  const clipped =
+    stableBoundary >= MIN_STABLE_BOUNDARY_OFFSET
+      ? normalized.slice(0, stableBoundary)
+      : normalized;
+  return removeUnclosedCodeFence(clipped);
+}
+
+function findStableBoundary(text: string): number {
+  const paragraphBreak = text.lastIndexOf("\n\n");
+  if (paragraphBreak >= 0) {
+    return paragraphBreak + 2;
   }
 
-  const sentenceEndIndex = findLastSentenceBoundary(normalized);
-  if (sentenceEndIndex >= MIN_STABLE_BOUNDARY_OFFSET) {
-    return normalized.slice(0, sentenceEndIndex + 1);
+  const completeLine = text.lastIndexOf("\n");
+  if (completeLine >= 0) {
+    return completeLine + 1;
   }
 
-  return normalized;
+  const sentenceEnd = findLastSentenceBoundary(text);
+  if (sentenceEnd >= 0) {
+    return sentenceEnd + 1;
+  }
+
+  const wordBreak = text.lastIndexOf(" ");
+  if (wordBreak >= 0) {
+    return wordBreak + 1;
+  }
+
+  return -1;
 }
 
 function findLastSentenceBoundary(text: string): number {
@@ -142,4 +167,48 @@ function findLastSentenceBoundary(text: string): number {
     }
   }
   return -1;
+}
+
+function removeUnclosedCodeFence(text: string): string {
+  const fenceCount = countOccurrences(text, CODE_FENCE);
+  if (fenceCount % 2 === 0) {
+    return text;
+  }
+
+  const lastFenceIndex = text.lastIndexOf(CODE_FENCE);
+  if (lastFenceIndex <= 0) {
+    return text;
+  }
+
+  return text.slice(0, lastFenceIndex).trimEnd();
+}
+
+function countOccurrences(text: string, needle: string): number {
+  if (!needle) {
+    return 0;
+  }
+
+  let count = 0;
+  let startIndex = 0;
+  while (startIndex <= text.length - needle.length) {
+    const index = text.indexOf(needle, startIndex);
+    if (index < 0) {
+      break;
+    }
+    count += 1;
+    startIndex = index + needle.length;
+  }
+  return count;
+}
+
+function isMinorIncrement(nextSnapshot: string, previousSnapshot: string | null): boolean {
+  if (!previousSnapshot) {
+    return false;
+  }
+
+  if (!nextSnapshot.startsWith(previousSnapshot)) {
+    return false;
+  }
+
+  return nextSnapshot.length - previousSnapshot.length < MIN_PROGRESS_DELTA;
 }
