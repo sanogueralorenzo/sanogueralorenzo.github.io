@@ -249,4 +249,17 @@ mod tests {
 
         let _ = fs::remove_dir_all(temp_root);
     }
+
+    #[test]
+    fn title_rewrite_candidate_allows_empty_or_six_words() {
+        assert!(SessionStore::title_is_rewrite_candidate(""));
+        assert!(SessionStore::title_is_rewrite_candidate("one two three four five six"));
+        assert!(SessionStore::title_is_rewrite_candidate("  one two three four five six  "));
+    }
+
+    #[test]
+    fn title_rewrite_candidate_rejects_short_titles() {
+        assert!(!SessionStore::title_is_rewrite_candidate("one two three four five"));
+        assert!(!SessionStore::title_is_rewrite_candidate("simple title"));
+    }
 }

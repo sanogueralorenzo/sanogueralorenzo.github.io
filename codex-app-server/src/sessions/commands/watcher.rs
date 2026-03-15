@@ -68,7 +68,7 @@ struct TitleWatcherState {
 struct TitleWatcherCycleReport {
     scanned: usize,
     generated: usize,
-    skipped_non_empty: usize,
+    skipped_not_eligible: usize,
     skipped_not_ready: usize,
     missing: usize,
     errors: usize,
@@ -175,10 +175,10 @@ impl TitleWatcher {
             let report = self.process_cycle(&store, &mut state)?;
             self.save_state(&state)?;
             eprintln!(
-                "[codex-app-server:watch-thread-titles] scanned={} generated={} skipped_non_empty={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
+                "[codex-app-server:watch-thread-titles] scanned={} generated={} skipped_not_eligible={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
                 report.scanned,
                 report.generated,
-                report.skipped_non_empty,
+                report.skipped_not_eligible,
                 report.skipped_not_ready,
                 report.missing,
                 report.errors,
@@ -205,7 +205,7 @@ impl TitleWatcher {
         state: &mut TitleWatcherState,
     ) -> Result<TitleWatcherCycleReport> {
         let mut report = TitleWatcherCycleReport::default();
-        let candidates = store.list_untitled_thread_candidates(
+        let candidates = store.list_title_rewrite_candidates(
             state.last_updated_at,
             state.last_id.as_deref(),
             WATCH_TITLE_BATCH_LIMIT,
@@ -232,8 +232,8 @@ impl TitleWatcher {
                 }
             };
 
-            if store.has_non_empty_thread_title(&candidate.id)? {
-                report.skipped_non_empty += 1;
+            if !store.should_rewrite_thread_title(&candidate.id)? {
+                report.skipped_not_eligible += 1;
                 advance_state();
                 continue;
             }
@@ -272,8 +272,8 @@ impl TitleWatcher {
                 }
             };
 
-            if store.has_non_empty_thread_title(&candidate.id)? {
-                report.skipped_non_empty += 1;
+            if !store.should_rewrite_thread_title(&candidate.id)? {
+                report.skipped_not_eligible += 1;
                 advance_state();
                 continue;
             }

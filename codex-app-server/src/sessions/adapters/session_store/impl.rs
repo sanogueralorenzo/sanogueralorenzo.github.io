@@ -302,7 +302,7 @@ impl SessionStore {
         Ok(())
     }
 
-    pub fn has_non_empty_thread_title(&self, id: &str) -> Result<bool> {
+    pub fn should_rewrite_thread_title(&self, id: &str) -> Result<bool> {
         let Some(path) = self.state_db_path()? else {
             return Ok(false);
         };
@@ -321,12 +321,11 @@ impl SessionStore {
 
         Ok(title
             .as_deref()
-            .map(str::trim)
-            .map(|value| !value.is_empty())
+            .map(Self::title_is_rewrite_candidate)
             .unwrap_or(false))
     }
 
-    pub fn list_untitled_thread_candidates(
+    pub fn list_title_rewrite_candidates(
         &self,
         after_updated_at: Option<i64>,
         after_id: Option<&str>,
@@ -348,8 +347,17 @@ impl SessionStore {
         let mut statement = match conn.prepare(
             "SELECT id, updated_at
              FROM threads
-             WHERE trim(COALESCE(title, '')) = ''
-               AND (updated_at > ?1 OR (updated_at = ?1 AND id > ?2))
+             WHERE (
+               trim(COALESCE(title, '')) = ''
+               OR (
+                 (
+                   length(trim(replace(replace(replace(COALESCE(title, ''), char(10), ' '), char(13), ' '), char(9), ' ')))
+                   - length(replace(trim(replace(replace(replace(COALESCE(title, ''), char(10), ' '), char(13), ' '), char(9), ' ')), ' ', ''))
+                   + 1
+                 ) >= 6
+               )
+             )
+             AND (updated_at > ?1 OR (updated_at = ?1 AND id > ?2))
              ORDER BY updated_at ASC, id ASC
              LIMIT ?3",
         ) {
@@ -371,6 +379,14 @@ impl SessionStore {
         }
 
         Ok(candidates)
+    }
+
+    fn title_is_rewrite_candidate(title: &str) -> bool {
+        let trimmed = title.trim();
+        if trimmed.is_empty() {
+            return true;
+        }
+        trimmed.split_whitespace().count() >= 6
     }
 
     fn title_write_lock_path(&self) -> PathBuf {
