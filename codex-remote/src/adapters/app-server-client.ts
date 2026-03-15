@@ -71,7 +71,6 @@ export type TurnProgressEvent =
       status: string | null;
       command: string | null;
       output: string | null;
-      subagentThreadIds: string[];
     }
   | {
       kind: "reasoningDelta" | "planDelta" | "agentDelta" | "commandOutputDelta";
@@ -149,16 +148,6 @@ export async function listThreads(limit: number): Promise<ThreadSummary[]> {
 
 export async function findThreadById(threadId: string, maxToScan = 500): Promise<ThreadSummary | null> {
   return withAppServer(async (client) => {
-    return findThreadByIdOnClient(client, threadId, maxToScan);
-  });
-}
-
-export async function readThreadById(threadId: string, maxToScan = 500): Promise<ThreadSummary | null> {
-  return withAppServer(async (client) => {
-    const readResult = await tryReadThreadByIdOnClient(client, threadId);
-    if (readResult) {
-      return readResult;
-    }
     return findThreadByIdOnClient(client, threadId, maxToScan);
   });
 }
@@ -669,8 +658,7 @@ async function runTurn(
         text,
         status: extractItemStatus(item),
         command: extractCommandText(item),
-        output: extractItemOutput(item),
-        subagentThreadIds: extractSubagentThreadIds(item, conversationId)
+        output: extractItemOutput(item)
       });
       return;
     }
@@ -795,39 +783,6 @@ async function findThreadByIdOnClient(
   }
 
   return null;
-}
-
-async function tryReadThreadByIdOnClient(client: AppServerConnection, threadId: string): Promise<ThreadSummary | null> {
-  try {
-    const result = await client.send("thread/read", { threadId });
-    const thread = parseThreadFromRead(result);
-    if (thread && thread.id === threadId) {
-      return thread;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function parseThreadFromRead(result: unknown): ThreadSummary | null {
-  const thread = asObject(asObject(result).thread);
-  const id = getString(thread.id);
-  const cwd = getString(thread.cwd);
-  const createdAt = getNumber(thread.createdAt);
-  const updatedAt = getNumber(thread.updatedAt);
-  if (!id || !cwd || createdAt === null || updatedAt === null) {
-    return null;
-  }
-  return {
-    id,
-    cwd,
-    preview: getString(thread.preview) ?? "",
-    createdAt,
-    updatedAt,
-    path: getString(thread.path),
-    source: normalizeSource(thread.source)
-  };
 }
 
 function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextCursor: string | null } {
@@ -1070,43 +1025,6 @@ function extractItemOutput(item: Record<string, unknown>): string | null {
 
 function extractItemText(item: Record<string, unknown>): string | null {
   return getString(item.text) ?? getString(item.summary);
-}
-
-function extractSubagentThreadIds(item: Record<string, unknown>, parentThreadId: string): string[] {
-  if (normalizeItemType(getString(item.type)) !== "collabToolCall") {
-    return [];
-  }
-  const found = new Set<string>();
-  collectThreadIds(item, found);
-  found.delete(parentThreadId);
-  return Array.from(found);
-}
-
-function collectThreadIds(value: unknown, found: Set<string>): void {
-  if (typeof value === "string") {
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      collectThreadIds(entry, found);
-    }
-    return;
-  }
-  if (!value || typeof value !== "object") {
-    return;
-  }
-  const objectValue = value as Record<string, unknown>;
-  for (const [key, child] of Object.entries(objectValue)) {
-    const normalizedKey = normalizeTextToken(key);
-    if (typeof child === "string" && normalizedKey.includes("threadid")) {
-      const threadId = child.trim();
-      if (threadId.length > 0) {
-        found.add(threadId);
-      }
-    } else {
-      collectThreadIds(child, found);
-    }
-  }
 }
 
 function normalizeTextToken(value: string | null): string {

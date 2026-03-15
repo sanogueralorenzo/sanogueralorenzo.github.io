@@ -5,7 +5,6 @@ import {
   SandboxMode,
   TurnProgressEvent,
   createAndSendFirstMessageWithTimeoutContinuation,
-  readThreadById,
   sendMessageWithoutResumeWithTimeoutContinuation,
   sendMessageWithTimeoutContinuation
 } from "../adapters/app-server-client.js";
@@ -43,7 +42,7 @@ const TELEGRAM_MESSAGE_CHUNK = 3900;
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
   async function runPromptThroughCodex(ctx: PromptContext, chatId: string, text: string): Promise<void> {
-    const progressReporter = createTurnProgressReporter(ctx, deps.resolveThreadTitle);
+    const progressReporter = createTurnProgressReporter(ctx);
     const threadId = await deps.store.get(chatId);
     const runtimeOptions = {
       approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
@@ -177,18 +176,9 @@ type TurnProgressReporter = {
   flush: () => Promise<void>;
 };
 
-type ResolvedSubagentThread = {
-  title: string;
-  source: string | null;
-};
-
-function createTurnProgressReporter(
-  ctx: PromptContext,
-  resolveThreadTitle: (threadId: string) => Promise<string>
-): TurnProgressReporter {
+function createTurnProgressReporter(ctx: PromptContext): TurnProgressReporter {
   const startedItems = new Set<string>();
   const completedItems = new Set<string>();
-  const announcedSubagentThreads = new Set<string>();
   const throttleState = new Map<string, { sentAtMs: number; text: string }>();
   const postMessage = (text: string) => sendTextChunks((message) => ctx.api.sendMessage(ctx.chat.id, message), text);
   let sendQueue: Promise<void> = Promise.resolve();
@@ -218,22 +208,6 @@ function createTurnProgressReporter(
     enqueue(text);
   };
 
-  const announceSubagentThread = (threadId: string): void => {
-    if (announcedSubagentThreads.has(threadId)) {
-      return;
-    }
-    announcedSubagentThreads.add(threadId);
-    sendQueue = sendQueue
-      .then(async () => {
-        const thread = await resolveSubagentThread(threadId, resolveThreadTitle);
-        if (shouldSuppressSubagentAnnouncement(thread)) {
-          return;
-        }
-        await postMessage(`Sub-agent thread: ${thread.title} (${threadId})`);
-      })
-      .catch(() => undefined);
-  };
-
   const onTurnEvent = (event: TurnProgressEvent): void => {
     if (event.kind === "itemStarted") {
       const key = `${event.itemType}:${event.itemId}`;
@@ -259,9 +233,6 @@ function createTurnProgressReporter(
         }
         return;
       }
-      if (event.itemType === "collabToolCall") {
-        enqueue("Starting sub-agent task…");
-      }
       return;
     }
 
@@ -286,16 +257,6 @@ function createTurnProgressReporter(
         }
         enqueue(message);
         return;
-      }
-
-      if (event.itemType === "collabToolCall") {
-        if (event.subagentThreadIds.length === 0) {
-          enqueue("Sub-agent task finished.");
-          return;
-        }
-        for (const threadId of event.subagentThreadIds) {
-          announceSubagentThread(threadId);
-        }
       }
       return;
     }
@@ -329,67 +290,6 @@ function createTurnProgressReporter(
       await sendQueue;
     }
   };
-}
-
-async function resolveSubagentThread(
-  threadId: string,
-  resolveThreadTitle: (threadId: string) => Promise<string>
-): Promise<ResolvedSubagentThread> {
-  try {
-    const title = await resolveThreadTitle(threadId);
-    const normalizedTitle = title.trim();
-    if (normalizedTitle.length > 0) {
-      const thread = await readThreadById(threadId);
-      return {
-        title: normalizedTitle,
-        source: thread?.source?.trim() ? thread.source.trim() : null
-      };
-    }
-  } catch {
-    // Ignore and fallback.
-  }
-
-  try {
-    const thread = await readThreadById(threadId);
-    if (thread?.preview?.trim()) {
-      return {
-        title: thread.preview.trim(),
-        source: thread.source?.trim() ? thread.source.trim() : null
-      };
-    }
-    if (thread?.source?.trim()) {
-      return {
-        title: `${thread.source.trim()} thread`,
-        source: thread.source.trim()
-      };
-    }
-  } catch {
-    // Ignore and fallback.
-  }
-
-  return {
-    title: "Untitled",
-    source: null
-  };
-}
-
-function shouldSuppressSubagentAnnouncement(thread: ResolvedSubagentThread): boolean {
-  const normalizedSource = normalizeSuppressionText(thread.source ?? "");
-
-  if (normalizedSource.includes("subagentreview")
-    || normalizedSource.includes("subagent:review")
-    || normalizedSource.includes("sub agent review")) {
-    return true;
-  }
-  return false;
-}
-
-function normalizeSuppressionText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9:\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function truncateProgressText(text: string | null, maxLength: number): string | null {
