@@ -238,15 +238,6 @@ impl TitleWatcher {
                 continue;
             };
 
-            if store
-                .read_latest_assistant_message(&session.file_path)?
-                .is_none()
-            {
-                report.skipped_not_ready += 1;
-                advance_state();
-                continue;
-            }
-
             let Some(first_user_prompt) = store.read_first_user_message(session)? else {
                 report.skipped_not_ready += 1;
                 advance_state();

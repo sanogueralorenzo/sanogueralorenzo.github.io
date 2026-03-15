@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { promisify } from "node:util";
 import { expandHomePath } from "../shared/path-utils.js";
 
@@ -108,8 +108,8 @@ export async function listSessionsForSelection(
 
       return {
         id: session.id,
-        title: rawTitle || "Untitled thread",
-        folder: rawFolder || "unknown",
+        title: rawTitle,
+        folder: rawFolder || (rawCwd ? basename(rawCwd) : ""),
         cwd: rawCwd || process.cwd(),
         lastUpdatedAt: typeof session.last_updated_at === "string" ? session.last_updated_at : "",
       };

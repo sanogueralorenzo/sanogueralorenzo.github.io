@@ -110,7 +110,7 @@ export function parseApprovalDecisionText(
 function formatThreadButtonLabel(title: string): string {
   const oneLine = title.replace(/\s+/g, " ").trim();
   if (!oneLine) {
-    return "Untitled";
+    return "";
   }
 
   const maxLen = 36;
