@@ -188,14 +188,14 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
       return existing;
     }
 
-    const draftId = allocateDraftId(`${turnSeed}:${itemId}`, usedDraftIds);
+    let sendSequence = 0;
     const streamer = createTelegramDraftStreamer({
       enabled,
       throttleMs,
       sendDraft: (snapshot) =>
         ctx.api.sendMessageDraft(
           ctx.chat.id,
-          draftId,
+          allocateDraftId(`${turnSeed}:${itemId}:${sendSequence++}`, usedDraftIds),
           snapshot,
           messageThreadId === null ? undefined : { message_thread_id: messageThreadId }
         )

@@ -44,6 +44,11 @@ help     Print this help output.
 - `~/.codex/remote/codex-remote.log`
 - `~/.codex/remote/codex-remote-caffeinate.pid`
 
+### Draft Streaming
+
+- Agent text snapshots are streamed through Telegram drafts.
+- Each streamed snapshot uses a new draft id, so newly streamed text does not overwrite earlier draft messages.
+
 ### Thread Delete Behavior
 
 - When Codex marks a thread as pinned, remote delete is skipped and the bot tells you to unpin first.
