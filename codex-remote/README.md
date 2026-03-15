@@ -59,9 +59,12 @@ help     Print this help output.
 
 ### Output Behavior
 
-- The bot sends only final Telegram messages after each Codex turn.
+- The bot always sends a final Telegram message after each Codex turn.
 - If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
-- For long-running turns, the bot stays silent and posts only the final result when ready.
+- During a running turn, the bot now emits selected progress messages from app-server events (reasoning/plan deltas, command start/completion, command output snippets).
+- Sub-agent/collaboration item completions are surfaced as regular Telegram messages and include discovered spawned thread IDs.
+- Sub-agent thread labels resolve via `thread/read` when available, with `thread/list` fallback.
+- For long-running turns, the bot continues emitting throttled progress updates and posts the final result when ready.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.
 
 ### Thread Delete Behavior

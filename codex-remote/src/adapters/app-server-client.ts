@@ -52,8 +52,39 @@ export type ApprovalRequest = {
   cwd: string | null;
 };
 
+export type TurnProgressEvent =
+  | {
+      kind: "itemStarted";
+      threadId: string;
+      turnId: string;
+      itemId: string;
+      itemType: string;
+      command: string | null;
+    }
+  | {
+      kind: "itemCompleted";
+      threadId: string;
+      turnId: string;
+      itemId: string;
+      itemType: string;
+      text: string | null;
+      status: string | null;
+      command: string | null;
+      output: string | null;
+      subagentThreadIds: string[];
+    }
+  | {
+      kind: "reasoningDelta" | "planDelta" | "agentDelta" | "commandOutputDelta";
+      threadId: string;
+      turnId: string;
+      itemId: string;
+      itemType: string;
+      text: string;
+    };
+
 type TurnRuntimeOptions = {
   approvalHandler?: (request: ApprovalRequest) => Promise<ApprovalDecision>;
+  onTurnEvent?: (event: TurnProgressEvent) => void;
 };
 
 const TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -118,28 +149,17 @@ export async function listThreads(limit: number): Promise<ThreadSummary[]> {
 
 export async function findThreadById(threadId: string, maxToScan = 500): Promise<ThreadSummary | null> {
   return withAppServer(async (client) => {
-    const scanLimit = Math.max(1, Math.trunc(maxToScan));
-    let scanned = 0;
-    let cursor: string | null = null;
+    return findThreadByIdOnClient(client, threadId, maxToScan);
+  });
+}
 
-    while (scanned < scanLimit) {
-      const pageLimit = Math.min(100, scanLimit - scanned);
-      const result = await client.send("thread/list", buildThreadListParams(pageLimit, cursor));
-      const page = parseThreadListPage(result);
-
-      const match = page.threads.find((thread) => thread.id === threadId);
-      if (match) {
-        return match;
-      }
-
-      scanned += page.threads.length;
-      if (!page.nextCursor || page.threads.length === 0) {
-        return null;
-      }
-      cursor = page.nextCursor;
+export async function readThreadById(threadId: string, maxToScan = 500): Promise<ThreadSummary | null> {
+  return withAppServer(async (client) => {
+    const readResult = await tryReadThreadByIdOnClient(client, threadId);
+    if (readResult) {
+      return readResult;
     }
-
-    return null;
+    return findThreadByIdOnClient(client, threadId, maxToScan);
   });
 }
 
@@ -174,7 +194,8 @@ async function sendMessageWithTimeoutContinuationInternal(
       client,
       conversationId,
       text,
-      resumeFirst
+      resumeFirst,
+      runtimeOptions?.onTurnEvent
     );
     const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
     if (raced.status === "completed") {
@@ -219,7 +240,8 @@ export async function createAndSendFirstMessageWithTimeoutContinuation(
       client,
       conversationId,
       text,
-      false
+      false,
+      runtimeOptions?.onTurnEvent
     );
     const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
     if (raced.status === "completed") {
@@ -506,7 +528,8 @@ async function runTurn(
   client: AppServerConnection,
   conversationId: string,
   text: string,
-  resumeFirst: boolean
+  resumeFirst: boolean,
+  onTurnEvent?: (event: TurnProgressEvent) => void
 ): Promise<string> {
   if (resumeFirst) {
     await client.send("thread/resume", {
@@ -515,6 +538,7 @@ async function runTurn(
   }
 
   let lastAgentMessage = "";
+  let lastFinalAgentMessage = "";
   let currentTurnId: string | null = null;
   let finished = false;
   let resolveTurn: (value: string) => void = () => {};
@@ -543,23 +567,49 @@ async function runTurn(
 
   const agentSnapshots = new Map<string, string>();
 
+  const emitTurnEvent = (event: TurnProgressEvent): void => {
+    if (!onTurnEvent) {
+      return;
+    }
+    try {
+      onTurnEvent(event);
+    } catch {
+      // Progress consumers are best-effort and must not break turn handling.
+    }
+  };
+
   const detachNotification = client.onNotification((notification) => {
     const params = asObject(notification.params);
 
-    const eventThreadId = getString(params.threadId);
+    const eventThreadId = getString(params.threadId) ?? getString(params.conversationId);
     if (eventThreadId !== conversationId) {
       return;
     }
 
-    if (notification.method === "item/agentMessage/delta") {
-      if (!currentTurnId) {
-        return;
-      }
-      const eventTurnId = getString(params.turnId);
-      if (!eventTurnId || eventTurnId !== currentTurnId) {
-        return;
-      }
+    const eventTurnId = getString(params.turnId);
+    if (!currentTurnId && eventTurnId) {
+      currentTurnId = eventTurnId;
+    }
+    if (!currentTurnId || (eventTurnId && eventTurnId !== currentTurnId)) {
+      return;
+    }
 
+    if (notification.method === "item/started") {
+      const item = asObject(params.item);
+      const itemId = getString(item.id) ?? getString(params.itemId) ?? "unknown-item";
+      const itemType = normalizeItemType(getString(item.type));
+      emitTurnEvent({
+        kind: "itemStarted",
+        threadId: conversationId,
+        turnId: currentTurnId,
+        itemId,
+        itemType,
+        command: extractCommandText(item)
+      });
+      return;
+    }
+
+    if (notification.method === "item/agentMessage/delta") {
       const delta = getString(params.delta);
       if (delta) {
         const itemId = getString(params.itemId) ?? "agent-message";
@@ -567,30 +617,61 @@ async function runTurn(
         const nextSnapshot = currentSnapshot + delta;
         agentSnapshots.set(itemId, nextSnapshot);
         lastAgentMessage = nextSnapshot;
+        emitTurnEvent({
+          kind: "agentDelta",
+          threadId: conversationId,
+          turnId: currentTurnId,
+          itemId,
+          itemType: "agentMessage",
+          text: delta
+        });
+      }
+      return;
+    }
+
+    const deltaKind = mapDeltaMethodToKind(notification.method);
+    if (deltaKind) {
+      const delta = extractDeltaText(params);
+      if (delta) {
+        emitTurnEvent({
+          kind: deltaKind,
+          threadId: conversationId,
+          turnId: currentTurnId,
+          itemId: getString(params.itemId) ?? "unknown-item",
+          itemType: extractDeltaItemType(notification.method),
+          text: delta
+        });
       }
       return;
     }
 
     if (notification.method === "item/completed") {
-      if (!currentTurnId) {
-        return;
-      }
-      const eventTurnId = getString(params.turnId);
-      if (!eventTurnId || eventTurnId !== currentTurnId) {
-        return;
-      }
-
       const item = asObject(params.item);
-      if (getString(item.type) !== "agentMessage") {
-        return;
+      const itemId = getString(item.id) ?? getString(params.itemId) ?? "unknown-item";
+      const itemType = normalizeItemType(getString(item.type));
+      const text = extractItemText(item);
+
+      if (itemType === "agentMessage" && text !== null) {
+        lastAgentMessage = text;
+        agentSnapshots.set(itemId, text);
+        const phase = normalizeTextToken(getString(item.phase));
+        if (phase === "finalanswer" || phase === "final") {
+          lastFinalAgentMessage = text;
+        }
       }
 
-      const text = getString(item.text);
-      if (text !== null) {
-        lastAgentMessage = text;
-        const itemId = getString(item.id) ?? getString(params.itemId) ?? "agent-message";
-        agentSnapshots.set(itemId, text);
-      }
+      emitTurnEvent({
+        kind: "itemCompleted",
+        threadId: conversationId,
+        turnId: currentTurnId,
+        itemId,
+        itemType,
+        text,
+        status: extractItemStatus(item),
+        command: extractCommandText(item),
+        output: extractItemOutput(item),
+        subagentThreadIds: extractSubagentThreadIds(item, conversationId)
+      });
       return;
     }
 
@@ -599,19 +680,19 @@ async function runTurn(
     }
 
     const turn = asObject(params.turn);
-    const eventTurnId = getString(turn.id);
-    if (!currentTurnId || !eventTurnId || eventTurnId !== currentTurnId) {
+    const completedTurnId = getString(turn.id);
+    if (!currentTurnId || !completedTurnId || completedTurnId !== currentTurnId) {
       return;
     }
 
     const status = getString(turn.status);
     if (status === "completed") {
-      finalizeSuccess(lastAgentMessage.trim());
+      finalizeSuccess((lastFinalAgentMessage || lastAgentMessage).trim());
       return;
     }
 
     if (status === "interrupted") {
-      const trimmed = lastAgentMessage.trim();
+      const trimmed = (lastFinalAgentMessage || lastAgentMessage).trim();
       if (trimmed) {
         finalizeSuccess(trimmed);
         return;
@@ -685,6 +766,68 @@ async function waitWithTimeout<T>(
       clearTimeout(timeoutHandle);
     }
   }
+}
+
+async function findThreadByIdOnClient(
+  client: AppServerConnection,
+  threadId: string,
+  maxToScan = 500
+): Promise<ThreadSummary | null> {
+  const scanLimit = Math.max(1, Math.trunc(maxToScan));
+  let scanned = 0;
+  let cursor: string | null = null;
+
+  while (scanned < scanLimit) {
+    const pageLimit = Math.min(100, scanLimit - scanned);
+    const result = await client.send("thread/list", buildThreadListParams(pageLimit, cursor));
+    const page = parseThreadListPage(result);
+
+    const match = page.threads.find((thread) => thread.id === threadId);
+    if (match) {
+      return match;
+    }
+
+    scanned += page.threads.length;
+    if (!page.nextCursor || page.threads.length === 0) {
+      return null;
+    }
+    cursor = page.nextCursor;
+  }
+
+  return null;
+}
+
+async function tryReadThreadByIdOnClient(client: AppServerConnection, threadId: string): Promise<ThreadSummary | null> {
+  try {
+    const result = await client.send("thread/read", { threadId });
+    const thread = parseThreadFromRead(result);
+    if (thread && thread.id === threadId) {
+      return thread;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function parseThreadFromRead(result: unknown): ThreadSummary | null {
+  const thread = asObject(asObject(result).thread);
+  const id = getString(thread.id);
+  const cwd = getString(thread.cwd);
+  const createdAt = getNumber(thread.createdAt);
+  const updatedAt = getNumber(thread.updatedAt);
+  if (!id || !cwd || createdAt === null || updatedAt === null) {
+    return null;
+  }
+  return {
+    id,
+    cwd,
+    preview: getString(thread.preview) ?? "",
+    createdAt,
+    updatedAt,
+    path: getString(thread.path),
+    source: normalizeSource(thread.source)
+  };
 }
 
 function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextCursor: string | null } {
@@ -837,6 +980,140 @@ function getTurnFailureMessage(turn: Record<string, unknown>): string {
     return message;
   }
   return "Turn failed.";
+}
+
+type DeltaProgressKind = "reasoningDelta" | "planDelta" | "commandOutputDelta";
+
+function mapDeltaMethodToKind(method: string): DeltaProgressKind | null {
+  if (method === "item/reasoning/textDelta" || method === "item/reasoning/summaryTextDelta") {
+    return "reasoningDelta";
+  }
+  if (method === "item/plan/delta") {
+    return "planDelta";
+  }
+  if (method === "item/fileChange/outputDelta" || method === "item/commandExecution/outputDelta" || method === "command/exec/outputDelta") {
+    return "commandOutputDelta";
+  }
+  return null;
+}
+
+function extractDeltaItemType(method: string): string {
+  if (method.startsWith("item/reasoning/")) {
+    return "reasoning";
+  }
+  if (method === "item/plan/delta") {
+    return "plan";
+  }
+  if (method === "item/fileChange/outputDelta") {
+    return "fileChange";
+  }
+  if (method === "item/commandExecution/outputDelta" || method === "command/exec/outputDelta") {
+    return "commandExecution";
+  }
+  return "unknown";
+}
+
+function extractDeltaText(params: Record<string, unknown>): string | null {
+  return getString(params.delta)
+    ?? getString(params.textDelta)
+    ?? getString(params.summaryTextDelta)
+    ?? getString(params.outputDelta)
+    ?? getString(params.text);
+}
+
+function normalizeItemType(type: string | null): string {
+  if (!type) {
+    return "unknown";
+  }
+  const token = normalizeTextToken(type);
+  switch (token) {
+    case "agentmessage":
+      return "agentMessage";
+    case "usermessage":
+      return "userMessage";
+    case "reasoning":
+      return "reasoning";
+    case "plan":
+      return "plan";
+    case "commandexecution":
+      return "commandExecution";
+    case "filechange":
+      return "fileChange";
+    case "toolcall":
+      return "toolCall";
+    case "toolresult":
+      return "toolResult";
+    case "collabtoolcall":
+      return "collabToolCall";
+    default:
+      return type;
+  }
+}
+
+function extractItemStatus(item: Record<string, unknown>): string | null {
+  const statusValue = item.status;
+  if (typeof statusValue === "string") {
+    return statusValue;
+  }
+  return getString(asObject(statusValue).type);
+}
+
+function extractCommandText(item: Record<string, unknown>): string | null {
+  return getString(item.command);
+}
+
+function extractItemOutput(item: Record<string, unknown>): string | null {
+  return getString(item.aggregatedOutput)
+    ?? getString(item.aggregated_output)
+    ?? getString(item.output);
+}
+
+function extractItemText(item: Record<string, unknown>): string | null {
+  return getString(item.text) ?? getString(item.summary);
+}
+
+function extractSubagentThreadIds(item: Record<string, unknown>, parentThreadId: string): string[] {
+  if (normalizeItemType(getString(item.type)) !== "collabToolCall") {
+    return [];
+  }
+  const found = new Set<string>();
+  collectThreadIds(item, found);
+  found.delete(parentThreadId);
+  return Array.from(found);
+}
+
+function collectThreadIds(value: unknown, found: Set<string>): void {
+  if (typeof value === "string") {
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectThreadIds(entry, found);
+    }
+    return;
+  }
+  if (!value || typeof value !== "object") {
+    return;
+  }
+  const objectValue = value as Record<string, unknown>;
+  for (const [key, child] of Object.entries(objectValue)) {
+    const normalizedKey = normalizeTextToken(key);
+    if (typeof child === "string" && normalizedKey.includes("threadid")) {
+      const threadId = child.trim();
+      if (threadId.length > 0) {
+        found.add(threadId);
+      }
+    } else {
+      collectThreadIds(child, found);
+    }
+  }
+}
+
+function normalizeTextToken(value: string | null): string {
+  if (!value) {
+    return "";
+  }
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function asObject(value: unknown): Record<string, unknown> {
