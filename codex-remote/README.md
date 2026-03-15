@@ -10,6 +10,12 @@ npm run typecheck
 npm run test
 ```
 
+Install dependency:
+
+```shell
+../codex-app-server/scripts/install.sh
+```
+
 ## Reference
 
 ### CLI
@@ -35,6 +41,7 @@ help     Print this help output.
 ### Required Config
 
 - `.env`
+- `codex-app-server` on `PATH` (installed by root `./install.sh` or `../codex-app-server/scripts/install.sh`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
 - `TELEGRAM_ADMIN_CHAT_IDS` (optional)

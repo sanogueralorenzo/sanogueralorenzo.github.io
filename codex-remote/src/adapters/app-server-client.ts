@@ -261,7 +261,7 @@ export async function createAndSendFirstMessageWithTimeoutContinuation(
 type NotificationHandler = (notification: JsonRpcNotification) => void;
 
 class AppServerConnection {
-  private readonly child = spawn("codex", ["app-server", "--listen", "stdio://"], {
+  private readonly child = spawn("codex-app-server", ["--listen", "stdio://"], {
     stdio: ["pipe", "pipe", "pipe"],
     env: process.env
   });
