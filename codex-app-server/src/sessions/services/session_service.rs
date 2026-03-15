@@ -1,5 +1,5 @@
-use crate::adapters::session_store::SessionStore;
-use crate::shared::models::{
+use crate::sessions::adapters::session_store::SessionStore;
+use crate::sessions::shared::models::{
     DeleteResult, PruneResult, SessionEntry, SessionMeta, SessionResultReason, SessionResultStatus,
 };
 use anyhow::{Result, bail};

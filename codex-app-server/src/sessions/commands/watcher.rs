@@ -1,6 +1,6 @@
-use crate::adapters::session_store::SessionStore;
-use crate::cli::WatchTitleCommand;
-use crate::shared::models::SessionMeta;
+use crate::sessions::adapters::session_store::SessionStore;
+use crate::sessions::cli::WatchTitleCommand;
+use crate::sessions::shared::models::SessionMeta;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -1,5 +1,5 @@
 use super::prompts::truncate_chars_exact;
-use crate::shared::models::SessionMeta;
+use crate::sessions::shared::models::SessionMeta;
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::process::Command;

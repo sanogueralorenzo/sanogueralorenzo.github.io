@@ -1,4 +1,4 @@
-use crate::cli::Cli;
+use crate::sessions::cli::Cli;
 use clap::{Parser, error::ErrorKind};
 use std::ffi::OsString;
 

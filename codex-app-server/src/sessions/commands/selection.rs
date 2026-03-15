@@ -1,7 +1,7 @@
-use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
-use crate::cli::{DeleteArgs, SortBy};
-use crate::services::session_service::{age_days, validate_days};
-use crate::shared::models::SessionMeta;
+use crate::sessions::adapters::session_store::{SessionStore, resolve_session_by_id};
+use crate::sessions::cli::{DeleteArgs, SortBy};
+use crate::sessions::services::session_service::{age_days, validate_days};
+use crate::sessions::shared::models::SessionMeta;
 use anyhow::{Result, bail};
 use std::collections::HashSet;
 

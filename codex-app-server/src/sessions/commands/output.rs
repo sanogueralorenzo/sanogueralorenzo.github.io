@@ -1,8 +1,8 @@
-use crate::shared::models::{
+use crate::sessions::shared::models::{
     MergeResult, OperationBatchResult, PruneResult, SessionResultReason, SessionResultStatus,
     TitleResult,
 };
-use crate::shared::output::OutputFormat;
+use crate::sessions::shared::output::OutputFormat;
 use anyhow::Result;
 
 pub(crate) fn emit_operation_batch_output(

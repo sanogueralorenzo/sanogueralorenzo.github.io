@@ -9,7 +9,7 @@
 
 ```shell
 ./scripts/install.sh
-codex-app-server --listen stdio://
+codex-app-server rpc --listen stdio://
 codex-app-server sessions list --json
 codex-app-server noninteractive run --help
 ```
@@ -17,8 +17,8 @@ codex-app-server noninteractive run --help
 ## Reference
 
 - App-server passthrough:
-  - `codex-app-server --listen stdio://` forwards to `codex app-server --listen stdio://`.
-  - `codex-app-server app-server --listen stdio://` is also accepted.
+  - `codex-app-server rpc --listen stdio://` forwards to `codex app-server --listen stdio://`.
+  - `codex-app-server rpc app-server --listen stdio://` is also accepted.
 - Sessions commands:
   - `codex-app-server sessions ...` manages session lifecycle, titles, merge, and cleanup.
 - Noninteractive wrappers:

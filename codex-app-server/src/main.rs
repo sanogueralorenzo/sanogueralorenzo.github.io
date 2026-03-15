@@ -1,86 +1,42 @@
-mod adapters;
-mod cli;
-mod commands;
+mod core;
 mod noninteractive;
-mod services;
-mod shared;
+mod rpc;
+mod sessions;
 
 use std::env;
 use std::ffi::OsString;
-use std::os::unix::process::ExitStatusExt;
-use std::process::{Command, ExitCode, Stdio};
+use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<OsString> = env::args_os().collect();
     let forwarded_args: Vec<OsString> = args.iter().skip(1).cloned().collect();
 
-    if should_route_to_sessions(&forwarded_args) {
-        let sessions_args = normalize_sessions_args(forwarded_args);
-        return ExitCode::from(commands::run_from(sessions_args));
-    }
-    if should_route_to_noninteractive(&forwarded_args) {
-        return ExitCode::from(noninteractive::run_from(forwarded_args));
-    }
-
-    let app_server_args = normalize_app_server_args(forwarded_args);
-
-    let status = match Command::new("codex")
-        .arg("app-server")
-        .args(app_server_args)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-    {
-        Ok(status) => status,
-        Err(error) => {
-            eprintln!("failed to launch codex app-server: {error}");
-            return ExitCode::from(1);
+    match forwarded_args.first().and_then(|value| value.to_str()) {
+        Some("rpc") => ExitCode::from(rpc::run_from(forwarded_args)),
+        Some("sessions") => ExitCode::from(sessions::run_from(forwarded_args)),
+        Some("noninteractive") => ExitCode::from(noninteractive::run_from(forwarded_args)),
+        Some("help") | Some("--help") | Some("-h") | None => {
+            print_help();
+            ExitCode::from(0)
         }
-    };
-
-    if let Some(code) = status.code() {
-        return ExitCode::from(u8::try_from(code).unwrap_or(1));
-    }
-
-    if let Some(signal) = status.signal() {
-        let code = (128 + signal).clamp(0, 255) as u8;
-        return ExitCode::from(code);
-    }
-
-    ExitCode::from(1)
-}
-
-fn should_route_to_sessions(args: &[OsString]) -> bool {
-    args.first().and_then(|value| value.to_str()) == Some("sessions")
-}
-
-fn should_route_to_noninteractive(args: &[OsString]) -> bool {
-    args.first().and_then(|value| value.to_str()) == Some("noninteractive")
-}
-
-fn normalize_sessions_args(args: Vec<OsString>) -> Vec<OsString> {
-    let mut normalized = Vec::with_capacity(args.len() + 1);
-    normalized.push(OsString::from("codex-app-server sessions"));
-    if args.first().and_then(|value| value.to_str()) == Some("sessions") {
-        normalized.extend(args.into_iter().skip(1));
-    } else {
-        normalized.extend(args);
-    }
-
-    normalized
-}
-
-fn normalize_app_server_args(args: Vec<OsString>) -> Vec<OsString> {
-    let mut iter = args.into_iter();
-    match iter.next() {
-        Some(first) if first.to_str() == Some("app-server") => iter.collect(),
-        Some(first) => {
-            let mut passthrough = Vec::new();
-            passthrough.push(first);
-            passthrough.extend(iter);
-            passthrough
+        Some(unknown) => {
+            eprintln!("Unknown command: {unknown}");
+            eprintln!();
+            print_help();
+            ExitCode::from(2)
         }
-        None => Vec::new(),
     }
+}
+
+fn print_help() {
+    println!("Usage:");
+    println!("  codex-app-server rpc [-- app-server-options]");
+    println!("  codex-app-server sessions <command> [options]");
+    println!("  codex-app-server noninteractive run|resume|review [wrapper-options]");
+    println!();
+    println!("Commands:");
+    println!("  rpc             Run codex app-server passthrough.");
+    println!("  sessions        Manage local Codex session files.");
+    println!("  noninteractive  Run standardized non-interactive Codex wrappers.");
+    println!("  help            Print this help output.");
 }

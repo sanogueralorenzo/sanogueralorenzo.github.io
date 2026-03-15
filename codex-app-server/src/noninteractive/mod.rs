@@ -1,12 +1,12 @@
+use crate::core::events::{parse_last_agent_message_from_events, parse_thread_id_from_events};
+use crate::core::process::exit_code_from_status;
+use crate::core::temp::temp_file_path;
 use serde::Serialize;
-use serde_json::Value;
 use std::ffi::OsString;
 use std::fs;
 use std::io::{Read, Write};
-use std::os::unix::process::ExitStatusExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use uuid::Uuid;
 
 enum Mode {
     Run,
@@ -286,13 +286,7 @@ fn run_wrapper(mode: Mode, options: WrapperOptions) -> u8 {
         }
     };
 
-    let exit_code = if let Some(code) = output.status.code() {
-        code
-    } else if let Some(signal) = output.status.signal() {
-        (128 + signal).clamp(1, 255)
-    } else {
-        1
-    };
+    let exit_code = i32::from(exit_code_from_status(&output.status));
 
     let events_text = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr_text = String::from_utf8_lossy(&output.stderr).to_string();
@@ -363,62 +357,6 @@ fn write_result_json(path: &PathBuf, result: &ResultJson) -> std::io::Result<()>
     let serialized = serde_json::to_string_pretty(result)
         .map_err(|error| std::io::Error::other(error.to_string()))?;
     fs::write(path, format!("{serialized}\n"))
-}
-
-fn parse_thread_id_from_events(events: &str) -> Option<String> {
-    for line in events.lines() {
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
-            continue;
-        };
-        if let Some(found) = find_key_recursively(&value, "thread_id") {
-            return Some(found);
-        }
-    }
-    None
-}
-
-fn parse_last_agent_message_from_events(events: &str) -> Option<String> {
-    let mut last_message: Option<String> = None;
-    for line in events.lines() {
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
-            continue;
-        };
-        let Some(item) = value.get("item") else {
-            continue;
-        };
-        if item.get("type").and_then(Value::as_str) != Some("agent_message") {
-            continue;
-        }
-        if let Some(text) = item.get("text").and_then(Value::as_str) {
-            last_message = Some(text.to_string());
-        }
-    }
-    last_message
-}
-
-fn find_key_recursively(value: &Value, key: &str) -> Option<String> {
-    match value {
-        Value::Object(map) => {
-            if let Some(direct) = map.get(key).and_then(Value::as_str) {
-                return Some(direct.to_string());
-            }
-            for child in map.values() {
-                if let Some(found) = find_key_recursively(child, key) {
-                    return Some(found);
-                }
-            }
-            None
-        }
-        Value::Array(items) => {
-            for item in items {
-                if let Some(found) = find_key_recursively(item, key) {
-                    return Some(found);
-                }
-            }
-            None
-        }
-        _ => None,
-    }
 }
 
 fn mode_label(mode: &Mode) -> &'static str {
@@ -493,11 +431,4 @@ fn join_args(args: &[OsString]) -> String {
         .map(|value| value.to_string_lossy().into_owned())
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-fn temp_file_path(prefix: &str, extension: &str) -> PathBuf {
-    let suffix = Uuid::new_v4();
-    let mut path = std::env::temp_dir();
-    path.push(format!("{prefix}-{suffix}.{extension}"));
-    path
 }

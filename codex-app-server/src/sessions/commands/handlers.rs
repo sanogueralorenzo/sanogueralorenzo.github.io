@@ -1,17 +1,17 @@
-use crate::adapters::session_store::{SessionStore, resolve_session_by_id};
-use crate::cli::{
+use crate::sessions::adapters::session_store::{SessionStore, resolve_session_by_id};
+use crate::sessions::cli::{
     ArchiveArgs, AutoRemoveArgs, AutoRemoveMode, Commands, DeleteArgs, GenerateThreadTitleArgs,
     ListArgs, MergeArgs, MessageArgs, ShowArgs, TitlesArgs, UnarchiveArgs, WatchAutoRemoveArgs,
     WatchCommand,
 };
-use crate::services::session_service::{
+use crate::sessions::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
 };
-use crate::shared::models::{
+use crate::sessions::shared::models::{
     DeleteResult, ListResult, MergeResult, MessageResult, OperationBatchResult, SessionMeta,
     SessionResultReason, SessionResultStatus, TitleResult,
 };
-use crate::shared::output::OutputFormat;
+use crate::sessions::shared::output::OutputFormat;
 use anyhow::{Result, bail};
 use std::collections::{HashMap, HashSet};
 use std::thread;

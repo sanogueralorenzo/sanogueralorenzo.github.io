@@ -42,6 +42,9 @@ help     Print this help output.
 
 - `.env`
 - `codex-app-server` on `PATH` (installed by root `./install.sh` or `../codex-app-server/scripts/install.sh`)
+- `codex-app-server` command surfaces used by remote:
+  - `rpc` (for app-server transport)
+  - `sessions` (for thread/session operations)
 - `CODEX_APP_SERVER_BIN` (optional override path/name; defaults to `codex-app-server`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)

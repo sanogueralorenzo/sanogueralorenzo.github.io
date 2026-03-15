@@ -1,4 +1,4 @@
-use crate::shared::models::SessionMeta;
+use crate::sessions::shared::models::SessionMeta;
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::process::Command;

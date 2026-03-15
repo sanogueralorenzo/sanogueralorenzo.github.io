@@ -1,4 +1,4 @@
-use crate::shared::models::SessionMeta;
+use crate::sessions::shared::models::SessionMeta;
 
 pub(crate) fn build_merger_summary_prompt(target: &SessionMeta, merge: &SessionMeta) -> String {
     let merge_title = merge.title.as_deref().unwrap_or("(no title)");
