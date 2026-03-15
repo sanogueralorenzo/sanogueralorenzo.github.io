@@ -56,6 +56,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     const finalizeTurn = async (turn: TimedTurnLike, delayedIntro = "Delayed:"): Promise<void> => {
       await draftSession.stop(true);
       await replyFromTimedTurn(ctx, turn, delayedIntro);
+      await draftSession.clear();
     };
 
     try {
@@ -171,6 +172,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: number): {
   pushSnapshot: (snapshot: AgentTextSnapshot) => void;
   stop: (flushPending: boolean) => Promise<void>;
+  clear: () => Promise<void>;
 } {
   const turnSeed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const draftId = allocateDraftId(turnSeed);
@@ -198,6 +200,9 @@ function createDraftSession(ctx: PromptContext, enabled: boolean, throttleMs: nu
     },
     stop: async (flushPending: boolean): Promise<void> => {
       await streamer.stop(flushPending);
+    },
+    clear: async (): Promise<void> => {
+      await streamer.clear();
     }
   };
 }

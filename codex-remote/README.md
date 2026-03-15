@@ -50,7 +50,9 @@ help     Print this help output.
 - Each turn reuses a single draft id, so draft updates animate in place.
 - Snapshot sends are serialized in app-server arrival order, so the latest snapshot is sent last.
 - Completed turn output is always sent as a normal Telegram message (never draft-only).
-- Snapshots are stabilized before send (prefer paragraph/line/sentence boundaries and closed code fences) to reduce transient malformed formatting while streaming.
+- After final output is sent, the streamer performs a best-effort draft clear (`sendMessageDraft` empty-text, then invisible-char fallback for strict validators).
+- Snapshots are stabilized before send (prefer paragraph/line/sentence boundaries and closed code fences) and initial preview waits for a minimum stable chunk to reduce transient malformed formatting.
+- Draft previews cap at 800 chars for readability; final output still sends complete text via normal Telegram messages.
 
 ### Thread Delete Behavior
 

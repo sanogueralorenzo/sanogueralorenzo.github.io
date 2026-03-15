@@ -8,20 +8,23 @@ type DraftStreamerOptions = {
 export type TelegramDraftStreamer = {
   pushSnapshot: (text: string) => void;
   stop: (flushPending: boolean) => Promise<void>;
+  clear: () => Promise<void>;
   lastDeliveredDraft: () => string | null;
 };
 
-const DEFAULT_MAX_DRAFT_LENGTH = 4096;
-const OVERFLOW_PREFIX = "...";
+const DEFAULT_MAX_DRAFT_LENGTH = 800;
 const MIN_STABLE_BOUNDARY_OFFSET = 64;
+const MIN_INITIAL_STABLE_CHARS = 200;
 const MIN_PROGRESS_DELTA = 48;
 const CODE_FENCE = "```";
+const INVISIBLE_DRAFT_CLEAR_TEXT = "\u2060";
 
 export function createTelegramDraftStreamer(options: DraftStreamerOptions): TelegramDraftStreamer {
   if (!options.enabled) {
     return {
       pushSnapshot: () => undefined,
       stop: async () => undefined,
+      clear: async () => undefined,
       lastDeliveredDraft: () => null
     };
   }
@@ -76,7 +79,10 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
         return;
       }
 
-      const normalized = normalizeSnapshot(stabilizeSnapshot(text), maxLength);
+      const normalized = normalizeSnapshot(
+        stabilizeSnapshot(text, !hasQueuedInitialSnapshot),
+        maxLength
+      );
       if (!normalized || normalized === pendingSnapshot || normalized === lastSentSnapshot) {
         return;
       }
@@ -108,31 +114,58 @@ export function createTelegramDraftStreamer(options: DraftStreamerOptions): Tele
 
       await sendQueue;
     },
+    clear: async (): Promise<void> => {
+      sendQueue = sendQueue
+        .then(async () => {
+          try {
+            await options.sendDraft("");
+            lastSentSnapshot = "";
+          } catch {
+            // Fallback for strict 1+ char validators while remaining visually blank.
+            await options.sendDraft(INVISIBLE_DRAFT_CLEAR_TEXT);
+            lastSentSnapshot = INVISIBLE_DRAFT_CLEAR_TEXT;
+          }
+        })
+        .catch(() => undefined);
+      await sendQueue;
+    },
     lastDeliveredDraft: (): string | null => lastSentSnapshot
   };
 }
 
 function normalizeSnapshot(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text;
+  if (!text) {
+    return "";
   }
 
-  const keepLength = Math.max(1, maxLength - OVERFLOW_PREFIX.length);
-  return `${OVERFLOW_PREFIX}${text.slice(-keepLength)}`;
+  if (text.length <= maxLength) {
+    return text.trimEnd();
+  }
+
+  return text.slice(0, maxLength).trimEnd();
 }
 
-function stabilizeSnapshot(text: string): string {
+function stabilizeSnapshot(text: string, isInitialSnapshot: boolean): string {
   const normalized = text.replaceAll("\r\n", "\n");
   if (!normalized) {
-    return normalized;
+    return "";
   }
 
-  const stableBoundary = findStableBoundary(normalized);
+  const withoutUnclosedFence = removeUnclosedCodeFence(normalized);
+  const stableBoundary = findStableBoundary(withoutUnclosedFence);
+  if (stableBoundary < MIN_STABLE_BOUNDARY_OFFSET) {
+    return "";
+  }
+
   const clipped =
-    stableBoundary >= MIN_STABLE_BOUNDARY_OFFSET
-      ? normalized.slice(0, stableBoundary)
-      : normalized;
-  return removeUnclosedCodeFence(clipped);
+    stableBoundary >= 0
+      ? withoutUnclosedFence.slice(0, stableBoundary)
+      : withoutUnclosedFence;
+  const stabilized = clipped.trimEnd();
+  if (isInitialSnapshot && stabilized.length < MIN_INITIAL_STABLE_CHARS) {
+    return "";
+  }
+  return stabilized;
 }
 
 function findStableBoundary(text: string): number {
