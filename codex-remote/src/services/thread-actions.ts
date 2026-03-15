@@ -1,14 +1,12 @@
 import { basename } from "node:path";
 import {
   ThreadSummary,
-  findThreadById,
   listThreads
 } from "../adapters/app-server-client.js";
 import { BindingStore } from "../adapters/binding-store.js";
 import {
   deleteSessionByThreadId,
   listSessionsForSelection,
-  loadDesktopThreadTitles,
   loadLatestAssistantMessageByThreadId
 } from "../adapters/codex-app-server-sessions.js";
 import {
@@ -19,7 +17,7 @@ import {
   quickActionsKeyboard,
   threadSelectionKeyboard
 } from "../bot/keyboards.js";
-import { cleanPreview, formatActionTitle, formatFolderLabel } from "../bot/messages.js";
+import { formatActionTitle, formatFolderLabel } from "../bot/messages.js";
 import { ReplyFn } from "../bot/context.js";
 import { ActionName } from "../shared/actions.js";
 
@@ -143,21 +141,6 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     await reply(`New: Send message\nFolder: ${selected.label}`, { reply_markup: quickActionsKeyboard() });
   }
 
-  async function resolveThreadTitle(threadId: string): Promise<string> {
-    const desktopTitles = await loadDesktopThreadTitles(deps.codexHome);
-    const desktopTitle = desktopTitles.get(threadId);
-    if (desktopTitle) {
-      return desktopTitle;
-    }
-
-    const match = await findThreadById(threadId, 800);
-    if (match?.preview) {
-      return cleanPreview(match.preview);
-    }
-
-    return "Untitled thread";
-  }
-
   async function replyThreadsList(
     chatId: string,
     limit: number,
@@ -275,8 +258,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     pickThreadByIndex,
     pickFolderChoiceByIndex,
     tryPickThreadByText,
-    tryPickFolderChoiceByText,
-    resolveThreadTitle
+    tryPickFolderChoiceByText
   };
 }
 

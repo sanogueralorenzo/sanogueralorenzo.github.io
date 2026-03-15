@@ -82,7 +82,6 @@ const promptRunner = createPromptRunner({
   },
   getConversationOptions,
   bindChatToThread,
-  resolveThreadTitle: threadActions.resolveThreadTitle,
   requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram
 });
 

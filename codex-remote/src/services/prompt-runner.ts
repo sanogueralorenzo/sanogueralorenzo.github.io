@@ -3,7 +3,6 @@ import {
   ApprovalPolicy,
   ApprovalRequest,
   SandboxMode,
-  TurnProgressEvent,
   createAndSendFirstMessageWithTimeoutContinuation,
   sendMessageWithoutResumeWithTimeoutContinuation,
   sendMessageWithTimeoutContinuation
@@ -33,7 +32,6 @@ type PromptRunnerDeps = {
   onThreadNotBound: (ctx: PromptContext, chatId: string) => Promise<void>;
   getConversationOptions: () => ConversationOptions;
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
-  resolveThreadTitle: (threadId: string) => Promise<string>;
   requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
 };
 
@@ -42,17 +40,12 @@ const TELEGRAM_MESSAGE_CHUNK = 3900;
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
   async function runPromptThroughCodex(ctx: PromptContext, chatId: string, text: string): Promise<void> {
-    const progressReporter = createTurnProgressReporter(ctx);
     const threadId = await deps.store.get(chatId);
     const runtimeOptions = {
-      approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
-      onTurnEvent: (event: TurnProgressEvent) => {
-        progressReporter.onTurnEvent(event);
-      }
+      approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request)
     };
-    const finalizeTurn = async (turn: TimedTurnLike, delayedIntro = "Delayed:"): Promise<void> => {
-      await progressReporter.flush();
-      await replyFromTimedTurn(ctx, turn, delayedIntro);
+    const finalizeTurn = async (turn: TimedTurnLike): Promise<void> => {
+      await replyFromTimedTurn(ctx, turn);
     };
 
     try {
@@ -94,24 +87,18 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         return;
       }
     } catch (error) {
-      await progressReporter.flush();
       const message = error instanceof Error ? error.message : String(error);
       await ctx.reply(formatFailure("Codex error.", message));
     }
   }
 
-  async function replyFromTimedTurn(
-    ctx: PromptContext,
-    turn: TimedTurnLike,
-    delayedIntro = "Delayed:"
-  ): Promise<void> {
+  async function replyFromTimedTurn(ctx: PromptContext, turn: TimedTurnLike): Promise<void> {
     if (turn.status === "completed") {
       await replyCompletedOutput(ctx, turn.response);
       return;
     }
 
-    await replyDelayedNotice(ctx);
-    queueBackgroundReply((message) => ctx.api.sendMessage(ctx.chat.id, message), turn.completion, delayedIntro);
+    queueBackgroundReply((message) => ctx.api.sendMessage(ctx.chat.id, message), turn.completion);
   }
 
   async function recoverFromUnavailableThread(
@@ -126,29 +113,22 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
     await deps.bindChatToThread(chatId, initialized.conversationId);
 
-    const title = await deps.resolveThreadTitle(initialized.conversationId);
     if (initialized.status === "completed") {
       await replyCompletedOutput(ctx, initialized.response);
       return;
     }
 
-    await replyDelayedNotice(ctx);
-    queueBackgroundReply(
-      (message) => ctx.api.sendMessage(ctx.chat.id, message),
-      initialized.completion,
-      `Delayed for "${title}":`
-    );
+    queueBackgroundReply((message) => ctx.api.sendMessage(ctx.chat.id, message), initialized.completion);
   }
 
   function queueBackgroundReply(
     sender: (text: string) => Promise<unknown>,
-    completion: Promise<{ response: string }>,
-    intro: string
+    completion: Promise<{ response: string }>
   ): void {
     void completion
       .then(async ({ response }) => {
         const output = response?.trim() ? response : "(Empty Codex response)";
-        await sendTextChunks(sender, `${intro}\n\n${output}`);
+        await sendTextChunks(sender, output);
       })
       .catch(async (error) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -165,145 +145,6 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 async function replyCompletedOutput(ctx: PromptContext, response: string): Promise<void> {
   const output = response || "(Empty Codex response)";
   await sendTextChunks((message) => ctx.reply(message), output);
-}
-
-async function replyDelayedNotice(ctx: PromptContext): Promise<void> {
-  void ctx;
-}
-
-type TurnProgressReporter = {
-  onTurnEvent: (event: TurnProgressEvent) => void;
-  flush: () => Promise<void>;
-};
-
-function createTurnProgressReporter(ctx: PromptContext): TurnProgressReporter {
-  const startedItems = new Set<string>();
-  const completedItems = new Set<string>();
-  const throttleState = new Map<string, { sentAtMs: number; text: string }>();
-  const postMessage = (text: string) => sendTextChunks((message) => ctx.api.sendMessage(ctx.chat.id, message), text);
-  let sendQueue: Promise<void> = Promise.resolve();
-
-  const enqueue = (text: string): void => {
-    const normalized = text.trim();
-    if (!normalized) {
-      return;
-    }
-    sendQueue = sendQueue
-      .then(async () => {
-        await postMessage(normalized);
-      })
-      .catch(() => undefined);
-  };
-
-  const enqueueThrottled = (bucket: string, text: string, intervalMs: number): void => {
-    const now = Date.now();
-    const previous = throttleState.get(bucket);
-    if (previous && previous.text === text) {
-      return;
-    }
-    if (previous && now - previous.sentAtMs < intervalMs) {
-      return;
-    }
-    throttleState.set(bucket, { sentAtMs: now, text });
-    enqueue(text);
-  };
-
-  const onTurnEvent = (event: TurnProgressEvent): void => {
-    if (event.kind === "itemStarted") {
-      const key = `${event.itemType}:${event.itemId}`;
-      if (startedItems.has(key)) {
-        return;
-      }
-      startedItems.add(key);
-
-      if (event.itemType === "reasoning") {
-        enqueue("Thinking…");
-        return;
-      }
-      if (event.itemType === "plan") {
-        enqueue("Planning…");
-        return;
-      }
-      if (event.itemType === "commandExecution") {
-        const command = truncateProgressText(event.command, 240);
-        if (command) {
-          enqueue(`Running command:\n${command}`);
-        } else {
-          enqueue("Running command…");
-        }
-        return;
-      }
-      return;
-    }
-
-    if (event.kind === "itemCompleted") {
-      const key = `${event.itemType}:${event.itemId}`;
-      if (!completedItems.has(key)) {
-        completedItems.add(key);
-      } else {
-        return;
-      }
-
-      if (event.itemType === "commandExecution") {
-        const status = event.status ?? "completed";
-        const command = truncateProgressText(event.command, 240);
-        const output = truncateProgressText(event.output, 500);
-        let message = `Command ${status}.`;
-        if (command) {
-          message += `\n${command}`;
-        }
-        if (output) {
-          message += `\nOutput:\n${output}`;
-        }
-        enqueue(message);
-        return;
-      }
-      return;
-    }
-
-    const snippet = truncateProgressText(event.text, 320);
-    if (!snippet) {
-      return;
-    }
-
-    switch (event.kind) {
-      case "reasoningDelta":
-        enqueueThrottled("reasoning", `Reasoning:\n${snippet}`, 8000);
-        return;
-      case "planDelta":
-        enqueueThrottled("plan", `Plan update:\n${snippet}`, 8000);
-        return;
-      case "commandOutputDelta":
-        enqueueThrottled("command_output", `Command output:\n${snippet}`, 5000);
-        return;
-      case "agentDelta":
-        enqueueThrottled("agent_draft", `Draft answer:\n${snippet}`, 8000);
-        return;
-      default:
-        return;
-    }
-  };
-
-  return {
-    onTurnEvent,
-    flush: async (): Promise<void> => {
-      await sendQueue;
-    }
-  };
-}
-
-function truncateProgressText(text: string | null, maxLength: number): string | null {
-  if (!text) {
-    return null;
-  }
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (normalized.length === 0) {
-    return null;
-  }
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-  return `${normalized.slice(0, Math.max(1, maxLength - 3))}...`;
 }
 
 async function sendTextChunks(sender: (text: string) => Promise<unknown>, text: string): Promise<void> {
