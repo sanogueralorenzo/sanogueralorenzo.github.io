@@ -14,7 +14,7 @@ import {
 import { BindingStore } from "./adapters/binding-store.js";
 import {
   resolveCodexHomeFromEnv
-} from "./adapters/codex-sessions.js";
+} from "./adapters/codex-app-server-sessions.js";
 import { registerBotHandlers } from "./bot/index.js";
 import { createApprovalService } from "./bot/approvals.js";
 import { PromptContext, ReplyFn, ReplyPhotoFn } from "./bot/context.js";

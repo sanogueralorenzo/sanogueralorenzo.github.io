@@ -1,6 +1,6 @@
 import Foundation
 
-final class CodexSessionsCLIClient: @unchecked Sendable {
+final class CodexAppServerCLIClient: @unchecked Sendable {
     enum AutoRemoveMode: String {
         case archive
         case delete
@@ -64,16 +64,16 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
 
     private func run(_ arguments: [String]) throws -> String {
         guard let executablePath else {
-            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-sessions"))
+            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-app-server"))
         }
 
         guard fileManager.isExecutableFile(atPath: executablePath) else {
-            throw Error(message: "codex-sessions CLI not found at \(executablePath). Run codex-sessions/scripts/install.sh first.")
+            throw Error(message: "codex-app-server CLI not found at \(executablePath). Run codex-app-server/scripts/install.sh first.")
         }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
-        process.arguments = arguments
+        process.arguments = ["sessions"] + arguments
 
         let stdout = Pipe()
         let stderr = Pipe()
@@ -91,13 +91,13 @@ final class CodexSessionsCLIClient: @unchecked Sendable {
             if !message.isEmpty {
                 throw Error(message: message)
             }
-            throw Error(message: "codex-sessions command failed: codex-sessions \(arguments.joined(separator: " "))")
+            throw Error(message: "codex-app-server sessions command failed: codex-app-server sessions \(arguments.joined(separator: " "))")
         }
 
         return stdoutText
     }
 
     private static func resolveExecutablePath() -> String? {
-        CLIExecutableResolver.resolve(commandName: "codex-sessions")
+        CLIExecutableResolver.resolve(commandName: "codex-app-server")
     }
 }

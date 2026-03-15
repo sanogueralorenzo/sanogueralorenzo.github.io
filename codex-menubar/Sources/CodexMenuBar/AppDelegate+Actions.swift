@@ -108,7 +108,7 @@ extension AppDelegate {
         guard components.count == 2,
               let days = Int(components[0]),
               AutoRemoveSettings.supportedDays.contains(days),
-              let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: String(components[1])) else {
+              let mode = CodexAppServerCLIClient.AutoRemoveMode(rawValue: String(components[1])) else {
             return
         }
 
@@ -258,9 +258,9 @@ extension AppDelegate {
     }
 
     private nonisolated static func makeAutoRemovePassHandler(
-        sessionsCLI: CodexSessionsCLIClient,
+        sessionsCLI: CodexAppServerCLIClient,
         olderThanDays: Int,
-        mode: CodexSessionsCLIClient.AutoRemoveMode
+        mode: CodexAppServerCLIClient.AutoRemoveMode
     ) -> @Sendable () -> Void {
         {
             runAutoRemovePass(
@@ -348,9 +348,9 @@ private struct CodexAppTerminationError: LocalizedError {
 }
 
 private func runAutoRemovePass(
-    sessionsCLI: CodexSessionsCLIClient,
+    sessionsCLI: CodexAppServerCLIClient,
     olderThanDays: Int,
-    mode: CodexSessionsCLIClient.AutoRemoveMode
+    mode: CodexAppServerCLIClient.AutoRemoveMode
 ) {
     do {
         try sessionsCLI.runAutoRemove(

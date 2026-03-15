@@ -12,13 +12,13 @@
 
 ### Integrations
 
-- Required: `codex-auth`, `codex-sessions`
+- Required: `codex-auth`, `codex-app-server`
 - Optional: `codex-remote`
 
 ### Runtime Behavior
 
 - Launch starts `codex-auth watch start`.
-- Launch starts `codex-sessions watch thread-titles start`.
+- Launch starts `codex-app-server sessions watch thread-titles start`.
 - Launch starts `codex-remote start --plain` only when remote auto-start has been enabled by a prior successful `Remote -> Start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.
 - Launch agent executable path prefers `/Applications/Codex Menu Bar.app` when available.

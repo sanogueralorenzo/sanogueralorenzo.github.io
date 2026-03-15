@@ -1,15 +1,21 @@
 ## Intro
 
-**Codex App Server** provides a dedicated `codex-app-server` CLI that forwards arguments and stdio to `codex app-server`.
+**Codex App Server** is a unified CLI for:
+- app-server passthrough (`codex app-server`)
+- local session/thread maintenance commands
 
 ## Quickstart
 
 ```shell
 ./scripts/install.sh
 codex-app-server --listen stdio://
+codex-app-server sessions list --json
 ```
 
 ## Reference
 
-- The binary is a 1:1 passthrough to `codex app-server`.
-- Every flag after `codex-app-server` is forwarded unchanged to `codex app-server`.
+- App-server passthrough:
+  - `codex-app-server --listen stdio://` forwards to `codex app-server --listen stdio://`.
+  - `codex-app-server app-server --listen stdio://` is also accepted.
+- Sessions commands:
+  - `codex-app-server sessions ...` manages session lifecycle, titles, merge, and cleanup.

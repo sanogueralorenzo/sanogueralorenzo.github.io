@@ -35,7 +35,7 @@ pub(crate) fn run_codex_exec_resume_capture_last_message(
         .duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0));
     let output_file = std::env::temp_dir().join(format!(
-        "codex-sessions-merge-last-message-{}-{}.txt",
+        "codex-app-server-merge-last-message-{}-{}.txt",
         std::process::id(),
         now.as_nanos()
     ));

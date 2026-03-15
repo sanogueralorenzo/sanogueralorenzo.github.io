@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 import { expandHomePath } from "../shared/path-utils.js";
 
 const execFileAsync = promisify(execFile);
-const CODEX_SESSIONS_BIN = process.env.CODEX_SESSIONS_BIN?.trim() || "codex-sessions";
+const CODEX_APP_SERVER_BIN = process.env.CODEX_APP_SERVER_BIN?.trim() || "codex-app-server";
 
 type DeleteResponse = {
   id: string;
@@ -58,7 +58,7 @@ export function resolveCodexHomeFromEnv(value: string | undefined): string {
 
 export async function loadDesktopThreadTitles(codexHome: string): Promise<Map<string, string>> {
   try {
-    const rows = await runCodexSessionsJson<Record<string, string>>([
+    const rows = await runCodexAppServerSessionsJson<Record<string, string>>([
       "titles",
       "--json",
       "--home",
@@ -88,7 +88,7 @@ export async function listSessionsForSelection(
   codexHome: string,
   limit: number
 ): Promise<ListedSession[]> {
-  const result = await runCodexSessionsJson<ListResponse>([
+  const result = await runCodexAppServerSessionsJson<ListResponse>([
     "list",
     "--json",
     "--all",
@@ -128,7 +128,7 @@ export async function deleteSessionByThreadId(
   message: string | null;
 }> {
   try {
-    const payload = await runCodexSessionsJson<DeleteBatchResponse>([
+    const payload = await runCodexAppServerSessionsJson<DeleteBatchResponse>([
       "delete",
       threadId,
       "--json",
@@ -163,7 +163,7 @@ export async function loadLatestAssistantMessageByThreadId(
   codexHome: string
 ): Promise<string | null> {
   try {
-    const result = await runCodexSessionsJson<MessageResponse>([
+    const result = await runCodexAppServerSessionsJson<MessageResponse>([
       "message",
       threadId,
       "--json",
@@ -183,18 +183,19 @@ export async function loadLatestAssistantMessageByThreadId(
   }
 }
 
-async function runCodexSessionsJson<T>(args: string[]): Promise<T> {
-  const stdout = await runCodexSessions(args);
+async function runCodexAppServerSessionsJson<T>(args: string[]): Promise<T> {
+  const stdout = await runCodexAppServerSessions(args);
   try {
     return JSON.parse(stdout) as T;
   } catch (error) {
-    throw new Error(`Invalid JSON from ${CODEX_SESSIONS_BIN}: ${(error as Error).message}`);
+    throw new Error(`Invalid JSON from ${CODEX_APP_SERVER_BIN}: ${(error as Error).message}`);
   }
 }
 
-async function runCodexSessions(args: string[]): Promise<string> {
+async function runCodexAppServerSessions(args: string[]): Promise<string> {
+  const commandArgs = ["sessions", ...args];
   try {
-    const { stdout } = await execFileAsync(CODEX_SESSIONS_BIN, args, {
+    const { stdout } = await execFileAsync(CODEX_APP_SERVER_BIN, commandArgs, {
       maxBuffer: 10 * 1024 * 1024,
     });
     return stdout;
@@ -202,7 +203,7 @@ async function runCodexSessions(args: string[]): Promise<string> {
     const err = error as NodeJS.ErrnoException & { stderr?: string };
     if (err.code === "ENOENT") {
       throw new Error(
-        `Missing '${CODEX_SESSIONS_BIN}' CLI. Install codex-sessions before running codex-remote.`
+        `Missing '${CODEX_APP_SERVER_BIN}' CLI. Install codex-app-server before running codex-remote.`
       );
     }
     throw error;

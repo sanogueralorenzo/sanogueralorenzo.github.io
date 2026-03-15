@@ -4,7 +4,7 @@ import Observation
 struct CodexMenuData {
     let isLoading: Bool
     let remoteStatus: CodexRemoteCLIClient.Status?
-    let sessionsStatus: CodexSessionsCLIClient.Status?
+    let sessionsStatus: CodexAppServerCLIClient.Status?
     let currentProfileName: String?
     let profiles: [String]
 
@@ -29,7 +29,7 @@ final class CodexMenuDataStore {
 
     func refresh(authCLI: CodexAuthCLIClient,
                  remoteCLI: CodexRemoteCLIClient,
-                 sessionsCLI: CodexSessionsCLIClient) {
+                 sessionsCLI: CodexAppServerCLIClient) {
         refreshGeneration += 1
         let generation = refreshGeneration
 

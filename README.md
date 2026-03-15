@@ -15,7 +15,6 @@
 ## Index
 
 - [Codex Auth](./codex-auth/README.md)
-- [Codex Sessions](./codex-sessions/README.md)
 - [Codex App Server](./codex-app-server/README.md)
 - [Codex Remote](./codex-remote/README.md)
 - [Codex Menubar](./codex-menubar/README.md)

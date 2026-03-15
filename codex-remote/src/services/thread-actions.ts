@@ -10,7 +10,7 @@ import {
   listSessionsForSelection,
   loadDesktopThreadTitles,
   loadLatestAssistantMessageByThreadId
-} from "../adapters/codex-sessions.js";
+} from "../adapters/codex-app-server-sessions.js";
 import {
   buildFolderSelectionLabels,
   buildThreadSelectionLabels,

@@ -25,12 +25,12 @@ pub(crate) fn generate_session_title(
         .duration_since(UNIX_EPOCH)
         .unwrap_or_else(|_| Duration::from_secs(0));
     let schema_file = std::env::temp_dir().join(format!(
-        "codex-sessions-title-schema-{}-{}.json",
+        "codex-app-server-title-schema-{}-{}.json",
         std::process::id(),
         now.as_nanos()
     ));
     let output_file = std::env::temp_dir().join(format!(
-        "codex-sessions-title-output-{}-{}.txt",
+        "codex-app-server-title-output-{}-{}.txt",
         std::process::id(),
         now.as_nanos()
     ));

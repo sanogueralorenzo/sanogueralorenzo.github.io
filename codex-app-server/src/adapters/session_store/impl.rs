@@ -397,7 +397,7 @@ impl SessionStore {
             .with_context(|| format!("failed to open {}", lock_path.display()))?;
 
         eprintln!(
-            "[codex-sessions:title-lock] waiting path={} timeout_ms={}",
+            "[codex-app-server:title-lock] waiting path={} timeout_ms={}",
             lock_path.display(),
             timeout.as_millis()
         );
@@ -407,7 +407,7 @@ impl SessionStore {
             let result = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
             if result == 0 {
                 eprintln!(
-                    "[codex-sessions:title-lock] acquired path={} waited_ms={}",
+                    "[codex-app-server:title-lock] acquired path={} waited_ms={}",
                     lock_path.display(),
                     start.elapsed().as_millis()
                 );

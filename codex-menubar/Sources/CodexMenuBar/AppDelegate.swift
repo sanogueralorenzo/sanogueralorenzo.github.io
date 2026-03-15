@@ -6,7 +6,7 @@ import Observation
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let authCLI = CodexAuthCLIClient()
     let remoteCLI = CodexRemoteCLIClient()
-    let sessionsCLI = CodexSessionsCLIClient()
+    let sessionsCLI = CodexAppServerCLIClient()
     let menuDataStore = CodexMenuDataStore()
     var remoteLaunchPreference = RemoteLaunchPreference.load()
     var autoRemoveSettings = AutoRemoveSettings.load()
@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             do {
                 try sessionsCLI.startTitleWatcher()
             } catch {
-                fputs("Warning: failed to start codex-sessions thread-title watcher: \(error)\n", stderr)
+                fputs("Warning: failed to start codex-app-server thread-title watcher: \(error)\n", stderr)
             }
             DispatchQueue.main.async {
                 self?.refreshUI()
@@ -182,7 +182,7 @@ struct RemoteLaunchPreference: Equatable {
 
 struct AutoRemoveSettings: Equatable {
     let olderThanDays: Int?
-    let mode: CodexSessionsCLIClient.AutoRemoveMode?
+    let mode: CodexAppServerCLIClient.AutoRemoveMode?
 
     static let supportedDays = [1, 3, 7]
     static let none = AutoRemoveSettings(olderThanDays: nil, mode: nil)
@@ -198,7 +198,7 @@ struct AutoRemoveSettings: Equatable {
         guard components.count == 2,
               let days = Int(components[0]),
               supportedDays.contains(days),
-              let mode = CodexSessionsCLIClient.AutoRemoveMode(rawValue: String(components[1])) else {
+              let mode = CodexAppServerCLIClient.AutoRemoveMode(rawValue: String(components[1])) else {
             return .none
         }
 
@@ -217,7 +217,7 @@ struct AutoRemoveSettings: Equatable {
         olderThanDays != nil && mode != nil
     }
 
-    func withSelection(days: Int, mode: CodexSessionsCLIClient.AutoRemoveMode) -> AutoRemoveSettings {
+    func withSelection(days: Int, mode: CodexAppServerCLIClient.AutoRemoveMode) -> AutoRemoveSettings {
         AutoRemoveSettings(olderThanDays: days, mode: mode)
     }
 }

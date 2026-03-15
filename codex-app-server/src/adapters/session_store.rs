@@ -39,7 +39,7 @@ impl Drop for TitleWriteLock {
         if result != 0 {
             let error = std::io::Error::last_os_error();
             eprintln!(
-                "[codex-sessions:title-lock] release failed path={} error={}",
+                "[codex-app-server:title-lock] release failed path={} error={}",
                 self.lock_path.display(),
                 error
             );
@@ -47,7 +47,7 @@ impl Drop for TitleWriteLock {
         }
 
         eprintln!(
-            "[codex-sessions:title-lock] released path={}",
+            "[codex-app-server:title-lock] released path={}",
             self.lock_path.display()
         );
     }

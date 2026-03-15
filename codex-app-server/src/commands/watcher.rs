@@ -16,9 +16,9 @@ use super::title_generation::generate_session_title;
 
 const WATCH_TITLE_INTERVAL: Duration = Duration::from_secs(10);
 const WATCH_TITLE_BATCH_LIMIT: usize = 100;
-const WATCH_TITLE_PID_FILE: &str = "codex-sessions-watch-thread-titles.pid";
-const WATCH_TITLE_LOG_FILE: &str = "codex-sessions-watch-thread-titles.log";
-const WATCH_TITLE_STATE_FILE: &str = "codex-sessions-watch-thread-titles.state.json";
+const WATCH_TITLE_PID_FILE: &str = "codex-app-server-watch-thread-titles.pid";
+const WATCH_TITLE_LOG_FILE: &str = "codex-app-server-watch-thread-titles.log";
+const WATCH_TITLE_STATE_FILE: &str = "codex-app-server-watch-thread-titles.state.json";
 
 pub(crate) fn cmd_watch_thread_titles(action: WatchTitleCommand) -> Result<()> {
     match action {
@@ -125,6 +125,7 @@ impl TitleWatcher {
 
         let mut command = Command::new(executable_path);
         command
+            .arg("sessions")
             .arg("watch")
             .arg("thread-titles")
             .arg("run")
@@ -174,7 +175,7 @@ impl TitleWatcher {
             let report = self.process_cycle(&store, &mut state)?;
             self.save_state(&state)?;
             eprintln!(
-                "[codex-sessions:watch-thread-titles] scanned={} generated={} skipped_non_empty={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
+                "[codex-app-server:watch-thread-titles] scanned={} generated={} skipped_non_empty={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
                 report.scanned,
                 report.generated,
                 report.skipped_non_empty,
@@ -264,7 +265,7 @@ impl TitleWatcher {
                     report.errors += 1;
                     state_blocked = true;
                     eprintln!(
-                        "[codex-sessions:watch-thread-titles] generate failed id={} error={}",
+                        "[codex-app-server:watch-thread-titles] generate failed id={} error={}",
                         candidate.id, error
                     );
                     continue;
@@ -281,7 +282,7 @@ impl TitleWatcher {
                 report.errors += 1;
                 state_blocked = true;
                 eprintln!(
-                    "[codex-sessions:watch-thread-titles] persist failed id={} error={}",
+                    "[codex-app-server:watch-thread-titles] persist failed id={} error={}",
                     candidate.id, error
                 );
                 continue;

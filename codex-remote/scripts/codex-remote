@@ -144,14 +144,14 @@ ensure_node() {
   fi
 }
 
-ensure_codex_sessions() {
-  if ! command -v codex-sessions >/dev/null 2>&1; then
-    local sibling_install="$PROJECT_ROOT/../codex-sessions/scripts/install.sh"
-    echo "codex-sessions not found. Install it first:" >&2
+ensure_codex_app_server() {
+  if ! command -v codex-app-server >/dev/null 2>&1; then
+    local sibling_install="$PROJECT_ROOT/../codex-app-server/scripts/install.sh"
+    echo "codex-app-server not found. Install it first:" >&2
     if [[ -f "$sibling_install" ]]; then
       echo "  $sibling_install" >&2
     else
-      echo "  codex-sessions/scripts/install.sh" >&2
+      echo "  codex-app-server/scripts/install.sh" >&2
     fi
     exit 1
   fi
@@ -313,7 +313,7 @@ cmd_start() {
   local plain="$1"
   ensure_npm
   ensure_node
-  ensure_codex_sessions
+  ensure_codex_app_server
   ensure_state_dir
   ensure_env_file
   ensure_dependencies
