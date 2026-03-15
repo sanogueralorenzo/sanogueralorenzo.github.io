@@ -374,13 +374,11 @@ async function resolveSubagentThread(
 }
 
 function shouldSuppressSubagentAnnouncement(thread: ResolvedSubagentThread): boolean {
-  const normalizedTitle = normalizeSuppressionText(thread.title);
   const normalizedSource = normalizeSuppressionText(thread.source ?? "");
 
-  if (normalizedTitle === "summarize in one line") {
-    return true;
-  }
-  if (normalizedSource.includes("subagentreview") || normalizedSource.includes("subagent:review")) {
+  if (normalizedSource.includes("subagentreview")
+    || normalizedSource.includes("subagent:review")
+    || normalizedSource.includes("sub agent review")) {
     return true;
   }
   return false;
