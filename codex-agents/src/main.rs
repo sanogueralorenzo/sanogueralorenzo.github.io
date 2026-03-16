@@ -58,7 +58,7 @@ enum TaskCommand {
 enum WorkerCommand {
     /// Start autonomous worker loop
     Start(WorkerStartArgs),
-    /// Run a Ralph-style loop using `codex exec`
+    /// Run a repeated loop using `codex exec`
     Loop(WorkerLoopArgs),
 }
 
@@ -105,7 +105,7 @@ struct WorkerLoopArgs {
     max_iterations: Option<u64>,
 
     /// Stop loop when final message contains this text
-    #[arg(long = "stop-phrase", default_value = "RALPH_DONE")]
+    #[arg(long = "stop-phrase", default_value = "LOOP_DONE")]
     stop_phrase: String,
 
     /// Optional model override passed to codex
