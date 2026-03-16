@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command};
 use std::thread;
 use std::time::Duration;
 
@@ -151,6 +151,17 @@ struct LoopIterationResult {
     session_id: Option<String>,
 }
 
+struct CaffeinateGuard {
+    child: Child,
+}
+
+impl Drop for CaffeinateGuard {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
 fn run() -> Result<()> {
     let cli = Cli::parse();
     let layout = resolve_state_layout()?;
@@ -204,6 +215,7 @@ fn worker_start(layout: &StateLayout, args: WorkerStartArgs) -> Result<()> {
     if args.interval_seconds == 0 {
         bail!("Invalid --interval-seconds value: 0");
     }
+    let _caffeinate = maybe_start_caffeinate();
 
     if args.once {
         run_worker_cycle(layout)?;
@@ -256,6 +268,7 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
     {
         bail!("Invalid --max-iterations value: 0");
     }
+    let _caffeinate = maybe_start_caffeinate();
 
     println!("Loop started.");
     println!("  cwd: {}", cwd.display());
@@ -314,6 +327,33 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn maybe_start_caffeinate() -> Option<CaffeinateGuard> {
+    #[cfg(target_os = "macos")]
+    {
+        let pid = std::process::id().to_string();
+        let mut cmd = Command::new("caffeinate");
+        cmd.arg("-dimsu");
+        cmd.arg("-w");
+        cmd.arg(pid);
+
+        match cmd.spawn() {
+            Ok(child) => {
+                println!("caffeinate: enabled");
+                Some(CaffeinateGuard { child })
+            }
+            Err(_) => {
+                println!("caffeinate: unavailable; continuing without sleep prevention");
+                None
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
 }
 
 fn task_create(layout: &StateLayout, ticket: &str) -> Result<()> {

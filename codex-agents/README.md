@@ -54,6 +54,7 @@ Behavior:
 - Worker scans local pending tasks and prints the next task suggestion.
 - `--once` runs one cycle and exits.
 - Default polling interval is 30 seconds.
+- On macOS, worker commands enable `caffeinate` by default so the machine does not sleep during execution.
 
 ### Loop Runner (`codex exec`)
 
