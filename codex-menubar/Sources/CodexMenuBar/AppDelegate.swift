@@ -172,7 +172,10 @@ struct RemoteLaunchPreference: Equatable {
     private static let key = "remote.shouldAutoStart"
 
     static func load(defaults: UserDefaults = .standard) -> RemoteLaunchPreference {
-        RemoteLaunchPreference(shouldAutoStart: defaults.bool(forKey: key))
+        guard defaults.object(forKey: key) != nil else {
+            return .enabled
+        }
+        return RemoteLaunchPreference(shouldAutoStart: defaults.bool(forKey: key))
     }
 
     func save(defaults: UserDefaults = .standard) {

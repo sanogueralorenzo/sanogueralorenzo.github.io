@@ -2,12 +2,12 @@ import { spawn } from "node:child_process";
 import process from "node:process";
 
 type JsonRpcSuccess = {
-  id: number;
+  id: number | string;
   result: unknown;
 };
 
 type JsonRpcError = {
-  id: number;
+  id: number | string;
   error: {
     code: number;
     message: string;
@@ -73,7 +73,7 @@ export type TurnProgressEvent =
       output: string | null;
     }
   | {
-      kind: "reasoningDelta" | "planDelta" | "agentDelta" | "commandOutputDelta";
+      kind: "agentDelta" | "commandOutputDelta";
       threadId: string;
       turnId: string;
       itemId: string;
@@ -87,7 +87,18 @@ type TurnRuntimeOptions = {
 };
 
 const TURN_TIMEOUT_MS = 5 * 60 * 1000;
+const CODEX_APP_SERVER_BIN = process.env.CODEX_APP_SERVER_BIN?.trim() || "codex-app-server";
 const THREAD_LIST_SOURCE_KINDS = ["vscode", "cli", "appServer"] as const;
+
+// Keep transport-side policy in the app-server stream itself; clients focus on rendering.
+const DEFAULT_OPT_OUT_NOTIFICATION_METHODS = [
+  "item/reasoning/summaryTextDelta",
+  "item/reasoning/summaryPartAdded",
+  "item/reasoning/textDelta",
+  "item/plan/delta",
+  "turn/plan/updated",
+  "rawResponseItem/completed"
+] as const;
 
 export type ThreadSummary = {
   id: string;
@@ -116,12 +127,12 @@ export type TimedTurnResult =
 export type TimedCreateTurnResult =
   | {
       status: "completed";
-      conversationId: string;
+      threadId: string;
       response: string;
     }
   | {
       status: "timed_out";
-      conversationId: string;
+      threadId: string;
       completion: Promise<TurnCompletion>;
     };
 
@@ -146,71 +157,45 @@ export async function listThreads(limit: number): Promise<ThreadSummary[]> {
   });
 }
 
-export async function findThreadById(threadId: string, maxToScan = 500): Promise<ThreadSummary | null> {
-  return withAppServer(async (client) => {
-    return findThreadByIdOnClient(client, threadId, maxToScan);
-  });
-}
-
 export async function sendMessageWithTimeoutContinuation(
-  conversationId: string,
+  threadId: string,
   text: string,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedTurnResult> {
-  return sendMessageWithTimeoutContinuationInternal(conversationId, text, true, runtimeOptions);
+  return sendMessageWithTimeoutContinuationInternal(threadId, text, true, runtimeOptions);
 }
 
 export async function sendMessageWithoutResumeWithTimeoutContinuation(
-  conversationId: string,
+  threadId: string,
   text: string,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedTurnResult> {
-  return sendMessageWithTimeoutContinuationInternal(conversationId, text, false, runtimeOptions);
+  return sendMessageWithTimeoutContinuationInternal(threadId, text, false, runtimeOptions);
 }
 
 async function sendMessageWithTimeoutContinuationInternal(
-  conversationId: string,
+  threadId: string,
   text: string,
   resumeFirst: boolean,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedTurnResult> {
-  const client = new AppServerConnection(runtimeOptions);
-  await client.initialize();
-
-  let handedOff = false;
-  try {
-    const completion = runTurn(
+  return withTurnClient(runtimeOptions, async (client, handOffCompletion) => {
+    const timed = await runTurnWithTimeout(
       client,
-      conversationId,
+      threadId,
       text,
       resumeFirst,
       runtimeOptions?.onTurnEvent
     );
-    const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
-    if (raced.status === "completed") {
-      return {
-        status: "completed",
-        response: raced.value
-      };
+    if (timed.status === "completed") {
+      return timed;
     }
 
-    handedOff = true;
     return {
       status: "timed_out",
-      completion: completion
-        .then((response) => ({ response }))
-        .finally(async () => {
-          await client.close();
-        })
+      completion: handOffCompletion(timed.completion)
     };
-  } catch (error) {
-    await client.close();
-    throw error;
-  } finally {
-    if (!handedOff) {
-      await client.close();
-    }
-  }
+  });
 }
 
 export async function createAndSendFirstMessageWithTimeoutContinuation(
@@ -218,53 +203,35 @@ export async function createAndSendFirstMessageWithTimeoutContinuation(
   text: string,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedCreateTurnResult> {
-  const client = new AppServerConnection(runtimeOptions);
-  await client.initialize();
-
-  let handedOff = false;
-  try {
-    const conversationId = await startConversationOnClient(client, options);
-
-    const completion = runTurn(
+  return withTurnClient(runtimeOptions, async (client, handOffCompletion) => {
+    const threadId = await startThreadOnClient(client, options);
+    const timed = await runTurnWithTimeout(
       client,
-      conversationId,
+      threadId,
       text,
       false,
       runtimeOptions?.onTurnEvent
     );
-    const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
-    if (raced.status === "completed") {
+    if (timed.status === "completed") {
       return {
         status: "completed",
-        conversationId,
-        response: raced.value
+        threadId,
+        response: timed.response
       };
     }
 
-    handedOff = true;
     return {
       status: "timed_out",
-      conversationId,
-      completion: completion
-        .then((response) => ({ response }))
-        .finally(async () => {
-          await client.close();
-        })
+      threadId,
+      completion: handOffCompletion(timed.completion)
     };
-  } catch (error) {
-    await client.close();
-    throw error;
-  } finally {
-    if (!handedOff) {
-      await client.close();
-    }
-  }
+  });
 }
 
 type NotificationHandler = (notification: JsonRpcNotification) => void;
 
 class AppServerConnection {
-  private readonly child = spawn("codex-app-server", ["rpc", "--listen", "stdio://"], {
+  private readonly child = spawn(CODEX_APP_SERVER_BIN, ["rpc", "--listen", "stdio://"], {
     stdio: ["pipe", "pipe", "pipe"],
     env: process.env
   });
@@ -305,7 +272,8 @@ class AppServerConnection {
         version: "1.0"
       },
       capabilities: {
-        experimentalApi: true
+        experimentalApi: true,
+        optOutNotificationMethods: Array.from(DEFAULT_OPT_OUT_NOTIFICATION_METHODS)
       }
     });
     this.notify("initialized");
@@ -513,197 +481,132 @@ async function withAppServer<T>(work: (client: AppServerConnection) => Promise<T
   }
 }
 
+async function withTurnClient<T>(
+  runtimeOptions: TurnRuntimeOptions | undefined,
+  work: (
+    client: AppServerConnection,
+    handOffCompletion: (completion: Promise<TurnCompletion>) => Promise<TurnCompletion>
+  ) => Promise<T>
+): Promise<T> {
+  const client = new AppServerConnection(runtimeOptions);
+  await client.initialize();
+
+  let handedOff = false;
+  const handOffCompletion = (completion: Promise<TurnCompletion>): Promise<TurnCompletion> => {
+    handedOff = true;
+    return completion.finally(async () => {
+      await client.close();
+    });
+  };
+
+  try {
+    return await work(client, handOffCompletion);
+  } catch (error) {
+    await client.close();
+    throw error;
+  } finally {
+    if (!handedOff) {
+      await client.close();
+    }
+  }
+}
+
+async function runTurnWithTimeout(
+  client: AppServerConnection,
+  threadId: string,
+  text: string,
+  resumeFirst: boolean,
+  onTurnEvent?: (event: TurnProgressEvent) => void
+): Promise<
+  | { status: "completed"; response: string }
+  | { status: "timed_out"; completion: Promise<TurnCompletion> }
+> {
+  const completion = runTurn(client, threadId, text, resumeFirst, onTurnEvent);
+  const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
+  if (raced.status === "completed") {
+    return {
+      status: "completed",
+      response: raced.value
+    };
+  }
+
+  return {
+    status: "timed_out",
+    completion: completion.then((response) => ({ response }))
+  };
+}
+
+type RunTurnState = {
+  threadId: string;
+  currentTurnId: string | null;
+  lastAgentMessage: string;
+  lastFinalAgentMessage: string;
+  agentSnapshots: Map<string, string>;
+  emitTurnEvent: (event: TurnProgressEvent) => void;
+  finalizeSuccess: (value: string) => void;
+  finalizeFailure: (error: unknown) => void;
+};
+
 async function runTurn(
   client: AppServerConnection,
-  conversationId: string,
+  threadId: string,
   text: string,
   resumeFirst: boolean,
   onTurnEvent?: (event: TurnProgressEvent) => void
 ): Promise<string> {
   if (resumeFirst) {
     await client.send("thread/resume", {
-      threadId: conversationId
+      threadId
     });
   }
 
-  let lastAgentMessage = "";
-  let lastFinalAgentMessage = "";
-  let currentTurnId: string | null = null;
   let finished = false;
   let resolveTurn: (value: string) => void = () => {};
   let rejectTurn: (reason: unknown) => void = () => {};
-
   const turnDone = new Promise<string>((resolve, reject) => {
     resolveTurn = resolve;
     rejectTurn = reject;
   });
 
-  const finalizeSuccess = (value: string): void => {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    resolveTurn(value);
-  };
-
-  const finalizeFailure = (error: unknown): void => {
-    if (finished) {
-      return;
-    }
-    finished = true;
-    rejectTurn(error);
-  };
-
-  const agentSnapshots = new Map<string, string>();
-
-  const emitTurnEvent = (event: TurnProgressEvent): void => {
-    if (!onTurnEvent) {
-      return;
-    }
-    try {
-      onTurnEvent(event);
-    } catch {
-      // Progress consumers are best-effort and must not break turn handling.
+  const state: RunTurnState = {
+    threadId,
+    currentTurnId: null,
+    lastAgentMessage: "",
+    lastFinalAgentMessage: "",
+    agentSnapshots: new Map<string, string>(),
+    emitTurnEvent: (event) => {
+      if (!onTurnEvent) {
+        return;
+      }
+      try {
+        onTurnEvent(event);
+      } catch {
+        // Progress consumers are best-effort and must not break turn handling.
+      }
+    },
+    finalizeSuccess: (value) => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      resolveTurn(value);
+    },
+    finalizeFailure: (error) => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      rejectTurn(error);
     }
   };
 
   const detachNotification = client.onNotification((notification) => {
-    const params = asObject(notification.params);
-
-    const eventThreadId = getString(params.threadId) ?? getString(params.conversationId);
-    if (eventThreadId !== conversationId) {
-      return;
-    }
-
-    const eventTurnId = getString(params.turnId);
-    if (!currentTurnId && eventTurnId) {
-      currentTurnId = eventTurnId;
-    }
-    if (!currentTurnId || (eventTurnId && eventTurnId !== currentTurnId)) {
-      return;
-    }
-
-    if (notification.method === "item/started") {
-      const item = asObject(params.item);
-      const itemId = getString(item.id) ?? getString(params.itemId) ?? "unknown-item";
-      const itemType = normalizeItemType(getString(item.type));
-      emitTurnEvent({
-        kind: "itemStarted",
-        threadId: conversationId,
-        turnId: currentTurnId,
-        itemId,
-        itemType,
-        command: extractCommandText(item)
-      });
-      return;
-    }
-
-    if (notification.method === "item/agentMessage/delta") {
-      const delta = getString(params.delta);
-      if (delta) {
-        const itemId = getString(params.itemId) ?? "agent-message";
-        const currentSnapshot = agentSnapshots.get(itemId) ?? "";
-        const nextSnapshot = currentSnapshot + delta;
-        agentSnapshots.set(itemId, nextSnapshot);
-        lastAgentMessage = nextSnapshot;
-        emitTurnEvent({
-          kind: "agentDelta",
-          threadId: conversationId,
-          turnId: currentTurnId,
-          itemId,
-          itemType: "agentMessage",
-          text: delta
-        });
-      }
-      return;
-    }
-
-    const deltaKind = mapDeltaMethodToKind(notification.method);
-    if (deltaKind) {
-      const delta = extractDeltaText(params);
-      if (delta) {
-        emitTurnEvent({
-          kind: deltaKind,
-          threadId: conversationId,
-          turnId: currentTurnId,
-          itemId: getString(params.itemId) ?? "unknown-item",
-          itemType: extractDeltaItemType(notification.method),
-          text: delta
-        });
-      }
-      return;
-    }
-
-    if (notification.method === "item/completed") {
-      const item = asObject(params.item);
-      const itemId = getString(item.id) ?? getString(params.itemId) ?? "unknown-item";
-      const itemType = normalizeItemType(getString(item.type));
-      const text = extractItemText(item);
-
-      if (itemType === "agentMessage" && text !== null) {
-        lastAgentMessage = text;
-        agentSnapshots.set(itemId, text);
-        const phase = normalizeTextToken(getString(item.phase));
-        if (phase === "finalanswer" || phase === "final") {
-          lastFinalAgentMessage = text;
-        }
-      }
-
-      emitTurnEvent({
-        kind: "itemCompleted",
-        threadId: conversationId,
-        turnId: currentTurnId,
-        itemId,
-        itemType,
-        text,
-        status: extractItemStatus(item),
-        command: extractCommandText(item),
-        output: extractItemOutput(item)
-      });
-      return;
-    }
-
-    if (notification.method !== "turn/completed") {
-      return;
-    }
-
-    const turn = asObject(params.turn);
-    const completedTurnId = getString(turn.id);
-    if (!currentTurnId || !completedTurnId || completedTurnId !== currentTurnId) {
-      return;
-    }
-
-    const status = getString(turn.status);
-    if (status === "completed") {
-      finalizeSuccess((lastFinalAgentMessage || lastAgentMessage).trim());
-      return;
-    }
-
-    if (status === "interrupted") {
-      const trimmed = (lastFinalAgentMessage || lastAgentMessage).trim();
-      if (trimmed) {
-        finalizeSuccess(trimmed);
-        return;
-      }
-      finalizeFailure(new Error("Turn was interrupted before producing a response."));
-      return;
-    }
-
-    if (status === "failed") {
-      finalizeFailure(new Error(getTurnFailureMessage(turn)));
-      return;
-    }
-
-    if (status === "inProgress") {
-      return;
-    }
-
-    finalizeFailure(new Error(`Turn ended with unexpected status: ${status ?? "unknown"}`));
+    handleTurnNotification(state, notification);
   });
 
   try {
     const started = await client.send("turn/start", {
-      threadId: conversationId,
+      threadId,
       input: [
         {
           type: "text",
@@ -713,11 +616,11 @@ async function runTurn(
     });
 
     const startedTurn = asObject(asObject(started).turn);
-    currentTurnId = getString(startedTurn.id);
+    state.currentTurnId = getString(startedTurn.id);
 
     const status = getString(startedTurn.status);
     if (status === "completed") {
-      return lastAgentMessage.trim();
+      return latestTurnResponse(state);
     }
     if (status === "failed") {
       throw new Error(getTurnFailureMessage(startedTurn));
@@ -733,6 +636,177 @@ async function runTurn(
   } finally {
     detachNotification();
   }
+}
+
+function handleTurnNotification(state: RunTurnState, notification: JsonRpcNotification): void {
+  const params = asObject(notification.params);
+  if (!isTurnNotificationForThread(state, params)) {
+    return;
+  }
+  if (!isTurnNotificationForCurrentTurn(state, params)) {
+    return;
+  }
+
+  switch (notification.method) {
+    case "turn/started": {
+      const turn = asObject(params.turn);
+      const turnId = getString(turn.id);
+      if (turnId) {
+        state.currentTurnId = turnId;
+      }
+      return;
+    }
+    case "item/started":
+      handleItemStartedNotification(state, params);
+      return;
+    case "item/agentMessage/delta":
+      handleAgentDeltaNotification(state, params);
+      return;
+    case "item/completed":
+      handleItemCompletedNotification(state, params);
+      return;
+    case "turn/completed":
+      handleTurnCompletedNotification(state, params);
+      return;
+    default:
+      handleOutputDeltaNotification(state, notification.method, params);
+  }
+}
+
+function isTurnNotificationForThread(state: RunTurnState, params: Record<string, unknown>): boolean {
+  const eventThreadId = getString(params.threadId) ?? getString(params.conversationId);
+  return eventThreadId === state.threadId;
+}
+
+function isTurnNotificationForCurrentTurn(state: RunTurnState, params: Record<string, unknown>): boolean {
+  const eventTurnId = getString(params.turnId);
+  if (!state.currentTurnId && eventTurnId) {
+    state.currentTurnId = eventTurnId;
+  }
+  return !!state.currentTurnId && (!eventTurnId || eventTurnId === state.currentTurnId);
+}
+
+function handleItemStartedNotification(state: RunTurnState, params: Record<string, unknown>): void {
+  const item = asObject(params.item);
+  state.emitTurnEvent({
+    kind: "itemStarted",
+    threadId: state.threadId,
+    turnId: state.currentTurnId!,
+    itemId: getString(item.id) ?? getString(params.itemId) ?? "unknown-item",
+    itemType: normalizeItemType(getString(item.type)),
+    command: extractCommandText(item)
+  });
+}
+
+function handleAgentDeltaNotification(state: RunTurnState, params: Record<string, unknown>): void {
+  const delta = getString(params.delta);
+  if (!delta) {
+    return;
+  }
+
+  const itemId = getString(params.itemId) ?? "agent-message";
+  const nextSnapshot = (state.agentSnapshots.get(itemId) ?? "") + delta;
+  state.agentSnapshots.set(itemId, nextSnapshot);
+  state.lastAgentMessage = nextSnapshot;
+  state.emitTurnEvent({
+    kind: "agentDelta",
+    threadId: state.threadId,
+    turnId: state.currentTurnId!,
+    itemId,
+    itemType: "agentMessage",
+    text: delta
+  });
+}
+
+function handleOutputDeltaNotification(
+  state: RunTurnState,
+  method: string,
+  params: Record<string, unknown>
+): void {
+  if (!isCommandOutputDeltaMethod(method)) {
+    return;
+  }
+
+  const delta = extractDeltaText(params);
+  if (!delta) {
+    return;
+  }
+
+  state.emitTurnEvent({
+    kind: "commandOutputDelta",
+    threadId: state.threadId,
+    turnId: state.currentTurnId!,
+    itemId: getString(params.itemId) ?? "unknown-item",
+    itemType: extractDeltaItemType(method),
+    text: delta
+  });
+}
+
+function handleItemCompletedNotification(state: RunTurnState, params: Record<string, unknown>): void {
+  const item = asObject(params.item);
+  const itemId = getString(item.id) ?? getString(params.itemId) ?? "unknown-item";
+  const itemType = normalizeItemType(getString(item.type));
+  const text = extractItemText(item);
+
+  if (itemType === "agentMessage" && text !== null) {
+    state.lastAgentMessage = text;
+    state.agentSnapshots.set(itemId, text);
+    const phase = normalizeTextToken(getString(item.phase));
+    if (phase === "finalanswer" || phase === "final") {
+      state.lastFinalAgentMessage = text;
+    }
+  }
+
+  state.emitTurnEvent({
+    kind: "itemCompleted",
+    threadId: state.threadId,
+    turnId: state.currentTurnId!,
+    itemId,
+    itemType,
+    text,
+    status: extractItemStatus(item),
+    command: extractCommandText(item),
+    output: extractItemOutput(item)
+  });
+}
+
+function handleTurnCompletedNotification(state: RunTurnState, params: Record<string, unknown>): void {
+  const turn = asObject(params.turn);
+  const completedTurnId = getString(turn.id);
+  if (!state.currentTurnId || !completedTurnId || completedTurnId !== state.currentTurnId) {
+    return;
+  }
+
+  const status = getString(turn.status);
+  if (status === "completed") {
+    state.finalizeSuccess(latestTurnResponse(state));
+    return;
+  }
+
+  if (status === "interrupted") {
+    const trimmed = latestTurnResponse(state);
+    if (trimmed) {
+      state.finalizeSuccess(trimmed);
+      return;
+    }
+    state.finalizeFailure(new Error("Turn was interrupted before producing a response."));
+    return;
+  }
+
+  if (status === "failed") {
+    state.finalizeFailure(new Error(getTurnFailureMessage(turn)));
+    return;
+  }
+
+  if (status === "inProgress") {
+    return;
+  }
+
+  state.finalizeFailure(new Error(`Turn ended with unexpected status: ${status ?? "unknown"}`));
+}
+
+function latestTurnResponse(state: RunTurnState): string {
+  return (state.lastFinalAgentMessage || state.lastAgentMessage).trim();
 }
 
 async function waitWithTimeout<T>(
@@ -754,35 +828,6 @@ async function waitWithTimeout<T>(
       clearTimeout(timeoutHandle);
     }
   }
-}
-
-async function findThreadByIdOnClient(
-  client: AppServerConnection,
-  threadId: string,
-  maxToScan = 500
-): Promise<ThreadSummary | null> {
-  const scanLimit = Math.max(1, Math.trunc(maxToScan));
-  let scanned = 0;
-  let cursor: string | null = null;
-
-  while (scanned < scanLimit) {
-    const pageLimit = Math.min(100, scanLimit - scanned);
-    const result = await client.send("thread/list", buildThreadListParams(pageLimit, cursor));
-    const page = parseThreadListPage(result);
-
-    const match = page.threads.find((thread) => thread.id === threadId);
-    if (match) {
-      return match;
-    }
-
-    scanned += page.threads.length;
-    if (!page.nextCursor || page.threads.length === 0) {
-      return null;
-    }
-    cursor = page.nextCursor;
-  }
-
-  return null;
 }
 
 function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextCursor: string | null } {
@@ -899,7 +944,8 @@ function toLegacyApprovalRequest(
   }
 
   return {
-    method: method === "execCommandApproval" ? "item/commandExecution/requestApproval" : "item/fileChange/requestApproval",
+    method:
+      method === "execCommandApproval" ? "item/commandExecution/requestApproval" : "item/fileChange/requestApproval",
     threadId,
     turnId: callId,
     itemId: callId,
@@ -910,7 +956,9 @@ function toLegacyApprovalRequest(
   };
 }
 
-function mapLegacyApprovalDecision(decision: ApprovalDecision): "approved" | "approved_for_session" | "denied" | "abort" {
+function mapLegacyApprovalDecision(
+  decision: ApprovalDecision
+): "approved" | "approved_for_session" | "denied" | "abort" {
   if (decision === "accept") {
     return "approved";
   }
@@ -937,28 +985,15 @@ function getTurnFailureMessage(turn: Record<string, unknown>): string {
   return "Turn failed.";
 }
 
-type DeltaProgressKind = "reasoningDelta" | "planDelta" | "commandOutputDelta";
-
-function mapDeltaMethodToKind(method: string): DeltaProgressKind | null {
-  if (method === "item/reasoning/textDelta" || method === "item/reasoning/summaryTextDelta") {
-    return "reasoningDelta";
-  }
-  if (method === "item/plan/delta") {
-    return "planDelta";
-  }
-  if (method === "item/fileChange/outputDelta" || method === "item/commandExecution/outputDelta" || method === "command/exec/outputDelta") {
-    return "commandOutputDelta";
-  }
-  return null;
+function isCommandOutputDeltaMethod(method: string): boolean {
+  return (
+    method === "item/fileChange/outputDelta" ||
+    method === "item/commandExecution/outputDelta" ||
+    method === "command/exec/outputDelta"
+  );
 }
 
 function extractDeltaItemType(method: string): string {
-  if (method.startsWith("item/reasoning/")) {
-    return "reasoning";
-  }
-  if (method === "item/plan/delta") {
-    return "plan";
-  }
   if (method === "item/fileChange/outputDelta") {
     return "fileChange";
   }
@@ -969,11 +1004,13 @@ function extractDeltaItemType(method: string): string {
 }
 
 function extractDeltaText(params: Record<string, unknown>): string | null {
-  return getString(params.delta)
-    ?? getString(params.textDelta)
-    ?? getString(params.summaryTextDelta)
-    ?? getString(params.outputDelta)
-    ?? getString(params.text);
+  return (
+    getString(params.delta) ??
+    getString(params.textDelta) ??
+    getString(params.summaryTextDelta) ??
+    getString(params.outputDelta) ??
+    getString(params.text)
+  );
 }
 
 function normalizeItemType(type: string | null): string {
@@ -1018,9 +1055,7 @@ function extractCommandText(item: Record<string, unknown>): string | null {
 }
 
 function extractItemOutput(item: Record<string, unknown>): string | null {
-  return getString(item.aggregatedOutput)
-    ?? getString(item.aggregated_output)
-    ?? getString(item.output);
+  return getString(item.aggregatedOutput) ?? getString(item.aggregated_output) ?? getString(item.output);
 }
 
 function extractItemText(item: Record<string, unknown>): string | null {
@@ -1063,17 +1098,17 @@ function getNumber(value: unknown): number | null {
   return value;
 }
 
-async function startConversationOnClient(
+async function startThreadOnClient(
   client: AppServerConnection,
   options: ConversationOptions
 ): Promise<string> {
   const result = await client.send("thread/start", buildThreadStartParams(options));
   const thread = asObject(result).thread;
-  const conversationId = asObject(thread).id;
-  if (typeof conversationId !== "string" || !conversationId) {
+  const threadId = asObject(thread).id;
+  if (typeof threadId !== "string" || !threadId) {
     throw new Error("app-server thread/start did not return a thread id");
   }
-  return conversationId;
+  return threadId;
 }
 
 function buildThreadStartParams(options: ConversationOptions): Record<string, unknown> {

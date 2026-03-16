@@ -7,24 +7,22 @@ export const RESUME_COMMAND_ALIASES = ["resume", "r"] as const;
 export const DELETE_COMMAND_ALIASES = ["delete", "d"] as const;
 export const RESTART_COMMAND_ALIASES = ["restart"] as const;
 
+const ACTION_BY_TEXT: Record<string, ActionName | "help" | "start" | "restart"> = {
+  new: "new",
+  n: "new",
+  "new chat": "new",
+  resume: "resume",
+  r: "resume",
+  "resume chat": "resume",
+  delete: "delete",
+  d: "delete",
+  "delete chat": "delete",
+  start: "start",
+  help: "help",
+  h: "help",
+  restart: "restart"
+};
+
 export function mapTextAction(input: string): ActionName | "help" | "start" | "restart" | null {
-  if (input === "new" || input === "n" || input === "new chat") {
-    return "new";
-  }
-  if (input === "resume" || input === "r" || input === "resume chat") {
-    return "resume";
-  }
-  if (input === "delete" || input === "d" || input === "delete chat") {
-    return "delete";
-  }
-  if (input === "start") {
-    return "start";
-  }
-  if (input === "help" || input === "h") {
-    return "help";
-  }
-  if (input === "restart") {
-    return "restart";
-  }
-  return null;
+  return ACTION_BY_TEXT[input] ?? null;
 }

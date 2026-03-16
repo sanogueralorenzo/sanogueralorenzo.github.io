@@ -20,6 +20,7 @@ import {
 import { formatActionTitle, formatFolderLabel } from "../bot/messages.js";
 import { ReplyFn } from "../bot/context.js";
 import { ActionName } from "../shared/actions.js";
+import { sendTextChunks } from "../shared/telegram-text.js";
 
 export type ListedThread = {
   id: string;
@@ -32,9 +33,6 @@ export type ListedFolderChoice = {
   cwd: string;
   label: string;
 };
-
-const TELEGRAM_MESSAGE_LIMIT = 4096;
-const TELEGRAM_MESSAGE_CHUNK = 3900;
 
 type ThreadActionsDeps = {
   codexHome: string;
@@ -70,11 +68,8 @@ export function createThreadActions(deps: ThreadActionsDeps) {
       return;
     }
 
-    deps.pendingNewSessionChats.delete(chatId);
-    deps.pendingNewSessionCwds.delete(chatId);
-    deps.lastListedSessions.delete(chatId);
-    deps.lastListedSessionModes.delete(chatId);
-    deps.lastListedFolderChoices.delete(chatId);
+    clearPendingNewSessionState(chatId);
+    clearListedSelectionState(chatId);
     await deps.bindChatToThread(chatId, selected.id);
     await reply(formatActionTitle("Resumed", selected.title), { reply_markup: quickActionsKeyboard() });
 
@@ -92,19 +87,18 @@ export function createThreadActions(deps: ThreadActionsDeps) {
 
     const result = await deleteSessionByThreadId(selected.id, deps.codexHome);
     const boundId = await deps.store.get(chatId);
+    const isDeletedThreadBound = boundId === selected.id;
 
-    deps.lastListedSessions.delete(chatId);
-    deps.lastListedSessionModes.delete(chatId);
-    deps.lastListedFolderChoices.delete(chatId);
+    clearListedSelectionState(chatId);
 
     if (result.deleted) {
-      if (boundId === selected.id) {
+      if (isDeletedThreadBound) {
         deps.pendingNewSessionChats.add(chatId);
         deps.pendingNewSessionCwds.set(chatId, selected.cwd || deps.resolveDefaultCwd());
         await deps.store.remove(chatId);
       }
 
-      if (boundId === selected.id) {
+      if (isDeletedThreadBound) {
         await reply(`${formatActionTitle("Deleted", selected.title)}\n\nSend a message to start a new thread.`, {
           reply_markup: quickActionsKeyboard()
         });
@@ -135,9 +129,6 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     await clearChatBindingState(chatId);
     deps.pendingNewSessionChats.add(chatId);
     deps.pendingNewSessionCwds.set(chatId, selected.cwd);
-    deps.lastListedSessions.delete(chatId);
-    deps.lastListedSessionModes.delete(chatId);
-    deps.lastListedFolderChoices.delete(chatId);
     await reply(`New: Send message\nFolder: ${selected.label}`, { reply_markup: quickActionsKeyboard() });
   }
 
@@ -158,10 +149,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     deps.lastListedFolderChoices.delete(chatId);
 
     const prompt = mode === "delete" ? "Choose thread to delete" : "Choose thread";
-    const threadLabels =
-      mode === "resume"
-        ? sessions.map((session) => session.title)
-        : sessions.map((session) => formatSessionSelectionLabel(session));
+    const threadLabels = sessions.map((session) => session.title);
     await reply(prompt, {
       reply_markup: threadSelectionKeyboard(
         threadLabels,
@@ -171,13 +159,11 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   async function replyFolderChoices(chatId: string, reply: ReplyFn): Promise<void> {
-    deps.pendingNewSessionChats.delete(chatId);
-    deps.pendingNewSessionCwds.delete(chatId);
+    clearPendingNewSessionState(chatId);
     const threads = await listThreads(Math.max(80, deps.defaultThreadsLimit));
     const folderChoices = listFolderChoices(threads, deps.resolveDefaultCwd()).slice(0, 12);
 
-    deps.lastListedSessions.delete(chatId);
-    deps.lastListedSessionModes.delete(chatId);
+    clearListedSelectionState(chatId);
     deps.lastListedFolderChoices.set(chatId, folderChoices);
 
     await reply("Choose folder", {
@@ -224,11 +210,20 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   async function clearChatBindingState(chatId: string): Promise<void> {
+    clearListedSelectionState(chatId);
+    clearPendingNewSessionState(chatId);
+    await deps.store.remove(chatId);
+  }
+
+  function clearPendingNewSessionState(chatId: string): void {
+    deps.pendingNewSessionChats.delete(chatId);
+    deps.pendingNewSessionCwds.delete(chatId);
+  }
+
+  function clearListedSelectionState(chatId: string): void {
     deps.lastListedSessions.delete(chatId);
     deps.lastListedSessionModes.delete(chatId);
     deps.lastListedFolderChoices.delete(chatId);
-    deps.pendingNewSessionCwds.delete(chatId);
-    await deps.store.remove(chatId);
   }
 
   function getListedSessionForIndex(chatId: string, index: number): ListedThread | null {
@@ -260,43 +255,6 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     tryPickThreadByText,
     tryPickFolderChoiceByText
   };
-}
-
-async function sendTextChunks(reply: ReplyFn, text: string): Promise<void> {
-  const chunks = splitTextForTelegram(text);
-  for (const chunk of chunks) {
-    await reply(chunk);
-  }
-}
-
-function splitTextForTelegram(text: string, maxLen = TELEGRAM_MESSAGE_CHUNK): string[] {
-  if (text.length <= TELEGRAM_MESSAGE_LIMIT) {
-    return [text];
-  }
-
-  const chunks: string[] = [];
-  let remaining = text;
-  while (remaining.length > maxLen) {
-    let splitAt = remaining.lastIndexOf("\n", maxLen);
-    if (splitAt < Math.floor(maxLen * 0.5)) {
-      splitAt = remaining.lastIndexOf(" ", maxLen);
-    }
-    if (splitAt <= 0) {
-      splitAt = maxLen;
-    }
-
-    const head = remaining.slice(0, splitAt).trimEnd();
-    if (head) {
-      chunks.push(head);
-    }
-    remaining = remaining.slice(splitAt).trimStart();
-  }
-
-  if (remaining) {
-    chunks.push(remaining);
-  }
-
-  return chunks.length ? chunks : [""];
 }
 
 function listFolderChoices(threads: ThreadSummary[], defaultCwd: string): ListedFolderChoice[] {
@@ -333,19 +291,4 @@ function toFolderButtonLabel(cwd: string): string {
     return formatted;
   }
   return `${formatted.slice(0, 21)}...`;
-}
-
-function formatSessionSelectionLabel(session: ListedThread): string {
-  const updated = formatUpdatedDate(session.lastUpdatedAt);
-  return `${session.folder} | ${updated} | ${session.title}`;
-}
-
-function formatUpdatedDate(value: string): string {
-  if (!value) {
-    return "unknown";
-  }
-  if (value.length >= 10) {
-    return value.slice(0, 10);
-  }
-  return value;
 }

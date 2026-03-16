@@ -9,6 +9,13 @@ const APPROVAL_ACCEPT_SESSION = "Accept Session";
 const APPROVAL_DECLINE = "Decline";
 const APPROVAL_CANCEL = "Cancel";
 
+const APPROVAL_DECISION_BY_TEXT: Record<string, "accept" | "acceptForSession" | "decline" | "cancel"> = {
+  [APPROVAL_ACCEPT.toLowerCase()]: "accept",
+  [APPROVAL_ACCEPT_SESSION.toLowerCase()]: "acceptForSession",
+  [APPROVAL_DECLINE.toLowerCase()]: "decline",
+  [APPROVAL_CANCEL.toLowerCase()]: "cancel"
+};
+
 export function quickActionsKeyboard(): Keyboard {
   return new Keyboard()
     .text(BUTTON_NEW)
@@ -60,7 +67,7 @@ export function newFolderSelectionKeyboard(folderLabels: string[]): Keyboard {
 }
 
 export function buildThreadSelectionLabels(threadTitles: string[]): string[] {
-  return threadTitles.map((title, idx) => formatIndexedButtonLabel(idx + 1, formatThreadButtonLabel(title)));
+  return threadTitles.map((title, idx) => formatIndexedButtonLabel(idx + 1, title));
 }
 
 export function buildFolderSelectionLabels(folderLabels: string[]): string[] {
@@ -92,32 +99,7 @@ export function parseApprovalDecisionText(
   text: string
 ): "accept" | "acceptForSession" | "decline" | "cancel" | null {
   const normalized = text.trim().toLowerCase();
-  if (normalized === APPROVAL_ACCEPT.toLowerCase()) {
-    return "accept";
-  }
-  if (normalized === APPROVAL_ACCEPT_SESSION.toLowerCase()) {
-    return "acceptForSession";
-  }
-  if (normalized === APPROVAL_DECLINE.toLowerCase()) {
-    return "decline";
-  }
-  if (normalized === APPROVAL_CANCEL.toLowerCase()) {
-    return "cancel";
-  }
-  return null;
-}
-
-function formatThreadButtonLabel(title: string): string {
-  const oneLine = title.replace(/\s+/g, " ").trim();
-  if (!oneLine) {
-    return "";
-  }
-
-  const maxLen = 36;
-  if (oneLine.length <= maxLen) {
-    return oneLine;
-  }
-  return `${oneLine.slice(0, maxLen - 3)}...`;
+  return APPROVAL_DECISION_BY_TEXT[normalized] ?? null;
 }
 
 function formatIndexedButtonLabel(index: number, label: string): string {

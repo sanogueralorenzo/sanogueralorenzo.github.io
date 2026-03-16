@@ -56,34 +56,6 @@ export function resolveCodexHomeFromEnv(value: string | undefined): string {
   return join(homedir(), ".codex");
 }
 
-export async function loadDesktopThreadTitles(codexHome: string): Promise<Map<string, string>> {
-  try {
-    const rows = await runCodexAppServerSessionsJson<Record<string, string>>([
-      "titles",
-      "--json",
-      "--home",
-      codexHome,
-    ]);
-    const titleByThreadId = new Map<string, string>();
-    for (const [id, title] of Object.entries(rows)) {
-      if (typeof id !== "string") {
-        continue;
-      }
-      if (typeof title !== "string") {
-        continue;
-      }
-      const trimmed = title.trim();
-      if (!trimmed) {
-        continue;
-      }
-      titleByThreadId.set(id, trimmed);
-    }
-    return titleByThreadId;
-  } catch {
-    return new Map();
-  }
-}
-
 export async function listSessionsForSelection(
   codexHome: string,
   limit: number

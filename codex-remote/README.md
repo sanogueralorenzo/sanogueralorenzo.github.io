@@ -61,7 +61,8 @@ help     Print this help output.
 
 - The bot always sends a final Telegram message after each Codex turn.
 - If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
-- During a running turn, the bot suppresses intermediate progress text and only posts the final result.
+- During a running turn, the bot emits only the first completed assistant message item (`agentMessage`) and suppresses command/tool/reasoning/plan progress noise.
+- At turn completion, it sends the final assistant turn answer. If that final answer matches the first emitted message exactly, it is not sent twice.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.
 
 ### Thread Delete Behavior
