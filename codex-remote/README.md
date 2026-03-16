@@ -38,6 +38,19 @@ logs     Show recent logs (or follow with -f).
 help     Print this help output.
 ```
 
+### Telegram Commands
+
+- `/start` and `/help` both show:
+  ```text
+  Codex Remote
+
+  Commands: /new /resume /delete /help
+  Tip: Voice notes work!
+  ```
+- `/new` starts folder selection for a new thread.
+- `/resume` lists recent threads to bind the chat.
+- `/delete` lists recent threads to delete.
+
 ### Required Config
 
 - `.env`
@@ -60,11 +73,11 @@ help     Print this help output.
 
 - The bot always sends a final Telegram message after each Codex turn.
 - If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
-- During a running turn, the bot emits only the first completed assistant message item (`agentMessage`) and suppresses command/tool/reasoning/plan progress noise.
-- At turn completion, it sends the final assistant turn answer. If that final answer matches the first emitted message exactly, it is not sent twice.
+- During a running turn, the bot does not emit intermediate turn transcript items.
+- At turn completion, it sends only the final assistant turn answer.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.
 
 ### Thread Delete Behavior
 
 - When Codex marks a thread as pinned, remote delete is skipped and the bot tells you to unpin first.
-- Chat-to-thread binding is cleared only when delete/archive succeeds.
+- Chat-to-thread binding is cleared only when delete succeeds.
