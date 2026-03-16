@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_SCRIPT="$ROOT_DIR/scripts/codex-agents"
 
 kill_pid_with_grace() {
   local pid="$1"
@@ -57,12 +56,16 @@ fi
 stop_existing_runtime
 
 DEST_DIR="$(resolve_npm_bin_dir)"
-DEST_PATH="$DEST_DIR/codex-agents"
+TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/codex-agents-target}"
 
-if [[ ! -f "$SOURCE_SCRIPT" ]]; then
-  echo "Error: missing source script at $SOURCE_SCRIPT" >&2
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "Error: cargo is not installed or not on PATH." >&2
   exit 1
 fi
+
+cd "$ROOT_DIR"
+cargo build --release --target-dir "$TARGET_DIR" >/dev/null
+BIN_PATH="$TARGET_DIR/release/codex-agents"
 
 mkdir -p "$DEST_DIR"
 if [[ ! -w "$DEST_DIR" ]]; then
@@ -71,10 +74,12 @@ if [[ ! -w "$DEST_DIR" ]]; then
   exit 1
 fi
 
-chmod +x "$SOURCE_SCRIPT"
-ln -sf "$SOURCE_SCRIPT" "$DEST_PATH"
+TMP_PATH="$DEST_DIR/.tmp-codex-agents-$$"
+cp "$BIN_PATH" "$TMP_PATH"
+chmod +x "$TMP_PATH"
+mv -f "$TMP_PATH" "$DEST_DIR/codex-agents"
 
-echo "Installed CLI: $DEST_PATH -> $SOURCE_SCRIPT"
+echo "Installed CLI: $DEST_DIR/codex-agents"
 
 case ":$PATH:" in
   *":$DEST_DIR:"*) ;;

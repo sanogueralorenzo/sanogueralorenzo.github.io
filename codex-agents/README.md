@@ -4,6 +4,8 @@
 
 ## Quickstart
 
+Requires Rust toolchain (`cargo`) on `PATH`.
+
 ```shell
 ./scripts/install.sh
 codex-agents config init
