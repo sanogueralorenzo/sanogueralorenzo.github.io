@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+STATE_HOME="${CODEX_AGENTS_HOME:-$HOME/.codex/agents}"
+TASKS_DIR="$STATE_HOME/tasks"
+CONFIG_FILE="$STATE_HOME/config.env"
+DEFAULT_WORKER_INTERVAL_SECONDS=30
+
 COMMAND_NAMES=()
 COMMAND_USAGES=()
 COMMAND_DESCRIPTIONS=()
@@ -43,7 +48,7 @@ command_index_by_name() {
 init_command_registry() {
   register_command "config" "config init" "Initialize local codex-agents configuration." "command_config"
   register_command "task" "task create|list|show ..." "Create/list/show tasks." "command_task"
-  register_command "worker" "worker start" "Start autonomous worker loop." "command_worker"
+  register_command "worker" "worker start [--once] [--interval-seconds N]" "Start autonomous worker loop." "command_worker"
   register_command "help" "help" "Print this help output." "command_help"
 }
 
@@ -96,6 +101,10 @@ print_command_help_by_index() {
       echo
       echo "Subcommands:"
       echo "  start  Start autonomous worker loop."
+      echo
+      echo "Options:"
+      echo "  --once                 Run exactly one worker cycle and exit."
+      echo "  --interval-seconds N   Polling interval for worker loop (default: ${DEFAULT_WORKER_INTERVAL_SECONDS})."
       ;;
   esac
 }
@@ -119,6 +128,170 @@ print_usage_and_description() {
   echo
   echo "Description:"
   echo "  $description"
+}
+
+now_utc() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+ensure_state_layout() {
+  mkdir -p "$TASKS_DIR"
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    cat > "$CONFIG_FILE" <<EOF
+state_version=1
+initialized_at=$(now_utc)
+EOF
+  fi
+}
+
+validate_ticket_key() {
+  local ticket="$1"
+  if [[ ! "$ticket" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Invalid ticket key: $ticket" >&2
+    echo "Allowed characters: letters, numbers, dot, underscore, hyphen." >&2
+    exit 1
+  fi
+}
+
+task_path() {
+  local ticket="$1"
+  echo "$TASKS_DIR/${ticket}.task"
+}
+
+task_field() {
+  local file="$1"
+  local key="$2"
+  awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$file"
+}
+
+task_exists() {
+  local ticket="$1"
+  [[ -f "$(task_path "$ticket")" ]]
+}
+
+write_task_file() {
+  local ticket="$1"
+  local status="$2"
+  local created_at="$3"
+  local updated_at="$4"
+  local file
+  file="$(task_path "$ticket")"
+
+  cat > "$file" <<EOF
+ticket=$ticket
+status=$status
+created_at=$created_at
+updated_at=$updated_at
+EOF
+}
+
+task_create() {
+  local ticket="$1"
+  validate_ticket_key "$ticket"
+  ensure_state_layout
+
+  if task_exists "$ticket"; then
+    echo "Task already exists: $ticket" >&2
+    exit 1
+  fi
+
+  local now
+  now="$(now_utc)"
+  write_task_file "$ticket" "pending" "$now" "$now"
+  echo "Created task: $ticket"
+}
+
+task_list() {
+  ensure_state_layout
+  shopt -s nullglob
+  local task_files=("$TASKS_DIR"/*.task)
+  shopt -u nullglob
+
+  if [[ "${#task_files[@]}" -eq 0 ]]; then
+    echo "No tasks found."
+    return
+  fi
+
+  printf "%-24s %-10s %s\n" "TICKET" "STATUS" "UPDATED_AT"
+  for file in "${task_files[@]}"; do
+    local ticket
+    local status
+    local updated_at
+    ticket="$(task_field "$file" "ticket")"
+    status="$(task_field "$file" "status")"
+    updated_at="$(task_field "$file" "updated_at")"
+    printf "%s\t%s\t%s\n" "$ticket" "$status" "$updated_at"
+  done | sort -t $'\t' -k3,3r | while IFS=$'\t' read -r ticket status updated_at; do
+    printf "%-24s %-10s %s\n" "$ticket" "$status" "$updated_at"
+  done
+}
+
+task_show() {
+  local ticket="$1"
+  validate_ticket_key "$ticket"
+  ensure_state_layout
+  local file
+  file="$(task_path "$ticket")"
+
+  if [[ ! -f "$file" ]]; then
+    echo "Task not found: $ticket" >&2
+    exit 1
+  fi
+
+  echo "ticket: $(task_field "$file" "ticket")"
+  echo "status: $(task_field "$file" "status")"
+  echo "created_at: $(task_field "$file" "created_at")"
+  echo "updated_at: $(task_field "$file" "updated_at")"
+  echo "path: $file"
+}
+
+pick_next_pending_task() {
+  shopt -s nullglob
+  local task_files=("$TASKS_DIR"/*.task)
+  shopt -u nullglob
+
+  if [[ "${#task_files[@]}" -eq 0 ]]; then
+    return 1
+  fi
+
+  local pending_rows=()
+  local file
+  for file in "${task_files[@]}"; do
+    local ticket
+    local status
+    local created_at
+    local updated_at
+    ticket="$(task_field "$file" "ticket")"
+    status="$(task_field "$file" "status")"
+    created_at="$(task_field "$file" "created_at")"
+    updated_at="$(task_field "$file" "updated_at")"
+    if [[ "$status" == "pending" || "$status" == "open" ]]; then
+      pending_rows+=("${updated_at}|${ticket}|${created_at}")
+    fi
+  done
+
+  if [[ "${#pending_rows[@]}" -eq 0 ]]; then
+    return 1
+  fi
+
+  printf "%s\n" "${pending_rows[@]}" | sort | head -n1
+}
+
+run_worker_cycle() {
+  local timestamp
+  timestamp="$(now_utc)"
+  local selection
+  if ! selection="$(pick_next_pending_task)"; then
+    echo "[$timestamp] No pending tasks."
+    return
+  fi
+
+  local updated_at
+  local ticket
+  local created_at
+  IFS='|' read -r updated_at ticket created_at <<< "$selection"
+  echo "[$timestamp] Next pending task: $ticket (created $created_at, updated $updated_at)"
+  echo "[$timestamp] Suggested next step: codex-agents task show $ticket"
 }
 
 print_task_subcommand_help() {
@@ -176,8 +349,17 @@ command_config() {
       echo "Unexpected arguments for config init: ${*:2}" >&2
       exit 1
     fi
-    echo "config init is not implemented yet." >&2
-    exit 2
+    local is_fresh="false"
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+      is_fresh="true"
+    fi
+    ensure_state_layout
+    if [[ "$is_fresh" == "true" ]]; then
+      echo "Initialized codex-agents state at: $STATE_HOME"
+    else
+      echo "codex-agents state already initialized at: $STATE_HOME"
+    fi
+    return
   fi
 
   echo "Unknown config command. Run: codex-agents help" >&2
@@ -212,8 +394,8 @@ command_task() {
         echo "Unexpected arguments for task create: ${*:3}" >&2
         exit 1
       fi
-      echo "task create is not implemented yet." >&2
-      exit 2
+      task_create "$2"
+      return
       ;;
     list)
       if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
@@ -228,8 +410,8 @@ command_task() {
         echo "Unexpected arguments for task list: ${*:2}" >&2
         exit 1
       fi
-      echo "task list is not implemented yet." >&2
-      exit 2
+      task_list
+      return
       ;;
     show)
       if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
@@ -248,8 +430,8 @@ command_task() {
         echo "Unexpected arguments for task show: ${*:3}" >&2
         exit 1
       fi
-      echo "task show is not implemented yet." >&2
-      exit 2
+      task_show "$2"
+      return
       ;;
     *)
       echo "Unknown task command. Run: codex-agents help" >&2
@@ -269,20 +451,56 @@ command_worker() {
   fi
 
   if [[ "${1:-}" == "start" ]]; then
-    if [[ "${2:-}" == "--help" || "${2:-}" == "-h" ]]; then
-      if [[ "$#" -gt 2 ]]; then
-        echo "Unexpected arguments for worker start --help: ${*:3}" >&2
+    shift
+    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+      if [[ "$#" -gt 1 ]]; then
+        echo "Unexpected arguments for worker start --help: ${*:2}" >&2
         exit 1
       fi
-      print_usage_and_description "codex-agents worker start" "Start autonomous worker loop."
+      print_usage_and_description "codex-agents worker start [--once] [--interval-seconds N]" "Start autonomous worker loop."
       return
     fi
-    if [[ "$#" -gt 1 ]]; then
-      echo "Unexpected arguments for worker start: ${*:2}" >&2
-      exit 1
+
+    local interval_seconds="$DEFAULT_WORKER_INTERVAL_SECONDS"
+    local run_once="false"
+
+    while [[ "$#" -gt 0 ]]; do
+      case "$1" in
+        --once)
+          run_once="true"
+          shift
+          ;;
+        --interval-seconds)
+          if [[ "$#" -lt 2 ]]; then
+            echo "Missing value for --interval-seconds" >&2
+            exit 1
+          fi
+          if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -le 0 ]]; then
+            echo "Invalid --interval-seconds value: $2" >&2
+            exit 1
+          fi
+          interval_seconds="$2"
+          shift 2
+          ;;
+        *)
+          echo "Unexpected arguments for worker start: $*" >&2
+          exit 1
+          ;;
+      esac
+    done
+
+    ensure_state_layout
+    if [[ "$run_once" == "true" ]]; then
+      run_worker_cycle
+      return
     fi
-    echo "worker start is not implemented yet." >&2
-    exit 2
+
+    trap 'echo "Worker stopped."; exit 0' INT TERM
+    echo "Worker started (interval: ${interval_seconds}s). Press Ctrl+C to stop."
+    while true; do
+      run_worker_cycle
+      sleep "$interval_seconds"
+    done
   fi
 
   echo "Unknown worker command. Run: codex-agents help" >&2
