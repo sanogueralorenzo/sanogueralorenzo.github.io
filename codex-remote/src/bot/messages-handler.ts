@@ -2,10 +2,10 @@ import { Bot } from "grammy";
 import { ActionName } from "../shared/actions.js";
 import { PromptContext } from "./context.js";
 import { mapTextAction } from "./router.js";
-import { ReplyFn, ReplyPhotoFn } from "./context.js";
+import { ReplyFn } from "./context.js";
 
 type MessageHandlers = {
-  onStart: (chatId: string, reply: ReplyFn, replyPhoto: ReplyPhotoFn) => Promise<void>;
+  onStart: (chatId: string, reply: ReplyFn) => Promise<void>;
   onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
   onAction: (chatId: string, action: ActionName, reply: ReplyFn) => Promise<void>;
   onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
@@ -37,11 +37,7 @@ export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): vo
     const mappedAction = mapTextAction(normalized);
     if (mappedAction) {
       if (mappedAction === "start") {
-        await handlers.onStart(
-          chatId,
-          (replyText, options) => ctx.reply(replyText, options),
-          (photo, options) => ctx.replyWithPhoto(photo, options)
-        );
+        await handlers.onStart(chatId, (replyText, options) => ctx.reply(replyText, options));
         return;
       }
 

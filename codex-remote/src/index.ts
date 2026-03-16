@@ -1,9 +1,9 @@
 import process from "node:process";
-import { Bot, InputFile } from "grammy";
+import { Bot } from "grammy";
 import { BindingStore } from "./adapters/binding-store.js";
 import { registerBotHandlers } from "./bot/index.js";
 import { createApprovalService } from "./bot/approvals.js";
-import { PromptContext, ReplyFn, ReplyPhotoFn } from "./bot/context.js";
+import { PromptContext, ReplyFn } from "./bot/context.js";
 import { quickActionsKeyboard } from "./bot/keyboards.js";
 import { HELP_TEXT, formatFailure } from "./bot/messages.js";
 import { withActionErrorBoundary, withChatLock } from "./bot/middleware.js";
@@ -16,7 +16,6 @@ const runtimeConfig = loadRuntimeConfig();
 const {
   token,
   bindingFile,
-  startImagePath,
   codexHome,
   defaultApprovalDecision,
   allowedChatIds,
@@ -80,8 +79,8 @@ registerBotHandlers(bot, {
     }
     return allowedChatIds.has(chatId);
   },
-  onStart: async (_, reply, replyPhoto) => {
-    await sendStartResponse(reply, replyPhoto);
+  onStart: async (_, reply) => {
+    await sendStartResponse(reply);
   },
   onHelp: async (_, reply) => {
     await sendHelpResponse(reply);
@@ -195,7 +194,6 @@ async function sendHelpResponse(reply: ReplyFn): Promise<void> {
   await reply(HELP_TEXT, { reply_markup: quickActionsKeyboard() });
 }
 
-async function sendStartResponse(reply: ReplyFn, replyPhoto: ReplyPhotoFn): Promise<void> {
-  await replyPhoto(new InputFile(startImagePath));
+async function sendStartResponse(reply: ReplyFn): Promise<void> {
   await sendHelpResponse(reply);
 }

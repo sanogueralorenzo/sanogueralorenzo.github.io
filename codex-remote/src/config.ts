@@ -1,8 +1,6 @@
-import { existsSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { homedir } from "node:os";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { ApprovalDecision, ApprovalPolicy, SandboxMode } from "./adapters/app-server-client.js";
 import { resolveCodexHomeFromEnv } from "./adapters/codex-app-server-sessions.js";
@@ -12,7 +10,6 @@ type RuntimeConfig = {
   token: string;
   codexHome: string;
   bindingFile: string;
-  startImagePath: string;
   allowedChatIds: Set<string> | null;
   defaultApprovalDecision: ApprovalDecision;
   userHome: string;
@@ -24,15 +21,11 @@ export function loadRuntimeConfig(): RuntimeConfig {
   const token = mustGetEnv("TELEGRAM_BOT_TOKEN");
   const userHome = homedir();
   const bindingFile = resolve(process.cwd(), "runtime/bindings.json");
-  const sourceDir = dirname(fileURLToPath(import.meta.url));
-  const startImagePath = resolve(sourceDir, "../assets/start-logo.png");
-  ensureStartImageExists(startImagePath);
 
   return {
     token,
     codexHome: resolveCodexHomeFromEnv(process.env.CODEX_HOME),
     bindingFile,
-    startImagePath,
     allowedChatIds: parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS),
     defaultApprovalDecision: "decline",
     userHome
@@ -88,12 +81,6 @@ function mustGetEnv(name: string): string {
     throw new Error(`Missing required env var: ${name}`);
   }
   return value;
-}
-
-function ensureStartImageExists(path: string): void {
-  if (!existsSync(path)) {
-    throw new Error(`Missing Telegram start image asset at: ${path}`);
-  }
 }
 
 function parseApprovalPolicy(value?: string): ApprovalPolicy | undefined {

@@ -1,12 +1,12 @@
 import { Bot } from "grammy";
 import { ActionName } from "../shared/actions.js";
-import { PromptContext, ReplyFn, ReplyPhotoFn } from "./context.js";
+import { PromptContext, ReplyFn } from "./context.js";
 import { registerCommandHandlers } from "./commands.js";
 import { registerMessageHandlers } from "./messages-handler.js";
 
 type BotHandlers = {
   isChatAllowed?: (chatId: string) => boolean;
-  onStart: (chatId: string, reply: ReplyFn, replyPhoto: ReplyPhotoFn) => Promise<void>;
+  onStart: (chatId: string, reply: ReplyFn) => Promise<void>;
   onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
   onAction: (chatId: string, action: ActionName, reply: ReplyFn) => Promise<void>;
   onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;

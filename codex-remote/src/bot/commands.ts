@@ -1,5 +1,5 @@
 import { Bot } from "grammy";
-import { ReplyFn, ReplyPhotoFn } from "./context.js";
+import { ReplyFn } from "./context.js";
 import {
   DELETE_COMMAND_ALIASES,
   HELP_COMMAND_ALIASES,
@@ -9,7 +9,7 @@ import {
 } from "./router.js";
 
 type CommandHandlers = {
-  onStart: (chatId: string, reply: ReplyFn, replyPhoto: ReplyPhotoFn) => Promise<void>;
+  onStart: (chatId: string, reply: ReplyFn) => Promise<void>;
   onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
   onNew: (chatId: string, reply: ReplyFn) => Promise<void>;
   onResume: (chatId: string, reply: ReplyFn) => Promise<void>;
@@ -19,11 +19,7 @@ type CommandHandlers = {
 export function registerCommandHandlers(bot: Bot, handlers: CommandHandlers): void {
   for (const command of START_COMMAND_ALIASES) {
     bot.command(command, (ctx) =>
-      handlers.onStart(
-        String(ctx.chat.id),
-        (text, options) => ctx.reply(text, options),
-        (photo, options) => ctx.replyWithPhoto(photo, options)
-      )
+      handlers.onStart(String(ctx.chat.id), (text, options) => ctx.reply(text, options))
     );
   }
 
