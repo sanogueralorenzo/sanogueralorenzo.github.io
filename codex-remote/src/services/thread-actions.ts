@@ -25,9 +25,7 @@ import { sendTextChunks } from "../shared/telegram-text.js";
 export type ListedThread = {
   id: string;
   title: string;
-  folder: string;
   cwd: string;
-  lastUpdatedAt: string;
 };
 export type ListedFolderChoice = {
   cwd: string;
@@ -40,11 +38,15 @@ type ThreadActionsDeps = {
   store: BindingStore;
   pendingNewSessionChats: Set<string>;
   pendingNewSessionCwds: Map<string, string>;
-  lastListedSessions: Map<string, ListedThread[]>;
-  lastListedSessionModes: Map<string, "resume" | "delete">;
-  lastListedFolderChoices: Map<string, ListedFolderChoice[]>;
+  selectionStateByChat: Map<string, ChatSelectionState>;
   resolveDefaultCwd: () => string;
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
+};
+
+type ChatSelectionState = {
+  sessions: ListedThread[];
+  mode: "resume" | "delete";
+  folderChoices: ListedFolderChoice[];
 };
 
 export function createThreadActions(deps: ThreadActionsDeps) {
@@ -144,9 +146,11 @@ export function createThreadActions(deps: ThreadActionsDeps) {
       return;
     }
 
-    deps.lastListedSessions.set(chatId, sessions);
-    deps.lastListedSessionModes.set(chatId, mode);
-    deps.lastListedFolderChoices.delete(chatId);
+    deps.selectionStateByChat.set(chatId, {
+      sessions,
+      mode,
+      folderChoices: []
+    });
 
     const prompt = mode === "delete" ? "Choose thread to delete" : "Choose thread";
     const threadLabels = sessions.map((session) => session.title);
@@ -164,7 +168,11 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     const folderChoices = listFolderChoices(threads, deps.resolveDefaultCwd()).slice(0, 12);
 
     clearListedSelectionState(chatId);
-    deps.lastListedFolderChoices.set(chatId, folderChoices);
+    deps.selectionStateByChat.set(chatId, {
+      sessions: [],
+      mode: "resume",
+      folderChoices
+    });
 
     await reply("Choose folder", {
       reply_markup: newFolderSelectionKeyboard(folderChoices.map((choice) => choice.label))
@@ -172,19 +180,18 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   async function tryPickThreadByText(chatId: string, text: string, reply: ReplyFn): Promise<boolean> {
-    const listed = deps.lastListedSessions.get(chatId);
-    if (!listed || listed.length === 0) {
+    const state = deps.selectionStateByChat.get(chatId);
+    if (!state || state.sessions.length === 0) {
       return false;
     }
 
-    const optionLabels = buildThreadSelectionLabels(listed.map((session) => session.title));
+    const optionLabels = buildThreadSelectionLabels(state.sessions.map((session) => session.title));
     const index = parseSelectionFromOptions(text, optionLabels);
     if (!index) {
       return false;
     }
 
-    const mode = deps.lastListedSessionModes.get(chatId) ?? "resume";
-    if (mode === "delete") {
+    if (state.mode === "delete") {
       await deleteThreadByIndex(chatId, index, reply);
       return true;
     }
@@ -194,12 +201,12 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   async function tryPickFolderChoiceByText(chatId: string, text: string, reply: ReplyFn): Promise<boolean> {
-    const listed = deps.lastListedFolderChoices.get(chatId);
-    if (!listed || listed.length === 0) {
+    const state = deps.selectionStateByChat.get(chatId);
+    if (!state || state.folderChoices.length === 0) {
       return false;
     }
 
-    const optionLabels = buildFolderSelectionLabels(listed.map((choice) => choice.label));
+    const optionLabels = buildFolderSelectionLabels(state.folderChoices.map((choice) => choice.label));
     const index = parseSelectionFromOptions(text, optionLabels);
     if (!index) {
       return false;
@@ -221,13 +228,11 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   function clearListedSelectionState(chatId: string): void {
-    deps.lastListedSessions.delete(chatId);
-    deps.lastListedSessionModes.delete(chatId);
-    deps.lastListedFolderChoices.delete(chatId);
+    deps.selectionStateByChat.delete(chatId);
   }
 
   function getListedSessionForIndex(chatId: string, index: number): ListedThread | null {
-    const listed = deps.lastListedSessions.get(chatId);
+    const listed = deps.selectionStateByChat.get(chatId)?.sessions;
     if (!listed || !listed.length) {
       return null;
     }
@@ -238,7 +243,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   function getListedFolderChoiceForIndex(chatId: string, index: number): ListedFolderChoice | null {
-    const listed = deps.lastListedFolderChoices.get(chatId);
+    const listed = deps.selectionStateByChat.get(chatId)?.folderChoices;
     if (!listed || !listed.length) {
       return null;
     }

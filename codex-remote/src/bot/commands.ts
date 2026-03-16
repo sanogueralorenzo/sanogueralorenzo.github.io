@@ -4,7 +4,6 @@ import {
   DELETE_COMMAND_ALIASES,
   HELP_COMMAND_ALIASES,
   NEW_COMMAND_ALIASES,
-  RESTART_COMMAND_ALIASES,
   RESUME_COMMAND_ALIASES,
   START_COMMAND_ALIASES
 } from "./router.js";
@@ -15,7 +14,6 @@ type CommandHandlers = {
   onNew: (chatId: string, reply: ReplyFn) => Promise<void>;
   onResume: (chatId: string, reply: ReplyFn) => Promise<void>;
   onDelete: (chatId: string, reply: ReplyFn) => Promise<void>;
-  onRestart: (chatId: string, reply: ReplyFn) => Promise<void>;
 };
 
 export function registerCommandHandlers(bot: Bot, handlers: CommandHandlers): void {
@@ -46,12 +44,6 @@ export function registerCommandHandlers(bot: Bot, handlers: CommandHandlers): vo
   for (const command of DELETE_COMMAND_ALIASES) {
     bot.command(command, (ctx) =>
       handlers.onDelete(String(ctx.chat.id), (text, options) => ctx.reply(text, options))
-    );
-  }
-
-  for (const command of RESTART_COMMAND_ALIASES) {
-    bot.command(command, (ctx) =>
-      handlers.onRestart(String(ctx.chat.id), (text, options) => ctx.reply(text, options))
     );
   }
 }

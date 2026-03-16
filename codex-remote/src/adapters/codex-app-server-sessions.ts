@@ -71,21 +71,7 @@ export async function listSessionsForSelection(
     String(Math.max(1, Math.trunc(limit))),
   ]);
 
-  return result.data
-    .filter((session) => !session.archived)
-    .map((session) => {
-      const rawTitle = typeof session.title === "string" ? session.title.trim() : "";
-      const rawFolder = typeof session.folder === "string" ? session.folder.trim() : "";
-      const rawCwd = typeof session.cwd === "string" ? session.cwd.trim() : "";
-
-      return {
-        id: session.id,
-        title: rawTitle,
-        folder: rawFolder || (rawCwd ? basename(rawCwd) : ""),
-        cwd: rawCwd || process.cwd(),
-        lastUpdatedAt: typeof session.last_updated_at === "string" ? session.last_updated_at : "",
-      };
-    });
+  return result.data.filter((session) => !session.archived).map(toListedSession);
 }
 
 export async function deleteSessionByThreadId(
@@ -99,60 +85,51 @@ export async function deleteSessionByThreadId(
   reason: DeleteResponse["reason"] | null;
   message: string | null;
 }> {
-  try {
-    const payload = await runCodexAppServerSessionsJson<DeleteBatchResponse>([
-      "delete",
-      threadId,
-      "--json",
-      "--home",
-      codexHome,
-    ]);
-
-    const result =
-      payload.sessions.find((session) => session.id === threadId) ?? payload.sessions[0] ?? null;
-    if (!result) {
-      return { deleted: false, filePath: null, from: null, status: null, reason: null, message: null };
-    }
-
-    return {
-      deleted: result.status === "succeeded",
-      filePath: typeof result.file_path === "string" ? result.file_path : null,
-      from: "sessions",
-      status: result.status,
-      reason: result.reason,
-      message: typeof result.message === "string" ? result.message : null
-    };
-  } catch (error) {
-    if (isNotFoundError(error)) {
-      return { deleted: false, filePath: null, from: null, status: null, reason: null, message: null };
-    }
-    throw error;
+  const payload = await runCodexAppServerSessionsJsonOrNullOnNotFound<DeleteBatchResponse>([
+    "delete",
+    threadId,
+    "--json",
+    "--home",
+    codexHome,
+  ]);
+  if (!payload) {
+    return emptyDeleteResult();
   }
+
+  const result = payload.sessions.find((session) => session.id === threadId) ?? payload.sessions[0] ?? null;
+  if (!result) {
+    return emptyDeleteResult();
+  }
+
+  return {
+    deleted: result.status === "succeeded",
+    filePath: typeof result.file_path === "string" ? result.file_path : null,
+    from: "sessions",
+    status: result.status,
+    reason: result.reason,
+    message: typeof result.message === "string" ? result.message : null
+  };
 }
 
 export async function loadLatestAssistantMessageByThreadId(
   threadId: string,
   codexHome: string
 ): Promise<string | null> {
-  try {
-    const result = await runCodexAppServerSessionsJson<MessageResponse>([
-      "message",
-      threadId,
-      "--json",
-      "--home",
-      codexHome,
-    ]);
-
-    if (typeof result.message === "string" && result.message.trim()) {
-      return result.message;
-    }
-    return null;
-  } catch (error) {
-    if (isNotFoundError(error)) {
-      return null;
-    }
+  const result = await runCodexAppServerSessionsJsonOrNullOnNotFound<MessageResponse>([
+    "message",
+    threadId,
+    "--json",
+    "--home",
+    codexHome,
+  ]);
+  if (!result) {
     return null;
   }
+
+  if (typeof result.message === "string" && result.message.trim()) {
+    return result.message;
+  }
+  return null;
 }
 
 async function runCodexAppServerSessionsJson<T>(args: string[]): Promise<T> {
@@ -161,6 +138,17 @@ async function runCodexAppServerSessionsJson<T>(args: string[]): Promise<T> {
     return JSON.parse(stdout) as T;
   } catch (error) {
     throw new Error(`Invalid JSON from ${CODEX_APP_SERVER_BIN}: ${(error as Error).message}`);
+  }
+}
+
+async function runCodexAppServerSessionsJsonOrNullOnNotFound<T>(args: string[]): Promise<T | null> {
+  try {
+    return await runCodexAppServerSessionsJson<T>(args);
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -180,6 +168,31 @@ async function runCodexAppServerSessions(args: string[]): Promise<string> {
     }
     throw error;
   }
+}
+
+function toListedSession(session: ListResponse["data"][number]): ListedSession {
+  const rawTitle = typeof session.title === "string" ? session.title.trim() : "";
+  const rawFolder = typeof session.folder === "string" ? session.folder.trim() : "";
+  const rawCwd = typeof session.cwd === "string" ? session.cwd.trim() : "";
+
+  return {
+    id: session.id,
+    title: rawTitle,
+    folder: rawFolder || (rawCwd ? basename(rawCwd) : ""),
+    cwd: rawCwd || process.cwd(),
+    lastUpdatedAt: typeof session.last_updated_at === "string" ? session.last_updated_at : "",
+  };
+}
+
+function emptyDeleteResult(): {
+  deleted: boolean;
+  filePath: null;
+  from: null;
+  status: null;
+  reason: null;
+  message: null;
+} {
+  return { deleted: false, filePath: null, from: null, status: null, reason: null, message: null };
 }
 
 function isNotFoundError(error: unknown): boolean {

@@ -48,7 +48,6 @@ help     Print this help output.
 - `CODEX_APP_SERVER_BIN` (optional override path/name; defaults to `codex-app-server`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
-- `TELEGRAM_ADMIN_CHAT_IDS` (optional)
 
 ### Storage
 

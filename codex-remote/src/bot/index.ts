@@ -8,7 +8,6 @@ type BotHandlers = {
   isChatAllowed?: (chatId: string) => boolean;
   onStart: (chatId: string, reply: ReplyFn, replyPhoto: ReplyPhotoFn) => Promise<void>;
   onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
-  onRestart: (chatId: string, reply: ReplyFn) => Promise<void>;
   onAction: (chatId: string, action: ActionName, reply: ReplyFn) => Promise<void>;
   onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
   onTryNewFolderText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
@@ -43,13 +42,11 @@ export function registerBotHandlers(bot: Bot, handlers: BotHandlers): void {
     onNew: (chatId, reply) => handlers.onAction(chatId, "new", reply),
     onResume: (chatId, reply) => handlers.onAction(chatId, "resume", reply),
     onDelete: (chatId, reply) => handlers.onAction(chatId, "delete", reply),
-    onRestart: handlers.onRestart
   });
 
   registerMessageHandlers(bot, {
     onStart: handlers.onStart,
     onHelp: handlers.onHelp,
-    onRestart: handlers.onRestart,
     onAction: handlers.onAction,
     onTryResumeText: handlers.onTryResumeText,
     onTryNewFolderText: handlers.onTryNewFolderText,

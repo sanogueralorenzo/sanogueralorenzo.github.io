@@ -2,7 +2,6 @@ export const HELP_TEXT = [
   "Codex Remote, your remote AI tool",
   "",
   "Commands: /new /resume /delete /help",
-  "Admin: /restart",
   "Tip: Voice notes work!"
 ].join("\n");
 

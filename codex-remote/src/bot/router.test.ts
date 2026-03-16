@@ -9,7 +9,6 @@ describe("mapTextAction", () => {
     expect(mapTextAction("delete")).toBe("delete");
     expect(mapTextAction("start")).toBe("start");
     expect(mapTextAction("h")).toBe("help");
-    expect(mapTextAction("restart")).toBe("restart");
   });
 
   it("returns null for unknown values", () => {

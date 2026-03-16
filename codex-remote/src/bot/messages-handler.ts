@@ -7,7 +7,6 @@ import { ReplyFn, ReplyPhotoFn } from "./context.js";
 type MessageHandlers = {
   onStart: (chatId: string, reply: ReplyFn, replyPhoto: ReplyPhotoFn) => Promise<void>;
   onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
-  onRestart: (chatId: string, reply: ReplyFn) => Promise<void>;
   onAction: (chatId: string, action: ActionName, reply: ReplyFn) => Promise<void>;
   onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
   onTryNewFolderText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
@@ -48,11 +47,6 @@ export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): vo
 
       if (mappedAction === "help") {
         await handlers.onHelp(chatId, (replyText, options) => ctx.reply(replyText, options));
-        return;
-      }
-
-      if (mappedAction === "restart") {
-        await handlers.onRestart(chatId, (replyText, options) => ctx.reply(replyText, options));
         return;
       }
 

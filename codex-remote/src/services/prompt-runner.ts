@@ -3,7 +3,6 @@ import {
   ApprovalPolicy,
   ApprovalRequest,
   SandboxMode,
-  TurnProgressEvent,
   createAndSendFirstMessageWithTimeoutContinuation,
   sendMessageWithoutResumeWithTimeoutContinuation,
   sendMessageWithTimeoutContinuation
@@ -28,7 +27,6 @@ type TimedTurnLike =
 
 type PromptTurnRuntimeOptions = {
   approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
-  onTurnEvent: (event: TurnProgressEvent) => void;
 };
 
 type PromptRunnerDeps = {
@@ -45,15 +43,12 @@ type PromptRunnerDeps = {
 export function createPromptRunner(deps: PromptRunnerDeps) {
   async function runPromptThroughCodex(ctx: PromptContext, chatId: string, text: string): Promise<void> {
     const threadId = await deps.store.get(chatId);
-    const progressRelay = createTurnProgressRelay((message) => ctx.api.sendMessage(ctx.chat.id, message));
+    const finalOutputRelay = createFinalOutputRelay((message) => ctx.api.sendMessage(ctx.chat.id, message));
     const runtimeOptions: PromptTurnRuntimeOptions = {
       approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
-      onTurnEvent: (event) => {
-        progressRelay.onTurnEvent(event);
-      }
     };
     const finalizeTurn = async (turn: TimedTurnLike): Promise<void> => {
-      await replyFromTimedTurn(turn, progressRelay);
+      await replyFromTimedTurn(turn, finalOutputRelay);
     };
 
     try {
@@ -91,7 +86,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         await finalizeTurn(firstTurn);
         return;
       } catch {
-        await recoverFromUnavailableThread(chatId, text, runtimeOptions, progressRelay);
+        await recoverFromUnavailableThread(chatId, text, runtimeOptions, finalOutputRelay);
         return;
       }
     } catch (error) {
@@ -100,31 +95,31 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     }
   }
 
-  async function replyFromTimedTurn(turn: TimedTurnLike, progressRelay: TurnProgressRelay): Promise<void> {
+  async function replyFromTimedTurn(turn: TimedTurnLike, finalOutputRelay: FinalOutputRelay): Promise<void> {
     if (turn.status === "completed") {
-      await progressRelay.sendFinalOutput(turn.response);
+      await finalOutputRelay.send(turn.response);
       return;
     }
 
-    progressRelay.queueFinalOutput(turn.completion);
+    finalOutputRelay.queue(turn.completion);
   }
 
   async function recoverFromUnavailableThread(
     chatId: string,
     text: string,
     runtimeOptions: PromptTurnRuntimeOptions,
-    progressRelay: TurnProgressRelay
+    finalOutputRelay: FinalOutputRelay
   ): Promise<void> {
     const options = deps.getConversationOptions();
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
     await deps.bindChatToThread(chatId, initialized.threadId);
 
     if (initialized.status === "completed") {
-      await progressRelay.sendFinalOutput(initialized.response);
+      await finalOutputRelay.send(initialized.response);
       return;
     }
 
-    progressRelay.queueFinalOutput(initialized.completion);
+    finalOutputRelay.queue(initialized.completion);
   }
 
   return {
@@ -139,15 +134,14 @@ function isNoRolloutFoundError(error: unknown): boolean {
   return error.message.includes("no rollout found for thread id");
 }
 
-type TurnProgressRelay = {
-  onTurnEvent: (event: TurnProgressEvent) => void;
-  sendFinalOutput: (response: string) => Promise<void>;
-  queueFinalOutput: (completion: Promise<{ response: string }>) => void;
+type FinalOutputRelay = {
+  send: (response: string) => Promise<void>;
+  queue: (completion: Promise<{ response: string }>) => void;
 };
 
 const EMPTY_CODEX_RESPONSE = "(Empty Codex response)";
 
-function createTurnProgressRelay(sender: (text: string) => Promise<unknown>): TurnProgressRelay {
+function createFinalOutputRelay(sender: (text: string) => Promise<unknown>): FinalOutputRelay {
   let sendQueue = Promise.resolve();
 
   const queueMessage = (text: string): Promise<void> => {
@@ -164,20 +158,15 @@ function createTurnProgressRelay(sender: (text: string) => Promise<unknown>): Tu
     return sendQueue;
   };
 
-  const onTurnEvent = (_event: TurnProgressEvent): void => {
-    // Intentionally ignore intermediate deltas/events.
-    // Telegram should receive only the final turn output.
-  };
-
-  const sendFinalOutput = async (response: string): Promise<void> => {
+  const send = async (response: string): Promise<void> => {
     const output = response?.trim() ? response : EMPTY_CODEX_RESPONSE;
     await queueMessage(output);
   };
 
-  const queueFinalOutput = (completion: Promise<{ response: string }>): void => {
+  const queue = (completion: Promise<{ response: string }>): void => {
     void completion
       .then(async ({ response }) => {
-        await sendFinalOutput(response);
+        await send(response);
       })
       .catch(async (error) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -187,8 +176,7 @@ function createTurnProgressRelay(sender: (text: string) => Promise<unknown>): Tu
   };
 
   return {
-    onTurnEvent,
-    sendFinalOutput,
-    queueFinalOutput
+    send,
+    queue
   };
 }

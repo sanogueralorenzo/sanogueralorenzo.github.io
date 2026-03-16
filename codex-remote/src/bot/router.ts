@@ -5,9 +5,8 @@ export const HELP_COMMAND_ALIASES = ["help", "h"] as const;
 export const NEW_COMMAND_ALIASES = ["new", "n"] as const;
 export const RESUME_COMMAND_ALIASES = ["resume", "r"] as const;
 export const DELETE_COMMAND_ALIASES = ["delete", "d"] as const;
-export const RESTART_COMMAND_ALIASES = ["restart"] as const;
 
-const ACTION_BY_TEXT: Record<string, ActionName | "help" | "start" | "restart"> = {
+const ACTION_BY_TEXT: Record<string, ActionName | "help" | "start"> = {
   new: "new",
   n: "new",
   "new chat": "new",
@@ -20,9 +19,8 @@ const ACTION_BY_TEXT: Record<string, ActionName | "help" | "start" | "restart"> 
   start: "start",
   help: "help",
   h: "help",
-  restart: "restart"
 };
 
-export function mapTextAction(input: string): ActionName | "help" | "start" | "restart" | null {
+export function mapTextAction(input: string): ActionName | "help" | "start" | null {
   return ACTION_BY_TEXT[input] ?? null;
 }
