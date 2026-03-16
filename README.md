@@ -12,6 +12,14 @@
 ./install.sh
 ```
 
+This installs:
+- `codex-auth`
+- `codex-app-server`
+- `codex-remote`
+- `codex-menubar`
+
+It does not install `codex-agents`, `overlay`, `voice`, or `site`.
+
 ## Index
 
 - [Codex Auth](./codex-auth/README.md)

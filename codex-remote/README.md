@@ -5,15 +5,11 @@
 ## Quickstart
 
 ```shell
+../codex-app-server/scripts/install.sh
 ./scripts/install.sh
+npm install
 npm run typecheck
 npm run test
-```
-
-Install dependency:
-
-```shell
-../codex-app-server/scripts/install.sh
 ```
 
 ## Reference
@@ -61,6 +57,16 @@ help     Print this help output.
 - `CODEX_APP_SERVER_BIN` (optional override path/name; defaults to `codex-app-server`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
+- Node dependencies installed in `codex-remote` (`npm install`)
+
+### Voice Note Requirements
+
+- `whisper-cli` on `PATH`
+- `ffmpeg` on `PATH`
+- Whisper model file at either:
+  - `WHISPER_MODEL_PATH_TINY`, or
+  - `codex-remote/models/ggml-tiny.en.bin`
+- Voice notes use local transcription and will fail if these dependencies are missing.
 
 ### Storage
 
