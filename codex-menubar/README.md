@@ -21,7 +21,7 @@
 - Launch starts `codex-app-server sessions watch thread-titles start`.
 - Launch starts `codex-remote start --plain` only when remote auto-start has been enabled by a prior successful `Remote -> Start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.
-- Launch agent executable path uses the currently running app bundle executable, with fallback to `/Applications/Codex Menu Bar.app`.
+- Launch agent executable path is fixed to `/Applications/Codex Menu Bar.app`.
 - Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
 - `Remote -> Start` enables remote auto-start for future app launches.
