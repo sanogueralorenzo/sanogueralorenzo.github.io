@@ -21,7 +21,7 @@
 - Launch starts `codex-app-server sessions watch thread-titles start`.
 - Launch starts `codex-remote start --plain` only when remote auto-start has been enabled by a prior successful `Remote -> Start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.
-- Launch agent executable path prefers `/Applications/Codex Menu Bar.app` when available.
+- Launch agent executable path uses the currently running app bundle executable, with fallback to `/Applications/Codex Menu Bar.app`.
 - Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
 - `Remote -> Start` enables remote auto-start for future app launches.
@@ -30,6 +30,7 @@
 - In `Agents -> View`, recent task labels are prefixed by status: `•` in progress, `✓` completed, `X` failed.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
+- Managed CLI subprocesses run with a deterministic environment that includes `/opt/homebrew/bin`, `/usr/local/bin`, and standard system paths.
 - Profile management section is labeled `Profiles` and includes profile switch/remove actions plus `Add`.
 - Threads menu includes:
   - `Auto-Remove` title row clears the saved day+mode selection (disables auto-remove).

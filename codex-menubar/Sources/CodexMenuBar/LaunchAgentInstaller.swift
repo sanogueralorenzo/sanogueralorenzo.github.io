@@ -27,10 +27,14 @@ struct LaunchAgentInstaller {
     }
 
     private static func resolveExecutablePath(fileManager: FileManager) -> String? {
+        if let currentExecutablePath = Bundle.main.executableURL?.path,
+           fileManager.isExecutableFile(atPath: currentExecutablePath) {
+            return currentExecutablePath
+        }
         if fileManager.isExecutableFile(atPath: preferredAppExecutablePath) {
             return preferredAppExecutablePath
         }
-        return Bundle.main.executableURL?.path
+        return nil
     }
 
     private static func makePlistContents(label: String, executablePath: String) -> String {

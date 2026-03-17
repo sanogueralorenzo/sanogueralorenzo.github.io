@@ -90,6 +90,7 @@ final class CodexAuthCLIClient: @unchecked Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
         process.arguments = arguments
+        process.environment = CLIProcessEnvironment.make()
 
         let stdout = Pipe()
         let stderr = Pipe()

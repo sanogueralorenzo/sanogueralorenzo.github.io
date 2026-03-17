@@ -74,6 +74,7 @@ final class CodexAppServerCLIClient: @unchecked Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
         process.arguments = ["sessions"] + arguments
+        process.environment = CLIProcessEnvironment.make()
 
         let stdout = Pipe()
         let stderr = Pipe()
