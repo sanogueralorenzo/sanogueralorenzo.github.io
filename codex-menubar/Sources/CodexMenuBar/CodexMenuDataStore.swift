@@ -32,16 +32,18 @@ final class CodexMenuDataStore {
                  sessionsCLI: CodexAppServerCLIClient) {
         refreshGeneration += 1
         let generation = refreshGeneration
+        let previousProfiles = data.profiles
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let sessionsStatus = (try? sessionsCLI.status()) ?? .notInstalled
+            let profiles = (try? authCLI.listProfiles()) ?? previousProfiles
 
             let refreshedData = CodexMenuData(
                 isLoading: false,
                 remoteStatus: (try? remoteCLI.status()) ?? .notInstalled,
                 sessionsStatus: sessionsStatus,
                 currentProfileName: try? authCLI.currentProfileName(),
-                profiles: (try? authCLI.listProfiles()) ?? []
+                profiles: profiles
             )
 
             DispatchQueue.main.async {

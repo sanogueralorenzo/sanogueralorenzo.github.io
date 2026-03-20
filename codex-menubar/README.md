@@ -32,6 +32,7 @@
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Managed CLI subprocesses run with a deterministic environment that includes `/opt/homebrew/bin`, `/usr/local/bin`, and standard system paths.
 - Profile management section is labeled `Profiles` and includes profile switch/remove actions plus `Add`.
+- When profile listing fails transiently, the menu preserves the last loaded profile list so logged-out state can still show known profiles as unselected.
 - Threads menu includes:
   - `Auto-Remove` title row clears the saved day+mode selection (disables auto-remove).
   - `Auto-Remove` window: `1 day`, `3 days`, `7 days` (single-select checkmark)
