@@ -136,6 +136,7 @@ pub struct ListArgs {
     #[arg(long = "sort-by", value_enum, default_value = "updated_at")]
     pub sort_by: SortBy,
 
+    /// Legacy compatibility flag; does not affect ordering.
     #[arg(long)]
     pub folders: bool,
 

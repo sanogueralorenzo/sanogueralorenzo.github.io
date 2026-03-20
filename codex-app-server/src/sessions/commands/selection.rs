@@ -134,17 +134,6 @@ pub(crate) fn sort_sessions(sessions: &mut [SessionMeta], sort_by: SortBy) {
     }
 }
 
-pub(crate) fn sort_sessions_by_folder_then_updated(sessions: &mut [SessionMeta]) {
-    sessions.sort_by(|a, b| {
-        let a_folder = session_folder_key(a.cwd.as_deref());
-        let b_folder = session_folder_key(b.cwd.as_deref());
-        a_folder
-            .cmp(&b_folder)
-            .then_with(|| b.last_updated_at.cmp(&a.last_updated_at))
-            .then_with(|| b.id.cmp(&a.id))
-    });
-}
-
 pub(crate) fn session_folder_key(cwd: Option<&str>) -> String {
     let Some(cwd) = cwd else {
         return "unknown".to_string();

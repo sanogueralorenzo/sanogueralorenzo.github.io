@@ -24,8 +24,7 @@ use super::output::{
 use super::prompts::{build_merger_summary_prompt, build_target_apply_prompt};
 use super::selection::{
     matches_search, resolve_cursor_start, resolve_cwd_filter, resolve_delete_targets,
-    resolve_targets_for_inputs, sort_sessions, sort_sessions_by_folder_then_updated,
-    validate_delete_args, with_target_session,
+    resolve_targets_for_inputs, sort_sessions, validate_delete_args, with_target_session,
 };
 use super::title_generation::generate_session_title;
 use super::watcher::cmd_watch_thread_titles;
@@ -57,7 +56,7 @@ fn cmd_list(args: ListArgs) -> Result<()> {
         cwd,
         source_kinds,
         sort_by,
-        folders,
+        folders: _folders,
         search,
         json,
         plain,
@@ -92,11 +91,7 @@ fn cmd_list(args: ListArgs) -> Result<()> {
         }
     }
 
-    if folders {
-        sort_sessions_by_folder_then_updated(&mut sessions);
-    } else {
-        sort_sessions(&mut sessions, sort_by);
-    }
+    sort_sessions(&mut sessions, sort_by);
 
     let start = resolve_cursor_start(&sessions, cursor.as_deref())?;
     let remaining = if start >= sessions.len() {

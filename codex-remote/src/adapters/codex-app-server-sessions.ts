@@ -64,15 +64,13 @@ export async function listSessionsForSelection(
     "list",
     "--json",
     "--all",
-    "--folders",
     "--home",
     codexHome,
     "--limit",
     String(Math.max(1, Math.trunc(limit))),
   ]);
 
-  const sessions = result.data.filter((session) => !session.archived).map(toListedSession);
-  return sortSessionsByLastUpdatedDesc(sessions);
+  return result.data.filter((session) => !session.archived).map(toListedSession);
 }
 
 export async function deleteSessionByThreadId(
@@ -185,22 +183,6 @@ function toListedSession(session: ListResponse["data"][number]): ListedSession {
   };
 }
 
-export function sortSessionsByLastUpdatedDesc(sessions: ListedSession[]): ListedSession[] {
-  return sessions
-    .map((session, index) => ({
-      session,
-      index,
-      updatedAtMs: toUpdatedAtEpochMs(session.lastUpdatedAt),
-    }))
-    .sort((a, b) => {
-      if (b.updatedAtMs !== a.updatedAtMs) {
-        return b.updatedAtMs - a.updatedAtMs;
-      }
-      return a.index - b.index;
-    })
-    .map((entry) => entry.session);
-}
-
 function emptyDeleteResult(): {
   deleted: boolean;
   filePath: null;
@@ -216,9 +198,4 @@ function isNotFoundError(error: unknown): boolean {
   const err = error as { stderr?: string; message?: string } | null;
   const text = `${err?.stderr ?? ""}\n${err?.message ?? ""}`.toLowerCase();
   return text.includes("no session matches id or prefix");
-}
-
-function toUpdatedAtEpochMs(value: string): number {
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
