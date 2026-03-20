@@ -23,13 +23,7 @@ extension AppDelegate {
     }
 
     @objc func clearAutoRemoveSelection(_ sender: Any?) {
-        guard autoRemoveSettings.isConfigured else {
-            return
-        }
-        autoRemoveSettings = .none
-        autoRemoveSettings.save()
-        stopAutoRemoveScheduler()
-        refreshUI()
+        applyAutoRemoveSettings(.none)
     }
 
     @objc func addProfileFromCurrent(_ sender: Any?) {
@@ -113,14 +107,7 @@ extension AppDelegate {
         }
 
         let nextSettings = autoRemoveSettings.withSelection(days: days, mode: mode)
-        guard nextSettings != autoRemoveSettings else {
-            return
-        }
-
-        autoRemoveSettings = nextSettings
-        autoRemoveSettings.save()
-        startAutoRemoveScheduler()
-        refreshUI()
+        applyAutoRemoveSettings(nextSettings)
     }
 
     @objc func openHelp(_ sender: Any?) {
@@ -251,6 +238,21 @@ extension AppDelegate {
     func stopAutoRemoveScheduler() {
         autoRemoveSchedulerTimer?.cancel()
         autoRemoveSchedulerTimer = nil
+    }
+
+    private func applyAutoRemoveSettings(_ nextSettings: AutoRemoveSettings) {
+        guard nextSettings != autoRemoveSettings else {
+            return
+        }
+
+        autoRemoveSettings = nextSettings
+        autoRemoveSettings.save()
+        if nextSettings.isConfigured {
+            startAutoRemoveScheduler()
+        } else {
+            stopAutoRemoveScheduler()
+        }
+        refreshUI()
     }
 
     private func scheduleAutoRemoveRun(handler: @escaping @Sendable () -> Void) {
