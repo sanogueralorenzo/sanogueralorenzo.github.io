@@ -15,3 +15,4 @@
 - Key requirement: Android overlay permission enabled.
 - App screens: Home, How it works, Permissions.
 - Home UI: no top toolbar title; `Overlay` label is shown inside the intro card.
+- Home hero card: includes a primary Quick Settings tile CTA and secondary How it works link.
