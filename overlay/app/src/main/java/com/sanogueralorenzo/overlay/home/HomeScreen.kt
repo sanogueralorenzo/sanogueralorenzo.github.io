@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -50,9 +51,7 @@ fun NavGraphBuilder.homeRoute(
     composable(route) {
         val homeViewModel: HomeViewModel = mavericksViewModel()
         val state by homeViewModel.mavericksCollectAsState()
-        RefreshOnResume {
-            homeViewModel.refreshPermissions()
-        }
+        RefreshOnResume(homeViewModel::refreshPermissions)
         HomeScreen(
             state = state,
             onOpenPermissions = onOpenPermissions
@@ -158,20 +157,18 @@ private fun HomePermissionsSection(
     allRequirementsGranted: Boolean,
     onOpenPermissions: () -> Unit
 ) {
-    val subtitle = if (allRequirementsGranted) {
-        stringResource(R.string.home_permissions_all_granted)
+    val status = if (allRequirementsGranted) {
+        HomePermissionStatus(
+            subtitle = stringResource(R.string.home_permissions_all_granted),
+            icon = Icons.Rounded.CheckCircle,
+            color = MaterialTheme.colorScheme.tertiary
+        )
     } else {
-        stringResource(R.string.overlay_setup_title)
-    }
-    val statusIcon = if (allRequirementsGranted) {
-        Icons.Rounded.CheckCircle
-    } else {
-        Icons.Rounded.WarningAmber
-    }
-    val statusColor = if (allRequirementsGranted) {
-        MaterialTheme.colorScheme.tertiary
-    } else {
-        MaterialTheme.colorScheme.error
+        HomePermissionStatus(
+            subtitle = stringResource(R.string.overlay_setup_title),
+            icon = Icons.Rounded.WarningAmber,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -193,9 +190,9 @@ private fun HomePermissionsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = statusIcon,
+                    imageVector = status.icon,
                     contentDescription = null,
-                    tint = statusColor,
+                    tint = status.color,
                     modifier = Modifier.size(24.dp)
                 )
                 Column(
@@ -207,7 +204,7 @@ private fun HomePermissionsSection(
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = subtitle,
+                        text = status.subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -222,3 +219,9 @@ private fun HomePermissionsSection(
         }
     }
 }
+
+private data class HomePermissionStatus(
+    val subtitle: String,
+    val icon: ImageVector,
+    val color: Color
+)
