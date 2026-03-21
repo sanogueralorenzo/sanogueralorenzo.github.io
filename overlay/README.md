@@ -6,5 +6,6 @@ It is intentionally minimal and useful, focused on one job: covering the screen 
 
 <p align="center">
   <img src="assets/home_light.png" alt="Overlay home in light theme" width="280" />
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="assets/home_dark.png" alt="Overlay home in dark theme" width="280" />
 </p>
