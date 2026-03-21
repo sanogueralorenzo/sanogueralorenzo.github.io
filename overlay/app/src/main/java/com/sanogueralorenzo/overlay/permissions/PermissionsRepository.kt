@@ -1,8 +1,12 @@
 package com.sanogueralorenzo.overlay.permissions
 
 import android.Manifest
+import android.app.Activity
+import android.app.AppOpsManager
+import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Bundle
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.overlay.settings.SettingsRepository
@@ -10,11 +14,13 @@ import com.sanogueralorenzo.overlay.ui.components.SecureSettingsCommands
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.callbackFlow
 
 @Inject
 @SingleIn(AppScope::class)
@@ -22,10 +28,6 @@ class PermissionsRepository(
     context: Context,
     private val settingsRepository: SettingsRepository
 ) {
-    companion object {
-        private const val PERMISSIONS_POLL_INTERVAL_MS = 1000L
-    }
-
     private val appContext = context.applicationContext
     private val packageName = appContext.packageName
 
@@ -63,12 +65,11 @@ class PermissionsRepository(
     }
 
     private fun requiredPermissionsFlow(): Flow<Boolean> {
-        return flow {
-            emit(requiredPermissionsGranted())
-            while (true) {
-                delay(PERMISSIONS_POLL_INTERVAL_MS)
-                emit(requiredPermissionsGranted())
-            }
+        return merge(
+            appOpsPermissionChangeEvents(),
+            appResumeReconciliationEvents()
+        ).map {
+            requiredPermissionsGranted()
         }.distinctUntilChanged()
     }
 
@@ -76,6 +77,63 @@ class PermissionsRepository(
         return isOverlayPermissionGranted() &&
             isNotificationPermissionGranted() &&
             isWriteSecureSettingsPermissionGranted()
+    }
+
+    private fun appOpsPermissionChangeEvents(): Flow<Unit> = callbackFlow {
+        val appOps = appContext.getSystemService(AppOpsManager::class.java)
+        if (appOps == null) {
+            trySend(Unit)
+            close()
+            return@callbackFlow
+        }
+        val listener = AppOpsManager.OnOpChangedListener { _, changedPackage ->
+            if (changedPackage == null || changedPackage == packageName) {
+                trySend(Unit)
+            }
+        }
+        appOps.startWatchingMode(
+            AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW,
+            packageName,
+            listener
+        )
+        val postNotificationOp = AppOpsManager.permissionToOp(Manifest.permission.POST_NOTIFICATIONS)
+        if (postNotificationOp != null) {
+            appOps.startWatchingMode(
+                postNotificationOp,
+                packageName,
+                listener
+            )
+        }
+        trySend(Unit)
+        awaitClose {
+            appOps.stopWatchingMode(listener)
+        }
+    }
+
+    private fun appResumeReconciliationEvents(): Flow<Unit> = callbackFlow {
+        val application = appContext as? Application
+        if (application == null) {
+            trySend(Unit)
+            close()
+            return@callbackFlow
+        }
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) {
+                trySend(Unit)
+            }
+
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        application.registerActivityLifecycleCallbacks(callbacks)
+        trySend(Unit)
+        awaitClose {
+            application.unregisterActivityLifecycleCallbacks(callbacks)
+        }
     }
 
     fun secureSettingsCommands(): SecureSettingsCommands {
