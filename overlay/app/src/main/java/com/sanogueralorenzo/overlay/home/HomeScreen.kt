@@ -113,7 +113,12 @@ fun HomeScreen(
     onOpenHelp: () -> Unit,
     onOpenPermissions: () -> Unit
 ) {
-    val permissionStatusIcon = if (state.allRequirementsGranted) "✅" else "⚠️"
+    val permissionStatusIcon = if (state.allRequirementsGranted) "☑️" else "⚠️"
+    val permissionsSubtitle = if (state.allRequirementsGranted) {
+        stringResource(R.string.home_permissions_all_granted)
+    } else {
+        stringResource(R.string.overlay_setup_title)
+    }
     val nextStepsItems = listOf(
         HomeMenuItem(
             title = stringResource(R.string.open_help_button),
@@ -123,7 +128,7 @@ fun HomeScreen(
         ),
         HomeMenuItem(
             title = stringResource(R.string.open_permissions_button),
-            subtitle = stringResource(R.string.overlay_setup_title),
+            subtitle = permissionsSubtitle,
             leadingEmoji = permissionStatusIcon,
             onClick = onOpenPermissions
         )
