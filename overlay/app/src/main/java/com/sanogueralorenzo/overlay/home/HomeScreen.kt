@@ -3,7 +3,6 @@ package com.sanogueralorenzo.overlay.home
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,8 +15,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -25,8 +28,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
@@ -35,10 +40,11 @@ import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.overlay.R
 import com.sanogueralorenzo.overlay.ui.components.RefreshOnResume
+import com.sanogueralorenzo.overlay.ui.components.SectionCard
+import com.sanogueralorenzo.overlay.ui.components.StepSection
 
 fun NavGraphBuilder.homeRoute(
     route: String,
-    onOpenHelp: () -> Unit,
     onOpenPermissions: () -> Unit
 ) {
     composable(route) {
@@ -49,7 +55,6 @@ fun NavGraphBuilder.homeRoute(
         }
         HomeScreen(
             state = state,
-            onOpenHelp = onOpenHelp,
             onOpenPermissions = onOpenPermissions
         )
     }
@@ -58,30 +63,8 @@ fun NavGraphBuilder.homeRoute(
 @Composable
 fun HomeScreen(
     state: HomeState,
-    onOpenHelp: () -> Unit,
     onOpenPermissions: () -> Unit
 ) {
-    val permissionStatusIcon = if (state.allRequirementsGranted) "✅" else "⚠️"
-    val permissionsSubtitle = if (state.allRequirementsGranted) {
-        stringResource(R.string.home_permissions_all_granted)
-    } else {
-        stringResource(R.string.overlay_setup_title)
-    }
-    val nextStepsItems = listOf(
-        HomeMenuItem(
-            title = stringResource(R.string.open_help_button),
-            subtitle = stringResource(R.string.how_it_works_label),
-            leadingEmoji = "👀",
-            onClick = onOpenHelp
-        ),
-        HomeMenuItem(
-            title = stringResource(R.string.open_permissions_button),
-            subtitle = permissionsSubtitle,
-            leadingEmoji = permissionStatusIcon,
-            onClick = onOpenPermissions
-        )
-    )
-
     Scaffold { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -94,9 +77,12 @@ fun HomeScreen(
                 HomeHero()
             }
             item {
-                HomeSectionCard(
-                    title = stringResource(R.string.home_next_steps_title),
-                    items = nextStepsItems
+                HomeHowItWorksSection()
+            }
+            item {
+                HomePermissionsSection(
+                    allRequirementsGranted = state.allRequirementsGranted,
+                    onOpenPermissions = onOpenPermissions
                 )
             }
             item {
@@ -137,87 +123,102 @@ private fun HomeHero() {
     }
 }
 
-private data class HomeMenuItem(
-    val title: String,
-    val subtitle: String?,
-    val onClick: () -> Unit,
-    val leadingEmoji: String
-)
-
 @Composable
-private fun HomeSectionCard(
-    title: String,
-    items: List<HomeMenuItem>
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+private fun HomeHowItWorksSection() {
+    SectionCard(title = stringResource(R.string.home_next_steps_title)) {
+        StepSection(
+            icon = Icons.Outlined.PlayArrow,
+            chipLabel = stringResource(R.string.step_one_chip),
+            title = stringResource(R.string.step_one_title),
+            body = stringResource(R.string.step_one_body)
         )
-        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            ) {
-                items.forEachIndexed { index, item ->
-                    HomeMenuRow(item = item)
-                    if (index < items.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = 58.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-                    }
-                }
-            }
-        }
+        StepSection(
+            icon = Icons.Outlined.KeyboardArrowDown,
+            chipLabel = stringResource(R.string.step_two_chip),
+            title = stringResource(R.string.step_two_title),
+            body = stringResource(R.string.step_two_body)
+        )
+        StepSection(
+            icon = Icons.Outlined.GridView,
+            chipLabel = stringResource(R.string.step_three_chip),
+            title = stringResource(R.string.step_three_title),
+            body = stringResource(R.string.step_three_body)
+        )
+        StepSection(
+            icon = ImageVector.vectorResource(R.drawable.ic_step_power),
+            chipLabel = stringResource(R.string.step_four_chip),
+            title = stringResource(R.string.step_four_title),
+            body = stringResource(R.string.step_four_body)
+        )
     }
 }
 
 @Composable
-private fun HomeMenuRow(item: HomeMenuItem) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = item.onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier.size(24.dp),
-            contentAlignment = Alignment.Center
+private fun HomePermissionsSection(
+    allRequirementsGranted: Boolean,
+    onOpenPermissions: () -> Unit
+) {
+    val subtitle = if (allRequirementsGranted) {
+        stringResource(R.string.home_permissions_all_granted)
+    } else {
+        stringResource(R.string.overlay_setup_title)
+    }
+    val statusIcon = if (allRequirementsGranted) {
+        Icons.Rounded.CheckCircle
+    } else {
+        Icons.Rounded.WarningAmber
+    }
+    val statusColor = if (allRequirementsGranted) {
+        MaterialTheme.colorScheme.tertiary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.permissions_title),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpenPermissions)
         ) {
-            Text(
-                text = item.leadingEmoji,
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
-        ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            if (!item.subtitle.isNullOrBlank()) {
-                Text(
-                    text = item.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = statusIcon,
+                    contentDescription = null,
+                    tint = statusColor,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.open_permissions_button),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
     }
 }

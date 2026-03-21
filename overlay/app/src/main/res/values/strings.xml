@@ -15,7 +15,6 @@
     <string name="home_purpose_title">Play media with the screen off</string>
     <string name="home_permissions_all_granted">All Granted</string>
     <string name="home_next_steps_title">Get started</string>
-    <string name="open_help_button">How it works</string>
     <string name="open_permissions_button">Permissions</string>
 
     <!-- Permissions screen -->
@@ -39,11 +38,7 @@
     <string name="adb_command_copied_message">Command copied to clipboard.</string>
     <string name="setup_tile_body">Start the overlay from the tile so streaming apps keep playing.</string>
     
-    <!-- Help screen -->
-    <string name="help_title">How it works</string>
-
     <!-- Shared step-by-step guide -->
-    <string name="how_it_works_label">Learn the basics</string>
     <string name="step_one_chip">Step 1</string>
     <string name="step_two_chip">Step 2</string>
     <string name="step_three_chip">Step 3</string>

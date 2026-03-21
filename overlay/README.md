@@ -13,7 +13,7 @@
 - Package: `com.sanogueralorenzo.overlay`
 - Module: `overlay/app`
 - Key requirement: Android overlay permission enabled.
-- App screens: Home, How it works, Permissions.
-- Home UI: no top toolbar title; intro card uses a compact two-line hero (`Overlay` + `Play media with the screen off`).
+- App screens: Home, Permissions.
+- Home UI: no top toolbar title; intro card uses a compact two-line hero (`Overlay` + `Play media with the screen off`), followed by embedded How it works steps and a standalone Permissions shortcut card.
 - Home permissions shortcut: shows `⚠️` + `Required to use Overlay` until setup is complete, then `✅` + `All Granted`.
 - Home permissions shortcut derives from one combined requirements stream backed by per-permission flows refreshed by Permissions screen actions and Home resume reconciliation.
