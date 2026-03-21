@@ -13,4 +13,3 @@
 - Package: `com.sanogueralorenzo.overlay`
 - Module: `overlay/app`
 - Key requirement: Android overlay permission enabled.
-- UI: edge-to-edge is enabled and app bars keep compact top spacing to avoid double status-bar insets.
