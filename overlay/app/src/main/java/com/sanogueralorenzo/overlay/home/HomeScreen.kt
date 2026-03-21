@@ -103,7 +103,7 @@ private fun HomeHero() {
             Icon(
                 painter = painterResource(id = R.drawable.ic_qs_black),
                 contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(112.dp)
+                modifier = Modifier.size(96.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
