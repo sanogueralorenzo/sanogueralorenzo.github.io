@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
-import com.sanogueralorenzo.overlay.SettingsRepository
+import com.sanogueralorenzo.overlay.settings.SettingsRepository
 import com.sanogueralorenzo.overlay.ui.components.SecureSettingsCommands
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject

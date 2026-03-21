@@ -1,11 +1,12 @@
-package com.sanogueralorenzo.overlay
+package com.sanogueralorenzo.overlay.overlay
 
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Context
 import android.app.PendingIntent
+import android.content.Context
 import androidx.core.app.NotificationCompat
+import com.sanogueralorenzo.overlay.R
 
 private const val FOREGROUND_CHANNEL_ID = "overlay_foreground"
 

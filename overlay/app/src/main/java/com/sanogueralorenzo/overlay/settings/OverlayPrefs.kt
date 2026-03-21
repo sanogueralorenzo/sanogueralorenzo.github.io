@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.overlay
+package com.sanogueralorenzo.overlay.settings
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey

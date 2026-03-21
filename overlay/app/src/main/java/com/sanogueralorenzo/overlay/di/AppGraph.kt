@@ -2,8 +2,8 @@ package com.sanogueralorenzo.overlay.di
 
 import android.app.Application
 import android.content.Context
-import com.sanogueralorenzo.overlay.SettingsRepository
 import com.sanogueralorenzo.overlay.permissions.PermissionsRepository
+import com.sanogueralorenzo.overlay.settings.SettingsRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides

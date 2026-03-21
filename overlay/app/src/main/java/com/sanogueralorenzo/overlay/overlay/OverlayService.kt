@@ -15,9 +15,6 @@ import android.service.quicksettings.TileService
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import com.sanogueralorenzo.overlay.OVERLAY_NOTIFICATION_ID
-import com.sanogueralorenzo.overlay.buildOverlayNotification
-import com.sanogueralorenzo.overlay.ensureForegroundChannel
 
 class OverlayService : Service() {
     companion object {

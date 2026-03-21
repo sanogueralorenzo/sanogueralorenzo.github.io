@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.overlay
+package com.sanogueralorenzo.overlay.settings
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn

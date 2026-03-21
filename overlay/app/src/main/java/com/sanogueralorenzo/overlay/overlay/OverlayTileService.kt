@@ -8,7 +8,7 @@ import android.service.quicksettings.TileService
 import android.widget.Toast
 import com.sanogueralorenzo.overlay.OverlayApp
 import com.sanogueralorenzo.overlay.R
-import com.sanogueralorenzo.overlay.SettingsRepository
+import com.sanogueralorenzo.overlay.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
