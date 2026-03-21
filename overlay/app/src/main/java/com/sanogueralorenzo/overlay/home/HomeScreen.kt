@@ -19,7 +19,7 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -160,7 +160,7 @@ private fun HomePermissionsSection(
     val status = if (allRequirementsGranted) {
         HomePermissionStatus(
             subtitle = stringResource(R.string.home_permissions_all_granted),
-            icon = Icons.Outlined.TaskAlt,
+            icon = Icons.Rounded.Check,
             color = MaterialTheme.colorScheme.tertiary
         )
     } else {
