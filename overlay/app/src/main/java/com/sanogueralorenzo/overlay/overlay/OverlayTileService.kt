@@ -6,6 +6,7 @@ import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.widget.Toast
+import com.sanogueralorenzo.overlay.OverlayApp
 import com.sanogueralorenzo.overlay.R
 import com.sanogueralorenzo.overlay.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -16,7 +17,9 @@ import kotlinx.coroutines.launch
 
 class OverlayTileService : TileService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val settingsRepository by lazy { SettingsRepository(applicationContext) }
+    private val settingsRepository: SettingsRepository by lazy {
+        (application as OverlayApp).appGraph.settingsRepository
+    }
 
     override fun onClick() {
         super.onClick()
