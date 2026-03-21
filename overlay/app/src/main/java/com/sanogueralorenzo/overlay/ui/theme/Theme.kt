@@ -9,10 +9,10 @@ import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun OverlayTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val darkTheme = isSystemInDarkTheme()
     val colorScheme = if (darkTheme) {
         dynamicDarkColorScheme(context)
     } else {
