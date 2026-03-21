@@ -31,41 +31,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.airbnb.mvrx.MavericksState
-import com.airbnb.mvrx.MavericksViewModel
-import com.airbnb.mvrx.MavericksViewModelFactory
-import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
 import com.airbnb.mvrx.compose.mavericksViewModel
-import com.sanogueralorenzo.overlay.OverlayApp
 import com.sanogueralorenzo.overlay.R
-import com.sanogueralorenzo.overlay.permissions.PermissionsRepository
-
-data class HomeState(
-    val allRequirementsGranted: Boolean = false
-) : MavericksState
-
-class HomeViewModel(
-    initialState: HomeState,
-    private val repository: PermissionsRepository
-) : MavericksViewModel<HomeState>(initialState) {
-
-    init {
-        repository.allRequirementsGrantedFlow().setOnEach {
-            copy(allRequirementsGranted = it)
-        }
-    }
-
-    companion object : MavericksViewModelFactory<HomeViewModel, HomeState> {
-        override fun create(
-            viewModelContext: ViewModelContext,
-            state: HomeState
-        ): HomeViewModel {
-            val app = viewModelContext.app() as OverlayApp
-            return HomeViewModel(state, app.appGraph.permissionsRepository)
-        }
-    }
-}
 
 fun NavGraphBuilder.homeRoute(
     route: String,
