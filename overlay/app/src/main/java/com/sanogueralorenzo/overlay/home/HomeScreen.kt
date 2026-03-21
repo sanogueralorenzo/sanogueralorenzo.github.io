@@ -106,7 +106,7 @@ private fun HomeHero() {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.home_title),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(6.dp))
