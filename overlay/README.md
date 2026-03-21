@@ -2,7 +2,7 @@
 
 **Overlay** is a small Android app for a common annoyance: some media apps stop when you lock the phone, so you lose audio the moment the screen goes off.
 
-Start playback, tap the Overlay tile, and lock your screen; Overlay keeps a black layer on top so audio can continue, and on OLED displays that mostly-black screen can also reduce battery use compared with leaving bright content visible.
+Start playback, tap the Overlay tile, and lock your screen; Overlay keeps a black layer on top so audio can continue, can reduce battery use on OLED displays compared with leaving bright content visible, and helps prevent accidental taps while your phone is in your pocket.
 
 <p align="center">
   <img src="assets/home_light.png" alt="Overlay home in light theme" width="280" />
