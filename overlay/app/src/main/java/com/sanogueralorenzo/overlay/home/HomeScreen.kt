@@ -1,6 +1,5 @@
 package com.sanogueralorenzo.overlay.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,19 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -79,10 +74,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                HomeHero(
-                    onStartFromTile = onOpenPermissions,
-                    onOpenHelp = onOpenHelp
-                )
+                HomeHero()
             }
             item {
                 HomeSectionCard(
@@ -98,66 +90,38 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHero(
-    onStartFromTile: () -> Unit,
-    onOpenHelp: () -> Unit
-) {
+private fun HomeHero() {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        val gradient = Brush.verticalGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                MaterialTheme.colorScheme.surface,
-                Color.Transparent
-            )
-        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .padding(bottom = 6.dp)
-                    .background(gradient)
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_qs_black),
-                    contentDescription = stringResource(R.string.app_name),
-                    modifier = Modifier.size(104.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.home_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.home_purpose_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.home_purpose_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-                Button(onClick = onStartFromTile) {
-                    Text(text = stringResource(R.string.home_primary_cta))
-                }
-                TextButton(onClick = onOpenHelp) {
-                    Text(text = stringResource(R.string.home_secondary_cta))
-                }
-            }
+            Icon(
+                painter = painterResource(id = R.drawable.ic_qs_black),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(128.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.home_title),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.home_purpose_title),
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.home_purpose_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

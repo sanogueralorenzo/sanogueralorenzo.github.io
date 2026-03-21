@@ -14,8 +14,6 @@
     <string name="home_title">Overlay</string>
     <string name="home_purpose_title">Play media with the screen off</string>
     <string name="home_purpose_body">Keep audio playing with screen off while preventing accidental touches and saving battery.</string>
-    <string name="home_primary_cta">Start from Quick Settings tile</string>
-    <string name="home_secondary_cta">How it works</string>
     <string name="home_next_steps_title">Get started</string>
     <string name="open_help_button">How it works</string>
     <string name="open_permissions_button">Permissions</string>
