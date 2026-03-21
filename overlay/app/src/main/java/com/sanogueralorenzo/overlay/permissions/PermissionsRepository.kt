@@ -10,7 +10,11 @@ import com.sanogueralorenzo.overlay.ui.components.SecureSettingsCommands
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 
 @Inject
 @SingleIn(AppScope::class)
@@ -18,10 +22,23 @@ class PermissionsRepository(
     context: Context,
     private val settingsRepository: SettingsRepository
 ) {
+    companion object {
+        private const val PERMISSIONS_POLL_INTERVAL_MS = 1000L
+    }
+
     private val appContext = context.applicationContext
     private val packageName = appContext.packageName
 
     fun tileAddedFlow(): Flow<Boolean> = settingsRepository.tileAddedFlow()
+
+    fun allRequirementsGrantedFlow(): Flow<Boolean> {
+        return combine(
+            tileAddedFlow(),
+            requiredPermissionsFlow()
+        ) { tileAdded, requiredPermissionsGranted ->
+            tileAdded && requiredPermissionsGranted
+        }.distinctUntilChanged()
+    }
 
     suspend fun setTileAdded(added: Boolean) {
         settingsRepository.setTileAdded(added)
@@ -43,6 +60,22 @@ class PermissionsRepository(
             appContext,
             Manifest.permission.WRITE_SECURE_SETTINGS
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requiredPermissionsFlow(): Flow<Boolean> {
+        return flow {
+            emit(requiredPermissionsGranted())
+            while (true) {
+                delay(PERMISSIONS_POLL_INTERVAL_MS)
+                emit(requiredPermissionsGranted())
+            }
+        }.distinctUntilChanged()
+    }
+
+    private fun requiredPermissionsGranted(): Boolean {
+        return isOverlayPermissionGranted() &&
+            isNotificationPermissionGranted() &&
+            isWriteSecureSettingsPermissionGranted()
     }
 
     fun secureSettingsCommands(): SecureSettingsCommands {

@@ -31,32 +31,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.airbnb.mvrx.Async
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
-import com.airbnb.mvrx.Success
-import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.overlay.OverlayApp
 import com.sanogueralorenzo.overlay.R
 import com.sanogueralorenzo.overlay.permissions.PermissionsRepository
-import com.sanogueralorenzo.overlay.ui.components.RefreshOnResume
 
 data class HomeState(
-    val overlayPermission: Async<Boolean> = Uninitialized,
-    val tileAdded: Async<Boolean> = Uninitialized,
-    val notificationPermission: Async<Boolean> = Uninitialized,
-    val secureSettingsPermission: Async<Boolean> = Uninitialized
-) : MavericksState {
-    val allRequirementsGranted: Boolean
-        get() = overlayPermission() == true &&
-            tileAdded() == true &&
-            notificationPermission() == true &&
-            secureSettingsPermission() == true
-}
+    val allRequirementsGranted: Boolean = false
+) : MavericksState
 
 class HomeViewModel(
     initialState: HomeState,
@@ -64,17 +51,9 @@ class HomeViewModel(
 ) : MavericksViewModel<HomeState>(initialState) {
 
     init {
-        repository.tileAddedFlow().setOnEach { copy(tileAdded = Success(it)) }
-        refreshPermissions()
-    }
-
-    fun refreshPermissions() {
-        suspend { repository.isOverlayPermissionGranted() }
-            .execute { copy(overlayPermission = it) }
-        suspend { repository.isNotificationPermissionGranted() }
-            .execute { copy(notificationPermission = it) }
-        suspend { repository.isWriteSecureSettingsPermissionGranted() }
-            .execute { copy(secureSettingsPermission = it) }
+        repository.allRequirementsGrantedFlow().setOnEach {
+            copy(allRequirementsGranted = it)
+        }
     }
 
     companion object : MavericksViewModelFactory<HomeViewModel, HomeState> {
@@ -96,9 +75,6 @@ fun NavGraphBuilder.homeRoute(
     composable(route) {
         val homeViewModel: HomeViewModel = mavericksViewModel()
         val state by homeViewModel.mavericksCollectAsState()
-        RefreshOnResume {
-            homeViewModel.refreshPermissions()
-        }
         HomeScreen(
             state = state,
             onOpenHelp = onOpenHelp,
