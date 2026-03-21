@@ -161,7 +161,7 @@ private fun HomePermissionsSection(
         HomePermissionStatus(
             subtitle = stringResource(R.string.home_permissions_all_granted),
             icon = Icons.Rounded.Check,
-            color = MaterialTheme.colorScheme.tertiary
+            color = Color.White
         )
     } else {
         HomePermissionStatus(
