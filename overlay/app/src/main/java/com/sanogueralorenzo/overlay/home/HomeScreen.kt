@@ -49,9 +49,9 @@ fun NavGraphBuilder.homeRoute(
     onOpenPermissions: () -> Unit
 ) {
     composable(route) {
-        val homeViewModel: HomeViewModel = mavericksViewModel()
-        val state by homeViewModel.mavericksCollectAsState()
-        RefreshOnResume(homeViewModel::refreshPermissions)
+        val viewModel: HomeViewModel = mavericksViewModel()
+        val state by viewModel.mavericksCollectAsState()
+        RefreshOnResume(viewModel::refreshPermissions)
         HomeScreen(
             state = state,
             onOpenPermissions = onOpenPermissions

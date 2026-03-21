@@ -59,16 +59,16 @@ fun NavGraphBuilder.permissionsRoute(
     onBack: () -> Unit
 ) {
     composable(route) {
-        val permissionsViewModel: PermissionsViewModel = mavericksViewModel()
-        val state by permissionsViewModel.mavericksCollectAsState()
+        val viewModel: PermissionsViewModel = mavericksViewModel()
+        val state by viewModel.mavericksCollectAsState()
         val activity = LocalContext.current as? ComponentActivity
         PermissionsScreen(
             state = state,
             onBack = onBack,
-            onRefreshPermissions = { permissionsViewModel.refreshPermissions() },
+            onRefreshPermissions = { viewModel.refreshPermissions() },
             onOpenOverlaySettings = { activity?.openOverlaySettings() },
             onRequestTile = {
-                activity?.requestAddTile { permissionsViewModel.setTileAdded(true) }
+                activity?.requestAddTile { viewModel.setTileAdded(true) }
             }
         )
     }
