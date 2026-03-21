@@ -20,6 +20,11 @@ class HomeViewModel(
         repository.allRequirementsGrantedFlow().setOnEach {
             copy(allRequirementsGranted = it)
         }
+        refreshPermissions()
+    }
+
+    fun refreshPermissions() {
+        repository.refreshPermissionStates()
     }
 
     companion object : MavericksViewModelFactory<HomeViewModel, HomeState> {

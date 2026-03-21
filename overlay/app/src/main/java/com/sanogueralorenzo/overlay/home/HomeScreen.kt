@@ -34,6 +34,7 @@ import androidx.navigation.compose.composable
 import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.overlay.R
+import com.sanogueralorenzo.overlay.ui.components.RefreshOnResume
 
 fun NavGraphBuilder.homeRoute(
     route: String,
@@ -43,6 +44,9 @@ fun NavGraphBuilder.homeRoute(
     composable(route) {
         val homeViewModel: HomeViewModel = mavericksViewModel()
         val state by homeViewModel.mavericksCollectAsState()
+        RefreshOnResume {
+            homeViewModel.refreshPermissions()
+        }
         HomeScreen(
             state = state,
             onOpenHelp = onOpenHelp,

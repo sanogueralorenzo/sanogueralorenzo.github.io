@@ -30,17 +30,15 @@ class PermissionsViewModel(
 
     init {
         repository.tileAddedFlow().setOnEach { copy(tileAdded = Success(it)) }
+        repository.overlayPermissionFlow().setOnEach { copy(overlayPermission = Success(it)) }
+        repository.notificationPermissionFlow().setOnEach { copy(notificationPermission = Success(it)) }
+        repository.secureSettingsPermissionFlow().setOnEach { copy(secureSettingsPermission = Success(it)) }
         setState { copy(secureSettingsCommands = repository.secureSettingsCommands()) }
         refreshPermissions()
     }
 
     fun refreshPermissions() {
-        suspend { repository.isOverlayPermissionGranted() }
-            .execute { copy(overlayPermission = it) }
-        suspend { repository.isNotificationPermissionGranted() }
-            .execute { copy(notificationPermission = it) }
-        suspend { repository.isWriteSecureSettingsPermissionGranted() }
-            .execute { copy(secureSettingsPermission = it) }
+        repository.refreshPermissionStates()
     }
 
     fun setTileAdded(added: Boolean) {
