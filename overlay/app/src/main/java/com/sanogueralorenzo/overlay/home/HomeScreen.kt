@@ -1,7 +1,6 @@
 package com.sanogueralorenzo.overlay.home
 
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -178,9 +177,8 @@ private fun HomePermissionsSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         ElevatedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onOpenPermissions)
+            onClick = onOpenPermissions,
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
