@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.overlay.home
 
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +31,62 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import com.airbnb.mvrx.Async
+import com.airbnb.mvrx.MavericksState
+import com.airbnb.mvrx.MavericksViewModel
+import com.airbnb.mvrx.MavericksViewModelFactory
+import com.airbnb.mvrx.Success
+import com.airbnb.mvrx.Uninitialized
+import com.airbnb.mvrx.ViewModelContext
+import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
+import com.airbnb.mvrx.compose.mavericksViewModel
+import com.sanogueralorenzo.overlay.OverlayApp
 import com.sanogueralorenzo.overlay.R
+import com.sanogueralorenzo.overlay.permissions.PermissionsRepository
+import com.sanogueralorenzo.overlay.ui.components.RefreshOnResume
+
+data class HomeState(
+    val overlayPermission: Async<Boolean> = Uninitialized,
+    val tileAdded: Async<Boolean> = Uninitialized,
+    val notificationPermission: Async<Boolean> = Uninitialized,
+    val secureSettingsPermission: Async<Boolean> = Uninitialized
+) : MavericksState {
+    val allRequirementsGranted: Boolean
+        get() = overlayPermission() == true &&
+            tileAdded() == true &&
+            notificationPermission() == true &&
+            secureSettingsPermission() == true
+}
+
+class HomeViewModel(
+    initialState: HomeState,
+    private val repository: PermissionsRepository
+) : MavericksViewModel<HomeState>(initialState) {
+
+    init {
+        repository.tileAddedFlow().setOnEach { copy(tileAdded = Success(it)) }
+        refreshPermissions()
+    }
+
+    fun refreshPermissions() {
+        suspend { repository.isOverlayPermissionGranted() }
+            .execute { copy(overlayPermission = it) }
+        suspend { repository.isNotificationPermissionGranted() }
+            .execute { copy(notificationPermission = it) }
+        suspend { repository.isWriteSecureSettingsPermissionGranted() }
+            .execute { copy(secureSettingsPermission = it) }
+    }
+
+    companion object : MavericksViewModelFactory<HomeViewModel, HomeState> {
+        override fun create(
+            viewModelContext: ViewModelContext,
+            state: HomeState
+        ): HomeViewModel {
+            val app = viewModelContext.app() as OverlayApp
+            return HomeViewModel(state, app.appGraph.permissionsRepository)
+        }
+    }
+}
 
 fun NavGraphBuilder.homeRoute(
     route: String,
@@ -38,7 +94,13 @@ fun NavGraphBuilder.homeRoute(
     onOpenPermissions: () -> Unit
 ) {
     composable(route) {
+        val homeViewModel: HomeViewModel = mavericksViewModel()
+        val state by homeViewModel.mavericksCollectAsState()
+        RefreshOnResume {
+            homeViewModel.refreshPermissions()
+        }
         HomeScreen(
+            state = state,
             onOpenHelp = onOpenHelp,
             onOpenPermissions = onOpenPermissions
         )
@@ -47,9 +109,11 @@ fun NavGraphBuilder.homeRoute(
 
 @Composable
 fun HomeScreen(
+    state: HomeState,
     onOpenHelp: () -> Unit,
     onOpenPermissions: () -> Unit
 ) {
+    val permissionStatusIcon = if (state.allRequirementsGranted) "✅" else "⚠️"
     val nextStepsItems = listOf(
         HomeMenuItem(
             title = stringResource(R.string.open_help_button),
@@ -60,7 +124,7 @@ fun HomeScreen(
         HomeMenuItem(
             title = stringResource(R.string.open_permissions_button),
             subtitle = stringResource(R.string.overlay_setup_title),
-            leadingEmoji = "⚠️",
+            leadingEmoji = permissionStatusIcon,
             onClick = onOpenPermissions
         )
     )
