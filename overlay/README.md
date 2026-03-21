@@ -13,3 +13,4 @@
 - Package: `com.sanogueralorenzo.overlay`
 - Module: `overlay/app`
 - Key requirement: Android overlay permission enabled.
+- App screens: Home, How it works, Permissions.

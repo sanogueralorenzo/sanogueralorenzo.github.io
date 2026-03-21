@@ -5,7 +5,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
-import com.sanogueralorenzo.overlay.about.aboutRoute
 import com.sanogueralorenzo.overlay.help.helpRoute
 import com.sanogueralorenzo.overlay.home.homeRoute
 import com.sanogueralorenzo.overlay.permissions.permissionsRoute
@@ -26,8 +25,7 @@ fun AppRoot() {
             homeRoute(
                 route = NavRoutes.Home,
                 onOpenHelp = { navController.navigateSingleTop(NavRoutes.Help) },
-                onOpenPermissions = { navController.navigateSingleTop(NavRoutes.Permissions) },
-                onOpenAbout = { navController.navigateSingleTop(NavRoutes.About) }
+                onOpenPermissions = { navController.navigateSingleTop(NavRoutes.Permissions) }
             )
             helpRoute(
                 route = NavRoutes.Help,
@@ -35,10 +33,6 @@ fun AppRoot() {
             )
             permissionsRoute(
                 route = NavRoutes.Permissions,
-                onBack = navigateBackToHome
-            )
-            aboutRoute(
-                route = NavRoutes.About,
                 onBack = navigateBackToHome
             )
         }

@@ -15,12 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -39,14 +37,12 @@ import com.sanogueralorenzo.overlay.R
 fun NavGraphBuilder.homeRoute(
     route: String,
     onOpenHelp: () -> Unit,
-    onOpenPermissions: () -> Unit,
-    onOpenAbout: () -> Unit
+    onOpenPermissions: () -> Unit
 ) {
     composable(route) {
         HomeScreen(
             onOpenHelp = onOpenHelp,
-            onOpenPermissions = onOpenPermissions,
-            onOpenAbout = onOpenAbout
+            onOpenPermissions = onOpenPermissions
         )
     }
 }
@@ -55,8 +51,7 @@ fun NavGraphBuilder.homeRoute(
 @Composable
 fun HomeScreen(
     onOpenHelp: () -> Unit,
-    onOpenPermissions: () -> Unit,
-    onOpenAbout: () -> Unit
+    onOpenPermissions: () -> Unit
 ) {
     val nextStepsItems = listOf(
         HomeMenuItem(
@@ -76,15 +71,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(R.string.home_title)) },
-                actions = {
-                    IconButton(onClick = onOpenAbout) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = stringResource(R.string.open_about_button)
-                        )
-                    }
-                }
+                title = { Text(text = stringResource(R.string.home_title)) }
             )
         }
     ) { innerPadding ->
