@@ -113,7 +113,7 @@ fun HomeScreen(
     onOpenHelp: () -> Unit,
     onOpenPermissions: () -> Unit
 ) {
-    val permissionStatusIcon = if (state.allRequirementsGranted) "☑️" else "⚠️"
+    val permissionStatusIcon = if (state.allRequirementsGranted) "✅" else "⚠️"
     val permissionsSubtitle = if (state.allRequirementsGranted) {
         stringResource(R.string.home_permissions_all_granted)
     } else {
