@@ -1,19 +1,10 @@
 ## Intro
 
-**Overlay** is an Android app for full-screen blackout control via Quick Settings.
+**Overlay** is an Android app that makes background media playback simple when top apps do not support it natively: play media, tap the Overlay tile, and lock the screen.
 
-## Quickstart
+It is intentionally minimal and useful, focused on one job: covering the screen with black so your audio can keep going without distraction.
 
-```shell
-./gradlew :app:installDebug
-```
-
-## Reference
-
-- Package: `com.sanogueralorenzo.overlay`
-- Module: `overlay/app`
-- Key requirement: Android overlay permission enabled.
-- App screens: Home, Permissions.
-- Home UI: no top toolbar title; intro card uses a compact two-line hero (`Overlay` + `Play media with the screen off`), followed by embedded How it works steps and a standalone Permissions shortcut card.
-- Home permissions shortcut: shows `⚠️` + `Required to use Overlay` until setup is complete, then `✅` + `All Granted`.
-- Home permissions shortcut derives from one combined requirements stream backed by per-permission flows refreshed by Permissions screen actions and Home resume reconciliation.
+<p align="center">
+  <img src="assets/home_light.png" alt="Overlay home in light theme" width="280" />
+  <img src="assets/home_dark.png" alt="Overlay home in dark theme" width="280" />
+</p>
