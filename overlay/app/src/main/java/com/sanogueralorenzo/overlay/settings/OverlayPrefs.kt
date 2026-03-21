@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore(name = "black_overlay_prefs")
+private val Context.dataStore by preferencesDataStore(name = "overlay_prefs")
 
 @Inject
 @SingleIn(AppScope::class)
