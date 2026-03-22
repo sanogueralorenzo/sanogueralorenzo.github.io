@@ -1,8 +1,7 @@
 use crate::sessions::adapters::session_store::{SessionStore, resolve_session_by_id};
 use crate::sessions::cli::{
-    ArchiveArgs, AutoRemoveArgs, AutoRemoveMode, Commands, DeleteArgs, GenerateThreadTitleArgs,
-    ListArgs, MergeArgs, MessageArgs, ShowArgs, TitlesArgs, UnarchiveArgs, WatchAutoRemoveArgs,
-    WatchCommand,
+    ArchiveArgs, Commands, DeleteArgs, GenerateThreadTitleArgs, ListArgs, MergeArgs, MessageArgs,
+    PruneArgs, PruneMode, RestoreArgs, ShowArgs, TitlesArgs, WatchCommand, WatchPruneArgs,
 };
 use crate::sessions::services::session_service::{
     age_days, prune_sessions, to_output_entries, to_output_entry, validate_days,
@@ -31,16 +30,16 @@ use super::watcher::cmd_watch_thread_titles;
 
 pub(crate) fn dispatch(command: Commands) -> Result<()> {
     match command {
-        Commands::List(args) => cmd_list(args),
+        Commands::Ls(args) => cmd_list(args),
         Commands::Titles(args) => cmd_titles(args),
         Commands::GenerateThreadTitle(args) => cmd_generate_thread_title(args),
         Commands::Show(args) => cmd_show(args),
         Commands::Message(args) => cmd_message(args),
-        Commands::Delete(args) => cmd_delete(args),
+        Commands::Rm(args) => cmd_rm(args),
         Commands::Archive(args) => cmd_archive(args),
-        Commands::Unarchive(args) => cmd_unarchive(args),
+        Commands::Restore(args) => cmd_restore(args),
         Commands::Merge(args) => cmd_merge(args),
-        Commands::AutoRemove(args) => cmd_auto_remove(args),
+        Commands::Prune(args) => cmd_prune(args),
         Commands::Watch { action } => cmd_watch(action),
     }
 }
@@ -56,7 +55,6 @@ fn cmd_list(args: ListArgs) -> Result<()> {
         cwd,
         source_kinds,
         sort_by,
-        folders: _folders,
         search,
         json,
         plain,
@@ -335,7 +333,7 @@ fn cmd_message(args: MessageArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_delete(args: DeleteArgs) -> Result<()> {
+fn cmd_rm(args: DeleteArgs) -> Result<()> {
     validate_delete_args(&args)?;
     let store = SessionStore::new(args.home.clone())?;
     let sessions = store.collect_sessions()?;
@@ -410,7 +408,7 @@ fn cmd_archive(args: ArchiveArgs) -> Result<()> {
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
-fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
+fn cmd_restore(args: RestoreArgs) -> Result<()> {
     let store = SessionStore::new(args.home.clone())?;
     let sessions = store.collect_sessions()?;
     let targets = resolve_targets_for_inputs(&sessions, &args.ids)?;
@@ -420,7 +418,7 @@ fn cmd_unarchive(args: UnarchiveArgs) -> Result<()> {
         results.push(store.unarchive_session(target)?);
     }
 
-    let response = build_operation_batch_result("unarchive", false, results);
+    let response = build_operation_batch_result("restore", false, results);
     emit_operation_batch_output(response, args.json, args.plain)
 }
 
@@ -498,10 +496,10 @@ fn cmd_merge(args: MergeArgs) -> Result<()> {
     emit_merge_output(result, args.json, args.plain)
 }
 
-fn cmd_auto_remove(args: AutoRemoveArgs) -> Result<()> {
+fn cmd_prune(args: PruneArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
     let format = OutputFormat::from_flags(args.json, args.plain);
-    let hard = matches!(args.mode, AutoRemoveMode::Delete);
+    let hard = matches!(args.mode, PruneMode::Delete);
     let mode = if hard { "delete" } else { "archive" };
     let report = prune_sessions(&store, args.older_than_days, args.dry_run, hard, mode)?;
     emit_prune_output(&report, format)
@@ -509,12 +507,12 @@ fn cmd_auto_remove(args: AutoRemoveArgs) -> Result<()> {
 
 fn cmd_watch(action: WatchCommand) -> Result<()> {
     match action {
-        WatchCommand::AutoRemove(args) => cmd_watch_auto_remove(args),
+        WatchCommand::Prune(args) => cmd_watch_prune(args),
         WatchCommand::ThreadTitles { action } => cmd_watch_thread_titles(action),
     }
 }
 
-fn cmd_watch_auto_remove(args: WatchAutoRemoveArgs) -> Result<()> {
+fn cmd_watch_prune(args: WatchPruneArgs) -> Result<()> {
     validate_days(args.older_than_days)?;
     if args.interval_minutes == 0 {
         bail!("--interval-minutes must be >= 1");
@@ -523,7 +521,7 @@ fn cmd_watch_auto_remove(args: WatchAutoRemoveArgs) -> Result<()> {
     let store = SessionStore::new(args.home)?;
     let format = OutputFormat::from_flags(args.json, args.plain);
     let interval = Duration::from_secs(args.interval_minutes * 60);
-    let hard = matches!(args.mode, AutoRemoveMode::Delete);
+    let hard = matches!(args.mode, PruneMode::Delete);
     let mode = if hard { "delete" } else { "archive" };
 
     loop {
@@ -536,7 +534,7 @@ fn cmd_watch_auto_remove(args: WatchAutoRemoveArgs) -> Result<()> {
 
         if !args.json && !args.plain {
             println!(
-                "Waiting {} minute(s) before next auto-remove...",
+                "Waiting {} minute(s) before next prune...",
                 args.interval_minutes
             );
         }

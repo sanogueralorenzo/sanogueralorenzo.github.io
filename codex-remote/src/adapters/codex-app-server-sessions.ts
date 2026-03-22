@@ -61,7 +61,7 @@ export async function listSessionsForSelection(
   limit: number
 ): Promise<ListedSession[]> {
   const result = await runCodexAppServerSessionsJson<ListResponse>([
-    "list",
+    "ls",
     "--json",
     "--all",
     "--home",
@@ -85,7 +85,7 @@ export async function deleteSessionByThreadId(
   message: string | null;
 }> {
   const payload = await runCodexAppServerSessionsJsonOrNullOnNotFound<DeleteBatchResponse>([
-    "delete",
+    "rm",
     threadId,
     "--json",
     "--home",

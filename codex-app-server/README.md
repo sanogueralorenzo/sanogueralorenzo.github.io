@@ -10,7 +10,7 @@
 ```shell
 ./scripts/install.sh
 codex-app-server rpc --listen stdio://
-codex-app-server sessions list --json
+codex-app-server sessions ls --json
 codex-app-server noninteractive run --help
 ```
 
@@ -21,8 +21,9 @@ codex-app-server noninteractive run --help
   - `codex-app-server rpc app-server --listen stdio://` is also accepted.
 - Sessions commands:
   - `codex-app-server sessions ...` manages session lifecycle, titles, merge, and cleanup.
-  - `sessions list` defaults to `--sort-by updated_at` (newest first).
-  - `--folders` is accepted for compatibility and does not change ordering.
+  - Primary verbs: `ls`, `show`, `rm`, `archive`, `restore`, `prune`.
+  - `sessions ls` defaults to `--sort-by updated_at` (newest first).
+  - `watch prune` runs scheduled prune passes.
   - Thread-title watcher rewrites titles when empty or when current title matches the first user message.
 - Noninteractive wrappers:
   - `codex-app-server noninteractive run` wraps `codex exec --json`.

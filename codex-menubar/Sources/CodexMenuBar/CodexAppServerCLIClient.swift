@@ -42,7 +42,7 @@ final class CodexAppServerCLIClient: @unchecked Sendable {
         }
 
         _ = try run([
-            "auto-remove",
+            "prune",
             "--older-than-days", String(olderThanDays),
             "--mode", mode.rawValue
         ])

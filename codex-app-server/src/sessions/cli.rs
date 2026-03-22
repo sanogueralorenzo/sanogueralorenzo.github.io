@@ -12,7 +12,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// List sessions with optional filters/pagination.
-    List(ListArgs),
+    Ls(ListArgs),
     /// List resolved conversation titles by session id.
     Titles(TitlesArgs),
     /// Generate and persist a session title from first user input.
@@ -22,15 +22,15 @@ pub enum Commands {
     /// Print latest assistant message for a session.
     Message(MessageArgs),
     /// Permanently delete one or more sessions.
-    Delete(DeleteArgs),
+    Rm(DeleteArgs),
     /// Move one or more sessions to archived storage.
     Archive(ArchiveArgs),
     /// Move one or more sessions from archived storage to active storage.
-    Unarchive(UnarchiveArgs),
+    Restore(RestoreArgs),
     /// Summarize one session into another and delete the merged session.
     Merge(MergeArgs),
-    /// Auto-remove old active sessions once.
-    AutoRemove(AutoRemoveArgs),
+    /// Prune old active sessions once.
+    Prune(PruneArgs),
     /// Watchers for session maintenance flows.
     Watch {
         #[command(subcommand)]
@@ -40,8 +40,8 @@ pub enum Commands {
 
 #[derive(Subcommand, Debug)]
 pub enum WatchCommand {
-    /// Run auto-remove repeatedly on an interval.
-    AutoRemove(WatchAutoRemoveArgs),
+    /// Run prune repeatedly on an interval.
+    Prune(WatchPruneArgs),
     /// Manage thread-title watcher (start|stop|status|run).
     ThreadTitles {
         #[command(subcommand)]
@@ -51,7 +51,7 @@ pub enum WatchCommand {
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 #[value(rename_all = "kebab-case")]
-pub enum AutoRemoveMode {
+pub enum PruneMode {
     Archive,
     Delete,
 }
@@ -136,10 +136,6 @@ pub struct ListArgs {
     #[arg(long = "sort-by", value_enum, default_value = "updated_at")]
     pub sort_by: SortBy,
 
-    /// Legacy compatibility flag; does not affect ordering.
-    #[arg(long)]
-    pub folders: bool,
-
     #[arg(long)]
     pub search: Option<String>,
 
@@ -221,7 +217,7 @@ pub struct DeleteArgs {
     #[arg(long = "older-than-days")]
     pub older_than_days: Option<i64>,
 
-    /// Select sessions by folder label (same value shown in list --folders)
+    /// Select sessions by folder label
     #[arg(long)]
     pub folder: Option<String>,
 
@@ -263,7 +259,7 @@ pub struct ArchiveArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct UnarchiveArgs {
+pub struct RestoreArgs {
     /// One or more full thread ids or unique thread id prefixes
     #[arg(required = true, num_args = 1..)]
     pub ids: Vec<String>,
@@ -297,12 +293,12 @@ pub struct MergeArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct AutoRemoveArgs {
+pub struct PruneArgs {
     #[arg(long = "older-than-days")]
     pub older_than_days: i64,
 
     #[arg(long, value_enum)]
-    pub mode: AutoRemoveMode,
+    pub mode: PruneMode,
 
     #[arg(long)]
     pub home: Option<PathBuf>,
@@ -318,12 +314,12 @@ pub struct AutoRemoveArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct WatchAutoRemoveArgs {
+pub struct WatchPruneArgs {
     #[arg(long = "older-than-days")]
     pub older_than_days: i64,
 
     #[arg(long, value_enum)]
-    pub mode: AutoRemoveMode,
+    pub mode: PruneMode,
 
     #[arg(long = "interval-minutes", default_value_t = 60)]
     pub interval_minutes: u64,

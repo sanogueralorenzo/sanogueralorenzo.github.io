@@ -178,7 +178,7 @@ fn past_tense_operation(operation: &str) -> &'static str {
     match operation {
         "delete" => "Deleted",
         "archive" => "Archived",
-        "unarchive" => "Unarchived",
+        "restore" => "Restored",
         _ => "Processed",
     }
 }
