@@ -26,6 +26,10 @@ extension AppDelegate {
         applyAutoRemoveSettings(.none)
     }
 
+    @objc func startFloating(_ sender: Any?) {
+        // Intentionally no-op placeholder for upcoming floating threads flow.
+    }
+
     @objc func addProfileFromCurrent(_ sender: Any?) {
         do {
             if let currentProfileName = try authCLI.currentProfileName() {

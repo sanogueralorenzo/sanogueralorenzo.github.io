@@ -34,6 +34,7 @@
 - Profile management section is labeled `Profiles` and includes profile switch/remove actions plus `Add`.
 - When profile listing fails transiently, the menu preserves the last loaded profile list so logged-out state can still show known profiles as unselected.
 - Threads menu includes:
+  - `Floating` bold header row plus `Start`, followed by a divider.
   - `Auto-Remove` title row clears the saved day+mode selection (disables auto-remove).
   - `Auto-Remove` window: `1 day`, `3 days`, `7 days` (single-select checkmark)
   - Each day option has a submenu with `Archive` and `Delete`.

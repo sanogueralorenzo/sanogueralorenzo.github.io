@@ -92,6 +92,23 @@ extension AppDelegate {
                 missingItem.isEnabled = false
                 sessionsMenu.addItem(missingItem)
             case .ready:
+                let floatingHeader = NSMenuItem(title: "", action: #selector(noopHeader(_:)), keyEquivalent: "")
+                floatingHeader.attributedTitle = NSAttributedString(
+                    string: "Floating",
+                    attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+                )
+                floatingHeader.target = self
+                floatingHeader.isEnabled = true
+                sessionsMenu.addItem(floatingHeader)
+
+                let floatingStart = NSMenuItem(title: "Start",
+                                               action: #selector(startFloating(_:)),
+                                               keyEquivalent: "")
+                floatingStart.target = self
+                sessionsMenu.addItem(floatingStart)
+
+                sessionsMenu.addItem(.separator())
+
                 let autoRemoveHeader = NSMenuItem(title: "Auto-Remove", action: #selector(clearAutoRemoveSelection(_:)), keyEquivalent: "")
                 autoRemoveHeader.target = self
                 autoRemoveHeader.isEnabled = true
