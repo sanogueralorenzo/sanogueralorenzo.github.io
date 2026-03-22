@@ -35,6 +35,7 @@ extension AppDelegate {
 
         autoRemoveQueue.async { [weak self] in
             do {
+                try terminateCodexAppIfRunning()
                 try sessionsCLI.runAutoRemove(olderThanDays: 0, mode: .delete)
                 DispatchQueue.main.async {
                     self?.refreshUI()
