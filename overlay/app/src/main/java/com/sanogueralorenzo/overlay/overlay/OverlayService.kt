@@ -32,7 +32,6 @@ class OverlayService : Service() {
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (Intent.ACTION_SCREEN_OFF == intent.action) {
-                immersiveModeController.disableStatusBarImmersiveMode()
                 stopSelf()
             }
         }
@@ -92,7 +91,6 @@ class OverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            immersiveModeController.disableStatusBarImmersiveMode()
             stopSelf()
             return START_NOT_STICKY
         }
