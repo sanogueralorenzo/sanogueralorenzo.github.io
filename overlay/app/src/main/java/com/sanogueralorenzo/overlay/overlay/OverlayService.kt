@@ -60,7 +60,6 @@ class OverlayService : Service() {
             buildOverlayNotification(this, stopPendingIntent)
         )
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        immersiveModeController.enableStatusBarImmersiveMode()
         val screenOffFilter = IntentFilter(Intent.ACTION_SCREEN_OFF)
         registerReceiver(
             screenOffReceiver,
