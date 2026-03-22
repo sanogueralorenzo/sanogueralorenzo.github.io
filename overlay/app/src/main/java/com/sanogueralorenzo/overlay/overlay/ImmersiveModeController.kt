@@ -32,10 +32,8 @@ class ImmersiveModeController(
 ) {
     /**
      * Ensures `immersive.status=*` is present in the policy token set.
-     *
-     * Side effects:
-     * - May write a comma-separated token string back to `Settings.Global[policy_control]`.
-     * - Does nothing when write-secure-settings permission is absent.
+     * Writes the updated comma-separated token string to `Settings.Global[policy_control]`
+     * when `WRITE_SECURE_SETTINGS` is granted; otherwise it is a no-op.
      */
     fun enableStatusBarImmersiveMode() {
         updatePolicyControl { policies ->
@@ -49,10 +47,9 @@ class ImmersiveModeController(
 
     /**
      * Ensures `immersive.status=*` is removed from the policy token set.
-     *
-     * Side effects:
-     * - May clear `Settings.Global[policy_control]` by writing `null` when no tokens remain.
-     * - Does nothing when write-secure-settings permission is absent.
+     * Writes the updated token string to `Settings.Global[policy_control]` when
+     * `WRITE_SECURE_SETTINGS` is granted, and writes `null` when the resulting token set is empty.
+     * Without permission, it is a no-op.
      */
     fun disableStatusBarImmersiveMode() {
         updatePolicyControl { policies ->
