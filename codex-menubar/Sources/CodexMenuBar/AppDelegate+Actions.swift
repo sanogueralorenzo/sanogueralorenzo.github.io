@@ -34,16 +34,37 @@ extension AppDelegate {
         let sessionsCLI = self.sessionsCLI
 
         autoRemoveQueue.async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            var operationError: Error?
             do {
-                try terminateCodexAppIfRunning()
+                if try isCodexAppRunning() {
+                    try terminateCodexAppIfRunning()
+                }
                 try sessionsCLI.runAutoRemove(olderThanDays: 0, mode: .delete)
-                DispatchQueue.main.async {
-                    self?.refreshUI()
-                }
             } catch {
-                DispatchQueue.main.async {
-                    self?.showError(error)
+                operationError = error
+            }
+
+            var restartError: Error?
+            do {
+                try restartCodexApp()
+            } catch {
+                restartError = error
+            }
+
+            DispatchQueue.main.async {
+                if let operationError {
+                    self.showError(operationError)
+                    return
                 }
+                if let restartError {
+                    self.showError(restartError)
+                    return
+                }
+                self.refreshUI()
             }
         }
     }
@@ -335,6 +356,43 @@ private func launchCodexApp() throws {
     }
 }
 
+private func restartCodexApp() throws {
+    if try isCodexAppRunning() {
+        try terminateCodexAppIfRunning()
+    }
+    try launchCodexApp()
+}
+
+private func isCodexAppRunning() throws -> Bool {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+    process.arguments = ["-f", "/Codex.app/Contents/"]
+
+    let stderr = Pipe()
+    process.standardError = stderr
+
+    try process.run()
+    process.waitUntilExit()
+
+    if process.terminationStatus == 0 {
+        return true
+    }
+    if process.terminationStatus == 1 {
+        return false
+    }
+
+    let errorOutput = String(
+        data: stderr.fileHandleForReading.readDataToEndOfFile(),
+        encoding: .utf8
+    )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+    if errorOutput.isEmpty {
+        throw CodexAppStatusError(message: "Failed to determine Codex app status.")
+    }
+
+    throw CodexAppStatusError(message: errorOutput)
+}
+
 private func terminateCodexAppIfRunning() throws {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
@@ -359,6 +417,11 @@ private func terminateCodexAppIfRunning() throws {
 
         throw CodexAppTerminationError(message: errorOutput)
     }
+}
+
+private struct CodexAppStatusError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }
 
 private struct CodexAppLaunchError: LocalizedError {
