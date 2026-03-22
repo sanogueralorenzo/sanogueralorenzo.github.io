@@ -37,8 +37,8 @@ final class CodexAppServerCLIClient: @unchecked Sendable {
     }
 
     func runAutoRemove(olderThanDays: Int, mode: AutoRemoveMode) throws {
-        guard olderThanDays > 0 else {
-            throw Error(message: "olderThanDays must be greater than zero.")
+        guard olderThanDays >= 0 else {
+            throw Error(message: "olderThanDays must be zero or greater.")
         }
 
         _ = try run([

@@ -109,10 +109,20 @@ extension AppDelegate {
 
                 sessionsMenu.addItem(.separator())
 
-                let autoRemoveHeader = NSMenuItem(title: "Auto-Remove", action: #selector(clearAutoRemoveSelection(_:)), keyEquivalent: "")
+                let autoRemoveHeader = NSMenuItem(title: "", action: #selector(clearAutoRemoveSelection(_:)), keyEquivalent: "")
+                autoRemoveHeader.attributedTitle = NSAttributedString(
+                    string: "Auto-Remove",
+                    attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+                )
                 autoRemoveHeader.target = self
                 autoRemoveHeader.isEnabled = true
                 sessionsMenu.addItem(autoRemoveHeader)
+
+                let autoRemoveNow = NSMenuItem(title: "Now",
+                                               action: #selector(runAutoRemoveNow(_:)),
+                                               keyEquivalent: "")
+                autoRemoveNow.target = self
+                sessionsMenu.addItem(autoRemoveNow)
 
                 sessionsMenu.addItem(autoRemoveDayMenuItem(days: 1))
                 sessionsMenu.addItem(autoRemoveDayMenuItem(days: 3))

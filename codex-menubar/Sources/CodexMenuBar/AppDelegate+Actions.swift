@@ -30,6 +30,23 @@ extension AppDelegate {
         // Intentionally no-op placeholder for upcoming floating threads flow.
     }
 
+    @objc func runAutoRemoveNow(_ sender: Any?) {
+        let sessionsCLI = self.sessionsCLI
+
+        autoRemoveQueue.async { [weak self] in
+            do {
+                try sessionsCLI.runAutoRemove(olderThanDays: 0, mode: .delete)
+                DispatchQueue.main.async {
+                    self?.refreshUI()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self?.showError(error)
+                }
+            }
+        }
+    }
+
     @objc func addProfileFromCurrent(_ sender: Any?) {
         do {
             if let currentProfileName = try authCLI.currentProfileName() {

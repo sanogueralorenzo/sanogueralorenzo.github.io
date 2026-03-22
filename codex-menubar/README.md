@@ -35,7 +35,8 @@
 - When profile listing fails transiently, the menu preserves the last loaded profile list so logged-out state can still show known profiles as unselected.
 - Threads menu includes:
   - `Floating` bold header row plus `Start`, followed by a divider.
-  - `Auto-Remove` title row clears the saved day+mode selection (disables auto-remove).
+  - `Auto-Remove` bold title row clears the saved day+mode selection (disables auto-remove).
+  - `Now` runs immediate `prune --older-than-days 0 --mode delete`, affecting all non-pinned active sessions.
   - `Auto-Remove` window: `1 day`, `3 days`, `7 days` (single-select checkmark)
   - Each day option has a submenu with `Archive` and `Delete`.
 - Selecting a day+mode persists immediately and restarts auto-remove runs.
