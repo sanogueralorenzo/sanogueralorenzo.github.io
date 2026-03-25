@@ -253,6 +253,7 @@ extension AppDelegate {
                     self.showMessage(
                         title: "Review Complete",
                         message: """
+                        Review ID: \(result.reviewId)
                         PR: \(result.repo)#\(result.number)
                         Posted comments: \(result.postedComments)
                         Failed comments: \(result.failedComments)

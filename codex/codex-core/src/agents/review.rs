@@ -1,6 +1,8 @@
 use super::AgentsConfig;
 use super::StateLayout;
+use super::ensure_state_layout;
 use super::load_agents_config;
+use super::now_utc;
 use crate::core::temp::temp_file_path;
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
@@ -54,6 +56,10 @@ pub enum ReviewCommand {
     List(ReviewListArgs),
     /// Review one pull request and post inline findings
     Run(ReviewRunArgs),
+    /// List persisted review jobs
+    Jobs(ReviewJobsArgs),
+    /// Show one persisted review job
+    Show(ReviewShowArgs),
 }
 
 #[derive(Args, Debug)]
@@ -77,6 +83,26 @@ pub struct ReviewRunArgs {
     pub plain: bool,
 }
 
+#[derive(Args, Debug)]
+pub struct ReviewJobsArgs {
+    #[arg(long)]
+    pub json: bool,
+
+    #[arg(long)]
+    pub plain: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct ReviewShowArgs {
+    pub review_id: String,
+
+    #[arg(long)]
+    pub json: bool,
+
+    #[arg(long)]
+    pub plain: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewPullRequest {
     pub owner: String,
@@ -89,6 +115,7 @@ pub struct ReviewPullRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReviewRunResult {
+    pub review_id: String,
     pub owner: String,
     pub repo: String,
     pub number: u64,
@@ -99,13 +126,51 @@ pub struct ReviewRunResult {
     pub summary: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewCommentFailure {
     pub title: String,
     pub path: Option<String>,
     pub start_line: u32,
     pub end_line: u32,
     pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewJobStatus {
+    Queued,
+    Running,
+    PostingComments,
+    Completed,
+    Failed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReviewJobSnapshot {
+    pub id: String,
+    pub pull_request: String,
+    pub owner: String,
+    pub repo: String,
+    pub number: u64,
+    pub url: Option<String>,
+    pub status: ReviewJobStatus,
+    pub current_step: String,
+    pub created_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub posted_comments: usize,
+    pub failed_comments: usize,
+    pub failed_comment_details: Vec<ReviewCommentFailure>,
+    pub summary: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ReviewJobEvent {
+    timestamp: String,
+    kind: String,
+    step: String,
+    message: String,
 }
 
 #[derive(Debug, Clone)]
@@ -184,6 +249,12 @@ struct ReviewWorkspace {
     repo_dir: PathBuf,
 }
 
+struct ReviewJobStore {
+    snapshot: ReviewJobSnapshot,
+    job_path: PathBuf,
+    events_path: PathBuf,
+}
+
 #[derive(Debug, Deserialize)]
 struct ReviewOutputEvent {
     findings: Vec<ReviewFinding>,
@@ -236,9 +307,12 @@ impl Drop for ReviewWorkspace {
 }
 
 pub fn handle_review(action: ReviewCommand, layout: &StateLayout) -> Result<()> {
+    ensure_state_layout(layout)?;
     match action {
         ReviewCommand::List(args) => list_pull_requests(layout, args),
         ReviewCommand::Run(args) => run_review(layout, args),
+        ReviewCommand::Jobs(args) => list_review_jobs(layout, args),
+        ReviewCommand::Show(args) => show_review_job(layout, args),
     }
 }
 
@@ -275,26 +349,101 @@ fn list_pull_requests(layout: &StateLayout, args: ReviewListArgs) -> Result<()> 
 
 fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
     let pr_ref = parse_pull_request_reference(&args.pull_request)?;
-    let pull_request = fetch_pull_request_view(&pr_ref)?;
-    let workspace = checkout_pull_request(layout, &pr_ref, &pull_request)?;
-    let upstream_prompts = load_upstream_review_prompts()?;
-    let merge_base = resolve_merge_base(&workspace.repo_dir, &pull_request.base_ref_name)?;
+    let mut job = ReviewJobStore::create(layout, &args.pull_request, &pr_ref)?;
+
+    let pull_request = match run_review_step(
+        &mut job,
+        ReviewJobStatus::Running,
+        "fetching_pr",
+        "Loading pull request metadata.",
+        || fetch_pull_request_view(&pr_ref),
+    ) {
+        Ok(pull_request) => pull_request,
+        Err(error) => return Err(error),
+    };
+    job.set_pull_request_url(&pull_request.url)?;
+
+    let workspace = match run_review_step(
+        &mut job,
+        ReviewJobStatus::Running,
+        "preparing_repo",
+        "Preparing cached repo and review worktree.",
+        || checkout_pull_request(layout, &pr_ref, &pull_request),
+    ) {
+        Ok(workspace) => workspace,
+        Err(error) => return Err(error),
+    };
+
+    let upstream_prompts = match run_review_step(
+        &mut job,
+        ReviewJobStatus::Running,
+        "loading_prompts",
+        "Fetching upstream review prompts.",
+        load_upstream_review_prompts,
+    ) {
+        Ok(prompts) => prompts,
+        Err(error) => return Err(error),
+    };
+
+    let merge_base = match run_review_step(
+        &mut job,
+        ReviewJobStatus::Running,
+        "resolving_merge_base",
+        "Resolving merge base against the PR base branch.",
+        || resolve_merge_base(&workspace.repo_dir, &pull_request.base_ref_name),
+    ) {
+        Ok(merge_base) => merge_base,
+        Err(error) => return Err(error),
+    };
+
     let review_request = build_base_branch_review_request(
         &upstream_prompts,
         &pull_request.base_ref_name,
         merge_base.as_deref(),
     );
     let prompt = format!("{}\n\n{}", upstream_prompts.review_rubric, review_request);
-    let review = run_codex_exec_review(&workspace.repo_dir, &prompt)?;
-    let changed_lines =
-        collect_changed_diff_lines(&workspace.repo_dir, &pull_request.base_ref_name)?;
-    let result = post_review_comments(
-        &pr_ref,
-        &workspace.repo_dir,
-        &pull_request,
-        review,
-        &changed_lines,
-    )?;
+    let review = match run_review_step(
+        &mut job,
+        ReviewJobStatus::Running,
+        "running_codex_exec",
+        "Running codex exec review.",
+        || run_codex_exec_review(&workspace.repo_dir, &prompt),
+    ) {
+        Ok(review) => review,
+        Err(error) => return Err(error),
+    };
+
+    let changed_lines = match run_review_step(
+        &mut job,
+        ReviewJobStatus::Running,
+        "collecting_diff",
+        "Collecting changed diff lines for PR comment validation.",
+        || collect_changed_diff_lines(&workspace.repo_dir, &pull_request.base_ref_name),
+    ) {
+        Ok(changed_lines) => changed_lines,
+        Err(error) => return Err(error),
+    };
+
+    let mut result = match run_review_step(
+        &mut job,
+        ReviewJobStatus::PostingComments,
+        "posting_comments",
+        "Posting inline review comments to GitHub.",
+        || {
+            post_review_comments(
+                &pr_ref,
+                &workspace.repo_dir,
+                &pull_request,
+                review,
+                &changed_lines,
+            )
+        },
+    ) {
+        Ok(result) => result,
+        Err(error) => return Err(error),
+    };
+    result.review_id = job.snapshot.id.clone();
+    job.complete(&result)?;
 
     if args.json {
         println!(
@@ -306,13 +455,14 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
 
     if args.plain {
         println!(
-            "{} {} {}",
-            result.url, result.posted_comments, result.failed_comments
+            "{} {} {} {}",
+            result.review_id, result.url, result.posted_comments, result.failed_comments
         );
         return Ok(());
     }
 
     println!("Reviewed {}", result.url);
+    println!("Review ID: {}", result.review_id);
     println!("Posted comments: {}", result.posted_comments);
     println!("Failed comments: {}", result.failed_comments);
     if !result.failed_comment_details.is_empty() {
@@ -327,6 +477,292 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
     }
     println!("Summary: {}", result.summary);
     Ok(())
+}
+
+fn list_review_jobs(layout: &StateLayout, args: ReviewJobsArgs) -> Result<()> {
+    let jobs = load_review_jobs(layout)?;
+
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&jobs).context("failed to serialize review jobs")?
+        );
+        return Ok(());
+    }
+
+    if args.plain {
+        for job in jobs {
+            println!(
+                "{} {} {}",
+                job.id,
+                review_job_status_label(&job.status),
+                job.pull_request
+            );
+        }
+        return Ok(());
+    }
+
+    if jobs.is_empty() {
+        println!("No review jobs found.");
+        return Ok(());
+    }
+
+    for job in jobs {
+        println!(
+            "{} {:<16} {}",
+            job.id,
+            review_job_status_label(&job.status),
+            review_job_summary_label(&job)
+        );
+    }
+
+    Ok(())
+}
+
+fn show_review_job(layout: &StateLayout, args: ReviewShowArgs) -> Result<()> {
+    let job = load_review_job(layout, &args.review_id)?;
+
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&job).context("failed to serialize review job")?
+        );
+        return Ok(());
+    }
+
+    if args.plain {
+        println!("{} {}", job.id, review_job_status_label(&job.status));
+        return Ok(());
+    }
+
+    println!("id: {}", job.id);
+    println!("status: {}", review_job_status_label(&job.status));
+    println!("current_step: {}", job.current_step);
+    println!("pull_request: {}", job.pull_request);
+    println!("owner: {}", job.owner);
+    println!("repo: {}", job.repo);
+    println!("number: {}", job.number);
+    if let Some(url) = &job.url {
+        println!("url: {}", url);
+    }
+    println!("created_at: {}", job.created_at);
+    if let Some(started_at) = &job.started_at {
+        println!("started_at: {}", started_at);
+    }
+    if let Some(finished_at) = &job.finished_at {
+        println!("finished_at: {}", finished_at);
+    }
+    println!("posted_comments: {}", job.posted_comments);
+    println!("failed_comments: {}", job.failed_comments);
+    if let Some(summary) = &job.summary {
+        println!("summary: {}", summary);
+    }
+    if let Some(error) = &job.error {
+        println!("error: {}", error);
+    }
+    if !job.failed_comment_details.is_empty() {
+        println!("failed_comment_details:");
+        for failure in &job.failed_comment_details {
+            let path = failure.path.as_deref().unwrap_or("<unknown>");
+            println!(
+                "- {} ({}:{}-{}): {}",
+                failure.title, path, failure.start_line, failure.end_line, failure.reason
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn run_review_step<T, F>(
+    job: &mut ReviewJobStore,
+    status: ReviewJobStatus,
+    step: &str,
+    message: &str,
+    operation: F,
+) -> Result<T>
+where
+    F: FnOnce() -> Result<T>,
+{
+    job.set_status(status, step, message)?;
+    match operation() {
+        Ok(value) => Ok(value),
+        Err(error) => {
+            job.fail(step, &error)?;
+            Err(error)
+        }
+    }
+}
+
+impl ReviewJobStore {
+    fn create(
+        layout: &StateLayout,
+        pull_request: &str,
+        pr_ref: &PullRequestReference,
+    ) -> Result<Self> {
+        let id = Uuid::new_v4().to_string();
+        let review_dir = layout.root.join("reviews").join(&id);
+        fs::create_dir_all(&review_dir)
+            .with_context(|| format!("failed to create {}", review_dir.display()))?;
+
+        let snapshot = ReviewJobSnapshot {
+            id,
+            pull_request: pull_request.to_string(),
+            owner: pr_ref.owner.clone(),
+            repo: pr_ref.repo.clone(),
+            number: pr_ref.number,
+            url: None,
+            status: ReviewJobStatus::Queued,
+            current_step: "queued".to_string(),
+            created_at: now_utc(),
+            started_at: None,
+            finished_at: None,
+            posted_comments: 0,
+            failed_comments: 0,
+            failed_comment_details: Vec::new(),
+            summary: None,
+            error: None,
+        };
+        let job_path = review_dir.join("job.json");
+        let events_path = review_dir.join("events.jsonl");
+        let store = Self {
+            snapshot,
+            job_path,
+            events_path,
+        };
+        store.write_snapshot()?;
+        store.append_event("queued", "queued", "Review job created.")?;
+        Ok(store)
+    }
+
+    fn set_pull_request_url(&mut self, url: &str) -> Result<()> {
+        self.snapshot.url = Some(url.to_string());
+        self.write_snapshot()
+    }
+
+    fn set_status(&mut self, status: ReviewJobStatus, step: &str, message: &str) -> Result<()> {
+        if self.snapshot.started_at.is_none() && status != ReviewJobStatus::Queued {
+            self.snapshot.started_at = Some(now_utc());
+        }
+        self.snapshot.status = status;
+        self.snapshot.current_step = step.to_string();
+        self.write_snapshot()?;
+        self.append_event("step", step, message)
+    }
+
+    fn complete(&mut self, result: &ReviewRunResult) -> Result<()> {
+        self.snapshot.status = ReviewJobStatus::Completed;
+        self.snapshot.current_step = "completed".to_string();
+        self.snapshot.finished_at = Some(now_utc());
+        self.snapshot.posted_comments = result.posted_comments;
+        self.snapshot.failed_comments = result.failed_comments;
+        self.snapshot.failed_comment_details = result.failed_comment_details.clone();
+        self.snapshot.summary = Some(result.summary.clone());
+        self.snapshot.error = None;
+        self.snapshot.url = Some(result.url.clone());
+        self.write_snapshot()?;
+        self.append_event("completed", "completed", "Review job completed.")
+    }
+
+    fn fail(&mut self, step: &str, error: &anyhow::Error) -> Result<()> {
+        self.snapshot.status = ReviewJobStatus::Failed;
+        self.snapshot.current_step = step.to_string();
+        if self.snapshot.started_at.is_none() {
+            self.snapshot.started_at = Some(now_utc());
+        }
+        self.snapshot.finished_at = Some(now_utc());
+        self.snapshot.error = Some(error.to_string());
+        self.write_snapshot()?;
+        self.append_event("failed", step, &error.to_string())
+    }
+
+    fn write_snapshot(&self) -> Result<()> {
+        let payload = serde_json::to_string_pretty(&self.snapshot)
+            .context("failed to serialize review job snapshot")?;
+        fs::write(&self.job_path, payload)
+            .with_context(|| format!("failed to write {}", self.job_path.display()))
+    }
+
+    fn append_event(&self, kind: &str, step: &str, message: &str) -> Result<()> {
+        let event = ReviewJobEvent {
+            timestamp: now_utc(),
+            kind: kind.to_string(),
+            step: step.to_string(),
+            message: message.to_string(),
+        };
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.events_path)
+            .with_context(|| format!("failed to open {}", self.events_path.display()))?;
+        let payload =
+            serde_json::to_string(&event).context("failed to serialize review job event")?;
+        writeln!(file, "{payload}")
+            .with_context(|| format!("failed to write {}", self.events_path.display()))
+    }
+}
+
+fn load_review_jobs(layout: &StateLayout) -> Result<Vec<ReviewJobSnapshot>> {
+    let reviews_dir = layout.root.join("reviews");
+    if !reviews_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut jobs = Vec::new();
+    for entry in fs::read_dir(&reviews_dir)
+        .with_context(|| format!("failed to read {}", reviews_dir.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let job_path = path.join("job.json");
+        if !job_path.exists() {
+            continue;
+        }
+        jobs.push(load_review_job_snapshot(&job_path)?);
+    }
+
+    jobs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(jobs)
+}
+
+fn load_review_job(layout: &StateLayout, review_id: &str) -> Result<ReviewJobSnapshot> {
+    let review_id = review_id.trim();
+    if review_id.is_empty() {
+        bail!("Missing review job id");
+    }
+    let job_path = layout.root.join("reviews").join(review_id).join("job.json");
+    if !job_path.exists() {
+        bail!("Review job not found: {review_id}");
+    }
+    load_review_job_snapshot(&job_path)
+}
+
+fn load_review_job_snapshot(job_path: &Path) -> Result<ReviewJobSnapshot> {
+    let content = fs::read_to_string(job_path)
+        .with_context(|| format!("failed to read {}", job_path.display()))?;
+    serde_json::from_str(&content)
+        .with_context(|| format!("failed to parse {}", job_path.display()))
+}
+
+fn review_job_status_label(status: &ReviewJobStatus) -> &'static str {
+    match status {
+        ReviewJobStatus::Queued => "queued",
+        ReviewJobStatus::Running => "running",
+        ReviewJobStatus::PostingComments => "posting_comments",
+        ReviewJobStatus::Completed => "completed",
+        ReviewJobStatus::Failed => "failed",
+    }
+}
+
+fn review_job_summary_label(job: &ReviewJobSnapshot) -> String {
+    let base = format!("{}/{}#{}", job.owner, job.repo, job.number);
+    match &job.summary {
+        Some(summary) if !summary.trim().is_empty() => format!("{base} {summary}"),
+        _ => base,
+    }
 }
 
 fn load_open_pull_requests(config: &AgentsConfig) -> Result<Vec<ReviewPullRequest>> {
@@ -436,7 +872,11 @@ fn checkout_pull_request(
     pr_ref: &PullRequestReference,
     pull_request: &PullRequestView,
 ) -> Result<ReviewWorkspace> {
-    let cache_repo_dir = layout.root.join("repos").join(&pr_ref.owner).join(&pr_ref.repo);
+    let cache_repo_dir = layout
+        .root
+        .join("repos")
+        .join(&pr_ref.owner)
+        .join(&pr_ref.repo);
     let worktree_dir = layout
         .root
         .join("worktrees")
@@ -499,7 +939,10 @@ fn refresh_cached_repo(cache_repo_dir: &Path) -> Result<()> {
 }
 
 fn fetch_pull_request_head_ref(cache_repo_dir: &Path, pr_ref: &PullRequestReference) -> Result<()> {
-    let remote_ref = format!("refs/pull/{}/head:refs/remotes/origin/pr/{}", pr_ref.number, pr_ref.number);
+    let remote_ref = format!(
+        "refs/pull/{}/head:refs/remotes/origin/pr/{}",
+        pr_ref.number, pr_ref.number
+    );
     run_git(cache_repo_dir, &["fetch", "--force", "origin", &remote_ref])
 }
 
@@ -849,13 +1292,20 @@ fn post_review_comments(
     let summary = summarize_review(&review);
 
     for finding in &review.findings {
-        let path = match normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir) {
+        let path = match normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir)
+        {
             Ok(path) => path,
             Err(error) => {
                 failed_comments += 1;
                 failed_comment_details.push(ReviewCommentFailure {
                     title: finding.title.trim().to_string(),
-                    path: Some(finding.code_location.absolute_file_path.display().to_string()),
+                    path: Some(
+                        finding
+                            .code_location
+                            .absolute_file_path
+                            .display()
+                            .to_string(),
+                    ),
                     start_line: finding.code_location.line_range.start,
                     end_line: finding.code_location.line_range.end,
                     reason: error.to_string(),
@@ -872,7 +1322,8 @@ fn post_review_comments(
                 path: Some(path),
                 start_line: finding.code_location.line_range.start,
                 end_line: finding.code_location.line_range.end,
-                reason: "No changed diff line matched this finding on either side of the PR.".to_string(),
+                reason: "No changed diff line matched this finding on either side of the PR."
+                    .to_string(),
             });
             continue;
         };
@@ -898,6 +1349,7 @@ fn post_review_comments(
     }
 
     Ok(ReviewRunResult {
+        review_id: String::new(),
         owner: pr_ref.owner.clone(),
         repo: pr_ref.repo.clone(),
         number: pull_request.number,
@@ -1109,6 +1561,7 @@ fn parse_pull_request_url(raw: &str) -> Result<Option<PullRequestReference>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn parses_pull_request_url() {
@@ -1160,5 +1613,127 @@ index 1111111..2222222 100644
         assert!(lines.left.contains(&10));
         assert!(lines.left.contains(&20));
         assert!(!lines.right.contains(&22));
+    }
+
+    #[test]
+    fn loads_review_jobs_newest_first() {
+        let root = unique_test_dir();
+        let reviews_dir = root.join("reviews");
+        fs::create_dir_all(reviews_dir.join("first")).unwrap();
+        fs::create_dir_all(reviews_dir.join("second")).unwrap();
+
+        fs::write(
+            reviews_dir.join("first").join("job.json"),
+            serde_json::to_vec(&ReviewJobSnapshot {
+                id: "first".to_string(),
+                pull_request: "owner/repo#1".to_string(),
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                number: 1,
+                url: None,
+                status: ReviewJobStatus::Completed,
+                current_step: "completed".to_string(),
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+                started_at: None,
+                finished_at: None,
+                posted_comments: 1,
+                failed_comments: 0,
+                failed_comment_details: Vec::new(),
+                summary: None,
+                error: None,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            reviews_dir.join("second").join("job.json"),
+            serde_json::to_vec(&ReviewJobSnapshot {
+                id: "second".to_string(),
+                pull_request: "owner/repo#2".to_string(),
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                number: 2,
+                url: None,
+                status: ReviewJobStatus::Running,
+                current_step: "running_codex_exec".to_string(),
+                created_at: "2026-01-02T00:00:00Z".to_string(),
+                started_at: None,
+                finished_at: None,
+                posted_comments: 0,
+                failed_comments: 0,
+                failed_comment_details: Vec::new(),
+                summary: None,
+                error: None,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+        let layout = StateLayout {
+            root: root.clone(),
+            tasks_dir: root.join("tasks"),
+            config_file: root.join("config.json"),
+        };
+
+        let jobs = load_review_jobs(&layout).unwrap();
+        assert_eq!(jobs.len(), 2);
+        assert_eq!(jobs[0].id, "second");
+        assert_eq!(jobs[1].id, "first");
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn loads_one_review_job_by_id() {
+        let root = unique_test_dir();
+        let review_dir = root.join("reviews").join("job-123");
+        fs::create_dir_all(&review_dir).unwrap();
+        fs::write(
+            review_dir.join("job.json"),
+            serde_json::to_vec(&ReviewJobSnapshot {
+                id: "job-123".to_string(),
+                pull_request: "owner/repo#3".to_string(),
+                owner: "owner".to_string(),
+                repo: "repo".to_string(),
+                number: 3,
+                url: Some("https://github.com/owner/repo/pull/3".to_string()),
+                status: ReviewJobStatus::Failed,
+                current_step: "posting_comments".to_string(),
+                created_at: "2026-01-03T00:00:00Z".to_string(),
+                started_at: Some("2026-01-03T00:00:01Z".to_string()),
+                finished_at: Some("2026-01-03T00:00:02Z".to_string()),
+                posted_comments: 0,
+                failed_comments: 1,
+                failed_comment_details: vec![ReviewCommentFailure {
+                    title: "Example".to_string(),
+                    path: Some("src/lib.rs".to_string()),
+                    start_line: 10,
+                    end_line: 10,
+                    reason: "No changed diff line matched this finding on either side of the PR."
+                        .to_string(),
+                }],
+                summary: Some("patch is incorrect".to_string()),
+                error: Some("comment post failed".to_string()),
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+        let layout = StateLayout {
+            root: root.clone(),
+            tasks_dir: root.join("tasks"),
+            config_file: root.join("config.json"),
+        };
+
+        let job = load_review_job(&layout, "job-123").unwrap();
+        assert_eq!(job.id, "job-123");
+        assert_eq!(job.status, ReviewJobStatus::Failed);
+        assert_eq!(job.failed_comment_details.len(), 1);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    fn unique_test_dir() -> PathBuf {
+        std::env::temp_dir().join(format!("codex-core-review-tests-{}", Uuid::new_v4()))
     }
 }

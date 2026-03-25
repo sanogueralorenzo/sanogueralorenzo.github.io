@@ -29,13 +29,15 @@ codex-core noninteractive run --help
   - State lives under `~/.codex/auth`, including `profiles/`, `active-account-id`, `watch.pid`, and `watch.log`.
 - Agents commands:
   - `codex-core agents ...` manages local task files and worker loops.
-  - Primary verbs: `config init|show|available-repos|set-allowed-repos|clear-allowed-repos`, `task create|list|show`, `worker start|loop`, `review list|run`.
+  - Primary verbs: `config init|show|available-repos|set-allowed-repos|clear-allowed-repos`, `task create|list|show`, `worker start|loop`, `review list|run|jobs|show`.
   - `worker loop` starts a fresh `codex exec` run on every iteration; continuity is expected to come from your plan/prompt files, not from thread resume.
   - Important loop flags: `--prompt-file`, `--cd`, `--interval-seconds`, `--max-iterations`, `--stop-phrase`, `--once`, `--model`, `--full-auto`, `--dangerously-bypass-approvals-and-sandbox`, `--skip-git-repo-check`.
   - `config show --json` returns the current agents settings, including `allowed_repos`.
   - `config available-repos --json` returns available personal and organization repos from `gh` where your `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`.
   - `review list --json` returns open PRs across your personal repos and orgs from `gh`, filtered by `allowed_repos` when configured and ordered by `created_at` newest first.
-  - `review run <pr-url|owner/repo#number>` reuses a cached repo under `~/.codex/agents/repos/<owner>/<repo>`, creates a per-run worktree under `~/.codex/agents/worktrees`, fetches upstream review prompts from `openai/codex` `main`, runs `codex exec` with those prompts unchanged, validates findings against changed diff lines on both left and right sides, posts inline GitHub review comments via `gh`, and returns per-comment failure reasons in JSON/default output when posting fails.
+  - `review run <pr-url|owner/repo#number>` reuses a cached repo under `~/.codex/agents/repos/<owner>/<repo>`, creates a per-run worktree under `~/.codex/agents/worktrees`, fetches upstream review prompts from `openai/codex` `main`, runs `codex exec` with those prompts unchanged, validates findings against changed diff lines on both left and right sides, posts inline GitHub review comments via `gh`, persists job state under `~/.codex/agents/reviews/<review-id>`, and returns per-comment failure reasons in JSON/default output when posting fails.
+  - `review jobs --json` lists persisted review jobs from `~/.codex/agents/reviews`.
+  - `review show <review-id> --json` shows one persisted review job snapshot.
   - On macOS, worker commands try to enable `caffeinate` while running.
   - State defaults to `~/.codex/agents` and can be overridden with `CODEX_AGENTS_HOME`; settings are stored in `config.json`.
 - Sessions commands:

@@ -641,8 +641,14 @@ fn ensure_state_layout(layout: &StateLayout) -> Result<()> {
         .with_context(|| format!("failed to create {}", layout.tasks_dir.display()))?;
     fs::create_dir_all(layout.root.join("repos"))
         .with_context(|| format!("failed to create {}", layout.root.join("repos").display()))?;
-    fs::create_dir_all(layout.root.join("worktrees"))
-        .with_context(|| format!("failed to create {}", layout.root.join("worktrees").display()))?;
+    fs::create_dir_all(layout.root.join("worktrees")).with_context(|| {
+        format!(
+            "failed to create {}",
+            layout.root.join("worktrees").display()
+        )
+    })?;
+    fs::create_dir_all(layout.root.join("reviews"))
+        .with_context(|| format!("failed to create {}", layout.root.join("reviews").display()))?;
     if !layout.config_file.exists() {
         let config = AgentsConfig {
             state_version: 2,

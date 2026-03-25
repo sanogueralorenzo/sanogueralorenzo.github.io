@@ -38,6 +38,7 @@
 - `Agents -> Settings` includes a local repository search field that filters the visible repo list as you type.
 - `Agents -> Settings` shows a loading hint for GitHub repos, then switches to the repo-selection hint after load completes.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` and posts inline findings derived from upstream `openai/codex` review prompts on GitHub `main`.
+- Review completion alerts include the persisted review job ID from `~/.codex/agents/reviews/<review-id>`.
 - Review completion alerts include per-comment failure reasons when inline comment posting is skipped or rejected.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.

@@ -41,6 +41,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
             let reason: String
         }
 
+        let reviewId: String
         let owner: String
         let repo: String
         let number: Int
