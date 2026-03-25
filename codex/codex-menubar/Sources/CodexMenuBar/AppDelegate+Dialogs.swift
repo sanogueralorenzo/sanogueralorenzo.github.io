@@ -202,36 +202,31 @@ extension AppDelegate {
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 
-        let repoStack = NSStackView()
-        repoStack.orientation = .vertical
-        repoStack.alignment = .leading
-        repoStack.spacing = 6
-        repoStack.translatesAutoresizingMaskIntoConstraints = false
-
         let selectedRepos = Set(currentConfig.allowedRepos)
         let repoButtons: [(repo: String, button: NSButton)] = availableRepos.map { repo in
             let button = NSButton(checkboxWithTitle: repo.fullName, target: nil, action: nil)
             button.state = selectedRepos.contains(repo.fullName) ? .on : .off
+            button.frame = NSRect(x: 8, y: 0, width: 384, height: 22)
             return (repo.fullName, button)
         }
+
+        let rowHeight: CGFloat = 24
+        let documentHeight = max(264, CGFloat(max(repoButtons.count, 1)) * rowHeight + 8)
+        let repoDocument = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: documentHeight))
 
         if repoButtons.isEmpty {
             let emptyLabel = NSTextField(labelWithString: "No GitHub repos available.")
             emptyLabel.textColor = .secondaryLabelColor
-            repoStack.addArrangedSubview(emptyLabel)
+            emptyLabel.frame = NSRect(x: 8, y: documentHeight - 28, width: 384, height: 20)
+            repoDocument.addSubview(emptyLabel)
         } else {
-            for (_, button) in repoButtons {
-                repoStack.addArrangedSubview(button)
+            for (index, entry) in repoButtons.enumerated() {
+                let y = documentHeight - CGFloat(index + 1) * rowHeight - 4
+                entry.button.frame.origin.y = y
+                repoDocument.addSubview(entry.button)
             }
         }
 
-        let repoDocument = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: max(264, repoButtons.count * 26)))
-        repoDocument.addSubview(repoStack)
-        NSLayoutConstraint.activate([
-            repoStack.leadingAnchor.constraint(equalTo: repoDocument.leadingAnchor, constant: 8),
-            repoStack.trailingAnchor.constraint(equalTo: repoDocument.trailingAnchor, constant: -8),
-            repoStack.topAnchor.constraint(equalTo: repoDocument.topAnchor, constant: 8)
-        ])
         scrollView.documentView = repoDocument
         accessory.addSubview(scrollView)
 
