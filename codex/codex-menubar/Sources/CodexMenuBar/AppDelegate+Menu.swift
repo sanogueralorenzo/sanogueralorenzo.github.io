@@ -194,6 +194,31 @@ extension AppDelegate {
         menu.addItem(viewItem)
         menu.setSubmenu(viewMenu, for: viewItem)
 
+        let reviewItem = NSMenuItem(title: "Review", action: nil, keyEquivalent: "")
+        let reviewMenu = NSMenu()
+        let reviewPullRequests = menuDataStore.data.reviewPullRequests
+
+        if menuDataStore.data.isLoading {
+            let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
+            loadingItem.isEnabled = false
+            reviewMenu.addItem(loadingItem)
+        } else if reviewPullRequests.isEmpty {
+            let emptyItem = NSMenuItem(title: "No Open PRs", action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            reviewMenu.addItem(emptyItem)
+        } else {
+            for pullRequest in reviewPullRequests {
+                let item = NSMenuItem(title: pullRequest.menuTitle,
+                                      action: #selector(reviewPullRequest(_:)),
+                                      keyEquivalent: "")
+                item.target = self
+                item.representedObject = pullRequest.url
+                reviewMenu.addItem(item)
+            }
+        }
+        menu.addItem(reviewItem)
+        menu.setSubmenu(reviewMenu, for: reviewItem)
+
         let settingsItem = NSMenuItem(title: "Settings…",
                                       action: #selector(openCodexAgentSettings(_:)),
                                       keyEquivalent: "")

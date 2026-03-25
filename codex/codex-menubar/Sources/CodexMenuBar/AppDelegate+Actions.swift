@@ -210,6 +210,39 @@ extension AppDelegate {
         // Intentionally no-op placeholder for upcoming Codex Agent flow.
     }
 
+    @objc func reviewPullRequest(_ sender: NSMenuItem) {
+        guard let pullRequestURL = sender.representedObject as? String else {
+            return
+        }
+
+        let sessionsCLI = self.sessionsCLI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let result = try sessionsCLI.runReview(pullRequest: pullRequestURL)
+                DispatchQueue.main.async {
+                    self.showMessage(
+                        title: "Review Complete",
+                        message: """
+                        PR: \(result.repo)#\(result.number)
+                        Posted comments: \(result.postedComments)
+                        Failed comments: \(result.failedComments)
+                        Summary: \(result.summary)
+                        """
+                    )
+                    self.refreshUI()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.showError(error)
+                }
+            }
+        }
+    }
+
     @objc func viewCodexAgentTask(_ sender: NSMenuItem) {
         // MOCK placeholder: this will open real task details when agent backend is integrated.
     }

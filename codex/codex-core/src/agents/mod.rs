@@ -1,3 +1,5 @@
+mod review;
+
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
@@ -35,6 +37,11 @@ enum Commands {
     Worker {
         #[command(subcommand)]
         action: WorkerCommand,
+    },
+    /// Review GitHub pull requests with Codex and post inline findings
+    Review {
+        #[command(subcommand)]
+        action: review::ReviewCommand,
     },
 }
 
@@ -195,6 +202,7 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Config { action } => handle_config(action, &layout),
         Commands::Task { action } => handle_task(action, &layout),
         Commands::Worker { action } => handle_worker(action, &layout),
+        Commands::Review { action } => review::handle_review(action),
     }
 }
 

@@ -1,6 +1,29 @@
 import Foundation
 
 final class CodexCoreCLIClient: @unchecked Sendable {
+    struct ReviewPullRequest: Decodable {
+        let owner: String
+        let repo: String
+        let number: Int
+        let title: String
+        let url: String
+        let updatedAt: String
+
+        var menuTitle: String {
+            "\(owner)/\(repo)#\(number) \(title)"
+        }
+    }
+
+    struct ReviewRunResult: Decodable {
+        let owner: String
+        let repo: String
+        let number: Int
+        let url: String
+        let postedComments: Int
+        let failedComments: Int
+        let summary: String
+    }
+
     enum AutoRemoveMode: String {
         case archive
         case delete
@@ -41,7 +64,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
             throw Error(message: "olderThanDays must be zero or greater.")
         }
 
-        _ = try run([
+        _ = try runSessions([
             "prune",
             "--older-than-days", String(olderThanDays),
             "--mode", mode.rawValue
@@ -49,20 +72,42 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     }
 
     func isTitleWatcherRunning() throws -> Bool {
-        let output = try run(["watch", "thread-titles", "status"])
+        let output = try runSessions(["watch", "thread-titles", "status"])
         let normalized = output.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return normalized.contains("running")
     }
 
     func startTitleWatcher() throws {
-        _ = try run(["watch", "thread-titles", "start"])
+        _ = try runSessions(["watch", "thread-titles", "start"])
     }
 
     func stopTitleWatcher() throws {
-        _ = try run(["watch", "thread-titles", "stop"])
+        _ = try runSessions(["watch", "thread-titles", "stop"])
     }
 
-    private func run(_ arguments: [String]) throws -> String {
+    func listReviewPullRequests() throws -> [ReviewPullRequest] {
+        let output = try runAgents(["review", "list", "--json"])
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode([ReviewPullRequest].self, from: Data(output.utf8))
+    }
+
+    func runReview(pullRequest: String) throws -> ReviewRunResult {
+        let output = try runAgents(["review", "run", pullRequest, "--json"])
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(ReviewRunResult.self, from: Data(output.utf8))
+    }
+
+    private func runSessions(_ arguments: [String]) throws -> String {
+        try run(commandGroup: "sessions", arguments: arguments)
+    }
+
+    private func runAgents(_ arguments: [String]) throws -> String {
+        try run(commandGroup: "agents", arguments: arguments)
+    }
+
+    private func run(commandGroup: String, arguments: [String]) throws -> String {
         guard let executablePath else {
             throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-core"))
         }
@@ -73,7 +118,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
-        process.arguments = ["sessions"] + arguments
+        process.arguments = [commandGroup] + arguments
         process.environment = CLIProcessEnvironment.make()
 
         let stdout = Pipe()
@@ -92,7 +137,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
             if !message.isEmpty {
                 throw Error(message: message)
             }
-            throw Error(message: "codex-core sessions command failed: codex-core sessions \(arguments.joined(separator: " "))")
+            throw Error(message: "codex-core \(commandGroup) command failed: codex-core \(commandGroup) \(arguments.joined(separator: " "))")
         }
 
         return stdoutText

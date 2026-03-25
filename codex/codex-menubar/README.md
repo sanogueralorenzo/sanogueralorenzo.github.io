@@ -28,6 +28,8 @@
 - `Remote -> Stop` disables remote auto-start for future app launches.
 - `Agents` includes a `View` submenu that combines running + recent tasks.
 - In `Agents -> View`, recent task labels are prefixed by status: `•` in progress, `✓` completed, `X` failed.
+- `Agents` includes a `Review` submenu populated from `codex-core agents review list --json`.
+- Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` and posts inline findings to that PR.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Managed CLI subprocesses run with a deterministic environment that includes `/opt/homebrew/bin`, `/usr/local/bin`, and standard system paths.
