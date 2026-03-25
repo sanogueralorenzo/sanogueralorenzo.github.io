@@ -77,23 +77,18 @@ enum IntegrationStatusClient {
             )
         }
 
-        let result = run(executablePath: executablePath, arguments: ["auth", "status"])
+        let result = run(executablePath: executablePath, arguments: ["jira", "project", "list", "--limit", "1"])
         if result.exitCode == 0 {
-            let combined = [result.stdout, result.stderr]
-                .joined(separator: "\n")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
             return IntegrationStatus(
                 toolName: "acli",
                 state: .ready(
                     summary: "Connected",
-                    detail: combined.isEmpty ? "Authenticated." : firstNonEmptyLine(in: combined)
+                    detail: "Jira access verified."
                 )
             )
         }
 
-        let combined = [result.stdout, result.stderr]
-            .joined(separator: "\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let combined = combinedOutput(from: result)
         if combined.localizedCaseInsensitiveContains("acli auth login")
             || combined.localizedCaseInsensitiveContains("unauthorized")
         {
@@ -113,6 +108,12 @@ enum IntegrationStatusClient {
                 detail: combined.isEmpty ? "Unable to determine Atlassian CLI status." : combined
             )
         )
+    }
+
+    private static func combinedOutput(from result: ProcessResult) -> String {
+        [result.stdout, result.stderr]
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func run(executablePath: String, arguments: [String]) -> ProcessResult {
@@ -147,16 +148,6 @@ enum IntegrationStatusClient {
             }
         }
         return nil
-    }
-
-    private static func firstNonEmptyLine(in text: String) -> String {
-        for line in text.split(separator: "\n").map(String.init) {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                return trimmed
-            }
-        }
-        return text
     }
 }
 

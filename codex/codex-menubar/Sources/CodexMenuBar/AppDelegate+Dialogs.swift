@@ -137,7 +137,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private var reposLoadErrorMessage: String?
     private let horizontalInset: CGFloat = 20
     private let contentWidth: CGFloat = 460
-    private let reposHintY: CGFloat = 206
+    private let reposHintY: CGFloat = 256
 
     init(onSave: @escaping (CodexAgentSettingsSelection) -> Void, onClose: @escaping () -> Void) {
         self.onSave = onSave
@@ -325,13 +325,13 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
         let reposTitle = NSTextField(labelWithString: "GitHub Repos")
         reposTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        reposTitle.frame = NSRect(x: horizontalInset, y: 232, width: contentWidth, height: 20)
+        reposTitle.frame = NSRect(x: horizontalInset, y: 306, width: contentWidth, height: 20)
         contentView.addSubview(reposTitle)
 
         searchField.delegate = self
         searchField.placeholderString = "Search repositories"
         searchField.sendsSearchStringImmediately = true
-        searchField.frame = NSRect(x: horizontalInset, y: 232 - 34, width: contentWidth, height: 26)
+        searchField.frame = NSRect(x: horizontalInset, y: 272, width: contentWidth, height: 26)
         contentView.addSubview(searchField)
 
         reposHint.textColor = .secondaryLabelColor
@@ -344,7 +344,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         progressIndicator.frame = NSRect(x: horizontalInset, y: reposHintY, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
-        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 146)
+        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 166)
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 
