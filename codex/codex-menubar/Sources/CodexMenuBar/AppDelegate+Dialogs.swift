@@ -54,7 +54,7 @@ struct CodexAgentSettingsSelection {
 @MainActor
 final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSWindowDelegate {
     private let projectHomeLabel = NSTextField(labelWithString: "<tmp and delete after>")
-    private let statusLabel = NSTextField(labelWithString: "Loading writable GitHub repos...")
+    private let statusLabel = NSTextField(labelWithString: "Loading GitHub repos...")
     private let progressIndicator = NSProgressIndicator()
     private let chooseButton = NSButton(title: "Choose Folder…", target: nil, action: nil)
     private let clearButton = NSButton(title: "Clear", target: nil, action: nil)
@@ -114,7 +114,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         chooseButton.isEnabled = false
         clearButton.isEnabled = false
         statusLabel.isHidden = false
-        statusLabel.stringValue = "Loading writable GitHub repos..."
+        statusLabel.stringValue = "Loading GitHub repos..."
+        progressIndicator.isHidden = false
         progressIndicator.startAnimation(nil)
         tableView.reloadData()
     }
@@ -134,6 +135,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         loadCompleted = true
         saveButton.isEnabled = configLoaded
         progressIndicator.stopAnimation(nil)
+        progressIndicator.isHidden = true
         statusLabel.isHidden = true
         tableView.reloadData()
     }
@@ -143,6 +145,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         repos = []
         saveButton.isEnabled = false
         progressIndicator.stopAnimation(nil)
+        progressIndicator.isHidden = true
         statusLabel.isHidden = false
         statusLabel.stringValue = message
         tableView.reloadData()
@@ -194,7 +197,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         if repos.isEmpty {
-            let label = NSTextField(labelWithString: "No writable GitHub repos available.")
+            let label = NSTextField(labelWithString: "No GitHub repos available.")
             label.textColor = .secondaryLabelColor
             return label
         }
@@ -259,6 +262,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
+        progressIndicator.isDisplayedWhenStopped = false
         progressIndicator.frame = NSRect(x: 20, y: 360, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
