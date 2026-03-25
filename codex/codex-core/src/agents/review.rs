@@ -54,7 +54,7 @@ query($searchQuery: String!, $endCursor: String) {
 pub enum ReviewCommand {
     /// List open pull requests across your repos and orgs
     List(ReviewListArgs),
-    /// Review one pull request and post inline findings
+    /// Review one pull request and publish findings to GitHub
     Run(ReviewRunArgs),
     /// List persisted review jobs
     Jobs(ReviewJobsArgs),
@@ -458,7 +458,7 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
         &mut job,
         ReviewJobStatus::PostingComments,
         "posting_comments",
-        "Posting inline review comments to GitHub.",
+        "Publishing review findings to GitHub.",
         || {
             post_review_comments(
                 &pr_ref,
@@ -1360,58 +1360,49 @@ fn post_review_comments(
     let summary = summarize_review(&review);
 
     for finding in &review.findings {
-        let path = match normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir)
-        {
-            Ok(path) => path,
-            Err(error) => {
+        let normalized_path = normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir).ok();
+        let path_for_comment = normalized_path
+            .clone()
+            .unwrap_or_else(|| finding.code_location.absolute_file_path.display().to_string());
+
+        let body = render_inline_comment_body(finding);
+        let inline_error = match normalized_path.as_deref() {
+            Some(path) => match select_comment_target(&finding.code_location.line_range, changed_lines.get(path)) {
+                Some(target) => post_inline_comment(
+                    pr_ref,
+                    &pull_request.head_ref_oid,
+                    path,
+                    target.line,
+                    target.side.as_github_value(),
+                    &body,
+                ).err(),
+                None => Some(anyhow::anyhow!(
+                    "No changed diff line matched this finding on either side of the PR."
+                )),
+            },
+            None => Some(anyhow::anyhow!(
+                "comment path is outside checked out repo: {}",
+                finding.code_location.absolute_file_path.display()
+            )),
+        };
+
+        if let Some(error) = inline_error {
+            let top_level_body = render_top_level_comment_body(finding, &path_for_comment);
+            if let Err(top_level_error) = post_top_level_comment(pr_ref, &top_level_body) {
                 failed_comments += 1;
                 failed_comment_details.push(ReviewCommentFailure {
                     title: finding.title.trim().to_string(),
-                    path: Some(
-                        finding
-                            .code_location
-                            .absolute_file_path
-                            .display()
-                            .to_string(),
-                    ),
+                    path: Some(path_for_comment),
                     start_line: finding.code_location.line_range.start,
                     end_line: finding.code_location.line_range.end,
-                    reason: error.to_string(),
+                    reason: format!(
+                        "Inline comment failed: {}. Top-level comment failed: {}",
+                        error, top_level_error
+                    ),
                 });
-                continue;
+            } else {
+                posted_comments += 1;
             }
-        };
-        let Some(target) =
-            select_comment_target(&finding.code_location.line_range, changed_lines.get(&path))
-        else {
-            failed_comments += 1;
-            failed_comment_details.push(ReviewCommentFailure {
-                title: finding.title.trim().to_string(),
-                path: Some(path),
-                start_line: finding.code_location.line_range.start,
-                end_line: finding.code_location.line_range.end,
-                reason: "No changed diff line matched this finding on either side of the PR."
-                    .to_string(),
-            });
-            continue;
-        };
-        let body = render_inline_comment_body(&finding);
-        if let Err(error) = post_inline_comment(
-            pr_ref,
-            &pull_request.head_ref_oid,
-            &path,
-            target.line,
-            target.side.as_github_value(),
-            &body,
-        ) {
-            failed_comments += 1;
-            failed_comment_details.push(ReviewCommentFailure {
-                title: finding.title.trim().to_string(),
-                path: Some(path),
-                start_line: finding.code_location.line_range.start,
-                end_line: finding.code_location.line_range.end,
-                reason: error.to_string(),
-            });
         } else {
             posted_comments += 1;
         }
@@ -1490,6 +1481,29 @@ fn render_inline_comment_body(finding: &ReviewFinding) -> String {
     lines.join("\n")
 }
 
+fn render_top_level_comment_body(finding: &ReviewFinding, path: &str) -> String {
+    let line_range = &finding.code_location.line_range;
+    let location = if line_range.end > line_range.start {
+        format!("{path}:{}-{}", line_range.start, line_range.end)
+    } else {
+        format!("{path}:{}", line_range.start)
+    };
+
+    let mut lines = vec![
+        finding.title.trim().to_string(),
+        String::new(),
+        format!("File: `{location}`"),
+        String::new(),
+        finding.body.trim().to_string(),
+    ];
+    if let Some(priority) = finding.priority {
+        lines.push(String::new());
+        lines.push(format!("Priority: P{priority}"));
+    }
+    lines.push(format!("Confidence: {:.2}", finding.confidence_score));
+    lines.join("\n")
+}
+
 fn post_inline_comment(
     pr_ref: &PullRequestReference,
     commit_id: &str,
@@ -1524,6 +1538,40 @@ fn post_inline_comment(
             "api".to_string(),
             format!(
                 "repos/{}/{}/pulls/{}/comments",
+                pr_ref.owner, pr_ref.repo, pr_ref.number
+            ),
+            "-H".to_string(),
+            "Accept: application/vnd.github+json".to_string(),
+            "--input".to_string(),
+            payload_path.to_string_lossy().into_owned(),
+        ],
+        None,
+    );
+    let _ = fs::remove_file(&payload_path);
+    result?;
+    Ok(())
+}
+
+fn post_top_level_comment(pr_ref: &PullRequestReference, body: &str) -> Result<()> {
+    if body.trim().is_empty() {
+        bail!("codex review returned an empty top-level comment body");
+    }
+
+    let payload_path = temp_file_path("codex-core-pr-top-level-comment", "json");
+    let payload = serde_json::json!({
+        "body": body.trim(),
+    });
+    fs::write(
+        &payload_path,
+        serde_json::to_vec(&payload).context("failed to serialize PR top-level comment payload")?,
+    )
+    .with_context(|| format!("failed to write {}", payload_path.display()))?;
+
+    let result = run_gh(
+        vec![
+            "api".to_string(),
+            format!(
+                "repos/{}/{}/issues/{}/comments",
                 pr_ref.owner, pr_ref.repo, pr_ref.number
             ),
             "-H".to_string(),
