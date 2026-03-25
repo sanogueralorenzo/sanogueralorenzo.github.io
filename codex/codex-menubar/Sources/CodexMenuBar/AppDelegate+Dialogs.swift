@@ -52,19 +52,22 @@ struct CodexAgentSettingsSelection {
 }
 
 @MainActor
-private final class CodexAgentSettingsDialogController: NSObject {
+private final class CodexAgentSettingsDialogController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     private let projectHomeLabel: NSTextField
-    private let repoButtons: [(repo: String, button: NSButton)]
+    private let repos: [String]
+    private var selectedRepos: Set<String>
     private(set) var projectHome: String?
 
     init(
         projectHomeLabel: NSTextField,
         initialProjectHome: String?,
-        repoButtons: [(repo: String, button: NSButton)]
+        repos: [String],
+        selectedRepos: Set<String>
     ) {
         self.projectHomeLabel = projectHomeLabel
         self.projectHome = initialProjectHome
-        self.repoButtons = repoButtons
+        self.repos = repos
+        self.selectedRepos = selectedRepos
         super.init()
         updateProjectHomeLabel()
     }
@@ -91,15 +94,43 @@ private final class CodexAgentSettingsDialogController: NSObject {
     }
 
     func selection() -> CodexAgentSettingsSelection {
-        let allowedRepos = repoButtons
-            .filter { $0.button.state == .on }
-            .map(\.repo)
-            .sorted()
-        return CodexAgentSettingsSelection(projectHome: projectHome, allowedRepos: allowedRepos)
+        CodexAgentSettingsSelection(
+            projectHome: projectHome,
+            allowedRepos: selectedRepos.sorted()
+        )
     }
 
     private func updateProjectHomeLabel() {
         projectHomeLabel.stringValue = projectHome ?? "<tmp and delete after>"
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        max(repos.count, 1)
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        if repos.isEmpty {
+            let label = NSTextField(labelWithString: "No GitHub repos available.")
+            label.textColor = .secondaryLabelColor
+            return label
+        }
+
+        let repo = repos[row]
+        let button = NSButton(checkboxWithTitle: repo, target: self, action: #selector(toggleRepoSelection(_:)))
+        button.state = selectedRepos.contains(repo) ? .on : .off
+        button.identifier = NSUserInterfaceItemIdentifier(rawValue: repo)
+        return button
+    }
+
+    @objc private func toggleRepoSelection(_ sender: NSButton) {
+        guard let repo = sender.identifier?.rawValue else {
+            return
+        }
+        if sender.state == .on {
+            selectedRepos.insert(repo)
+        } else {
+            selectedRepos.remove(repo)
+        }
     }
 }
 
@@ -198,43 +229,32 @@ extension AppDelegate {
         reposHint.frame = NSRect(x: 0, y: 276, width: 420, height: 18)
         accessory.addSubview(reposHint)
 
+        let repoNames = availableRepos.map(\.fullName)
+        let selectedRepos = Set(currentConfig.allowedRepos)
+        let controller = CodexAgentSettingsDialogController(
+            projectHomeLabel: projectHomeLabel,
+            initialProjectHome: currentConfig.projectHome,
+            repos: repoNames,
+            selectedRepos: selectedRepos
+        )
+
         let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 420, height: 264))
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 
-        let selectedRepos = Set(currentConfig.allowedRepos)
-        let repoButtons: [(repo: String, button: NSButton)] = availableRepos.map { repo in
-            let button = NSButton(checkboxWithTitle: repo.fullName, target: nil, action: nil)
-            button.state = selectedRepos.contains(repo.fullName) ? .on : .off
-            button.frame = NSRect(x: 8, y: 0, width: 384, height: 22)
-            return (repo.fullName, button)
-        }
-
-        let rowHeight: CGFloat = 24
-        let documentHeight = max(264, CGFloat(max(repoButtons.count, 1)) * rowHeight + 8)
-        let repoDocument = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: documentHeight))
-
-        if repoButtons.isEmpty {
-            let emptyLabel = NSTextField(labelWithString: "No GitHub repos available.")
-            emptyLabel.textColor = .secondaryLabelColor
-            emptyLabel.frame = NSRect(x: 8, y: documentHeight - 28, width: 384, height: 20)
-            repoDocument.addSubview(emptyLabel)
-        } else {
-            for (index, entry) in repoButtons.enumerated() {
-                let y = documentHeight - CGFloat(index + 1) * rowHeight - 4
-                entry.button.frame.origin.y = y
-                repoDocument.addSubview(entry.button)
-            }
-        }
-
-        scrollView.documentView = repoDocument
+        let tableView = NSTableView(frame: scrollView.bounds)
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("repo"))
+        column.width = 400
+        tableView.addTableColumn(column)
+        tableView.headerView = nil
+        tableView.rowHeight = 24
+        tableView.intercellSpacing = NSSize(width: 0, height: 2)
+        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.selectionHighlightStyle = .none
+        tableView.delegate = controller
+        tableView.dataSource = controller
+        scrollView.documentView = tableView
         accessory.addSubview(scrollView)
-
-        let controller = CodexAgentSettingsDialogController(
-            projectHomeLabel: projectHomeLabel,
-            initialProjectHome: currentConfig.projectHome,
-            repoButtons: repoButtons
-        )
         chooseButton.target = controller
         chooseButton.action = #selector(CodexAgentSettingsDialogController.chooseProjectHome(_:))
         clearButton.target = controller
