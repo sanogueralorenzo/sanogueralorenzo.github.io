@@ -64,6 +64,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private let scrollView = NSScrollView()
     private let reposHint = NSTextField(labelWithString: "Leave all unchecked to allow every available repo.")
     private let defaultReposHint = "Leave all unchecked to allow every available repo."
+    private let loadingReposHint = "Loading GitHub Repositories"
 
     private let onSave: (CodexAgentSettingsSelection) -> Void
     private let onClose: () -> Void
@@ -116,7 +117,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         saveButton.isEnabled = false
         chooseButton.isEnabled = false
         clearButton.isEnabled = false
-        reposHint.stringValue = defaultReposHint
+        reposHint.stringValue = loadingReposHint
         progressIndicator.isHidden = false
         progressIndicator.startAnimation(nil)
         tableView.reloadData()
@@ -276,13 +277,13 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         contentView.addSubview(reposTitle)
 
         reposHint.textColor = .secondaryLabelColor
-        reposHint.frame = NSRect(x: 20, y: 358, width: 460, height: 18)
+        reposHint.frame = NSRect(x: 44, y: 358, width: 436, height: 18)
         contentView.addSubview(reposHint)
 
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.isDisplayedWhenStopped = false
-        progressIndicator.frame = NSRect(x: 242, y: 207, width: 16, height: 16)
+        progressIndicator.frame = NSRect(x: 20, y: 358, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
         scrollView.frame = NSRect(x: 20, y: 80, width: 460, height: 270)
