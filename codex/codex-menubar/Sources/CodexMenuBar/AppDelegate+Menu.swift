@@ -207,13 +207,45 @@ extension AppDelegate {
             emptyItem.isEnabled = false
             reviewMenu.addItem(emptyItem)
         } else {
+            var groupedPullRequests: [(repository: String, repositoryURL: String, pullRequests: [CodexCoreCLIClient.ReviewPullRequest])] = []
+
             for pullRequest in reviewPullRequests {
-                let item = NSMenuItem(title: pullRequest.menuTitle,
-                                      action: #selector(reviewPullRequest(_:)),
-                                      keyEquivalent: "")
-                item.target = self
-                item.representedObject = pullRequest.url
-                reviewMenu.addItem(item)
+                if let lastIndex = groupedPullRequests.indices.last,
+                   groupedPullRequests[lastIndex].repository == pullRequest.repositoryFullName {
+                    groupedPullRequests[lastIndex].pullRequests.append(pullRequest)
+                } else {
+                    groupedPullRequests.append((
+                        repository: pullRequest.repositoryFullName,
+                        repositoryURL: pullRequest.repositoryURL,
+                        pullRequests: [pullRequest]
+                    ))
+                }
+            }
+
+            for (index, group) in groupedPullRequests.enumerated() {
+                let repositoryItem = NSMenuItem(title: group.repository,
+                                                action: #selector(openReviewRepository(_:)),
+                                                keyEquivalent: "")
+                repositoryItem.target = self
+                repositoryItem.representedObject = group.repositoryURL
+                repositoryItem.attributedTitle = NSAttributedString(
+                    string: group.repository,
+                    attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+                )
+                reviewMenu.addItem(repositoryItem)
+
+                for pullRequest in group.pullRequests {
+                    let item = NSMenuItem(title: pullRequest.shortMenuTitle,
+                                          action: #selector(reviewPullRequest(_:)),
+                                          keyEquivalent: "")
+                    item.target = self
+                    item.representedObject = pullRequest.url
+                    reviewMenu.addItem(item)
+                }
+
+                if index < groupedPullRequests.count - 1 {
+                    reviewMenu.addItem(.separator())
+                }
             }
         }
         menu.addItem(reviewItem)

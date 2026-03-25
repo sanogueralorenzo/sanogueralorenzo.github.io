@@ -19,8 +19,16 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let url: String
         let updatedAt: String
 
-        var menuTitle: String {
-            "\(owner)/\(repo)#\(number) \(title)"
+        var repositoryFullName: String {
+            "\(owner)/\(repo)"
+        }
+
+        var repositoryURL: String {
+            "https://github.com/\(owner)/\(repo)"
+        }
+
+        var shortMenuTitle: String {
+            "#\(number) \(title)"
         }
     }
 
