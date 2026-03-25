@@ -2,6 +2,20 @@ import AppKit
 import Foundation
 
 extension AppDelegate {
+    private static func runAgentSettingsOperation<T: Sendable>(
+        _ operation: @escaping @Sendable () throws -> T
+    ) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    continuation.resume(returning: try operation())
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     @objc func openCodexApp(_ sender: Any?) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else {
@@ -260,51 +274,65 @@ extension AppDelegate {
     }
 
     @objc func openCodexAgentSettings(_ sender: Any?) {
+        if let existingController = codexAgentSettingsWindowController {
+            existingController.present()
+            return
+        }
+
         let sessionsCLI = self.sessionsCLI
+        let controller = CodexAgentSettingsWindowController(
+            onSave: { [weak self] selection in
+                guard let self else {
+                    return
+                }
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else {
-                return
-            }
-
-            do {
-                let currentConfig = try sessionsCLI.agentsConfig()
-                let availableRepos = try sessionsCLI.availableRepos()
-
-                DispatchQueue.main.async {
-                    guard let selection = self.promptForCodexAgentSettings(
-                        currentConfig: currentConfig,
-                        availableRepos: availableRepos
-                    ) else {
-                        return
-                    }
-
-                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                        guard let self else {
-                            return
-                        }
-
-                        do {
+                Task {
+                    do {
+                        try await Self.runAgentSettingsOperation {
                             if let projectHome = selection.projectHome, !projectHome.isEmpty {
                                 try sessionsCLI.setAgentsProjectHome(path: projectHome)
                             } else {
                                 try sessionsCLI.clearAgentsProjectHome()
                             }
                             try sessionsCLI.setAllowedRepos(selection.allowedRepos)
-                            DispatchQueue.main.async {
-                                self.refreshUI()
-                            }
-                        } catch {
-                            DispatchQueue.main.async {
-                                self.showError(error)
-                            }
                         }
+                        self.refreshUI()
+                    } catch {
+                        self.showError(error)
                     }
                 }
-            } catch {
-                DispatchQueue.main.async {
-                    self.showError(error)
+            },
+            onClose: { [weak self] in
+                self?.codexAgentSettingsWindowController = nil
+            }
+        )
+
+        codexAgentSettingsWindowController = controller
+        controller.present()
+
+        Task {
+            do {
+                let currentConfig = try await Self.runAgentSettingsOperation {
+                    try sessionsCLI.agentsConfig()
                 }
+                guard codexAgentSettingsWindowController === controller else {
+                    return
+                }
+                controller.applyCurrentConfig(currentConfig)
+
+                let availableRepos = try await Self.runAgentSettingsOperation {
+                    try sessionsCLI.availableRepos()
+                }
+                guard codexAgentSettingsWindowController === controller else {
+                    return
+                }
+                controller.applyAvailableRepos(availableRepos)
+            } catch {
+                guard codexAgentSettingsWindowController === controller else {
+                    return
+                }
+                let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+                controller.applyLoadError(message)
             }
         }
     }

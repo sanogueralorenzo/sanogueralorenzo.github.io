@@ -1,14 +1,14 @@
 import Foundation
 
 final class CodexCoreCLIClient: @unchecked Sendable {
-    struct AgentsConfig: Decodable {
+    struct AgentsConfig: Decodable, Sendable {
         let stateVersion: Int
         let initializedAt: String
         let projectHome: String?
         let allowedRepos: [String]
     }
 
-    struct AvailableRepo: Decodable {
+    struct AvailableRepo: Decodable, Sendable {
         let fullName: String
     }
 

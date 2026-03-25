@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem!
     private var isMenuOpen = false
     private var needsRenderAfterMenuClose = false
+    var codexAgentSettingsWindowController: CodexAgentSettingsWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
