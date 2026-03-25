@@ -145,6 +145,14 @@ pub enum ReviewJobStatus {
     Failed,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewMenuState {
+    Published,
+    NeedsAttention,
+    InProgress,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewJobSnapshot {
     pub id: String,
@@ -163,6 +171,13 @@ pub struct ReviewJobSnapshot {
     pub failed_comment_details: Vec<ReviewCommentFailure>,
     pub summary: Option<String>,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReviewJobOutput {
+    #[serde(flatten)]
+    pub job: ReviewJobSnapshot,
+    pub menu_state: ReviewMenuState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -483,38 +498,40 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
 
 fn list_review_jobs(layout: &StateLayout, args: ReviewJobsArgs) -> Result<()> {
     let jobs = load_review_jobs(layout)?;
+    let output_jobs: Vec<ReviewJobOutput> = jobs.into_iter().map(into_review_job_output).collect();
 
     if args.json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&jobs).context("failed to serialize review jobs")?
+            serde_json::to_string_pretty(&output_jobs)
+                .context("failed to serialize review jobs")?
         );
         return Ok(());
     }
 
     if args.plain {
-        for job in jobs {
+        for job in output_jobs {
             println!(
                 "{} {} {}",
-                job.id,
-                review_job_status_label(&job.status),
-                job.pull_request
+                job.job.id,
+                review_menu_state_label(&job.menu_state),
+                job.job.pull_request
             );
         }
         return Ok(());
     }
 
-    if jobs.is_empty() {
+    if output_jobs.is_empty() {
         println!("No review jobs found.");
         return Ok(());
     }
 
-    for job in jobs {
+    for job in output_jobs {
         println!(
             "{} {:<16} {}",
-            job.id,
-            review_job_status_label(&job.status),
-            review_job_summary_label(&job)
+            job.job.id,
+            review_menu_state_label(&job.menu_state),
+            review_job_summary_label(&job.job)
         );
     }
 
@@ -522,49 +539,54 @@ fn list_review_jobs(layout: &StateLayout, args: ReviewJobsArgs) -> Result<()> {
 }
 
 fn show_review_job(layout: &StateLayout, args: ReviewShowArgs) -> Result<()> {
-    let job = load_review_job(layout, &args.review_id)?;
+    let output_job = into_review_job_output(load_review_job(layout, &args.review_id)?);
 
     if args.json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&job).context("failed to serialize review job")?
+            serde_json::to_string_pretty(&output_job).context("failed to serialize review job")?
         );
         return Ok(());
     }
 
     if args.plain {
-        println!("{} {}", job.id, review_job_status_label(&job.status));
+        println!(
+            "{} {}",
+            output_job.job.id,
+            review_menu_state_label(&output_job.menu_state)
+        );
         return Ok(());
     }
 
-    println!("id: {}", job.id);
-    println!("status: {}", review_job_status_label(&job.status));
-    println!("current_step: {}", job.current_step);
-    println!("pull_request: {}", job.pull_request);
-    println!("owner: {}", job.owner);
-    println!("repo: {}", job.repo);
-    println!("number: {}", job.number);
-    if let Some(url) = &job.url {
+    println!("id: {}", output_job.job.id);
+    println!("status: {}", review_job_status_label(&output_job.job.status));
+    println!("menu_state: {}", review_menu_state_label(&output_job.menu_state));
+    println!("current_step: {}", output_job.job.current_step);
+    println!("pull_request: {}", output_job.job.pull_request);
+    println!("owner: {}", output_job.job.owner);
+    println!("repo: {}", output_job.job.repo);
+    println!("number: {}", output_job.job.number);
+    if let Some(url) = &output_job.job.url {
         println!("url: {}", url);
     }
-    println!("created_at: {}", job.created_at);
-    if let Some(started_at) = &job.started_at {
+    println!("created_at: {}", output_job.job.created_at);
+    if let Some(started_at) = &output_job.job.started_at {
         println!("started_at: {}", started_at);
     }
-    if let Some(finished_at) = &job.finished_at {
+    if let Some(finished_at) = &output_job.job.finished_at {
         println!("finished_at: {}", finished_at);
     }
-    println!("posted_comments: {}", job.posted_comments);
-    println!("failed_comments: {}", job.failed_comments);
-    if let Some(summary) = &job.summary {
+    println!("posted_comments: {}", output_job.job.posted_comments);
+    println!("failed_comments: {}", output_job.job.failed_comments);
+    if let Some(summary) = &output_job.job.summary {
         println!("summary: {}", summary);
     }
-    if let Some(error) = &job.error {
+    if let Some(error) = &output_job.job.error {
         println!("error: {}", error);
     }
-    if !job.failed_comment_details.is_empty() {
+    if !output_job.job.failed_comment_details.is_empty() {
         println!("failed_comment_details:");
-        for failure in &job.failed_comment_details {
+        for failure in &output_job.job.failed_comment_details {
             let path = failure.path.as_deref().unwrap_or("<unknown>");
             println!(
                 "- {} ({}:{}-{}): {}",
@@ -574,6 +596,11 @@ fn show_review_job(layout: &StateLayout, args: ReviewShowArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn into_review_job_output(job: ReviewJobSnapshot) -> ReviewJobOutput {
+    let menu_state = derive_review_menu_state(&job);
+    ReviewJobOutput { job, menu_state }
 }
 
 fn run_review_step<T, F>(
@@ -756,6 +783,30 @@ fn review_job_status_label(status: &ReviewJobStatus) -> &'static str {
         ReviewJobStatus::PostingComments => "posting_comments",
         ReviewJobStatus::Completed => "completed",
         ReviewJobStatus::Failed => "failed",
+    }
+}
+
+fn review_menu_state_label(menu_state: &ReviewMenuState) -> &'static str {
+    match menu_state {
+        ReviewMenuState::Published => "published",
+        ReviewMenuState::NeedsAttention => "needs_attention",
+        ReviewMenuState::InProgress => "in_progress",
+    }
+}
+
+fn derive_review_menu_state(job: &ReviewJobSnapshot) -> ReviewMenuState {
+    match job.status {
+        ReviewJobStatus::Queued | ReviewJobStatus::Running | ReviewJobStatus::PostingComments => {
+            ReviewMenuState::InProgress
+        }
+        ReviewJobStatus::Failed => ReviewMenuState::NeedsAttention,
+        ReviewJobStatus::Completed => {
+            if job.failed_comments > 0 || job.posted_comments == 0 {
+                ReviewMenuState::NeedsAttention
+            } else {
+                ReviewMenuState::Published
+            }
+        }
     }
 }
 

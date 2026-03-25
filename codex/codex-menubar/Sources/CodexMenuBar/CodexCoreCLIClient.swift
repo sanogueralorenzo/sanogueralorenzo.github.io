@@ -52,6 +52,35 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let summary: String
     }
 
+    struct ReviewJob: Decodable {
+        enum MenuState: String, Decodable {
+            case published = "published"
+            case needsAttention = "needs_attention"
+            case inProgress = "in_progress"
+        }
+
+        let id: String
+        let owner: String
+        let repo: String
+        let number: Int
+        let url: String?
+        let status: String
+        let currentStep: String
+        let createdAt: String
+        let postedComments: Int
+        let failedComments: Int
+        let summary: String?
+        let menuState: MenuState
+
+        var repositoryFullName: String {
+            "\(owner)/\(repo)"
+        }
+
+        var displayTitle: String {
+            "#\(number) \(repo)"
+        }
+    }
+
     enum AutoRemoveMode: String {
         case archive
         case delete
@@ -125,6 +154,13 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(ReviewRunResult.self, from: Data(output.utf8))
+    }
+
+    func listReviewJobs() throws -> [ReviewJob] {
+        let output = try runAgents(["review", "jobs", "--json"])
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode([ReviewJob].self, from: Data(output.utf8))
     }
 
     func agentsConfig() throws -> AgentsConfig {

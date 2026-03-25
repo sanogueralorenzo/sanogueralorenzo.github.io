@@ -7,6 +7,7 @@ struct CodexMenuData {
     let sessionsStatus: CodexCoreCLIClient.Status?
     let currentProfileName: String?
     let profiles: [String]
+    let reviewJobs: [CodexCoreCLIClient.ReviewJob]
     let reviewPullRequests: [CodexCoreCLIClient.ReviewPullRequest]
 
     static let loading = CodexMenuData(
@@ -15,6 +16,7 @@ struct CodexMenuData {
         sessionsStatus: nil,
         currentProfileName: nil,
         profiles: [],
+        reviewJobs: [],
         reviewPullRequests: []
     )
 }
@@ -35,16 +37,20 @@ final class CodexMenuDataStore {
         refreshGeneration += 1
         let generation = refreshGeneration
         let previousProfiles = data.profiles
+        let previousReviewJobs = data.reviewJobs
         let previousReviewPullRequests = data.reviewPullRequests
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let sessionsStatus = (try? sessionsCLI.status()) ?? .notInstalled
             let profiles = (try? authCLI.listProfiles()) ?? previousProfiles
+            let reviewJobs: [CodexCoreCLIClient.ReviewJob]
             let reviewPullRequests: [CodexCoreCLIClient.ReviewPullRequest]
             if sessionsStatus == .ready {
+                reviewJobs = (try? sessionsCLI.listReviewJobs()) ?? previousReviewJobs
                 reviewPullRequests =
                     (try? sessionsCLI.listReviewPullRequests()) ?? previousReviewPullRequests
             } else {
+                reviewJobs = []
                 reviewPullRequests = []
             }
 
@@ -54,6 +60,7 @@ final class CodexMenuDataStore {
                 sessionsStatus: sessionsStatus,
                 currentProfileName: try? authCLI.currentProfileName(),
                 profiles: profiles,
+                reviewJobs: reviewJobs,
                 reviewPullRequests: reviewPullRequests
             )
 

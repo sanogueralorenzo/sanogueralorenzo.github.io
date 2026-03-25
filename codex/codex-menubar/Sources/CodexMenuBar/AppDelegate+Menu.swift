@@ -196,17 +196,38 @@ extension AppDelegate {
 
         let reviewItem = NSMenuItem(title: "Review", action: nil, keyEquivalent: "")
         let reviewMenu = NSMenu()
+        let reviewJobs = menuDataStore.data.reviewJobs
         let reviewPullRequests = menuDataStore.data.reviewPullRequests
 
         if menuDataStore.data.isLoading {
             let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
             loadingItem.isEnabled = false
             reviewMenu.addItem(loadingItem)
-        } else if reviewPullRequests.isEmpty {
+        } else if reviewJobs.isEmpty && reviewPullRequests.isEmpty {
             let emptyItem = NSMenuItem(title: "No Open PRs", action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false
             reviewMenu.addItem(emptyItem)
         } else {
+            addReviewJobSection(
+                title: "In Progress",
+                jobs: reviewJobs.filter { $0.menuState == .inProgress },
+                to: reviewMenu
+            )
+            addReviewJobSection(
+                title: "Needs Attention",
+                jobs: reviewJobs.filter { $0.menuState == .needsAttention },
+                to: reviewMenu
+            )
+            addReviewJobSection(
+                title: "Published",
+                jobs: reviewJobs.filter { $0.menuState == .published },
+                to: reviewMenu
+            )
+
+            if !reviewJobs.isEmpty && !reviewPullRequests.isEmpty {
+                reviewMenu.addItem(.separator())
+            }
+
             var groupedPullRequests: [(repository: String, repositoryURL: String, pullRequests: [CodexCoreCLIClient.ReviewPullRequest])] = []
             var groupedPullRequestIndexByRepository: [String: Int] = [:]
 
@@ -230,6 +251,17 @@ extension AppDelegate {
             }
 
             for (index, group) in groupedPullRequests.enumerated() {
+                if index == 0 && !groupedPullRequests.isEmpty {
+                    let openPRsHeader = NSMenuItem(title: "", action: #selector(noopHeader(_:)), keyEquivalent: "")
+                    openPRsHeader.attributedTitle = NSAttributedString(
+                        string: "Open PRs",
+                        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+                    )
+                    openPRsHeader.target = self
+                    openPRsHeader.isEnabled = true
+                    reviewMenu.addItem(openPRsHeader)
+                }
+
                 let repositoryItem = NSMenuItem(title: group.repository,
                                                 action: #selector(openReviewRepository(_:)),
                                                 keyEquivalent: "")
@@ -291,6 +323,50 @@ extension AppDelegate {
             return "X"
         default:
             return "•"
+        }
+    }
+
+    private func addReviewJobSection(title: String,
+                                     jobs: [CodexCoreCLIClient.ReviewJob],
+                                     to menu: NSMenu) {
+        guard !jobs.isEmpty else {
+            return
+        }
+
+        if !menu.items.isEmpty {
+            menu.addItem(.separator())
+        }
+
+        let header = NSMenuItem(title: "", action: #selector(noopHeader(_:)), keyEquivalent: "")
+        header.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+        )
+        header.target = self
+        header.isEnabled = true
+        menu.addItem(header)
+
+        for job in jobs.sorted(by: { $0.createdAt > $1.createdAt }) {
+            let item = NSMenuItem(
+                title: "\(reviewJobPrefix(for: job.menuState)) \(job.displayTitle)",
+                action: #selector(openReviewPullRequestURL(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = job.url
+            item.isEnabled = job.url != nil
+            menu.addItem(item)
+        }
+    }
+
+    private func reviewJobPrefix(for state: CodexCoreCLIClient.ReviewJob.MenuState) -> String {
+        switch state {
+        case .published:
+            return "✓"
+        case .needsAttention:
+            return "X"
+        case .inProgress:
+            return "-"
         }
     }
 
