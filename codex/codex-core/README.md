@@ -33,7 +33,7 @@ codex-core noninteractive run --help
   - `worker loop` starts a fresh `codex exec` run on every iteration; continuity is expected to come from your plan/prompt files, not from thread resume.
   - Important loop flags: `--prompt-file`, `--cd`, `--interval-seconds`, `--max-iterations`, `--stop-phrase`, `--once`, `--model`, `--full-auto`, `--dangerously-bypass-approvals-and-sandbox`, `--skip-git-repo-check`.
   - `config show --json` returns the current agents settings, including `project_home` and `allowed_repos`.
-  - `config available-repos --json` returns available personal and organization repos from `gh`.
+  - `config available-repos --json` returns available personal and organization repos from `gh` where your `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`.
   - `review list --json` returns open PRs across your personal repos and orgs from `gh`, filtered by `allowed_repos` when configured.
   - `review run <pr-url|owner/repo#number>` uses `project_home/<owner>/<repo>` for persistent checkouts when configured, otherwise it uses `/tmp` and deletes the clone after the run; then it fetches upstream review prompts from `openai/codex` `main`, runs `codex exec` with those prompts unchanged, validates findings against changed diff lines on both left and right sides, and posts inline GitHub review comments via `gh`.
   - On macOS, worker commands try to enable `caffeinate` while running.
