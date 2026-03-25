@@ -2,6 +2,67 @@ import AppKit
 import Foundation
 
 @MainActor
+private final class IntegrationStatusRowView: NSView {
+    private let pillLabel = NSTextField(labelWithString: "")
+    private let summaryLabel = NSTextField(labelWithString: "")
+    private let detailLabel = NSTextField(labelWithString: "")
+
+    init(toolName: String) {
+        super.init(frame: NSRect(x: 0, y: 0, width: 460, height: 38))
+
+        pillLabel.font = .boldSystemFont(ofSize: 11)
+        pillLabel.alignment = .center
+        pillLabel.textColor = .white
+        pillLabel.stringValue = toolName
+        pillLabel.wantsLayer = true
+        pillLabel.layer?.cornerRadius = 10
+        pillLabel.layer?.masksToBounds = true
+        pillLabel.frame = NSRect(x: 0, y: 17, width: 44, height: 20)
+        addSubview(pillLabel)
+
+        summaryLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        summaryLabel.frame = NSRect(x: 56, y: 18, width: 404, height: 16)
+        addSubview(summaryLabel)
+
+        detailLabel.font = .systemFont(ofSize: 11)
+        detailLabel.textColor = .secondaryLabelColor
+        detailLabel.lineBreakMode = .byTruncatingTail
+        detailLabel.frame = NSRect(x: 56, y: 0, width: 404, height: 16)
+        addSubview(detailLabel)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func apply(status: IntegrationStatus) {
+        switch status.state {
+        case .checking:
+            pillLabel.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
+            summaryLabel.stringValue = "Checking..."
+            detailLabel.stringValue = ""
+        case .ready(let summary, let detail):
+            pillLabel.layer?.backgroundColor = NSColor.systemGreen.cgColor
+            summaryLabel.stringValue = summary
+            detailLabel.stringValue = detail ?? ""
+        case .actionNeeded(let summary, let detail):
+            pillLabel.layer?.backgroundColor = NSColor.systemOrange.cgColor
+            summaryLabel.stringValue = summary
+            detailLabel.stringValue = detail
+        case .missing(let summary, let detail):
+            pillLabel.layer?.backgroundColor = NSColor.systemRed.cgColor
+            summaryLabel.stringValue = summary
+            detailLabel.stringValue = detail
+        case .error(let summary, let detail):
+            pillLabel.layer?.backgroundColor = NSColor.systemRed.cgColor
+            summaryLabel.stringValue = summary
+            detailLabel.stringValue = detail
+        }
+    }
+}
+
+@MainActor
 private final class ProfileNameInputController: NSObject, NSTextFieldDelegate {
     private let nameField: NSTextField
     private let errorLabel: NSTextField
@@ -52,6 +113,8 @@ struct CodexAgentSettingsSelection {
 
 @MainActor
 final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSWindowDelegate {
+    private let ghStatusRow = IntegrationStatusRowView(toolName: "gh")
+    private let acliStatusRow = IntegrationStatusRowView(toolName: "acli")
     private let progressIndicator = NSProgressIndicator()
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let saveButton = NSButton(title: "Save", target: nil, action: nil)
@@ -72,14 +135,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private var reposLoadErrorMessage: String?
     private let horizontalInset: CGFloat = 20
     private let contentWidth: CGFloat = 460
-    private let reposHintY: CGFloat = 334
+    private let reposHintY: CGFloat = 206
 
     init(onSave: @escaping (CodexAgentSettingsSelection) -> Void, onClose: @escaping () -> Void) {
         self.onSave = onSave
         self.onClose = onClose
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 430),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 520),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -115,6 +178,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         reposHint.stringValue = loadingReposHint
         progressIndicator.isHidden = false
         progressIndicator.startAnimation(nil)
+        ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
+        acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
         updateReposHintLayout(isLoading: true)
         tableView.reloadData()
     }
@@ -135,6 +200,19 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         reposHint.stringValue = defaultReposHint
         updateReposHintLayout(isLoading: false)
         tableView.reloadData()
+    }
+
+    func applyIntegrationStatuses(_ statuses: [IntegrationStatus]) {
+        for status in statuses {
+            switch status.toolName {
+            case "gh":
+                ghStatusRow.apply(status: status)
+            case "acli":
+                acliStatusRow.apply(status: status)
+            default:
+                break
+            }
+        }
     }
 
     func applyLoadError(_ message: String) {
@@ -219,22 +297,37 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
             return
         }
 
+        let integrationsTitle = NSTextField(labelWithString: "Integrations")
+        integrationsTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+        integrationsTitle.frame = NSRect(x: horizontalInset, y: 460, width: contentWidth, height: 20)
+        contentView.addSubview(integrationsTitle)
+
+        ghStatusRow.frame = NSRect(x: horizontalInset, y: 410, width: contentWidth, height: 38)
+        contentView.addSubview(ghStatusRow)
+
+        acliStatusRow.frame = NSRect(x: horizontalInset, y: 364, width: contentWidth, height: 38)
+        contentView.addSubview(acliStatusRow)
+
+        let divider = NSBox(frame: NSRect(x: horizontalInset, y: 338, width: contentWidth, height: 1))
+        divider.boxType = .separator
+        contentView.addSubview(divider)
+
         let reposTitle = NSTextField(labelWithString: "GitHub Repos")
         reposTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        reposTitle.frame = NSRect(x: horizontalInset, y: 360, width: contentWidth, height: 20)
+        reposTitle.frame = NSRect(x: horizontalInset, y: 232, width: contentWidth, height: 20)
         contentView.addSubview(reposTitle)
 
         reposHint.textColor = .secondaryLabelColor
-        reposHint.frame = NSRect(x: horizontalInset, y: 334, width: contentWidth, height: 18)
+        reposHint.frame = NSRect(x: horizontalInset, y: reposHintY, width: contentWidth, height: 18)
         contentView.addSubview(reposHint)
 
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.isDisplayedWhenStopped = false
-        progressIndicator.frame = NSRect(x: horizontalInset, y: 334, width: 16, height: 16)
+        progressIndicator.frame = NSRect(x: horizontalInset, y: reposHintY, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
-        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 236)
+        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 112)
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 

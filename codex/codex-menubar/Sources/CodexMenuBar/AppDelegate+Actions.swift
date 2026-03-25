@@ -307,17 +307,29 @@ extension AppDelegate {
 
         Task {
             do {
-                let currentConfig = try await Self.runAgentSettingsOperation {
+                async let currentConfigTask = Self.runAgentSettingsOperation {
                     try sessionsCLI.agentsConfig()
                 }
+                async let integrationStatusesTask = Self.runAgentSettingsOperation {
+                    IntegrationStatusClient.loadAll()
+                }
+                async let availableReposTask = Self.runAgentSettingsOperation {
+                    try sessionsCLI.availableRepos()
+                }
+
+                let currentConfig = try await currentConfigTask
                 guard codexAgentSettingsWindowController === controller else {
                     return
                 }
                 controller.applyCurrentConfig(currentConfig)
 
-                let availableRepos = try await Self.runAgentSettingsOperation {
-                    try sessionsCLI.availableRepos()
+                let integrationStatuses = try await integrationStatusesTask
+                guard codexAgentSettingsWindowController === controller else {
+                    return
                 }
+                controller.applyIntegrationStatuses(integrationStatuses)
+
+                let availableRepos = try await availableReposTask
                 guard codexAgentSettingsWindowController === controller else {
                     return
                 }
