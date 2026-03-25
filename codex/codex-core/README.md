@@ -36,8 +36,8 @@ codex-core noninteractive run --help
   - `config available-repos --json` returns available personal and organization repos from `gh` where your `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`.
   - `review list --json` returns open PRs across your personal repos and orgs from `gh`, filtered by `allowed_repos` when configured and ordered by `created_at` newest first.
   - `review run <pr-url|owner/repo#number>` reuses a cached repo under `~/.codex/agents/repos/<owner>/<repo>`, creates a per-run worktree under `~/.codex/agents/worktrees`, fetches upstream review prompts from `openai/codex` `main`, runs `codex exec` with those prompts unchanged, validates findings against changed diff lines on both left and right sides, posts inline GitHub review comments via `gh` against the latest PR head SHA, persists job state under `~/.codex/agents/reviews/<review-id>`, and returns per-comment failure reasons in JSON/default output when posting fails.
-  - `review jobs --json` lists persisted review jobs from `~/.codex/agents/reviews` and includes a client-facing derived `status` (`published`, `needs_attention`, `in_progress`) plus the internal `lifecycle_status`.
-  - `review show <review-id> --json` shows one persisted review job snapshot, including the derived `status` and the internal `lifecycle_status`.
+  - `review jobs --json` lists persisted review jobs from `~/.codex/agents/reviews` and includes a client-facing derived `status` (`published`, `needs_attention`, `in_progress`) plus `current_step` for the active phase.
+  - `review show <review-id> --json` shows one persisted review job snapshot, including the derived `status` and `current_step`.
   - On macOS, worker commands try to enable `caffeinate` while running.
   - State defaults to `~/.codex/agents` and can be overridden with `CODEX_AGENTS_HOME`; settings are stored in `config.json`.
 - Sessions commands:

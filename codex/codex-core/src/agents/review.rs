@@ -182,7 +182,6 @@ pub struct ReviewJobOutput {
     pub number: u64,
     pub url: Option<String>,
     pub status: ReviewMenuState,
-    pub lifecycle_status: ReviewJobStatus,
     pub current_step: String,
     pub created_at: String,
     pub started_at: Option<String>,
@@ -570,10 +569,6 @@ fn show_review_job(layout: &StateLayout, args: ReviewShowArgs) -> Result<()> {
 
     println!("id: {}", output_job.id);
     println!("status: {}", review_menu_state_label(&output_job.status));
-    println!(
-        "lifecycle_status: {}",
-        review_job_status_label(&output_job.lifecycle_status)
-    );
     println!("current_step: {}", output_job.current_step);
     println!("pull_request: {}", output_job.pull_request);
     println!("owner: {}", output_job.owner);
@@ -621,7 +616,6 @@ fn into_review_job_output(job: ReviewJobSnapshot) -> ReviewJobOutput {
         number: job.number,
         url: job.url,
         status,
-        lifecycle_status: job.status,
         current_step: job.current_step,
         created_at: job.created_at,
         started_at: job.started_at,
@@ -805,16 +799,6 @@ fn load_review_job_snapshot(job_path: &Path) -> Result<ReviewJobSnapshot> {
         .with_context(|| format!("failed to read {}", job_path.display()))?;
     serde_json::from_str(&content)
         .with_context(|| format!("failed to parse {}", job_path.display()))
-}
-
-fn review_job_status_label(status: &ReviewJobStatus) -> &'static str {
-    match status {
-        ReviewJobStatus::Queued => "queued",
-        ReviewJobStatus::Running => "running",
-        ReviewJobStatus::PostingComments => "posting_comments",
-        ReviewJobStatus::Completed => "completed",
-        ReviewJobStatus::Failed => "failed",
-    }
 }
 
 fn review_menu_state_label(menu_state: &ReviewMenuState) -> &'static str {

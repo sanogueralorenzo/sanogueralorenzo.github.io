@@ -65,7 +65,6 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let number: Int
         let url: String?
         let status: Status
-        let lifecycleStatus: String
         let currentStep: String
         let createdAt: String
         let postedComments: Int
