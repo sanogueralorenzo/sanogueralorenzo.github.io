@@ -242,6 +242,8 @@ struct PullRequestView {
     url: String,
     #[serde(rename = "baseRefName")]
     base_ref_name: String,
+    #[serde(rename = "headRefOid")]
+    head_ref_oid: String,
 }
 
 struct ReviewWorkspace {
@@ -860,7 +862,7 @@ fn fetch_pull_request_view(pr_ref: &PullRequestReference) -> Result<PullRequestV
             "--repo".to_string(),
             pr_ref.repo_name_with_owner(),
             "--json".to_string(),
-            "number,url,baseRefName".to_string(),
+            "number,url,baseRefName,headRefOid".to_string(),
         ],
         None,
     )?;
@@ -1330,6 +1332,7 @@ fn post_review_comments(
         let body = render_inline_comment_body(&finding);
         if let Err(error) = post_inline_comment(
             pr_ref,
+            &pull_request.head_ref_oid,
             &path,
             target.line,
             target.side.as_github_value(),
@@ -1423,6 +1426,7 @@ fn render_inline_comment_body(finding: &ReviewFinding) -> String {
 
 fn post_inline_comment(
     pr_ref: &PullRequestReference,
+    commit_id: &str,
     path: &str,
     line: u32,
     side: &str,
@@ -1438,6 +1442,7 @@ fn post_inline_comment(
     let payload_path = temp_file_path("codex-core-pr-review-comment", "json");
     let payload = serde_json::json!({
         "body": body.trim(),
+        "commit_id": commit_id,
         "path": path,
         "line": line,
         "side": side
