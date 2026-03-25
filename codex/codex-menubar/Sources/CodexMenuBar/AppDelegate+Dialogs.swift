@@ -141,7 +141,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private var reposLoadErrorMessage: String?
     private let horizontalInset: CGFloat = 20
     private let contentWidth: CGFloat = 460
-    private let reposHintY: CGFloat = 256
+    private let reposHintY: CGFloat = 250
 
     init(onSave: @escaping (CodexAgentSettingsSelection) -> Void, onClose: @escaping () -> Void) {
         self.onSave = onSave
