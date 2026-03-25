@@ -212,11 +212,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             queue: reviewStatusWatcherQueue
         )
 
-        watcher.setEventHandler { [weak self] in
-            DispatchQueue.main.async {
-                self?.refreshUI()
-            }
-        }
+        watcher.setEventHandler(handler: Self.makeReviewStatusWatcherHandler(appDelegate: self))
 
         watcher.setCancelHandler { [fileDescriptor] in
             close(fileDescriptor)
@@ -244,6 +240,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .appendingPathComponent(".codex", isDirectory: true)
             .appendingPathComponent("agents", isDirectory: true)
             .appendingPathComponent("reviews", isDirectory: true)
+    }
+
+    private nonisolated static func makeReviewStatusWatcherHandler(
+        appDelegate: AppDelegate
+    ) -> @Sendable () -> Void {
+        { [weak appDelegate] in
+            Task { @MainActor [weak appDelegate] in
+                appDelegate?.refreshUI()
+            }
+        }
     }
 }
 
