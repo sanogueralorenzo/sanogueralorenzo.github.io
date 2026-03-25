@@ -38,7 +38,7 @@ enum Commands {
         #[command(subcommand)]
         action: WorkerCommand,
     },
-    /// Review GitHub pull requests with Codex and post inline findings
+    /// Review GitHub pull requests with Codex and post a PR review comment
     Review {
         #[command(subcommand)]
         action: review::ReviewCommand,

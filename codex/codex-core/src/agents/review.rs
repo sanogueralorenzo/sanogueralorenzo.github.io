@@ -9,8 +9,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use uuid::Uuid;
 
-const REVIEW_PROMPT: &str = "Review this pull request and return only strict JSON with this shape: {\"summary\":\"string\",\"comments\":[{\"path\":\"relative/path\",\"line\":123,\"body\":\"one short paragraph\"}]}. Rules: only include actionable findings, only comment on changed lines from the pull request, use repo-relative paths, use current head file line numbers on the right side of the diff, and return comments:[] when there are no findings. Do not wrap the JSON in markdown fences.";
-
 const VIEWER_QUERY: &str = r#"
 query {
   viewer {
@@ -50,7 +48,7 @@ query($searchQuery: String!, $endCursor: String) {
 pub enum ReviewCommand {
     /// List open pull requests across your repos and orgs
     List(ReviewListArgs),
-    /// Review one pull request and post inline findings
+    /// Review one pull request and post a PR review comment
     Run(ReviewRunArgs),
 }
 
@@ -91,8 +89,7 @@ pub struct ReviewRunResult {
     pub repo: String,
     pub number: u64,
     pub url: String,
-    pub posted_comments: usize,
-    pub failed_comments: usize,
+    pub posted_review: bool,
     pub summary: String,
 }
 
@@ -167,19 +164,6 @@ struct PullRequestView {
     base_ref_name: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct CodexReviewOutput {
-    summary: String,
-    comments: Vec<CodexReviewComment>,
-}
-
-#[derive(Debug, Deserialize)]
-struct CodexReviewComment {
-    path: String,
-    line: u64,
-    body: String,
-}
-
 struct ReviewWorkspace {
     root: PathBuf,
     repo_dir: PathBuf,
@@ -232,9 +216,8 @@ fn run_review(args: ReviewRunArgs) -> Result<()> {
     let pr_ref = parse_pull_request_reference(&args.pull_request)?;
     let pull_request = fetch_pull_request_view(&pr_ref)?;
     let workspace = checkout_pull_request(&pr_ref)?;
-    let codex_output = run_codex_review(&workspace.repo_dir, &pull_request.base_ref_name)?;
-    let review = parse_codex_review_output(&codex_output)?;
-    let result = post_review_comments(&pr_ref, &workspace.repo_dir, &pull_request, review)?;
+    let review_body = run_codex_review(&workspace.repo_dir, &pull_request.base_ref_name)?;
+    let result = post_review_comment(&pr_ref, &pull_request, review_body)?;
 
     if args.json {
         println!(
@@ -245,16 +228,12 @@ fn run_review(args: ReviewRunArgs) -> Result<()> {
     }
 
     if args.plain {
-        println!(
-            "{} {} {}",
-            result.url, result.posted_comments, result.failed_comments
-        );
+        println!("{} {}", result.url, result.posted_review);
         return Ok(());
     }
 
     println!("Reviewed {}", result.url);
-    println!("Posted comments: {}", result.posted_comments);
-    println!("Failed comments: {}", result.failed_comments);
+    println!("Posted review: {}", result.posted_review);
     println!("Summary: {}", result.summary);
     Ok(())
 }
@@ -397,7 +376,6 @@ fn run_codex_review(repo_dir: &Path, base_ref_name: &str) -> Result<String> {
         .arg("review")
         .arg("--base")
         .arg(base_ref_name)
-        .arg(REVIEW_PROMPT)
         .output()
         .context("failed to launch codex review")?;
 
@@ -417,112 +395,44 @@ fn run_codex_review(repo_dir: &Path, base_ref_name: &str) -> Result<String> {
         );
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
-
-fn parse_codex_review_output(output: &str) -> Result<CodexReviewOutput> {
-    let json = extract_json_object(output)?;
-    serde_json::from_str(&json).context("failed to parse codex review JSON")
-}
-
-fn extract_json_object(output: &str) -> Result<String> {
-    let trimmed = output.trim();
-    if trimmed.starts_with('{') && trimmed.ends_with('}') {
-        return Ok(trimmed.to_string());
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if stdout.is_empty() {
+        bail!("codex review returned empty output");
     }
-
-    let Some(start) = trimmed.find('{') else {
-        bail!("codex review output did not contain JSON");
-    };
-    let Some(end) = trimmed.rfind('}') else {
-        bail!("codex review output did not contain a complete JSON object");
-    };
-
-    Ok(trimmed[start..=end].to_string())
+    Ok(stdout)
 }
 
-fn post_review_comments(
+fn post_review_comment(
     pr_ref: &PullRequestReference,
-    repo_dir: &Path,
     pull_request: &PullRequestView,
-    review: CodexReviewOutput,
+    review_body: String,
 ) -> Result<ReviewRunResult> {
-    let mut posted_comments = 0usize;
-    let mut failed_comments = 0usize;
-
-    for comment in review.comments {
-        let path = normalize_comment_path(&comment.path, repo_dir)?;
-        if post_inline_comment(pr_ref, &path, comment.line, &comment.body).is_ok() {
-            posted_comments += 1;
-        } else {
-            failed_comments += 1;
-        }
-    }
+    post_pull_request_review(pr_ref, &review_body)?;
 
     Ok(ReviewRunResult {
         owner: pr_ref.owner.clone(),
         repo: pr_ref.repo.clone(),
         number: pull_request.number,
         url: pull_request.url.clone(),
-        posted_comments,
-        failed_comments,
-        summary: review.summary,
+        posted_review: true,
+        summary: review_body,
     })
 }
 
-fn normalize_comment_path(raw_path: &str, repo_dir: &Path) -> Result<String> {
-    let trimmed = raw_path.trim();
-    if trimmed.is_empty() {
-        bail!("codex review returned an empty comment path");
-    }
-
-    let path = PathBuf::from(trimmed);
-    if path.is_absolute() {
-        let relative = path
-            .strip_prefix(repo_dir)
-            .with_context(|| format!("comment path is outside checked out repo: {}", path.display()))?;
-        return Ok(relative.to_string_lossy().into_owned());
-    }
-
-    Ok(trimmed.to_string())
-}
-
-fn post_inline_comment(
-    pr_ref: &PullRequestReference,
-    path: &str,
-    line: u64,
-    body: &str,
-) -> Result<()> {
-    if line == 0 {
-        bail!("codex review returned invalid line 0 for {path}");
-    }
-    if body.trim().is_empty() {
-        bail!("codex review returned an empty comment body for {path}:{line}");
-    }
-
-    let payload_path = temp_file_path("codex-core-pr-review-comment", "json");
-    let payload = serde_json::json!({
-        "body": body.trim(),
-        "path": path,
-        "line": line,
-        "side": "RIGHT"
-    });
-    fs::write(
-        &payload_path,
-        serde_json::to_vec(&payload).context("failed to serialize PR comment payload")?,
-    )
-    .with_context(|| format!("failed to write {}", payload_path.display()))?;
+fn post_pull_request_review(pr_ref: &PullRequestReference, review_body: &str) -> Result<()> {
+    let payload_path = temp_file_path("codex-core-pr-review-body", "md");
+    fs::write(&payload_path, review_body)
+        .with_context(|| format!("failed to write {}", payload_path.display()))?;
 
     let result = run_gh(
         vec![
-            "api".to_string(),
-            format!(
-                "repos/{}/{}/pulls/{}/comments",
-                pr_ref.owner, pr_ref.repo, pr_ref.number
-            ),
-            "-H".to_string(),
-            "Accept: application/vnd.github+json".to_string(),
-            "--input".to_string(),
+            "pr".to_string(),
+            "review".to_string(),
+            pr_ref.number.to_string(),
+            "--repo".to_string(),
+            pr_ref.repo_name_with_owner(),
+            "--comment".to_string(),
+            "--body-file".to_string(),
             payload_path.to_string_lossy().into_owned(),
         ],
         None,
@@ -642,9 +552,7 @@ mod tests {
     }
 
     #[test]
-    fn extracts_json_object_from_fenced_output() {
-        let output = "```json\n{\"summary\":\"ok\",\"comments\":[]}\n```";
-        let json = extract_json_object(output).unwrap();
-        assert_eq!(json, "{\"summary\":\"ok\",\"comments\":[]}");
+    fn rejects_invalid_pull_request_reference() {
+        assert!(parse_pull_request_reference("not-a-pr").is_err());
     }
 }

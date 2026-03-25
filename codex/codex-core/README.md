@@ -33,7 +33,7 @@ codex-core noninteractive run --help
   - `worker loop` starts a fresh `codex exec` run on every iteration; continuity is expected to come from your plan/prompt files, not from thread resume.
   - Important loop flags: `--prompt-file`, `--cd`, `--interval-seconds`, `--max-iterations`, `--stop-phrase`, `--once`, `--model`, `--full-auto`, `--dangerously-bypass-approvals-and-sandbox`, `--skip-git-repo-check`.
   - `review list --json` returns open PRs across your personal repos and orgs from `gh`.
-  - `review run <pr-url|owner/repo#number>` checks out the PR into `/tmp`, runs `codex review --base <base>`, and posts inline GitHub review comments via `gh`.
+  - `review run <pr-url|owner/repo#number>` checks out the PR into `/tmp`, runs native `codex review --base <base>`, and posts the review text as a PR review comment via `gh`.
   - On macOS, worker commands try to enable `caffeinate` while running.
   - State defaults to `~/.codex/agents` and can be overridden with `CODEX_AGENTS_HOME`.
 - Sessions commands:
