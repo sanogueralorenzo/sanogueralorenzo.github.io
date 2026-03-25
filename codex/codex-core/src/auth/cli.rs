@@ -42,11 +42,8 @@ pub enum Commands {
 pub struct SaveArgs {
     pub profile: String,
 
-    #[arg(long, value_name = "auth.json", conflicts_with = "from_current")]
+    #[arg(long, value_name = "auth.json")]
     pub path: Option<PathBuf>,
-
-    #[arg(long)]
-    pub from_current: bool,
 }
 
 #[derive(Args, Debug)]

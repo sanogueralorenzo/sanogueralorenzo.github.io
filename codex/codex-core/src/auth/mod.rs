@@ -52,7 +52,6 @@ fn run(cli: Cli) -> Result<()> {
             let source = if let Some(path) = args.path {
                 ProfileSource::Path(expand_tilde(path))
             } else {
-                let _ = args.from_current;
                 ProfileSource::Current
             };
 
