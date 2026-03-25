@@ -15,6 +15,7 @@ Desktop.ini
 
 # -------------------- Rust Generated --------------------
 codex-*/target/
+codexhub/target/
 
 # -------------------- Android / Gradle Generated --------------------
 
