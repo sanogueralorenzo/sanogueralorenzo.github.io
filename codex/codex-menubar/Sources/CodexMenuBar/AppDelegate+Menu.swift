@@ -223,6 +223,12 @@ extension AppDelegate {
                 }
             }
 
+            for index in groupedPullRequests.indices {
+                groupedPullRequests[index].pullRequests.sort { left, right in
+                    left.updatedAt > right.updatedAt
+                }
+            }
+
             for (index, group) in groupedPullRequests.enumerated() {
                 let repositoryItem = NSMenuItem(title: group.repository,
                                                 action: #selector(openReviewRepository(_:)),
