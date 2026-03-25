@@ -19,7 +19,8 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let repo: String
         let number: Int
         let url: String
-        let postedReview: Bool
+        let postedComments: Int
+        let failedComments: Int
         let summary: String
     }
 

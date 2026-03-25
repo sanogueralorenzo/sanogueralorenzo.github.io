@@ -228,7 +228,8 @@ extension AppDelegate {
                         title: "Review Complete",
                         message: """
                         PR: \(result.repo)#\(result.number)
-                        Posted review: \(result.postedReview ? "Yes" : "No")
+                        Posted comments: \(result.postedComments)
+                        Failed comments: \(result.failedComments)
                         Summary: \(result.summary)
                         """
                     )

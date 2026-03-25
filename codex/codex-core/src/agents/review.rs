@@ -1,12 +1,14 @@
-use anyhow::{Context, Result, bail};
 use crate::core::temp::temp_file_path;
+use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use uuid::Uuid;
 
 const VIEWER_QUERY: &str = r#"
@@ -48,7 +50,7 @@ query($searchQuery: String!, $endCursor: String) {
 pub enum ReviewCommand {
     /// List open pull requests across your repos and orgs
     List(ReviewListArgs),
-    /// Review one pull request and post a PR review comment
+    /// Review one pull request and post inline findings
     Run(ReviewRunArgs),
 }
 
@@ -89,7 +91,8 @@ pub struct ReviewRunResult {
     pub repo: String,
     pub number: u64,
     pub url: String,
-    pub posted_review: bool,
+    pub posted_comments: usize,
+    pub failed_comments: usize,
     pub summary: String,
 }
 
@@ -169,6 +172,40 @@ struct ReviewWorkspace {
     repo_dir: PathBuf,
 }
 
+#[derive(Debug, Deserialize)]
+struct ReviewOutputEvent {
+    findings: Vec<ReviewFinding>,
+    overall_correctness: String,
+    overall_explanation: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ReviewFinding {
+    title: String,
+    body: String,
+    confidence_score: f32,
+    priority: Option<i32>,
+    code_location: ReviewCodeLocation,
+}
+
+#[derive(Debug, Deserialize)]
+struct ReviewCodeLocation {
+    absolute_file_path: PathBuf,
+    line_range: ReviewLineRange,
+}
+
+#[derive(Debug, Deserialize)]
+struct ReviewLineRange {
+    start: u32,
+    end: u32,
+}
+
+struct UpstreamReviewPrompts {
+    review_rubric: String,
+    base_branch_prompt: String,
+    base_branch_prompt_backup: String,
+}
+
 impl Drop for ReviewWorkspace {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.root);
@@ -216,8 +253,28 @@ fn run_review(args: ReviewRunArgs) -> Result<()> {
     let pr_ref = parse_pull_request_reference(&args.pull_request)?;
     let pull_request = fetch_pull_request_view(&pr_ref)?;
     let workspace = checkout_pull_request(&pr_ref)?;
-    let review_body = run_codex_review(&workspace.repo_dir, &pull_request.base_ref_name)?;
-    let result = post_review_comment(&pr_ref, &pull_request, review_body)?;
+    let upstream_prompts = load_upstream_review_prompts()?;
+    let merge_base = resolve_merge_base(&workspace.repo_dir, &pull_request.base_ref_name)?;
+    let review_request = build_base_branch_review_request(
+        &upstream_prompts,
+        &pull_request.base_ref_name,
+        merge_base.as_deref(),
+    );
+    let prompt = build_inline_review_prompt(
+        &upstream_prompts.review_rubric,
+        &review_request,
+        &workspace.repo_dir,
+    );
+    let review = run_codex_exec_review(&workspace.repo_dir, &prompt)?;
+    let changed_lines =
+        collect_changed_right_side_lines(&workspace.repo_dir, &pull_request.base_ref_name)?;
+    let result = post_review_comments(
+        &pr_ref,
+        &workspace.repo_dir,
+        &pull_request,
+        review,
+        &changed_lines,
+    )?;
 
     if args.json {
         println!(
@@ -228,12 +285,16 @@ fn run_review(args: ReviewRunArgs) -> Result<()> {
     }
 
     if args.plain {
-        println!("{} {}", result.url, result.posted_review);
+        println!(
+            "{} {} {}",
+            result.url, result.posted_comments, result.failed_comments
+        );
         return Ok(());
     }
 
     println!("Reviewed {}", result.url);
-    println!("Posted review: {}", result.posted_review);
+    println!("Posted comments: {}", result.posted_comments);
+    println!("Failed comments: {}", result.failed_comments);
     println!("Summary: {}", result.summary);
     Ok(())
 }
@@ -369,70 +430,374 @@ fn checkout_pull_request(pr_ref: &PullRequestReference) -> Result<ReviewWorkspac
     Ok(ReviewWorkspace { root, repo_dir })
 }
 
-fn run_codex_review(repo_dir: &Path, base_ref_name: &str) -> Result<String> {
-    let output = Command::new("codex")
+fn load_upstream_review_prompts() -> Result<UpstreamReviewPrompts> {
+    let review_rubric = fetch_upstream_file("codex-rs/core/review_prompt.md")?;
+    let review_prompts_source = fetch_upstream_file("codex-rs/core/src/review_prompts.rs")?;
+
+    Ok(UpstreamReviewPrompts {
+        review_rubric,
+        base_branch_prompt: extract_rust_string_constant(
+            &review_prompts_source,
+            "BASE_BRANCH_PROMPT",
+        )?,
+        base_branch_prompt_backup: extract_rust_string_constant(
+            &review_prompts_source,
+            "BASE_BRANCH_PROMPT_BACKUP",
+        )?,
+    })
+}
+
+fn fetch_upstream_file(path: &str) -> Result<String> {
+    run_gh(
+        vec![
+            "api".to_string(),
+            format!("repos/openai/codex/contents/{path}?ref=main"),
+            "-H".to_string(),
+            "Accept: application/vnd.github.raw".to_string(),
+        ],
+        None,
+    )
+    .with_context(|| format!("failed to fetch upstream {path} from openai/codex main"))
+}
+
+fn extract_rust_string_constant(source: &str, constant_name: &str) -> Result<String> {
+    let marker = format!("const {constant_name}: &str = ");
+    let start = source
+        .find(&marker)
+        .with_context(|| format!("missing upstream constant {constant_name}"))?;
+    let rhs_start = start + marker.len();
+    let rhs = source[rhs_start..]
+        .split_once(';')
+        .map(|(value, _)| value.trim())
+        .with_context(|| format!("failed to parse upstream constant {constant_name}"))?;
+
+    if rhs.starts_with('"') {
+        return serde_json::from_str(rhs)
+            .with_context(|| format!("failed to decode upstream constant {constant_name}"));
+    }
+
+    bail!("unsupported upstream constant format for {constant_name}")
+}
+
+fn resolve_merge_base(repo_dir: &Path, base_ref_name: &str) -> Result<Option<String>> {
+    let origin_base = format!("origin/{base_ref_name}");
+    let output = Command::new("git")
+        .current_dir(repo_dir)
+        .arg("merge-base")
+        .arg("HEAD")
+        .arg(&origin_base)
+        .output()
+        .context("failed to launch git merge-base")?;
+
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    let merge_base = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if merge_base.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(merge_base))
+}
+
+fn build_base_branch_review_request(
+    prompts: &UpstreamReviewPrompts,
+    base_ref_name: &str,
+    merge_base: Option<&str>,
+) -> String {
+    if let Some(merge_base) = merge_base {
+        return prompts
+            .base_branch_prompt
+            .replace("{baseBranch}", base_ref_name)
+            .replace("{mergeBaseSha}", merge_base);
+    }
+
+    prompts
+        .base_branch_prompt_backup
+        .replace("{branch}", base_ref_name)
+}
+
+fn build_inline_review_prompt(
+    review_rubric: &str,
+    review_request: &str,
+    repo_dir: &Path,
+) -> String {
+    format!(
+        "{review_rubric}\n\nADDITIONAL RUN-SPECIFIC REQUIREMENTS:\n- Return only JSON matching the schema above.\n- Only include findings whose code_location overlaps changed right-side lines in the current PR diff.\n- code_location.absolute_file_path must be an absolute path inside {}.\n- If a finding cannot be mapped to a changed line, omit it.\n- Do not wrap the JSON in markdown fences or add extra prose.\n\nReview request:\n{review_request}\n",
+        repo_dir.display()
+    )
+}
+
+fn run_codex_exec_review(repo_dir: &Path, prompt: &str) -> Result<ReviewOutputEvent> {
+    let output_last_message = temp_file_path("codex-core-review-last-message", "txt");
+    let mut command = Command::new("codex");
+    command
         .current_dir(repo_dir)
         .env("NO_COLOR", "1")
-        .arg("review")
-        .arg("--base")
-        .arg(base_ref_name)
-        .output()
-        .context("failed to launch codex review")?;
+        .arg("exec")
+        .arg("--json")
+        .arg("--full-auto")
+        .arg("--output-last-message")
+        .arg(&output_last_message)
+        .arg("-");
+    command.stdin(Stdio::piped());
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+
+    let mut child = command.spawn().context("failed to launch codex exec")?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(prompt.as_bytes())
+            .context("failed to write review prompt to codex exec")?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .context("failed while waiting for codex exec")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let trimmed = stderr.trim();
         if trimmed.is_empty() {
             bail!(
-                "codex review exited with status {}",
+                "codex exec exited with status {}",
                 output.status.code().unwrap_or(1)
             );
         }
         bail!(
-            "codex review exited with status {}: {}",
+            "codex exec exited with status {}: {}",
             output.status.code().unwrap_or(1),
             trimmed
         );
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if stdout.is_empty() {
-        bail!("codex review returned empty output");
-    }
-    Ok(stdout)
+    let last_message = fs::read_to_string(&output_last_message)
+        .with_context(|| format!("failed to read {}", output_last_message.display()))?;
+    let _ = fs::remove_file(&output_last_message);
+    parse_review_output_event(&last_message)
 }
 
-fn post_review_comment(
+fn parse_review_output_event(text: &str) -> Result<ReviewOutputEvent> {
+    if let Ok(event) = serde_json::from_str::<ReviewOutputEvent>(text) {
+        return Ok(event);
+    }
+
+    if let (Some(start), Some(end)) = (text.find('{'), text.rfind('}'))
+        && start < end
+        && let Some(slice) = text.get(start..=end)
+        && let Ok(event) = serde_json::from_str::<ReviewOutputEvent>(slice)
+    {
+        return Ok(event);
+    }
+
+    bail!("codex exec review output was not valid review JSON")
+}
+
+fn collect_changed_right_side_lines(
+    repo_dir: &Path,
+    base_ref_name: &str,
+) -> Result<HashMap<String, HashSet<u32>>> {
+    let diff_target = format!("origin/{base_ref_name}...HEAD");
+    let output = Command::new("git")
+        .current_dir(repo_dir)
+        .arg("diff")
+        .arg("--unified=0")
+        .arg("--no-color")
+        .arg(&diff_target)
+        .output()
+        .context("failed to launch git diff")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git diff failed: {}", stderr.trim());
+    }
+
+    Ok(parse_changed_right_side_lines(&String::from_utf8_lossy(
+        &output.stdout,
+    )))
+}
+
+fn parse_changed_right_side_lines(diff_text: &str) -> HashMap<String, HashSet<u32>> {
+    let mut changed_lines: HashMap<String, HashSet<u32>> = HashMap::new();
+    let mut current_path: Option<String> = None;
+    let mut current_new_line = 0u32;
+
+    for line in diff_text.lines() {
+        if let Some(path) = line.strip_prefix("+++ b/") {
+            current_path = Some(path.to_string());
+            continue;
+        }
+
+        if line.starts_with("+++ /dev/null") {
+            current_path = None;
+            continue;
+        }
+
+        if let Some(hunk) = line.strip_prefix("@@ ") {
+            if let Some((_, rest)) = hunk.split_once('+') {
+                let new_span = rest.split(' ').next().unwrap_or_default();
+                let new_start = new_span
+                    .split(',')
+                    .next()
+                    .unwrap_or("0")
+                    .parse::<u32>()
+                    .unwrap_or(0);
+                current_new_line = new_start;
+            }
+            continue;
+        }
+
+        let Some(path) = current_path.as_ref() else {
+            continue;
+        };
+
+        if line.starts_with('+') && !line.starts_with("+++") {
+            changed_lines
+                .entry(path.clone())
+                .or_default()
+                .insert(current_new_line);
+            current_new_line += 1;
+            continue;
+        }
+
+        if line.starts_with('-') && !line.starts_with("---") {
+            continue;
+        }
+
+        if line.starts_with(' ') {
+            current_new_line += 1;
+        }
+    }
+
+    changed_lines
+}
+
+fn post_review_comments(
     pr_ref: &PullRequestReference,
+    repo_dir: &Path,
     pull_request: &PullRequestView,
-    review_body: String,
+    review: ReviewOutputEvent,
+    changed_lines: &HashMap<String, HashSet<u32>>,
 ) -> Result<ReviewRunResult> {
-    post_pull_request_review(pr_ref, &review_body)?;
+    let mut posted_comments = 0usize;
+    let mut failed_comments = 0usize;
+    let summary = summarize_review(&review);
+
+    for finding in &review.findings {
+        let path = match normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir)
+        {
+            Ok(path) => path,
+            Err(_) => {
+                failed_comments += 1;
+                continue;
+            }
+        };
+        let Some(line) =
+            select_comment_line(&finding.code_location.line_range, changed_lines.get(&path))
+        else {
+            failed_comments += 1;
+            continue;
+        };
+        let body = render_inline_comment_body(&finding);
+        if post_inline_comment(pr_ref, &path, line, &body).is_ok() {
+            posted_comments += 1;
+        } else {
+            failed_comments += 1;
+        }
+    }
 
     Ok(ReviewRunResult {
         owner: pr_ref.owner.clone(),
         repo: pr_ref.repo.clone(),
         number: pull_request.number,
         url: pull_request.url.clone(),
-        posted_review: true,
-        summary: review_body,
+        posted_comments,
+        failed_comments,
+        summary,
     })
 }
 
-fn post_pull_request_review(pr_ref: &PullRequestReference, review_body: &str) -> Result<()> {
-    let payload_path = temp_file_path("codex-core-pr-review-body", "md");
-    fs::write(&payload_path, review_body)
-        .with_context(|| format!("failed to write {}", payload_path.display()))?;
+fn summarize_review(review: &ReviewOutputEvent) -> String {
+    let explanation = review.overall_explanation.trim();
+    if explanation.is_empty() {
+        return review.overall_correctness.clone();
+    }
+    if review.overall_correctness.trim().is_empty() {
+        return explanation.to_string();
+    }
+    format!("{}: {}", review.overall_correctness.trim(), explanation)
+}
+
+fn normalize_comment_path(path: &Path, repo_dir: &Path) -> Result<String> {
+    let relative = path.strip_prefix(repo_dir).with_context(|| {
+        format!(
+            "comment path is outside checked out repo: {}",
+            path.display()
+        )
+    })?;
+    Ok(relative.to_string_lossy().into_owned())
+}
+
+fn select_comment_line(
+    line_range: &ReviewLineRange,
+    changed_lines: Option<&HashSet<u32>>,
+) -> Option<u32> {
+    let changed_lines = changed_lines?;
+    (line_range.start..=line_range.end.max(line_range.start))
+        .find(|line| changed_lines.contains(line))
+}
+
+fn render_inline_comment_body(finding: &ReviewFinding) -> String {
+    let mut lines = vec![
+        finding.title.trim().to_string(),
+        String::new(),
+        finding.body.trim().to_string(),
+    ];
+    if let Some(priority) = finding.priority {
+        lines.push(String::new());
+        lines.push(format!("Priority: P{priority}"));
+    }
+    lines.push(format!("Confidence: {:.2}", finding.confidence_score));
+    lines.join("\n")
+}
+
+fn post_inline_comment(
+    pr_ref: &PullRequestReference,
+    path: &str,
+    line: u32,
+    body: &str,
+) -> Result<()> {
+    if line == 0 {
+        bail!("codex review returned invalid line 0 for {path}");
+    }
+    if body.trim().is_empty() {
+        bail!("codex review returned an empty comment body for {path}:{line}");
+    }
+
+    let payload_path = temp_file_path("codex-core-pr-review-comment", "json");
+    let payload = serde_json::json!({
+        "body": body.trim(),
+        "path": path,
+        "line": line,
+        "side": "RIGHT"
+    });
+    fs::write(
+        &payload_path,
+        serde_json::to_vec(&payload).context("failed to serialize PR comment payload")?,
+    )
+    .with_context(|| format!("failed to write {}", payload_path.display()))?;
 
     let result = run_gh(
         vec![
-            "pr".to_string(),
-            "review".to_string(),
-            pr_ref.number.to_string(),
-            "--repo".to_string(),
-            pr_ref.repo_name_with_owner(),
-            "--comment".to_string(),
-            "--body-file".to_string(),
+            "api".to_string(),
+            format!(
+                "repos/{}/{}/pulls/{}/comments",
+                pr_ref.owner, pr_ref.repo, pr_ref.number
+            ),
+            "-H".to_string(),
+            "Accept: application/vnd.github+json".to_string(),
+            "--input".to_string(),
             payload_path.to_string_lossy().into_owned(),
         ],
         None,
@@ -461,7 +826,10 @@ fn run_gh(args: Vec<String>, cwd: Option<&Path>) -> Result<String> {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let trimmed = stderr.trim();
         if trimmed.is_empty() {
-            bail!("gh command failed with status {}", output.status.code().unwrap_or(1));
+            bail!(
+                "gh command failed with status {}",
+                output.status.code().unwrap_or(1)
+            );
         }
         bail!("{trimmed}");
     }
@@ -554,5 +922,32 @@ mod tests {
     #[test]
     fn rejects_invalid_pull_request_reference() {
         assert!(parse_pull_request_reference("not-a-pr").is_err());
+    }
+
+    #[test]
+    fn extracts_upstream_string_constant() {
+        let source = r#"const BASE_BRANCH_PROMPT: &str = "hello {baseBranch}";"#;
+        let value = extract_rust_string_constant(source, "BASE_BRANCH_PROMPT").unwrap();
+        assert_eq!(value, "hello {baseBranch}");
+    }
+
+    #[test]
+    fn parses_changed_right_side_lines_from_diff() {
+        let diff = "\
+diff --git a/src/app.rs b/src/app.rs
+index 1111111..2222222 100644
+--- a/src/app.rs
++++ b/src/app.rs
+@@ -10,0 +11,2 @@
++let added = true;
++let next = true;
+@@ -20 +22,0 @@
+-let removed = true;
+";
+        let changed = parse_changed_right_side_lines(diff);
+        let lines = changed.get("src/app.rs").unwrap();
+        assert!(lines.contains(&11));
+        assert!(lines.contains(&12));
+        assert!(!lines.contains(&22));
     }
 }
