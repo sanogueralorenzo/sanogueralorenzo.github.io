@@ -32,7 +32,7 @@ query($searchQuery: String!, $endCursor: String) {
         number
         title
         url
-        updatedAt
+        createdAt
         repository {
           name
           nameWithOwner
@@ -84,7 +84,7 @@ pub struct ReviewPullRequest {
     pub number: u64,
     pub title: String,
     pub url: String,
-    pub updated_at: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -150,8 +150,8 @@ struct SearchPullRequest {
     number: u64,
     title: String,
     url: String,
-    #[serde(rename = "updatedAt")]
-    updated_at: String,
+    #[serde(rename = "createdAt")]
+    created_at: String,
     repository: SearchRepository,
 }
 
@@ -327,7 +327,7 @@ fn load_open_pull_requests(config: &AgentsConfig) -> Result<Vec<ReviewPullReques
         }
     }
 
-    pull_requests.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    pull_requests.sort_by(|a, b| b.created_at.cmp(&a.created_at));
     Ok(pull_requests)
 }
 
@@ -387,7 +387,7 @@ fn search_open_pull_requests_for_owner(owner: &ReviewOwner) -> Result<Vec<Review
                 number: node.number,
                 title: node.title,
                 url: node.url,
-                updated_at: node.updated_at,
+                created_at: node.created_at,
             });
         }
     }

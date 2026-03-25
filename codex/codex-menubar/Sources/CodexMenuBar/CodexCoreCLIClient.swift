@@ -17,7 +17,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let number: Int
         let title: String
         let url: String
-        let updatedAt: String
+        let createdAt: String
 
         var repositoryFullName: String {
             "\(owner)/\(repo)"

@@ -225,7 +225,7 @@ extension AppDelegate {
 
             for index in groupedPullRequests.indices {
                 groupedPullRequests[index].pullRequests.sort { left, right in
-                    left.updatedAt > right.updatedAt
+                    left.createdAt > right.createdAt
                 }
             }
 
