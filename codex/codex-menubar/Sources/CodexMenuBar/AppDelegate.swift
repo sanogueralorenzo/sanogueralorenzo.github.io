@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import Foundation
 import Observation
 
@@ -14,10 +15,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         label: "io.github.sanogueralorenzo.codex-menubar.auto-remove",
         qos: .utility
     )
+    let reviewStatusWatcherQueue = DispatchQueue(
+        label: "io.github.sanogueralorenzo.codex-menubar.review-status",
+        qos: .utility
+    )
     var autoRemoveSchedulerTimer: DispatchSourceTimer?
     let autoRemoveIntervalMinutes = 60
-    var activeReviewRunCount = 0
-    var reviewStatusRefreshTimer: DispatchSourceTimer?
+    var reviewStatusWatcher: DispatchSourceFileSystemObject?
+    var reviewStatusWatcherFileDescriptor: CInt = -1
     var statusItem: NSStatusItem!
     private var isMenuOpen = false
     private var needsRenderAfterMenuClose = false
@@ -58,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
 
         startAutoRemoveScheduler()
+        startReviewStatusWatcher()
         observeMenuDataChanges()
         renderMenu()
         refreshUI()
@@ -129,6 +135,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.runModal()
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        stopReviewStatusWatcher()
+    }
+
     private func renderMenu() {
         refreshTitle()
         if let menu = statusItem.menu {
@@ -174,6 +184,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.refreshUI()
             }
         }
+    }
+
+    private func startReviewStatusWatcher() {
+        stopReviewStatusWatcher()
+
+        let reviewsDirectoryURL = reviewStatusDirectoryURL()
+        do {
+            try FileManager.default.createDirectory(
+                at: reviewsDirectoryURL,
+                withIntermediateDirectories: true
+            )
+        } catch {
+            fputs("Warning: failed to create review status directory: \(error)\n", stderr)
+            return
+        }
+
+        let fileDescriptor = open(reviewsDirectoryURL.path, O_EVTONLY)
+        guard fileDescriptor >= 0 else {
+            fputs("Warning: failed to watch review status directory: \(reviewsDirectoryURL.path)\n", stderr)
+            return
+        }
+
+        let watcher = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fileDescriptor,
+            eventMask: [.write, .rename, .delete, .extend, .attrib],
+            queue: reviewStatusWatcherQueue
+        )
+
+        watcher.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                self?.refreshUI()
+            }
+        }
+
+        watcher.setCancelHandler { [fileDescriptor] in
+            close(fileDescriptor)
+        }
+
+        reviewStatusWatcherFileDescriptor = fileDescriptor
+        reviewStatusWatcher = watcher
+        watcher.resume()
+    }
+
+    private func stopReviewStatusWatcher() {
+        reviewStatusWatcher?.cancel()
+        reviewStatusWatcher = nil
+        reviewStatusWatcherFileDescriptor = -1
+    }
+
+    private func reviewStatusDirectoryURL() -> URL {
+        if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
+           !configuredHome.isEmpty {
+            return URL(fileURLWithPath: configuredHome, isDirectory: true)
+                .appendingPathComponent("reviews", isDirectory: true)
+        }
+
+        return FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".codex", isDirectory: true)
+            .appendingPathComponent("agents", isDirectory: true)
+            .appendingPathComponent("reviews", isDirectory: true)
     }
 }
 
