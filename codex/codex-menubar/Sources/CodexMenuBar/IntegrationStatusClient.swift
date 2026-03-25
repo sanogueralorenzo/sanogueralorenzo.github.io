@@ -32,9 +32,7 @@ enum IntegrationStatusClient {
 
         let result = run(executablePath: executablePath, arguments: ["auth", "status"])
         if result.exitCode == 0 {
-            let combined = [result.stdout, result.stderr]
-                .joined(separator: "\n")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let combined = combinedOutput(from: result)
             let detail = githubAccountDetail(from: combined)
             return IntegrationStatus(
                 toolName: "gh",
@@ -79,11 +77,13 @@ enum IntegrationStatusClient {
 
         let result = run(executablePath: executablePath, arguments: ["jira", "project", "list", "--limit", "1"])
         if result.exitCode == 0 {
+            let authStatus = run(executablePath: executablePath, arguments: ["jira", "auth", "status"])
+            let detail = jiraAccountDetail(from: combinedOutput(from: authStatus)) ?? "Jira: Connected"
             return IntegrationStatus(
                 toolName: "acli",
                 state: .ready(
                     summary: "Connected",
-                    detail: "Jira access verified."
+                    detail: detail
                 )
             )
         }
@@ -144,7 +144,21 @@ enum IntegrationStatusClient {
     private static func githubAccountDetail(from text: String) -> String? {
         for line in text.split(separator: "\n").map(String.init) {
             if let range = line.range(of: "Logged in to github.com account ") {
-                return String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                let account = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                let normalized = account.split(separator: " ").first.map(String.init) ?? account
+                return "GitHub: \(normalized)"
+            }
+        }
+        return nil
+    }
+
+    private static func jiraAccountDetail(from text: String) -> String? {
+        for line in text.split(separator: "\n").map(String.init) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let value = trimmed.split(separator: ":", maxSplits: 1).dropFirst().first,
+               trimmed.hasPrefix("Email:")
+            {
+                return "Jira: \(value.trimmingCharacters(in: .whitespaces))"
             }
         }
         return nil
