@@ -318,7 +318,7 @@ extension AppDelegate {
         case .needsAttention:
             return "X "
         case .inProgress:
-            return "— "
+            return "· "
         }
     }
 
