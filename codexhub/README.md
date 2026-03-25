@@ -9,7 +9,7 @@
 
 ```shell
 ./scripts/install.sh
-codexhub rpc --listen stdio://
+codexhub app-server --listen stdio://
 codexhub sessions ls --json
 codexhub noninteractive run --help
 ```
@@ -17,7 +17,7 @@ codexhub noninteractive run --help
 ## Reference
 
 - App-server passthrough:
-  - `codexhub rpc --listen stdio://` forwards to `codex app-server --listen stdio://`.
+  - `codexhub app-server --listen stdio://` forwards to `codex app-server --listen stdio://`.
 - Sessions commands:
   - `codexhub sessions ...` manages session lifecycle, titles, merge, and cleanup.
   - Primary verbs: `ls`, `show`, `rm`, `archive`, `restore`, `prune`.

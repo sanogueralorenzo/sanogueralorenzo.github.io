@@ -52,7 +52,7 @@ help     Print this help output.
 - `.env`
 - `codexhub` on `PATH` (installed by root `./install.sh` or `../codexhub/scripts/install.sh`)
 - `codexhub` command surfaces used by remote:
-  - `rpc` (for app-server transport)
+  - `app-server` (for app-server transport)
   - `sessions` (for thread/session operations)
 - `CODEXHUB_BIN` (optional override path/name; defaults to `codexhub`)
 - `TELEGRAM_BOT_TOKEN`

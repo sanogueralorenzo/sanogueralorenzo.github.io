@@ -12,7 +12,7 @@ fn main() -> ExitCode {
     let forwarded_args: Vec<OsString> = args.iter().skip(1).cloned().collect();
 
     match forwarded_args.first().and_then(|value| value.to_str()) {
-        Some("rpc") => ExitCode::from(rpc::run_from(forwarded_args)),
+        Some("app-server") => ExitCode::from(rpc::run_from(forwarded_args)),
         Some("sessions") => ExitCode::from(sessions::run_from(forwarded_args)),
         Some("noninteractive") => ExitCode::from(noninteractive::run_from(forwarded_args)),
         Some("help") | Some("--help") | Some("-h") | None => {
@@ -30,12 +30,12 @@ fn main() -> ExitCode {
 
 fn print_help() {
     println!("Usage:");
-    println!("  codexhub rpc [-- app-server-options]");
+    println!("  codexhub app-server [-- app-server-options]");
     println!("  codexhub sessions <command> [options]");
     println!("  codexhub noninteractive run|resume|review [wrapper-options]");
     println!();
     println!("Commands:");
-    println!("  rpc             Run codex app-server passthrough.");
+    println!("  app-server      Run codex app-server passthrough.");
     println!("  sessions        Manage local Codex session files.");
     println!("  noninteractive  Run standardized non-interactive Codex wrappers.");
     println!("  help            Print this help output.");

@@ -9,18 +9,12 @@ pub fn run_from(args: Vec<OsString>) -> u8 {
         return 0;
     };
 
-    if command.to_string_lossy() != "rpc" {
-        eprintln!("Internal error: expected 'rpc' route.");
+    if command.to_string_lossy() != "app-server" {
+        eprintln!("Internal error: expected 'app-server' route.");
         return 1;
     }
 
     let app_server_args: Vec<OsString> = iter.collect();
-    if app_server_args.first().and_then(|value| value.to_str()) == Some("app-server") {
-        eprintln!("Do not include 'app-server' after 'codexhub rpc'.");
-        eprintln!("Use: codexhub rpc --listen stdio://");
-        return 2;
-    }
-
     let status = match Command::new("codex")
         .arg("app-server")
         .args(app_server_args)
@@ -41,7 +35,7 @@ pub fn run_from(args: Vec<OsString>) -> u8 {
 
 fn print_rpc_help() {
     println!("Usage:");
-    println!("  codexhub rpc [-- app-server-options]");
+    println!("  codexhub app-server [-- app-server-options]");
     println!();
     println!("Description:");
     println!("  Runs 'codex app-server' as a passthrough command.");

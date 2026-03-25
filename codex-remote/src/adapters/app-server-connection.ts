@@ -38,7 +38,7 @@ type JsonRpcMessage = JsonRpcSuccess | JsonRpcError | JsonRpcNotification | Json
 type NotificationHandler = (notification: JsonRpcNotification) => void;
 
 export class AppServerConnection {
-  private readonly child = spawn(CODEXHUB_BIN, ["rpc", "--listen", "stdio://"], {
+  private readonly child = spawn(CODEXHUB_BIN, ["app-server", "--listen", "stdio://"], {
     stdio: ["pipe", "pipe", "pipe"],
     env: process.env
   });
