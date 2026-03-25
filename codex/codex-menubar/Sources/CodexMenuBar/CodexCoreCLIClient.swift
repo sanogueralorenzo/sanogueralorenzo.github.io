@@ -75,10 +75,6 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         var repositoryFullName: String {
             "\(owner)/\(repo)"
         }
-
-        var displayTitle: String {
-            "#\(number) \(repo)"
-        }
     }
 
     enum AutoRemoveMode: String {

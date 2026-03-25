@@ -278,14 +278,6 @@ extension AppDelegate {
         NSWorkspace.shared.open(url)
     }
 
-    @objc func openReviewPullRequestURL(_ sender: NSMenuItem) {
-        guard let pullRequestURL = sender.representedObject as? String,
-              let url = URL(string: pullRequestURL) else {
-            return
-        }
-        NSWorkspace.shared.open(url)
-    }
-
     @objc func viewCodexAgentTask(_ sender: NSMenuItem) {
         // MOCK placeholder: this will open real task details when agent backend is integrated.
     }
