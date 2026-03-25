@@ -32,6 +32,7 @@
 - `Agents -> Review` keeps the open PR list and appends persisted review job `status` markers on matching PR rows: `-` in progress, `X` needs attention, `✓` published.
 - `Agents -> Review` groups pull requests by repository; clicking a repository row opens its GitHub page.
 - `Agents -> Review` shows PR rows as `#<number> <title>`.
+- Starting a review triggers background refresh polling so in-progress markers can appear before the review completes.
 - `Agents -> Settings` opens immediately, then loads GitHub repos in the background through `codex-core agents config ...`.
 - `Agents -> Settings` shows an `Integrations` section with `gh` and `acli` status pills plus setup instructions when needed.
 - `Agents -> Settings` centers the `gh` and `acli` labels inside their rounded status pills.

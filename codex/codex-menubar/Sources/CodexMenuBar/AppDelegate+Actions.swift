@@ -229,6 +229,7 @@ extension AppDelegate {
             return
         }
 
+        beginReviewStatusRefresh()
         let sessionsCLI = self.sessionsCLI
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else {
@@ -260,10 +261,12 @@ extension AppDelegate {
                         Summary: \(result.summary)\(failureText)
                         """
                     )
+                    self.endReviewStatusRefresh()
                     self.refreshUI()
                 }
             } catch {
                 DispatchQueue.main.async {
+                    self.endReviewStatusRefresh()
                     self.showError(error)
                 }
             }
@@ -435,6 +438,32 @@ extension AppDelegate {
 
     private func scheduleAutoRemoveRun(handler: @escaping @Sendable () -> Void) {
         autoRemoveQueue.async(execute: handler)
+    }
+
+    private func beginReviewStatusRefresh() {
+        activeReviewRunCount += 1
+        refreshUI()
+
+        guard reviewStatusRefreshTimer == nil else {
+            return
+        }
+
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + .seconds(1), repeating: .seconds(2))
+        timer.setEventHandler { [weak self] in
+            self?.refreshUI()
+        }
+        timer.resume()
+        reviewStatusRefreshTimer = timer
+    }
+
+    private func endReviewStatusRefresh() {
+        activeReviewRunCount = max(0, activeReviewRunCount - 1)
+        guard activeReviewRunCount == 0 else {
+            return
+        }
+        reviewStatusRefreshTimer?.cancel()
+        reviewStatusRefreshTimer = nil
     }
 
     private nonisolated static func makeAutoRemovePassHandler(

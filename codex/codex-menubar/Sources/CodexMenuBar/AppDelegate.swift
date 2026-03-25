@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     )
     var autoRemoveSchedulerTimer: DispatchSourceTimer?
     let autoRemoveIntervalMinutes = 60
+    var activeReviewRunCount = 0
+    var reviewStatusRefreshTimer: DispatchSourceTimer?
     var statusItem: NSStatusItem!
     private var isMenuOpen = false
     private var needsRenderAfterMenuClose = false
