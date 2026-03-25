@@ -314,11 +314,11 @@ extension AppDelegate {
         }
         switch state {
         case .published:
-            return "[✓] "
+            return "✓ "
         case .needsAttention:
-            return "[X] "
+            return "X "
         case .inProgress:
-            return "[—] "
+            return "— "
         }
     }
 
