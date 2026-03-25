@@ -253,10 +253,10 @@ extension AppDelegate {
                 reviewMenu.addItem(repositoryItem)
 
                 for pullRequest in group.pullRequests {
-                    let markerSuffix = reviewPullRequestStatusSuffix(
+                    let markerPrefix = reviewPullRequestStatusPrefix(
                         for: latestReviewJobByPullRequestURL[pullRequest.url]?.status
                     )
-                    let item = NSMenuItem(title: "\(pullRequest.shortMenuTitle)\(markerSuffix)",
+                    let item = NSMenuItem(title: "\(markerPrefix)\(pullRequest.shortMenuTitle)",
                                           action: #selector(reviewPullRequest(_:)),
                                           keyEquivalent: "")
                     item.target = self
@@ -308,17 +308,17 @@ extension AppDelegate {
         }
     }
 
-    private func reviewPullRequestStatusSuffix(for state: CodexCoreCLIClient.ReviewJob.Status?) -> String {
+    private func reviewPullRequestStatusPrefix(for state: CodexCoreCLIClient.ReviewJob.Status?) -> String {
         guard let state else {
-            return ""
+            return "[ ] "
         }
         switch state {
         case .published:
-            return " ✓"
+            return "[✓] "
         case .needsAttention:
-            return " X"
+            return "[X] "
         case .inProgress:
-            return " -"
+            return "[-] "
         }
     }
 

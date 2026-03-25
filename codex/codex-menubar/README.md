@@ -29,7 +29,7 @@
 - `Agents` includes a `View` submenu that combines running + recent tasks.
 - In `Agents -> View`, recent task labels are prefixed by status: `•` in progress, `✓` completed, `X` failed.
 - `Agents` includes a `Review` submenu populated from both `codex-core agents review jobs --json` and `codex-core agents review list --json`.
-- `Agents -> Review` keeps the open PR list and appends persisted review job `status` markers on matching PR rows: `-` in progress, `X` needs attention, `✓` published.
+- `Agents -> Review` keeps the open PR list and prefixes matching PR rows with bracketed persisted review job status markers: `[-]` in progress, `[X]` needs attention, `[✓]` published, `[ ]` when no persisted review exists yet.
 - `Agents -> Review` groups pull requests by repository; clicking a repository row opens its GitHub page.
 - `Agents -> Review` shows PR rows as `#<number> <title>`.
 - The menubar watches `~/.codex/agents/reviews` (or `CODEX_AGENTS_HOME/reviews`) so review status markers update from persisted job writes instead of timer polling.
