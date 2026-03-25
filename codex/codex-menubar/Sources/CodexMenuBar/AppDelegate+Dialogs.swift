@@ -54,7 +54,7 @@ struct CodexAgentSettingsSelection {
 @MainActor
 final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSWindowDelegate {
     private let projectHomeLabel = NSTextField(labelWithString: "")
-    private let projectHomeHint = NSTextField(labelWithString: "Used for project reuse. If unset, repos are checked out in /tmp and deleted after each run.")
+    private let projectHomeHint = NSTextField(labelWithString: "Reuse cloned repos here. If unset, each review checks out into /tmp and deletes the repo after it finishes.")
     private let progressIndicator = NSProgressIndicator()
     private let chooseButton = NSButton(title: "Choose Folder…", target: nil, action: nil)
     private let clearButton = NSButton(title: "Clear", target: nil, action: nil)
@@ -62,9 +62,9 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private let saveButton = NSButton(title: "Save", target: nil, action: nil)
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
-    private let reposHint = NSTextField(labelWithString: "Leave all unchecked to allow every available repo.")
-    private let defaultReposHint = "Leave all unchecked to allow every available repo."
-    private let loadingReposHint = "Loading GitHub Repositories"
+    private let reposHint = NSTextField(labelWithString: "Leave all unchecked to include every available repo.")
+    private let defaultReposHint = "Leave all unchecked to include every available repo."
+    private let loadingReposHint = "Loading GitHub repositories…"
 
     private let onSave: (CodexAgentSettingsSelection) -> Void
     private let onClose: () -> Void
@@ -211,7 +211,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         }
 
         if repos.isEmpty {
-            let label = NSTextField(labelWithString: "No GitHub repos available.")
+            let label = NSTextField(labelWithString: "No GitHub repos available for this account.")
             label.textColor = .secondaryLabelColor
             return label
         }
@@ -246,47 +246,56 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
             return
         }
 
+        let horizontalInset: CGFloat = 20
+        let contentWidth: CGFloat = 460
+
         let projectHomeTitle = NSTextField(labelWithString: "Home Project Folder")
         projectHomeTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        projectHomeTitle.frame = NSRect(x: 20, y: 510, width: 460, height: 20)
+        projectHomeTitle.frame = NSRect(x: horizontalInset, y: 510, width: contentWidth, height: 20)
         contentView.addSubview(projectHomeTitle)
 
         projectHomeLabel.lineBreakMode = .byTruncatingMiddle
-        projectHomeLabel.frame = NSRect(x: 20, y: 484, width: 460, height: 20)
+        projectHomeLabel.frame = NSRect(x: horizontalInset, y: 482, width: contentWidth, height: 20)
         contentView.addSubview(projectHomeLabel)
 
         projectHomeHint.textColor = .secondaryLabelColor
         projectHomeHint.lineBreakMode = .byWordWrapping
         projectHomeHint.maximumNumberOfLines = 2
-        projectHomeHint.frame = NSRect(x: 20, y: 454, width: 460, height: 28)
+        projectHomeHint.frame = NSRect(x: horizontalInset, y: 446, width: contentWidth, height: 34)
         contentView.addSubview(projectHomeHint)
 
         chooseButton.target = self
         chooseButton.action = #selector(chooseProjectHome(_:))
-        chooseButton.frame = NSRect(x: 20, y: 418, width: 140, height: 28)
+        chooseButton.bezelStyle = .rounded
+        chooseButton.frame = NSRect(x: horizontalInset, y: 408, width: 150, height: 30)
         contentView.addSubview(chooseButton)
 
         clearButton.target = self
         clearButton.action = #selector(clearProjectHome(_:))
-        clearButton.frame = NSRect(x: 170, y: 418, width: 80, height: 28)
+        clearButton.bezelStyle = .rounded
+        clearButton.frame = NSRect(x: 180, y: 408, width: 92, height: 30)
         contentView.addSubview(clearButton)
+
+        let divider = NSBox(frame: NSRect(x: horizontalInset, y: 382, width: contentWidth, height: 1))
+        divider.boxType = .separator
+        contentView.addSubview(divider)
 
         let reposTitle = NSTextField(labelWithString: "GitHub Repos")
         reposTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        reposTitle.frame = NSRect(x: 20, y: 380, width: 460, height: 20)
+        reposTitle.frame = NSRect(x: horizontalInset, y: 350, width: contentWidth, height: 20)
         contentView.addSubview(reposTitle)
 
         reposHint.textColor = .secondaryLabelColor
-        reposHint.frame = NSRect(x: 44, y: 358, width: 436, height: 18)
+        reposHint.frame = NSRect(x: 44, y: 326, width: 436, height: 18)
         contentView.addSubview(reposHint)
 
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.isDisplayedWhenStopped = false
-        progressIndicator.frame = NSRect(x: 20, y: 358, width: 16, height: 16)
+        progressIndicator.frame = NSRect(x: horizontalInset, y: 326, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
-        scrollView.frame = NSRect(x: 20, y: 80, width: 460, height: 270)
+        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 232)
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 
@@ -294,7 +303,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         column.width = 440
         tableView.addTableColumn(column)
         tableView.headerView = nil
-        tableView.rowHeight = 24
+        tableView.rowHeight = 26
         tableView.intercellSpacing = NSSize(width: 0, height: 2)
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.selectionHighlightStyle = .none
@@ -306,18 +315,21 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
         cancelButton.target = self
         cancelButton.action = #selector(cancel(_:))
+        cancelButton.bezelStyle = .rounded
         cancelButton.frame = NSRect(x: 300, y: 24, width: 80, height: 30)
         contentView.addSubview(cancelButton)
 
         saveButton.target = self
         saveButton.action = #selector(save(_:))
+        saveButton.bezelStyle = .rounded
         saveButton.frame = NSRect(x: 392, y: 24, width: 88, height: 30)
         saveButton.keyEquivalent = "\r"
         contentView.addSubview(saveButton)
     }
 
     private func updateProjectHomeLabel() {
-        projectHomeLabel.stringValue = projectHome ?? "No home project folder set."
+        projectHomeLabel.stringValue = projectHome ?? "No project folder selected."
+        projectHomeLabel.textColor = projectHome == nil ? .secondaryLabelColor : .labelColor
     }
 
     private func makeRepoCellView(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
