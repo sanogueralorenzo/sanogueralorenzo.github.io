@@ -33,6 +33,7 @@
 - `Agents -> Review` shows PR rows as `#<number> <title>`.
 - `Agents -> Settings` opens immediately, then loads GitHub repos in the background through `codex-core agents config ...`.
 - `Agents -> Settings` shows an `Integrations` section with `gh` and `acli` status pills plus setup instructions when needed.
+- `Agents -> Settings` centers the `gh` and `acli` labels inside their rounded status pills.
 - `Agents -> Settings` verifies `acli` through a read-only Jira command so the status reflects actual Jira access instead of `acli auth status`.
 - `Agents -> Settings` shows a `GitHub Repos` section for review filtering.
 - `Agents -> Settings` includes a local repository search field that filters the visible repo list as you type.

@@ -3,6 +3,7 @@ import Foundation
 
 @MainActor
 private final class IntegrationStatusRowView: NSView {
+    private let pillView = NSView()
     private let pillLabel = NSTextField(labelWithString: "")
     private let summaryLabel = NSTextField(labelWithString: "")
     private let detailLabel = NSTextField(labelWithString: "")
@@ -10,15 +11,18 @@ private final class IntegrationStatusRowView: NSView {
     init(toolName: String) {
         super.init(frame: NSRect(x: 0, y: 0, width: 460, height: 38))
 
+        pillView.wantsLayer = true
+        pillView.layer?.cornerRadius = 10
+        pillView.layer?.masksToBounds = true
+        pillView.frame = NSRect(x: 0, y: 17, width: 44, height: 20)
+        addSubview(pillView)
+
         pillLabel.font = .boldSystemFont(ofSize: 11)
         pillLabel.alignment = .center
         pillLabel.textColor = .white
         pillLabel.stringValue = toolName
-        pillLabel.wantsLayer = true
-        pillLabel.layer?.cornerRadius = 10
-        pillLabel.layer?.masksToBounds = true
-        pillLabel.frame = NSRect(x: 0, y: 17, width: 44, height: 20)
-        addSubview(pillLabel)
+        pillLabel.frame = NSRect(x: 0, y: 3, width: 44, height: 14)
+        pillView.addSubview(pillLabel)
 
         summaryLabel.font = .systemFont(ofSize: 12, weight: .medium)
         summaryLabel.frame = NSRect(x: 56, y: 18, width: 404, height: 16)
@@ -39,23 +43,23 @@ private final class IntegrationStatusRowView: NSView {
     func apply(status: IntegrationStatus) {
         switch status.state {
         case .checking:
-            pillLabel.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
+            pillView.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
             summaryLabel.stringValue = "Checking..."
             detailLabel.stringValue = ""
         case .ready(let summary, let detail):
-            pillLabel.layer?.backgroundColor = NSColor.systemGreen.cgColor
+            pillView.layer?.backgroundColor = NSColor.systemGreen.cgColor
             summaryLabel.stringValue = summary
             detailLabel.stringValue = detail ?? ""
         case .actionNeeded(let summary, let detail):
-            pillLabel.layer?.backgroundColor = NSColor.systemOrange.cgColor
+            pillView.layer?.backgroundColor = NSColor.systemOrange.cgColor
             summaryLabel.stringValue = summary
             detailLabel.stringValue = detail
         case .missing(let summary, let detail):
-            pillLabel.layer?.backgroundColor = NSColor.systemRed.cgColor
+            pillView.layer?.backgroundColor = NSColor.systemRed.cgColor
             summaryLabel.stringValue = summary
             detailLabel.stringValue = detail
         case .error(let summary, let detail):
-            pillLabel.layer?.backgroundColor = NSColor.systemRed.cgColor
+            pillView.layer?.backgroundColor = NSColor.systemRed.cgColor
             summaryLabel.stringValue = summary
             detailLabel.stringValue = detail
         }
