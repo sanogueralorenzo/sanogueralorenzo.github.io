@@ -33,12 +33,21 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     }
 
     struct ReviewRunResult: Decodable {
+        struct FailedCommentDetail: Decodable {
+            let title: String
+            let path: String?
+            let startLine: Int
+            let endLine: Int
+            let reason: String
+        }
+
         let owner: String
         let repo: String
         let number: Int
         let url: String
         let postedComments: Int
         let failedComments: Int
+        let failedCommentDetails: [FailedCommentDetail]
         let summary: String
     }
 

@@ -95,7 +95,17 @@ pub struct ReviewRunResult {
     pub url: String,
     pub posted_comments: usize,
     pub failed_comments: usize,
+    pub failed_comment_details: Vec<ReviewCommentFailure>,
     pub summary: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReviewCommentFailure {
+    pub title: String,
+    pub path: Option<String>,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone)]
@@ -305,6 +315,16 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
     println!("Reviewed {}", result.url);
     println!("Posted comments: {}", result.posted_comments);
     println!("Failed comments: {}", result.failed_comments);
+    if !result.failed_comment_details.is_empty() {
+        println!("Failure reasons:");
+        for failure in &result.failed_comment_details {
+            let path = failure.path.as_deref().unwrap_or("<unknown>");
+            println!(
+                "- {} ({}:{}-{}): {}",
+                failure.title, path, failure.start_line, failure.end_line, failure.reason
+            );
+        }
+    }
     println!("Summary: {}", result.summary);
     Ok(())
 }
@@ -825,14 +845,21 @@ fn post_review_comments(
 ) -> Result<ReviewRunResult> {
     let mut posted_comments = 0usize;
     let mut failed_comments = 0usize;
+    let mut failed_comment_details = Vec::new();
     let summary = summarize_review(&review);
 
     for finding in &review.findings {
-        let path = match normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir)
-        {
+        let path = match normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir) {
             Ok(path) => path,
-            Err(_) => {
+            Err(error) => {
                 failed_comments += 1;
+                failed_comment_details.push(ReviewCommentFailure {
+                    title: finding.title.trim().to_string(),
+                    path: Some(finding.code_location.absolute_file_path.display().to_string()),
+                    start_line: finding.code_location.line_range.start,
+                    end_line: finding.code_location.line_range.end,
+                    reason: error.to_string(),
+                });
                 continue;
             }
         };
@@ -840,21 +867,33 @@ fn post_review_comments(
             select_comment_target(&finding.code_location.line_range, changed_lines.get(&path))
         else {
             failed_comments += 1;
+            failed_comment_details.push(ReviewCommentFailure {
+                title: finding.title.trim().to_string(),
+                path: Some(path),
+                start_line: finding.code_location.line_range.start,
+                end_line: finding.code_location.line_range.end,
+                reason: "No changed diff line matched this finding on either side of the PR.".to_string(),
+            });
             continue;
         };
         let body = render_inline_comment_body(&finding);
-        if post_inline_comment(
+        if let Err(error) = post_inline_comment(
             pr_ref,
             &path,
             target.line,
             target.side.as_github_value(),
             &body,
-        )
-        .is_ok()
-        {
-            posted_comments += 1;
-        } else {
+        ) {
             failed_comments += 1;
+            failed_comment_details.push(ReviewCommentFailure {
+                title: finding.title.trim().to_string(),
+                path: Some(path),
+                start_line: finding.code_location.line_range.start,
+                end_line: finding.code_location.line_range.end,
+                reason: error.to_string(),
+            });
+        } else {
+            posted_comments += 1;
         }
     }
 
@@ -865,6 +904,7 @@ fn post_review_comments(
         url: pull_request.url.clone(),
         posted_comments,
         failed_comments,
+        failed_comment_details,
         summary,
     })
 }

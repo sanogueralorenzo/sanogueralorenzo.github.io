@@ -35,7 +35,7 @@ codex-core noninteractive run --help
   - `config show --json` returns the current agents settings, including `allowed_repos`.
   - `config available-repos --json` returns available personal and organization repos from `gh` where your `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`.
   - `review list --json` returns open PRs across your personal repos and orgs from `gh`, filtered by `allowed_repos` when configured and ordered by `created_at` newest first.
-  - `review run <pr-url|owner/repo#number>` reuses a cached repo under `~/.codex/agents/repos/<owner>/<repo>`, creates a per-run worktree under `~/.codex/agents/worktrees`, fetches upstream review prompts from `openai/codex` `main`, runs `codex exec` with those prompts unchanged, validates findings against changed diff lines on both left and right sides, and posts inline GitHub review comments via `gh`.
+  - `review run <pr-url|owner/repo#number>` reuses a cached repo under `~/.codex/agents/repos/<owner>/<repo>`, creates a per-run worktree under `~/.codex/agents/worktrees`, fetches upstream review prompts from `openai/codex` `main`, runs `codex exec` with those prompts unchanged, validates findings against changed diff lines on both left and right sides, posts inline GitHub review comments via `gh`, and returns per-comment failure reasons in JSON/default output when posting fails.
   - On macOS, worker commands try to enable `caffeinate` while running.
   - State defaults to `~/.codex/agents` and can be overridden with `CODEX_AGENTS_HOME`; settings are stored in `config.json`.
 - Sessions commands:

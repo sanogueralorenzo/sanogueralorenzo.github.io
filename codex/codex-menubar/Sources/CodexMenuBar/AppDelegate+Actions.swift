@@ -238,13 +238,25 @@ extension AppDelegate {
             do {
                 let result = try sessionsCLI.runReview(pullRequest: pullRequestURL)
                 DispatchQueue.main.async {
+                    let failureDetails = result.failedCommentDetails.prefix(5).map { detail in
+                        let path = detail.path ?? "<unknown>"
+                        return "- \(detail.title) (\(path):\(detail.startLine)-\(detail.endLine)): \(detail.reason)"
+                    }
+                    let failureText: String
+                    if failureDetails.isEmpty {
+                        failureText = ""
+                    } else {
+                        let extraCount = result.failedCommentDetails.count - failureDetails.count
+                        let extraSuffix = extraCount > 0 ? "\n- ... and \(extraCount) more" : ""
+                        failureText = "\nFailure reasons:\n\(failureDetails.joined(separator: "\n"))\(extraSuffix)"
+                    }
                     self.showMessage(
                         title: "Review Complete",
                         message: """
                         PR: \(result.repo)#\(result.number)
                         Posted comments: \(result.postedComments)
                         Failed comments: \(result.failedComments)
-                        Summary: \(result.summary)
+                        Summary: \(result.summary)\(failureText)
                         """
                     )
                     self.refreshUI()
