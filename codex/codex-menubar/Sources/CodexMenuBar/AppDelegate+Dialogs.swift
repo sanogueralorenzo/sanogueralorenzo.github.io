@@ -258,7 +258,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         clearButton.frame = NSRect(x: 170, y: 418, width: 80, height: 28)
         contentView.addSubview(clearButton)
 
-        let reposTitle = NSTextField(labelWithString: "Allowed Review Repos")
+        let reposTitle = NSTextField(labelWithString: "GitHub Repos")
         reposTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         reposTitle.frame = NSRect(x: 20, y: 380, width: 460, height: 20)
         contentView.addSubview(reposTitle)
