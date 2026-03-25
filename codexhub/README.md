@@ -18,7 +18,6 @@ codexhub noninteractive run --help
 
 - App-server passthrough:
   - `codexhub rpc --listen stdio://` forwards to `codex app-server --listen stdio://`.
-  - `codexhub rpc app-server --listen stdio://` is also accepted.
 - Sessions commands:
   - `codexhub sessions ...` manages session lifecycle, titles, merge, and cleanup.
   - Primary verbs: `ls`, `show`, `rm`, `archive`, `restore`, `prune`.

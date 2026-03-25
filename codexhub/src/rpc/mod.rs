@@ -14,7 +14,13 @@ pub fn run_from(args: Vec<OsString>) -> u8 {
         return 1;
     }
 
-    let app_server_args = normalize_app_server_args(iter.collect());
+    let app_server_args: Vec<OsString> = iter.collect();
+    if app_server_args.first().and_then(|value| value.to_str()) == Some("app-server") {
+        eprintln!("Do not include 'app-server' after 'codexhub rpc'.");
+        eprintln!("Use: codexhub rpc --listen stdio://");
+        return 2;
+    }
+
     let status = match Command::new("codex")
         .arg("app-server")
         .args(app_server_args)
@@ -33,22 +39,9 @@ pub fn run_from(args: Vec<OsString>) -> u8 {
     exit_code_from_status(&status)
 }
 
-fn normalize_app_server_args(args: Vec<OsString>) -> Vec<OsString> {
-    let mut iter = args.into_iter();
-    match iter.next() {
-        Some(first) if first.to_str() == Some("app-server") => iter.collect(),
-        Some(first) => {
-            let mut passthrough = vec![first];
-            passthrough.extend(iter);
-            passthrough
-        }
-        None => Vec::new(),
-    }
-}
-
 fn print_rpc_help() {
     println!("Usage:");
-    println!("  codexhub rpc [-- codexhub-options]");
+    println!("  codexhub rpc [-- app-server-options]");
     println!();
     println!("Description:");
     println!("  Runs 'codex app-server' as a passthrough command.");
