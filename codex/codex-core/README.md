@@ -30,6 +30,9 @@ codex-core noninteractive run --help
 - Agents commands:
   - `codex-core agents ...` manages local task files and worker loops.
   - Primary verbs: `config init`, `task create|list|show`, `worker start|loop`.
+  - `worker loop` starts a fresh `codex exec` run on every iteration; continuity is expected to come from your plan/prompt files, not from thread resume.
+  - Important loop flags: `--prompt-file`, `--cd`, `--interval-seconds`, `--max-iterations`, `--stop-phrase`, `--once`, `--model`, `--full-auto`, `--dangerously-bypass-approvals-and-sandbox`, `--skip-git-repo-check`.
+  - On macOS, worker commands try to enable `caffeinate` while running.
   - State defaults to `~/.codex/agents` and can be overridden with `CODEX_AGENTS_HOME`.
 - Sessions commands:
   - `codex-core sessions ...` manages session lifecycle, titles, merge, and cleanup.

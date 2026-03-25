@@ -1,7 +1,6 @@
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
-use serde_json::Value;
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -149,7 +148,6 @@ struct TaskRecord {
 #[derive(Debug)]
 struct LoopIterationResult {
     final_message: String,
-    session_id: Option<String>,
 }
 
 struct CaffeinateGuard {
@@ -311,19 +309,11 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
     }
 
     let mut iteration: u64 = 0;
-    let mut session_id: Option<String> = None;
     loop {
         iteration += 1;
         println!("[loop {iteration}] Running codex exec...");
-        let result = run_codex_exec_iteration(&cwd, &prompt, session_id.as_deref(), &args)
+        let result = run_codex_exec_iteration(&cwd, &prompt, &args)
             .with_context(|| format!("codex exec failed on iteration {}", iteration))?;
-
-        if session_id.is_none()
-            && let Some(found) = result.session_id.clone()
-        {
-            println!("[loop {iteration}] Session: {found}");
-            session_id = Some(found);
-        }
 
         println!(
             "[loop {iteration}] Final message:\n{}",
@@ -577,17 +567,12 @@ fn resolve_loop_prompt(args: &WorkerLoopArgs) -> Result<String> {
 fn run_codex_exec_iteration(
     cwd: &Path,
     prompt: &str,
-    session_id: Option<&str>,
     args: &WorkerLoopArgs,
 ) -> Result<LoopIterationResult> {
     let output_path = unique_output_file_path();
     let mut cmd = Command::new("codex");
     cmd.current_dir(cwd);
     cmd.arg("exec");
-    if let Some(existing_session_id) = session_id {
-        cmd.arg("resume");
-        cmd.arg(existing_session_id);
-    }
     cmd.arg(prompt);
     cmd.arg("--json");
     cmd.arg("--output-last-message");
@@ -608,7 +593,6 @@ fn run_codex_exec_iteration(
     }
 
     let output = cmd.output().context("failed to spawn codex executable")?;
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
     if !output.status.success() {
@@ -633,7 +617,6 @@ fn run_codex_exec_iteration(
 
     Ok(LoopIterationResult {
         final_message: normalized_message,
-        session_id: parse_session_id_from_jsonl(&stdout),
     })
 }
 
@@ -646,57 +629,6 @@ fn unique_output_file_path() -> PathBuf {
         "codex-core-agents-last-message-{}-{nanos}.txt",
         std::process::id()
     ))
-}
-
-fn parse_session_id_from_jsonl(events: &str) -> Option<String> {
-    for line in events.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let Ok(value) = serde_json::from_str::<Value>(trimmed) else {
-            continue;
-        };
-        for key in [
-            "thread_id",
-            "threadId",
-            "conversation_id",
-            "conversationId",
-            "session_id",
-            "sessionId",
-        ] {
-            if let Some(found) = find_key_recursively(&value, key) {
-                return Some(found);
-            }
-        }
-    }
-    None
-}
-
-fn find_key_recursively(value: &Value, key: &str) -> Option<String> {
-    match value {
-        Value::Object(map) => {
-            if let Some(found) = map.get(key).and_then(Value::as_str) {
-                return Some(found.to_string());
-            }
-            for child in map.values() {
-                if let Some(found) = find_key_recursively(child, key) {
-                    return Some(found);
-                }
-            }
-            None
-        }
-        Value::Array(items) => {
-            for item in items {
-                if let Some(found) = find_key_recursively(item, key) {
-                    return Some(found);
-                }
-            }
-            None
-        }
-        _ => None,
-    }
 }
 
 fn default_state_home() -> Result<PathBuf> {
