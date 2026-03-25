@@ -7,6 +7,17 @@ stop_existing_runtime() {
   if command -v codex-core >/dev/null 2>&1; then
     codex-core sessions watch thread-titles stop >/dev/null 2>&1 || true
   fi
+
+  if command -v codex-auth >/dev/null 2>&1; then
+    codex-auth watch stop >/dev/null 2>&1 || true
+  fi
+}
+
+remove_legacy_binaries() {
+  local dest_dir="$1"
+
+  rm -f "$dest_dir/codex-auth"
+  rm -f "$dest_dir/codex-agents"
 }
 
 resolve_npm_bin_dir() {
@@ -51,6 +62,8 @@ if [[ ! -w "$DEST_DIR" ]]; then
   echo "Fix npm global prefix permissions and try again." >&2
   exit 1
 fi
+
+remove_legacy_binaries "$DEST_DIR"
 
 TMP_PATH="$DEST_DIR/.tmp-codex-core-$$"
 cp "$BIN_PATH" "$TMP_PATH"

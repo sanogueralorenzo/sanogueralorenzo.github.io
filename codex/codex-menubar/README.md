@@ -12,12 +12,12 @@
 
 ### Integrations
 
-- Required: `codex-auth`, `codex-core`
+- Required: `codex-core`
 - Optional: `codex-remote`
 
 ### Runtime Behavior
 
-- Launch starts `codex-auth watch start`.
+- Launch starts `codex-core auth watch start`.
 - Launch starts `codex-core sessions watch thread-titles start`.
 - Launch starts `codex-remote start --plain` only when remote auto-start has been enabled by a prior successful `Remote -> Start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.

@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "codex-auth")]
+#[command(name = "codex-core auth")]
 #[command(about = "Manage Codex auth profiles")]
 pub struct Cli {
     #[arg(long, global = true, value_name = "dir")]

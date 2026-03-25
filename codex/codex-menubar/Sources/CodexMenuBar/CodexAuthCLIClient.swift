@@ -26,7 +26,7 @@ final class CodexAuthCLIClient: @unchecked Sendable {
     }
 
     func listProfiles() throws -> [String] {
-        let output = try run(["list", "--plain"])
+        let output = try run(["auth", "list", "--plain"])
         return output
             .split(whereSeparator: \.isNewline)
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -35,7 +35,7 @@ final class CodexAuthCLIClient: @unchecked Sendable {
     }
 
     func currentProfileName() throws -> String? {
-        let value = try run(["current", "--plain"]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = try run(["auth", "current", "--plain"]).trimmingCharacters(in: .whitespacesAndNewlines)
         if value.isEmpty || value == "(untracked)" {
             return nil
         }
@@ -43,23 +43,23 @@ final class CodexAuthCLIClient: @unchecked Sendable {
     }
 
     func saveProfile(name: String) throws {
-        _ = try run(["save", name])
+        _ = try run(["auth", "save", name])
     }
 
     func useProfile(name: String) throws {
-        _ = try run(["use", name])
+        _ = try run(["auth", "use", name])
     }
 
     func removeProfile(name: String) throws {
-        _ = try run(["remove", name])
+        _ = try run(["auth", "remove", name])
     }
 
     func startWatcher() throws {
-        _ = try run(["watch", "start"])
+        _ = try run(["auth", "watch", "start"])
     }
 
     func stopWatcher() throws {
-        _ = try run(["watch", "stop"])
+        _ = try run(["auth", "watch", "stop"])
     }
 
     func menuProfiles(currentProfileName: String?,
@@ -80,11 +80,11 @@ final class CodexAuthCLIClient: @unchecked Sendable {
 
     private func run(_ arguments: [String]) throws -> String {
         guard let executablePath else {
-            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-auth"))
+            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-core"))
         }
 
         guard fileManager.isExecutableFile(atPath: executablePath) else {
-            throw Error(message: "codex-auth CLI not found at \(executablePath). Run codex/codex-auth/scripts/install.sh first.")
+            throw Error(message: "codex-core CLI not found at \(executablePath). Run codex/codex-core/scripts/install.sh first.")
         }
 
         let process = Process()
@@ -108,13 +108,13 @@ final class CodexAuthCLIClient: @unchecked Sendable {
             if !message.isEmpty {
                 throw Error(message: message)
             }
-            throw Error(message: "codex-auth command failed: codex-auth \(arguments.joined(separator: " "))")
+            throw Error(message: "codex-core command failed: codex-core \(arguments.joined(separator: " "))")
         }
 
         return stdoutText
     }
 
     private static func resolveExecutablePath() -> String? {
-        CLIExecutableResolver.resolve(commandName: "codex-auth")
+        CLIExecutableResolver.resolve(commandName: "codex-core")
     }
 }

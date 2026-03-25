@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             try authCLI.startWatcher()
         } catch {
-            fputs("Warning: failed to start codex-auth watcher: \(error)\n", stderr)
+            fputs("Warning: failed to start codex-core auth watcher: \(error)\n", stderr)
         }
 
         let sessionsCLI = self.sessionsCLI

@@ -1,7 +1,7 @@
-use crate::manager::ProfileManager;
-use crate::models::{FileSnapshot, WatcherStatus};
-use crate::process::is_process_running;
-use crate::util::{create_directory_if_needed, set_file_permissions, write_secure_atomically};
+use crate::auth::manager::ProfileManager;
+use crate::auth::models::{FileSnapshot, WatcherStatus};
+use crate::auth::process::is_process_running;
+use crate::auth::util::{create_directory_if_needed, set_file_permissions, write_secure_atomically};
 use anyhow::{Context, Result, bail};
 use std::fs::{self, OpenOptions};
 use std::os::unix::fs::MetadataExt;
@@ -63,7 +63,8 @@ impl AuthSyncWatcher {
         set_file_permissions(&self.log_file_path, 0o600)?;
 
         let mut cmd = Command::new(executable_path);
-        cmd.arg("--home")
+        cmd.arg("auth")
+            .arg("--home")
             .arg(home_directory)
             .arg("watch")
             .arg("run")

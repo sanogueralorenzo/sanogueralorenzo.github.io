@@ -12,11 +12,38 @@ use cli::{Cli, Commands, WatchCommand};
 use manager::ProfileManager;
 use models::{ProfileSource, WatcherStatus};
 use output::{masked, print_profiles, print_use_result};
+use std::ffi::OsString;
 use util::{expand_tilde, normalize_profile_name, resolve_home};
 use watcher::AuthSyncWatcher;
 
-fn run() -> Result<()> {
-    let cli = Cli::parse();
+pub fn run_from(args: Vec<OsString>) -> u8 {
+    let mut normalized = Vec::with_capacity(args.len() + 1);
+    normalized.push(OsString::from("codex-core auth"));
+    if args.first().and_then(|value| value.to_str()) == Some("auth") {
+        normalized.extend(args.into_iter().skip(1));
+    } else {
+        normalized.extend(args);
+    }
+
+    let cli = match Cli::try_parse_from(normalized) {
+        Ok(cli) => cli,
+        Err(error) => {
+            let code = error.exit_code();
+            let _ = error.print();
+            return code as u8;
+        }
+    };
+
+    match run(cli) {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("Error: {error}");
+            1
+        }
+    }
+}
+
+fn run(cli: Cli) -> Result<()> {
     let home = resolve_home(cli.home)?;
     let manager = ProfileManager::new(home.clone());
 
@@ -109,11 +136,4 @@ fn run() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn main() {
-    if let Err(error) = run() {
-        eprintln!("Error: {error}");
-        std::process::exit(1);
-    }
 }

@@ -3,6 +3,7 @@ use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use serde_json::Value;
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
@@ -12,7 +13,7 @@ use std::time::Duration;
 const DEFAULT_WORKER_INTERVAL_SECONDS: u64 = 30;
 
 #[derive(Parser, Debug)]
-#[command(name = "codex-agents")]
+#[command(name = "codex-core agents")]
 #[command(about = "Track local tasks and run a basic worker loop")]
 struct Cli {
     #[command(subcommand)]
@@ -21,7 +22,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Initialize local codex-agents configuration
+    /// Initialize local agent configuration
     Config {
         #[command(subcommand)]
         action: ConfigCommand,
@@ -40,7 +41,7 @@ enum Commands {
 
 #[derive(Subcommand, Debug)]
 enum ConfigCommand {
-    /// Initialize local codex-agents configuration
+    /// Initialize local agent configuration
     Init,
 }
 
@@ -162,8 +163,34 @@ impl Drop for CaffeinateGuard {
     }
 }
 
-fn run() -> Result<()> {
-    let cli = Cli::parse();
+pub fn run_from(args: Vec<OsString>) -> u8 {
+    let mut normalized = Vec::with_capacity(args.len() + 1);
+    normalized.push(OsString::from("codex-core agents"));
+    if args.first().and_then(|value| value.to_str()) == Some("agents") {
+        normalized.extend(args.into_iter().skip(1));
+    } else {
+        normalized.extend(args);
+    }
+
+    let cli = match Cli::try_parse_from(normalized) {
+        Ok(cli) => cli,
+        Err(error) => {
+            let code = error.exit_code();
+            let _ = error.print();
+            return code as u8;
+        }
+    };
+
+    match run(cli) {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("Error: {error}");
+            1
+        }
+    }
+}
+
+fn run(cli: Cli) -> Result<()> {
     let layout = resolve_state_layout()?;
 
     match cli.command {
@@ -180,12 +207,12 @@ fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Result<()> {
             ensure_state_layout(layout)?;
             if already_initialized {
                 println!(
-                    "codex-agents state already initialized at: {}",
+                    "codex-core agents state already initialized at: {}",
                     layout.root.display()
                 );
             } else {
                 println!(
-                    "Initialized codex-agents state at: {}",
+                    "Initialized codex-core agents state at: {}",
                     layout.root.display()
                 );
             }
@@ -245,7 +272,7 @@ fn run_worker_cycle(layout: &StateLayout) -> Result<()> {
                 task.ticket, task.created_at, task.updated_at
             );
             println!(
-                "[{timestamp}] Suggested next step: codex-agents task show {}",
+                "[{timestamp}] Suggested next step: codex-core agents task show {}",
                 task.ticket
             );
         }
@@ -616,7 +643,7 @@ fn unique_output_file_path() -> PathBuf {
         .map(|duration| duration.as_nanos())
         .unwrap_or(0);
     env::temp_dir().join(format!(
-        "codex-agents-last-message-{}-{nanos}.txt",
+        "codex-core-agents-last-message-{}-{nanos}.txt",
         std::process::id()
     ))
 }
@@ -683,11 +710,4 @@ fn task_path(layout: &StateLayout, ticket: &str) -> PathBuf {
 
 fn now_utc() -> String {
     Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
-}
-
-fn main() {
-    if let Err(error) = run() {
-        eprintln!("Error: {error}");
-        std::process::exit(1);
-    }
 }

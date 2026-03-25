@@ -1,4 +1,4 @@
-use crate::models::ValidatedAuthFile;
+use crate::auth::models::ValidatedAuthFile;
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 use std::env;

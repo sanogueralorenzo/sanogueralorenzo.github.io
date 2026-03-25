@@ -1,10 +1,10 @@
-use crate::models::{
+use crate::auth::models::{
     AuthPaths, CodexAppRelaunchStatus, ProfileSource, SwitchResult, ValidatedAuthFile,
 };
-use crate::process::{
+use crate::auth::process::{
     is_codex_app_running, relaunch_codex_app, terminate_running_codex_app_sessions,
 };
-use crate::util::{
+use crate::auth::util::{
     create_directory_if_needed, list_profile_names, normalize_profile_name, profile_path_for,
     read_validated_auth_file, set_file_permissions, write_secure_atomically,
 };

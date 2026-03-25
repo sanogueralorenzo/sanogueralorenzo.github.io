@@ -1,5 +1,5 @@
-use crate::manager::ProfileManager;
-use crate::models::{CodexAppRelaunchStatus, SwitchResult};
+use crate::auth::manager::ProfileManager;
+use crate::auth::models::{CodexAppRelaunchStatus, SwitchResult};
 use anyhow::Result;
 
 pub fn print_profiles(manager: &ProfileManager, plain: bool) -> Result<()> {
