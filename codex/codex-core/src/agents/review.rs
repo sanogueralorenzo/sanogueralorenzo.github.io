@@ -175,9 +175,23 @@ pub struct ReviewJobSnapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewJobOutput {
-    #[serde(flatten)]
-    pub job: ReviewJobSnapshot,
-    pub menu_state: ReviewMenuState,
+    pub id: String,
+    pub pull_request: String,
+    pub owner: String,
+    pub repo: String,
+    pub number: u64,
+    pub url: Option<String>,
+    pub status: ReviewMenuState,
+    pub lifecycle_status: ReviewJobStatus,
+    pub current_step: String,
+    pub created_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub posted_comments: usize,
+    pub failed_comments: usize,
+    pub failed_comment_details: Vec<ReviewCommentFailure>,
+    pub summary: Option<String>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -513,9 +527,9 @@ fn list_review_jobs(layout: &StateLayout, args: ReviewJobsArgs) -> Result<()> {
         for job in output_jobs {
             println!(
                 "{} {} {}",
-                job.job.id,
-                review_menu_state_label(&job.menu_state),
-                job.job.pull_request
+                job.id,
+                review_menu_state_label(&job.status),
+                job.pull_request
             );
         }
         return Ok(());
@@ -529,9 +543,9 @@ fn list_review_jobs(layout: &StateLayout, args: ReviewJobsArgs) -> Result<()> {
     for job in output_jobs {
         println!(
             "{} {:<16} {}",
-            job.job.id,
-            review_menu_state_label(&job.menu_state),
-            review_job_summary_label(&job.job)
+            job.id,
+            review_menu_state_label(&job.status),
+            review_job_output_summary_label(&job)
         );
     }
 
@@ -550,43 +564,42 @@ fn show_review_job(layout: &StateLayout, args: ReviewShowArgs) -> Result<()> {
     }
 
     if args.plain {
-        println!(
-            "{} {}",
-            output_job.job.id,
-            review_menu_state_label(&output_job.menu_state)
-        );
+        println!("{} {}", output_job.id, review_menu_state_label(&output_job.status));
         return Ok(());
     }
 
-    println!("id: {}", output_job.job.id);
-    println!("status: {}", review_job_status_label(&output_job.job.status));
-    println!("menu_state: {}", review_menu_state_label(&output_job.menu_state));
-    println!("current_step: {}", output_job.job.current_step);
-    println!("pull_request: {}", output_job.job.pull_request);
-    println!("owner: {}", output_job.job.owner);
-    println!("repo: {}", output_job.job.repo);
-    println!("number: {}", output_job.job.number);
-    if let Some(url) = &output_job.job.url {
+    println!("id: {}", output_job.id);
+    println!("status: {}", review_menu_state_label(&output_job.status));
+    println!(
+        "lifecycle_status: {}",
+        review_job_status_label(&output_job.lifecycle_status)
+    );
+    println!("current_step: {}", output_job.current_step);
+    println!("pull_request: {}", output_job.pull_request);
+    println!("owner: {}", output_job.owner);
+    println!("repo: {}", output_job.repo);
+    println!("number: {}", output_job.number);
+    if let Some(url) = &output_job.url {
         println!("url: {}", url);
     }
-    println!("created_at: {}", output_job.job.created_at);
-    if let Some(started_at) = &output_job.job.started_at {
+    println!("created_at: {}", output_job.created_at);
+    if let Some(started_at) = &output_job.started_at {
         println!("started_at: {}", started_at);
     }
-    if let Some(finished_at) = &output_job.job.finished_at {
+    if let Some(finished_at) = &output_job.finished_at {
         println!("finished_at: {}", finished_at);
     }
-    println!("posted_comments: {}", output_job.job.posted_comments);
-    println!("failed_comments: {}", output_job.job.failed_comments);
-    if let Some(summary) = &output_job.job.summary {
+    println!("posted_comments: {}", output_job.posted_comments);
+    println!("failed_comments: {}", output_job.failed_comments);
+    if let Some(summary) = &output_job.summary {
         println!("summary: {}", summary);
     }
-    if let Some(error) = &output_job.job.error {
+    if let Some(error) = &output_job.error {
         println!("error: {}", error);
     }
-    if !output_job.job.failed_comment_details.is_empty() {
+    if !output_job.failed_comment_details.is_empty() {
         println!("failed_comment_details:");
-        for failure in &output_job.job.failed_comment_details {
+        for failure in &output_job.failed_comment_details {
             let path = failure.path.as_deref().unwrap_or("<unknown>");
             println!(
                 "- {} ({}:{}-{}): {}",
@@ -599,8 +612,26 @@ fn show_review_job(layout: &StateLayout, args: ReviewShowArgs) -> Result<()> {
 }
 
 fn into_review_job_output(job: ReviewJobSnapshot) -> ReviewJobOutput {
-    let menu_state = derive_review_menu_state(&job);
-    ReviewJobOutput { job, menu_state }
+    let status = derive_review_menu_state(&job);
+    ReviewJobOutput {
+        id: job.id,
+        pull_request: job.pull_request,
+        owner: job.owner,
+        repo: job.repo,
+        number: job.number,
+        url: job.url,
+        status,
+        lifecycle_status: job.status,
+        current_step: job.current_step,
+        created_at: job.created_at,
+        started_at: job.started_at,
+        finished_at: job.finished_at,
+        posted_comments: job.posted_comments,
+        failed_comments: job.failed_comments,
+        failed_comment_details: job.failed_comment_details,
+        summary: job.summary,
+        error: job.error,
+    }
 }
 
 fn run_review_step<T, F>(
@@ -810,7 +841,7 @@ fn derive_review_menu_state(job: &ReviewJobSnapshot) -> ReviewMenuState {
     }
 }
 
-fn review_job_summary_label(job: &ReviewJobSnapshot) -> String {
+fn review_job_output_summary_label(job: &ReviewJobOutput) -> String {
     let base = format!("{}/{}#{}", job.owner, job.repo, job.number);
     match &job.summary {
         Some(summary) if !summary.trim().is_empty() => format!("{base} {summary}"),

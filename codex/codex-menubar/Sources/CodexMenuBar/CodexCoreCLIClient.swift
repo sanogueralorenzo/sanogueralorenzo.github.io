@@ -53,7 +53,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     }
 
     struct ReviewJob: Decodable {
-        enum MenuState: String, Decodable {
+        enum Status: String, Decodable {
             case published = "published"
             case needsAttention = "needs_attention"
             case inProgress = "in_progress"
@@ -64,13 +64,13 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let repo: String
         let number: Int
         let url: String?
-        let status: String
+        let status: Status
+        let lifecycleStatus: String
         let currentStep: String
         let createdAt: String
         let postedComments: Int
         let failedComments: Int
         let summary: String?
-        let menuState: MenuState
 
         var repositoryFullName: String {
             "\(owner)/\(repo)"

@@ -210,17 +210,17 @@ extension AppDelegate {
         } else {
             addReviewJobSection(
                 title: "In Progress",
-                jobs: reviewJobs.filter { $0.menuState == .inProgress },
+                jobs: reviewJobs.filter { $0.status == .inProgress },
                 to: reviewMenu
             )
             addReviewJobSection(
                 title: "Needs Attention",
-                jobs: reviewJobs.filter { $0.menuState == .needsAttention },
+                jobs: reviewJobs.filter { $0.status == .needsAttention },
                 to: reviewMenu
             )
             addReviewJobSection(
                 title: "Published",
-                jobs: reviewJobs.filter { $0.menuState == .published },
+                jobs: reviewJobs.filter { $0.status == .published },
                 to: reviewMenu
             )
 
@@ -348,7 +348,7 @@ extension AppDelegate {
 
         for job in jobs.sorted(by: { $0.createdAt > $1.createdAt }) {
             let item = NSMenuItem(
-                title: "\(reviewJobPrefix(for: job.menuState)) \(job.displayTitle)",
+                title: "\(reviewJobPrefix(for: job.status)) \(job.displayTitle)",
                 action: #selector(openReviewPullRequestURL(_:)),
                 keyEquivalent: ""
             )
@@ -359,7 +359,7 @@ extension AppDelegate {
         }
     }
 
-    private func reviewJobPrefix(for state: CodexCoreCLIClient.ReviewJob.MenuState) -> String {
+    private func reviewJobPrefix(for state: CodexCoreCLIClient.ReviewJob.Status) -> String {
         switch state {
         case .published:
             return "✓"
