@@ -1,6 +1,17 @@
 import Foundation
 
 final class CodexCoreCLIClient: @unchecked Sendable {
+    struct AgentsConfig: Decodable {
+        let stateVersion: Int
+        let initializedAt: String
+        let projectHome: String?
+        let allowedRepos: [String]
+    }
+
+    struct AvailableRepo: Decodable {
+        let fullName: String
+    }
+
     struct ReviewPullRequest: Decodable {
         let owner: String
         let repo: String
@@ -97,6 +108,36 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(ReviewRunResult.self, from: Data(output.utf8))
+    }
+
+    func agentsConfig() throws -> AgentsConfig {
+        let output = try runAgents(["config", "show", "--json"])
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(AgentsConfig.self, from: Data(output.utf8))
+    }
+
+    func availableRepos() throws -> [AvailableRepo] {
+        let output = try runAgents(["config", "available-repos", "--json"])
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode([AvailableRepo].self, from: Data(output.utf8))
+    }
+
+    func setAgentsProjectHome(path: String) throws {
+        _ = try runAgents(["config", "set-project-home", path])
+    }
+
+    func clearAgentsProjectHome() throws {
+        _ = try runAgents(["config", "clear-project-home"])
+    }
+
+    func setAllowedRepos(_ repos: [String]) throws {
+        if repos.isEmpty {
+            _ = try runAgents(["config", "clear-allowed-repos"])
+            return
+        }
+        _ = try runAgents(["config", "set-allowed-repos"] + repos)
     }
 
     private func runSessions(_ arguments: [String]) throws -> String {

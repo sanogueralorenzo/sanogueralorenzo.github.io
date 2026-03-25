@@ -1,3 +1,6 @@
+use super::AgentsConfig;
+use super::StateLayout;
+use super::load_agents_config;
 use crate::core::temp::temp_file_path;
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
@@ -165,11 +168,14 @@ struct PullRequestView {
     url: String,
     #[serde(rename = "baseRefName")]
     base_ref_name: String,
+    #[serde(rename = "headRefName")]
+    head_ref_name: String,
 }
 
 struct ReviewWorkspace {
     root: PathBuf,
     repo_dir: PathBuf,
+    delete_on_drop: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -208,19 +214,22 @@ struct UpstreamReviewPrompts {
 
 impl Drop for ReviewWorkspace {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.root);
+        if self.delete_on_drop {
+            let _ = fs::remove_dir_all(&self.root);
+        }
     }
 }
 
-pub fn handle_review(action: ReviewCommand) -> Result<()> {
+pub fn handle_review(action: ReviewCommand, layout: &StateLayout) -> Result<()> {
     match action {
-        ReviewCommand::List(args) => list_pull_requests(args),
-        ReviewCommand::Run(args) => run_review(args),
+        ReviewCommand::List(args) => list_pull_requests(layout, args),
+        ReviewCommand::Run(args) => run_review(layout, args),
     }
 }
 
-fn list_pull_requests(args: ReviewListArgs) -> Result<()> {
-    let pull_requests = load_open_pull_requests()?;
+fn list_pull_requests(layout: &StateLayout, args: ReviewListArgs) -> Result<()> {
+    let config = load_agents_config(layout)?;
+    let pull_requests = load_open_pull_requests(&config)?;
 
     if args.json {
         println!(
@@ -249,10 +258,11 @@ fn list_pull_requests(args: ReviewListArgs) -> Result<()> {
     Ok(())
 }
 
-fn run_review(args: ReviewRunArgs) -> Result<()> {
+fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
+    let config = load_agents_config(layout)?;
     let pr_ref = parse_pull_request_reference(&args.pull_request)?;
     let pull_request = fetch_pull_request_view(&pr_ref)?;
-    let workspace = checkout_pull_request(&pr_ref)?;
+    let workspace = checkout_pull_request(&config, &pr_ref, &pull_request)?;
     let upstream_prompts = load_upstream_review_prompts()?;
     let merge_base = resolve_merge_base(&workspace.repo_dir, &pull_request.base_ref_name)?;
     let review_request = build_base_branch_review_request(
@@ -295,13 +305,18 @@ fn run_review(args: ReviewRunArgs) -> Result<()> {
     Ok(())
 }
 
-fn load_open_pull_requests() -> Result<Vec<ReviewPullRequest>> {
+fn load_open_pull_requests(config: &AgentsConfig) -> Result<Vec<ReviewPullRequest>> {
     let owners = load_review_owners()?;
     let mut seen = HashSet::new();
     let mut pull_requests = Vec::new();
+    let allowed_repos: HashSet<&str> = config.allowed_repos.iter().map(String::as_str).collect();
 
     for owner in owners {
         for pull_request in search_open_pull_requests_for_owner(&owner)? {
+            let full_name = format!("{}/{}", pull_request.owner, pull_request.repo);
+            if !allowed_repos.is_empty() && !allowed_repos.contains(full_name.as_str()) {
+                continue;
+            }
             if seen.insert(pull_request.url.clone()) {
                 pull_requests.push(pull_request);
             }
@@ -385,14 +400,37 @@ fn fetch_pull_request_view(pr_ref: &PullRequestReference) -> Result<PullRequestV
             "--repo".to_string(),
             pr_ref.repo_name_with_owner(),
             "--json".to_string(),
-            "number,url,baseRefName".to_string(),
+            "number,url,baseRefName,headRefName".to_string(),
         ],
         None,
     )?;
     serde_json::from_str(&output).context("failed to parse gh pr view response")
 }
 
-fn checkout_pull_request(pr_ref: &PullRequestReference) -> Result<ReviewWorkspace> {
+fn checkout_pull_request(
+    config: &AgentsConfig,
+    pr_ref: &PullRequestReference,
+    pull_request: &PullRequestView,
+) -> Result<ReviewWorkspace> {
+    if let Some(project_home) = config.project_home.as_ref() {
+        let root = project_home.join(&pr_ref.owner);
+        let repo_dir = root.join(&pr_ref.repo);
+        fs::create_dir_all(&root)
+            .with_context(|| format!("failed to create {}", root.display()))?;
+
+        if repo_dir.exists() {
+            refresh_existing_checkout(&repo_dir, pr_ref, pull_request)?;
+        } else {
+            clone_and_checkout_pull_request(&repo_dir, pr_ref, pull_request)?;
+        }
+
+        return Ok(ReviewWorkspace {
+            root,
+            repo_dir,
+            delete_on_drop: false,
+        });
+    }
+
     let root = env::temp_dir().join(format!(
         "codex-core-review-{}-{}-{}-{}",
         pr_ref.owner,
@@ -402,7 +440,20 @@ fn checkout_pull_request(pr_ref: &PullRequestReference) -> Result<ReviewWorkspac
     ));
     let repo_dir = root.join(&pr_ref.repo);
     fs::create_dir_all(&root).with_context(|| format!("failed to create {}", root.display()))?;
+    clone_and_checkout_pull_request(&repo_dir, pr_ref, pull_request)?;
 
+    Ok(ReviewWorkspace {
+        root,
+        repo_dir,
+        delete_on_drop: true,
+    })
+}
+
+fn clone_and_checkout_pull_request(
+    repo_dir: &Path,
+    pr_ref: &PullRequestReference,
+    pull_request: &PullRequestView,
+) -> Result<()> {
     run_gh(
         vec![
             "repo".to_string(),
@@ -414,16 +465,65 @@ fn checkout_pull_request(pr_ref: &PullRequestReference) -> Result<ReviewWorkspac
         ],
         None,
     )?;
+    checkout_and_update_pull_request_branch(repo_dir, pr_ref, pull_request)
+}
+
+fn refresh_existing_checkout(
+    repo_dir: &Path,
+    pr_ref: &PullRequestReference,
+    pull_request: &PullRequestView,
+) -> Result<()> {
+    if !repo_dir.join(".git").exists() {
+        bail!(
+            "Existing project path is not a git repository: {}",
+            repo_dir.display()
+        );
+    }
+
+    run_git(repo_dir, &["fetch", "--all", "--prune"])?;
+    run_git(repo_dir, &["checkout", &pull_request.base_ref_name])?;
+    run_git(
+        repo_dir,
+        &["pull", "--ff-only", "origin", &pull_request.base_ref_name],
+    )?;
+    checkout_and_update_pull_request_branch(repo_dir, pr_ref, pull_request)
+}
+
+fn checkout_and_update_pull_request_branch(
+    repo_dir: &Path,
+    pr_ref: &PullRequestReference,
+    pull_request: &PullRequestView,
+) -> Result<()> {
     run_gh(
         vec![
             "pr".to_string(),
             "checkout".to_string(),
             pr_ref.number.to_string(),
+            "--repo".to_string(),
+            pr_ref.repo_name_with_owner(),
         ],
-        Some(&repo_dir),
+        Some(repo_dir),
     )?;
+    run_git(repo_dir, &["checkout", &pull_request.head_ref_name])?;
+    run_git(repo_dir, &["pull", "--ff-only"])?;
+    Ok(())
+}
 
-    Ok(ReviewWorkspace { root, repo_dir })
+fn run_git(repo_dir: &Path, args: &[&str]) -> Result<()> {
+    let output = Command::new("git")
+        .current_dir(repo_dir)
+        .args(args)
+        .output()
+        .with_context(|| format!("failed to launch git {}", args.join(" ")))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let trimmed = stderr.trim();
+        if trimmed.is_empty() {
+            bail!("git {} failed", args.join(" "));
+        }
+        bail!("git {} failed: {}", args.join(" "), trimmed);
+    }
+    Ok(())
 }
 
 fn load_upstream_review_prompts() -> Result<UpstreamReviewPrompts> {

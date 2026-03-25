@@ -260,7 +260,53 @@ extension AppDelegate {
     }
 
     @objc func openCodexAgentSettings(_ sender: Any?) {
-        // MOCK placeholder: this will open Codex Agent settings.
+        let sessionsCLI = self.sessionsCLI
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let currentConfig = try sessionsCLI.agentsConfig()
+                let availableRepos = try sessionsCLI.availableRepos()
+
+                DispatchQueue.main.async {
+                    guard let selection = self.promptForCodexAgentSettings(
+                        currentConfig: currentConfig,
+                        availableRepos: availableRepos
+                    ) else {
+                        return
+                    }
+
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                        guard let self else {
+                            return
+                        }
+
+                        do {
+                            if let projectHome = selection.projectHome, !projectHome.isEmpty {
+                                try sessionsCLI.setAgentsProjectHome(path: projectHome)
+                            } else {
+                                try sessionsCLI.clearAgentsProjectHome()
+                            }
+                            try sessionsCLI.setAllowedRepos(selection.allowedRepos)
+                            DispatchQueue.main.async {
+                                self.refreshUI()
+                            }
+                        } catch {
+                            DispatchQueue.main.async {
+                                self.showError(error)
+                            }
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.showError(error)
+                }
+            }
+        }
     }
 
     @objc func quit(_ sender: Any?) {

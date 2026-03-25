@@ -3,6 +3,7 @@ mod review;
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
+use serde::{Deserialize, Serialize};
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -49,6 +50,18 @@ enum Commands {
 enum ConfigCommand {
     /// Initialize local agent configuration
     Init,
+    /// Show current agent configuration
+    Show(ConfigShowArgs),
+    /// Set the default project home used for persistent checkouts
+    SetProjectHome(ConfigSetProjectHomeArgs),
+    /// Clear the default project home
+    ClearProjectHome,
+    /// List GitHub repos available for review filtering
+    AvailableRepos(ConfigAvailableReposArgs),
+    /// Set the allowed review repo filters
+    SetAllowedRepos(ConfigSetAllowedReposArgs),
+    /// Clear allowed review repo filters
+    ClearAllowedRepos,
 }
 
 #[derive(Subcommand, Debug)]
@@ -143,6 +156,54 @@ struct StateLayout {
     config_file: PathBuf,
 }
 
+#[derive(Args, Debug)]
+struct ConfigShowArgs {
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args, Debug)]
+struct ConfigSetProjectHomeArgs {
+    path: PathBuf,
+}
+
+#[derive(Args, Debug)]
+struct ConfigAvailableReposArgs {
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args, Debug)]
+struct ConfigSetAllowedReposArgs {
+    repos: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+struct AgentsConfig {
+    state_version: u32,
+    initialized_at: String,
+    project_home: Option<PathBuf>,
+    allowed_repos: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+struct AvailableRepo {
+    full_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RepoOwner {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ListedRepo {
+    name: String,
+    owner: RepoOwner,
+    #[serde(rename = "isArchived")]
+    is_archived: bool,
+}
+
 #[derive(Clone, Debug)]
 struct TaskRecord {
     ticket: String,
@@ -202,15 +263,15 @@ fn run(cli: Cli) -> Result<()> {
         Commands::Config { action } => handle_config(action, &layout),
         Commands::Task { action } => handle_task(action, &layout),
         Commands::Worker { action } => handle_worker(action, &layout),
-        Commands::Review { action } => review::handle_review(action),
+        Commands::Review { action } => review::handle_review(action, &layout),
     }
 }
 
 fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Result<()> {
+    ensure_state_layout(layout)?;
     match action {
         ConfigCommand::Init => {
             let already_initialized = layout.config_file.exists();
-            ensure_state_layout(layout)?;
             if already_initialized {
                 println!(
                     "codex-core agents state already initialized at: {}",
@@ -224,6 +285,12 @@ fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Result<()> {
             }
             Ok(())
         }
+        ConfigCommand::Show(args) => config_show(layout, args),
+        ConfigCommand::SetProjectHome(args) => config_set_project_home(layout, args),
+        ConfigCommand::ClearProjectHome => config_clear_project_home(layout),
+        ConfigCommand::AvailableRepos(args) => config_available_repos(args),
+        ConfigCommand::SetAllowedRepos(args) => config_set_allowed_repos(layout, args),
+        ConfigCommand::ClearAllowedRepos => config_clear_allowed_repos(layout),
     }
 }
 
@@ -401,6 +468,96 @@ fn task_create(layout: &StateLayout, ticket: &str) -> Result<()> {
     Ok(())
 }
 
+fn config_show(layout: &StateLayout, args: ConfigShowArgs) -> Result<()> {
+    let config = load_agents_config(layout)?;
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&config).context("failed to serialize agents config")?
+        );
+        return Ok(());
+    }
+
+    println!(
+        "project_home={}",
+        display_optional_path(config.project_home.as_deref())
+    );
+    if config.allowed_repos.is_empty() {
+        println!("allowed_repos=");
+    } else {
+        println!("allowed_repos={}", config.allowed_repos.join(","));
+    }
+    Ok(())
+}
+
+fn config_set_project_home(layout: &StateLayout, args: ConfigSetProjectHomeArgs) -> Result<()> {
+    let project_home = args
+        .path
+        .canonicalize()
+        .with_context(|| format!("failed to resolve project home {}", args.path.display()))?;
+    if !project_home.is_dir() {
+        bail!(
+            "Project home is not a directory: {}",
+            project_home.display()
+        );
+    }
+
+    let mut config = load_agents_config(layout)?;
+    config.project_home = Some(project_home.clone());
+    save_agents_config(layout, &config)?;
+    println!("Set project_home={}", project_home.display());
+    Ok(())
+}
+
+fn config_clear_project_home(layout: &StateLayout) -> Result<()> {
+    let mut config = load_agents_config(layout)?;
+    config.project_home = None;
+    save_agents_config(layout, &config)?;
+    println!("Cleared project_home");
+    Ok(())
+}
+
+fn config_available_repos(args: ConfigAvailableReposArgs) -> Result<()> {
+    let repos = list_available_repos()?;
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&repos).context("failed to serialize available repos")?
+        );
+        return Ok(());
+    }
+
+    for repo in repos {
+        println!("{}", repo.full_name);
+    }
+    Ok(())
+}
+
+fn config_set_allowed_repos(layout: &StateLayout, args: ConfigSetAllowedReposArgs) -> Result<()> {
+    let mut normalized = normalize_repo_filters(args.repos)?;
+    normalized.sort();
+    normalized.dedup();
+
+    let mut config = load_agents_config(layout)?;
+    config.allowed_repos = normalized.clone();
+    save_agents_config(layout, &config)?;
+
+    if normalized.is_empty() {
+        println!("Set allowed_repos=");
+    } else {
+        println!("Set allowed_repos={}", normalized.join(","));
+    }
+    Ok(())
+}
+
+fn config_clear_allowed_repos(layout: &StateLayout) -> Result<()> {
+    let mut config = load_agents_config(layout)?;
+    config.allowed_repos.clear();
+    save_agents_config(layout, &config)?;
+    println!("Cleared allowed_repos");
+    Ok(())
+}
+
 fn task_list(layout: &StateLayout) -> Result<()> {
     let mut tasks = load_tasks(layout)?;
     if tasks.is_empty() {
@@ -524,9 +681,13 @@ fn ensure_state_layout(layout: &StateLayout) -> Result<()> {
     fs::create_dir_all(&layout.tasks_dir)
         .with_context(|| format!("failed to create {}", layout.tasks_dir.display()))?;
     if !layout.config_file.exists() {
-        let payload = format!("state_version=1\ninitialized_at={}\n", now_utc());
-        fs::write(&layout.config_file, payload)
-            .with_context(|| format!("failed to write {}", layout.config_file.display()))?;
+        let config = AgentsConfig {
+            state_version: 1,
+            initialized_at: now_utc(),
+            project_home: None,
+            allowed_repos: Vec::new(),
+        };
+        save_agents_config(layout, &config)?;
     }
     Ok(())
 }
@@ -545,9 +706,127 @@ fn resolve_state_layout() -> Result<StateLayout> {
 
     Ok(StateLayout {
         tasks_dir: root.join("tasks"),
-        config_file: root.join("config.env"),
+        config_file: root.join("config.json"),
         root,
     })
+}
+
+fn load_agents_config(layout: &StateLayout) -> Result<AgentsConfig> {
+    let content = fs::read_to_string(&layout.config_file)
+        .with_context(|| format!("failed to read {}", layout.config_file.display()))?;
+    serde_json::from_str(&content)
+        .with_context(|| format!("failed to parse {}", layout.config_file.display()))
+}
+
+fn save_agents_config(layout: &StateLayout, config: &AgentsConfig) -> Result<()> {
+    let payload =
+        serde_json::to_string_pretty(config).context("failed to serialize agents config")?;
+    fs::write(&layout.config_file, payload)
+        .with_context(|| format!("failed to write {}", layout.config_file.display()))?;
+    Ok(())
+}
+
+fn display_optional_path(path: Option<&Path>) -> String {
+    path.map(|value| value.display().to_string())
+        .unwrap_or_else(|| "<tmp>".to_string())
+}
+
+fn list_available_repos() -> Result<Vec<AvailableRepo>> {
+    let mut owners = Vec::new();
+    let viewer_output = run_gh_json(
+        vec![
+            "api".to_string(),
+            "graphql".to_string(),
+            "-f".to_string(),
+            "query=query { viewer { login organizations(first: 100) { nodes { login } } } }"
+                .to_string(),
+        ],
+        None,
+    )?;
+    let viewer: serde_json::Value =
+        serde_json::from_str(&viewer_output).context("failed to parse gh viewer response")?;
+    if let Some(login) = viewer["data"]["viewer"]["login"].as_str() {
+        owners.push(login.to_string());
+    }
+    if let Some(nodes) = viewer["data"]["viewer"]["organizations"]["nodes"].as_array() {
+        owners.extend(
+            nodes
+                .iter()
+                .filter_map(|node| node["login"].as_str().map(ToString::to_string)),
+        );
+    }
+
+    owners.sort();
+    owners.dedup();
+
+    let mut repos = Vec::new();
+    for owner in owners {
+        let output = run_gh_json(
+            vec![
+                "repo".to_string(),
+                "list".to_string(),
+                owner,
+                "--limit".to_string(),
+                "1000".to_string(),
+                "--json".to_string(),
+                "name,owner,isArchived".to_string(),
+            ],
+            None,
+        )?;
+        let listed: Vec<ListedRepo> =
+            serde_json::from_str(&output).context("failed to parse gh repo list response")?;
+        repos.extend(
+            listed
+                .into_iter()
+                .filter(|repo| !repo.is_archived)
+                .map(|repo| AvailableRepo {
+                    full_name: format!("{}/{}", repo.owner.login, repo.name),
+                }),
+        );
+    }
+
+    repos.sort_by(|a, b| a.full_name.cmp(&b.full_name));
+    repos.dedup_by(|a, b| a.full_name == b.full_name);
+    Ok(repos)
+}
+
+fn normalize_repo_filters(repos: Vec<String>) -> Result<Vec<String>> {
+    repos
+        .into_iter()
+        .map(|repo| {
+            let trimmed = repo.trim();
+            let Some((owner, name)) = trimmed.split_once('/') else {
+                bail!("Invalid repo filter: {trimmed}. Expected OWNER/REPO.");
+            };
+            if owner.is_empty() || name.is_empty() || name.contains('/') {
+                bail!("Invalid repo filter: {trimmed}. Expected OWNER/REPO.");
+            }
+            Ok(format!("{owner}/{name}"))
+        })
+        .collect()
+}
+
+fn run_gh_json(args: Vec<String>, cwd: Option<&Path>) -> Result<String> {
+    let mut command = Command::new("gh");
+    command.args(args);
+    if let Some(cwd) = cwd {
+        command.current_dir(cwd);
+    }
+
+    let output = command.output().context("failed to launch gh")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let trimmed = stderr.trim();
+        if trimmed.is_empty() {
+            bail!(
+                "gh command failed with status {}",
+                output.status.code().unwrap_or(1)
+            );
+        }
+        bail!("{trimmed}");
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 fn resolve_loop_prompt(args: &WorkerLoopArgs) -> Result<String> {
