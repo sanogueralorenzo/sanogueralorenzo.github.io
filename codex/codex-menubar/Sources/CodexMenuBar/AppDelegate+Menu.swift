@@ -208,12 +208,13 @@ extension AppDelegate {
             reviewMenu.addItem(emptyItem)
         } else {
             var groupedPullRequests: [(repository: String, repositoryURL: String, pullRequests: [CodexCoreCLIClient.ReviewPullRequest])] = []
+            var groupedPullRequestIndexByRepository: [String: Int] = [:]
 
             for pullRequest in reviewPullRequests {
-                if let lastIndex = groupedPullRequests.indices.last,
-                   groupedPullRequests[lastIndex].repository == pullRequest.repositoryFullName {
-                    groupedPullRequests[lastIndex].pullRequests.append(pullRequest)
+                if let existingIndex = groupedPullRequestIndexByRepository[pullRequest.repositoryFullName] {
+                    groupedPullRequests[existingIndex].pullRequests.append(pullRequest)
                 } else {
+                    groupedPullRequestIndexByRepository[pullRequest.repositoryFullName] = groupedPullRequests.count
                     groupedPullRequests.append((
                         repository: pullRequest.repositoryFullName,
                         repositoryURL: pullRequest.repositoryURL,
