@@ -14,7 +14,7 @@
 
 This installs:
 - `codex-auth`
-- `codex-app-server`
+- `codexhub`
 - `codex-remote`
 - `codex-menubar`
 
@@ -23,7 +23,7 @@ It does not install `codex-agents`, `overlay`, `voice`, or `site`.
 ## Index
 
 - [Codex Auth](./codex-auth/README.md)
-- [Codex App Server](./codex-app-server/README.md)
+- [Codexhub](./codexhub/README.md)
 - [Codex Remote](./codex-remote/README.md)
 - [Codex Menubar](./codex-menubar/README.md)
 - [Codex Agents](./codex-agents/README.md)

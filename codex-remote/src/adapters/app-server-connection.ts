@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import {
   ApprovalDecision,
   ApprovalRequest,
-  CODEX_APP_SERVER_BIN,
+  CODEXHUB_BIN,
   DEFAULT_OPT_OUT_NOTIFICATION_METHODS,
   TurnRuntimeOptions
 } from "./app-server-client-types.js";
@@ -38,7 +38,7 @@ type JsonRpcMessage = JsonRpcSuccess | JsonRpcError | JsonRpcNotification | Json
 type NotificationHandler = (notification: JsonRpcNotification) => void;
 
 export class AppServerConnection {
-  private readonly child = spawn(CODEX_APP_SERVER_BIN, ["rpc", "--listen", "stdio://"], {
+  private readonly child = spawn(CODEXHUB_BIN, ["rpc", "--listen", "stdio://"], {
     stdio: ["pipe", "pipe", "pipe"],
     env: process.env
   });
