@@ -1,6 +1,6 @@
 use crate::auth::manager::ProfileManager;
 use crate::auth::models::{FileSnapshot, WatcherStatus};
-use crate::auth::process::is_process_running;
+use crate::auth::process::{is_auth_watcher_process, is_process_running};
 use crate::auth::util::{create_directory_if_needed, set_file_permissions, write_secure_atomically};
 use anyhow::{Context, Result, bail};
 use std::fs::{self, OpenOptions};
@@ -40,7 +40,7 @@ impl AuthSyncWatcher {
             return WatcherStatus::Stopped;
         };
 
-        if is_process_running(pid) {
+        if is_process_running(pid) && self.is_expected_process(pid) {
             WatcherStatus::Running(pid)
         } else {
             self.clear_pid_file_if_present();
@@ -88,6 +88,11 @@ impl AuthSyncWatcher {
         let Some(pid) = self.read_pid() else {
             return Ok(());
         };
+
+        if !is_process_running(pid) || !self.is_expected_process(pid) {
+            self.clear_pid_file_if_present();
+            return Ok(());
+        }
 
         let rc = unsafe { libc::kill(pid, libc::SIGTERM) };
         if rc != 0 {
@@ -140,5 +145,12 @@ impl AuthSyncWatcher {
 
     fn ensure_state_directory(&self) -> Result<()> {
         create_directory_if_needed(&self.state_directory, 0o700)
+    }
+
+    fn is_expected_process(&self, pid: i32) -> bool {
+        let Some(home_directory) = self.manager.paths.codex_directory.parent() else {
+            return false;
+        };
+        is_auth_watcher_process(pid, home_directory)
     }
 }

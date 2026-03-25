@@ -419,7 +419,7 @@ fn print_noninteractive_subcommand_help(mode: &Mode) {
     println!("  -o, --output-last-message <PATH>");
     println!("                         Persist final message path (forwarded to codex)");
     println!("  --raw-jsonl            Print raw codex JSONL events to stdout");
-    println!("  --emit-events          Mirror parsed JSONL events to stderr");
+    println!("  --emit-events          Mirror raw JSONL events to stderr");
     println!();
     println!("Notes:");
     println!("  - Prompt options are mutually exclusive.");

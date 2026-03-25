@@ -45,4 +45,4 @@ codex-core noninteractive run --help
     - `--prompt | --prompt-file | --prompt-stdin` (mutually exclusive)
     - `--result-json <path>` with `status`, `exit_code`, `thread_id`, `final_message`, `stderr`
     - `--raw-jsonl` to print upstream JSONL events
-    - `--emit-events` to mirror events to stderr
+    - `--emit-events` to mirror raw JSONL events to stderr

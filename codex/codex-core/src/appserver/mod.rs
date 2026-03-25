@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 pub fn run_from(args: Vec<OsString>) -> u8 {
     let mut iter = args.into_iter();
     let Some(command) = iter.next() else {
-        print_rpc_help();
+        print_appserver_help();
         return 0;
     };
 
@@ -33,7 +33,7 @@ pub fn run_from(args: Vec<OsString>) -> u8 {
     exit_code_from_status(&status)
 }
 
-fn print_rpc_help() {
+fn print_appserver_help() {
     println!("Usage:");
     println!("  codex-core app-server [-- app-server-options]");
     println!();
