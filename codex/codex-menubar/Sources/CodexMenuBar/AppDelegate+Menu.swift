@@ -310,7 +310,7 @@ extension AppDelegate {
 
     private func reviewPullRequestStatusPrefix(for state: CodexCoreCLIClient.ReviewJob.Status?) -> String {
         guard let state else {
-            return "[ ] "
+            return ""
         }
         switch state {
         case .published:
@@ -318,7 +318,7 @@ extension AppDelegate {
         case .needsAttention:
             return "[X] "
         case .inProgress:
-            return "[-] "
+            return "[—] "
         }
     }
 
