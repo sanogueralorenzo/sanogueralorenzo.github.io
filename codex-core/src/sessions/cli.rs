@@ -2,8 +2,8 @@ use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "codexhub sessions")]
-#[command(about = "Manage local Codex session files via codexhub")]
+#[command(name = "codex-core sessions")]
+#[command(about = "Manage local Codex session files via codex-core")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

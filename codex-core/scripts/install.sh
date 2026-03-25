@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 stop_existing_runtime() {
-  if command -v codexhub >/dev/null 2>&1; then
-    codexhub sessions watch thread-titles stop >/dev/null 2>&1 || true
+  if command -v codex-core >/dev/null 2>&1; then
+    codex-core sessions watch thread-titles stop >/dev/null 2>&1 || true
   fi
 }
 
@@ -34,7 +34,7 @@ fi
 stop_existing_runtime
 
 DEST_DIR="$(resolve_npm_bin_dir)"
-TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/codexhub-target}"
+TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/codex-core-target}"
 
 if ! command -v cargo >/dev/null 2>&1; then
   echo "Error: cargo is not installed or not on PATH." >&2
@@ -43,7 +43,7 @@ fi
 
 cd "$ROOT_DIR"
 cargo build --release --target-dir "$TARGET_DIR" >/dev/null
-BIN_PATH="$TARGET_DIR/release/codexhub"
+BIN_PATH="$TARGET_DIR/release/codex-core"
 
 mkdir -p "$DEST_DIR"
 if [[ ! -w "$DEST_DIR" ]]; then
@@ -52,12 +52,12 @@ if [[ ! -w "$DEST_DIR" ]]; then
   exit 1
 fi
 
-TMP_PATH="$DEST_DIR/.tmp-codexhub-$$"
+TMP_PATH="$DEST_DIR/.tmp-codex-core-$$"
 cp "$BIN_PATH" "$TMP_PATH"
 chmod +x "$TMP_PATH"
-mv -f "$TMP_PATH" "$DEST_DIR/codexhub"
+mv -f "$TMP_PATH" "$DEST_DIR/codex-core"
 
-echo "Installed CLI: $DEST_DIR/codexhub"
+echo "Installed CLI: $DEST_DIR/codex-core"
 
 case ":$PATH:" in
   *":$DEST_DIR:"*)

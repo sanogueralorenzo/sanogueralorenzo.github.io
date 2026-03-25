@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import process from "node:process";
 import { config as loadEnv } from "dotenv";
 import { ApprovalDecision, ApprovalPolicy, SandboxMode } from "./adapters/app-server-client.js";
-import { resolveCodexHomeFromEnv } from "./adapters/codexhub-sessions.js";
+import { resolveCodexHomeFromEnv } from "./adapters/codex-core-sessions.js";
 import { expandHomePath } from "./shared/path-utils.js";
 
 type RuntimeConfig = {

@@ -35,7 +35,7 @@ pub fn run_from(args: Vec<OsString>) -> u8 {
 
 fn print_rpc_help() {
     println!("Usage:");
-    println!("  codexhub app-server [-- app-server-options]");
+    println!("  codex-core app-server [-- app-server-options]");
     println!();
     println!("Description:");
     println!("  Runs 'codex app-server' as a passthrough command.");

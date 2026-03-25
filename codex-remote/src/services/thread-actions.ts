@@ -8,7 +8,7 @@ import {
   deleteSessionByThreadId,
   listSessionsForSelection,
   loadLatestAssistantMessageByThreadId
-} from "../adapters/codexhub-sessions.js";
+} from "../adapters/codex-core-sessions.js";
 import {
   buildFolderSelectionLabels,
   buildThreadSelectionLabels,

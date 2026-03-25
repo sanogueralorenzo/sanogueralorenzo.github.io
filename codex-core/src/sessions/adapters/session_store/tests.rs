@@ -33,7 +33,7 @@ mod tests {
     fn hard_delete_removes_global_state_title_entry() {
         let id = "019cc5d1-ec61-7c90-a7d8-2524f8828fd9";
         let temp_root =
-            std::env::temp_dir().join(format!("codexhub-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("codex-core-test-{}", Uuid::new_v4()));
         let codex_home = temp_root.join(".codex");
         let sessions_dir = codex_home
             .join("sessions")
@@ -94,7 +94,7 @@ mod tests {
         let id_one = "019cc5d1-ec61-7c90-a7d8-2524f8828fd9";
         let id_two = "019cc5d1-ec61-7c90-a7d8-2524f8828fda";
         let temp_root =
-            std::env::temp_dir().join(format!("codexhub-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("codex-core-test-{}", Uuid::new_v4()));
         let codex_home = temp_root.join(".codex");
         let sessions_dir = codex_home
             .join("sessions")
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn session_index_title_overrides_db_title() {
         let temp_root =
-            std::env::temp_dir().join(format!("codexhub-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("codex-core-test-{}", Uuid::new_v4()));
         let codex_home = temp_root.join(".codex");
         fs::create_dir_all(&codex_home).expect("create codex home");
 
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn title_write_lock_times_out_when_contended() {
         let temp_root =
-            std::env::temp_dir().join(format!("codexhub-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("codex-core-test-{}", Uuid::new_v4()));
         let codex_home = temp_root.join(".codex");
         fs::create_dir_all(&codex_home).expect("create codex home");
 
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn load_pinned_thread_ids_reads_global_state_array() {
         let temp_root =
-            std::env::temp_dir().join(format!("codexhub-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("codex-core-test-{}", Uuid::new_v4()));
         let codex_home = temp_root.join(".codex");
         fs::create_dir_all(&codex_home).expect("create codex home");
 

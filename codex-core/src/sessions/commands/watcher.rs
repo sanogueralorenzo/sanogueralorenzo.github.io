@@ -16,9 +16,9 @@ use super::title_generation::generate_session_title;
 
 const WATCH_TITLE_INTERVAL: Duration = Duration::from_secs(10);
 const WATCH_TITLE_BATCH_LIMIT: usize = 100;
-const WATCH_TITLE_PID_FILE: &str = "codexhub-watch-thread-titles.pid";
-const WATCH_TITLE_LOG_FILE: &str = "codexhub-watch-thread-titles.log";
-const WATCH_TITLE_STATE_FILE: &str = "codexhub-watch-thread-titles.state.json";
+const WATCH_TITLE_PID_FILE: &str = "codex-core-watch-thread-titles.pid";
+const WATCH_TITLE_LOG_FILE: &str = "codex-core-watch-thread-titles.log";
+const WATCH_TITLE_STATE_FILE: &str = "codex-core-watch-thread-titles.state.json";
 
 pub(crate) fn cmd_watch_thread_titles(action: WatchTitleCommand) -> Result<()> {
     match action {
@@ -175,7 +175,7 @@ impl TitleWatcher {
             let report = self.process_cycle(&store, &mut state)?;
             self.save_state(&state)?;
             eprintln!(
-                "[codexhub:watch-thread-titles] scanned={} generated={} skipped_not_eligible={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
+                "[codex-core:watch-thread-titles] scanned={} generated={} skipped_not_eligible={} skipped_not_ready={} missing={} errors={} watermark_updated_at={} watermark_id={}",
                 report.scanned,
                 report.generated,
                 report.skipped_not_eligible,
@@ -256,7 +256,7 @@ impl TitleWatcher {
                     report.errors += 1;
                     state_blocked = true;
                     eprintln!(
-                        "[codexhub:watch-thread-titles] generate failed id={} error={}",
+                        "[codex-core:watch-thread-titles] generate failed id={} error={}",
                         candidate.id, error
                     );
                     continue;
@@ -273,7 +273,7 @@ impl TitleWatcher {
                 report.errors += 1;
                 state_blocked = true;
                 eprintln!(
-                    "[codexhub:watch-thread-titles] persist failed id={} error={}",
+                    "[codex-core:watch-thread-titles] persist failed id={} error={}",
                     candidate.id, error
                 );
                 continue;

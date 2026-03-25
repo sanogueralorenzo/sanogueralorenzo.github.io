@@ -95,7 +95,7 @@ export type TimedCreateTurnResult =
     };
 
 export const TURN_TIMEOUT_MS = 5 * 60 * 1000;
-export const CODEXHUB_BIN = process.env.CODEXHUB_BIN?.trim() || "codexhub";
+export const CODEX_CORE_BIN = process.env.CODEX_CORE_BIN?.trim() || "codex-core";
 export const THREAD_LIST_SOURCE_KINDS = ["vscode", "cli", "appServer"] as const;
 
 // Keep transport-side policy in the app-server stream itself; clients focus on rendering.

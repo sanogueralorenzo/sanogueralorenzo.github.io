@@ -199,7 +199,7 @@ fn run_wrapper(mode: Mode, options: WrapperOptions) -> u8 {
         path
     } else {
         managed_output_last_message = true;
-        temp_file_path("codexhub-last-message", "txt")
+        temp_file_path("codex-core-last-message", "txt")
     };
 
     let mut command = Command::new("codex");
@@ -369,7 +369,7 @@ fn mode_label(mode: &Mode) -> &'static str {
 
 fn print_noninteractive_command_help() {
     println!("Usage:");
-    println!("  codexhub noninteractive run|resume|review ...");
+    println!("  codex-core noninteractive run|resume|review ...");
     println!();
     println!("Description:");
     println!("  Run standardized non-interactive Codex wrappers.");
@@ -385,7 +385,7 @@ fn print_noninteractive_subcommand_help(mode: &Mode) {
         Mode::Run => {
             println!("Usage:");
             println!(
-                "  codexhub noninteractive run [wrapper-options] [-- codex-exec-options]"
+                "  codex-core noninteractive run [wrapper-options] [-- codex-exec-options]"
             );
             println!();
             println!("Description:");
@@ -394,7 +394,7 @@ fn print_noninteractive_subcommand_help(mode: &Mode) {
         Mode::Resume => {
             println!("Usage:");
             println!(
-                "  codexhub noninteractive resume [wrapper-options] [-- codex-exec-resume-options]"
+                "  codex-core noninteractive resume [wrapper-options] [-- codex-exec-resume-options]"
             );
             println!();
             println!("Description:");
@@ -403,7 +403,7 @@ fn print_noninteractive_subcommand_help(mode: &Mode) {
         Mode::Review => {
             println!("Usage:");
             println!(
-                "  codexhub noninteractive review [wrapper-options] [-- codex-exec-review-options]"
+                "  codex-core noninteractive review [wrapper-options] [-- codex-exec-review-options]"
             );
             println!();
             println!("Description:");

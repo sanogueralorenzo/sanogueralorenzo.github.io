@@ -1,5 +1,5 @@
 [package]
-name = "codexhub"
+name = "codex-core"
 version = "0.1.0"
 edition = "2024"
 

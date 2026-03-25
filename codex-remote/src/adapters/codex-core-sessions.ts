@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 import { expandHomePath } from "../shared/path-utils.js";
 
 const execFileAsync = promisify(execFile);
-const CODEXHUB_BIN = process.env.CODEXHUB_BIN?.trim() || "codexhub";
+const CODEX_CORE_BIN = process.env.CODEX_CORE_BIN?.trim() || "codex-core";
 
 type DeleteResponse = {
   id: string;
@@ -60,7 +60,7 @@ export async function listSessionsForSelection(
   codexHome: string,
   limit: number
 ): Promise<ListedSession[]> {
-  const result = await runCodexHubSessionsJson<ListResponse>([
+  const result = await runCodexCoreSessionsJson<ListResponse>([
     "ls",
     "--json",
     "--all",
@@ -84,7 +84,7 @@ export async function deleteSessionByThreadId(
   reason: DeleteResponse["reason"] | null;
   message: string | null;
 }> {
-  const payload = await runCodexHubSessionsJsonOrNullOnNotFound<DeleteBatchResponse>([
+  const payload = await runCodexCoreSessionsJsonOrNullOnNotFound<DeleteBatchResponse>([
     "rm",
     threadId,
     "--json",
@@ -114,7 +114,7 @@ export async function loadLatestAssistantMessageByThreadId(
   threadId: string,
   codexHome: string
 ): Promise<string | null> {
-  const result = await runCodexHubSessionsJsonOrNullOnNotFound<MessageResponse>([
+  const result = await runCodexCoreSessionsJsonOrNullOnNotFound<MessageResponse>([
     "message",
     threadId,
     "--json",
@@ -131,18 +131,18 @@ export async function loadLatestAssistantMessageByThreadId(
   return null;
 }
 
-async function runCodexHubSessionsJson<T>(args: string[]): Promise<T> {
-  const stdout = await runCodexHubSessions(args);
+async function runCodexCoreSessionsJson<T>(args: string[]): Promise<T> {
+  const stdout = await runCodexCoreSessions(args);
   try {
     return JSON.parse(stdout) as T;
   } catch (error) {
-    throw new Error(`Invalid JSON from ${CODEXHUB_BIN}: ${(error as Error).message}`);
+    throw new Error(`Invalid JSON from ${CODEX_CORE_BIN}: ${(error as Error).message}`);
   }
 }
 
-async function runCodexHubSessionsJsonOrNullOnNotFound<T>(args: string[]): Promise<T | null> {
+async function runCodexCoreSessionsJsonOrNullOnNotFound<T>(args: string[]): Promise<T | null> {
   try {
-    return await runCodexHubSessionsJson<T>(args);
+    return await runCodexCoreSessionsJson<T>(args);
   } catch (error) {
     if (isNotFoundError(error)) {
       return null;
@@ -151,10 +151,10 @@ async function runCodexHubSessionsJsonOrNullOnNotFound<T>(args: string[]): Promi
   }
 }
 
-async function runCodexHubSessions(args: string[]): Promise<string> {
+async function runCodexCoreSessions(args: string[]): Promise<string> {
   const commandArgs = ["sessions", ...args];
   try {
-    const { stdout } = await execFileAsync(CODEXHUB_BIN, commandArgs, {
+    const { stdout } = await execFileAsync(CODEX_CORE_BIN, commandArgs, {
       maxBuffer: 10 * 1024 * 1024,
     });
     return stdout;
@@ -162,7 +162,7 @@ async function runCodexHubSessions(args: string[]): Promise<string> {
     const err = error as NodeJS.ErrnoException & { stderr?: string };
     if (err.code === "ENOENT") {
       throw new Error(
-        `Missing '${CODEXHUB_BIN}' CLI. Install codexhub before running codex-remote.`
+        `Missing '${CODEX_CORE_BIN}' CLI. Install codex-core before running codex-remote.`
       );
     }
     throw error;

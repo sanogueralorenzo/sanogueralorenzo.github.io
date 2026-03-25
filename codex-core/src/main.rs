@@ -30,9 +30,9 @@ fn main() -> ExitCode {
 
 fn print_help() {
     println!("Usage:");
-    println!("  codexhub app-server [-- app-server-options]");
-    println!("  codexhub sessions <command> [options]");
-    println!("  codexhub noninteractive run|resume|review [wrapper-options]");
+    println!("  codex-core app-server [-- app-server-options]");
+    println!("  codex-core sessions <command> [options]");
+    println!("  codex-core noninteractive run|resume|review [wrapper-options]");
     println!();
     println!("Commands:");
     println!("  app-server      Run codex app-server passthrough.");

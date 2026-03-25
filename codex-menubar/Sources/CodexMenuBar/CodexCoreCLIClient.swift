@@ -1,6 +1,6 @@
 import Foundation
 
-final class CodexHubCLIClient: @unchecked Sendable {
+final class CodexCoreCLIClient: @unchecked Sendable {
     enum AutoRemoveMode: String {
         case archive
         case delete
@@ -64,11 +64,11 @@ final class CodexHubCLIClient: @unchecked Sendable {
 
     private func run(_ arguments: [String]) throws -> String {
         guard let executablePath else {
-            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codexhub"))
+            throw Error(message: CLIExecutableResolver.unresolvedMessage(commandName: "codex-core"))
         }
 
         guard fileManager.isExecutableFile(atPath: executablePath) else {
-            throw Error(message: "codexhub CLI not found at \(executablePath). Run codexhub/scripts/install.sh first.")
+            throw Error(message: "codex-core CLI not found at \(executablePath). Run codex-core/scripts/install.sh first.")
         }
 
         let process = Process()
@@ -92,13 +92,13 @@ final class CodexHubCLIClient: @unchecked Sendable {
             if !message.isEmpty {
                 throw Error(message: message)
             }
-            throw Error(message: "codexhub sessions command failed: codexhub sessions \(arguments.joined(separator: " "))")
+            throw Error(message: "codex-core sessions command failed: codex-core sessions \(arguments.joined(separator: " "))")
         }
 
         return stdoutText
     }
 
     private static func resolveExecutablePath() -> String? {
-        CLIExecutableResolver.resolve(commandName: "codexhub")
+        CLIExecutableResolver.resolve(commandName: "codex-core")
     }
 }

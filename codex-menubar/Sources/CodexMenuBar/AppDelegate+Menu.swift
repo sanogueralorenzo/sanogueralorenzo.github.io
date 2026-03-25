@@ -88,7 +88,7 @@ extension AppDelegate {
         } else {
             switch data.sessionsStatus ?? .notInstalled {
             case .notInstalled:
-                let missingItem = NSMenuItem(title: "Threads CLI not installed (codexhub)", action: nil, keyEquivalent: "")
+                let missingItem = NSMenuItem(title: "Threads CLI not installed (codex-core)", action: nil, keyEquivalent: "")
                 missingItem.isEnabled = false
                 sessionsMenu.addItem(missingItem)
             case .ready:
@@ -286,7 +286,7 @@ extension AppDelegate {
     }
 
     private func autoRemoveModeSubmenuItem(days: Int,
-                                           mode: CodexHubCLIClient.AutoRemoveMode) -> NSMenuItem {
+                                           mode: CodexCoreCLIClient.AutoRemoveMode) -> NSMenuItem {
         let item = NSMenuItem(
             title: mode == .archive ? "Archive" : "Delete",
             action: #selector(setAutoRemoveSelection(_:)),

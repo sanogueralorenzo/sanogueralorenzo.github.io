@@ -5,7 +5,7 @@
 ## Quickstart
 
 ```shell
-../codexhub/scripts/install.sh
+../codex-core/scripts/install.sh
 ./scripts/install.sh
 npm install
 npm run typecheck
@@ -50,11 +50,11 @@ help     Print this help output.
 ### Required Config
 
 - `.env`
-- `codexhub` on `PATH` (installed by root `./install.sh` or `../codexhub/scripts/install.sh`)
-- `codexhub` command surfaces used by remote:
+- `codex-core` on `PATH` (installed by root `./install.sh` or `../codex-core/scripts/install.sh`)
+- `codex-core` command surfaces used by remote:
   - `app-server` (for app-server transport)
   - `sessions` (for thread/session operations)
-- `CODEXHUB_BIN` (optional override path/name; defaults to `codexhub`)
+- `CODEX_CORE_BIN` (optional override path/name; defaults to `codex-core`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
 - Node dependencies installed in `codex-remote` (`npm install`)

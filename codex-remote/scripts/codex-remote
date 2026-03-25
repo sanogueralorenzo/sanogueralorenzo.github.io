@@ -145,13 +145,13 @@ ensure_node() {
 }
 
 ensure_codex_app_server() {
-  if ! command -v codexhub >/dev/null 2>&1; then
-    local sibling_install="$PROJECT_ROOT/../codexhub/scripts/install.sh"
-    echo "codexhub not found. Install it first:" >&2
+  if ! command -v codex-core >/dev/null 2>&1; then
+    local sibling_install="$PROJECT_ROOT/../codex-core/scripts/install.sh"
+    echo "codex-core not found. Install it first:" >&2
     if [[ -f "$sibling_install" ]]; then
       echo "  $sibling_install" >&2
     else
-      echo "  codexhub/scripts/install.sh" >&2
+      echo "  codex-core/scripts/install.sh" >&2
     fi
     exit 1
   fi
