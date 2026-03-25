@@ -263,7 +263,7 @@ fn run_review(args: ReviewRunArgs) -> Result<()> {
     let prompt = format!("{}\n\n{}", upstream_prompts.review_rubric, review_request);
     let review = run_codex_exec_review(&workspace.repo_dir, &prompt)?;
     let changed_lines =
-        collect_changed_right_side_lines(&workspace.repo_dir, &pull_request.base_ref_name)?;
+        collect_changed_diff_lines(&workspace.repo_dir, &pull_request.base_ref_name)?;
     let result = post_review_comments(
         &pr_ref,
         &workspace.repo_dir,
@@ -579,10 +579,37 @@ fn parse_review_output_event(text: &str) -> Result<ReviewOutputEvent> {
     bail!("codex exec review output was not valid review JSON")
 }
 
-fn collect_changed_right_side_lines(
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+struct FileDiffLines {
+    left: HashSet<u32>,
+    right: HashSet<u32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DiffSide {
+    Left,
+    Right,
+}
+
+impl DiffSide {
+    fn as_github_value(self) -> &'static str {
+        match self {
+            Self::Left => "LEFT",
+            Self::Right => "RIGHT",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CommentTarget {
+    line: u32,
+    side: DiffSide,
+}
+
+fn collect_changed_diff_lines(
     repo_dir: &Path,
     base_ref_name: &str,
-) -> Result<HashMap<String, HashSet<u32>>> {
+) -> Result<HashMap<String, FileDiffLines>> {
     let diff_target = format!("origin/{base_ref_name}...HEAD");
     let output = Command::new("git")
         .current_dir(repo_dir)
@@ -598,60 +625,93 @@ fn collect_changed_right_side_lines(
         bail!("git diff failed: {}", stderr.trim());
     }
 
-    Ok(parse_changed_right_side_lines(&String::from_utf8_lossy(
+    Ok(parse_changed_diff_lines(&String::from_utf8_lossy(
         &output.stdout,
     )))
 }
 
-fn parse_changed_right_side_lines(diff_text: &str) -> HashMap<String, HashSet<u32>> {
-    let mut changed_lines: HashMap<String, HashSet<u32>> = HashMap::new();
-    let mut current_path: Option<String> = None;
+fn parse_changed_diff_lines(diff_text: &str) -> HashMap<String, FileDiffLines> {
+    let mut changed_lines: HashMap<String, FileDiffLines> = HashMap::new();
+    let mut current_old_path: Option<String> = None;
+    let mut current_new_path: Option<String> = None;
+    let mut current_old_line = 0u32;
     let mut current_new_line = 0u32;
 
     for line in diff_text.lines() {
-        if let Some(path) = line.strip_prefix("+++ b/") {
-            current_path = Some(path.to_string());
-            continue;
-        }
-
-        if line.starts_with("+++ /dev/null") {
-            current_path = None;
-            continue;
-        }
-
-        if let Some(hunk) = line.strip_prefix("@@ ") {
-            if let Some((_, rest)) = hunk.split_once('+') {
-                let new_span = rest.split(' ').next().unwrap_or_default();
-                let new_start = new_span
-                    .split(',')
-                    .next()
-                    .unwrap_or("0")
-                    .parse::<u32>()
-                    .unwrap_or(0);
-                current_new_line = new_start;
+        if let Some(header) = line.strip_prefix("diff --git a/") {
+            if let Some((old_path, new_path)) = header.split_once(" b/") {
+                current_old_path = Some(old_path.to_string());
+                current_new_path = Some(new_path.to_string());
             }
             continue;
         }
 
-        let Some(path) = current_path.as_ref() else {
+        if let Some(hunk) = line.strip_prefix("@@ ") {
+            let Some((old_part, rest)) = hunk.split_once(' ') else {
+                continue;
+            };
+            current_old_line = old_part
+                .trim_start_matches('-')
+                .split(',')
+                .next()
+                .unwrap_or("0")
+                .parse::<u32>()
+                .unwrap_or(0);
+            let new_span = rest
+                .trim_start_matches('+')
+                .split(' ')
+                .next()
+                .unwrap_or_default();
+            current_new_line = new_span
+                .split(',')
+                .next()
+                .unwrap_or("0")
+                .parse::<u32>()
+                .unwrap_or(0);
             continue;
-        };
+        }
 
         if line.starts_with('+') && !line.starts_with("+++") {
-            changed_lines
-                .entry(path.clone())
-                .or_default()
-                .insert(current_new_line);
+            if let Some(path) = current_new_path.as_ref() {
+                changed_lines
+                    .entry(path.clone())
+                    .or_default()
+                    .right
+                    .insert(current_new_line);
+            }
             current_new_line += 1;
             continue;
         }
 
         if line.starts_with('-') && !line.starts_with("---") {
+            if let Some(path) = current_old_path.as_ref() {
+                changed_lines
+                    .entry(path.clone())
+                    .or_default()
+                    .left
+                    .insert(current_old_line);
+            }
+            current_old_line += 1;
             continue;
         }
 
         if line.starts_with(' ') {
+            current_old_line += 1;
             current_new_line += 1;
+            continue;
+        }
+
+        if line == "\\ No newline at end of file" {
+            continue;
+        }
+
+        if let Some(path) = line.strip_prefix("--- a/") {
+            changed_lines.entry(path.to_string()).or_default();
+            continue;
+        }
+
+        if let Some(path) = line.strip_prefix("+++ b/") {
+            changed_lines.entry(path.to_string()).or_default();
         }
     }
 
@@ -663,7 +723,7 @@ fn post_review_comments(
     repo_dir: &Path,
     pull_request: &PullRequestView,
     review: ReviewOutputEvent,
-    changed_lines: &HashMap<String, HashSet<u32>>,
+    changed_lines: &HashMap<String, FileDiffLines>,
 ) -> Result<ReviewRunResult> {
     let mut posted_comments = 0usize;
     let mut failed_comments = 0usize;
@@ -678,14 +738,22 @@ fn post_review_comments(
                 continue;
             }
         };
-        let Some(line) =
-            select_comment_line(&finding.code_location.line_range, changed_lines.get(&path))
+        let Some(target) =
+            select_comment_target(&finding.code_location.line_range, changed_lines.get(&path))
         else {
             failed_comments += 1;
             continue;
         };
         let body = render_inline_comment_body(&finding);
-        if post_inline_comment(pr_ref, &path, line, &body).is_ok() {
+        if post_inline_comment(
+            pr_ref,
+            &path,
+            target.line,
+            target.side.as_github_value(),
+            &body,
+        )
+        .is_ok()
+        {
             posted_comments += 1;
         } else {
             failed_comments += 1;
@@ -724,13 +792,29 @@ fn normalize_comment_path(path: &Path, repo_dir: &Path) -> Result<String> {
     Ok(relative.to_string_lossy().into_owned())
 }
 
-fn select_comment_line(
+fn select_comment_target(
     line_range: &ReviewLineRange,
-    changed_lines: Option<&HashSet<u32>>,
-) -> Option<u32> {
+    changed_lines: Option<&FileDiffLines>,
+) -> Option<CommentTarget> {
     let changed_lines = changed_lines?;
-    (line_range.start..=line_range.end.max(line_range.start))
-        .find(|line| changed_lines.contains(line))
+    let end = line_range.end.max(line_range.start);
+    for line in line_range.start..=end {
+        if changed_lines.right.contains(&line) {
+            return Some(CommentTarget {
+                line,
+                side: DiffSide::Right,
+            });
+        }
+    }
+    for line in line_range.start..=end {
+        if changed_lines.left.contains(&line) {
+            return Some(CommentTarget {
+                line,
+                side: DiffSide::Left,
+            });
+        }
+    }
+    None
 }
 
 fn render_inline_comment_body(finding: &ReviewFinding) -> String {
@@ -751,6 +835,7 @@ fn post_inline_comment(
     pr_ref: &PullRequestReference,
     path: &str,
     line: u32,
+    side: &str,
     body: &str,
 ) -> Result<()> {
     if line == 0 {
@@ -765,7 +850,7 @@ fn post_inline_comment(
         "body": body.trim(),
         "path": path,
         "line": line,
-        "side": "RIGHT"
+        "side": side
     });
     fs::write(
         &payload_path,
@@ -917,22 +1002,25 @@ mod tests {
     }
 
     #[test]
-    fn parses_changed_right_side_lines_from_diff() {
+    fn parses_changed_diff_lines_from_diff() {
         let diff = "\
 diff --git a/src/app.rs b/src/app.rs
 index 1111111..2222222 100644
 --- a/src/app.rs
 +++ b/src/app.rs
-@@ -10,0 +11,2 @@
+@@ -10,1 +11,2 @@
+-let old = false;
 +let added = true;
 +let next = true;
 @@ -20 +22,0 @@
 -let removed = true;
 ";
-        let changed = parse_changed_right_side_lines(diff);
+        let changed = parse_changed_diff_lines(diff);
         let lines = changed.get("src/app.rs").unwrap();
-        assert!(lines.contains(&11));
-        assert!(lines.contains(&12));
-        assert!(!lines.contains(&22));
+        assert!(lines.right.contains(&11));
+        assert!(lines.right.contains(&12));
+        assert!(lines.left.contains(&10));
+        assert!(lines.left.contains(&20));
+        assert!(!lines.right.contains(&22));
     }
 }
