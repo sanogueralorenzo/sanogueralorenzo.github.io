@@ -1,8 +1,8 @@
+mod app_server;
 mod agents;
 mod auth;
 mod core;
 mod noninteractive;
-mod rpc;
 mod sessions;
 
 use std::env;
@@ -14,7 +14,7 @@ fn main() -> ExitCode {
     let forwarded_args: Vec<OsString> = args.iter().skip(1).cloned().collect();
 
     match forwarded_args.first().and_then(|value| value.to_str()) {
-        Some("app-server") => ExitCode::from(rpc::run_from(forwarded_args)),
+        Some("app-server") => ExitCode::from(app_server::run_from(forwarded_args)),
         Some("auth") => ExitCode::from(auth::run_from(forwarded_args)),
         Some("agents") => ExitCode::from(agents::run_from(forwarded_args)),
         Some("sessions") => ExitCode::from(sessions::run_from(forwarded_args)),
