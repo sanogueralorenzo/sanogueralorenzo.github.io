@@ -219,7 +219,7 @@ extension AppDelegate {
         menu.addItem(reviewItem)
         menu.setSubmenu(reviewMenu, for: reviewItem)
 
-        let settingsItem = NSMenuItem(title: "Settings…",
+        let settingsItem = NSMenuItem(title: "Settings",
                                       action: #selector(openCodexAgentSettings(_:)),
                                       keyEquivalent: "")
         settingsItem.target = self
