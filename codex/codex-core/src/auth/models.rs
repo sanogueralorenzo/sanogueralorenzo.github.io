@@ -9,7 +9,6 @@ pub struct AuthPaths {
     pub manager_directory: PathBuf,
     pub profiles_directory: PathBuf,
     pub active_account_id_file: PathBuf,
-    pub legacy_profiles_directory: PathBuf,
 }
 
 impl AuthPaths {
@@ -24,7 +23,6 @@ impl AuthPaths {
             manager_directory: manager_directory.clone(),
             profiles_directory: manager_directory.join("profiles"),
             active_account_id_file: manager_directory.join("active-account-id"),
-            legacy_profiles_directory: home_directory.join(".codex-auth").join("profiles"),
         }
     }
 }

@@ -10,7 +10,6 @@ use crate::auth::util::{
 };
 use anyhow::{Context, Result, bail};
 use fs2::FileExt;
-use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::thread;
@@ -63,7 +62,6 @@ impl ProfileManager {
 
     pub fn ensure_directories(&self) -> Result<()> {
         create_directory_if_needed(&self.paths.codex_directory, 0o700)?;
-        self.migrate_legacy_profiles_if_needed()?;
         create_directory_if_needed(&self.paths.manager_directory, 0o700)?;
         create_directory_if_needed(&self.paths.profiles_directory, 0o700)?;
         Ok(())
@@ -278,48 +276,6 @@ impl ProfileManager {
         }
         Ok(())
     }
-
-    fn migrate_legacy_profiles_if_needed(&self) -> Result<()> {
-        if !self.paths.legacy_profiles_directory.exists() {
-            return Ok(());
-        }
-
-        create_directory_if_needed(&self.paths.manager_directory, 0o700)?;
-        create_directory_if_needed(&self.paths.profiles_directory, 0o700)?;
-
-        for entry in fs::read_dir(&self.paths.legacy_profiles_directory).with_context(|| {
-            format!(
-                "failed to read {}",
-                self.paths.legacy_profiles_directory.display()
-            )
-        })? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension() != Some(OsStr::new("json")) {
-                continue;
-            }
-
-            let Some(file_name) = path.file_name() else {
-                continue;
-            };
-            let destination = self.paths.profiles_directory.join(file_name);
-            if destination.exists() {
-                continue;
-            }
-
-            fs::copy(&path, &destination).with_context(|| {
-                format!(
-                    "failed copying legacy profile {} to {}",
-                    path.display(),
-                    destination.display()
-                )
-            })?;
-            set_file_permissions(&destination, 0o600)?;
-        }
-
-        Ok(())
-    }
-
     fn read_validated_auth_account_id(&self, path: &Path) -> Result<String> {
         Ok(read_validated_auth_file(path)?.account_id)
     }

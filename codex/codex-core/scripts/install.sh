@@ -7,10 +7,6 @@ stop_existing_runtime() {
   if command -v codex-core >/dev/null 2>&1; then
     codex-core sessions watch thread-titles stop >/dev/null 2>&1 || true
   fi
-
-  if command -v codex-auth >/dev/null 2>&1; then
-    codex-auth watch stop >/dev/null 2>&1 || true
-  fi
 }
 
 remove_legacy_binaries() {

@@ -25,6 +25,7 @@ codex-core noninteractive run --help
 - Auth commands:
   - `codex-core auth ...` manages profiles, current auth selection, and the auth watcher.
   - Primary verbs: `save`, `use`, `list`, `current`, `remove`, `watch`.
+  - State lives under `~/.codex/auth`, including `profiles/`, `active-account-id`, `codex-core-auth-watch.pid`, and `codex-core-auth-watch.log`.
 - Agents commands:
   - `codex-core agents ...` manages local task files and worker loops.
   - Primary verbs: `config init`, `task create|list|show`, `worker start|loop`.
