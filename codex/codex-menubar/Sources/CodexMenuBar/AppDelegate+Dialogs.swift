@@ -112,12 +112,13 @@ struct CodexAgentSettingsSelection {
 }
 
 @MainActor
-final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSWindowDelegate {
+final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSWindowDelegate, NSSearchFieldDelegate {
     private let ghStatusRow = IntegrationStatusRowView(toolName: "gh")
     private let acliStatusRow = IntegrationStatusRowView(toolName: "acli")
     private let progressIndicator = NSProgressIndicator()
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let saveButton = NSButton(title: "Save", target: nil, action: nil)
+    private let searchField = NSSearchField()
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
     private let reposHint = NSTextField(labelWithString: "Leave all unchecked to include every available repo.")
@@ -128,6 +129,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private let onClose: () -> Void
 
     private var repos: [String] = []
+    private var filteredRepos: [String] = []
     private var selectedRepos: Set<String> = []
     private var configLoaded = false
     private var reposLoaded = false
@@ -181,6 +183,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
         acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
         updateReposHintLayout(isLoading: true)
+        applySearchFilter()
         tableView.reloadData()
     }
 
@@ -193,6 +196,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         reposLoaded = true
         reposLoadErrorMessage = nil
         repos = availableRepos.map(\.fullName)
+        applySearchFilter()
         loadCompleted = true
         saveButton.isEnabled = configLoaded
         progressIndicator.stopAnimation(nil)
@@ -220,6 +224,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         reposLoaded = false
         reposLoadErrorMessage = message
         repos = []
+        filteredRepos = []
         saveButton.isEnabled = false
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
@@ -251,7 +256,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         if !reposLoaded {
             return 0
         }
-        return max(repos.count, 1)
+        return max(filteredRepos.count, 1)
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -267,7 +272,13 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
             return label
         }
 
-        let repo = repos[row]
+        if filteredRepos.isEmpty {
+            let label = NSTextField(labelWithString: "No GitHub repos match your search.")
+            label.textColor = .secondaryLabelColor
+            return label
+        }
+
+        let repo = filteredRepos[row]
         let identifier = NSUserInterfaceItemIdentifier("repo-cell")
         let cellView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView ?? makeRepoCellView(identifier: identifier)
         guard let button = cellView.subviews.compactMap({ $0 as? NSButton }).first else {
@@ -317,6 +328,12 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         reposTitle.frame = NSRect(x: horizontalInset, y: 232, width: contentWidth, height: 20)
         contentView.addSubview(reposTitle)
 
+        searchField.delegate = self
+        searchField.placeholderString = "Search repositories"
+        searchField.sendsSearchStringImmediately = true
+        searchField.frame = NSRect(x: horizontalInset, y: 232 - 34, width: contentWidth, height: 26)
+        contentView.addSubview(searchField)
+
         reposHint.textColor = .secondaryLabelColor
         reposHint.frame = NSRect(x: horizontalInset, y: reposHintY, width: contentWidth, height: 18)
         contentView.addSubview(reposHint)
@@ -327,7 +344,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         progressIndicator.frame = NSRect(x: horizontalInset, y: reposHintY, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
-        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 112)
+        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 146)
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 
@@ -363,6 +380,24 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         let hintX = isLoading ? horizontalInset + 24 : horizontalInset
         let hintWidth = isLoading ? contentWidth - 24 : contentWidth
         reposHint.frame = NSRect(x: hintX, y: reposHintY, width: hintWidth, height: 18)
+    }
+
+    private func applySearchFilter() {
+        let query = searchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            filteredRepos = repos
+            return
+        }
+
+        let normalizedQuery = query.lowercased()
+        filteredRepos = repos.filter { repo in
+            repo.lowercased().contains(normalizedQuery)
+        }
+    }
+
+    func controlTextDidChange(_ obj: Notification) {
+        applySearchFilter()
+        tableView.reloadData()
     }
 
     private func makeRepoCellView(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
