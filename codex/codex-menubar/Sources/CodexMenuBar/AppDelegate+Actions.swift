@@ -289,11 +289,6 @@ extension AppDelegate {
                 Task {
                     do {
                         try await Self.runAgentSettingsOperation {
-                            if let projectHome = selection.projectHome, !projectHome.isEmpty {
-                                try sessionsCLI.setAgentsProjectHome(path: projectHome)
-                            } else {
-                                try sessionsCLI.clearAgentsProjectHome()
-                            }
                             try sessionsCLI.setAllowedRepos(selection.allowedRepos)
                         }
                         self.refreshUI()

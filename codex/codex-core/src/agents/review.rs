@@ -7,7 +7,6 @@ use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -168,14 +167,11 @@ struct PullRequestView {
     url: String,
     #[serde(rename = "baseRefName")]
     base_ref_name: String,
-    #[serde(rename = "headRefName")]
-    head_ref_name: String,
 }
 
 struct ReviewWorkspace {
-    root: PathBuf,
+    cache_repo_dir: PathBuf,
     repo_dir: PathBuf,
-    delete_on_drop: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -214,9 +210,18 @@ struct UpstreamReviewPrompts {
 
 impl Drop for ReviewWorkspace {
     fn drop(&mut self) {
-        if self.delete_on_drop {
-            let _ = fs::remove_dir_all(&self.root);
-        }
+        let _ = Command::new("git")
+            .arg("-C")
+            .arg(&self.cache_repo_dir)
+            .args(["worktree", "remove", "--force"])
+            .arg(&self.repo_dir)
+            .output();
+        let _ = Command::new("git")
+            .arg("-C")
+            .arg(&self.cache_repo_dir)
+            .args(["worktree", "prune"])
+            .output();
+        let _ = fs::remove_dir_all(&self.repo_dir);
     }
 }
 
@@ -259,10 +264,9 @@ fn list_pull_requests(layout: &StateLayout, args: ReviewListArgs) -> Result<()> 
 }
 
 fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
-    let config = load_agents_config(layout)?;
     let pr_ref = parse_pull_request_reference(&args.pull_request)?;
     let pull_request = fetch_pull_request_view(&pr_ref)?;
-    let workspace = checkout_pull_request(&config, &pr_ref, &pull_request)?;
+    let workspace = checkout_pull_request(layout, &pr_ref, &pull_request)?;
     let upstream_prompts = load_upstream_review_prompts()?;
     let merge_base = resolve_merge_base(&workspace.repo_dir, &pull_request.base_ref_name)?;
     let review_request = build_base_branch_review_request(
@@ -400,7 +404,7 @@ fn fetch_pull_request_view(pr_ref: &PullRequestReference) -> Result<PullRequestV
             "--repo".to_string(),
             pr_ref.repo_name_with_owner(),
             "--json".to_string(),
-            "number,url,baseRefName,headRefName".to_string(),
+            "number,url,baseRefName".to_string(),
         ],
         None,
     )?;
@@ -408,105 +412,99 @@ fn fetch_pull_request_view(pr_ref: &PullRequestReference) -> Result<PullRequestV
 }
 
 fn checkout_pull_request(
-    config: &AgentsConfig,
+    layout: &StateLayout,
     pr_ref: &PullRequestReference,
     pull_request: &PullRequestView,
 ) -> Result<ReviewWorkspace> {
-    if let Some(project_home) = config.project_home.as_ref() {
-        let root = project_home.join(&pr_ref.owner);
-        let repo_dir = root.join(&pr_ref.repo);
-        fs::create_dir_all(&root)
-            .with_context(|| format!("failed to create {}", root.display()))?;
+    let cache_repo_dir = layout.root.join("repos").join(&pr_ref.owner).join(&pr_ref.repo);
+    let worktree_dir = layout
+        .root
+        .join("worktrees")
+        .join(&pr_ref.owner)
+        .join(&pr_ref.repo)
+        .join(format!("pr-{}-{}", pr_ref.number, Uuid::new_v4()));
 
-        if repo_dir.exists() {
-            refresh_existing_checkout(&repo_dir, pr_ref, pull_request)?;
-        } else {
-            clone_and_checkout_pull_request(&repo_dir, pr_ref, pull_request)?;
-        }
+    fs::create_dir_all(
+        cache_repo_dir
+            .parent()
+            .context("cache repo path missing parent")?,
+    )
+    .with_context(|| format!("failed to create parent for {}", cache_repo_dir.display()))?;
+    fs::create_dir_all(
+        worktree_dir
+            .parent()
+            .context("worktree path missing parent")?,
+    )
+    .with_context(|| format!("failed to create parent for {}", worktree_dir.display()))?;
 
-        return Ok(ReviewWorkspace {
-            root,
-            repo_dir,
-            delete_on_drop: false,
-        });
+    if cache_repo_dir.exists() {
+        refresh_cached_repo(&cache_repo_dir)?;
+    } else {
+        clone_repo_cache(&cache_repo_dir, pr_ref)?;
     }
-
-    let root = env::temp_dir().join(format!(
-        "codex-core-review-{}-{}-{}-{}",
-        pr_ref.owner,
-        pr_ref.repo,
-        pr_ref.number,
-        Uuid::new_v4()
-    ));
-    let repo_dir = root.join(&pr_ref.repo);
-    fs::create_dir_all(&root).with_context(|| format!("failed to create {}", root.display()))?;
-    clone_and_checkout_pull_request(&repo_dir, pr_ref, pull_request)?;
+    fetch_pull_request_head_ref(&cache_repo_dir, pr_ref)?;
+    add_pull_request_worktree(&cache_repo_dir, &worktree_dir, pr_ref)?;
+    validate_base_branch_exists(&worktree_dir, &pull_request.base_ref_name)?;
 
     Ok(ReviewWorkspace {
-        root,
-        repo_dir,
-        delete_on_drop: true,
+        cache_repo_dir,
+        repo_dir: worktree_dir,
     })
 }
 
-fn clone_and_checkout_pull_request(
-    repo_dir: &Path,
-    pr_ref: &PullRequestReference,
-    pull_request: &PullRequestView,
-) -> Result<()> {
+fn clone_repo_cache(cache_repo_dir: &Path, pr_ref: &PullRequestReference) -> Result<()> {
     run_gh(
         vec![
             "repo".to_string(),
             "clone".to_string(),
             pr_ref.repo_name_with_owner(),
-            repo_dir.to_string_lossy().into_owned(),
+            cache_repo_dir.to_string_lossy().into_owned(),
             "--".to_string(),
             "--quiet".to_string(),
         ],
         None,
     )?;
-    checkout_and_update_pull_request_branch(repo_dir, pr_ref, pull_request)
+    Ok(())
 }
 
-fn refresh_existing_checkout(
-    repo_dir: &Path,
-    pr_ref: &PullRequestReference,
-    pull_request: &PullRequestView,
-) -> Result<()> {
-    if !repo_dir.join(".git").exists() {
+fn refresh_cached_repo(cache_repo_dir: &Path) -> Result<()> {
+    if !cache_repo_dir.join(".git").exists() {
         bail!(
-            "Existing project path is not a git repository: {}",
-            repo_dir.display()
+            "Cached repo path is not a git repository: {}",
+            cache_repo_dir.display()
         );
     }
 
-    run_git(repo_dir, &["fetch", "--all", "--prune"])?;
-    run_git(repo_dir, &["checkout", &pull_request.base_ref_name])?;
-    run_git(
-        repo_dir,
-        &["pull", "--ff-only", "origin", &pull_request.base_ref_name],
-    )?;
-    checkout_and_update_pull_request_branch(repo_dir, pr_ref, pull_request)
+    run_git(cache_repo_dir, &["fetch", "--all", "--prune"])
 }
 
-fn checkout_and_update_pull_request_branch(
-    repo_dir: &Path,
+fn fetch_pull_request_head_ref(cache_repo_dir: &Path, pr_ref: &PullRequestReference) -> Result<()> {
+    let remote_ref = format!("refs/pull/{}/head:refs/remotes/origin/pr/{}", pr_ref.number, pr_ref.number);
+    run_git(cache_repo_dir, &["fetch", "--force", "origin", &remote_ref])
+}
+
+fn add_pull_request_worktree(
+    cache_repo_dir: &Path,
+    worktree_dir: &Path,
     pr_ref: &PullRequestReference,
-    pull_request: &PullRequestView,
 ) -> Result<()> {
-    run_gh(
-        vec![
-            "pr".to_string(),
-            "checkout".to_string(),
-            pr_ref.number.to_string(),
-            "--repo".to_string(),
-            pr_ref.repo_name_with_owner(),
+    let pr_ref_name = format!("refs/remotes/origin/pr/{}", pr_ref.number);
+    run_git(
+        cache_repo_dir,
+        &[
+            "worktree",
+            "add",
+            "--force",
+            "--detach",
+            worktree_dir.to_string_lossy().as_ref(),
+            &pr_ref_name,
         ],
-        Some(repo_dir),
-    )?;
-    run_git(repo_dir, &["checkout", &pull_request.head_ref_name])?;
-    run_git(repo_dir, &["pull", "--ff-only"])?;
-    Ok(())
+    )
+}
+
+fn validate_base_branch_exists(worktree_dir: &Path, base_ref_name: &str) -> Result<()> {
+    let origin_base = format!("origin/{base_ref_name}");
+    run_git(worktree_dir, &["rev-parse", "--verify", &origin_base]).map(|_| ())
 }
 
 fn run_git(repo_dir: &Path, args: &[&str]) -> Result<()> {

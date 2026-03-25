@@ -4,7 +4,6 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     struct AgentsConfig: Decodable, Sendable {
         let stateVersion: Int
         let initializedAt: String
-        let projectHome: String?
         let allowedRepos: [String]
     }
 
@@ -122,14 +121,6 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode([AvailableRepo].self, from: Data(output.utf8))
-    }
-
-    func setAgentsProjectHome(path: String) throws {
-        _ = try runAgents(["config", "set-project-home", path])
-    }
-
-    func clearAgentsProjectHome() throws {
-        _ = try runAgents(["config", "clear-project-home"])
     }
 
     func setAllowedRepos(_ repos: [String]) throws {

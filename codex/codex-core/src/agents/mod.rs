@@ -52,10 +52,6 @@ enum ConfigCommand {
     Init,
     /// Show current agent configuration
     Show(ConfigShowArgs),
-    /// Set the default project home used for persistent checkouts
-    SetProjectHome(ConfigSetProjectHomeArgs),
-    /// Clear the default project home
-    ClearProjectHome,
     /// List GitHub repos available for review filtering
     AvailableRepos(ConfigAvailableReposArgs),
     /// Set the allowed review repo filters
@@ -163,11 +159,6 @@ struct ConfigShowArgs {
 }
 
 #[derive(Args, Debug)]
-struct ConfigSetProjectHomeArgs {
-    path: PathBuf,
-}
-
-#[derive(Args, Debug)]
 struct ConfigAvailableReposArgs {
     #[arg(long)]
     json: bool,
@@ -182,7 +173,6 @@ struct ConfigSetAllowedReposArgs {
 struct AgentsConfig {
     state_version: u32,
     initialized_at: String,
-    project_home: Option<PathBuf>,
     allowed_repos: Vec<String>,
 }
 
@@ -288,8 +278,6 @@ fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Result<()> {
             Ok(())
         }
         ConfigCommand::Show(args) => config_show(layout, args),
-        ConfigCommand::SetProjectHome(args) => config_set_project_home(layout, args),
-        ConfigCommand::ClearProjectHome => config_clear_project_home(layout),
         ConfigCommand::AvailableRepos(args) => config_available_repos(args),
         ConfigCommand::SetAllowedRepos(args) => config_set_allowed_repos(layout, args),
         ConfigCommand::ClearAllowedRepos => config_clear_allowed_repos(layout),
@@ -480,42 +468,11 @@ fn config_show(layout: &StateLayout, args: ConfigShowArgs) -> Result<()> {
         return Ok(());
     }
 
-    println!(
-        "project_home={}",
-        display_optional_path(config.project_home.as_deref())
-    );
     if config.allowed_repos.is_empty() {
         println!("allowed_repos=");
     } else {
         println!("allowed_repos={}", config.allowed_repos.join(","));
     }
-    Ok(())
-}
-
-fn config_set_project_home(layout: &StateLayout, args: ConfigSetProjectHomeArgs) -> Result<()> {
-    let project_home = args
-        .path
-        .canonicalize()
-        .with_context(|| format!("failed to resolve project home {}", args.path.display()))?;
-    if !project_home.is_dir() {
-        bail!(
-            "Project home is not a directory: {}",
-            project_home.display()
-        );
-    }
-
-    let mut config = load_agents_config(layout)?;
-    config.project_home = Some(project_home.clone());
-    save_agents_config(layout, &config)?;
-    println!("Set project_home={}", project_home.display());
-    Ok(())
-}
-
-fn config_clear_project_home(layout: &StateLayout) -> Result<()> {
-    let mut config = load_agents_config(layout)?;
-    config.project_home = None;
-    save_agents_config(layout, &config)?;
-    println!("Cleared project_home");
     Ok(())
 }
 
@@ -682,11 +639,14 @@ fn validate_ticket_key(ticket: &str) -> Result<()> {
 fn ensure_state_layout(layout: &StateLayout) -> Result<()> {
     fs::create_dir_all(&layout.tasks_dir)
         .with_context(|| format!("failed to create {}", layout.tasks_dir.display()))?;
+    fs::create_dir_all(layout.root.join("repos"))
+        .with_context(|| format!("failed to create {}", layout.root.join("repos").display()))?;
+    fs::create_dir_all(layout.root.join("worktrees"))
+        .with_context(|| format!("failed to create {}", layout.root.join("worktrees").display()))?;
     if !layout.config_file.exists() {
         let config = AgentsConfig {
-            state_version: 1,
+            state_version: 2,
             initialized_at: now_utc(),
-            project_home: None,
             allowed_repos: Vec::new(),
         };
         save_agents_config(layout, &config)?;
@@ -726,11 +686,6 @@ fn save_agents_config(layout: &StateLayout, config: &AgentsConfig) -> Result<()>
     fs::write(&layout.config_file, payload)
         .with_context(|| format!("failed to write {}", layout.config_file.display()))?;
     Ok(())
-}
-
-fn display_optional_path(path: Option<&Path>) -> String {
-    path.map(|value| value.display().to_string())
-        .unwrap_or_else(|| "<tmp>".to_string())
 }
 
 fn list_available_repos() -> Result<Vec<AvailableRepo>> {
