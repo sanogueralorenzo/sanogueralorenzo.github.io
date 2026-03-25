@@ -260,11 +260,7 @@ fn run_review(args: ReviewRunArgs) -> Result<()> {
         &pull_request.base_ref_name,
         merge_base.as_deref(),
     );
-    let prompt = build_inline_review_prompt(
-        &upstream_prompts.review_rubric,
-        &review_request,
-        &workspace.repo_dir,
-    );
+    let prompt = format!("{}\n\n{}", upstream_prompts.review_rubric, review_request);
     let review = run_codex_exec_review(&workspace.repo_dir, &prompt)?;
     let changed_lines =
         collect_changed_right_side_lines(&workspace.repo_dir, &pull_request.base_ref_name)?;
@@ -516,17 +512,6 @@ fn build_base_branch_review_request(
     prompts
         .base_branch_prompt_backup
         .replace("{branch}", base_ref_name)
-}
-
-fn build_inline_review_prompt(
-    review_rubric: &str,
-    review_request: &str,
-    repo_dir: &Path,
-) -> String {
-    format!(
-        "{review_rubric}\n\nADDITIONAL RUN-SPECIFIC REQUIREMENTS:\n- Return only JSON matching the schema above.\n- Only include findings whose code_location overlaps changed right-side lines in the current PR diff.\n- code_location.absolute_file_path must be an absolute path inside {}.\n- If a finding cannot be mapped to a changed line, omit it.\n- Do not wrap the JSON in markdown fences or add extra prose.\n\nReview request:\n{review_request}\n",
-        repo_dir.display()
-    )
 }
 
 fn run_codex_exec_review(repo_dir: &Path, prompt: &str) -> Result<ReviewOutputEvent> {
