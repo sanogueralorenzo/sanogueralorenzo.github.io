@@ -84,7 +84,7 @@ final class CodexAuthCLIClient: @unchecked Sendable {
         }
 
         guard fileManager.isExecutableFile(atPath: executablePath) else {
-            throw Error(message: "codex-auth CLI not found at \(executablePath). Run codex-auth/scripts/install.sh first.")
+            throw Error(message: "codex-auth CLI not found at \(executablePath). Run codex/codex-auth/scripts/install.sh first.")
         }
 
         let process = Process()

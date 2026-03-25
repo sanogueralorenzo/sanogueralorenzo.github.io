@@ -68,7 +68,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         }
 
         guard fileManager.isExecutableFile(atPath: executablePath) else {
-            throw Error(message: "codex-core CLI not found at \(executablePath). Run codex-core/scripts/install.sh first.")
+            throw Error(message: "codex-core CLI not found at \(executablePath). Run codex/codex-core/scripts/install.sh first.")
         }
 
         let process = Process()

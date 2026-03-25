@@ -154,7 +154,7 @@ extension AppDelegate {
     }
 
     @objc func openHelp(_ sender: Any?) {
-        guard let url = URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex-menubar") else {
+        guard let url = URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex/codex-menubar") else {
             return
         }
         NSWorkspace.shared.open(url)

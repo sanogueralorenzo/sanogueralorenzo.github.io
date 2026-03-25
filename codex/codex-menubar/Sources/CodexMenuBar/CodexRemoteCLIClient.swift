@@ -111,7 +111,7 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
     }
 
     func installGuideURL() -> URL {
-        URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex-remote")!
+        URL(string: "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex/codex-remote")!
     }
 
     private func run(_ arguments: [String]) throws -> String {
@@ -120,7 +120,7 @@ final class CodexRemoteCLIClient: @unchecked Sendable {
         }
 
         guard fileManager.isExecutableFile(atPath: executablePath) else {
-            throw Error(message: "codex-remote CLI not found at \(executablePath). Run codex-remote/scripts/install.sh first.")
+            throw Error(message: "codex-remote CLI not found at \(executablePath). Run codex/codex-remote/scripts/install.sh first.")
         }
 
         let process = Process()

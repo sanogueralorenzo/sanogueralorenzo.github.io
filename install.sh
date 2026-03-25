@@ -12,10 +12,10 @@ run_step() {
   bash "$script_path"
 }
 
-run_step "Install codex-auth CLI" "$ROOT_DIR/codex-auth/scripts/install.sh"
-run_step "Install codex-core CLI" "$ROOT_DIR/codex-core/scripts/install.sh"
-run_step "Install codex-remote CLI" "$ROOT_DIR/codex-remote/scripts/install.sh"
-run_step "Install Codex Menu Bar app" "$ROOT_DIR/codex-menubar/scripts/install.sh"
+run_step "Install codex-auth CLI" "$ROOT_DIR/codex/codex-auth/scripts/install.sh"
+run_step "Install codex-core CLI" "$ROOT_DIR/codex/codex-core/scripts/install.sh"
+run_step "Install codex-remote CLI" "$ROOT_DIR/codex/codex-remote/scripts/install.sh"
+run_step "Install Codex Menu Bar app" "$ROOT_DIR/codex/codex-menubar/scripts/install.sh"
 
 echo
 echo "All installs completed."
