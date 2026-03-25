@@ -76,6 +76,9 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private var reposLoaded = false
     private var loadCompleted = false
     private var reposLoadErrorMessage: String?
+    private let horizontalInset: CGFloat = 20
+    private let contentWidth: CGFloat = 460
+    private let reposHintY: CGFloat = 326
 
     init(onSave: @escaping (CodexAgentSettingsSelection) -> Void, onClose: @escaping () -> Void) {
         self.onSave = onSave
@@ -120,6 +123,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         reposHint.stringValue = loadingReposHint
         progressIndicator.isHidden = false
         progressIndicator.startAnimation(nil)
+        updateReposHintLayout(isLoading: true)
         tableView.reloadData()
     }
 
@@ -141,6 +145,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
         reposHint.stringValue = defaultReposHint
+        updateReposHintLayout(isLoading: false)
         tableView.reloadData()
     }
 
@@ -153,6 +158,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
         reposHint.stringValue = defaultReposHint
+        updateReposHintLayout(isLoading: false)
         tableView.reloadData()
     }
 
@@ -246,9 +252,6 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
             return
         }
 
-        let horizontalInset: CGFloat = 20
-        let contentWidth: CGFloat = 460
-
         let projectHomeTitle = NSTextField(labelWithString: "Home Project Folder")
         projectHomeTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         projectHomeTitle.frame = NSRect(x: horizontalInset, y: 510, width: contentWidth, height: 20)
@@ -286,13 +289,13 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         contentView.addSubview(reposTitle)
 
         reposHint.textColor = .secondaryLabelColor
-        reposHint.frame = NSRect(x: 44, y: 326, width: 436, height: 18)
+        reposHint.frame = NSRect(x: horizontalInset, y: reposHintY, width: contentWidth, height: 18)
         contentView.addSubview(reposHint)
 
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.isDisplayedWhenStopped = false
-        progressIndicator.frame = NSRect(x: horizontalInset, y: 326, width: 16, height: 16)
+        progressIndicator.frame = NSRect(x: horizontalInset, y: reposHintY, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
         scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 232)
@@ -330,6 +333,12 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private func updateProjectHomeLabel() {
         projectHomeLabel.stringValue = projectHome ?? "No project folder selected."
         projectHomeLabel.textColor = projectHome == nil ? .secondaryLabelColor : .labelColor
+    }
+
+    private func updateReposHintLayout(isLoading: Bool) {
+        let hintX = isLoading ? horizontalInset + 24 : horizontalInset
+        let hintWidth = isLoading ? contentWidth - 24 : contentWidth
+        reposHint.frame = NSRect(x: hintX, y: reposHintY, width: hintWidth, height: 18)
     }
 
     private func makeRepoCellView(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
