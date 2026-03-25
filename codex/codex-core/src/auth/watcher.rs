@@ -23,8 +23,8 @@ impl AuthSyncWatcher {
         let manager = ProfileManager::new(home_directory);
         let auth_file_path = manager.paths.codex_auth_file.clone();
         let state_directory = manager.paths.manager_directory.clone();
-        let pid_file_path = state_directory.join("codex-core-auth-watch.pid");
-        let log_file_path = state_directory.join("codex-core-auth-watch.log");
+        let pid_file_path = state_directory.join("watch.pid");
+        let log_file_path = state_directory.join("watch.log");
 
         Self {
             manager,

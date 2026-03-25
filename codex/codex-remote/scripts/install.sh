@@ -12,6 +12,13 @@ stop_existing_runtime() {
   codex-remote stop --plain >/dev/null 2>&1 || true
 }
 
+remove_obsolete_state_files() {
+  local state_dir="${CODEX_REMOTE_STATE_DIR:-$HOME/.codex/remote}"
+
+  mkdir -p "$state_dir"
+  rm -f "$state_dir/codex-remote.log"
+}
+
 resolve_npm_bin_dir() {
   if ! command -v npm >/dev/null 2>&1; then
     echo "Error: npm is required to resolve global install location." >&2
@@ -35,6 +42,7 @@ if [[ $# -gt 0 ]]; then
 fi
 
 stop_existing_runtime
+remove_obsolete_state_files
 
 DEST_DIR="$(resolve_npm_bin_dir)"
 DEST_PATH="$DEST_DIR/codex-remote"

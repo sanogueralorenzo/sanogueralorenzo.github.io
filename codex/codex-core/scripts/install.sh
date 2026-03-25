@@ -16,6 +16,16 @@ remove_legacy_binaries() {
   rm -f "$dest_dir/codex-agents"
 }
 
+remove_obsolete_state_files() {
+  local auth_dir="$HOME/.codex/auth"
+
+  rm -f "$auth_dir/codex-auth-watch.pid"
+  rm -f "$auth_dir/codex-auth-watch.log"
+  rm -f "$auth_dir/codex-core-auth-watch.pid"
+  rm -f "$auth_dir/codex-core-auth-watch.log"
+  rm -f "$auth_dir/codex-remote.log"
+}
+
 resolve_npm_bin_dir() {
   if ! command -v npm >/dev/null 2>&1; then
     echo "Error: npm is required to resolve global install location." >&2
@@ -60,6 +70,7 @@ if [[ ! -w "$DEST_DIR" ]]; then
 fi
 
 remove_legacy_binaries "$DEST_DIR"
+remove_obsolete_state_files
 
 TMP_PATH="$DEST_DIR/.tmp-codex-core-$$"
 cp "$BIN_PATH" "$TMP_PATH"

@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE_PATH")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 STATE_DIR="${CODEX_REMOTE_STATE_DIR:-$HOME/.codex/remote}"
 PID_FILE="$STATE_DIR/codex-remote.pid"
-LOG_FILE="$STATE_DIR/codex-remote.log"
+LOG_FILE="$STATE_DIR/remote.log"
 CAFFEINATE_PID_FILE="$STATE_DIR/codex-remote-caffeinate.pid"
 
 COMMAND_NAMES=()

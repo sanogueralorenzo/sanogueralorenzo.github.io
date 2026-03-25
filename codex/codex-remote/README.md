@@ -72,7 +72,7 @@ help     Print this help output.
 
 - `runtime/bindings.json`
 - `~/.codex/remote/codex-remote.pid`
-- `~/.codex/remote/codex-remote.log`
+- `~/.codex/remote/remote.log`
 - `~/.codex/remote/codex-remote-caffeinate.pid`
 
 ### Output Behavior
