@@ -55,7 +55,6 @@ struct CodexAgentSettingsSelection {
 final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSWindowDelegate {
     private let projectHomeLabel = NSTextField(labelWithString: "")
     private let projectHomeHint = NSTextField(labelWithString: "Used for project reuse. If unset, repos are checked out in /tmp and deleted after each run.")
-    private let statusLabel = NSTextField(labelWithString: "Loading GitHub repos...")
     private let progressIndicator = NSProgressIndicator()
     private let chooseButton = NSButton(title: "Choose Folder…", target: nil, action: nil)
     private let clearButton = NSButton(title: "Clear", target: nil, action: nil)
@@ -64,6 +63,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
     private let reposHint = NSTextField(labelWithString: "Leave all unchecked to allow every available repo.")
+    private let defaultReposHint = "Leave all unchecked to allow every available repo."
 
     private let onSave: (CodexAgentSettingsSelection) -> Void
     private let onClose: () -> Void
@@ -74,6 +74,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private var configLoaded = false
     private var reposLoaded = false
     private var loadCompleted = false
+    private var reposLoadErrorMessage: String?
 
     init(onSave: @escaping (CodexAgentSettingsSelection) -> Void, onClose: @escaping () -> Void) {
         self.onSave = onSave
@@ -111,11 +112,11 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         configLoaded = false
         reposLoaded = false
         loadCompleted = false
+        reposLoadErrorMessage = nil
         saveButton.isEnabled = false
         chooseButton.isEnabled = false
         clearButton.isEnabled = false
-        statusLabel.isHidden = false
-        statusLabel.stringValue = "Loading GitHub repos..."
+        reposHint.stringValue = defaultReposHint
         progressIndicator.isHidden = false
         progressIndicator.startAnimation(nil)
         tableView.reloadData()
@@ -132,23 +133,25 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
     func applyAvailableRepos(_ availableRepos: [CodexCoreCLIClient.AvailableRepo]) {
         reposLoaded = true
+        reposLoadErrorMessage = nil
         repos = availableRepos.map(\.fullName)
         loadCompleted = true
         saveButton.isEnabled = configLoaded
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
-        statusLabel.isHidden = true
+        reposHint.stringValue = defaultReposHint
         tableView.reloadData()
     }
 
     func applyLoadError(_ message: String) {
         loadCompleted = false
+        reposLoaded = false
+        reposLoadErrorMessage = message
         repos = []
         saveButton.isEnabled = false
         progressIndicator.stopAnimation(nil)
         progressIndicator.isHidden = true
-        statusLabel.isHidden = false
-        statusLabel.stringValue = message
+        reposHint.stringValue = defaultReposHint
         tableView.reloadData()
     }
 
@@ -190,6 +193,9 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
+        if reposLoadErrorMessage != nil {
+            return 1
+        }
         if !reposLoaded {
             return 0
         }
@@ -197,6 +203,12 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        if let reposLoadErrorMessage {
+            let label = NSTextField(labelWithString: reposLoadErrorMessage)
+            label.textColor = .secondaryLabelColor
+            return label
+        }
+
         if repos.isEmpty {
             let label = NSTextField(labelWithString: "No GitHub repos available.")
             label.textColor = .secondaryLabelColor
@@ -270,14 +282,10 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.isDisplayedWhenStopped = false
-        progressIndicator.frame = NSRect(x: 20, y: 330, width: 16, height: 16)
+        progressIndicator.frame = NSRect(x: 242, y: 207, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
-        statusLabel.textColor = .secondaryLabelColor
-        statusLabel.frame = NSRect(x: 44, y: 328, width: 436, height: 18)
-        contentView.addSubview(statusLabel)
-
-        scrollView.frame = NSRect(x: 20, y: 80, width: 460, height: 240)
+        scrollView.frame = NSRect(x: 20, y: 80, width: 460, height: 270)
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 

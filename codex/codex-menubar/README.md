@@ -31,6 +31,7 @@
 - `Agents` includes a `Review` submenu populated from `codex-core agents review list --json`.
 - `Agents -> Settings…` opens immediately, then loads the Codex Core review project home and GitHub repos in the background through `codex-core agents config ...`.
 - `Agents -> Settings…` shows `Home Project Folder` and `GitHub Repos` sections.
+- `Agents -> Settings…` keeps the repo hint visible while the GitHub repo list loads.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` and posts inline findings derived from upstream `openai/codex` review prompts on GitHub `main`.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
