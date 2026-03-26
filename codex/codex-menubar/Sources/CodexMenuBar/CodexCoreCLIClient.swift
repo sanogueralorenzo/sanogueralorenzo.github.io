@@ -20,7 +20,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
   }
 
   struct ProjectRepoMapping: Decodable, Sendable {
-    let projectID: Int
+    let projectId: Int
     let repoFullName: String
   }
 
@@ -36,7 +36,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
   struct TaskCandidate: Decodable, Sendable {
     let ticket: String
     let summary: String
-    let issueURL: String
+    let issueUrl: String
     let repoFullName: String
     let projectKey: String
     let status: String
@@ -48,11 +48,11 @@ final class CodexCoreCLIClient: @unchecked Sendable {
   }
 
   struct TaskRunResult: Decodable, Sendable {
-    let taskID: String
+    let taskId: String
     let ticket: String
     let repoFullName: String
     let branch: String
-    let prURL: String?
+    let prUrl: String?
     let summary: String
     let status: TaskJob.Status
   }
@@ -64,7 +64,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
       case failed
     }
 
-    let spikeID: String
+    let spikeId: String
     let ticket: String
     let repoFullName: String
     let branch: String
@@ -82,7 +82,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     let id: String
     let ticket: String
     let summary: String
-    let issueURL: String
+    let issueUrl: String
     let repoFullName: String
     let branch: String
     let status: Status
@@ -90,7 +90,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     let createdAt: String
     let updatedAt: String
     let finishedAt: String?
-    let prURL: String?
+    let prUrl: String?
     let resultSummary: String?
     let error: String?
   }

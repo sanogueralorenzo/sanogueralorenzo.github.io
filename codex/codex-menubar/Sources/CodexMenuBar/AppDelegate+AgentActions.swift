@@ -268,9 +268,9 @@ extension AppDelegate {
   }
 
   private func taskCompletionMessage(for result: CodexCoreCLIClient.TaskRunResult) -> String {
-    let prLine = result.prURL.map { "PR: \($0)\n" } ?? ""
+    let prLine = result.prUrl.map { "PR: \($0)\n" } ?? ""
     return """
-      Task ID: \(result.taskID)
+      Task ID: \(result.taskId)
       Ticket: \(result.ticket)
       Repo: \(result.repoFullName)
       Branch: \(result.branch)
@@ -280,7 +280,7 @@ extension AppDelegate {
 
   private func spikeCompletionMessage(for result: CodexCoreCLIClient.SpikeRunResult) -> String {
     """
-    Spike ID: \(result.spikeID)
+    Spike ID: \(result.spikeId)
     Ticket: \(result.ticket)
     Repo: \(result.repoFullName)
     Branch: \(result.branch)

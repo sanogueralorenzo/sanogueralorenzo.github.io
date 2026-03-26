@@ -185,10 +185,10 @@ extension AppDelegate {
     let openTicketItem = NSMenuItem(
       title: "Open Ticket", action: #selector(openAgentURL(_:)), keyEquivalent: "")
     openTicketItem.target = self
-    openTicketItem.representedObject = job.issueURL
+    openTicketItem.representedObject = job.issueUrl
     taskMenu.addItem(openTicketItem)
 
-    if let prURL = job.prURL {
+    if let prURL = job.prUrl {
       let openPRItem = NSMenuItem(
         title: "Open PR", action: #selector(openAgentURL(_:)), keyEquivalent: "")
       openPRItem.target = self
