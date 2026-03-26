@@ -58,11 +58,12 @@ extension AppDelegate {
     if !orderedSpikeJobs.isEmpty {
       menu.addItem(sectionHeaderItem(title: "Spikes"))
       for job in orderedSpikeJobs {
-        let item = NSMenuItem(
-          title: "\(spikeJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
-          keyEquivalent: "")
+        let item = actionItem(
+          title: "\(spikeJobStatusPrefix(for: job.status)) \(job.ticket)",
+          action: #selector(openAgentURL(_:))
+        )
+        item.representedObject = job.issueUrl
         menu.addItem(item)
-        menu.setSubmenu(spikeJobMenu(for: job), for: item)
       }
     }
 
@@ -73,11 +74,16 @@ extension AppDelegate {
     if !orderedTaskJobs.isEmpty {
       menu.addItem(sectionHeaderItem(title: "Tasks"))
       for job in orderedTaskJobs {
-        let item = NSMenuItem(
-          title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
-          keyEquivalent: "")
-        menu.addItem(item)
-        menu.setSubmenu(taskJobMenu(for: job), for: item)
+        if let prURL = job.prUrl {
+          let item = actionItem(
+            title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)",
+            action: #selector(openAgentURL(_:))
+          )
+          item.representedObject = prURL
+          menu.addItem(item)
+        } else {
+          menu.addItem(disabledItem(title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)"))
+        }
       }
     }
 
@@ -88,12 +94,18 @@ extension AppDelegate {
     if !orderedReviewJobs.isEmpty {
       menu.addItem(sectionHeaderItem(title: "Reviews"))
       for job in orderedReviewJobs {
-        let item = NSMenuItem(
-          title: "\(reviewJobStatusPrefix(for: job.status)) \(job.repo)#\(job.number)",
-          action: nil,
-          keyEquivalent: "")
-        menu.addItem(item)
-        menu.setSubmenu(reviewJobMenu(for: job), for: item)
+        if let url = job.url {
+          let item = actionItem(
+            title: "\(reviewJobStatusPrefix(for: job.status)) \(job.repo)#\(job.number)",
+            action: #selector(openAgentURL(_:))
+          )
+          item.representedObject = url
+          menu.addItem(item)
+        } else {
+          menu.addItem(
+            disabledItem(title: "\(reviewJobStatusPrefix(for: job.status)) \(job.repo)#\(job.number)")
+          )
+        }
       }
     }
 
@@ -197,56 +209,6 @@ extension AppDelegate {
     return item
   }
 
-  private func spikeJobMenu(for job: CodexCoreCLIClient.SpikeJob) -> NSMenu {
-    let spikeMenu = NSMenu()
-    spikeMenu.addItem(disabledItem(title: "Status: \(spikeJobStatusText(for: job.status))"))
-    spikeMenu.addItem(disabledItem(title: "Step: \(job.currentStep)"))
-    spikeMenu.addItem(.separator())
-
-    let openTicketItem = NSMenuItem(
-      title: "Open Ticket", action: #selector(openAgentURL(_:)), keyEquivalent: "")
-    openTicketItem.target = self
-    openTicketItem.representedObject = job.issueUrl
-    spikeMenu.addItem(openTicketItem)
-
-    return spikeMenu
-  }
-
-  private func taskJobMenu(for job: CodexCoreCLIClient.TaskJob) -> NSMenu {
-    let taskMenu = NSMenu()
-    taskMenu.addItem(disabledItem(title: "Status: \(taskJobStatusText(for: job.status))"))
-    taskMenu.addItem(disabledItem(title: "Step: \(job.currentStep)"))
-    taskMenu.addItem(.separator())
-
-    if let prURL = job.prUrl {
-      let openPRItem = NSMenuItem(
-        title: "Open Draft PR", action: #selector(openAgentURL(_:)), keyEquivalent: "")
-      openPRItem.target = self
-      openPRItem.representedObject = prURL
-      taskMenu.addItem(openPRItem)
-    } else {
-      taskMenu.addItem(disabledItem(title: "No Draft PR"))
-    }
-    return taskMenu
-  }
-
-  private func reviewJobMenu(for job: CodexCoreCLIClient.ReviewJob) -> NSMenu {
-    let reviewMenu = NSMenu()
-    reviewMenu.addItem(disabledItem(title: "Status: \(reviewJobStatusText(for: job.status))"))
-    reviewMenu.addItem(disabledItem(title: "Step: \(job.currentStep)"))
-    reviewMenu.addItem(.separator())
-
-    if let url = job.url {
-      let openPRItem = NSMenuItem(
-        title: "Open PR", action: #selector(openAgentURL(_:)), keyEquivalent: "")
-      openPRItem.target = self
-      openPRItem.representedObject = url
-      reviewMenu.addItem(openPRItem)
-    }
-
-    return reviewMenu
-  }
-
   private func taskJobStatusPrefix(
     for status: CodexCoreCLIClient.TaskJob.Status, trailingSpace: Bool = false
   ) -> String {
@@ -287,28 +249,6 @@ extension AppDelegate {
     return taskJobStatusPrefix(for: status, trailingSpace: trailingSpace)
   }
 
-  private func taskJobStatusText(for status: CodexCoreCLIClient.TaskJob.Status) -> String {
-    switch status {
-    case .completed:
-      return "completed"
-    case .failed:
-      return "failed"
-    case .inProgress:
-      return "in_progress"
-    }
-  }
-
-  private func spikeJobStatusText(for status: CodexCoreCLIClient.SpikeJob.Status) -> String {
-    switch status {
-    case .completed:
-      return "completed"
-    case .failed:
-      return "failed"
-    case .inProgress:
-      return "in_progress"
-    }
-  }
-
   private func reviewJobStatusPrefix(for status: CodexCoreCLIClient.ReviewJob.Status) -> String {
     switch status {
     case .published:
@@ -317,17 +257,6 @@ extension AppDelegate {
       return "X"
     case .inProgress:
       return "·"
-    }
-  }
-
-  private func reviewJobStatusText(for status: CodexCoreCLIClient.ReviewJob.Status) -> String {
-    switch status {
-    case .published:
-      return "published"
-    case .needsAttention:
-      return "needs_attention"
-    case .inProgress:
-      return "in_progress"
     }
   }
 
