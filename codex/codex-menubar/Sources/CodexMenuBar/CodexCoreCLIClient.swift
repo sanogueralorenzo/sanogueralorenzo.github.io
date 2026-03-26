@@ -20,12 +20,10 @@ final class CodexCoreCLIClient: @unchecked Sendable {
 
   struct AvailableBoard: Decodable, Sendable {
     let id: Int
-    let name: String
-    let location: String
-    let boardType: String
+    let key: String
 
     var displayName: String {
-      "\(name) [\(location)]"
+      key
     }
   }
 

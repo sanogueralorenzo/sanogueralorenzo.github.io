@@ -509,8 +509,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
     let normalizedQuery = query.lowercased()
     filteredBoards = boards.filter { board in
-      board.name.lowercased().contains(normalizedQuery)
-        || board.location.lowercased().contains(normalizedQuery)
+      board.key.lowercased().contains(normalizedQuery)
         || String(board.id).contains(normalizedQuery)
     }
   }

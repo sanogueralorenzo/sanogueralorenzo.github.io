@@ -113,9 +113,7 @@ struct AvailableRepo {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct AvailableBoard {
     id: u64,
-    name: String,
-    location: String,
-    board_type: String,
+    key: String,
 }
 
 #[derive(Debug, Deserialize)]

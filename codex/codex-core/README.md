@@ -34,7 +34,7 @@ codex-core noninteractive run --help
   - Important loop flags: `--prompt-file`, `--cd`, `--interval-seconds`, `--max-iterations`, `--stop-phrase`, `--once`, `--model`, `--full-auto`, `--dangerously-bypass-approvals-and-sandbox`, `--skip-git-repo-check`.
   - `config show --json` returns the current agents settings, including `review_mode`, `allowed_repos`, and `allowed_boards`.
   - `config available-repos --json` returns available personal and organization repos from `gh` where your `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`.
-  - `config available-boards --json` returns Jira boards visible to your `acli jira` account, including each board's numeric `id`, name, location, and board type.
+  - `config available-boards --json` returns Jira boards visible to your `acli jira` account, reduced to each board's numeric `id` plus a display `key` derived from Jira board metadata.
   - `config set-review-mode publish|pending` sets the default review posting mode used by `review run`.
   - `config set-allowed-boards <id>...` stores the Jira board filter list used by agent clients; `clear-allowed-boards` removes that filter.
   - `review list --json` returns open PRs across your personal repos and orgs from `gh`, filtered by `allowed_repos` when configured and ordered by `created_at` newest first.

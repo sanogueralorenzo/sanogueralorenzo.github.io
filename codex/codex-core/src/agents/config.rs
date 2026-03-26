@@ -84,8 +84,6 @@ struct ListedBoard {
     id: u64,
     location: Option<String>,
     name: String,
-    #[serde(rename = "type")]
-    board_type: Option<String>,
 }
 
 pub(super) fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Result<()> {
@@ -176,7 +174,7 @@ fn config_available_boards(args: ConfigAvailableBoardsArgs) -> Result<()> {
     }
 
     for board in boards {
-        println!("{} {} [{}]", board.id, board.name, board.location);
+        println!("{} {}", board.id, board.key);
     }
     Ok(())
 }
@@ -268,20 +266,30 @@ fn list_available_boards() -> Result<Vec<AvailableBoard>> {
         let response = response.context("failed to parse acli board search response")?;
         boards.extend(response.values.into_iter().map(|board| AvailableBoard {
             id: board.id,
-            name: board.name,
-            location: board.location.unwrap_or_else(|| "No location".to_string()),
-            board_type: board.board_type.unwrap_or_else(|| "unknown".to_string()),
+            key: extract_board_key(board.location.as_deref(), &board.name),
         }));
     }
 
     boards.sort_by(|left, right| {
-        left.location
-            .cmp(&right.location)
-            .then_with(|| left.name.cmp(&right.name))
+        left.key
+            .cmp(&right.key)
             .then_with(|| left.id.cmp(&right.id))
     });
     boards.dedup_by(|left, right| left.id == right.id);
     Ok(boards)
+}
+
+fn extract_board_key(location: Option<&str>, name: &str) -> String {
+    if let Some(location) = location {
+        if let Some((_, suffix)) = location.rsplit_once('(') {
+            let key = suffix.trim_end_matches(')').trim();
+            if !key.is_empty() {
+                return key.to_string();
+            }
+        }
+    }
+
+    name.trim().to_string()
 }
 
 fn normalize_repo_filters(repos: Vec<String>) -> Result<Vec<String>> {
@@ -419,6 +427,7 @@ fn run_acli_json(args: &[&str]) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use super::extract_board_key;
     use super::normalize_repo_filters;
 
     #[test]
@@ -435,5 +444,18 @@ mod tests {
                 .to_string()
                 .contains("Invalid repo filter: openai. Expected OWNER/REPO.")
         );
+    }
+
+    #[test]
+    fn extract_board_key_prefers_location_suffix() {
+        assert_eq!(
+            extract_board_key(Some("Mobile (MOB)"), "Mobile board"),
+            "MOB"
+        );
+    }
+
+    #[test]
+    fn extract_board_key_falls_back_to_name() {
+        assert_eq!(extract_board_key(None, "My Open Issues"), "My Open Issues");
     }
 }
