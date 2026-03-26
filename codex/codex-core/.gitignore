@@ -13,13 +13,5 @@ Desktop.ini
 !.env.example
 !example.env
 
-# -------------------- Swift / SwiftPM --------------------
-/.build
-/Packages
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/
-xcuserdata/
-DerivedData/
-
-# -------------------- Packaged Artifacts --------------------
-release/
+# -------------------- Rust Generated --------------------
+target/

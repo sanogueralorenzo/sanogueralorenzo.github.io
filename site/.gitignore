@@ -7,6 +7,12 @@
 Thumbs.db
 Desktop.ini
 
+# -------------------- Environment / Secrets --------------------
+.env
+.env.*
+!.env.example
+!example.env
+
 # -------------------- Website --------------------
 /public/
 /resources/

@@ -12,23 +12,3 @@ Desktop.ini
 .env.*
 !.env.example
 !example.env
-
-# -------------------- Rust Generated --------------------
-codex-*/target/
-codex/codex-*/target/
-
-# -------------------- Android / Gradle Generated --------------------
-
-# Gradle / Kotlin local caches
-.gradle/
-.kotlin/
-
-# Android build
-build/
-
-# Native build intermediates
-.externalNativeBuild/
-.cxx/
-
-# Machine-local config
-local.properties

@@ -1,7 +1,6 @@
 # -------------------- IDE --------------------
 .idea/
 .vscode/
-*.iml
 
 # -------------------- OS --------------------
 .DS_Store
@@ -20,19 +19,12 @@ Desktop.ini
 .gradle/
 .kotlin/
 
-# Android build outputs
+# Android build
 build/
-**/build/
 
 # Native build intermediates
 .externalNativeBuild/
 .cxx/
-
-# Android Studio captures
-captures/
-
-# Project-local download/cache artifacts
-.cache/
 
 # Machine-local config
 local.properties
