@@ -139,7 +139,7 @@ extension AppDelegate {
     refreshUI()
     showNotification(
       title: "Task Started",
-      message: "Running task for \(ticket)."
+      message: ticket
     )
     let sessionsCLI = self.sessionsCLI
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -197,6 +197,10 @@ extension AppDelegate {
   }
 
   private func runSpike(ticket: String) {
+    showNotification(
+      title: "Spike Started",
+      message: ticket
+    )
     let sessionsCLI = self.sessionsCLI
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self else {
@@ -226,6 +230,11 @@ extension AppDelegate {
     publishMode: CodexCoreCLIClient.ReviewMode?
   ) {
     refreshUI()
+    let reviewIdentifier = reviewNotificationIdentifier(from: pullRequestURL)
+    showNotification(
+      title: "Review Started",
+      message: reviewIdentifier
+    )
     let sessionsCLI = self.sessionsCLI
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self else {
@@ -362,5 +371,15 @@ extension AppDelegate {
     let extraCount = result.failedCommentDetails.count - failureDetails.count
     let extraSuffix = extraCount > 0 ? "\n- ... and \(extraCount) more" : ""
     return "\nFailure reasons:\n\(failureDetails.joined(separator: "\n"))\(extraSuffix)"
+  }
+
+  private func reviewNotificationIdentifier(from pullRequestURL: String) -> String {
+    if let components = URLComponents(string: pullRequestURL),
+      let number = components.path.split(separator: "/").last,
+      !number.isEmpty
+    {
+      return "#\(number)"
+    }
+    return pullRequestURL
   }
 }
