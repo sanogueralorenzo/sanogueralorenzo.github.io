@@ -8,9 +8,7 @@ struct CodexMenuData {
   let currentProfileName: String?
   let profiles: [String]
   let taskJobs: [CodexCoreCLIClient.TaskJob]
-  let taskCandidates: [CodexCoreCLIClient.TaskCandidate]
   let reviewJobs: [CodexCoreCLIClient.ReviewJob]
-  let reviewPullRequests: [CodexCoreCLIClient.ReviewPullRequest]
 
   static let loading = CodexMenuData(
     isLoading: true,
@@ -19,9 +17,7 @@ struct CodexMenuData {
     currentProfileName: nil,
     profiles: [],
     taskJobs: [],
-    taskCandidates: [],
-    reviewJobs: [],
-    reviewPullRequests: []
+    reviewJobs: []
   )
 }
 
@@ -44,28 +40,19 @@ final class CodexMenuDataStore {
     let generation = refreshGeneration
     let previousProfiles = data.profiles
     let previousTaskJobs = data.taskJobs
-    let previousTaskCandidates = data.taskCandidates
     let previousReviewJobs = data.reviewJobs
-    let previousReviewPullRequests = data.reviewPullRequests
 
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let sessionsStatus = (try? sessionsCLI.status()) ?? .notInstalled
       let profiles = (try? authCLI.listProfiles()) ?? previousProfiles
       let taskJobs: [CodexCoreCLIClient.TaskJob]
-      let taskCandidates: [CodexCoreCLIClient.TaskCandidate]
       let reviewJobs: [CodexCoreCLIClient.ReviewJob]
-      let reviewPullRequests: [CodexCoreCLIClient.ReviewPullRequest]
       if sessionsStatus == .ready {
         taskJobs = (try? sessionsCLI.listTaskJobs()) ?? previousTaskJobs
-        taskCandidates = (try? sessionsCLI.listTaskCandidates()) ?? previousTaskCandidates
         reviewJobs = (try? sessionsCLI.listReviewJobs()) ?? previousReviewJobs
-        reviewPullRequests =
-          (try? sessionsCLI.listReviewPullRequests()) ?? previousReviewPullRequests
       } else {
         taskJobs = []
-        taskCandidates = []
         reviewJobs = []
-        reviewPullRequests = []
       }
 
       let refreshedData = CodexMenuData(
@@ -75,9 +62,7 @@ final class CodexMenuDataStore {
         currentProfileName: try? authCLI.currentProfileName(),
         profiles: profiles,
         taskJobs: taskJobs,
-        taskCandidates: taskCandidates,
-        reviewJobs: reviewJobs,
-        reviewPullRequests: reviewPullRequests
+        reviewJobs: reviewJobs
       )
 
       DispatchQueue.main.async {

@@ -28,165 +28,55 @@ extension AppDelegate {
     menu.addItem(actionItem(title: "Create", action: #selector(createCodexAgent(_:))))
 
     let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
-    let viewMenu = buildTaskJobsMenu(taskJobs: data.taskJobs)
+    let viewMenu = buildAgentJobsMenu(taskJobs: data.taskJobs, reviewJobs: data.reviewJobs)
     viewItem.isEnabled = viewMenu.items.contains(where: { !$0.isSeparatorItem })
     menu.addItem(viewItem)
     menu.setSubmenu(viewMenu, for: viewItem)
 
-    let taskItem = NSMenuItem(title: "Task", action: nil, keyEquivalent: "")
-    let taskMenu = buildTaskCandidatesMenu(
-      taskJobs: data.taskJobs, taskCandidates: data.taskCandidates)
-    menu.addItem(taskItem)
-    menu.setSubmenu(taskMenu, for: taskItem)
-
-    let reviewItem = NSMenuItem(title: "Review", action: nil, keyEquivalent: "")
-    let reviewMenu = buildReviewMenu(
-      reviewJobs: data.reviewJobs, reviewPullRequests: data.reviewPullRequests)
-    menu.addItem(reviewItem)
-    menu.setSubmenu(reviewMenu, for: reviewItem)
-
     menu.addItem(actionItem(title: "Settings", action: #selector(openCodexAgentSettings(_:))))
   }
 
-  private func buildTaskJobsMenu(taskJobs: [CodexCoreCLIClient.TaskJob]) -> NSMenu {
+  private func buildAgentJobsMenu(
+    taskJobs: [CodexCoreCLIClient.TaskJob],
+    reviewJobs: [CodexCoreCLIClient.ReviewJob]
+  ) -> NSMenu {
     let menu = NSMenu()
-    let runningJobs =
-      taskJobs
-      .filter { $0.status == .inProgress }
-      .sorted { $0.createdAt > $1.createdAt }
-    let recentJobs =
-      taskJobs
-      .filter { $0.status != .inProgress }
-      .sorted { $0.createdAt > $1.createdAt }
+    let orderedTaskJobs = taskJobs.sorted { $0.createdAt > $1.createdAt }
+    let orderedReviewJobs = reviewJobs.sorted { $0.createdAt > $1.createdAt }
 
-    if runningJobs.isEmpty && recentJobs.isEmpty {
-      menu.addItem(disabledItem(title: "No Task Jobs"))
+    if orderedTaskJobs.isEmpty && orderedReviewJobs.isEmpty {
+      menu.addItem(disabledItem(title: "No Saved Runs"))
       return menu
     }
 
-    for job in runningJobs {
-      let item = NSMenuItem(
-        title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
-        keyEquivalent: "")
-      menu.addItem(item)
-      menu.setSubmenu(taskJobMenu(for: job), for: item)
+    if !orderedTaskJobs.isEmpty {
+      menu.addItem(sectionHeaderItem(title: "Tasks"))
+      for job in orderedTaskJobs {
+        let item = NSMenuItem(
+          title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
+          keyEquivalent: "")
+        menu.addItem(item)
+        menu.setSubmenu(taskJobMenu(for: job), for: item)
+      }
     }
 
-    if !runningJobs.isEmpty && !recentJobs.isEmpty {
+    if !orderedTaskJobs.isEmpty && !orderedReviewJobs.isEmpty {
       menu.addItem(.separator())
     }
 
-    for job in recentJobs {
-      let item = NSMenuItem(
-        title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
-        keyEquivalent: "")
-      menu.addItem(item)
-      menu.setSubmenu(taskJobMenu(for: job), for: item)
-    }
-
-    return menu
-  }
-
-  private func buildTaskCandidatesMenu(
-    taskJobs: [CodexCoreCLIClient.TaskJob],
-    taskCandidates: [CodexCoreCLIClient.TaskCandidate]
-  ) -> NSMenu {
-    let menu = NSMenu()
-
-    if menuDataStore.data.isLoading {
-      menu.addItem(disabledItem(title: "Loading..."))
-      return menu
-    }
-
-    if taskCandidates.isEmpty {
-      menu.addItem(disabledItem(title: "No Current Sprint Tasks"))
-      return menu
-    }
-
-    let latestTaskJobByTicket = latestTaskJobsByTicket(taskJobs)
-    let groupedCandidates = groupTaskCandidates(taskCandidates)
-
-    for (index, group) in groupedCandidates.enumerated() {
-      let repositoryItem = NSMenuItem(
-        title: group.repository, action: #selector(openAgentURL(_:)), keyEquivalent: "")
-      repositoryItem.target = self
-      repositoryItem.representedObject = "https://github.com/\(group.repository)"
-      repositoryItem.attributedTitle = NSAttributedString(
-        string: group.repository,
-        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
-      )
-      menu.addItem(repositoryItem)
-
-      for task in group.tasks {
-        let markerPrefix = taskJobStatusPrefix(
-          for: latestTaskJobByTicket[task.ticket]?.status, trailingSpace: true)
+    if !orderedReviewJobs.isEmpty {
+      menu.addItem(sectionHeaderItem(title: "Reviews"))
+      for job in orderedReviewJobs {
         let item = NSMenuItem(
-          title: "\(markerPrefix)\(task.shortMenuTitle)", action: #selector(runAgentTask(_:)),
+          title: "\(reviewJobStatusPrefix(for: job.status)) \(job.repo)#\(job.number)",
+          action: nil,
           keyEquivalent: "")
-        item.target = self
-        item.representedObject = task.ticket
         menu.addItem(item)
-      }
-
-      if index < groupedCandidates.count - 1 {
-        menu.addItem(.separator())
+        menu.setSubmenu(reviewJobMenu(for: job), for: item)
       }
     }
 
     return menu
-  }
-
-  private func buildReviewMenu(
-    reviewJobs: [CodexCoreCLIClient.ReviewJob],
-    reviewPullRequests: [CodexCoreCLIClient.ReviewPullRequest]
-  ) -> NSMenu {
-    let reviewMenu = NSMenu()
-
-    if menuDataStore.data.isLoading {
-      reviewMenu.addItem(disabledItem(title: "Loading..."))
-      return reviewMenu
-    }
-
-    if reviewPullRequests.isEmpty {
-      reviewMenu.addItem(disabledItem(title: "No Open PRs"))
-      return reviewMenu
-    }
-
-    let latestReviewJobByPullRequestURL = latestReviewJobsByPullRequestURL(reviewJobs)
-    let groupedPullRequests = groupReviewPullRequests(reviewPullRequests)
-
-    for (index, group) in groupedPullRequests.enumerated() {
-      let repositoryItem = NSMenuItem(
-        title: group.repository,
-        action: #selector(openAgentURL(_:)),
-        keyEquivalent: "")
-      repositoryItem.target = self
-      repositoryItem.representedObject = group.repositoryURL
-      repositoryItem.attributedTitle = NSAttributedString(
-        string: group.repository,
-        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
-      )
-      reviewMenu.addItem(repositoryItem)
-
-      for pullRequest in group.pullRequests {
-        let markerPrefix = reviewPullRequestStatusPrefix(
-          for: latestReviewJobByPullRequestURL[pullRequest.url]?.status
-        )
-        let item = NSMenuItem(
-          title: "\(markerPrefix)\(pullRequest.shortMenuTitle)",
-          action: #selector(reviewPullRequest(_:)),
-          keyEquivalent: "")
-        item.target = self
-        item.representedObject = pullRequest.url
-        reviewMenu.addItem(item)
-      }
-
-      if index < groupedPullRequests.count - 1 {
-        reviewMenu.addItem(.separator())
-      }
-    }
-
-    return reviewMenu
   }
 
   private func addRemoteSection(to menu: NSMenu, data: CodexMenuData) {
@@ -260,87 +150,6 @@ extension AppDelegate {
     menu.setSubmenu(sessionsMenu, for: sessionsItem)
   }
 
-  private func latestTaskJobsByTicket(_ taskJobs: [CodexCoreCLIClient.TaskJob]) -> [String:
-    CodexCoreCLIClient.TaskJob]
-  {
-    var jobsByTicket: [String: CodexCoreCLIClient.TaskJob] = [:]
-    for job in taskJobs.sorted(by: { $0.createdAt > $1.createdAt }) {
-      if jobsByTicket[job.ticket] == nil {
-        jobsByTicket[job.ticket] = job
-      }
-    }
-    return jobsByTicket
-  }
-
-  private func latestReviewJobsByPullRequestURL(
-    _ reviewJobs: [CodexCoreCLIClient.ReviewJob]
-  ) -> [String: CodexCoreCLIClient.ReviewJob] {
-    var jobsByURL: [String: CodexCoreCLIClient.ReviewJob] = [:]
-    for job in reviewJobs.sorted(by: { $0.createdAt > $1.createdAt }) {
-      guard let url = job.url, jobsByURL[url] == nil else {
-        continue
-      }
-      jobsByURL[url] = job
-    }
-    return jobsByURL
-  }
-
-  private func groupTaskCandidates(
-    _ taskCandidates: [CodexCoreCLIClient.TaskCandidate]
-  ) -> [(repository: String, tasks: [CodexCoreCLIClient.TaskCandidate])] {
-    var groupedTasks: [(repository: String, tasks: [CodexCoreCLIClient.TaskCandidate])] = []
-    var groupedTaskIndexByRepository: [String: Int] = [:]
-
-    for task in taskCandidates {
-      if let existingIndex = groupedTaskIndexByRepository[task.repoFullName] {
-        groupedTasks[existingIndex].tasks.append(task)
-        continue
-      }
-
-      groupedTaskIndexByRepository[task.repoFullName] = groupedTasks.count
-      groupedTasks.append((repository: task.repoFullName, tasks: [task]))
-    }
-
-    return groupedTasks
-  }
-
-  private func groupReviewPullRequests(
-    _ pullRequests: [CodexCoreCLIClient.ReviewPullRequest]
-  ) -> [(
-    repository: String, repositoryURL: String, pullRequests: [CodexCoreCLIClient.ReviewPullRequest]
-  )] {
-    var groupedPullRequests:
-      [(
-        repository: String, repositoryURL: String,
-        pullRequests: [CodexCoreCLIClient.ReviewPullRequest]
-      )] = []
-    var groupedPullRequestIndexByRepository: [String: Int] = [:]
-
-    for pullRequest in pullRequests {
-      if let existingIndex = groupedPullRequestIndexByRepository[pullRequest.repositoryFullName] {
-        groupedPullRequests[existingIndex].pullRequests.append(pullRequest)
-        continue
-      }
-
-      groupedPullRequestIndexByRepository[pullRequest.repositoryFullName] =
-        groupedPullRequests.count
-      groupedPullRequests.append(
-        (
-          repository: pullRequest.repositoryFullName,
-          repositoryURL: pullRequest.repositoryURL,
-          pullRequests: [pullRequest]
-        ))
-    }
-
-    for index in groupedPullRequests.indices {
-      groupedPullRequests[index].pullRequests.sort { left, right in
-        left.createdAt > right.createdAt
-      }
-    }
-
-    return groupedPullRequests
-  }
-
   private func sectionHeaderItem(title: String, action: Selector = #selector(noopHeader(_:)))
     -> NSMenuItem
   {
@@ -386,13 +195,24 @@ extension AppDelegate {
       openPRItem.representedObject = prURL
       taskMenu.addItem(openPRItem)
     }
-
-    let rerunItem = NSMenuItem(
-      title: "Re-run Task", action: #selector(rerunCodexAgentTask(_:)), keyEquivalent: "")
-    rerunItem.target = self
-    rerunItem.representedObject = job.ticket
-    taskMenu.addItem(rerunItem)
     return taskMenu
+  }
+
+  private func reviewJobMenu(for job: CodexCoreCLIClient.ReviewJob) -> NSMenu {
+    let reviewMenu = NSMenu()
+    reviewMenu.addItem(disabledItem(title: "Status: \(reviewJobStatusText(for: job.status))"))
+    reviewMenu.addItem(disabledItem(title: "Step: \(job.currentStep)"))
+    reviewMenu.addItem(.separator())
+
+    if let url = job.url {
+      let openPRItem = NSMenuItem(
+        title: "Open PR", action: #selector(openAgentURL(_:)), keyEquivalent: "")
+      openPRItem.target = self
+      openPRItem.representedObject = url
+      reviewMenu.addItem(openPRItem)
+    }
+
+    return reviewMenu
   }
 
   private func taskJobStatusPrefix(
@@ -431,19 +251,25 @@ extension AppDelegate {
     }
   }
 
-  private func reviewPullRequestStatusPrefix(for state: CodexCoreCLIClient.ReviewJob.Status?)
-    -> String
-  {
-    guard let state else {
-      return ""
-    }
-    switch state {
+  private func reviewJobStatusPrefix(for status: CodexCoreCLIClient.ReviewJob.Status) -> String {
+    switch status {
     case .published:
-      return "✓ "
+      return "✓"
     case .needsAttention:
-      return "X "
+      return "X"
     case .inProgress:
-      return "· "
+      return "·"
+    }
+  }
+
+  private func reviewJobStatusText(for status: CodexCoreCLIClient.ReviewJob.Status) -> String {
+    switch status {
+    case .published:
+      return "published"
+    case .needsAttention:
+      return "needs_attention"
+    case .inProgress:
+      return "in_progress"
     }
   }
 
