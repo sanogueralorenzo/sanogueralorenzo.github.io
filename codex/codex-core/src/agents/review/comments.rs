@@ -509,8 +509,8 @@ fn render_priority_badge_markdown(priority: Option<i32>) -> Option<String> {
     let priority = priority?;
     let color = match priority {
         0 | 1 => "red",
-        2 => "orange",
-        3 => "yellow",
+        2 => "yellow",
+        3 => "lightgrey",
         _ => return None,
     };
     Some(format!(
