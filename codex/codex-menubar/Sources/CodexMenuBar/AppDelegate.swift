@@ -98,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     observeMenuDataChanges()
     renderMenu()
     refreshUI()
+    requestNotificationAuthorizationOnLaunchIfNeeded()
     startCodexRemoteIfNeededOnLaunch()
   }
 
@@ -208,6 +209,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     let identifier = "io.github.sanogueralorenzo.codex-menubar.settings-test.\(UUID().uuidString)"
     let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
     try await center.add(request)
+  }
+
+  func requestNotificationAuthorizationOnLaunchIfNeeded() {
+    Task {
+      let center = UNUserNotificationCenter.current()
+      let settings = await center.notificationSettings()
+      guard settings.authorizationStatus == .notDetermined else {
+        return
+      }
+      _ = try? await center.requestAuthorization(options: [.alert, .badge, .sound])
+    }
   }
 
   func applicationWillTerminate(_ notification: Notification) {

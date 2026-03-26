@@ -43,6 +43,7 @@
 - The menubar also watches `~/.codex/agents/spikes` (or `CODEX_AGENTS_HOME/spikes`) so spike status markers update from persisted spike job writes.
 - The menubar also watches `~/.codex/agents/tasks` (or `CODEX_AGENTS_HOME/tasks`) so task status markers update from persisted task job writes.
 - `Agents -> Settings` only shows integration status for `gh`, `acli`, and notification permission state.
+- On launch, the app requests notification permission once when macOS still reports `Not requested`.
 - When notification permission is `Not requested`, `Agents -> Settings` shows `Allow Notifications`, which requests permission and sends a test notification.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
