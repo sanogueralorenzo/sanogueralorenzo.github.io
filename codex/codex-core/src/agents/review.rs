@@ -1469,14 +1469,10 @@ fn select_comment_target(
 
 fn render_inline_comment_body(finding: &ReviewFinding) -> String {
     let mut lines = vec![
-        finding.title.trim().to_string(),
+        render_finding_heading(finding),
         String::new(),
         finding.body.trim().to_string(),
     ];
-    if let Some(priority) = finding.priority {
-        lines.push(String::new());
-        lines.push(format!("Priority: P{priority}"));
-    }
     lines.push(format!("Confidence: {:.2}", finding.confidence_score));
     lines.join("\n")
 }
@@ -1490,18 +1486,35 @@ fn render_top_level_comment_body(finding: &ReviewFinding, path: &str) -> String 
     };
 
     let mut lines = vec![
-        finding.title.trim().to_string(),
+        render_finding_heading(finding),
         String::new(),
         format!("File: `{location}`"),
         String::new(),
         finding.body.trim().to_string(),
     ];
-    if let Some(priority) = finding.priority {
-        lines.push(String::new());
-        lines.push(format!("Priority: P{priority}"));
-    }
     lines.push(format!("Confidence: {:.2}", finding.confidence_score));
     lines.join("\n")
+}
+
+fn render_finding_heading(finding: &ReviewFinding) -> String {
+    let title = finding.title.trim();
+    match render_priority_badge_markdown(finding.priority) {
+        Some(badge) => format!("**<sub><sub>{badge}</sub></sub>  {title}**"),
+        None => title.to_string(),
+    }
+}
+
+fn render_priority_badge_markdown(priority: Option<i32>) -> Option<String> {
+    let priority = priority?;
+    let color = match priority {
+        0 | 1 => "red",
+        2 => "orange",
+        3 => "yellow",
+        _ => return None,
+    };
+    Some(format!(
+        "![P{priority} Badge](https://img.shields.io/badge/P{priority}-{color}?style=flat)"
+    ))
 }
 
 fn post_inline_comment(
