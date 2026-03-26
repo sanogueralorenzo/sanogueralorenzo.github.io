@@ -9,6 +9,8 @@ APP_BUNDLE_NAME="Codex Menu Bar"
 APP_DIR="$ROOT_DIR/release/$APP_BUNDLE_NAME.app"
 TARGET_APP_DIR="/Applications/$APP_BUNDLE_NAME.app"
 ICON_PATH="$ROOT_DIR/assets/codex.png"
+LAUNCH_AGENT_PLIST="$HOME/Library/LaunchAgents/$APP_BUNDLE_IDENTIFIER.plist"
+LAUNCHD_DOMAIN="gui/$(id -u)"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This script packages a macOS .app and must be run on macOS." >&2
@@ -16,18 +18,33 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 stop_running_app() {
+  launchctl bootout "$LAUNCHD_DOMAIN" "$LAUNCH_AGENT_PLIST" >/dev/null 2>&1 || true
   osascript -e "tell application \"$APP_BUNDLE_NAME\" to quit" >/dev/null 2>&1 || true
   pkill -x "$APP_EXECUTABLE_NAME" >/dev/null 2>&1 || true
 
   local attempts=0
   while pgrep -x "$APP_EXECUTABLE_NAME" >/dev/null 2>&1; do
     attempts=$((attempts + 1))
-    if (( attempts > 20 )); then
+    if (( attempts == 20 )); then
+      pkill -KILL -x "$APP_EXECUTABLE_NAME" >/dev/null 2>&1 || true
+    elif (( attempts > 30 )); then
       echo "Failed to stop existing $APP_EXECUTABLE_NAME process." >&2
       exit 1
     fi
     sleep 0.1
   done
+}
+
+relaunch_installed_app() {
+  if [[ -f "$LAUNCH_AGENT_PLIST" ]]; then
+    if launchctl bootstrap "$LAUNCHD_DOMAIN" "$LAUNCH_AGENT_PLIST" >/dev/null 2>&1; then
+      echo "Opened app: $TARGET_APP_DIR"
+      return
+    fi
+  fi
+
+  open "$TARGET_APP_DIR" >/dev/null 2>&1 || true
+  echo "Opened app: $TARGET_APP_DIR"
 }
 
 cd "$ROOT_DIR"
@@ -110,5 +127,4 @@ else
   fi
 fi
 
-open "$TARGET_APP_DIR" >/dev/null 2>&1 || true
-echo "Opened app: $TARGET_APP_DIR"
+relaunch_installed_app
