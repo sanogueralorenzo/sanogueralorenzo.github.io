@@ -109,6 +109,15 @@ extension AppDelegate {
       }
     }
 
+    if hasClearableAgentJobs(
+      spikeJobs: orderedSpikeJobs,
+      taskJobs: orderedTaskJobs,
+      reviewJobs: orderedReviewJobs
+    ) {
+      menu.addItem(.separator())
+      menu.addItem(actionItem(title: "Clear", action: #selector(clearAgentRuns(_:))))
+    }
+
     return menu
   }
 
@@ -258,6 +267,16 @@ extension AppDelegate {
     case .inProgress:
       return "·"
     }
+  }
+
+  private func hasClearableAgentJobs(
+    spikeJobs: [CodexCoreCLIClient.SpikeJob],
+    taskJobs: [CodexCoreCLIClient.TaskJob],
+    reviewJobs: [CodexCoreCLIClient.ReviewJob]
+  ) -> Bool {
+    spikeJobs.contains { $0.status != .inProgress }
+      || taskJobs.contains { $0.status != .inProgress }
+      || reviewJobs.contains { $0.status != .inProgress }
   }
 
   private func authProfileActionItem(

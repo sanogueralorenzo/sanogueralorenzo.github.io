@@ -2,6 +2,48 @@ import AppKit
 import Foundation
 
 extension AppDelegate {
+  @objc func clearAgentRuns(_ sender: Any?) {
+    let data = menuDataStore.data
+    let clearableSpikeJobs = data.spikeJobs.filter { $0.status != .inProgress }
+    let clearableTaskJobs = data.taskJobs.filter { $0.status != .inProgress }
+    let clearableReviewJobs = data.reviewJobs.filter { $0.status != .inProgress }
+
+    guard
+      !clearableSpikeJobs.isEmpty || !clearableTaskJobs.isEmpty || !clearableReviewJobs.isEmpty
+    else {
+      return
+    }
+
+    let spikesDirectoryURL = spikeStatusDirectoryURL()
+    let tasksDirectoryURL = taskStatusDirectoryURL()
+    let reviewsDirectoryURL = reviewStatusDirectoryURL()
+
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard let self else {
+        return
+      }
+
+      do {
+        try Self.removeAgentRunArtifacts(
+          spikesDirectoryURL: spikesDirectoryURL,
+          tasksDirectoryURL: tasksDirectoryURL,
+          reviewsDirectoryURL: reviewsDirectoryURL,
+          spikeJobs: clearableSpikeJobs,
+          taskJobs: clearableTaskJobs,
+          reviewJobs: clearableReviewJobs
+        )
+        DispatchQueue.main.async {
+          self.refreshUI()
+        }
+      } catch {
+        DispatchQueue.main.async {
+          self.showError(error)
+          self.refreshUI()
+        }
+      }
+    }
+  }
+
   @objc func openCodexApp(_ sender: Any?) {
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self else {
@@ -226,6 +268,38 @@ extension AppDelegate {
 
       DispatchQueue.main.async {
         NSApp.terminate(nil)
+      }
+    }
+  }
+
+  private nonisolated static func removeAgentRunArtifacts(
+    spikesDirectoryURL: URL,
+    tasksDirectoryURL: URL,
+    reviewsDirectoryURL: URL,
+    spikeJobs: [CodexCoreCLIClient.SpikeJob],
+    taskJobs: [CodexCoreCLIClient.TaskJob],
+    reviewJobs: [CodexCoreCLIClient.ReviewJob]
+  ) throws {
+    let fileManager = FileManager.default
+
+    for job in spikeJobs {
+      let path = spikesDirectoryURL.appendingPathComponent("\(job.id).json")
+      if fileManager.fileExists(atPath: path.path) {
+        try fileManager.removeItem(at: path)
+      }
+    }
+
+    for job in taskJobs {
+      let path = tasksDirectoryURL.appendingPathComponent("\(job.id).json")
+      if fileManager.fileExists(atPath: path.path) {
+        try fileManager.removeItem(at: path)
+      }
+    }
+
+    for job in reviewJobs {
+      let path = reviewsDirectoryURL.appendingPathComponent(job.id, isDirectory: true)
+      if fileManager.fileExists(atPath: path.path) {
+        try fileManager.removeItem(at: path)
       }
     }
   }

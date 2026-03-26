@@ -34,6 +34,7 @@
 - Task run rows use status prefixes: `·` in progress, `✓` completed, `X` failed.
 - Review run rows use status prefixes: `·` in progress, `✓` published, `X` needs attention.
 - `Agents -> View` exposes saved links as direct-click rows: spike runs open the Jira ticket, task runs open the draft PR when available, and review runs open the PR.
+- `Agents -> View` includes `Clear` as the last item when terminal runs exist; it deletes persisted completed/failed spike and task job files plus published/needs-attention review job directories from `~/.codex/agents`.
 - The run panel reads the current tab URL directly from the frontmost supported browser without modifying the clipboard.
 - Supported browsers for `Run From Browser` are Safari, Safari Technology Preview, Chrome, Arc, Brave, and Edge.
 - When the current tab is a GitHub pull request, `Run From Browser` shows a `Review Mode` selector with `Publish` and `Pending` before running `codex-core agents review run <pr>`.

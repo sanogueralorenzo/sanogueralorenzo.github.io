@@ -455,7 +455,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     taskStatusWatcherFileDescriptor = -1
   }
 
-  private func reviewStatusDirectoryURL() -> URL {
+  func reviewStatusDirectoryURL() -> URL {
     if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
       !configuredHome.isEmpty
     {
@@ -469,7 +469,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       .appendingPathComponent("reviews", isDirectory: true)
   }
 
-  private func spikeStatusDirectoryURL() -> URL {
+  func spikeStatusDirectoryURL() -> URL {
     if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
       !configuredHome.isEmpty
     {
@@ -483,7 +483,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       .appendingPathComponent("spikes", isDirectory: true)
   }
 
-  private func taskStatusDirectoryURL() -> URL {
+  func taskStatusDirectoryURL() -> URL {
     if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
       !configuredHome.isEmpty
     {
