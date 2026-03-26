@@ -116,6 +116,12 @@ extension AppDelegate {
                 summary: "Error",
                 detail: "Unable to determine Atlassian CLI status."
               )),
+            IntegrationStatus(
+              toolName: "notif",
+              state: .error(
+                summary: "Error",
+                detail: "Unable to determine notification permission state."
+              )),
           ])
         }
       }

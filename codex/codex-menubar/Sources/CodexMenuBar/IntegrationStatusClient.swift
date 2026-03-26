@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UserNotifications
 
 struct IntegrationStatus: Sendable {
   enum State: Sendable {
@@ -16,7 +17,7 @@ struct IntegrationStatus: Sendable {
 
 enum IntegrationStatusClient {
   static func loadAll() -> [IntegrationStatus] {
-    [githubStatus(), acliStatus()]
+    [githubStatus(), acliStatus(), notificationsStatus()]
   }
 
   private static func githubStatus() -> IntegrationStatus {
@@ -109,6 +110,74 @@ enum IntegrationStatusClient {
         detail: combined.isEmpty ? "Unable to determine Atlassian CLI status." : combined
       )
     )
+  }
+
+  private static func notificationsStatus() -> IntegrationStatus {
+    final class StatusBox: @unchecked Sendable {
+      var value: IntegrationStatus
+
+      init(_ value: IntegrationStatus) {
+        self.value = value
+      }
+    }
+
+    let semaphore = DispatchSemaphore(value: 0)
+    let statusBox = StatusBox(
+      IntegrationStatus(
+        toolName: "notif",
+        state: .error(
+          summary: "Error",
+          detail: "Unable to determine notification permission state."
+        )
+      )
+    )
+
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      statusBox.value = integrationStatus(from: settings.authorizationStatus)
+      semaphore.signal()
+    }
+
+    _ = semaphore.wait(timeout: .now() + 2)
+    return statusBox.value
+  }
+
+  private static func integrationStatus(
+    from authorizationStatus: UNAuthorizationStatus
+  ) -> IntegrationStatus {
+    switch authorizationStatus {
+    case .authorized, .provisional, .ephemeral:
+      return IntegrationStatus(
+        toolName: "notif",
+        state: .ready(
+          summary: "Allowed",
+          detail: "macOS notifications are enabled."
+        )
+      )
+    case .notDetermined:
+      return IntegrationStatus(
+        toolName: "notif",
+        state: .actionNeeded(
+          summary: "Not requested",
+          detail: "Notification permission has not been requested yet."
+        )
+      )
+    case .denied:
+      return IntegrationStatus(
+        toolName: "notif",
+        state: .actionNeeded(
+          summary: "Disabled",
+          detail: "Enable in System Settings > Notifications > Codex Menu."
+        )
+      )
+    @unknown default:
+      return IntegrationStatus(
+        toolName: "notif",
+        state: .error(
+          summary: "Error",
+          detail: "Unknown notification authorization state."
+        )
+      )
+    }
   }
 
   private static func combinedOutput(from result: ProcessResult) -> String {

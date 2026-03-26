@@ -41,7 +41,7 @@
 - When the current tab is a Jira ticket, `Run From Browser` shows `Spike` and `Task`; `Spike` runs `codex-core agents spike run <ticket>`, takes the existing Jira description and latest comments into account, and only posts back when it has net-new, actionable information. When nothing new should be posted, the spike returns `comment: null` with `reason: already_covered`. When it does post, the Jira ADF comment body comes directly from the spike `codex exec` result, while `Task` runs `codex-core agents task run <ticket>`.
 - The menubar watches `~/.codex/agents/reviews` (or `CODEX_AGENTS_HOME/reviews`) so review status markers update from persisted job writes instead of timer polling.
 - The menubar also watches `~/.codex/agents/tasks` (or `CODEX_AGENTS_HOME/tasks`) so task status markers update from persisted task job writes.
-- `Agents -> Settings` only shows integration status for `gh` and `acli`.
+- `Agents -> Settings` only shows integration status for `gh`, `acli`, and notification permission state.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
 - In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.

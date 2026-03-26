@@ -70,6 +70,7 @@ private final class IntegrationStatusRowView: NSView {
 final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDelegate {
   private let ghStatusRow = IntegrationStatusRowView(toolName: "gh")
   private let acliStatusRow = IntegrationStatusRowView(toolName: "acli")
+  private let notificationStatusRow = IntegrationStatusRowView(toolName: "notif")
   private let closeButton = NSButton(title: "Close", target: nil, action: nil)
   private let onClose: () -> Void
 
@@ -77,7 +78,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
     self.onClose = onClose
 
     let panel = NSPanel(
-      contentRect: NSRect(x: 0, y: 0, width: 500, height: 220),
+      contentRect: NSRect(x: 0, y: 0, width: 500, height: 266),
       styleMask: [.titled, .closable],
       backing: .buffered,
       defer: false
@@ -107,6 +108,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
   func setLoading() {
     ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
     acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
+    notificationStatusRow.apply(status: IntegrationStatus(toolName: "notif", state: .checking))
   }
 
   func applyIntegrationStatuses(_ statuses: [IntegrationStatus]) {
@@ -116,6 +118,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
         ghStatusRow.apply(status: status)
       case "acli":
         acliStatusRow.apply(status: status)
+      case "notif":
+        notificationStatusRow.apply(status: status)
       default:
         break
       }
@@ -137,14 +141,17 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
 
     let integrationsTitle = NSTextField(labelWithString: "Integrations")
     integrationsTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-    integrationsTitle.frame = NSRect(x: 20, y: 168, width: 460, height: 20)
+    integrationsTitle.frame = NSRect(x: 20, y: 214, width: 460, height: 20)
     contentView.addSubview(integrationsTitle)
 
-    ghStatusRow.frame = NSRect(x: 20, y: 116, width: 460, height: 38)
+    ghStatusRow.frame = NSRect(x: 20, y: 162, width: 460, height: 38)
     contentView.addSubview(ghStatusRow)
 
-    acliStatusRow.frame = NSRect(x: 20, y: 70, width: 460, height: 38)
+    acliStatusRow.frame = NSRect(x: 20, y: 116, width: 460, height: 38)
     contentView.addSubview(acliStatusRow)
+
+    notificationStatusRow.frame = NSRect(x: 20, y: 70, width: 460, height: 38)
+    contentView.addSubview(notificationStatusRow)
 
     let divider = NSBox(frame: NSRect(x: 20, y: 50, width: 460, height: 1))
     divider.boxType = .separator
