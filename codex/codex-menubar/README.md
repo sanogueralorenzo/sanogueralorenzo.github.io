@@ -42,6 +42,7 @@
 - The menubar watches `~/.codex/agents/reviews` (or `CODEX_AGENTS_HOME/reviews`) so review status markers update from persisted job writes instead of timer polling.
 - The menubar also watches `~/.codex/agents/tasks` (or `CODEX_AGENTS_HOME/tasks`) so task status markers update from persisted task job writes.
 - `Agents -> Settings` only shows integration status for `gh`, `acli`, and notification permission state.
+- When notification permission is `Not requested`, `Agents -> Settings` shows `Allow Notifications`, which requests permission and sends a test notification.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
 - In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.

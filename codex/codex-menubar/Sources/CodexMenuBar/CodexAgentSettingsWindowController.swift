@@ -71,11 +71,18 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
   private let ghStatusRow = IntegrationStatusRowView(toolName: "gh")
   private let acliStatusRow = IntegrationStatusRowView(toolName: "acli")
   private let notificationStatusRow = IntegrationStatusRowView(toolName: "notif")
+  private let allowNotificationsButton = NSButton(
+    title: "Allow Notifications",
+    target: nil,
+    action: nil
+  )
   private let closeButton = NSButton(title: "Close", target: nil, action: nil)
   private let onClose: () -> Void
+  private let onRequestNotifications: () -> Void
 
-  init(onClose: @escaping () -> Void) {
+  init(onClose: @escaping () -> Void, onRequestNotifications: @escaping () -> Void) {
     self.onClose = onClose
+    self.onRequestNotifications = onRequestNotifications
 
     let panel = NSPanel(
       contentRect: NSRect(x: 0, y: 0, width: 500, height: 266),
@@ -109,6 +116,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
     ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
     acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
     notificationStatusRow.apply(status: IntegrationStatus(toolName: "notif", state: .checking))
+    allowNotificationsButton.isHidden = true
+    allowNotificationsButton.isEnabled = false
   }
 
   func applyIntegrationStatuses(_ statuses: [IntegrationStatus]) {
@@ -120,6 +129,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
         acliStatusRow.apply(status: status)
       case "notif":
         notificationStatusRow.apply(status: status)
+        applyNotificationButtonVisibility(for: status)
       default:
         break
       }
@@ -132,6 +142,11 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
 
   @objc private func closePanel(_ sender: Any?) {
     close()
+  }
+
+  @objc private func requestNotifications(_ sender: Any?) {
+    allowNotificationsButton.isEnabled = false
+    onRequestNotifications()
   }
 
   private func buildUI(in panel: NSPanel) {
@@ -153,6 +168,13 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
     notificationStatusRow.frame = NSRect(x: 20, y: 70, width: 460, height: 38)
     contentView.addSubview(notificationStatusRow)
 
+    allowNotificationsButton.target = self
+    allowNotificationsButton.action = #selector(requestNotifications(_:))
+    allowNotificationsButton.frame = NSRect(x: 332, y: 34, width: 148, height: 30)
+    allowNotificationsButton.isHidden = true
+    allowNotificationsButton.isEnabled = false
+    contentView.addSubview(allowNotificationsButton)
+
     let divider = NSBox(frame: NSRect(x: 20, y: 50, width: 460, height: 1))
     divider.boxType = .separator
     contentView.addSubview(divider)
@@ -162,5 +184,17 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSWindowDele
     closeButton.keyEquivalent = "\r"
     closeButton.frame = NSRect(x: 392, y: 12, width: 88, height: 30)
     contentView.addSubview(closeButton)
+  }
+
+  private func applyNotificationButtonVisibility(for status: IntegrationStatus) {
+    switch status.state {
+    case .actionNeeded(let summary, _)
+      where status.toolName == "notif" && summary == "Not requested":
+      allowNotificationsButton.isHidden = false
+      allowNotificationsButton.isEnabled = true
+    default:
+      allowNotificationsButton.isHidden = true
+      allowNotificationsButton.isEnabled = false
+    }
   }
 }

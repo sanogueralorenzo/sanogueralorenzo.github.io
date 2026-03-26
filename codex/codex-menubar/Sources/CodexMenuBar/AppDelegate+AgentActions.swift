@@ -85,9 +85,16 @@ extension AppDelegate {
       return
     }
 
-    let controller = CodexAgentSettingsWindowController(
+    var controller: CodexAgentSettingsWindowController!
+    controller = CodexAgentSettingsWindowController(
       onClose: { [weak self] in
         self?.codexAgentSettingsWindowController = nil
+      },
+      onRequestNotifications: { [weak self, weak controller] in
+        guard let self, let controller else {
+          return
+        }
+        self.requestNotificationPermission(from: controller)
       }
     )
 
@@ -149,6 +156,37 @@ extension AppDelegate {
         DispatchQueue.main.async {
           self.showError(error)
           self.refreshUI()
+        }
+      }
+    }
+  }
+
+  private func requestNotificationPermission(from controller: CodexAgentSettingsWindowController) {
+    Task {
+      do {
+        try await requestNotificationAuthorizationAndSendTest()
+      } catch {
+        if codexAgentSettingsWindowController === controller {
+          showError(error)
+        }
+      }
+
+      let integrationStatusesResult = await loadAgentSettingsResult {
+        IntegrationStatusClient.loadAll()
+      }
+      if codexAgentSettingsWindowController === controller {
+        switch integrationStatusesResult {
+        case .success(let statuses):
+          controller.applyIntegrationStatuses(statuses)
+        case .failure:
+          controller.applyIntegrationStatuses([
+            IntegrationStatus(
+              toolName: "notif",
+              state: .error(
+                summary: "Error",
+                detail: "Unable to determine notification permission state."
+              )),
+          ])
         }
       }
     }

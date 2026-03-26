@@ -186,6 +186,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     }
   }
 
+  func requestNotificationAuthorizationAndSendTest() async throws {
+    let center = UNUserNotificationCenter.current()
+    let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+    guard granted else {
+      return
+    }
+
+    let content = UNMutableNotificationContent()
+    content.title = "Codex Menu"
+    content.body = "Notifications are enabled."
+    content.sound = .default
+
+    let identifier = "io.github.sanogueralorenzo.codex-menubar.settings-test.\(UUID().uuidString)"
+    let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+    try await center.add(request)
+  }
+
   func applicationWillTerminate(_ notification: Notification) {
     globalHotKeyController?.unregister()
     stopReviewStatusWatcher()
