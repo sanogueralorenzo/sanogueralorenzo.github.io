@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   var taskStatusWatcher: DispatchSourceFileSystemObject?
   var taskStatusWatcherFileDescriptor: CInt = -1
   var statusItem: NSStatusItem!
+  var globalHotKeyController: CodexGlobalHotKeyController?
   private var isMenuOpen = false
   private var needsRenderAfterMenuClose = false
   var codexAgentSettingsWindowController: CodexAgentSettingsWindowController?
@@ -67,6 +68,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let menu = NSMenu()
     menu.delegate = self
     statusItem.menu = menu
+
+    globalHotKeyController = CodexGlobalHotKeyController { [weak self] in
+      self?.toggleStatusMenuFromHotKey()
+    }
+    do {
+      try globalHotKeyController?.register()
+    } catch {
+      fputs("Warning: failed to register global shortcut: \(error)\n", stderr)
+    }
 
     startAutoRemoveScheduler()
     startReviewStatusWatcher()
@@ -144,6 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    globalHotKeyController?.unregister()
     stopReviewStatusWatcher()
     stopTaskStatusWatcher()
   }
@@ -319,6 +330,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         appDelegate?.refreshUI()
       }
     }
+  }
+
+  private func toggleStatusMenuFromHotKey() {
+    guard let button = statusItem.button else {
+      return
+    }
+
+    NSApp.activate(ignoringOtherApps: true)
+    button.performClick(nil)
   }
 }
 
