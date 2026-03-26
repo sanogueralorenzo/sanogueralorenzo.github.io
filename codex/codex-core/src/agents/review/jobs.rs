@@ -55,7 +55,7 @@ impl ReviewJobStore {
         pr_ref: &PullRequestReference,
     ) -> Result<Self> {
         let id = Uuid::new_v4().to_string();
-        let review_dir = layout.root.join("reviews").join(&id);
+        let review_dir = layout.reviews_dir().join(&id);
         fs::create_dir_all(&review_dir)
             .with_context(|| format!("failed to create {}", review_dir.display()))?;
 
@@ -161,7 +161,7 @@ impl ReviewJobStore {
 }
 
 pub(super) fn list_review_jobs_data(layout: &StateLayout) -> Result<Vec<ReviewJobSnapshot>> {
-    let reviews_dir = layout.root.join("reviews");
+    let reviews_dir = layout.reviews_dir();
     if !reviews_dir.exists() {
         return Ok(Vec::new());
     }
@@ -194,7 +194,7 @@ pub(super) fn load_review_job_data(
     if review_id.is_empty() {
         anyhow::bail!("Missing review job id");
     }
-    let job_path = layout.root.join("reviews").join(review_id).join("job.json");
+    let job_path = layout.reviews_dir().join(review_id).join("job.json");
     if !job_path.exists() {
         anyhow::bail!("Review job not found: {review_id}");
     }

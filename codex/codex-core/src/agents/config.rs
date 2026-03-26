@@ -124,9 +124,9 @@ fn config_set_allowed_repos(layout: &StateLayout, args: ConfigSetAllowedReposArg
     normalized.sort();
     normalized.dedup();
 
-    let mut config = super::load_agents_config(layout)?;
-    config.allowed_repos = normalized.clone();
-    super::save_agents_config(layout, &config)?;
+    update_agents_config(layout, |config| {
+        config.allowed_repos = normalized.clone();
+    })?;
 
     if normalized.is_empty() {
         println!("Set allowed_repos=");
@@ -137,79 +137,26 @@ fn config_set_allowed_repos(layout: &StateLayout, args: ConfigSetAllowedReposArg
 }
 
 fn config_set_review_mode(layout: &StateLayout, args: ConfigSetReviewModeArgs) -> Result<()> {
-    let mut config = super::load_agents_config(layout)?;
-    config.review_mode = args.mode;
-    super::save_agents_config(layout, &config)?;
-    println!("Set review_mode={}", config.review_mode.as_str());
+    update_agents_config(layout, |config| {
+        config.review_mode = args.mode;
+    })?;
+    println!("Set review_mode={}", args.mode.as_str());
     Ok(())
 }
 
 fn config_clear_allowed_repos(layout: &StateLayout) -> Result<()> {
-    let mut config = super::load_agents_config(layout)?;
-    config.allowed_repos.clear();
-    super::save_agents_config(layout, &config)?;
+    update_agents_config(layout, |config| {
+        config.allowed_repos.clear();
+    })?;
     println!("Cleared allowed_repos");
     Ok(())
 }
 
 fn list_available_repos() -> Result<Vec<AvailableRepo>> {
-    let mut owners = Vec::new();
-    let viewer_output = run_gh_json(
-        vec![
-            "api".to_string(),
-            "graphql".to_string(),
-            "-f".to_string(),
-            "query=query { viewer { login organizations(first: 100) { nodes { login } } } }"
-                .to_string(),
-        ],
-        None,
-    )?;
-    let viewer: serde_json::Value =
-        serde_json::from_str(&viewer_output).context("failed to parse gh viewer response")?;
-    if let Some(login) = viewer["data"]["viewer"]["login"].as_str() {
-        owners.push(login.to_string());
-    }
-    if let Some(nodes) = viewer["data"]["viewer"]["organizations"]["nodes"].as_array() {
-        owners.extend(
-            nodes
-                .iter()
-                .filter_map(|node| node["login"].as_str().map(ToString::to_string)),
-        );
-    }
-
-    owners.sort();
-    owners.dedup();
-
+    let owners = load_repo_owners()?;
     let mut repos = Vec::new();
     for owner in owners {
-        let output = run_gh_json(
-            vec![
-                "repo".to_string(),
-                "list".to_string(),
-                owner,
-                "--limit".to_string(),
-                "1000".to_string(),
-                "--json".to_string(),
-                "name,owner,isArchived,viewerPermission".to_string(),
-            ],
-            None,
-        )?;
-        let listed: Vec<ListedRepo> =
-            serde_json::from_str(&output).context("failed to parse gh repo list response")?;
-        repos.extend(
-            listed
-                .into_iter()
-                .filter(|repo| !repo.is_archived)
-                .filter(|repo| {
-                    matches!(
-                        repo.viewer_permission.as_str(),
-                        "WRITE" | "MAINTAIN" | "ADMIN"
-                    )
-                })
-                .map(|repo| AvailableRepo {
-                    full_name: format!("{}/{}", repo.owner.login, repo.name),
-                }),
-        );
+        repos.extend(load_owner_repos(&owner)?);
     }
 
     repos.sort_by(|a, b| a.full_name.cmp(&b.full_name));
@@ -233,6 +180,77 @@ fn normalize_repo_filters(repos: Vec<String>) -> Result<Vec<String>> {
         .collect()
 }
 
+fn load_repo_owners() -> Result<Vec<String>> {
+    let viewer_output = run_gh_json(
+        vec![
+            "api".to_string(),
+            "graphql".to_string(),
+            "-f".to_string(),
+            "query=query { viewer { login organizations(first: 100) { nodes { login } } } }"
+                .to_string(),
+        ],
+        None,
+    )?;
+    let viewer: serde_json::Value =
+        serde_json::from_str(&viewer_output).context("failed to parse gh viewer response")?;
+
+    let mut owners = Vec::new();
+    if let Some(login) = viewer["data"]["viewer"]["login"].as_str() {
+        owners.push(login.to_string());
+    }
+    if let Some(nodes) = viewer["data"]["viewer"]["organizations"]["nodes"].as_array() {
+        owners.extend(
+            nodes
+                .iter()
+                .filter_map(|node| node["login"].as_str().map(ToString::to_string)),
+        );
+    }
+
+    owners.sort();
+    owners.dedup();
+    Ok(owners)
+}
+
+fn load_owner_repos(owner: &str) -> Result<Vec<AvailableRepo>> {
+    let output = run_gh_json(
+        vec![
+            "repo".to_string(),
+            "list".to_string(),
+            owner.to_string(),
+            "--limit".to_string(),
+            "1000".to_string(),
+            "--json".to_string(),
+            "name,owner,isArchived,viewerPermission".to_string(),
+        ],
+        None,
+    )?;
+    let listed: Vec<ListedRepo> =
+        serde_json::from_str(&output).context("failed to parse gh repo list response")?;
+
+    Ok(listed
+        .into_iter()
+        .filter(|repo| !repo.is_archived)
+        .filter(|repo| {
+            matches!(
+                repo.viewer_permission.as_str(),
+                "WRITE" | "MAINTAIN" | "ADMIN"
+            )
+        })
+        .map(|repo| AvailableRepo {
+            full_name: format!("{}/{}", repo.owner.login, repo.name),
+        })
+        .collect())
+}
+
+fn update_agents_config(
+    layout: &StateLayout,
+    update: impl FnOnce(&mut super::AgentsConfig),
+) -> Result<()> {
+    let mut config = super::load_agents_config(layout)?;
+    update(&mut config);
+    super::save_agents_config(layout, &config)
+}
+
 fn run_gh_json(args: Vec<String>, cwd: Option<&Path>) -> Result<String> {
     let mut command = Command::new("gh");
     command.args(args);
@@ -254,4 +272,25 @@ fn run_gh_json(args: Vec<String>, cwd: Option<&Path>) -> Result<String> {
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_repo_filters;
+
+    #[test]
+    fn normalize_repo_filters_accepts_owner_repo() {
+        let filters = normalize_repo_filters(vec!["openai/codex".to_string()]).unwrap();
+        assert_eq!(filters, vec!["openai/codex"]);
+    }
+
+    #[test]
+    fn normalize_repo_filters_rejects_invalid_shape() {
+        let error = normalize_repo_filters(vec!["openai".to_string()]).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Invalid repo filter: openai. Expected OWNER/REPO.")
+        );
+    }
 }

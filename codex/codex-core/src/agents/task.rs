@@ -33,6 +33,23 @@ struct TaskRecord {
     path: PathBuf,
 }
 
+impl TaskRecord {
+    fn pending(ticket: &str, path: PathBuf) -> Self {
+        let now = super::now_utc();
+        Self {
+            ticket: ticket.to_string(),
+            status: "pending".to_string(),
+            created_at: now.clone(),
+            updated_at: now,
+            path,
+        }
+    }
+
+    fn is_pending(&self) -> bool {
+        matches!(self.status.as_str(), "pending" | "open")
+    }
+}
+
 pub(super) fn handle_task(action: TaskCommand, layout: &StateLayout) -> Result<()> {
     super::ensure_state_layout(layout)?;
     match action {
@@ -49,14 +66,7 @@ fn task_create(layout: &StateLayout, ticket: &str) -> Result<()> {
         bail!("Task already exists: {ticket}");
     }
 
-    let now = super::now_utc();
-    let record = TaskRecord {
-        ticket: ticket.to_string(),
-        status: "pending".to_string(),
-        created_at: now.clone(),
-        updated_at: now,
-        path,
-    };
+    let record = TaskRecord::pending(ticket, path);
     write_task_file(&record)?;
     println!("Created task: {}", record.ticket);
     Ok(())
@@ -100,10 +110,7 @@ pub(super) fn pick_next_pending_task(
     layout: &StateLayout,
 ) -> Result<Option<(String, String, String)>> {
     let tasks = load_tasks(layout)?;
-    let mut pending: Vec<TaskRecord> = tasks
-        .into_iter()
-        .filter(|task| task.status == "pending" || task.status == "open")
-        .collect();
+    let mut pending: Vec<TaskRecord> = tasks.into_iter().filter(TaskRecord::is_pending).collect();
 
     pending.sort_by(|a, b| a.updated_at.cmp(&b.updated_at));
     Ok(pending
@@ -188,4 +195,20 @@ fn validate_ticket_key(ticket: &str) -> Result<()> {
 
 fn task_path(layout: &StateLayout, ticket: &str) -> PathBuf {
     layout.tasks_dir.join(format!("{ticket}.task"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_ticket_key;
+
+    #[test]
+    fn validate_ticket_key_accepts_expected_characters() {
+        validate_ticket_key("TS-123_fix.issue").unwrap();
+    }
+
+    #[test]
+    fn validate_ticket_key_rejects_unexpected_characters() {
+        let error = validate_ticket_key("TS-123/fix").unwrap_err();
+        assert!(error.to_string().contains("Allowed characters"));
+    }
 }

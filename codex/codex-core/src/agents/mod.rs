@@ -51,6 +51,20 @@ struct StateLayout {
     config_file: PathBuf,
 }
 
+impl StateLayout {
+    fn repos_dir(&self) -> PathBuf {
+        self.root.join("repos")
+    }
+
+    fn worktrees_dir(&self) -> PathBuf {
+        self.root.join("worktrees")
+    }
+
+    fn reviews_dir(&self) -> PathBuf {
+        self.root.join("reviews")
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewPublishMode {
@@ -75,6 +89,17 @@ struct AgentsConfig {
     #[serde(default)]
     review_mode: ReviewPublishMode,
     allowed_repos: Vec<String>,
+}
+
+impl AgentsConfig {
+    fn new() -> Self {
+        Self {
+            state_version: 2,
+            initialized_at: now_utc(),
+            review_mode: ReviewPublishMode::Publish,
+            allowed_repos: Vec::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -126,25 +151,20 @@ fn run(cli: Cli) -> Result<()> {
 }
 
 fn ensure_state_layout(layout: &StateLayout) -> Result<()> {
-    fs::create_dir_all(&layout.tasks_dir)
-        .with_context(|| format!("failed to create {}", layout.tasks_dir.display()))?;
-    fs::create_dir_all(layout.root.join("repos"))
-        .with_context(|| format!("failed to create {}", layout.root.join("repos").display()))?;
-    fs::create_dir_all(layout.root.join("worktrees")).with_context(|| {
-        format!(
-            "failed to create {}",
-            layout.root.join("worktrees").display()
-        )
-    })?;
-    fs::create_dir_all(layout.root.join("reviews"))
-        .with_context(|| format!("failed to create {}", layout.root.join("reviews").display()))?;
+    let state_directories = [
+        layout.tasks_dir.clone(),
+        layout.repos_dir(),
+        layout.worktrees_dir(),
+        layout.reviews_dir(),
+    ];
+
+    for directory in state_directories {
+        fs::create_dir_all(&directory)
+            .with_context(|| format!("failed to create {}", directory.display()))?;
+    }
+
     if !layout.config_file.exists() {
-        let config = AgentsConfig {
-            state_version: 2,
-            initialized_at: now_utc(),
-            review_mode: ReviewPublishMode::Publish,
-            allowed_repos: Vec::new(),
-        };
+        let config = AgentsConfig::new();
         save_agents_config(layout, &config)?;
     }
     Ok(())

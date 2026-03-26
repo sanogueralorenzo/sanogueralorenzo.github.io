@@ -99,9 +99,7 @@ pub(super) fn handle_worker(action: WorkerCommand, layout: &StateLayout) -> Resu
 }
 
 fn worker_start(layout: &StateLayout, args: WorkerStartArgs) -> Result<()> {
-    if args.interval_seconds == 0 {
-        bail!("Invalid --interval-seconds value: 0");
-    }
+    validate_worker_start_args(&args)?;
     let _caffeinate = maybe_start_caffeinate();
 
     if args.once {
@@ -147,28 +145,10 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
         .canonicalize()
         .with_context(|| format!("failed to resolve working directory {}", args.cd.display()))?;
 
-    if !args.once && args.interval_seconds == 0 {
-        bail!("Invalid --interval-seconds value: 0");
-    }
-    if let Some(max_iterations) = args.max_iterations
-        && max_iterations == 0
-    {
-        bail!("Invalid --max-iterations value: 0");
-    }
+    validate_worker_loop_args(&args)?;
     let _caffeinate = maybe_start_caffeinate();
 
-    println!("Loop started.");
-    println!("  cwd: {}", cwd.display());
-    println!("  stop phrase: {}", args.stop_phrase);
-    if args.once {
-        println!("  mode: once");
-    } else if let Some(max_iterations) = args.max_iterations {
-        println!("  max iterations: {}", max_iterations);
-        println!("  interval: {}s", args.interval_seconds);
-    } else {
-        println!("  max iterations: unlimited");
-        println!("  interval: {}s", args.interval_seconds);
-    }
+    print_worker_loop_start(&cwd, &args);
 
     let mut iteration: u64 = 0;
     loop {
@@ -190,15 +170,7 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
             break;
         }
 
-        if args.once {
-            println!("[loop {iteration}] --once set. Stopping.");
-            break;
-        }
-
-        if let Some(max_iterations) = args.max_iterations
-            && iteration >= max_iterations
-        {
-            println!("[loop {iteration}] Reached --max-iterations={max_iterations}. Stopping.");
+        if should_stop_after_iteration(iteration, &args) {
             break;
         }
 
@@ -206,6 +178,59 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn validate_worker_start_args(args: &WorkerStartArgs) -> Result<()> {
+    if args.interval_seconds == 0 {
+        bail!("Invalid --interval-seconds value: 0");
+    }
+    Ok(())
+}
+
+fn validate_worker_loop_args(args: &WorkerLoopArgs) -> Result<()> {
+    if !args.once && args.interval_seconds == 0 {
+        bail!("Invalid --interval-seconds value: 0");
+    }
+    if let Some(max_iterations) = args.max_iterations
+        && max_iterations == 0
+    {
+        bail!("Invalid --max-iterations value: 0");
+    }
+    Ok(())
+}
+
+fn print_worker_loop_start(cwd: &Path, args: &WorkerLoopArgs) {
+    println!("Loop started.");
+    println!("  cwd: {}", cwd.display());
+    println!("  stop phrase: {}", args.stop_phrase);
+
+    if args.once {
+        println!("  mode: once");
+        return;
+    }
+
+    let max_iterations = args
+        .max_iterations
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "unlimited".to_string());
+    println!("  max iterations: {max_iterations}");
+    println!("  interval: {}s", args.interval_seconds);
+}
+
+fn should_stop_after_iteration(iteration: u64, args: &WorkerLoopArgs) -> bool {
+    if args.once {
+        println!("[loop {iteration}] --once set. Stopping.");
+        return true;
+    }
+
+    if let Some(max_iterations) = args.max_iterations
+        && iteration >= max_iterations
+    {
+        println!("[loop {iteration}] Reached --max-iterations={max_iterations}. Stopping.");
+        return true;
+    }
+
+    false
 }
 
 fn maybe_start_caffeinate() -> Option<CaffeinateGuard> {
@@ -322,4 +347,63 @@ fn unique_output_file_path() -> PathBuf {
         "codex-core-agents-last-message-{}-{nanos}.txt",
         std::process::id()
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{WorkerLoopArgs, resolve_loop_prompt, validate_worker_loop_args};
+    use std::env;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn base_args() -> WorkerLoopArgs {
+        WorkerLoopArgs {
+            prompt: Some("loop prompt".to_string()),
+            prompt_file: None,
+            cd: PathBuf::from("."),
+            interval_seconds: 30,
+            max_iterations: None,
+            stop_phrase: "LOOP_DONE".to_string(),
+            model: None,
+            once: false,
+            full_auto: false,
+            dangerously_bypass_approvals_and_sandbox: false,
+            skip_git_repo_check: false,
+        }
+    }
+
+    #[test]
+    fn validate_worker_loop_args_rejects_zero_interval() {
+        let mut args = base_args();
+        args.interval_seconds = 0;
+        let error = validate_worker_loop_args(&args).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Invalid --interval-seconds value: 0")
+        );
+    }
+
+    #[test]
+    fn resolve_loop_prompt_reads_prompt_file() {
+        let file_name = format!(
+            "codex-core-agents-test-{}.md",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let path = env::temp_dir().join(file_name);
+        fs::write(&path, "  prompt from file  \n").unwrap();
+
+        let mut args = base_args();
+        args.prompt = None;
+        args.prompt_file = Some(path.clone());
+
+        let prompt = resolve_loop_prompt(&args).unwrap();
+        assert_eq!(prompt, "prompt from file");
+
+        let _ = fs::remove_file(path);
+    }
 }
