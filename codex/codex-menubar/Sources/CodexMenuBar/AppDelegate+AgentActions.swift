@@ -20,6 +20,20 @@ extension AppDelegate {
     // Intentionally no-op placeholder for upcoming Codex Agent flow.
   }
 
+  @objc func runAgentTask(_ sender: NSMenuItem) {
+    guard let ticket = sender.representedObject as? String else {
+      return
+    }
+    runTask(ticket: ticket)
+  }
+
+  @objc func rerunCodexAgentTask(_ sender: NSMenuItem) {
+    guard let ticket = sender.representedObject as? String else {
+      return
+    }
+    runTask(ticket: ticket)
+  }
+
   @objc func reviewPullRequest(_ sender: NSMenuItem) {
     guard let pullRequestURL = sender.representedObject as? String else {
       return
@@ -44,34 +58,19 @@ extension AppDelegate {
       } catch {
         DispatchQueue.main.async {
           self.showError(error)
+          self.refreshUI()
         }
       }
     }
   }
 
-  @objc func openReviewRepository(_ sender: NSMenuItem) {
-    guard let repositoryURL = sender.representedObject as? String,
-      let url = URL(string: repositoryURL)
+  @objc func openAgentURL(_ sender: NSMenuItem) {
+    guard let rawURL = sender.representedObject as? String,
+      let url = URL(string: rawURL)
     else {
       return
     }
     NSWorkspace.shared.open(url)
-  }
-
-  @objc func viewCodexAgentTask(_ sender: NSMenuItem) {
-    // MOCK placeholder: this will open real task details when agent backend is integrated.
-  }
-
-  @objc func togglePauseCodexAgentTask(_ sender: NSMenuItem) {
-    // MOCK placeholder: this will pause/resume the selected running task.
-  }
-
-  @objc func deleteCodexAgentTask(_ sender: NSMenuItem) {
-    // MOCK placeholder: this will delete/stop the selected task.
-  }
-
-  @objc func rerunCodexAgentTask(_ sender: NSMenuItem) {
-    // MOCK placeholder: this will re-queue the selected completed task.
   }
 
   @objc func openCodexAgentSettings(_ sender: Any?) {
@@ -154,6 +153,43 @@ extension AppDelegate {
         controller.applyLoadError(message)
       }
     }
+  }
+
+  private func runTask(ticket: String) {
+    refreshUI()
+    let sessionsCLI = self.sessionsCLI
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard let self else {
+        return
+      }
+
+      do {
+        let result = try sessionsCLI.runTask(ticket: ticket)
+        DispatchQueue.main.async {
+          self.showMessage(
+            title: "Task Complete",
+            message: self.taskCompletionMessage(for: result)
+          )
+          self.refreshUI()
+        }
+      } catch {
+        DispatchQueue.main.async {
+          self.showError(error)
+          self.refreshUI()
+        }
+      }
+    }
+  }
+
+  private func taskCompletionMessage(for result: CodexCoreCLIClient.TaskRunResult) -> String {
+    let prLine = result.prURL.map { "PR: \($0)\n" } ?? ""
+    return """
+      Task ID: \(result.taskID)
+      Ticket: \(result.ticket)
+      Repo: \(result.repoFullName)
+      Branch: \(result.branch)
+      \(prLine)Summary: \(result.summary)
+      """
   }
 
   private func reviewCompletionMessage(for result: CodexCoreCLIClient.ReviewRunResult) -> String {

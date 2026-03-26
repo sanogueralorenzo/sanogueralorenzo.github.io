@@ -19,10 +19,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     label: "io.github.sanogueralorenzo.codex-menubar.review-status",
     qos: .utility
   )
+  let taskStatusWatcherQueue = DispatchQueue(
+    label: "io.github.sanogueralorenzo.codex-menubar.task-status",
+    qos: .utility
+  )
   var autoRemoveSchedulerTimer: DispatchSourceTimer?
   let autoRemoveIntervalMinutes = 60
   var reviewStatusWatcher: DispatchSourceFileSystemObject?
   var reviewStatusWatcherFileDescriptor: CInt = -1
+  var taskStatusWatcher: DispatchSourceFileSystemObject?
+  var taskStatusWatcherFileDescriptor: CInt = -1
   var statusItem: NSStatusItem!
   private var isMenuOpen = false
   private var needsRenderAfterMenuClose = false
@@ -64,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     startAutoRemoveScheduler()
     startReviewStatusWatcher()
+    startTaskStatusWatcher()
     observeMenuDataChanges()
     renderMenu()
     refreshUI()
@@ -138,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     stopReviewStatusWatcher()
+    stopTaskStatusWatcher()
   }
 
   private func renderMenu() {
@@ -231,6 +239,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     reviewStatusWatcherFileDescriptor = -1
   }
 
+  private func startTaskStatusWatcher() {
+    stopTaskStatusWatcher()
+
+    let tasksDirectoryURL = taskStatusDirectoryURL()
+    do {
+      try FileManager.default.createDirectory(
+        at: tasksDirectoryURL,
+        withIntermediateDirectories: true
+      )
+    } catch {
+      fputs("Warning: failed to create task status directory: \(error)\n", stderr)
+      return
+    }
+
+    let fileDescriptor = open(tasksDirectoryURL.path, O_EVTONLY)
+    guard fileDescriptor >= 0 else {
+      fputs(
+        "Warning: failed to watch task status directory: \(tasksDirectoryURL.path)\n", stderr)
+      return
+    }
+
+    let watcher = DispatchSource.makeFileSystemObjectSource(
+      fileDescriptor: fileDescriptor,
+      eventMask: [.write, .rename, .delete, .extend, .attrib],
+      queue: taskStatusWatcherQueue
+    )
+
+    watcher.setEventHandler(handler: Self.makeReviewStatusWatcherHandler(appDelegate: self))
+
+    watcher.setCancelHandler { [fileDescriptor] in
+      close(fileDescriptor)
+    }
+
+    taskStatusWatcherFileDescriptor = fileDescriptor
+    taskStatusWatcher = watcher
+    watcher.resume()
+  }
+
+  private func stopTaskStatusWatcher() {
+    taskStatusWatcher?.cancel()
+    taskStatusWatcher = nil
+    taskStatusWatcherFileDescriptor = -1
+  }
+
   private func reviewStatusDirectoryURL() -> URL {
     if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
       !configuredHome.isEmpty
@@ -243,6 +295,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
       .appendingPathComponent(".codex", isDirectory: true)
       .appendingPathComponent("agents", isDirectory: true)
       .appendingPathComponent("reviews", isDirectory: true)
+  }
+
+  private func taskStatusDirectoryURL() -> URL {
+    if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
+      !configuredHome.isEmpty
+    {
+      return URL(fileURLWithPath: configuredHome, isDirectory: true)
+        .appendingPathComponent("tasks", isDirectory: true)
+    }
+
+    return FileManager.default.homeDirectoryForCurrentUser
+      .appendingPathComponent(".codex", isDirectory: true)
+      .appendingPathComponent("agents", isDirectory: true)
+      .appendingPathComponent("tasks", isDirectory: true)
   }
 
   private nonisolated static func makeReviewStatusWatcherHandler(

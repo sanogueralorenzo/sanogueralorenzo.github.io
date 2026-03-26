@@ -23,92 +23,170 @@ extension AppDelegate {
   }
 
   private func addCodexAgentSection(to menu: NSMenu) {
+    let data = menuDataStore.data
     menu.addItem(sectionHeaderItem(title: "Agents"))
     menu.addItem(actionItem(title: "Create", action: #selector(createCodexAgent(_:))))
 
     let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
-    let viewMenu = NSMenu()
-    let runningTasks = CodexAgentMockData.runningTasks
-    let recentTasks = CodexAgentMockData.recentTasks
-
-    if runningTasks.isEmpty && recentTasks.isEmpty {
-      viewItem.isEnabled = false
-    } else {
-      for task in runningTasks {
-        let taskItem = NSMenuItem(title: task.ticket, action: nil, keyEquivalent: "")
-        viewMenu.addItem(taskItem)
-        viewMenu.setSubmenu(agentTaskMenu(for: task, isRecentTask: false), for: taskItem)
-      }
-
-      if !runningTasks.isEmpty && !recentTasks.isEmpty {
-        viewMenu.addItem(.separator())
-      }
-
-      for task in recentTasks {
-        let taskItem = NSMenuItem(
-          title: "\(agentRecentTaskPrefix(for: task.status)) \(task.ticket)",
-          action: nil,
-          keyEquivalent: ""
-        )
-        viewMenu.addItem(taskItem)
-        viewMenu.setSubmenu(agentTaskMenu(for: task, isRecentTask: true), for: taskItem)
-      }
-    }
+    let viewMenu = buildTaskJobsMenu(taskJobs: data.taskJobs)
+    viewItem.isEnabled = viewMenu.items.contains(where: { !$0.isSeparatorItem })
     menu.addItem(viewItem)
     menu.setSubmenu(viewMenu, for: viewItem)
 
+    let taskItem = NSMenuItem(title: "Task", action: nil, keyEquivalent: "")
+    let taskMenu = buildTaskCandidatesMenu(
+      taskJobs: data.taskJobs, taskCandidates: data.taskCandidates)
+    menu.addItem(taskItem)
+    menu.setSubmenu(taskMenu, for: taskItem)
+
     let reviewItem = NSMenuItem(title: "Review", action: nil, keyEquivalent: "")
-    let reviewMenu = NSMenu()
-    let reviewJobs = menuDataStore.data.reviewJobs
-    let reviewPullRequests = menuDataStore.data.reviewPullRequests
-
-    if menuDataStore.data.isLoading {
-      let loadingItem = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
-      loadingItem.isEnabled = false
-      reviewMenu.addItem(loadingItem)
-    } else if reviewPullRequests.isEmpty {
-      let emptyItem = NSMenuItem(title: "No Open PRs", action: nil, keyEquivalent: "")
-      emptyItem.isEnabled = false
-      reviewMenu.addItem(emptyItem)
-    } else {
-      let latestReviewJobByPullRequestURL = latestReviewJobsByPullRequestURL(reviewJobs)
-      let groupedPullRequests = groupReviewPullRequests(reviewPullRequests)
-
-      for (index, group) in groupedPullRequests.enumerated() {
-        let repositoryItem = NSMenuItem(
-          title: group.repository,
-          action: #selector(openReviewRepository(_:)),
-          keyEquivalent: "")
-        repositoryItem.target = self
-        repositoryItem.representedObject = group.repositoryURL
-        repositoryItem.attributedTitle = NSAttributedString(
-          string: group.repository,
-          attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
-        )
-        reviewMenu.addItem(repositoryItem)
-
-        for pullRequest in group.pullRequests {
-          let markerPrefix = reviewPullRequestStatusPrefix(
-            for: latestReviewJobByPullRequestURL[pullRequest.url]?.status
-          )
-          let item = NSMenuItem(
-            title: "\(markerPrefix)\(pullRequest.shortMenuTitle)",
-            action: #selector(reviewPullRequest(_:)),
-            keyEquivalent: "")
-          item.target = self
-          item.representedObject = pullRequest.url
-          reviewMenu.addItem(item)
-        }
-
-        if index < groupedPullRequests.count - 1 {
-          reviewMenu.addItem(.separator())
-        }
-      }
-    }
+    let reviewMenu = buildReviewMenu(
+      reviewJobs: data.reviewJobs, reviewPullRequests: data.reviewPullRequests)
     menu.addItem(reviewItem)
     menu.setSubmenu(reviewMenu, for: reviewItem)
 
     menu.addItem(actionItem(title: "Settings", action: #selector(openCodexAgentSettings(_:))))
+  }
+
+  private func buildTaskJobsMenu(taskJobs: [CodexCoreCLIClient.TaskJob]) -> NSMenu {
+    let menu = NSMenu()
+    let runningJobs =
+      taskJobs
+      .filter { $0.status == .inProgress }
+      .sorted { $0.createdAt > $1.createdAt }
+    let recentJobs =
+      taskJobs
+      .filter { $0.status != .inProgress }
+      .sorted { $0.createdAt > $1.createdAt }
+
+    if runningJobs.isEmpty && recentJobs.isEmpty {
+      menu.addItem(disabledItem(title: "No Task Jobs"))
+      return menu
+    }
+
+    for job in runningJobs {
+      let item = NSMenuItem(
+        title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
+        keyEquivalent: "")
+      menu.addItem(item)
+      menu.setSubmenu(taskJobMenu(for: job), for: item)
+    }
+
+    if !runningJobs.isEmpty && !recentJobs.isEmpty {
+      menu.addItem(.separator())
+    }
+
+    for job in recentJobs {
+      let item = NSMenuItem(
+        title: "\(taskJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
+        keyEquivalent: "")
+      menu.addItem(item)
+      menu.setSubmenu(taskJobMenu(for: job), for: item)
+    }
+
+    return menu
+  }
+
+  private func buildTaskCandidatesMenu(
+    taskJobs: [CodexCoreCLIClient.TaskJob],
+    taskCandidates: [CodexCoreCLIClient.TaskCandidate]
+  ) -> NSMenu {
+    let menu = NSMenu()
+
+    if menuDataStore.data.isLoading {
+      menu.addItem(disabledItem(title: "Loading..."))
+      return menu
+    }
+
+    if taskCandidates.isEmpty {
+      menu.addItem(disabledItem(title: "No Current Sprint Tasks"))
+      return menu
+    }
+
+    let latestTaskJobByTicket = latestTaskJobsByTicket(taskJobs)
+    let groupedCandidates = groupTaskCandidates(taskCandidates)
+
+    for (index, group) in groupedCandidates.enumerated() {
+      let repositoryItem = NSMenuItem(
+        title: group.repository, action: #selector(openAgentURL(_:)), keyEquivalent: "")
+      repositoryItem.target = self
+      repositoryItem.representedObject = "https://github.com/\(group.repository)"
+      repositoryItem.attributedTitle = NSAttributedString(
+        string: group.repository,
+        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+      )
+      menu.addItem(repositoryItem)
+
+      for task in group.tasks {
+        let markerPrefix = taskJobStatusPrefix(
+          for: latestTaskJobByTicket[task.ticket]?.status, trailingSpace: true)
+        let item = NSMenuItem(
+          title: "\(markerPrefix)\(task.shortMenuTitle)", action: #selector(runAgentTask(_:)),
+          keyEquivalent: "")
+        item.target = self
+        item.representedObject = task.ticket
+        menu.addItem(item)
+      }
+
+      if index < groupedCandidates.count - 1 {
+        menu.addItem(.separator())
+      }
+    }
+
+    return menu
+  }
+
+  private func buildReviewMenu(
+    reviewJobs: [CodexCoreCLIClient.ReviewJob],
+    reviewPullRequests: [CodexCoreCLIClient.ReviewPullRequest]
+  ) -> NSMenu {
+    let reviewMenu = NSMenu()
+
+    if menuDataStore.data.isLoading {
+      reviewMenu.addItem(disabledItem(title: "Loading..."))
+      return reviewMenu
+    }
+
+    if reviewPullRequests.isEmpty {
+      reviewMenu.addItem(disabledItem(title: "No Open PRs"))
+      return reviewMenu
+    }
+
+    let latestReviewJobByPullRequestURL = latestReviewJobsByPullRequestURL(reviewJobs)
+    let groupedPullRequests = groupReviewPullRequests(reviewPullRequests)
+
+    for (index, group) in groupedPullRequests.enumerated() {
+      let repositoryItem = NSMenuItem(
+        title: group.repository,
+        action: #selector(openAgentURL(_:)),
+        keyEquivalent: "")
+      repositoryItem.target = self
+      repositoryItem.representedObject = group.repositoryURL
+      repositoryItem.attributedTitle = NSAttributedString(
+        string: group.repository,
+        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+      )
+      reviewMenu.addItem(repositoryItem)
+
+      for pullRequest in group.pullRequests {
+        let markerPrefix = reviewPullRequestStatusPrefix(
+          for: latestReviewJobByPullRequestURL[pullRequest.url]?.status
+        )
+        let item = NSMenuItem(
+          title: "\(markerPrefix)\(pullRequest.shortMenuTitle)",
+          action: #selector(reviewPullRequest(_:)),
+          keyEquivalent: "")
+        item.target = self
+        item.representedObject = pullRequest.url
+        reviewMenu.addItem(item)
+      }
+
+      if index < groupedPullRequests.count - 1 {
+        reviewMenu.addItem(.separator())
+      }
+    }
+
+    return reviewMenu
   }
 
   private func addRemoteSection(to menu: NSMenu, data: CodexMenuData) {
@@ -182,6 +260,18 @@ extension AppDelegate {
     menu.setSubmenu(sessionsMenu, for: sessionsItem)
   }
 
+  private func latestTaskJobsByTicket(_ taskJobs: [CodexCoreCLIClient.TaskJob]) -> [String:
+    CodexCoreCLIClient.TaskJob]
+  {
+    var jobsByTicket: [String: CodexCoreCLIClient.TaskJob] = [:]
+    for job in taskJobs.sorted(by: { $0.createdAt > $1.createdAt }) {
+      if jobsByTicket[job.ticket] == nil {
+        jobsByTicket[job.ticket] = job
+      }
+    }
+    return jobsByTicket
+  }
+
   private func latestReviewJobsByPullRequestURL(
     _ reviewJobs: [CodexCoreCLIClient.ReviewJob]
   ) -> [String: CodexCoreCLIClient.ReviewJob] {
@@ -193,6 +283,25 @@ extension AppDelegate {
       jobsByURL[url] = job
     }
     return jobsByURL
+  }
+
+  private func groupTaskCandidates(
+    _ taskCandidates: [CodexCoreCLIClient.TaskCandidate]
+  ) -> [(repository: String, tasks: [CodexCoreCLIClient.TaskCandidate])] {
+    var groupedTasks: [(repository: String, tasks: [CodexCoreCLIClient.TaskCandidate])] = []
+    var groupedTaskIndexByRepository: [String: Int] = [:]
+
+    for task in taskCandidates {
+      if let existingIndex = groupedTaskIndexByRepository[task.repoFullName] {
+        groupedTasks[existingIndex].tasks.append(task)
+        continue
+      }
+
+      groupedTaskIndexByRepository[task.repoFullName] = groupedTasks.count
+      groupedTasks.append((repository: task.repoFullName, tasks: [task]))
+    }
+
+    return groupedTasks
   }
 
   private func groupReviewPullRequests(
@@ -258,38 +367,67 @@ extension AppDelegate {
     return item
   }
 
-  private func agentTaskMenu(for task: CodexAgentMockTask, isRecentTask: Bool) -> NSMenu {
-    let taskMenu = baseAgentTaskMenu(for: task)
-    if isRecentTask {
-      taskMenu.addItem(
-        agentTaskActionItem(
-          title: "Re-run Task",
-          action: #selector(rerunCodexAgentTask(_:)),
-          ticket: task.ticket))
-    } else {
-      let pauseOrResumeTitle = task.isPaused ? "Resume Task" : "Pause Task"
-      taskMenu.addItem(
-        agentTaskActionItem(
-          title: pauseOrResumeTitle,
-          action: #selector(togglePauseCodexAgentTask(_:)),
-          ticket: task.ticket))
-      taskMenu.addItem(
-        agentTaskActionItem(
-          title: "Delete Task",
-          action: #selector(deleteCodexAgentTask(_:)),
-          ticket: task.ticket))
+  private func taskJobMenu(for job: CodexCoreCLIClient.TaskJob) -> NSMenu {
+    let taskMenu = NSMenu()
+    taskMenu.addItem(disabledItem(title: "Status: \(taskJobStatusText(for: job.status))"))
+    taskMenu.addItem(disabledItem(title: "Step: \(job.currentStep)"))
+    taskMenu.addItem(.separator())
+
+    let openTicketItem = NSMenuItem(
+      title: "Open Ticket", action: #selector(openAgentURL(_:)), keyEquivalent: "")
+    openTicketItem.target = self
+    openTicketItem.representedObject = job.issueURL
+    taskMenu.addItem(openTicketItem)
+
+    if let prURL = job.prURL {
+      let openPRItem = NSMenuItem(
+        title: "Open PR", action: #selector(openAgentURL(_:)), keyEquivalent: "")
+      openPRItem.target = self
+      openPRItem.representedObject = prURL
+      taskMenu.addItem(openPRItem)
     }
+
+    let rerunItem = NSMenuItem(
+      title: "Re-run Task", action: #selector(rerunCodexAgentTask(_:)), keyEquivalent: "")
+    rerunItem.target = self
+    rerunItem.representedObject = job.ticket
+    taskMenu.addItem(rerunItem)
     return taskMenu
   }
 
-  private func agentRecentTaskPrefix(for status: CodexAgentMockTask.Status) -> String {
+  private func taskJobStatusPrefix(
+    for status: CodexCoreCLIClient.TaskJob.Status, trailingSpace: Bool = false
+  ) -> String {
+    let symbol: String
     switch status {
     case .completed:
-      return "✓"
+      symbol = "✓"
     case .failed:
-      return "X"
-    default:
-      return "•"
+      symbol = "X"
+    case .inProgress:
+      symbol = "·"
+    }
+    return trailingSpace ? "\(symbol) " : symbol
+  }
+
+  private func taskJobStatusPrefix(
+    for status: CodexCoreCLIClient.TaskJob.Status?,
+    trailingSpace: Bool = false
+  ) -> String {
+    guard let status else {
+      return ""
+    }
+    return taskJobStatusPrefix(for: status, trailingSpace: trailingSpace)
+  }
+
+  private func taskJobStatusText(for status: CodexCoreCLIClient.TaskJob.Status) -> String {
+    switch status {
+    case .completed:
+      return "completed"
+    case .failed:
+      return "failed"
+    case .inProgress:
+      return "in_progress"
     }
   }
 
@@ -307,30 +445,6 @@ extension AppDelegate {
     case .inProgress:
       return "· "
     }
-  }
-
-  private func baseAgentTaskMenu(for task: CodexAgentMockTask) -> NSMenu {
-    let taskMenu = NSMenu()
-
-    let statusItem = NSMenuItem(
-      title: "Status: \(task.status.rawValue)", action: nil, keyEquivalent: "")
-    statusItem.isEnabled = false
-    taskMenu.addItem(statusItem)
-    taskMenu.addItem(.separator())
-    taskMenu.addItem(
-      agentTaskActionItem(
-        title: "View Task",
-        action: #selector(viewCodexAgentTask(_:)),
-        ticket: task.ticket))
-
-    return taskMenu
-  }
-
-  private func agentTaskActionItem(title: String, action: Selector, ticket: String) -> NSMenuItem {
-    let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-    item.target = self
-    item.representedObject = ticket
-    return item
   }
 
   private func authProfileActionItem(
@@ -383,7 +497,7 @@ extension AppDelegate {
     item.target = self
     item.representedObject = "\(days):\(mode.rawValue)"
     item.state =
-      (autoRemoveSettings.olderThanDays == days && autoRemoveSettings.mode == mode) ? .on : .off
+      autoRemoveSettings.olderThanDays == days && autoRemoveSettings.mode == mode ? .on : .off
     return item
   }
 }

@@ -27,6 +27,53 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     }
   }
 
+  struct TaskCandidate: Decodable, Sendable {
+    let ticket: String
+    let summary: String
+    let issueURL: String
+    let repoFullName: String
+    let projectKey: String
+    let status: String
+    let priority: String
+
+    var shortMenuTitle: String {
+      "\(ticket) \(summary)"
+    }
+  }
+
+  struct TaskRunResult: Decodable, Sendable {
+    let taskID: String
+    let ticket: String
+    let repoFullName: String
+    let branch: String
+    let prURL: String?
+    let summary: String
+    let status: TaskJob.Status
+  }
+
+  struct TaskJob: Decodable, Sendable {
+    enum Status: String, Decodable, Sendable {
+      case inProgress = "in_progress"
+      case completed
+      case failed
+    }
+
+    let id: String
+    let ticket: String
+    let summary: String
+    let issueURL: String
+    let repoFullName: String
+    let branch: String
+    let status: Status
+    let currentStep: String
+    let createdAt: String
+    let updatedAt: String
+    let finishedAt: String?
+    let prURL: String?
+    let resultSummary: String?
+    let error: String?
+  }
+
   struct ReviewPullRequest: Decodable {
     let owner: String
     let repo: String
@@ -152,6 +199,27 @@ final class CodexCoreCLIClient: @unchecked Sendable {
 
   func stopTitleWatcher() throws {
     _ = try runSessions(["watch", "thread-titles", "stop"])
+  }
+
+  func listTaskCandidates() throws -> [TaskCandidate] {
+    let output = try runAgents(["task", "list", "--json"])
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode([TaskCandidate].self, from: Data(output.utf8))
+  }
+
+  func runTask(ticket: String) throws -> TaskRunResult {
+    let output = try runAgents(["task", "run", ticket, "--json"])
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode(TaskRunResult.self, from: Data(output.utf8))
+  }
+
+  func listTaskJobs() throws -> [TaskJob] {
+    let output = try runAgents(["task", "jobs", "--json"])
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode([TaskJob].self, from: Data(output.utf8))
   }
 
   func listReviewPullRequests() throws -> [ReviewPullRequest] {
