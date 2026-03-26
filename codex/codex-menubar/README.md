@@ -51,6 +51,7 @@
 - Task, spike, and review success paths use macOS notifications instead of modal completion alerts.
 - Task, spike, and review notifications now come from persisted job state in `Agents -> View`, using stable per-job notification identifiers so start/completion/failure updates can reuse the same notification key.
 - Task and spike notification bodies use `Ticket: <KEY>`; review notification bodies use `PR: #<number>`.
+- Clicking an agent notification opens its target URL in the browser: spike notifications open the Jira ticket, review notifications open the PR, and task notifications open the Jira ticket while running/failed and the draft PR once completed.
 - Review completion notifications include the persisted review job ID from `~/.codex/agents/reviews/<review-id>`.
 - Review completion notifications include per-comment failure reasons when inline comment posting is skipped or rejected.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.

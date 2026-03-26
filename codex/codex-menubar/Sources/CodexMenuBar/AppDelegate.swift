@@ -4,6 +4,8 @@ import Foundation
 import Observation
 import UserNotifications
 
+private let agentNotificationURLKey = "target_url"
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   UNUserNotificationCenterDelegate
@@ -111,6 +113,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     [.banner, .list, .sound]
   }
 
+  nonisolated func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse
+  ) async {
+    guard
+      let rawURL = response.notification.request.content.userInfo[agentNotificationURLKey] as? String,
+      let url = URL(string: rawURL)
+    else {
+      return
+    }
+
+    _ = await MainActor.run {
+      NSWorkspace.shared.open(url)
+    }
+  }
+
   func refreshTitle() {
     let profile = menuDataStore.data.currentProfileName
     let tooltip: String
@@ -185,7 +203,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     )
   }
 
-  func showNotification(identifier: String, title: String, message: String) {
+  func showNotification(
+    identifier: String,
+    title: String,
+    message: String,
+    targetURL: String? = nil
+  ) {
     Task {
       let center = UNUserNotificationCenter.current()
       let settings = await center.notificationSettings()
@@ -205,6 +228,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       content.title = title
       content.body = message
       content.sound = .default
+      if let targetURL {
+        content.userInfo[agentNotificationURLKey] = targetURL
+      }
 
       center.removePendingNotificationRequests(withIdentifiers: [identifier])
       center.removeDeliveredNotifications(withIdentifiers: [identifier])
@@ -523,7 +549,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       showNotification(
         identifier: "io.github.sanogueralorenzo.codex-menubar.task.\(job.id)",
         title: title,
-        message: "Ticket: \(job.ticket)"
+        message: "Ticket: \(job.ticket)",
+        targetURL: taskNotificationURL(for: job)
       )
     }
   }
@@ -549,7 +576,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       showNotification(
         identifier: "io.github.sanogueralorenzo.codex-menubar.spike.\(job.id)",
         title: title,
-        message: "Ticket: \(job.ticket)"
+        message: "Ticket: \(job.ticket)",
+        targetURL: job.issueUrl
       )
     }
   }
@@ -575,8 +603,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       showNotification(
         identifier: "io.github.sanogueralorenzo.codex-menubar.review.\(job.id)",
         title: title,
-        message: "PR: #\(job.number)"
+        message: "PR: #\(job.number)",
+        targetURL: job.url
       )
+    }
+  }
+
+  private func taskNotificationURL(for job: CodexCoreCLIClient.TaskJob) -> String {
+    switch job.status {
+    case .completed:
+      return job.prUrl ?? job.issueUrl
+    case .failed, .inProgress:
+      return job.issueUrl
     }
   }
 }
