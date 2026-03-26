@@ -384,9 +384,7 @@ fn print_noninteractive_subcommand_help(mode: &Mode) {
     match mode {
         Mode::Run => {
             println!("Usage:");
-            println!(
-                "  codex-core noninteractive run [wrapper-options] [-- codex-exec-options]"
-            );
+            println!("  codex-core noninteractive run [wrapper-options] [-- codex-exec-options]");
             println!();
             println!("Description:");
             println!("  Runs `codex exec --json` with standardized wrapper behavior.");

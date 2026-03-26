@@ -1,5 +1,5 @@
-mod appserver;
 mod agents;
+mod appserver;
 mod auth;
 mod core;
 mod noninteractive;

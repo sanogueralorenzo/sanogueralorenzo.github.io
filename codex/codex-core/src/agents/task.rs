@@ -72,7 +72,10 @@ fn task_list(layout: &StateLayout) -> Result<()> {
     tasks.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
     println!("{:<24} {:<10} UPDATED_AT", "TICKET", "STATUS");
     for task in tasks {
-        println!("{:<24} {:<10} {}", task.ticket, task.status, task.updated_at);
+        println!(
+            "{:<24} {:<10} {}",
+            task.ticket, task.status, task.updated_at
+        );
     }
     Ok(())
 }
@@ -93,7 +96,9 @@ fn task_show(layout: &StateLayout, ticket: &str) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn pick_next_pending_task(layout: &StateLayout) -> Result<Option<(String, String, String)>> {
+pub(super) fn pick_next_pending_task(
+    layout: &StateLayout,
+) -> Result<Option<(String, String, String)>> {
     let tasks = load_tasks(layout)?;
     let mut pending: Vec<TaskRecord> = tasks
         .into_iter()
@@ -127,8 +132,8 @@ fn load_tasks(layout: &StateLayout) -> Result<Vec<TaskRecord>> {
 }
 
 fn read_task_file(path: &Path) -> Result<TaskRecord> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("failed to read {}", path.display()))?;
+    let content =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
     let mut ticket = None;
     let mut status = None;
     let mut created_at = None;

@@ -177,7 +177,10 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
         let result = run_codex_exec_iteration(&cwd, &prompt, &args)
             .with_context(|| format!("codex exec failed on iteration {}", iteration))?;
 
-        println!("[loop {iteration}] Final message:\n{}", result.final_message);
+        println!(
+            "[loop {iteration}] Final message:\n{}",
+            result.final_message
+        );
 
         if !args.stop_phrase.is_empty() && result.final_message.contains(&args.stop_phrase) {
             println!(
@@ -254,7 +257,11 @@ fn resolve_loop_prompt(args: &WorkerLoopArgs) -> Result<String> {
     bail!("Missing prompt. Provide a positional prompt or --prompt-file <FILE>.")
 }
 
-fn run_codex_exec_iteration(cwd: &Path, prompt: &str, args: &WorkerLoopArgs) -> Result<LoopIterationResult> {
+fn run_codex_exec_iteration(
+    cwd: &Path,
+    prompt: &str,
+    args: &WorkerLoopArgs,
+) -> Result<LoopIterationResult> {
     let output_path = unique_output_file_path();
     let mut cmd = Command::new("codex");
     cmd.current_dir(cwd);

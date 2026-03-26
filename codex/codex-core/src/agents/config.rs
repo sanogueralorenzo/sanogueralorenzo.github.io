@@ -200,7 +200,12 @@ fn list_available_repos() -> Result<Vec<AvailableRepo>> {
             listed
                 .into_iter()
                 .filter(|repo| !repo.is_archived)
-                .filter(|repo| matches!(repo.viewer_permission.as_str(), "WRITE" | "MAINTAIN" | "ADMIN"))
+                .filter(|repo| {
+                    matches!(
+                        repo.viewer_permission.as_str(),
+                        "WRITE" | "MAINTAIN" | "ADMIN"
+                    )
+                })
                 .map(|repo| AvailableRepo {
                     full_name: format!("{}/{}", repo.owner.login, repo.name),
                 }),

@@ -125,8 +125,7 @@ mod tests {
 
     #[test]
     fn prune_sessions_excludes_pinned_threads() {
-        let temp_root =
-            std::env::temp_dir().join(format!("codex-core-test-{}", Uuid::new_v4()));
+        let temp_root = std::env::temp_dir().join(format!("codex-core-test-{}", Uuid::new_v4()));
         let codex_home = temp_root.join(".codex");
         let sessions_dir = codex_home
             .join("sessions")

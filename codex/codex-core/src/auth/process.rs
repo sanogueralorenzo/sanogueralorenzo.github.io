@@ -238,18 +238,12 @@ mod tests {
     #[test]
     fn auth_watcher_command_is_detected_for_same_home() {
         let command = "/opt/homebrew/bin/codex-core auth --home /Users/mario watch run";
-        assert!(is_auth_watcher_command(
-            command,
-            Path::new("/Users/mario")
-        ));
+        assert!(is_auth_watcher_command(command, Path::new("/Users/mario")));
     }
 
     #[test]
     fn auth_watcher_command_is_rejected_for_different_home() {
         let command = "/opt/homebrew/bin/codex-core auth --home /Users/other watch run";
-        assert!(!is_auth_watcher_command(
-            command,
-            Path::new("/Users/mario")
-        ));
+        assert!(!is_auth_watcher_command(command, Path::new("/Users/mario")));
     }
 }
