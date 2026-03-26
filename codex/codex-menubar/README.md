@@ -42,6 +42,7 @@
 - The menubar watches `~/.codex/agents/reviews` (or `CODEX_AGENTS_HOME/reviews`) so review status markers update from persisted job writes instead of timer polling.
 - The menubar also watches `~/.codex/agents/tasks` (or `CODEX_AGENTS_HOME/tasks`) so task status markers update from persisted task job writes.
 - `Agents -> Settings` opens immediately, then loads GitHub repositories and Jira projects in the background through `codex-core agents config ...`.
+- `Agents -> Settings` loads GitHub repositories and Jira projects independently, so one source can still render even if the other fails.
 - `Agents -> Settings` shows an `Integrations` section with `gh` and `acli` status pills plus setup instructions when needed.
 - `Agents -> Settings` centers the `gh` and `acli` labels inside their rounded status pills.
 - `Agents -> Settings` normalizes integration details to account labels like `GitHub: <username>` and `Jira: <account>`.
@@ -53,6 +54,7 @@
 - `Agents -> Settings` shows a `Jira Projects` section so you can include or exclude projects visible to your `acli jira` account, displaying each project by its Jira key and persisting the numeric project id used to filter the `Agents -> Task` submenu.
 - `Agents -> Settings -> Project Repos` shows one row per selected Jira project and lets you map it to one of the selected GitHub repositories.
 - `Agents -> Settings` is resizable so the shared checklist can grow for longer repository or project lists.
+- `Agents -> Settings` resizes the shared checklist to the visible window height so loaded repository and project rows appear immediately.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
 - In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.

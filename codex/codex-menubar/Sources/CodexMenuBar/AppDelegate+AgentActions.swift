@@ -110,48 +110,78 @@ extension AppDelegate {
 
     Task {
       do {
-        async let currentConfigTask = Self.runAgentSettingsOperation {
+        let currentConfig = try await Self.runAgentSettingsOperation {
           try sessionsCLI.agentsConfig()
         }
-        async let integrationStatusesTask = Self.runAgentSettingsOperation {
-          IntegrationStatusClient.loadAll()
-        }
-        async let availableReposTask = Self.runAgentSettingsOperation {
-          try sessionsCLI.availableRepos()
-        }
-        async let availableProjectsTask = Self.runAgentSettingsOperation {
-          try sessionsCLI.availableProjects()
-        }
-
-        let currentConfig = try await currentConfigTask
         guard codexAgentSettingsWindowController === controller else {
           return
         }
         controller.applyCurrentConfig(currentConfig)
-
-        let integrationStatuses = try await integrationStatusesTask
-        guard codexAgentSettingsWindowController === controller else {
-          return
-        }
-        controller.applyIntegrationStatuses(integrationStatuses)
-
-        let availableRepos = try await availableReposTask
-        guard codexAgentSettingsWindowController === controller else {
-          return
-        }
-        controller.applyAvailableRepos(availableRepos)
-
-        let availableProjects = try await availableProjectsTask
-        guard codexAgentSettingsWindowController === controller else {
-          return
-        }
-        controller.applyAvailableProjects(availableProjects)
       } catch {
         guard codexAgentSettingsWindowController === controller else {
           return
         }
         let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-        controller.applyLoadError(message)
+        controller.applyConfigLoadError(message)
+        return
+      }
+
+      async let integrationStatusesTask: Result<[IntegrationStatus], Swift.Error> =
+        loadAgentSettingsResult {
+          IntegrationStatusClient.loadAll()
+        }
+      async let availableReposTask: Result<[CodexCoreCLIClient.AvailableRepo], Swift.Error> =
+        loadAgentSettingsResult {
+          try sessionsCLI.availableRepos()
+        }
+      async let availableProjectsTask: Result<[CodexCoreCLIClient.AvailableProject], Swift.Error> =
+        loadAgentSettingsResult {
+          try sessionsCLI.availableProjects()
+        }
+
+      let integrationStatusesResult = await integrationStatusesTask
+      if codexAgentSettingsWindowController === controller {
+        switch integrationStatusesResult {
+        case .success(let statuses):
+          controller.applyIntegrationStatuses(statuses)
+        case .failure:
+          controller.applyIntegrationStatuses([
+            IntegrationStatus(
+              toolName: "gh",
+              state: .error(
+                summary: "Error",
+                detail: "Unable to determine GitHub CLI status."
+              )),
+            IntegrationStatus(
+              toolName: "acli",
+              state: .error(
+                summary: "Error",
+                detail: "Unable to determine Atlassian CLI status."
+              )),
+          ])
+        }
+      }
+
+      let availableReposResult = await availableReposTask
+      if codexAgentSettingsWindowController === controller {
+        switch availableReposResult {
+        case .success(let repos):
+          controller.applyAvailableRepos(repos)
+        case .failure(let error):
+          let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+          controller.applyReposLoadError(message)
+        }
+      }
+
+      let availableProjectsResult = await availableProjectsTask
+      if codexAgentSettingsWindowController === controller {
+        switch availableProjectsResult {
+        case .success(let projects):
+          controller.applyAvailableProjects(projects)
+        case .failure(let error):
+          let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+          controller.applyProjectsLoadError(message)
+        }
       }
     }
   }
@@ -179,6 +209,16 @@ extension AppDelegate {
           self.refreshUI()
         }
       }
+    }
+  }
+
+  private func loadAgentSettingsResult<T: Sendable>(
+    _ operation: @escaping @Sendable () throws -> T
+  ) async -> Result<T, Swift.Error> {
+    do {
+      return .success(try await Self.runAgentSettingsOperation(operation))
+    } catch {
+      return .failure(error)
     }
   }
 

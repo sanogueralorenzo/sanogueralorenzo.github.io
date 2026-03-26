@@ -179,6 +179,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     applyAllFilters()
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   func applyCurrentConfig(_ currentConfig: CodexCoreCLIClient.AgentsConfig) {
@@ -196,6 +197,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     updateSaveButtonState()
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   func applyAvailableRepos(_ availableRepos: [CodexCoreCLIClient.AvailableRepo]) {
@@ -207,6 +209,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     updateSaveButtonState()
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   func applyAvailableProjects(_ availableProjects: [CodexCoreCLIClient.AvailableProject]) {
@@ -218,6 +221,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     updateSaveButtonState()
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   func applyIntegrationStatuses(_ statuses: [IntegrationStatus]) {
@@ -233,7 +237,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     }
   }
 
-  func applyLoadError(_ message: String) {
+  func applyConfigLoadError(_ message: String) {
     reposLoadErrorMessage = message
     projectsLoadErrorMessage = message
     reposLoaded = false
@@ -247,6 +251,33 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     saveButton.isEnabled = false
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
+  }
+
+  func applyReposLoadError(_ message: String) {
+    reposLoadErrorMessage = message
+    reposLoaded = false
+    repos = []
+    filteredRepos = []
+    sanitizeProjectRepoMappings()
+    applyMappingSearchFilter()
+    updateSaveButtonState()
+    updateListChrome()
+    tableView.reloadData()
+    refreshTableLayout()
+  }
+
+  func applyProjectsLoadError(_ message: String) {
+    projectsLoadErrorMessage = message
+    projectsLoaded = false
+    projects = []
+    filteredProjects = []
+    filteredMappingProjects = []
+    selectedProjectRepoMappings = [:]
+    updateSaveButtonState()
+    updateListChrome()
+    tableView.reloadData()
+    refreshTableLayout()
   }
 
   @objc func save(_ sender: Any?) {
@@ -270,6 +301,10 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
   func windowWillClose(_ notification: Notification) {
     onClose()
+  }
+
+  func windowDidResize(_ notification: Notification) {
+    refreshTableLayout()
   }
 
   func numberOfRows(in tableView: NSTableView) -> Int {
@@ -319,6 +354,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     applyMappingSearchFilter()
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   @objc private func toggleProjectSelection(_ sender: NSButton) {
@@ -334,6 +370,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     applyMappingSearchFilter()
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   @objc private func mappingSelectionChanged(_ sender: NSPopUpButton) {
@@ -348,6 +385,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     }
     applyMappingSearchFilter()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   @objc private func reviewModeChanged(_ sender: NSPopUpButton) {
@@ -365,6 +403,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     }
     updateListChrome()
     tableView.reloadData()
+    refreshTableLayout()
   }
 
   private func buildUI(in panel: NSPanel) {
@@ -454,6 +493,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     tableView.delegate = self
     tableView.dataSource = self
     scrollView.documentView = tableView
+    refreshTableLayout()
 
     cancelButton.target = self
     cancelButton.action = #selector(cancel(_:))
@@ -548,6 +588,21 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
   private func updateSaveButtonState() {
     saveButton.isEnabled = configLoaded && reposLoaded && projectsLoaded
+  }
+
+  private func refreshTableLayout() {
+    let visibleHeight = max(scrollView.contentSize.height, 1)
+    let contentHeight =
+      CGFloat(max(currentRowCount, 1)) * (tableView.rowHeight + tableView.intercellSpacing.height)
+    let height = max(contentHeight, visibleHeight)
+    let width = max(scrollView.contentSize.width, 1)
+
+    if let column = tableView.tableColumns.first {
+      column.width = width
+    }
+
+    tableView.frame = NSRect(x: 0, y: 0, width: width, height: height)
+    tableView.needsDisplay = true
   }
 
   private func applyAllFilters() {
