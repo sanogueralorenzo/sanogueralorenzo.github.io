@@ -17,7 +17,34 @@ extension AppDelegate {
   }
 
   @objc func createCodexAgent(_ sender: Any?) {
-    // Intentionally no-op placeholder for upcoming Codex Agent flow.
+    openRunFromBrowser(sender)
+  }
+
+  @objc func openRunFromBrowser(_ sender: Any?) {
+    if let existingController = codexBrowserRunWindowController {
+      existingController.present()
+      loadCurrentBrowserTarget(into: existingController)
+      return
+    }
+
+    let controller = CodexBrowserRunWindowController(
+      onRunReview: { [weak self] pullRequestURL, mode in
+        self?.runReviewForPullRequestURL(pullRequestURL, publishMode: mode)
+      },
+      onRunTask: { [weak self] ticket in
+        self?.runTask(ticket: ticket)
+      },
+      onRunSpike: { [weak self] ticket in
+        self?.runSpike(ticket: ticket)
+      },
+      onClose: { [weak self] in
+        self?.codexBrowserRunWindowController = nil
+      }
+    )
+
+    codexBrowserRunWindowController = controller
+    controller.present()
+    loadCurrentBrowserTarget(into: controller)
   }
 
   @objc func runAgentTask(_ sender: NSMenuItem) {
@@ -38,30 +65,7 @@ extension AppDelegate {
     guard let pullRequestURL = sender.representedObject as? String else {
       return
     }
-
-    refreshUI()
-    let sessionsCLI = self.sessionsCLI
-    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      guard let self else {
-        return
-      }
-
-      do {
-        let result = try sessionsCLI.runReview(pullRequest: pullRequestURL)
-        DispatchQueue.main.async {
-          self.showMessage(
-            title: "Review Complete",
-            message: self.reviewCompletionMessage(for: result)
-          )
-          self.refreshUI()
-        }
-      } catch {
-        DispatchQueue.main.async {
-          self.showError(error)
-          self.refreshUI()
-        }
-      }
-    }
+    runReviewForPullRequestURL(pullRequestURL, publishMode: nil)
   }
 
   @objc func openAgentURL(_ sender: NSMenuItem) {
@@ -212,6 +216,111 @@ extension AppDelegate {
     }
   }
 
+  private func runSpike(ticket: String) {
+    let sessionsCLI = self.sessionsCLI
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard let self else {
+        return
+      }
+
+      do {
+        let result = try sessionsCLI.runSpike(ticket: ticket)
+        DispatchQueue.main.async {
+          self.showMessage(
+            title: "Spike Complete",
+            message: self.spikeCompletionMessage(for: result)
+          )
+        }
+      } catch {
+        DispatchQueue.main.async {
+          self.showError(error)
+        }
+      }
+    }
+  }
+
+  private func runReviewForPullRequestURL(
+    _ pullRequestURL: String,
+    publishMode: CodexCoreCLIClient.ReviewMode?
+  ) {
+    refreshUI()
+    let sessionsCLI = self.sessionsCLI
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard let self else {
+        return
+      }
+
+      do {
+        let result = try sessionsCLI.runReview(
+          pullRequest: pullRequestURL,
+          publishMode: publishMode
+        )
+        DispatchQueue.main.async {
+          self.showMessage(
+            title: "Review Complete",
+            message: self.reviewCompletionMessage(for: result)
+          )
+          self.refreshUI()
+        }
+      } catch {
+        DispatchQueue.main.async {
+          self.showError(error)
+          self.refreshUI()
+        }
+      }
+    }
+  }
+
+  private func loadCurrentBrowserTarget(into controller: CodexBrowserRunWindowController) {
+    let browser: BrowserApplication
+    do {
+      browser = try CurrentBrowserURLReader.frontmostBrowserApplication()
+    } catch {
+      let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+      controller.applyError(message)
+      return
+    }
+
+    controller.applyLoading(browserName: browser.displayName)
+    let sessionsCLI = self.sessionsCLI
+
+    Task {
+      async let targetResult: Result<BrowserRunTarget, Swift.Error> = loadAgentSettingsResult {
+        let context = try CurrentBrowserURLReader.readURL(from: browser)
+        guard let target = BrowserRunTarget.parse(urlString: context.urlString) else {
+          throw CodexCoreCLIClient.Error(
+            message: "Open a GitHub pull request or Jira ticket in the current browser tab.")
+        }
+        return target
+      }
+      async let configResult: Result<CodexCoreCLIClient.AgentsConfig, Swift.Error> =
+        loadAgentSettingsResult {
+          try sessionsCLI.agentsConfig()
+        }
+
+      let resolvedTarget = await targetResult
+      guard codexBrowserRunWindowController === controller else {
+        return
+      }
+
+      switch resolvedTarget {
+      case .success(let target):
+        let reviewMode: CodexCoreCLIClient.ReviewMode
+        switch await configResult {
+        case .success(let config):
+          reviewMode = config.reviewMode
+        case .failure:
+          reviewMode = .publish
+        }
+        controller.applyTarget(target, defaultReviewMode: reviewMode)
+
+      case .failure(let error):
+        let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+        controller.applyError(message)
+      }
+    }
+  }
+
   private func loadAgentSettingsResult<T: Sendable>(
     _ operation: @escaping @Sendable () throws -> T
   ) async -> Result<T, Swift.Error> {
@@ -231,6 +340,16 @@ extension AppDelegate {
       Branch: \(result.branch)
       \(prLine)Summary: \(result.summary)
       """
+  }
+
+  private func spikeCompletionMessage(for result: CodexCoreCLIClient.SpikeRunResult) -> String {
+    """
+    Spike ID: \(result.spikeID)
+    Ticket: \(result.ticket)
+    Repo: \(result.repoFullName)
+    Branch: \(result.branch)
+    Summary: \(result.summary)
+    """
   }
 
   private func reviewCompletionMessage(for result: CodexCoreCLIClient.ReviewRunResult) -> String {

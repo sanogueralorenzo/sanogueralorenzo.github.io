@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var isMenuOpen = false
   private var needsRenderAfterMenuClose = false
   var codexAgentSettingsWindowController: CodexAgentSettingsWindowController?
+  var codexBrowserRunWindowController: CodexBrowserRunWindowController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
@@ -70,7 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     statusItem.menu = menu
 
     globalHotKeyController = CodexGlobalHotKeyController { [weak self] in
-      self?.toggleStatusMenuFromHotKey()
+      self?.openRunFromBrowser(nil)
     }
     do {
       try globalHotKeyController?.register()
@@ -330,15 +331,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         appDelegate?.refreshUI()
       }
     }
-  }
-
-  private func toggleStatusMenuFromHotKey() {
-    guard let button = statusItem.button else {
-      return
-    }
-
-    NSApp.activate(ignoringOtherApps: true)
-    button.performClick(nil)
   }
 }
 

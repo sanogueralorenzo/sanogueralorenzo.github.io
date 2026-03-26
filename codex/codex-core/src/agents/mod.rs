@@ -1,5 +1,6 @@
 mod config;
 mod review;
+mod spike;
 mod task;
 mod worker;
 
@@ -32,6 +33,11 @@ enum Commands {
         #[command(subcommand)]
         action: task::TaskCommand,
     },
+    /// Run Jira investigation spikes
+    Spike {
+        #[command(subcommand)]
+        action: spike::SpikeCommand,
+    },
     /// Start autonomous worker loop
     Worker {
         #[command(subcommand)]
@@ -62,6 +68,10 @@ impl StateLayout {
 
     fn reviews_dir(&self) -> PathBuf {
         self.root.join("reviews")
+    }
+
+    fn spikes_dir(&self) -> PathBuf {
+        self.root.join("spikes")
     }
 }
 
@@ -163,6 +173,7 @@ fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Commands::Config { action } => config::handle_config(action, &layout),
         Commands::Task { action } => task::handle_task(action, &layout),
+        Commands::Spike { action } => spike::handle_spike(action, &layout),
         Commands::Worker { action } => worker::handle_worker(action, &layout),
         Commands::Review { action } => review::handle_review(action, &layout),
     }
@@ -174,6 +185,7 @@ fn ensure_state_layout(layout: &StateLayout) -> Result<()> {
         layout.repos_dir(),
         layout.worktrees_dir(),
         layout.reviews_dir(),
+        layout.spikes_dir(),
     ];
 
     for directory in state_directories {

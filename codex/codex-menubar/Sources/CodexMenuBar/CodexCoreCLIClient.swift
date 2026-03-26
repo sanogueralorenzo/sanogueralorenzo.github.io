@@ -57,6 +57,21 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     let status: TaskJob.Status
   }
 
+  struct SpikeRunResult: Decodable, Sendable {
+    enum Status: String, Decodable, Sendable {
+      case inProgress = "in_progress"
+      case completed
+      case failed
+    }
+
+    let spikeID: String
+    let ticket: String
+    let repoFullName: String
+    let branch: String
+    let summary: String
+    let status: Status
+  }
+
   struct TaskJob: Decodable, Sendable {
     enum Status: String, Decodable, Sendable {
       case inProgress = "in_progress"
@@ -221,6 +236,13 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     return try decoder.decode(TaskRunResult.self, from: Data(output.utf8))
   }
 
+  func runSpike(ticket: String) throws -> SpikeRunResult {
+    let output = try runAgents(["spike", "run", ticket, "--json"])
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode(SpikeRunResult.self, from: Data(output.utf8))
+  }
+
   func listTaskJobs() throws -> [TaskJob] {
     let output = try runAgents(["task", "jobs", "--json"])
     let decoder = JSONDecoder()
@@ -235,8 +257,16 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     return try decoder.decode([ReviewPullRequest].self, from: Data(output.utf8))
   }
 
-  func runReview(pullRequest: String) throws -> ReviewRunResult {
-    let output = try runAgents(["review", "run", pullRequest, "--json"])
+  func runReview(
+    pullRequest: String,
+    publishMode: ReviewMode? = nil
+  ) throws -> ReviewRunResult {
+    var arguments = ["review", "run", pullRequest]
+    if let publishMode {
+      arguments.append(contentsOf: ["--publish-mode", publishMode.rawValue])
+    }
+    arguments.append("--json")
+    let output = try runAgents(arguments)
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     return try decoder.decode(ReviewRunResult.self, from: Data(output.utf8))

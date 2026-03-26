@@ -24,18 +24,23 @@
 - Launch agent executable path is fixed to `/Applications/Codex Menu Bar.app`.
 - Install stops the loaded LaunchAgent first, replaces the app bundle, then bootstraps the LaunchAgent again so relaunch stays single-instance and auto-start remains configured.
 - Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
-- Global shortcut `Control-Option-C` opens the native menubar menu regardless of Caps Lock state.
+- Global shortcut `Control-Option-C` opens a small `Run From Browser` panel regardless of Caps Lock state.
 - Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
 - `Remote -> Start` enables remote auto-start for future app launches.
 - `Remote -> Stop` disables remote auto-start for future app launches.
 - `Agents` includes a `View` submenu populated from `codex-core agents task jobs --json`.
 - `Agents -> View` shows persisted task jobs grouped into running first and recent after; each task job submenu exposes `Open Ticket`, `Open PR` when available, and `Re-run Task`.
 - Task job rows use status prefixes: `·` in progress, `✓` completed, `X` failed.
+- `Agents -> Create` opens the same `Run From Browser` panel used by the global shortcut.
+- The run panel reads the current tab URL directly from the frontmost supported browser without modifying the clipboard.
+- Supported browsers for `Run From Browser` are Safari, Safari Technology Preview, Chrome, Arc, Brave, and Edge.
+- When the current tab is a GitHub pull request, `Run From Browser` shows a `Review Mode` selector with `Publish` and `Pending` before running `codex-core agents review run <pr>`.
+- When the current tab is a Jira ticket, `Run From Browser` shows `Spike` and `Task`; `Spike` runs `codex-core agents spike run <ticket>` and comments the result back to Jira, while `Task` runs `codex-core agents task run <ticket>`.
 - `Agents` includes a `Task` submenu populated from `codex-core agents task list --json`.
 - `Agents -> Task` lists only Jira work items assigned to the current user in the current sprint, filtered by the selected Jira projects from Settings.
 - `Agents -> Task` only includes Jira projects that also have a selected GitHub repository mapping in Settings.
 - `Agents -> Task` groups work items by mapped GitHub repository; clicking a repository row opens its GitHub page.
-- Selecting an item in `Agents -> Task` runs `codex-core agents task run <ticket>`, which updates cached `main`, creates a disposable worktree, runs `codex exec` to implement the ticket and open a PR, then removes the worktree on exit.
+- Selecting an item in `Agents -> Task` runs `codex-core agents task run <ticket>`, which updates cached `main`, creates a disposable worktree, runs `codex exec` to implement the ticket and open a draft PR, then removes the worktree on exit.
 - `Agents` includes a `Review` submenu populated from both `codex-core agents review jobs --json` and `codex-core agents review list --json`.
 - `Agents -> Review` keeps the open PR list and prefixes matching PR rows with persisted review job status markers: `·` in progress, `X` needs attention, `✓` published. PRs with no persisted review job have no prefix.
 - `Agents -> Review` groups pull requests by repository; clicking a repository row opens its GitHub page.

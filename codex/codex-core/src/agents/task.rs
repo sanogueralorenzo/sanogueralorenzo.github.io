@@ -56,10 +56,10 @@ pub(super) struct TaskShowArgs {
 }
 
 #[derive(Clone, Debug)]
-struct TaskProject {
-    project_id: u64,
-    key: String,
-    repo_full_name: String,
+pub(super) struct TaskProject {
+    pub(super) project_id: u64,
+    pub(super) key: String,
+    pub(super) repo_full_name: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -649,7 +649,7 @@ fn build_task_prompt(issue: &JiraIssueView, branch: &str, repo_full_name: &str) 
         .unwrap_or_else(|| "No additional Jira description was provided.".to_string());
 
     format!(
-        "You are implementing Jira ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nRequirements:\n- Work on the already checked out branch `{branch}`. Do not create or switch to another branch.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Implement the ticket end to end in this repository.\n- Run the narrowest relevant validation for the code you change.\n- Commit the changes, push the branch, and open a GitHub pull request.\n- Use `acli jira` for Jira references and `gh` for GitHub actions.\n- Follow the repository AGENTS.md instructions exactly.\n- Final response must be JSON only with this shape: {{\"summary\":\"<short implementation summary>\",\"pr_url\":\"<https://github.com/.../pull/...>\"}}\n\nJira issue URL: {issue_url}\n",
+        "You are implementing Jira ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nRequirements:\n- Work on the already checked out branch `{branch}`. Do not create or switch to another branch.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Implement the ticket end to end in this repository.\n- Run the narrowest relevant validation for the code you change.\n- Commit the changes, push the branch, and open a GitHub draft pull request.\n- Use `gh pr create --draft` or equivalent behavior so the PR is created as a draft.\n- Use `acli jira` for Jira references and `gh` for GitHub actions.\n- Follow the repository AGENTS.md instructions exactly.\n- Final response must be JSON only with this shape: {{\"summary\":\"<short implementation summary>\",\"pr_url\":\"<https://github.com/.../pull/...>\"}}\n\nJira issue URL: {issue_url}\n",
         ticket = issue.key,
         repo = repo_full_name,
         summary = issue.fields.summary,
@@ -807,7 +807,7 @@ fn task_status_text(status: TaskJobStatus) -> &'static str {
     }
 }
 
-fn validate_ticket_key(ticket: &str) -> Result<()> {
+pub(super) fn validate_ticket_key(ticket: &str) -> Result<()> {
     if ticket.is_empty() {
         bail!("Invalid ticket key: empty");
     }
@@ -822,7 +822,7 @@ fn validate_ticket_key(ticket: &str) -> Result<()> {
     )
 }
 
-fn project_for_ticket(layout: &StateLayout, ticket: &str) -> Result<TaskProject> {
+pub(super) fn project_for_ticket(layout: &StateLayout, ticket: &str) -> Result<TaskProject> {
     let project_key = ticket
         .split('-')
         .next()
@@ -833,7 +833,7 @@ fn project_for_ticket(layout: &StateLayout, ticket: &str) -> Result<TaskProject>
         .with_context(|| format!("Missing project-to-repo mapping for Jira project: {project_key}"))
 }
 
-fn branch_name(ticket: &str, summary: &str) -> String {
+pub(super) fn branch_name(ticket: &str, summary: &str) -> String {
     let summary_slug = summary
         .split(|ch: char| !ch.is_ascii_alphanumeric())
         .filter(|part| !part.is_empty())
@@ -853,7 +853,7 @@ fn branch_name(ticket: &str, summary: &str) -> String {
     )
 }
 
-fn issue_url(ticket: &str) -> String {
+pub(super) fn issue_url(ticket: &str) -> String {
     format!("{JIRA_BASE_URL}/browse/{ticket}")
 }
 
