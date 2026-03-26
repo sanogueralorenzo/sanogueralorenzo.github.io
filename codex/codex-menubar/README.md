@@ -30,16 +30,17 @@
 - `Remote -> Stop` disables remote auto-start for future app launches.
 - `Agents -> Create` opens the same `Run From Browser` panel used by the global shortcut.
 - `Agents` includes only `Create`, `View`, and `Settings`; task and review launch pickers are no longer shown in the menu.
-- `Agents -> View` shows only persisted task and review runs.
+- `Agents -> View` shows persisted spike, task, and review runs.
 - Task run rows use status prefixes: `·` in progress, `✓` completed, `X` failed.
 - Review run rows use status prefixes: `·` in progress, `✓` published, `X` needs attention.
-- `Agents -> View` exposes saved links only: task runs can open Jira and PR links, and review runs can open the PR link.
+- `Agents -> View` exposes saved links only: spike runs open the Jira ticket, task runs open the draft PR, and review runs open the PR.
 - The run panel reads the current tab URL directly from the frontmost supported browser without modifying the clipboard.
 - Supported browsers for `Run From Browser` are Safari, Safari Technology Preview, Chrome, Arc, Brave, and Edge.
 - When the current tab is a GitHub pull request, `Run From Browser` shows a `Review Mode` selector with `Publish` and `Pending` before running `codex-core agents review run <pr>`.
 - Review runs include the PR's existing top-level comments and non-empty review bodies in one `Existing PR comments` prompt block so Codex can avoid repeating prior feedback.
 - When the current tab is a Jira ticket, `Run From Browser` shows `Spike` and `Task`; `Spike` runs `codex-core agents spike run <ticket>`, takes the existing Jira description and latest comments into account, and only posts back when it has net-new, actionable information. When nothing new should be posted, the spike returns `comment: null` with `reason: already_covered`. When it does post, the Jira ADF comment body comes directly from the spike `codex exec` result, while `Task` runs `codex-core agents task run <ticket>`.
 - The menubar watches `~/.codex/agents/reviews` (or `CODEX_AGENTS_HOME/reviews`) so review status markers update from persisted job writes instead of timer polling.
+- The menubar also watches `~/.codex/agents/spikes` (or `CODEX_AGENTS_HOME/spikes`) so spike status markers update from persisted spike job writes.
 - The menubar also watches `~/.codex/agents/tasks` (or `CODEX_AGENTS_HOME/tasks`) so task status markers update from persisted task job writes.
 - `Agents -> Settings` only shows integration status for `gh`, `acli`, and notification permission state.
 - When notification permission is `Not requested`, `Agents -> Settings` shows `Allow Notifications`, which requests permission and sends a test notification.

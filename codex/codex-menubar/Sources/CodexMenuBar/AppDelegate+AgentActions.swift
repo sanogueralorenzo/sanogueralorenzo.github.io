@@ -206,10 +206,12 @@ extension AppDelegate {
             title: "Spike Complete",
             message: self.spikeCompletionMessage(for: result)
           )
+          self.refreshUI()
         }
       } catch {
         DispatchQueue.main.async {
           self.showError(error)
+          self.refreshUI()
         }
       }
     }

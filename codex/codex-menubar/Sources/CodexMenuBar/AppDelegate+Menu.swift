@@ -28,7 +28,11 @@ extension AppDelegate {
     menu.addItem(actionItem(title: "Create", action: #selector(createCodexAgent(_:))))
 
     let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
-    let viewMenu = buildAgentJobsMenu(taskJobs: data.taskJobs, reviewJobs: data.reviewJobs)
+    let viewMenu = buildAgentJobsMenu(
+      spikeJobs: data.spikeJobs,
+      taskJobs: data.taskJobs,
+      reviewJobs: data.reviewJobs
+    )
     viewItem.isEnabled = viewMenu.items.contains(where: { !$0.isSeparatorItem })
     menu.addItem(viewItem)
     menu.setSubmenu(viewMenu, for: viewItem)
@@ -37,16 +41,33 @@ extension AppDelegate {
   }
 
   private func buildAgentJobsMenu(
+    spikeJobs: [CodexCoreCLIClient.SpikeJob],
     taskJobs: [CodexCoreCLIClient.TaskJob],
     reviewJobs: [CodexCoreCLIClient.ReviewJob]
   ) -> NSMenu {
     let menu = NSMenu()
+    let orderedSpikeJobs = spikeJobs.sorted { $0.createdAt > $1.createdAt }
     let orderedTaskJobs = taskJobs.sorted { $0.createdAt > $1.createdAt }
     let orderedReviewJobs = reviewJobs.sorted { $0.createdAt > $1.createdAt }
 
-    if orderedTaskJobs.isEmpty && orderedReviewJobs.isEmpty {
+    if orderedSpikeJobs.isEmpty && orderedTaskJobs.isEmpty && orderedReviewJobs.isEmpty {
       menu.addItem(disabledItem(title: "No Saved Runs"))
       return menu
+    }
+
+    if !orderedSpikeJobs.isEmpty {
+      menu.addItem(sectionHeaderItem(title: "Spikes"))
+      for job in orderedSpikeJobs {
+        let item = NSMenuItem(
+          title: "\(spikeJobStatusPrefix(for: job.status)) \(job.ticket)", action: nil,
+          keyEquivalent: "")
+        menu.addItem(item)
+        menu.setSubmenu(spikeJobMenu(for: job), for: item)
+      }
+    }
+
+    if !orderedSpikeJobs.isEmpty && (!orderedTaskJobs.isEmpty || !orderedReviewJobs.isEmpty) {
+      menu.addItem(.separator())
     }
 
     if !orderedTaskJobs.isEmpty {
@@ -176,24 +197,35 @@ extension AppDelegate {
     return item
   }
 
+  private func spikeJobMenu(for job: CodexCoreCLIClient.SpikeJob) -> NSMenu {
+    let spikeMenu = NSMenu()
+    spikeMenu.addItem(disabledItem(title: "Status: \(spikeJobStatusText(for: job.status))"))
+    spikeMenu.addItem(disabledItem(title: "Step: \(job.currentStep)"))
+    spikeMenu.addItem(.separator())
+
+    let openTicketItem = NSMenuItem(
+      title: "Open Ticket", action: #selector(openAgentURL(_:)), keyEquivalent: "")
+    openTicketItem.target = self
+    openTicketItem.representedObject = job.issueUrl
+    spikeMenu.addItem(openTicketItem)
+
+    return spikeMenu
+  }
+
   private func taskJobMenu(for job: CodexCoreCLIClient.TaskJob) -> NSMenu {
     let taskMenu = NSMenu()
     taskMenu.addItem(disabledItem(title: "Status: \(taskJobStatusText(for: job.status))"))
     taskMenu.addItem(disabledItem(title: "Step: \(job.currentStep)"))
     taskMenu.addItem(.separator())
 
-    let openTicketItem = NSMenuItem(
-      title: "Open Ticket", action: #selector(openAgentURL(_:)), keyEquivalent: "")
-    openTicketItem.target = self
-    openTicketItem.representedObject = job.issueUrl
-    taskMenu.addItem(openTicketItem)
-
     if let prURL = job.prUrl {
       let openPRItem = NSMenuItem(
-        title: "Open PR", action: #selector(openAgentURL(_:)), keyEquivalent: "")
+        title: "Open Draft PR", action: #selector(openAgentURL(_:)), keyEquivalent: "")
       openPRItem.target = self
       openPRItem.representedObject = prURL
       taskMenu.addItem(openPRItem)
+    } else {
+      taskMenu.addItem(disabledItem(title: "No Draft PR"))
     }
     return taskMenu
   }
@@ -230,6 +262,21 @@ extension AppDelegate {
     return trailingSpace ? "\(symbol) " : symbol
   }
 
+  private func spikeJobStatusPrefix(
+    for status: CodexCoreCLIClient.SpikeJob.Status, trailingSpace: Bool = false
+  ) -> String {
+    let symbol: String
+    switch status {
+    case .completed:
+      symbol = "✓"
+    case .failed:
+      symbol = "X"
+    case .inProgress:
+      symbol = "·"
+    }
+    return trailingSpace ? "\(symbol) " : symbol
+  }
+
   private func taskJobStatusPrefix(
     for status: CodexCoreCLIClient.TaskJob.Status?,
     trailingSpace: Bool = false
@@ -241,6 +288,17 @@ extension AppDelegate {
   }
 
   private func taskJobStatusText(for status: CodexCoreCLIClient.TaskJob.Status) -> String {
+    switch status {
+    case .completed:
+      return "completed"
+    case .failed:
+      return "failed"
+    case .inProgress:
+      return "in_progress"
+    }
+  }
+
+  private func spikeJobStatusText(for status: CodexCoreCLIClient.SpikeJob.Status) -> String {
     switch status {
     case .completed:
       return "completed"

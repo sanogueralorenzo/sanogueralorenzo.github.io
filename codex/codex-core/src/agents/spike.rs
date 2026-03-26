@@ -19,11 +19,19 @@ const MAX_SPIKE_COMMENT_CHARS: usize = 600;
 pub(super) enum SpikeCommand {
     /// Run a Jira spike in a disposable worktree and post the outcome back to Jira
     Run(SpikeRunArgs),
+    /// List persisted spike jobs
+    Jobs(SpikeJobsArgs),
 }
 
 #[derive(Args, Debug)]
 pub(super) struct SpikeRunArgs {
     pub ticket: String,
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Args, Debug)]
+pub(super) struct SpikeJobsArgs {
     #[arg(long)]
     pub json: bool,
 }
@@ -122,7 +130,41 @@ pub(super) fn handle_spike(action: SpikeCommand, layout: &StateLayout) -> Result
     super::ensure_state_layout(layout)?;
     match action {
         SpikeCommand::Run(args) => run_spike(layout, args),
+        SpikeCommand::Jobs(args) => spike_jobs(layout, args),
     }
+}
+
+fn spike_jobs(layout: &StateLayout, args: SpikeJobsArgs) -> Result<()> {
+    let mut jobs = load_spike_jobs(layout)?;
+    jobs.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+
+    if args.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&jobs).context("failed to serialize spike jobs")?
+        );
+        return Ok(());
+    }
+
+    if jobs.is_empty() {
+        println!("No spike jobs available.");
+        return Ok(());
+    }
+
+    println!(
+        "{:<36} {:<12} {:<12} CURRENT_STEP",
+        "ID", "TICKET", "STATUS"
+    );
+    for job in jobs {
+        println!(
+            "{:<36} {:<12} {:<12} {}",
+            job.id,
+            job.ticket,
+            spike_status_text(job.status),
+            job.current_step
+        );
+    }
+    Ok(())
 }
 
 fn run_spike(layout: &StateLayout, args: SpikeRunArgs) -> Result<()> {
@@ -519,8 +561,39 @@ fn write_spike_job(layout: &StateLayout, job: &SpikeJob) -> Result<()> {
     fs::write(&path, payload).with_context(|| format!("failed to write {}", path.display()))
 }
 
+fn load_spike_jobs(layout: &StateLayout) -> Result<Vec<SpikeJob>> {
+    if !layout.spikes_dir().exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut jobs = Vec::new();
+    for entry in fs::read_dir(layout.spikes_dir())
+        .with_context(|| format!("failed to read {}", layout.spikes_dir().display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension() != Some(std::ffi::OsStr::new("json")) {
+            continue;
+        }
+        let payload = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        let job: SpikeJob = serde_json::from_str(&payload)
+            .with_context(|| format!("failed to parse {}", path.display()))?;
+        jobs.push(job);
+    }
+    Ok(jobs)
+}
+
 fn spike_job_path(layout: &StateLayout, job_id: &str) -> PathBuf {
     layout.spikes_dir().join(format!("{job_id}.json"))
+}
+
+fn spike_status_text(status: SpikeJobStatus) -> &'static str {
+    match status {
+        SpikeJobStatus::InProgress => "in_progress",
+        SpikeJobStatus::Completed => "completed",
+        SpikeJobStatus::Failed => "failed",
+    }
 }
 
 fn post_spike_comment(ticket: &str, comment: &Value) -> Result<()> {

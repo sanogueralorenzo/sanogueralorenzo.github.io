@@ -72,6 +72,28 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     let status: Status
   }
 
+  struct SpikeJob: Decodable, Sendable {
+    enum Status: String, Decodable, Sendable {
+      case inProgress = "in_progress"
+      case completed
+      case failed
+    }
+
+    let id: String
+    let ticket: String
+    let summary: String
+    let issueUrl: String
+    let repoFullName: String
+    let branch: String
+    let status: Status
+    let currentStep: String
+    let createdAt: String
+    let updatedAt: String
+    let finishedAt: String?
+    let resultSummary: String?
+    let error: String?
+  }
+
   struct TaskJob: Decodable, Sendable {
     enum Status: String, Decodable, Sendable {
       case inProgress = "in_progress"
@@ -248,6 +270,13 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
     return try decoder.decode([TaskJob].self, from: Data(output.utf8))
+  }
+
+  func listSpikeJobs() throws -> [SpikeJob] {
+    let output = try runAgents(["spike", "jobs", "--json"])
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode([SpikeJob].self, from: Data(output.utf8))
   }
 
   func listReviewPullRequests() throws -> [ReviewPullRequest] {

@@ -7,6 +7,7 @@ struct CodexMenuData {
   let sessionsStatus: CodexCoreCLIClient.Status?
   let currentProfileName: String?
   let profiles: [String]
+  let spikeJobs: [CodexCoreCLIClient.SpikeJob]
   let taskJobs: [CodexCoreCLIClient.TaskJob]
   let reviewJobs: [CodexCoreCLIClient.ReviewJob]
 
@@ -16,6 +17,7 @@ struct CodexMenuData {
     sessionsStatus: nil,
     currentProfileName: nil,
     profiles: [],
+    spikeJobs: [],
     taskJobs: [],
     reviewJobs: []
   )
@@ -39,18 +41,22 @@ final class CodexMenuDataStore {
     refreshGeneration += 1
     let generation = refreshGeneration
     let previousProfiles = data.profiles
+    let previousSpikeJobs = data.spikeJobs
     let previousTaskJobs = data.taskJobs
     let previousReviewJobs = data.reviewJobs
 
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let sessionsStatus = (try? sessionsCLI.status()) ?? .notInstalled
       let profiles = (try? authCLI.listProfiles()) ?? previousProfiles
+      let spikeJobs: [CodexCoreCLIClient.SpikeJob]
       let taskJobs: [CodexCoreCLIClient.TaskJob]
       let reviewJobs: [CodexCoreCLIClient.ReviewJob]
       if sessionsStatus == .ready {
+        spikeJobs = (try? sessionsCLI.listSpikeJobs()) ?? previousSpikeJobs
         taskJobs = (try? sessionsCLI.listTaskJobs()) ?? previousTaskJobs
         reviewJobs = (try? sessionsCLI.listReviewJobs()) ?? previousReviewJobs
       } else {
+        spikeJobs = []
         taskJobs = []
         reviewJobs = []
       }
@@ -61,6 +67,7 @@ final class CodexMenuDataStore {
         sessionsStatus: sessionsStatus,
         currentProfileName: try? authCLI.currentProfileName(),
         profiles: profiles,
+        spikeJobs: spikeJobs,
         taskJobs: taskJobs,
         reviewJobs: reviewJobs
       )

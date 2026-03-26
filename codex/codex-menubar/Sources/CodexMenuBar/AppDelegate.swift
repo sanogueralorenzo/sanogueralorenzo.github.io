@@ -22,6 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     label: "io.github.sanogueralorenzo.codex-menubar.review-status",
     qos: .utility
   )
+  let spikeStatusWatcherQueue = DispatchQueue(
+    label: "io.github.sanogueralorenzo.codex-menubar.spike-status",
+    qos: .utility
+  )
   let taskStatusWatcherQueue = DispatchQueue(
     label: "io.github.sanogueralorenzo.codex-menubar.task-status",
     qos: .utility
@@ -30,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   let autoRemoveIntervalMinutes = 60
   var reviewStatusWatcher: DispatchSourceFileSystemObject?
   var reviewStatusWatcherFileDescriptor: CInt = -1
+  var spikeStatusWatcher: DispatchSourceFileSystemObject?
+  var spikeStatusWatcherFileDescriptor: CInt = -1
   var taskStatusWatcher: DispatchSourceFileSystemObject?
   var taskStatusWatcherFileDescriptor: CInt = -1
   var statusItem: NSStatusItem!
@@ -87,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
 
     startAutoRemoveScheduler()
     startReviewStatusWatcher()
+    startSpikeStatusWatcher()
     startTaskStatusWatcher()
     observeMenuDataChanges()
     renderMenu()
@@ -206,6 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   func applicationWillTerminate(_ notification: Notification) {
     globalHotKeyController?.unregister()
     stopReviewStatusWatcher()
+    stopSpikeStatusWatcher()
     stopTaskStatusWatcher()
   }
 
@@ -300,6 +308,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     reviewStatusWatcherFileDescriptor = -1
   }
 
+  private func startSpikeStatusWatcher() {
+    stopSpikeStatusWatcher()
+
+    let spikesDirectoryURL = spikeStatusDirectoryURL()
+    do {
+      try FileManager.default.createDirectory(
+        at: spikesDirectoryURL,
+        withIntermediateDirectories: true
+      )
+    } catch {
+      fputs("Warning: failed to create spike status directory: \(error)\n", stderr)
+      return
+    }
+
+    let fileDescriptor = open(spikesDirectoryURL.path, O_EVTONLY)
+    guard fileDescriptor >= 0 else {
+      fputs(
+        "Warning: failed to watch spike status directory: \(spikesDirectoryURL.path)\n", stderr)
+      return
+    }
+
+    let watcher = DispatchSource.makeFileSystemObjectSource(
+      fileDescriptor: fileDescriptor,
+      eventMask: [.write, .rename, .delete, .extend, .attrib],
+      queue: spikeStatusWatcherQueue
+    )
+
+    watcher.setEventHandler(handler: Self.makeStatusWatcherHandler(appDelegate: self))
+
+    watcher.setCancelHandler { [fileDescriptor] in
+      close(fileDescriptor)
+    }
+
+    spikeStatusWatcherFileDescriptor = fileDescriptor
+    spikeStatusWatcher = watcher
+    watcher.resume()
+  }
+
+  private func stopSpikeStatusWatcher() {
+    spikeStatusWatcher?.cancel()
+    spikeStatusWatcher = nil
+    spikeStatusWatcherFileDescriptor = -1
+  }
+
   private func startTaskStatusWatcher() {
     stopTaskStatusWatcher()
 
@@ -327,7 +379,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       queue: taskStatusWatcherQueue
     )
 
-    watcher.setEventHandler(handler: Self.makeReviewStatusWatcherHandler(appDelegate: self))
+    watcher.setEventHandler(handler: Self.makeStatusWatcherHandler(appDelegate: self))
 
     watcher.setCancelHandler { [fileDescriptor] in
       close(fileDescriptor)
@@ -358,6 +410,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       .appendingPathComponent("reviews", isDirectory: true)
   }
 
+  private func spikeStatusDirectoryURL() -> URL {
+    if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
+      !configuredHome.isEmpty
+    {
+      return URL(fileURLWithPath: configuredHome, isDirectory: true)
+        .appendingPathComponent("spikes", isDirectory: true)
+    }
+
+    return FileManager.default.homeDirectoryForCurrentUser
+      .appendingPathComponent(".codex", isDirectory: true)
+      .appendingPathComponent("agents", isDirectory: true)
+      .appendingPathComponent("spikes", isDirectory: true)
+  }
+
   private func taskStatusDirectoryURL() -> URL {
     if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
       !configuredHome.isEmpty
@@ -380,6 +446,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         appDelegate?.refreshUI()
       }
     }
+  }
+
+  private nonisolated static func makeStatusWatcherHandler(
+    appDelegate: AppDelegate
+  ) -> @Sendable () -> Void {
+    makeReviewStatusWatcherHandler(appDelegate: appDelegate)
   }
 }
 
