@@ -1,4 +1,4 @@
-import { ApprovalDecision, ApprovalRequest } from "../adapters/app-server-client.js";
+import { ApprovalDecision, ApprovalRequest } from "../adapters/app-server/client.js";
 import { PromptContext } from "./context.js";
 import { approvalKeyboard, parseApprovalDecisionText, quickActionsKeyboard } from "./keyboards.js";
 import { limitTelegramText } from "../services/voice.js";

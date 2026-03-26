@@ -2,24 +2,9 @@ import {
   ConversationOptions,
   ThreadSummary,
   THREAD_LIST_SOURCE_KINDS,
-  TimedCreateTurnResult,
-  TimedTurnResult,
-  TurnRuntimeOptions
-} from "./app-server-client-types.js";
-import { withAppServer, withTurnClient } from "./app-server-connection.js";
-import { asArray, asObject, getNumber, getString } from "./app-server-json.js";
-import { runTurnWithTimeout } from "./app-server-turn-runner.js";
-
-export type {
-  ApprovalDecision,
-  ApprovalPolicy,
-  ApprovalRequest,
-  SandboxMode,
-  ThreadSummary,
-  TimedCreateTurnResult,
-  TimedTurnResult,
-  TurnProgressEvent,
-} from "./app-server-client-types.js";
+} from "./types.js";
+import { withAppServer } from "./connection.js";
+import { asArray, asObject, getNumber, getString } from "./json.js";
 
 export async function listThreads(limit: number): Promise<ThreadSummary[]> {
   return withAppServer(async (client) => {
@@ -42,78 +27,7 @@ export async function listThreads(limit: number): Promise<ThreadSummary[]> {
   });
 }
 
-export async function sendMessageWithTimeoutContinuation(
-  threadId: string,
-  text: string,
-  runtimeOptions?: TurnRuntimeOptions
-): Promise<TimedTurnResult> {
-  return sendMessageWithTimeoutContinuationInternal(threadId, text, true, runtimeOptions);
-}
-
-export async function sendMessageWithoutResumeWithTimeoutContinuation(
-  threadId: string,
-  text: string,
-  runtimeOptions?: TurnRuntimeOptions
-): Promise<TimedTurnResult> {
-  return sendMessageWithTimeoutContinuationInternal(threadId, text, false, runtimeOptions);
-}
-
-async function sendMessageWithTimeoutContinuationInternal(
-  threadId: string,
-  text: string,
-  resumeFirst: boolean,
-  runtimeOptions?: TurnRuntimeOptions
-): Promise<TimedTurnResult> {
-  return withTurnClient(runtimeOptions, async (client, handOffCompletion) => {
-    const timed = await runTurnWithTimeout(
-      client,
-      threadId,
-      text,
-      resumeFirst,
-      runtimeOptions?.onTurnEvent
-    );
-    if (timed.status === "completed") {
-      return timed;
-    }
-
-    return {
-      status: "timed_out",
-      completion: handOffCompletion(timed.completion)
-    };
-  });
-}
-
-export async function createAndSendFirstMessageWithTimeoutContinuation(
-  options: ConversationOptions,
-  text: string,
-  runtimeOptions?: TurnRuntimeOptions
-): Promise<TimedCreateTurnResult> {
-  return withTurnClient(runtimeOptions, async (client, handOffCompletion) => {
-    const threadId = await startThreadOnClient(client, options);
-    const timed = await runTurnWithTimeout(
-      client,
-      threadId,
-      text,
-      false,
-      runtimeOptions?.onTurnEvent
-    );
-    if (timed.status === "completed") {
-      return {
-        status: "completed",
-        threadId,
-        response: timed.response
-      };
-    }
-
-    return {
-      status: "timed_out",
-      threadId,
-      completion: handOffCompletion(timed.completion)
-    };
-  });
-}
-
-async function startThreadOnClient(
+export async function startThreadOnClient(
   client: { send: (method: string, params: unknown) => Promise<unknown> },
   options: ConversationOptions
 ): Promise<string> {
@@ -150,7 +64,7 @@ function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextC
       createdAt,
       updatedAt,
       path: getString(thread.path),
-      source: normalizeSource(thread.source)
+      source: normalizeSource(thread.source),
     });
   }
 
@@ -162,7 +76,7 @@ function buildThreadListParams(limit: number, cursor: string | null): Record<str
     limit: Math.max(1, Math.trunc(limit)),
     sortKey: "updated_at",
     sourceKinds: Array.from(THREAD_LIST_SOURCE_KINDS),
-    cursor
+    cursor,
   };
 }
 
@@ -185,7 +99,7 @@ function normalizeSource(source: unknown): string {
 
 function buildThreadStartParams(options: ConversationOptions): Record<string, unknown> {
   const params: Record<string, unknown> = {
-    cwd: options.cwd
+    cwd: options.cwd,
   };
 
   if (options.model) {
@@ -214,7 +128,7 @@ function buildConfigOverrides(
 
   if (networkAccessEnabled !== null && networkAccessEnabled !== undefined) {
     overrides.sandbox_workspace_write = {
-      network_access: networkAccessEnabled
+      network_access: networkAccessEnabled,
     };
   }
 

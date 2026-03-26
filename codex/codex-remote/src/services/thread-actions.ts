@@ -2,7 +2,7 @@ import { basename } from "node:path";
 import {
   ThreadSummary,
   listThreads
-} from "../adapters/app-server-client.js";
+} from "../adapters/app-server/client.js";
 import { BindingStore } from "../adapters/binding-store.js";
 import {
   deleteSessionByThreadId,

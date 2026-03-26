@@ -6,7 +6,7 @@ import {
   createAndSendFirstMessageWithTimeoutContinuation,
   sendMessageWithoutResumeWithTimeoutContinuation,
   sendMessageWithTimeoutContinuation
-} from "../adapters/app-server-client.js";
+} from "../adapters/app-server/client.js";
 import { BindingStore } from "../adapters/binding-store.js";
 import { formatFailure } from "../bot/messages.js";
 import { PromptContext } from "../bot/context.js";
