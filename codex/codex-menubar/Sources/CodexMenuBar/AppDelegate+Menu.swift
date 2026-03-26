@@ -168,9 +168,6 @@ extension AppDelegate {
       case .notInstalled:
         sessionsMenu.addItem(disabledItem(title: "Threads CLI not installed (codex-core)"))
       case .ready:
-        sessionsMenu.addItem(sectionHeaderItem(title: "Floating"))
-        sessionsMenu.addItem(actionItem(title: "Start", action: #selector(startFloating(_:))))
-        sessionsMenu.addItem(.separator())
         sessionsMenu.addItem(
           sectionHeaderItem(title: "Auto-Remove", action: #selector(clearAutoRemoveSelection(_:))))
         sessionsMenu.addItem(actionItem(title: "Now", action: #selector(runAutoRemoveNow(_:))))

@@ -26,10 +26,6 @@ extension AppDelegate {
     applyAutoRemoveSettings(.none)
   }
 
-  @objc func startFloating(_ sender: Any?) {
-    // Intentionally no-op placeholder for upcoming floating threads flow.
-  }
-
   @objc func runAutoRemoveNow(_ sender: Any?) {
     let sessionsCLI = self.sessionsCLI
 
