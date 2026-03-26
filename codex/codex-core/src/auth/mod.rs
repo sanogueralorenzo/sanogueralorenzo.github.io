@@ -1,19 +1,22 @@
+mod auth_file;
 mod cli;
+mod codex_app;
+mod home;
 mod manager;
 mod models;
 mod output;
-mod process;
-mod util;
+mod profile_store;
 mod watcher;
+mod watcher_process;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use cli::{Cli, Commands, WatchCommand};
+use home::{expand_tilde, resolve_home};
 use manager::ProfileManager;
 use models::{ProfileSource, WatcherStatus};
 use output::{masked, print_profiles, print_use_result};
 use std::ffi::OsString;
-use util::{expand_tilde, normalize_profile_name, resolve_home};
 use watcher::AuthSyncWatcher;
 
 pub fn run_from(args: Vec<OsString>) -> u8 {
@@ -105,7 +108,7 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Commands::Remove(args) => {
-            let normalized = normalize_profile_name(&args.profile)?;
+            let normalized = profile_store::normalize_profile_name(&args.profile)?;
             manager.remove_profile(&args.profile)?;
             println!("Removed profile '{normalized}'");
             print_profiles(&manager, false)?;

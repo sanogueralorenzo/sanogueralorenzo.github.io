@@ -1,52 +1,23 @@
+use crate::auth::auth_file::{
+    AuthFileLock, create_directory_if_needed, read_validated_auth_file, write_secure_atomically,
+};
+use crate::auth::codex_app::{
+    is_codex_app_running, relaunch_codex_app, terminate_running_codex_app_sessions,
+};
 use crate::auth::models::{
     AuthPaths, CodexAppRelaunchStatus, ProfileSource, SwitchResult, ValidatedAuthFile,
 };
-use crate::auth::process::{
-    is_codex_app_running, relaunch_codex_app, terminate_running_codex_app_sessions,
-};
-use crate::auth::util::{
-    create_directory_if_needed, list_profile_names, normalize_profile_name, profile_path_for,
-    read_validated_auth_file, set_file_permissions, write_secure_atomically,
+use crate::auth::profile_store::{
+    ensure_unique_profile_account, list_profile_names, normalize_profile_name,
+    profile_name_for_account_id, profile_path_for,
 };
 use anyhow::{Context, Result, bail};
-use fs2::FileExt;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
 const APP_RESTART_DELAY: Duration = Duration::from_secs(3);
-
-struct FileLock {
-    file: File,
-}
-
-impl FileLock {
-    fn acquire(lock_file: &Path) -> Result<Self> {
-        if let Some(parent) = lock_file.parent() {
-            create_directory_if_needed(parent, 0o700)?;
-        }
-
-        let file = OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .open(lock_file)
-            .with_context(|| format!("Failed to open lock file: {}", lock_file.display()))?;
-        set_file_permissions(lock_file, 0o600)?;
-
-        file.lock_exclusive()
-            .with_context(|| format!("Failed to lock auth file: {}", lock_file.display()))?;
-
-        Ok(Self { file })
-    }
-}
-
-impl Drop for FileLock {
-    fn drop(&mut self) {
-        let _ = self.file.unlock();
-    }
-}
 
 #[derive(Debug)]
 pub struct ProfileManager {
@@ -97,7 +68,11 @@ impl ProfileManager {
             ProfileSource::Path(path) => read_validated_auth_file(&path)?,
         };
 
-        self.ensure_unique_profile_account(&normalized_name, &payload.account_id)?;
+        ensure_unique_profile_account(
+            &self.paths.profiles_directory,
+            &normalized_name,
+            &payload.account_id,
+        )?;
 
         write_secure_atomically(&payload.raw_data, &profile_path)?;
         if payload.account_id == current_auth.account_id {
@@ -200,7 +175,7 @@ impl ProfileManager {
         }
 
         self.ensure_directories()?;
-        let _lock = FileLock::acquire(&self.paths.codex_auth_lock_file)?;
+        let _lock = AuthFileLock::acquire(&self.paths.codex_auth_lock_file)?;
 
         write_secure_atomically(&payload.raw_data, &self.paths.codex_auth_file)?;
         if let Some(account_id) = active_account_id {
@@ -225,29 +200,8 @@ impl ProfileManager {
         })
     }
 
-    fn ensure_unique_profile_account(&self, normalized_name: &str, account_id: &str) -> Result<()> {
-        for name in self.list_profiles()? {
-            if name == normalized_name {
-                continue;
-            }
-            let path = profile_path_for(&self.paths.profiles_directory, &name);
-            let existing = read_validated_auth_file(&path)?;
-            if existing.account_id == account_id {
-                bail!("A profile for this account already exists: '{}'.", name);
-            }
-        }
-        Ok(())
-    }
-
     fn profile_name_for_account_id(&self, account_id: &str) -> Result<Option<String>> {
-        for name in self.list_profiles()? {
-            let path = profile_path_for(&self.paths.profiles_directory, &name);
-            let profile = read_validated_auth_file(&path)?;
-            if profile.account_id == account_id {
-                return Ok(Some(name));
-            }
-        }
-        Ok(None)
+        profile_name_for_account_id(&self.paths.profiles_directory, account_id)
     }
 
     fn read_active_account_id(&self) -> Option<String> {

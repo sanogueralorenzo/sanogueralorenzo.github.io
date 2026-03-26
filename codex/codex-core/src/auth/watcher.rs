@@ -1,9 +1,9 @@
-use crate::auth::manager::ProfileManager;
-use crate::auth::models::{FileSnapshot, WatcherStatus};
-use crate::auth::process::{is_auth_watcher_process, is_process_running};
-use crate::auth::util::{
+use crate::auth::auth_file::{
     create_directory_if_needed, set_file_permissions, write_secure_atomically,
 };
+use crate::auth::manager::ProfileManager;
+use crate::auth::models::{FileSnapshot, WatcherStatus};
+use crate::auth::watcher_process::{is_auth_watcher_process, is_process_running};
 use anyhow::{Context, Result, bail};
 use std::fs::{self, OpenOptions};
 use std::os::unix::fs::MetadataExt;
