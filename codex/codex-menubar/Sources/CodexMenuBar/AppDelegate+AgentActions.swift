@@ -133,7 +133,7 @@ extension AppDelegate {
       do {
         let result = try sessionsCLI.runTask(ticket: ticket)
         DispatchQueue.main.async {
-          self.showMessage(
+          self.showNotification(
             title: "Task Complete",
             message: self.taskCompletionMessage(for: result)
           )
@@ -158,7 +158,7 @@ extension AppDelegate {
       do {
         let result = try sessionsCLI.runSpike(ticket: ticket)
         DispatchQueue.main.async {
-          self.showMessage(
+          self.showNotification(
             title: "Spike Complete",
             message: self.spikeCompletionMessage(for: result)
           )
@@ -188,7 +188,7 @@ extension AppDelegate {
           publishMode: publishMode
         )
         DispatchQueue.main.async {
-          self.showMessage(
+          self.showNotification(
             title: "Review Complete",
             message: self.reviewCompletionMessage(for: result)
           )

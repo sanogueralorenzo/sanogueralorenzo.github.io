@@ -44,8 +44,9 @@
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
 - In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.
-- Review completion alerts include the persisted review job ID from `~/.codex/agents/reviews/<review-id>`.
-- Review completion alerts include per-comment failure reasons when inline comment posting is skipped or rejected.
+- Task, spike, and review success paths use macOS notifications instead of modal completion alerts.
+- Review completion notifications include the persisted review job ID from `~/.codex/agents/reviews/<review-id>`.
+- Review completion notifications include per-comment failure reasons when inline comment posting is skipped or rejected.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Managed CLI subprocesses run with a deterministic environment that includes `/opt/homebrew/bin`, `/usr/local/bin`, and standard system paths.

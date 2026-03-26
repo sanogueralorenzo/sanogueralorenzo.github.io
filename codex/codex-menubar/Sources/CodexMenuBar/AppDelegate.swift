@@ -2,9 +2,12 @@ import AppKit
 import Darwin
 import Foundation
 import Observation
+import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
+  UNUserNotificationCenterDelegate
+{
   let authCLI = CodexAuthCLIClient()
   let remoteCLI = CodexRemoteCLIClient()
   let sessionsCLI = CodexCoreCLIClient()
@@ -37,6 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
   var codexBrowserRunWindowController: CodexBrowserRunWindowController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    let notificationCenter = UNUserNotificationCenter.current()
+    notificationCenter.delegate = self
+
     do {
       try LaunchAgentInstaller.ensureLaunchAgentPlistExists()
     } catch {
@@ -86,6 +92,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     renderMenu()
     refreshUI()
     startCodexRemoteIfNeededOnLaunch()
+  }
+
+  nonisolated func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification
+  ) async -> UNNotificationPresentationOptions {
+    [.banner, .list, .sound]
   }
 
   func refreshTitle() {
@@ -152,6 +165,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     alert.informativeText = message
     alert.addButton(withTitle: "OK")
     alert.runModal()
+  }
+
+  func showNotification(title: String, message: String) {
+    Task {
+      let center = UNUserNotificationCenter.current()
+      let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+      guard granted else {
+        return
+      }
+
+      let content = UNMutableNotificationContent()
+      content.title = title
+      content.body = message
+      content.sound = .default
+
+      let identifier = "io.github.sanogueralorenzo.codex-menubar.\(UUID().uuidString)"
+      let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+      try await center.add(request)
+    }
   }
 
   func applicationWillTerminate(_ notification: Notification) {
