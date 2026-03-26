@@ -283,10 +283,11 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
         merge_base.as_deref(),
     );
     let prompt = format!(
-        "{}\n\n{}\n\n{}",
+        "{}\n\n{}\n\n{}\n\n{}",
         upstream_prompts.review_rubric,
         review_request,
-        existing_feedback_prompt(&existing_feedback)
+        existing_feedback_prompt(&existing_feedback),
+        "Formatting:\n- When mentioning files, classes, methods, or variables, use `$reference`."
     );
     let review = run_review_step(
         &mut job,
