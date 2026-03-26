@@ -24,7 +24,7 @@
 - Launch agent executable path is fixed to `/Applications/Codex Menu Bar.app`.
 - Install stops the loaded LaunchAgent first, replaces the app bundle, then bootstraps the LaunchAgent again so relaunch stays single-instance and auto-start remains configured.
 - Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
-- Global shortcut `Control-Option-C` opens a small `Run From Browser` panel regardless of Caps Lock state.
+- Global shortcut `Control-Option-X` opens a small `Run From Browser` panel regardless of Caps Lock state.
 - Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
 - `Remote -> Start` enables remote auto-start for future app launches.
 - `Remote -> Stop` disables remote auto-start for future app launches.
