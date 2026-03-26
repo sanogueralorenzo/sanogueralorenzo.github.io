@@ -23,30 +23,30 @@ export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): vo
     }
 
     const chatId = String(ctx.chat.id);
+    const reply: ReplyFn = (replyText, options) => ctx.reply(replyText, options);
     if (await handlers.onTryApprovalText(ctx as PromptContext, chatId, text)) {
       return;
     }
-    if (await handlers.onTryResumeText(chatId, text, (replyText, options) => ctx.reply(replyText, options))) {
+    if (await handlers.onTryResumeText(chatId, text, reply)) {
       return;
     }
-    if (await handlers.onTryNewFolderText(chatId, text, (replyText, options) => ctx.reply(replyText, options))) {
+    if (await handlers.onTryNewFolderText(chatId, text, reply)) {
       return;
     }
 
     const normalized = text.toLowerCase();
     const mappedAction = mapTextAction(normalized);
     if (mappedAction) {
-      if (mappedAction === "start") {
-        await handlers.onStart(chatId, (replyText, options) => ctx.reply(replyText, options));
-        return;
+      switch (mappedAction) {
+        case "start":
+          await handlers.onStart(chatId, reply);
+          return;
+        case "help":
+          await handlers.onHelp(chatId, reply);
+          return;
+        default:
+          await handlers.onAction(chatId, mappedAction, reply);
       }
-
-      if (mappedAction === "help") {
-        await handlers.onHelp(chatId, (replyText, options) => ctx.reply(replyText, options));
-        return;
-      }
-
-      await handlers.onAction(chatId, mappedAction, (replyText, options) => ctx.reply(replyText, options));
       return;
     }
 

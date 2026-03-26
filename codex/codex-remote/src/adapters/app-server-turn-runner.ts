@@ -54,45 +54,7 @@ async function runTurn(
     });
   }
 
-  let finished = false;
-  let resolveTurn: (value: string) => void = () => {};
-  let rejectTurn: (reason: unknown) => void = () => {};
-  const turnDone = new Promise<string>((resolve, reject) => {
-    resolveTurn = resolve;
-    rejectTurn = reject;
-  });
-
-  const state: RunTurnState = {
-    threadId,
-    currentTurnId: null,
-    lastAgentMessage: "",
-    lastFinalAgentMessage: "",
-    agentSnapshots: new Map<string, string>(),
-    emitTurnEvent: (event) => {
-      if (!onTurnEvent) {
-        return;
-      }
-      try {
-        onTurnEvent(event);
-      } catch {
-        // Progress consumers are best-effort and must not break turn handling.
-      }
-    },
-    finalizeSuccess: (value) => {
-      if (finished) {
-        return;
-      }
-      finished = true;
-      resolveTurn(value);
-    },
-    finalizeFailure: (error) => {
-      if (finished) {
-        return;
-      }
-      finished = true;
-      rejectTurn(error);
-    }
-  };
+  const { state, turnDone } = createRunTurnState(threadId, onTurnEvent);
 
   const detachNotification = client.onNotification((notification) => {
     handleTurnNotification(state, notification);
@@ -134,10 +96,7 @@ async function runTurn(
 
 function handleTurnNotification(state: RunTurnState, notification: JsonRpcNotification): void {
   const params = asObject(notification.params);
-  if (!isTurnNotificationForThread(state, params)) {
-    return;
-  }
-  if (!isTurnNotificationForCurrentTurn(state, params)) {
+  if (!shouldHandleNotification(state, params)) {
     return;
   }
 
@@ -165,6 +124,61 @@ function handleTurnNotification(state: RunTurnState, notification: JsonRpcNotifi
     default:
       handleOutputDeltaNotification(state, notification.method, params);
   }
+}
+
+function createRunTurnState(
+  threadId: string,
+  onTurnEvent?: (event: TurnProgressEvent) => void
+): { state: RunTurnState; turnDone: Promise<string> } {
+  let finished = false;
+  let resolveTurn: (value: string) => void = () => {};
+  let rejectTurn: (reason: unknown) => void = () => {};
+  const turnDone = new Promise<string>((resolve, reject) => {
+    resolveTurn = resolve;
+    rejectTurn = reject;
+  });
+
+  return {
+    state: {
+      threadId,
+      currentTurnId: null,
+      lastAgentMessage: "",
+      lastFinalAgentMessage: "",
+      agentSnapshots: new Map<string, string>(),
+      emitTurnEvent: (event) => {
+        if (!onTurnEvent) {
+          return;
+        }
+        try {
+          onTurnEvent(event);
+        } catch {
+          // Progress consumers are best-effort and must not break turn handling.
+        }
+      },
+      finalizeSuccess: (value) => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        resolveTurn(value);
+      },
+      finalizeFailure: (error) => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        rejectTurn(error);
+      }
+    },
+    turnDone
+  };
+}
+
+function shouldHandleNotification(
+  state: RunTurnState,
+  params: Record<string, unknown>
+): boolean {
+  return isTurnNotificationForThread(state, params) && isTurnNotificationForCurrentTurn(state, params);
 }
 
 function isTurnNotificationForThread(state: RunTurnState, params: Record<string, unknown>): boolean {
@@ -272,31 +286,7 @@ function handleTurnCompletedNotification(state: RunTurnState, params: Record<str
   }
 
   const status = getString(turn.status);
-  if (status === "completed") {
-    state.finalizeSuccess(latestTurnResponse(state));
-    return;
-  }
-
-  if (status === "interrupted") {
-    const trimmed = latestTurnResponse(state);
-    if (trimmed) {
-      state.finalizeSuccess(trimmed);
-      return;
-    }
-    state.finalizeFailure(new Error("Turn was interrupted before producing a response."));
-    return;
-  }
-
-  if (status === "failed") {
-    state.finalizeFailure(new Error(getTurnFailureMessage(turn)));
-    return;
-  }
-
-  if (status === "inProgress") {
-    return;
-  }
-
-  state.finalizeFailure(new Error(`Turn ended with unexpected status: ${status ?? "unknown"}`));
+  completeTurnFromStatus(state, status, turn);
 }
 
 function latestTurnResponse(state: RunTurnState): string {
@@ -336,6 +326,34 @@ function getTurnFailureMessage(turn: Record<string, unknown>): string {
     return message;
   }
   return "Turn failed.";
+}
+
+function completeTurnFromStatus(
+  state: RunTurnState,
+  status: string | null,
+  turn: Record<string, unknown>
+): void {
+  switch (status) {
+    case "completed":
+      state.finalizeSuccess(latestTurnResponse(state));
+      return;
+    case "interrupted": {
+      const trimmed = latestTurnResponse(state);
+      if (trimmed) {
+        state.finalizeSuccess(trimmed);
+      } else {
+        state.finalizeFailure(new Error("Turn was interrupted before producing a response."));
+      }
+      return;
+    }
+    case "failed":
+      state.finalizeFailure(new Error(getTurnFailureMessage(turn)));
+      return;
+    case "inProgress":
+      return;
+    default:
+      state.finalizeFailure(new Error(`Turn ended with unexpected status: ${status ?? "unknown"}`));
+  }
 }
 
 function isCommandOutputDeltaMethod(method: string): boolean {

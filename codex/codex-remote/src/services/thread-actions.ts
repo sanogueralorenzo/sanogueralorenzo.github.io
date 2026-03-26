@@ -65,7 +65,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   async function pickThreadByIndex(chatId: string, index: number, reply: ReplyFn): Promise<void> {
-    const selected = getListedSessionForIndex(chatId, index);
+    const selected = getSelectedSession(chatId, index);
     if (!selected) {
       return;
     }
@@ -82,7 +82,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
   }
 
   async function deleteThreadByIndex(chatId: string, index: number, reply: ReplyFn): Promise<void> {
-    const selected = getListedSessionForIndex(chatId, index);
+    const selected = getSelectedSession(chatId, index);
     if (!selected) {
       return;
     }
@@ -101,29 +101,30 @@ export function createThreadActions(deps: ThreadActionsDeps) {
       }
 
       if (isDeletedThreadBound) {
-        await reply(`${formatActionTitle("Deleted", selected.title)}\n\nSend a message to start a new thread.`, {
-          reply_markup: quickActionsKeyboard()
-        });
+        await replyWithQuickActions(
+          reply,
+          `${formatActionTitle("Deleted", selected.title)}\n\nSend a message to start a new thread.`
+        );
       } else {
-        await reply(formatActionTitle("Deleted", selected.title), { reply_markup: quickActionsKeyboard() });
+        await replyWithQuickActions(reply, formatActionTitle("Deleted", selected.title));
       }
       return;
     }
 
     if (result.status === "skipped" && result.reason === "pinned") {
-      await reply(
+      await replyWithQuickActions(
+        reply,
         `Skipped: ${selected.title}\n\nThis thread is pinned in Codex. Unpin it first, then delete again.`,
-        { reply_markup: quickActionsKeyboard() }
       );
       return;
     }
 
     const details = result.message ? `\n\n${result.message}` : "";
-    await reply(`Delete failed: ${selected.title}${details}`, { reply_markup: quickActionsKeyboard() });
+    await replyWithQuickActions(reply, `Delete failed: ${selected.title}${details}`);
   }
 
   async function pickFolderChoiceByIndex(chatId: string, index: number, reply: ReplyFn): Promise<void> {
-    const selected = getListedFolderChoiceForIndex(chatId, index);
+    const selected = getSelectedFolderChoice(chatId, index);
     if (!selected) {
       return;
     }
@@ -146,11 +147,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
       return;
     }
 
-    deps.selectionStateByChat.set(chatId, {
-      sessions,
-      mode,
-      folderChoices: []
-    });
+    setSelectionState(chatId, { sessions, mode, folderChoices: [] });
 
     const prompt = mode === "delete" ? "Choose thread to delete" : "Choose thread";
     const threadLabels = sessions.map((session) => session.title);
@@ -168,11 +165,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     const folderChoices = listFolderChoices(threads, deps.resolveDefaultCwd()).slice(0, 12);
 
     clearListedSelectionState(chatId);
-    deps.selectionStateByChat.set(chatId, {
-      sessions: [],
-      mode: "resume",
-      folderChoices
-    });
+    setSelectionState(chatId, { sessions: [], mode: "resume", folderChoices });
 
     await reply("Choose folder", {
       reply_markup: newFolderSelectionKeyboard(folderChoices.map((choice) => choice.label))
@@ -231,26 +224,16 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     deps.selectionStateByChat.delete(chatId);
   }
 
-  function getListedSessionForIndex(chatId: string, index: number): ListedThread | null {
-    const listed = deps.selectionStateByChat.get(chatId)?.sessions;
-    if (!listed || !listed.length) {
-      return null;
-    }
-    if (index < 1 || index > listed.length) {
-      return null;
-    }
-    return listed[index - 1];
+  function setSelectionState(chatId: string, state: ChatSelectionState): void {
+    deps.selectionStateByChat.set(chatId, state);
   }
 
-  function getListedFolderChoiceForIndex(chatId: string, index: number): ListedFolderChoice | null {
-    const listed = deps.selectionStateByChat.get(chatId)?.folderChoices;
-    if (!listed || !listed.length) {
-      return null;
-    }
-    if (index < 1 || index > listed.length) {
-      return null;
-    }
-    return listed[index - 1];
+  function getSelectedSession(chatId: string, index: number): ListedThread | null {
+    return getSelectedByIndex(deps.selectionStateByChat.get(chatId)?.sessions, index);
+  }
+
+  function getSelectedFolderChoice(chatId: string, index: number): ListedFolderChoice | null {
+    return getSelectedByIndex(deps.selectionStateByChat.get(chatId)?.folderChoices, index);
   }
 
   return {
@@ -260,6 +243,20 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     tryPickThreadByText,
     tryPickFolderChoiceByText
   };
+}
+
+function replyWithQuickActions(reply: ReplyFn, text: string): Promise<unknown> {
+  return reply(text, { reply_markup: quickActionsKeyboard() });
+}
+
+function getSelectedByIndex<T>(items: T[] | undefined, index: number): T | null {
+  if (!items?.length) {
+    return null;
+  }
+  if (index < 1 || index > items.length) {
+    return null;
+  }
+  return items[index - 1];
 }
 
 function listFolderChoices(threads: ThreadSummary[], defaultCwd: string): ListedFolderChoice[] {
