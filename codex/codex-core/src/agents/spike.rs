@@ -92,6 +92,8 @@ struct CodexSpikeExecResult {
     summary: String,
     #[serde(default)]
     comment: Option<Value>,
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 struct WorktreeGuard {
@@ -217,6 +219,8 @@ fn run_spike_job(
         job.updated_at = super::now_utc();
         write_spike_job(layout, job)?;
         post_spike_comment(&issue.key, comment)?;
+    } else if exec_result.reason.as_deref() != Some("already_covered") {
+        bail!("codex spike output must set reason to \"already_covered\" when comment is null");
     }
 
     job.status = SpikeJobStatus::Completed;
@@ -441,7 +445,7 @@ fn build_spike_prompt(
     let existing_comments_text = existing_comments_text(existing_comments);
 
     format!(
-        "You are running a Jira spike for ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nExisting Jira comments:\n{existing_comments}\n\nRequirements:\n- Use the already checked out branch `{branch}` only for local investigation.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Do not commit, push, or open a pull request.\n- Investigate requirements, existing implementations, likely touched files, gaps, risks, and a concrete implementation plan.\n- Use the existing Jira description and comments to avoid repeating information that is already captured there.\n- Only propose a Jira follow-up comment when you have materially new information, a sharper plan, uncovered risk, or concrete implementation guidance that is not already covered.\n- If there is no materially new information to add, set `comment` to null.\n- When `comment` is not null, it must already be a valid Jira ADF `doc` object ready to send as the Jira comment body.\n- Final response must be JSON only with this shape: {{\"summary\":\"<concise spike summary>\",\"comment\":<null or Jira ADF doc object>}}\n\nJira issue URL: {issue_url}\n",
+        "You are running a Jira spike for ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nExisting Jira comments:\n{existing_comments}\n\nRequirements:\n- Use the already checked out branch `{branch}` only for local investigation.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Do not commit, push, or open a pull request.\n- Investigate requirements, existing implementations, likely touched files, gaps, risks, and a concrete implementation plan.\n- Only propose a Jira follow-up comment when you have net-new, actionable information about implementation, risk, scope, or validation.\n- Do not restate ticket text or prior comments unless you are correcting them.\n- If there is no materially new information to add, set `comment` to null and set `reason` to `already_covered`.\n- When `comment` is not null, it must already be a valid Jira ADF `doc` object ready to send as the Jira comment body.\n- Keep posted comments concise and Jira-ready: short paragraphs and a few bullets only.\n- Final response must be JSON only with this shape: {{\"summary\":\"<concise spike summary>\",\"comment\":<null or Jira ADF doc object>,\"reason\":\"<omit when comment is present; otherwise use already_covered>\"}}\n\nJira issue URL: {issue_url}\n",
         ticket = issue.key,
         repo = repo_full_name,
         summary = issue.fields.summary,
@@ -633,9 +637,13 @@ mod tests {
 
     #[test]
     fn parse_codex_spike_result_supports_null_comment() {
-        let result = parse_codex_spike_result(r#"{"summary":"done","comment":null}"#).unwrap();
+        let result = parse_codex_spike_result(
+            r#"{"summary":"done","comment":null,"reason":"already_covered"}"#,
+        )
+        .unwrap();
         assert_eq!(result.summary, "done");
         assert_eq!(result.comment, None);
+        assert_eq!(result.reason.as_deref(), Some("already_covered"));
     }
 
     #[test]
