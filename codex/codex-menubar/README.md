@@ -37,7 +37,7 @@
 - The run panel reads the current tab URL directly from the frontmost supported browser without modifying the clipboard.
 - Supported browsers for `Run From Browser` are Safari, Safari Technology Preview, Chrome, Arc, Brave, and Edge.
 - When the current tab is a GitHub pull request, `Run From Browser` shows a `Review Mode` selector with `Publish` and `Pending` before running `codex-core agents review run <pr>`.
-- When the current tab is a Jira ticket, `Run From Browser` shows `Spike` and `Task`; `Spike` runs `codex-core agents spike run <ticket>`, takes the existing Jira description and latest comments into account, and only posts back when it has materially new information, while `Task` runs `codex-core agents task run <ticket>`.
+- When the current tab is a Jira ticket, `Run From Browser` shows `Spike` and `Task`; `Spike` runs `codex-core agents spike run <ticket>`, takes the existing Jira description and latest comments into account, and only posts back when it has materially new information. Posted spike comments are formatted as Jira ADF paragraphs and lists, while `Task` runs `codex-core agents task run <ticket>`.
 - The menubar watches `~/.codex/agents/reviews` (or `CODEX_AGENTS_HOME/reviews`) so review status markers update from persisted job writes instead of timer polling.
 - The menubar also watches `~/.codex/agents/tasks` (or `CODEX_AGENTS_HOME/tasks`) so task status markers update from persisted task job writes.
 - `Agents -> Settings` only shows integration status for `gh` and `acli`.

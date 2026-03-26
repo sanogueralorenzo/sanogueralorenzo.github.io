@@ -446,7 +446,7 @@ fn build_spike_prompt(
     let existing_comments_text = existing_comments_text(existing_comments);
 
     format!(
-        "You are running a Jira spike for ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nExisting Jira comments:\n{existing_comments}\n\nRequirements:\n- Use the already checked out branch `{branch}` only for local investigation.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Do not commit, push, or open a pull request.\n- Investigate requirements, existing implementations, likely touched files, gaps, risks, and a concrete implementation plan.\n- Use the existing Jira description and comments to avoid repeating information that is already captured there.\n- Only propose a Jira follow-up comment when you have materially new information, a sharper plan, uncovered risk, or concrete implementation guidance that is not already covered.\n- If there is no materially new information to add, set `comment` to null.\n- Final response must be JSON only with this shape: {{\"summary\":\"<concise spike summary>\",\"comment\":\"<jira comment to post or null>\"}}\n\nJira issue URL: {issue_url}\n",
+        "You are running a Jira spike for ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nExisting Jira comments:\n{existing_comments}\n\nRequirements:\n- Use the already checked out branch `{branch}` only for local investigation.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Do not commit, push, or open a pull request.\n- Investigate requirements, existing implementations, likely touched files, gaps, risks, and a concrete implementation plan.\n- Use the existing Jira description and comments to avoid repeating information that is already captured there.\n- Only propose a Jira follow-up comment when you have materially new information, a sharper plan, uncovered risk, or concrete implementation guidance that is not already covered.\n- If there is no materially new information to add, set `comment` to null.\n- When `comment` is not null, write plain text that is easy to format into Jira sections and lists: short paragraphs, `- ` bullets, and `1. ` numbered steps are preferred.\n- Final response must be JSON only with this shape: {{\"summary\":\"<concise spike summary>\",\"comment\":\"<jira comment to post or null>\"}}\n\nJira issue URL: {issue_url}\n",
         ticket = issue.key,
         repo = repo_full_name,
         summary = issue.fields.summary,
@@ -524,10 +524,10 @@ fn spike_job_path(layout: &StateLayout, job_id: &str) -> PathBuf {
     layout.spikes_dir().join(format!("{job_id}.json"))
 }
 
-fn post_spike_comment(ticket: &str, summary: &str) -> Result<()> {
+fn post_spike_comment(ticket: &str, comment: &str) -> Result<()> {
     let comment_path =
         std::env::temp_dir().join(format!("codex-spike-comment-{}.json", Uuid::new_v4()));
-    let payload = serde_json::to_vec_pretty(&adf_comment_body(summary))
+    let payload = serde_json::to_vec_pretty(&adf_comment_body(comment))
         .context("failed to serialize Jira spike comment")?;
     fs::write(&comment_path, payload)
         .with_context(|| format!("failed to write {}", comment_path.display()))?;
@@ -552,22 +552,130 @@ fn post_spike_comment(ticket: &str, summary: &str) -> Result<()> {
     result.map(|_| ())
 }
 
-fn adf_comment_body(summary: &str) -> Value {
+fn adf_comment_body(comment: &str) -> Value {
+    let content = adf_comment_content(comment);
     json!({
         "version": 1,
         "type": "doc",
-        "content": [
-            {
-                "type": "paragraph",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": summary
-                    }
-                ]
-            }
-        ]
+        "content": content
     })
+}
+
+fn adf_comment_content(comment: &str) -> Vec<Value> {
+    let lines = comment.lines().map(str::trim_end).collect::<Vec<_>>();
+    let mut content = Vec::new();
+    let mut index = 0usize;
+
+    while index < lines.len() {
+        let line = lines[index].trim();
+        if line.is_empty() {
+            index += 1;
+            continue;
+        }
+
+        if parse_bullet_line(line).is_some() {
+            let mut items = Vec::new();
+            while index < lines.len() {
+                let current = lines[index].trim();
+                if current.is_empty() {
+                    break;
+                }
+                if let Some(text) = parse_bullet_line(current) {
+                    items.push(adf_list_item(text));
+                    index += 1;
+                    continue;
+                }
+                break;
+            }
+            content.push(json!({
+                "type": "bulletList",
+                "content": items,
+            }));
+            continue;
+        }
+
+        if parse_ordered_line(line).is_some() {
+            let mut items = Vec::new();
+            while index < lines.len() {
+                let current = lines[index].trim();
+                if current.is_empty() {
+                    break;
+                }
+                if let Some(text) = parse_ordered_line(current) {
+                    items.push(adf_list_item(text));
+                    index += 1;
+                    continue;
+                }
+                break;
+            }
+            content.push(json!({
+                "type": "orderedList",
+                "content": items,
+            }));
+            continue;
+        }
+
+        let mut paragraph_lines = Vec::new();
+        while index < lines.len() {
+            let current = lines[index].trim();
+            if current.is_empty() {
+                break;
+            }
+            if parse_bullet_line(current).is_some() || parse_ordered_line(current).is_some() {
+                break;
+            }
+            paragraph_lines.push(current.to_string());
+            index += 1;
+        }
+        let paragraph_text = paragraph_lines.join(" ");
+        if !paragraph_text.is_empty() {
+            content.push(adf_paragraph(&paragraph_text));
+        }
+    }
+
+    if content.is_empty() {
+        vec![adf_paragraph(comment.trim())]
+    } else {
+        content
+    }
+}
+
+fn adf_paragraph(text: &str) -> Value {
+    json!({
+        "type": "paragraph",
+        "content": [{
+            "type": "text",
+            "text": text
+        }]
+    })
+}
+
+fn adf_list_item(text: &str) -> Value {
+    json!({
+        "type": "listItem",
+        "content": [adf_paragraph(text)]
+    })
+}
+
+fn parse_bullet_line(line: &str) -> Option<&str> {
+    line.strip_prefix("- ")
+        .or_else(|| line.strip_prefix("* "))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn parse_ordered_line(line: &str) -> Option<&str> {
+    let (prefix, rest) = line.split_once(". ")?;
+    if prefix.chars().all(|character| character.is_ascii_digit()) {
+        let trimmed = rest.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    } else {
+        None
+    }
 }
 
 fn run_json_command<T: for<'de> Deserialize<'de>>(
@@ -667,5 +775,16 @@ mod tests {
             existing_comments_text(&[]),
             "No existing Jira comments were found."
         );
+    }
+
+    #[test]
+    fn adf_comment_content_preserves_paragraphs_and_lists() {
+        let content = adf_comment_content(
+            "Context paragraph.\n\n- First bullet\n- Second bullet\n\n1. First step\n2. Second step",
+        );
+        assert_eq!(content.len(), 3);
+        assert_eq!(content[0]["type"], "paragraph");
+        assert_eq!(content[1]["type"], "bulletList");
+        assert_eq!(content[2]["type"], "orderedList");
     }
 }
