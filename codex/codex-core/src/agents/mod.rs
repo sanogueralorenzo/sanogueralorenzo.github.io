@@ -2,7 +2,7 @@ mod review;
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::ffi::OsString;
@@ -56,6 +56,8 @@ enum ConfigCommand {
     AvailableRepos(ConfigAvailableReposArgs),
     /// Set the allowed review repo filters
     SetAllowedRepos(ConfigSetAllowedReposArgs),
+    /// Set the default review publish mode
+    SetReviewMode(ConfigSetReviewModeArgs),
     /// Clear allowed review repo filters
     ClearAllowedRepos,
 }
@@ -169,10 +171,34 @@ struct ConfigSetAllowedReposArgs {
     repos: Vec<String>,
 }
 
+#[derive(Args, Debug)]
+struct ConfigSetReviewModeArgs {
+    mode: ReviewPublishMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewPublishMode {
+    #[default]
+    Publish,
+    Pending,
+}
+
+impl ReviewPublishMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Publish => "publish",
+            Self::Pending => "pending",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct AgentsConfig {
     state_version: u32,
     initialized_at: String,
+    #[serde(default)]
+    review_mode: ReviewPublishMode,
     allowed_repos: Vec<String>,
 }
 
@@ -280,6 +306,7 @@ fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Result<()> {
         ConfigCommand::Show(args) => config_show(layout, args),
         ConfigCommand::AvailableRepos(args) => config_available_repos(args),
         ConfigCommand::SetAllowedRepos(args) => config_set_allowed_repos(layout, args),
+        ConfigCommand::SetReviewMode(args) => config_set_review_mode(layout, args),
         ConfigCommand::ClearAllowedRepos => config_clear_allowed_repos(layout),
     }
 }
@@ -468,6 +495,7 @@ fn config_show(layout: &StateLayout, args: ConfigShowArgs) -> Result<()> {
         return Ok(());
     }
 
+    println!("review_mode={}", config.review_mode.as_str());
     if config.allowed_repos.is_empty() {
         println!("allowed_repos=");
     } else {
@@ -506,6 +534,14 @@ fn config_set_allowed_repos(layout: &StateLayout, args: ConfigSetAllowedReposArg
     } else {
         println!("Set allowed_repos={}", normalized.join(","));
     }
+    Ok(())
+}
+
+fn config_set_review_mode(layout: &StateLayout, args: ConfigSetReviewModeArgs) -> Result<()> {
+    let mut config = load_agents_config(layout)?;
+    config.review_mode = args.mode;
+    save_agents_config(layout, &config)?;
+    println!("Set review_mode={}", config.review_mode.as_str());
     Ok(())
 }
 
@@ -653,6 +689,7 @@ fn ensure_state_layout(layout: &StateLayout) -> Result<()> {
         let config = AgentsConfig {
             state_version: 2,
             initialized_at: now_utc(),
+            review_mode: ReviewPublishMode::Publish,
             allowed_repos: Vec::new(),
         };
         save_agents_config(layout, &config)?;

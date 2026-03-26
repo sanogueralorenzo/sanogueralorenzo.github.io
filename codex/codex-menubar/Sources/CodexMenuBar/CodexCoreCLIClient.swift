@@ -1,9 +1,15 @@
 import Foundation
 
 final class CodexCoreCLIClient: @unchecked Sendable {
+    enum ReviewMode: String, Decodable, Sendable {
+        case publish
+        case pending
+    }
+
     struct AgentsConfig: Decodable, Sendable {
         let stateVersion: Int
         let initializedAt: String
+        let reviewMode: ReviewMode
         let allowedRepos: [String]
     }
 
@@ -42,6 +48,7 @@ final class CodexCoreCLIClient: @unchecked Sendable {
         }
 
         let reviewId: String
+        let publishMode: ReviewMode
         let owner: String
         let repo: String
         let number: Int
@@ -178,6 +185,10 @@ final class CodexCoreCLIClient: @unchecked Sendable {
             return
         }
         _ = try runAgents(["config", "set-allowed-repos"] + repos)
+    }
+
+    func setReviewMode(_ mode: ReviewMode) throws {
+        _ = try runAgents(["config", "set-review-mode", mode.rawValue])
     }
 
     private func runSessions(_ arguments: [String]) throws -> String {

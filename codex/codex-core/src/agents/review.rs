@@ -1,4 +1,5 @@
 use super::AgentsConfig;
+use super::ReviewPublishMode;
 use super::StateLayout;
 use super::ensure_state_layout;
 use super::load_agents_config;
@@ -54,7 +55,7 @@ query($searchQuery: String!, $endCursor: String) {
 pub enum ReviewCommand {
     /// List open pull requests across your repos and orgs
     List(ReviewListArgs),
-    /// Review one pull request and publish findings to GitHub
+    /// Review one pull request and publish or draft findings on GitHub
     Run(ReviewRunArgs),
     /// List persisted review jobs
     Jobs(ReviewJobsArgs),
@@ -75,6 +76,10 @@ pub struct ReviewListArgs {
 pub struct ReviewRunArgs {
     /// Pull request URL or OWNER/REPO#NUMBER
     pub pull_request: String,
+
+    /// Override the configured review publish mode
+    #[arg(long = "publish-mode")]
+    pub publish_mode: Option<ReviewPublishMode>,
 
     #[arg(long)]
     pub json: bool,
@@ -116,6 +121,7 @@ pub struct ReviewPullRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReviewRunResult {
     pub review_id: String,
+    pub publish_mode: ReviewPublishMode,
     pub owner: String,
     pub repo: String,
     pub number: u64,
@@ -319,6 +325,14 @@ struct UpstreamReviewPrompts {
     base_branch_prompt_backup: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct PendingReviewComment {
+    path: String,
+    line: u32,
+    side: String,
+    body: String,
+}
+
 impl Drop for ReviewWorkspace {
     fn drop(&mut self) {
         let _ = Command::new("git")
@@ -379,6 +393,8 @@ fn list_pull_requests(layout: &StateLayout, args: ReviewListArgs) -> Result<()> 
 
 fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
     let pr_ref = parse_pull_request_reference(&args.pull_request)?;
+    let config = load_agents_config(layout)?;
+    let publish_mode = args.publish_mode.unwrap_or(config.review_mode);
     let mut job = ReviewJobStore::create(layout, &args.pull_request, &pr_ref)?;
 
     let pull_request = match run_review_step(
@@ -466,6 +482,7 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
                 &pull_request,
                 review,
                 &changed_lines,
+                publish_mode,
             )
         },
     ) {
@@ -473,7 +490,13 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
         Err(error) => return Err(error),
     };
     result.review_id = job.snapshot.id.clone();
-    job.complete(&result)?;
+    let completion_step =
+        if result.publish_mode == ReviewPublishMode::Pending && result.posted_comments > 0 {
+            "pending_review_created"
+        } else {
+            "completed"
+        };
+    job.complete(&result, completion_step)?;
 
     if args.json {
         println!(
@@ -493,6 +516,7 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
 
     println!("Reviewed {}", result.url);
     println!("Review ID: {}", result.review_id);
+    println!("Publish mode: {}", result.publish_mode.as_str());
     println!("Posted comments: {}", result.posted_comments);
     println!("Failed comments: {}", result.failed_comments);
     if !result.failed_comment_details.is_empty() {
@@ -563,7 +587,11 @@ fn show_review_job(layout: &StateLayout, args: ReviewShowArgs) -> Result<()> {
     }
 
     if args.plain {
-        println!("{} {}", output_job.id, review_menu_state_label(&output_job.status));
+        println!(
+            "{} {}",
+            output_job.id,
+            review_menu_state_label(&output_job.status)
+        );
         return Ok(());
     }
 
@@ -704,9 +732,9 @@ impl ReviewJobStore {
         self.append_event("step", step, message)
     }
 
-    fn complete(&mut self, result: &ReviewRunResult) -> Result<()> {
+    fn complete(&mut self, result: &ReviewRunResult, completion_step: &str) -> Result<()> {
         self.snapshot.status = ReviewJobStatus::Completed;
-        self.snapshot.current_step = "completed".to_string();
+        self.snapshot.current_step = completion_step.to_string();
         self.snapshot.finished_at = Some(now_utc());
         self.snapshot.posted_comments = result.posted_comments;
         self.snapshot.failed_comments = result.failed_comments;
@@ -816,7 +844,9 @@ fn derive_review_menu_state(job: &ReviewJobSnapshot) -> ReviewMenuState {
         }
         ReviewJobStatus::Failed => ReviewMenuState::NeedsAttention,
         ReviewJobStatus::Completed => {
-            if job.failed_comments > 0 || job.posted_comments == 0 {
+            if job.current_step == "pending_review_created" {
+                ReviewMenuState::InProgress
+            } else if job.failed_comments > 0 {
                 ReviewMenuState::NeedsAttention
             } else {
                 ReviewMenuState::Published
@@ -1353,6 +1383,24 @@ fn post_review_comments(
     pull_request: &PullRequestView,
     review: ReviewOutputEvent,
     changed_lines: &HashMap<String, FileDiffLines>,
+    publish_mode: ReviewPublishMode,
+) -> Result<ReviewRunResult> {
+    match publish_mode {
+        ReviewPublishMode::Publish => {
+            post_review_comments_publish(pr_ref, repo_dir, pull_request, review, changed_lines)
+        }
+        ReviewPublishMode::Pending => {
+            post_review_comments_pending(pr_ref, repo_dir, pull_request, review, changed_lines)
+        }
+    }
+}
+
+fn post_review_comments_publish(
+    pr_ref: &PullRequestReference,
+    repo_dir: &Path,
+    pull_request: &PullRequestView,
+    review: ReviewOutputEvent,
+    changed_lines: &HashMap<String, FileDiffLines>,
 ) -> Result<ReviewRunResult> {
     let mut posted_comments = 0usize;
     let mut failed_comments = 0usize;
@@ -1360,14 +1408,22 @@ fn post_review_comments(
     let summary = summarize_review(&review);
 
     for finding in &review.findings {
-        let normalized_path = normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir).ok();
-        let path_for_comment = normalized_path
-            .clone()
-            .unwrap_or_else(|| finding.code_location.absolute_file_path.display().to_string());
+        let normalized_path =
+            normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir).ok();
+        let path_for_comment = normalized_path.clone().unwrap_or_else(|| {
+            finding
+                .code_location
+                .absolute_file_path
+                .display()
+                .to_string()
+        });
 
         let body = render_inline_comment_body(finding);
         let inline_error = match normalized_path.as_deref() {
-            Some(path) => match select_comment_target(&finding.code_location.line_range, changed_lines.get(path)) {
+            Some(path) => match select_comment_target(
+                &finding.code_location.line_range,
+                changed_lines.get(path),
+            ) {
                 Some(target) => post_inline_comment(
                     pr_ref,
                     &pull_request.head_ref_oid,
@@ -1375,7 +1431,8 @@ fn post_review_comments(
                     target.line,
                     target.side.as_github_value(),
                     &body,
-                ).err(),
+                )
+                .err(),
                 None => Some(anyhow::anyhow!(
                     "No changed diff line matched this finding on either side of the PR."
                 )),
@@ -1415,6 +1472,109 @@ fn post_review_comments(
 
     Ok(ReviewRunResult {
         review_id: String::new(),
+        publish_mode: ReviewPublishMode::Publish,
+        owner: pr_ref.owner.clone(),
+        repo: pr_ref.repo.clone(),
+        number: pull_request.number,
+        url: pull_request.url.clone(),
+        posted_comments,
+        failed_comments,
+        failed_comment_details,
+        summary,
+    })
+}
+
+fn post_review_comments_pending(
+    pr_ref: &PullRequestReference,
+    repo_dir: &Path,
+    pull_request: &PullRequestView,
+    review: ReviewOutputEvent,
+    changed_lines: &HashMap<String, FileDiffLines>,
+) -> Result<ReviewRunResult> {
+    let summary = summarize_review(&review);
+    let mut pending_comments = Vec::new();
+    let mut pending_body_sections = Vec::new();
+
+    for finding in &review.findings {
+        let normalized_path =
+            normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir).ok();
+        let path_for_comment = normalized_path.clone().unwrap_or_else(|| {
+            finding
+                .code_location
+                .absolute_file_path
+                .display()
+                .to_string()
+        });
+        let body = render_inline_comment_body(finding);
+
+        match normalized_path.as_deref() {
+            Some(path) => match select_comment_target(
+                &finding.code_location.line_range,
+                changed_lines.get(path),
+            ) {
+                Some(target) => pending_comments.push(PendingReviewComment {
+                    path: path.to_string(),
+                    line: target.line,
+                    side: target.side.as_github_value().to_string(),
+                    body,
+                }),
+                None => pending_body_sections.push(render_top_level_comment_body(
+                    pr_ref,
+                    &pull_request.head_ref_oid,
+                    finding,
+                    &path_for_comment,
+                )),
+            },
+            None => pending_body_sections.push(render_top_level_comment_body(
+                pr_ref,
+                &pull_request.head_ref_oid,
+                finding,
+                &path_for_comment,
+            )),
+        }
+    }
+
+    let pending_body = render_pending_review_body(&pending_body_sections);
+    let mut failed_comment_details = Vec::new();
+    let total_findings = review.findings.len();
+    let (posted_comments, failed_comments) = if total_findings == 0 {
+        (0, 0)
+    } else {
+        match post_pending_review(
+            pr_ref,
+            pull_request,
+            &pending_comments,
+            pending_body.as_deref(),
+        ) {
+            Ok(()) => (total_findings, 0),
+            Err(error) => {
+                for finding in &review.findings {
+                    let normalized_path =
+                        normalize_comment_path(&finding.code_location.absolute_file_path, repo_dir)
+                            .ok();
+                    let path_for_comment = normalized_path.unwrap_or_else(|| {
+                        finding
+                            .code_location
+                            .absolute_file_path
+                            .display()
+                            .to_string()
+                    });
+                    failed_comment_details.push(ReviewCommentFailure {
+                        title: finding.title.trim().to_string(),
+                        path: Some(path_for_comment),
+                        start_line: finding.code_location.line_range.start,
+                        end_line: finding.code_location.line_range.end,
+                        reason: format!("Pending review creation failed: {error}"),
+                    });
+                }
+                (0, total_findings)
+            }
+        }
+    };
+
+    Ok(ReviewRunResult {
+        review_id: String::new(),
+        publish_mode: ReviewPublishMode::Pending,
         owner: pr_ref.owner.clone(),
         repo: pr_ref.repo.clone(),
         number: pull_request.number,
@@ -1505,6 +1665,18 @@ fn render_top_level_comment_body(
     ];
     lines.push(format!("Confidence: {:.2}", finding.confidence_score));
     lines.join("\n")
+}
+
+fn render_pending_review_body(sections: &[String]) -> Option<String> {
+    let sections: Vec<&str> = sections
+        .iter()
+        .map(String::as_str)
+        .filter(|section| !section.trim().is_empty())
+        .collect();
+    if sections.is_empty() {
+        return None;
+    }
+    Some(sections.join("\n\n---\n\n"))
 }
 
 fn github_blob_line_url(
@@ -1614,6 +1786,63 @@ fn post_top_level_comment(pr_ref: &PullRequestReference, body: &str) -> Result<(
             "api".to_string(),
             format!(
                 "repos/{}/{}/issues/{}/comments",
+                pr_ref.owner, pr_ref.repo, pr_ref.number
+            ),
+            "-H".to_string(),
+            "Accept: application/vnd.github+json".to_string(),
+            "--input".to_string(),
+            payload_path.to_string_lossy().into_owned(),
+        ],
+        None,
+    );
+    let _ = fs::remove_file(&payload_path);
+    result?;
+    Ok(())
+}
+
+fn post_pending_review(
+    pr_ref: &PullRequestReference,
+    pull_request: &PullRequestView,
+    comments: &[PendingReviewComment],
+    body: Option<&str>,
+) -> Result<()> {
+    let trimmed_body = body.map(str::trim).filter(|value| !value.is_empty());
+    if comments.is_empty() && trimmed_body.is_none() {
+        return Ok(());
+    }
+
+    let payload_path = temp_file_path("codex-core-pr-pending-review", "json");
+    let mut payload = serde_json::Map::new();
+    payload.insert(
+        "commit_id".to_string(),
+        serde_json::Value::String(pull_request.head_ref_oid.clone()),
+    );
+    if let Some(body) = trimmed_body {
+        payload.insert(
+            "body".to_string(),
+            serde_json::Value::String(body.to_string()),
+        );
+    }
+    if !comments.is_empty() {
+        payload.insert(
+            "comments".to_string(),
+            serde_json::to_value(comments)
+                .context("failed to serialize pending review comments")?,
+        );
+    }
+
+    fs::write(
+        &payload_path,
+        serde_json::to_vec(&serde_json::Value::Object(payload))
+            .context("failed to serialize pending review payload")?,
+    )
+    .with_context(|| format!("failed to write {}", payload_path.display()))?;
+
+    let result = run_gh(
+        vec![
+            "api".to_string(),
+            format!(
+                "repos/{}/{}/pulls/{}/reviews",
                 pr_ref.owner, pr_ref.repo, pr_ref.number
             ),
             "-H".to_string(),

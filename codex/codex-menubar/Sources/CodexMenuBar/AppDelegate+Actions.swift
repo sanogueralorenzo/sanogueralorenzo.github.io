@@ -239,6 +239,7 @@ extension AppDelegate {
             do {
                 let result = try sessionsCLI.runReview(pullRequest: pullRequestURL)
                 DispatchQueue.main.async {
+                    let postedLabel = result.publishMode == .pending ? "Pending findings" : "Posted comments"
                     let failureDetails = result.failedCommentDetails.prefix(5).map { detail in
                         let path = detail.path ?? "<unknown>"
                         return "- \(detail.title) (\(path):\(detail.startLine)-\(detail.endLine)): \(detail.reason)"
@@ -255,8 +256,9 @@ extension AppDelegate {
                         title: "Review Complete",
                         message: """
                         Review ID: \(result.reviewId)
+                        Review mode: \(result.publishMode.rawValue)
                         PR: \(result.repo)#\(result.number)
-                        Posted comments: \(result.postedComments)
+                        \(postedLabel): \(result.postedComments)
                         Failed comments: \(result.failedComments)
                         Summary: \(result.summary)\(failureText)
                         """
@@ -311,6 +313,7 @@ extension AppDelegate {
                 Task {
                     do {
                         try await Self.runAgentSettingsOperation {
+                            try sessionsCLI.setReviewMode(selection.reviewMode)
                             try sessionsCLI.setAllowedRepos(selection.allowedRepos)
                         }
                         self.refreshUI()

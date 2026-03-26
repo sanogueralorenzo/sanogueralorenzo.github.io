@@ -112,6 +112,7 @@ private final class ProfileNameInputController: NSObject, NSTextFieldDelegate {
 }
 
 struct CodexAgentSettingsSelection {
+    let reviewMode: CodexCoreCLIClient.ReviewMode
     let allowedRepos: [String]
 }
 
@@ -122,6 +123,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private let progressIndicator = NSProgressIndicator()
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let saveButton = NSButton(title: "Save", target: nil, action: nil)
+    private let reviewModePopUp = NSPopUpButton()
     private let searchField = NSSearchField()
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
@@ -135,20 +137,21 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     private var repos: [String] = []
     private var filteredRepos: [String] = []
     private var selectedRepos: Set<String> = []
+    private var selectedReviewMode: CodexCoreCLIClient.ReviewMode = .publish
     private var configLoaded = false
     private var reposLoaded = false
     private var loadCompleted = false
     private var reposLoadErrorMessage: String?
     private let horizontalInset: CGFloat = 20
     private let contentWidth: CGFloat = 460
-    private let reposHintY: CGFloat = 250
+    private let reposHintY: CGFloat = 230
 
     init(onSave: @escaping (CodexAgentSettingsSelection) -> Void, onClose: @escaping () -> Void) {
         self.onSave = onSave
         self.onClose = onClose
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 600),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -181,6 +184,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         loadCompleted = false
         reposLoadErrorMessage = nil
         saveButton.isEnabled = false
+        selectedReviewMode = .publish
+        reviewModePopUp.selectItem(at: 0)
         reposHint.stringValue = loadingReposHint
         progressIndicator.isHidden = false
         progressIndicator.startAnimation(nil)
@@ -193,6 +198,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
     func applyCurrentConfig(_ currentConfig: CodexCoreCLIClient.AgentsConfig) {
         configLoaded = true
+        selectedReviewMode = currentConfig.reviewMode
+        reviewModePopUp.selectItem(withTitle: reviewModeTitle(for: currentConfig.reviewMode))
         selectedRepos = Set(currentConfig.allowedRepos)
     }
 
@@ -241,7 +248,12 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         guard loadCompleted else {
             return
         }
-        onSave(CodexAgentSettingsSelection(allowedRepos: selectedRepos.sorted()))
+        onSave(
+            CodexAgentSettingsSelection(
+                reviewMode: selectedReviewMode,
+                allowedRepos: selectedRepos.sorted()
+            )
+        )
         close()
     }
 
@@ -307,6 +319,10 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         }
     }
 
+    @objc private func reviewModeChanged(_ sender: NSPopUpButton) {
+        selectedReviewMode = sender.indexOfSelectedItem == 1 ? .pending : .publish
+    }
+
     private func buildUI(in panel: NSPanel) {
         guard let contentView = panel.contentView else {
             return
@@ -314,28 +330,46 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
         let integrationsTitle = NSTextField(labelWithString: "Integrations")
         integrationsTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        integrationsTitle.frame = NSRect(x: horizontalInset, y: 460, width: contentWidth, height: 20)
+        integrationsTitle.frame = NSRect(x: horizontalInset, y: 540, width: contentWidth, height: 20)
         contentView.addSubview(integrationsTitle)
 
-        ghStatusRow.frame = NSRect(x: horizontalInset, y: 410, width: contentWidth, height: 38)
+        ghStatusRow.frame = NSRect(x: horizontalInset, y: 490, width: contentWidth, height: 38)
         contentView.addSubview(ghStatusRow)
 
-        acliStatusRow.frame = NSRect(x: horizontalInset, y: 364, width: contentWidth, height: 38)
+        acliStatusRow.frame = NSRect(x: horizontalInset, y: 444, width: contentWidth, height: 38)
         contentView.addSubview(acliStatusRow)
 
-        let divider = NSBox(frame: NSRect(x: horizontalInset, y: 338, width: contentWidth, height: 1))
-        divider.boxType = .separator
-        contentView.addSubview(divider)
+        let integrationsDivider = NSBox(frame: NSRect(x: horizontalInset, y: 418, width: contentWidth, height: 1))
+        integrationsDivider.boxType = .separator
+        contentView.addSubview(integrationsDivider)
+
+        let reviewTitle = NSTextField(labelWithString: "Review Mode")
+        reviewTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+        reviewTitle.frame = NSRect(x: horizontalInset, y: 386, width: contentWidth, height: 20)
+        contentView.addSubview(reviewTitle)
+
+        reviewModePopUp.addItems(withTitles: [
+            reviewModeTitle(for: .publish),
+            reviewModeTitle(for: .pending)
+        ])
+        reviewModePopUp.target = self
+        reviewModePopUp.action = #selector(reviewModeChanged(_:))
+        reviewModePopUp.frame = NSRect(x: horizontalInset, y: 350, width: contentWidth, height: 28)
+        contentView.addSubview(reviewModePopUp)
+
+        let reviewDivider = NSBox(frame: NSRect(x: horizontalInset, y: 320, width: contentWidth, height: 1))
+        reviewDivider.boxType = .separator
+        contentView.addSubview(reviewDivider)
 
         let reposTitle = NSTextField(labelWithString: "GitHub Repos")
         reposTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        reposTitle.frame = NSRect(x: horizontalInset, y: 306, width: contentWidth, height: 20)
+        reposTitle.frame = NSRect(x: horizontalInset, y: 288, width: contentWidth, height: 20)
         contentView.addSubview(reposTitle)
 
         searchField.delegate = self
         searchField.placeholderString = "Search repositories"
         searchField.sendsSearchStringImmediately = true
-        searchField.frame = NSRect(x: horizontalInset, y: 272, width: contentWidth, height: 26)
+        searchField.frame = NSRect(x: horizontalInset, y: 254, width: contentWidth, height: 26)
         contentView.addSubview(searchField)
 
         reposHint.textColor = .secondaryLabelColor
@@ -348,7 +382,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         progressIndicator.frame = NSRect(x: horizontalInset, y: reposHintY, width: 16, height: 16)
         contentView.addSubview(progressIndicator)
 
-        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 166)
+        scrollView.frame = NSRect(x: horizontalInset, y: 82, width: contentWidth, height: 144)
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .bezelBorder
 
@@ -396,6 +430,15 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
         let normalizedQuery = query.lowercased()
         filteredRepos = repos.filter { repo in
             repo.lowercased().contains(normalizedQuery)
+        }
+    }
+
+    private func reviewModeTitle(for mode: CodexCoreCLIClient.ReviewMode) -> String {
+        switch mode {
+        case .publish:
+            return "Publish"
+        case .pending:
+            return "Pending"
         }
     }
 

@@ -38,10 +38,13 @@
 - `Agents -> Settings` centers the `gh` and `acli` labels inside their rounded status pills.
 - `Agents -> Settings` normalizes integration details to account labels like `GitHub: <username>` and `Jira: <account>`.
 - `Agents -> Settings` verifies `acli` through a read-only Jira command so the status reflects actual Jira access instead of `acli auth status`.
+- `Agents -> Settings` includes a `Review Mode` section with `Publish` and `Pending`, saved through `codex-core agents config set-review-mode`.
 - `Agents -> Settings` shows a `GitHub Repos` section for review filtering.
 - `Agents -> Settings` includes a local repository search field that filters the visible repo list as you type.
 - `Agents -> Settings` shows a loading hint for GitHub repos, then switches to the repo-selection hint after load completes.
-- Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` and publishes findings derived from upstream `openai/codex` review prompts on GitHub `main`, using inline comments when possible and separate top-level PR comments otherwise.
+- Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
+- In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
+- In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.
 - Review completion alerts include the persisted review job ID from `~/.codex/agents/reviews/<review-id>`.
 - Review completion alerts include per-comment failure reasons when inline comment posting is skipped or rejected.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
