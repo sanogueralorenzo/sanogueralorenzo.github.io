@@ -137,10 +137,6 @@ extension AppDelegate {
 
   private func runTask(ticket: String) {
     refreshUI()
-    showNotification(
-      title: "Task Started",
-      message: ticket
-    )
     let sessionsCLI = self.sessionsCLI
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self else {
@@ -148,12 +144,8 @@ extension AppDelegate {
       }
 
       do {
-        let result = try sessionsCLI.runTask(ticket: ticket)
+        _ = try sessionsCLI.runTask(ticket: ticket)
         DispatchQueue.main.async {
-          self.showNotification(
-            title: "Task Complete",
-            message: self.taskCompletionMessage(for: result)
-          )
           self.refreshUI()
         }
       } catch {
@@ -197,10 +189,7 @@ extension AppDelegate {
   }
 
   private func runSpike(ticket: String) {
-    showNotification(
-      title: "Spike Started",
-      message: ticket
-    )
+    refreshUI()
     let sessionsCLI = self.sessionsCLI
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self else {
@@ -208,12 +197,8 @@ extension AppDelegate {
       }
 
       do {
-        let result = try sessionsCLI.runSpike(ticket: ticket)
+        _ = try sessionsCLI.runSpike(ticket: ticket)
         DispatchQueue.main.async {
-          self.showNotification(
-            title: "Spike Complete",
-            message: self.spikeCompletionMessage(for: result)
-          )
           self.refreshUI()
         }
       } catch {
@@ -230,11 +215,6 @@ extension AppDelegate {
     publishMode: CodexCoreCLIClient.ReviewMode?
   ) {
     refreshUI()
-    let reviewIdentifier = reviewNotificationIdentifier(from: pullRequestURL)
-    showNotification(
-      title: "Review Started",
-      message: reviewIdentifier
-    )
     let sessionsCLI = self.sessionsCLI
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self else {
@@ -242,15 +222,11 @@ extension AppDelegate {
       }
 
       do {
-        let result = try sessionsCLI.runReview(
+        _ = try sessionsCLI.runReview(
           pullRequest: pullRequestURL,
           publishMode: publishMode
         )
         DispatchQueue.main.async {
-          self.showNotification(
-            title: "Review Complete",
-            message: self.reviewCompletionMessage(for: result)
-          )
           self.refreshUI()
         }
       } catch {
@@ -326,60 +302,4 @@ extension AppDelegate {
     }
   }
 
-  private func taskCompletionMessage(for result: CodexCoreCLIClient.TaskRunResult) -> String {
-    let prLine = result.prUrl.map { "PR: \($0)\n" } ?? ""
-    return """
-      Task ID: \(result.taskId)
-      Ticket: \(result.ticket)
-      Repo: \(result.repoFullName)
-      Branch: \(result.branch)
-      \(prLine)Summary: \(result.summary)
-      """
-  }
-
-  private func spikeCompletionMessage(for result: CodexCoreCLIClient.SpikeRunResult) -> String {
-    """
-    Spike ID: \(result.spikeId)
-    Ticket: \(result.ticket)
-    Repo: \(result.repoFullName)
-    Branch: \(result.branch)
-    Summary: \(result.summary)
-    """
-  }
-
-  private func reviewCompletionMessage(for result: CodexCoreCLIClient.ReviewRunResult) -> String {
-    let postedLabel = result.publishMode == .pending ? "Pending findings" : "Posted comments"
-    return """
-      Review ID: \(result.reviewId)
-      Review mode: \(result.publishMode.rawValue)
-      PR: \(result.repo)#\(result.number)
-      \(postedLabel): \(result.postedComments)
-      Failed comments: \(result.failedComments)
-      Summary: \(result.summary)\(reviewFailureText(for: result))
-      """
-  }
-
-  private func reviewFailureText(for result: CodexCoreCLIClient.ReviewRunResult) -> String {
-    let failureDetails = result.failedCommentDetails.prefix(5).map { detail in
-      let path = detail.path ?? "<unknown>"
-      return "- \(detail.title) (\(path):\(detail.startLine)-\(detail.endLine)): \(detail.reason)"
-    }
-    guard !failureDetails.isEmpty else {
-      return ""
-    }
-
-    let extraCount = result.failedCommentDetails.count - failureDetails.count
-    let extraSuffix = extraCount > 0 ? "\n- ... and \(extraCount) more" : ""
-    return "\nFailure reasons:\n\(failureDetails.joined(separator: "\n"))\(extraSuffix)"
-  }
-
-  private func reviewNotificationIdentifier(from pullRequestURL: String) -> String {
-    if let components = URLComponents(string: pullRequestURL),
-      let number = components.path.split(separator: "/").last,
-      !number.isEmpty
-    {
-      return "#\(number)"
-    }
-    return pullRequestURL
-  }
 }

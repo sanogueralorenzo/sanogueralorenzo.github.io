@@ -42,6 +42,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   var globalHotKeyController: CodexGlobalHotKeyController?
   private var isMenuOpen = false
   private var needsRenderAfterMenuClose = false
+  private var hasLoadedAgentNotificationState = false
+  private var lastAgentNotificationData = CodexMenuData.loading
   var codexAgentSettingsWindowController: CodexAgentSettingsWindowController?
   var codexBrowserRunWindowController: CodexBrowserRunWindowController?
 
@@ -176,9 +178,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   }
 
   func showNotification(title: String, message: String) {
+    showNotification(
+      identifier: "io.github.sanogueralorenzo.codex-menubar.\(UUID().uuidString)",
+      title: title,
+      message: message
+    )
+  }
+
+  func showNotification(identifier: String, title: String, message: String) {
     Task {
       let center = UNUserNotificationCenter.current()
-      let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+      let settings = await center.notificationSettings()
+      let authorizationStatus = settings.authorizationStatus
+      let granted =
+        if authorizationStatus == .notDetermined {
+          (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+        } else {
+          authorizationStatus == .authorized
+            || authorizationStatus == .provisional
+        }
       guard granted else {
         return
       }
@@ -188,7 +206,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       content.body = message
       content.sound = .default
 
-      let identifier = "io.github.sanogueralorenzo.codex-menubar.\(UUID().uuidString)"
+      center.removePendingNotificationRequests(withIdentifiers: [identifier])
+      center.removeDeliveredNotifications(withIdentifiers: [identifier])
       let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
       try await center.add(request)
     }
@@ -244,6 +263,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         guard let self else {
           return
         }
+        self.processAgentNotifications(previous: self.lastAgentNotificationData, current: self.menuDataStore.data)
+        self.lastAgentNotificationData = self.menuDataStore.data
         if self.isMenuOpen {
           self.needsRenderAfterMenuClose = true
         } else {
@@ -464,6 +485,99 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     appDelegate: AppDelegate
   ) -> @Sendable () -> Void {
     makeReviewStatusWatcherHandler(appDelegate: appDelegate)
+  }
+
+  private func processAgentNotifications(previous: CodexMenuData, current: CodexMenuData) {
+    guard !current.isLoading else {
+      return
+    }
+
+    guard hasLoadedAgentNotificationState else {
+      hasLoadedAgentNotificationState = true
+      return
+    }
+
+    processTaskNotifications(previous: previous.taskJobs, current: current.taskJobs)
+    processSpikeNotifications(previous: previous.spikeJobs, current: current.spikeJobs)
+    processReviewNotifications(previous: previous.reviewJobs, current: current.reviewJobs)
+  }
+
+  private func processTaskNotifications(
+    previous: [CodexCoreCLIClient.TaskJob],
+    current: [CodexCoreCLIClient.TaskJob]
+  ) {
+    let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+    for job in current {
+      let title: String
+      switch job.status {
+      case .inProgress where previousByID[job.id] == nil:
+        title = "Task Started"
+      case .completed where previousByID[job.id]?.status != .completed:
+        title = "Task Completed"
+      case .failed where previousByID[job.id]?.status != .failed:
+        title = "Task Failed"
+      default:
+        continue
+      }
+
+      showNotification(
+        identifier: "io.github.sanogueralorenzo.codex-menubar.task.\(job.id)",
+        title: title,
+        message: job.ticket
+      )
+    }
+  }
+
+  private func processSpikeNotifications(
+    previous: [CodexCoreCLIClient.SpikeJob],
+    current: [CodexCoreCLIClient.SpikeJob]
+  ) {
+    let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+    for job in current {
+      let title: String
+      switch job.status {
+      case .inProgress where previousByID[job.id] == nil:
+        title = "Spike Started"
+      case .completed where previousByID[job.id]?.status != .completed:
+        title = "Spike Completed"
+      case .failed where previousByID[job.id]?.status != .failed:
+        title = "Spike Failed"
+      default:
+        continue
+      }
+
+      showNotification(
+        identifier: "io.github.sanogueralorenzo.codex-menubar.spike.\(job.id)",
+        title: title,
+        message: job.ticket
+      )
+    }
+  }
+
+  private func processReviewNotifications(
+    previous: [CodexCoreCLIClient.ReviewJob],
+    current: [CodexCoreCLIClient.ReviewJob]
+  ) {
+    let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+    for job in current {
+      let title: String
+      switch job.status {
+      case .inProgress where previousByID[job.id] == nil:
+        title = "Review Started"
+      case .published where previousByID[job.id]?.status != .published:
+        title = "Review Completed"
+      case .needsAttention where previousByID[job.id]?.status != .needsAttention:
+        title = "Review Failed"
+      default:
+        continue
+      }
+
+      showNotification(
+        identifier: "io.github.sanogueralorenzo.codex-menubar.review.\(job.id)",
+        title: title,
+        message: "#\(job.number)"
+      )
+    }
   }
 }
 
