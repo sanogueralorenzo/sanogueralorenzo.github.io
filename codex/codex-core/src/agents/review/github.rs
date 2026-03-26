@@ -115,6 +115,31 @@ pub(super) struct PullRequestView {
     pub head_ref_oid: String,
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct ExistingReviewFeedback {
+    pub author_login: String,
+    pub kind: &'static str,
+    pub body: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PullRequestFeedbackView {
+    comments: Vec<PullRequestComment>,
+    reviews: Vec<PullRequestReview>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PullRequestComment {
+    author: Option<LoginNode>,
+    body: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PullRequestReview {
+    author: Option<LoginNode>,
+    body: String,
+}
+
 pub(super) fn list_pull_requests_with_config(
     config: &AgentsConfig,
 ) -> Result<Vec<ReviewPullRequest>> {
@@ -217,6 +242,58 @@ pub(super) fn fetch_pull_request_view(pr_ref: &PullRequestReference) -> Result<P
         None,
     )?;
     serde_json::from_str(&output).context("failed to parse gh pr view response")
+}
+
+pub(super) fn fetch_existing_review_feedback(
+    pr_ref: &PullRequestReference,
+) -> Result<Vec<ExistingReviewFeedback>> {
+    let output = run_gh(
+        vec![
+            "pr".to_string(),
+            "view".to_string(),
+            pr_ref.number.to_string(),
+            "--repo".to_string(),
+            pr_ref.repo_name_with_owner(),
+            "--json".to_string(),
+            "comments,reviews".to_string(),
+        ],
+        None,
+    )?;
+    let response: PullRequestFeedbackView =
+        serde_json::from_str(&output).context("failed to parse gh pr feedback response")?;
+
+    let comments = response.comments.into_iter().filter_map(|comment| {
+        let body = comment.body.trim();
+        if body.is_empty() {
+            None
+        } else {
+            Some(ExistingReviewFeedback {
+                author_login: comment
+                    .author
+                    .map(|author| author.login)
+                    .unwrap_or_else(|| "unknown".to_string()),
+                kind: "comment",
+                body: body.to_string(),
+            })
+        }
+    });
+    let reviews = response.reviews.into_iter().filter_map(|review| {
+        let body = review.body.trim();
+        if body.is_empty() {
+            None
+        } else {
+            Some(ExistingReviewFeedback {
+                author_login: review
+                    .author
+                    .map(|author| author.login)
+                    .unwrap_or_else(|| "unknown".to_string()),
+                kind: "review",
+                body: body.to_string(),
+            })
+        }
+    });
+
+    Ok(comments.chain(reviews).collect())
 }
 
 pub(super) fn review_pull_request_label(pull_request: &ReviewPullRequest) -> String {

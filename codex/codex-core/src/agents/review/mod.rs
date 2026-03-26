@@ -12,6 +12,8 @@ use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 
 use comments::post_review_comments;
+use github::ExistingReviewFeedback;
+use github::fetch_existing_review_feedback;
 use github::fetch_pull_request_view;
 use github::list_pull_requests_with_config;
 use github::review_pull_request_label;
@@ -251,6 +253,14 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
         || checkout_pull_request(layout, &pr_ref, &pull_request),
     )?;
 
+    let existing_feedback = run_review_step(
+        &mut job,
+        ReviewJobStatus::Running,
+        "loading_existing_feedback",
+        "Loading existing PR comments and review summaries.",
+        || fetch_existing_review_feedback(&pr_ref),
+    )?;
+
     let upstream_prompts = run_review_step(
         &mut job,
         ReviewJobStatus::Running,
@@ -272,7 +282,12 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
         &pull_request.base_ref_name,
         merge_base.as_deref(),
     );
-    let prompt = format!("{}\n\n{}", upstream_prompts.review_rubric, review_request);
+    let prompt = format!(
+        "{}\n\n{}\n\n{}",
+        upstream_prompts.review_rubric,
+        review_request,
+        existing_feedback_prompt(&existing_feedback)
+    );
     let review = run_review_step(
         &mut job,
         ReviewJobStatus::Running,
@@ -348,6 +363,41 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
     }
     println!("Summary: {}", result.summary);
     Ok(())
+}
+
+fn existing_feedback_prompt(feedback: &[ExistingReviewFeedback]) -> String {
+    if feedback.is_empty() {
+        return "Existing PR feedback:\nNo existing PR comments or review summaries were found.\n\nAvoid repeating feedback that is already present on the pull request.".to_string();
+    }
+
+    let rendered = feedback
+        .iter()
+        .take(20)
+        .map(|entry| {
+            format!(
+                "- {} by {}: {}",
+                entry.kind,
+                entry.author_login,
+                truncate_review_feedback(&entry.body, 600)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    format!(
+        "Existing PR feedback:\n{}\n\nAvoid repeating feedback that is already present on the pull request unless you are correcting it or adding materially new information.",
+        rendered
+    )
+}
+
+fn truncate_review_feedback(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let truncated: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{truncated}...")
+    } else {
+        truncated
+    }
 }
 
 fn list_review_jobs(layout: &StateLayout, args: ReviewJobsArgs) -> Result<()> {
