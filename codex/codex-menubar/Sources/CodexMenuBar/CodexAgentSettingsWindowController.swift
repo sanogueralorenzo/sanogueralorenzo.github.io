@@ -144,12 +144,9 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     saveButton.isEnabled = false
     selectedReviewMode = .publish
     reviewModePopUp.selectItem(at: 0)
-    reposHint.stringValue = loadingReposHint
-    progressIndicator.isHidden = false
-    progressIndicator.startAnimation(nil)
+    setReposLoadingAppearance(isLoading: true)
     ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
     acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
-    updateReposHintLayout(isLoading: true)
     applySearchFilter()
     tableView.reloadData()
   }
@@ -167,11 +164,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     repos = availableRepos.map(\.fullName)
     applySearchFilter()
     loadCompleted = true
-    saveButton.isEnabled = configLoaded
-    progressIndicator.stopAnimation(nil)
-    progressIndicator.isHidden = true
-    reposHint.stringValue = defaultReposHint
-    updateReposHintLayout(isLoading: false)
+    updateSaveButtonState()
+    setReposLoadingAppearance(isLoading: false)
     tableView.reloadData()
   }
 
@@ -195,10 +189,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     repos = []
     filteredRepos = []
     saveButton.isEnabled = false
-    progressIndicator.stopAnimation(nil)
-    progressIndicator.isHidden = true
-    reposHint.stringValue = defaultReposHint
-    updateReposHintLayout(isLoading: false)
+    setReposLoadingAppearance(isLoading: false)
     tableView.reloadData()
   }
 
@@ -235,22 +226,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView?
   {
-    if let reposLoadErrorMessage {
-      let label = NSTextField(labelWithString: reposLoadErrorMessage)
-      label.textColor = .secondaryLabelColor
-      return label
-    }
-
-    if repos.isEmpty {
-      let label = NSTextField(labelWithString: "No GitHub repos available for this account.")
-      label.textColor = .secondaryLabelColor
-      return label
-    }
-
-    if filteredRepos.isEmpty {
-      let label = NSTextField(labelWithString: "No GitHub repos match your search.")
-      label.textColor = .secondaryLabelColor
-      return label
+    if let emptyStateView = reposEmptyStateView() {
+      return emptyStateView
     }
 
     let repo = filteredRepos[row]
@@ -388,6 +365,21 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     reposHint.frame = NSRect(x: hintX, y: reposHintY, width: hintWidth, height: 18)
   }
 
+  private func setReposLoadingAppearance(isLoading: Bool) {
+    reposHint.stringValue = isLoading ? loadingReposHint : defaultReposHint
+    progressIndicator.isHidden = !isLoading
+    if isLoading {
+      progressIndicator.startAnimation(nil)
+    } else {
+      progressIndicator.stopAnimation(nil)
+    }
+    updateReposHintLayout(isLoading: isLoading)
+  }
+
+  private func updateSaveButtonState() {
+    saveButton.isEnabled = configLoaded && loadCompleted
+  }
+
   private func applySearchFilter() {
     let query = searchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !query.isEmpty else {
@@ -408,6 +400,23 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     case .pending:
       return "Pending"
     }
+  }
+
+  private func reposEmptyStateView() -> NSView? {
+    let message: String
+    if let reposLoadErrorMessage {
+      message = reposLoadErrorMessage
+    } else if repos.isEmpty {
+      message = "No GitHub repos available for this account."
+    } else if filteredRepos.isEmpty {
+      message = "No GitHub repos match your search."
+    } else {
+      return nil
+    }
+
+    let label = NSTextField(labelWithString: message)
+    label.textColor = .secondaryLabelColor
+    return label
   }
 
   private func makeRepoCellView(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {

@@ -35,31 +35,9 @@ extension AppDelegate {
       do {
         let result = try sessionsCLI.runReview(pullRequest: pullRequestURL)
         DispatchQueue.main.async {
-          let postedLabel = result.publishMode == .pending ? "Pending findings" : "Posted comments"
-          let failureDetails = result.failedCommentDetails.prefix(5).map { detail in
-            let path = detail.path ?? "<unknown>"
-            return
-              "- \(detail.title) (\(path):\(detail.startLine)-\(detail.endLine)): \(detail.reason)"
-          }
-          let failureText: String
-          if failureDetails.isEmpty {
-            failureText = ""
-          } else {
-            let extraCount = result.failedCommentDetails.count - failureDetails.count
-            let extraSuffix = extraCount > 0 ? "\n- ... and \(extraCount) more" : ""
-            failureText =
-              "\nFailure reasons:\n\(failureDetails.joined(separator: "\n"))\(extraSuffix)"
-          }
           self.showMessage(
             title: "Review Complete",
-            message: """
-              Review ID: \(result.reviewId)
-              Review mode: \(result.publishMode.rawValue)
-              PR: \(result.repo)#\(result.number)
-              \(postedLabel): \(result.postedComments)
-              Failed comments: \(result.failedComments)
-              Summary: \(result.summary)\(failureText)
-              """
+            message: self.reviewCompletionMessage(for: result)
           )
           self.refreshUI()
         }
@@ -166,5 +144,31 @@ extension AppDelegate {
         controller.applyLoadError(message)
       }
     }
+  }
+
+  private func reviewCompletionMessage(for result: CodexCoreCLIClient.ReviewRunResult) -> String {
+    let postedLabel = result.publishMode == .pending ? "Pending findings" : "Posted comments"
+    return """
+      Review ID: \(result.reviewId)
+      Review mode: \(result.publishMode.rawValue)
+      PR: \(result.repo)#\(result.number)
+      \(postedLabel): \(result.postedComments)
+      Failed comments: \(result.failedComments)
+      Summary: \(result.summary)\(reviewFailureText(for: result))
+      """
+  }
+
+  private func reviewFailureText(for result: CodexCoreCLIClient.ReviewRunResult) -> String {
+    let failureDetails = result.failedCommentDetails.prefix(5).map { detail in
+      let path = detail.path ?? "<unknown>"
+      return "- \(detail.title) (\(path):\(detail.startLine)-\(detail.endLine)): \(detail.reason)"
+    }
+    guard !failureDetails.isEmpty else {
+      return ""
+    }
+
+    let extraCount = result.failedCommentDetails.count - failureDetails.count
+    let extraSuffix = extraCount > 0 ? "\n- ... and \(extraCount) more" : ""
+    return "\nFailure reasons:\n\(failureDetails.joined(separator: "\n"))\(extraSuffix)"
   }
 }
