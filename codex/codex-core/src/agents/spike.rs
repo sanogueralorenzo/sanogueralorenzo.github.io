@@ -12,6 +12,8 @@ use uuid::Uuid;
 
 const DEFAULT_BASE_BRANCH: &str = "main";
 const SPIKE_OUTPUT_FILE: &str = ".codex-spike-result.json";
+const MAX_SPIKE_CONTEXT_COMMENTS: usize = 10;
+const MAX_SPIKE_COMMENT_CHARS: usize = 600;
 
 #[derive(Subcommand, Debug)]
 pub(super) enum SpikeCommand {
@@ -74,9 +76,22 @@ struct JiraIssueView {
     fields: JiraIssueFields,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+struct JiraCommentList {
+    comments: Vec<JiraComment>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct JiraComment {
+    author: String,
+    body: Value,
+}
+
 #[derive(Debug, Deserialize)]
 struct CodexSpikeExecResult {
     summary: String,
+    #[serde(default)]
+    comment: Option<String>,
 }
 
 struct WorktreeGuard {
@@ -111,6 +126,7 @@ pub(super) fn handle_spike(action: SpikeCommand, layout: &StateLayout) -> Result
 fn run_spike(layout: &StateLayout, args: SpikeRunArgs) -> Result<()> {
     task::validate_ticket_key(&args.ticket)?;
     let issue = load_issue(&args.ticket)?;
+    let existing_comments = load_issue_comments(&args.ticket)?;
     let project = task::project_for_ticket(layout, &issue.key)?;
     let branch = task::branch_name(&issue.key, &issue.fields.summary);
     let now = super::now_utc();
@@ -131,7 +147,14 @@ fn run_spike(layout: &StateLayout, args: SpikeRunArgs) -> Result<()> {
     };
     write_spike_job(layout, &job)?;
 
-    let result = run_spike_job(layout, &project.repo_full_name, &issue, &branch, &mut job);
+    let result = run_spike_job(
+        layout,
+        &project.repo_full_name,
+        &issue,
+        &existing_comments,
+        &branch,
+        &mut job,
+    );
     match result {
         Ok(run_result) => {
             if args.json {
@@ -165,6 +188,7 @@ fn run_spike_job(
     layout: &StateLayout,
     repo_full_name: &str,
     issue: &JiraIssueView,
+    existing_comments: &[JiraComment],
     branch: &str,
     job: &mut SpikeJob,
 ) -> Result<SpikeRunResult> {
@@ -180,12 +204,25 @@ fn run_spike_job(
     job.updated_at = super::now_utc();
     write_spike_job(layout, job)?;
 
-    let exec_result = run_codex_spike(issue, branch, repo_full_name, &worktree_path)?;
+    let exec_result = run_codex_spike(
+        issue,
+        existing_comments,
+        branch,
+        repo_full_name,
+        &worktree_path,
+    )?;
 
-    job.current_step = "posting_jira_comment".to_string();
-    job.updated_at = super::now_utc();
-    write_spike_job(layout, job)?;
-    post_spike_comment(&issue.key, &exec_result.summary)?;
+    if let Some(comment) = exec_result
+        .comment
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        job.current_step = "posting_jira_comment".to_string();
+        job.updated_at = super::now_utc();
+        write_spike_job(layout, job)?;
+        post_spike_comment(&issue.key, comment)?;
+    }
 
     job.status = SpikeJobStatus::Completed;
     job.current_step = "completed".to_string();
@@ -210,6 +247,28 @@ fn load_issue(ticket: &str) -> Result<JiraIssueView> {
         &["jira", "workitem", "view", ticket, "--json"],
         None,
     )
+}
+
+fn load_issue_comments(ticket: &str) -> Result<Vec<JiraComment>> {
+    let limit = MAX_SPIKE_CONTEXT_COMMENTS.to_string();
+    let response: JiraCommentList = run_json_command(
+        "acli",
+        &[
+            "jira",
+            "workitem",
+            "comment",
+            "list",
+            "--key",
+            ticket,
+            "--json",
+            "--limit",
+            limit.as_str(),
+            "--order",
+            "-created",
+        ],
+        None,
+    )?;
+    Ok(response.comments)
 }
 
 fn prepare_cache_repo(
@@ -317,11 +376,12 @@ fn local_branch_exists(cache_repo_path: &Path, branch: &str) -> Result<bool> {
 
 fn run_codex_spike(
     issue: &JiraIssueView,
+    existing_comments: &[JiraComment],
     branch: &str,
     repo_full_name: &str,
     worktree_path: &Path,
 ) -> Result<CodexSpikeExecResult> {
-    let prompt = build_spike_prompt(issue, branch, repo_full_name);
+    let prompt = build_spike_prompt(issue, existing_comments, branch, repo_full_name);
     let output_path = worktree_path.join(SPIKE_OUTPUT_FILE);
 
     let mut child = Command::new("codex")
@@ -370,7 +430,12 @@ fn run_codex_spike(
     parse_codex_spike_result(&final_message)
 }
 
-fn build_spike_prompt(issue: &JiraIssueView, branch: &str, repo_full_name: &str) -> String {
+fn build_spike_prompt(
+    issue: &JiraIssueView,
+    existing_comments: &[JiraComment],
+    branch: &str,
+    repo_full_name: &str,
+) -> String {
     let description = issue
         .fields
         .description
@@ -378,17 +443,40 @@ fn build_spike_prompt(issue: &JiraIssueView, branch: &str, repo_full_name: &str)
         .map(description_text)
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| "No additional Jira description was provided.".to_string());
+    let existing_comments_text = existing_comments_text(existing_comments);
 
     format!(
-        "You are running a Jira spike for ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nRequirements:\n- Use the already checked out branch `{branch}` only for local investigation.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Do not commit, push, or open a pull request.\n- Investigate requirements, existing implementations, likely touched files, gaps, risks, and a concrete implementation plan.\n- Final response must be JSON only with this shape: {{\"summary\":\"<concise spike summary>\"}}\n\nJira issue URL: {issue_url}\n",
+        "You are running a Jira spike for ticket {ticket} in repository {repo}.\n\nTicket summary:\n{summary}\n\nTicket description:\n{description}\n\nExisting Jira comments:\n{existing_comments}\n\nRequirements:\n- Use the already checked out branch `{branch}` only for local investigation.\n- The repository cache has already been updated and this worktree already starts from the latest `{default_branch}`.\n- Do not commit, push, or open a pull request.\n- Investigate requirements, existing implementations, likely touched files, gaps, risks, and a concrete implementation plan.\n- Use the existing Jira description and comments to avoid repeating information that is already captured there.\n- Only propose a Jira follow-up comment when you have materially new information, a sharper plan, uncovered risk, or concrete implementation guidance that is not already covered.\n- If there is no materially new information to add, set `comment` to null.\n- Final response must be JSON only with this shape: {{\"summary\":\"<concise spike summary>\",\"comment\":\"<jira comment to post or null>\"}}\n\nJira issue URL: {issue_url}\n",
         ticket = issue.key,
         repo = repo_full_name,
         summary = issue.fields.summary,
         description = description,
+        existing_comments = existing_comments_text,
         branch = branch,
         default_branch = DEFAULT_BASE_BRANCH,
         issue_url = task::issue_url(&issue.key),
     )
+}
+
+fn existing_comments_text(comments: &[JiraComment]) -> String {
+    let rendered = comments
+        .iter()
+        .filter_map(|comment| {
+            let body = description_text(&comment.body);
+            let body = truncate_text(body.trim(), MAX_SPIKE_COMMENT_CHARS);
+            if body.is_empty() {
+                None
+            } else {
+                Some(format!("- {}: {}", comment.author, body))
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if rendered.is_empty() {
+        "No existing Jira comments were found.".to_string()
+    } else {
+        rendered.join("\n")
+    }
 }
 
 fn description_text(value: &Value) -> String {
@@ -399,6 +487,16 @@ fn description_text(value: &Value) -> String {
         return text.to_string();
     }
     serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
+}
+
+fn truncate_text(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let truncated: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{truncated}...")
+    } else {
+        truncated
+    }
 }
 
 fn parse_codex_spike_result(text: &str) -> Result<CodexSpikeExecResult> {
@@ -550,4 +648,24 @@ fn split_repo_name(repo_full_name: &str) -> Result<(&str, &str)> {
     repo_full_name
         .split_once('/')
         .context("invalid repo full name")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_codex_spike_result_supports_null_comment() {
+        let result = parse_codex_spike_result(r#"{"summary":"done","comment":null}"#).unwrap();
+        assert_eq!(result.summary, "done");
+        assert_eq!(result.comment, None);
+    }
+
+    #[test]
+    fn existing_comments_text_handles_empty_comments() {
+        assert_eq!(
+            existing_comments_text(&[]),
+            "No existing Jira comments were found."
+        );
+    }
 }
