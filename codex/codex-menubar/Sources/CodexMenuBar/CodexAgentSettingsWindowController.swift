@@ -83,21 +83,17 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
   private let ghStatusRow = IntegrationStatusRowView(toolName: "gh")
   private let acliStatusRow = IntegrationStatusRowView(toolName: "acli")
-  private let reposProgressIndicator = NSProgressIndicator()
-  private let projectsProgressIndicator = NSProgressIndicator()
   private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
   private let saveButton = NSButton(title: "Save", target: nil, action: nil)
   private let reviewModePopUp = NSPopUpButton()
-  private let reposSearchField = NSSearchField()
-  private let projectsSearchField = NSSearchField()
-  private let reposTableView = NSTableView()
-  private let reposScrollView = NSScrollView()
-  private let projectsTableView = NSTableView()
-  private let projectsScrollView = NSScrollView()
-  private let reposHint = NSTextField(
-    labelWithString: "Leave all unchecked to include every available repo.")
-  private let projectsHint = NSTextField(
-    labelWithString: "Leave all unchecked to include every available project.")
+  private let sourcePicker = NSSegmentedControl(
+    labels: ["GitHub Repositories", "Jira Projects"], trackingMode: .selectOne, target: nil,
+    action: nil)
+  private let searchField = NSSearchField()
+  private let listProgressIndicator = NSProgressIndicator()
+  private let listHint = NSTextField(labelWithString: "")
+  private let tableView = NSTableView()
+  private let scrollView = NSScrollView()
 
   private let onSave: (CodexAgentSettingsSelection) -> Void
   private let onClose: () -> Void
@@ -109,6 +105,9 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   private var filteredProjects: [CodexCoreCLIClient.AvailableProject] = []
   private var selectedProjectIDs: Set<Int> = []
   private var selectedReviewMode: CodexCoreCLIClient.ReviewMode = .publish
+  private var activeListKind: ListKind = .repos
+  private var repoSearchQuery = ""
+  private var projectSearchQuery = ""
   private var configLoaded = false
   private var reposLoaded = false
   private var projectsLoaded = false
@@ -123,13 +122,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
     let panel = NSPanel(
       contentRect: NSRect(x: 0, y: 0, width: 500, height: 760),
-      styleMask: [.titled, .closable],
+      styleMask: [.titled, .closable, .resizable],
       backing: .buffered,
       defer: false
     )
     panel.title = "Agents Settings"
     panel.isFloatingPanel = true
     panel.center()
+    panel.minSize = NSSize(width: 500, height: 640)
     panel.setFrameAutosaveName("CodexAgentSettingsPanel")
     super.init(window: panel)
     panel.delegate = self
@@ -155,17 +155,15 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     projectsLoaded = false
     reposLoadErrorMessage = nil
     projectsLoadErrorMessage = nil
-    saveButton.isEnabled = false
     selectedReviewMode = .publish
     reviewModePopUp.selectItem(at: 0)
-    setListLoadingAppearance(kind: .repos, isLoading: true)
-    setListLoadingAppearance(kind: .projects, isLoading: true)
+    saveButton.isEnabled = false
     ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
     acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
     applyReposSearchFilter()
     applyProjectsSearchFilter()
-    reposTableView.reloadData()
-    projectsTableView.reloadData()
+    updateListChrome()
+    tableView.reloadData()
   }
 
   func applyCurrentConfig(_ currentConfig: CodexCoreCLIClient.AgentsConfig) {
@@ -175,6 +173,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     selectedRepos = Set(currentConfig.allowedRepos)
     selectedProjectIDs = Set(currentConfig.allowedProjects)
     updateSaveButtonState()
+    tableView.reloadData()
   }
 
   func applyAvailableRepos(_ availableRepos: [CodexCoreCLIClient.AvailableRepo]) {
@@ -182,9 +181,9 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     reposLoadErrorMessage = nil
     repos = availableRepos.map(\.fullName)
     applyReposSearchFilter()
-    setListLoadingAppearance(kind: .repos, isLoading: false)
     updateSaveButtonState()
-    reposTableView.reloadData()
+    updateListChrome()
+    tableView.reloadData()
   }
 
   func applyAvailableProjects(_ availableProjects: [CodexCoreCLIClient.AvailableProject]) {
@@ -192,9 +191,9 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     projectsLoadErrorMessage = nil
     projects = availableProjects
     applyProjectsSearchFilter()
-    setListLoadingAppearance(kind: .projects, isLoading: false)
     updateSaveButtonState()
-    projectsTableView.reloadData()
+    updateListChrome()
+    tableView.reloadData()
   }
 
   func applyIntegrationStatuses(_ statuses: [IntegrationStatus]) {
@@ -220,10 +219,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     filteredRepos = []
     filteredProjects = []
     saveButton.isEnabled = false
-    setListLoadingAppearance(kind: .repos, isLoading: false)
-    setListLoadingAppearance(kind: .projects, isLoading: false)
-    reposTableView.reloadData()
-    projectsTableView.reloadData()
+    updateListChrome()
+    tableView.reloadData()
   }
 
   @objc func save(_ sender: Any?) {
@@ -249,57 +246,52 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   }
 
   func numberOfRows(in tableView: NSTableView) -> Int {
-    if tableView === reposTableView {
-      return max(filteredRepos.count, 1)
-    }
-    return max(filteredProjects.count, 1)
+    max(currentRowCount, 1)
   }
 
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView?
   {
-    if tableView === reposTableView {
-      if let emptyStateView = reposEmptyStateView() {
-        return emptyStateView
-      }
+    if let emptyStateView = emptyStateView() {
+      return emptyStateView
+    }
 
+    let identifier = NSUserInterfaceItemIdentifier(
+      rawValue: activeListKind == .repos ? "repo-cell" : "project-cell")
+    let cellView =
+      tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
+      ?? makeSelectionCellView(identifier: identifier.rawValue)
+    let button = cellView.subviews.compactMap({ $0 as? NSButton }).first!
+    button.target = self
+
+    switch activeListKind {
+    case .repos:
       let repo = filteredRepos[row]
-      let cellView =
-        tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("repo-cell"), owner: self)
-        as? NSTableCellView ?? makeSelectionCellView(identifier: "repo-cell")
-      let button = cellView.subviews.compactMap({ $0 as? NSButton }).first!
-      button.target = self
       button.action = #selector(toggleRepoSelection(_:))
       button.state = selectedRepos.contains(repo) ? .on : .off
       button.identifier = NSUserInterfaceItemIdentifier(rawValue: repo)
       button.title = repo
-      return cellView
+    case .projects:
+      let project = filteredProjects[row]
+      button.action = #selector(toggleProjectSelection(_:))
+      button.state = selectedProjectIDs.contains(project.id) ? .on : .off
+      button.identifier = NSUserInterfaceItemIdentifier(rawValue: String(project.id))
+      button.title = project.displayName
     }
 
-    if let emptyStateView = projectsEmptyStateView() {
-      return emptyStateView
-    }
-
-    let project = filteredProjects[row]
-    let cellView =
-      tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("project-cell"), owner: self)
-      as? NSTableCellView ?? makeSelectionCellView(identifier: "project-cell")
-    let button = cellView.subviews.compactMap({ $0 as? NSButton }).first!
-    button.target = self
-    button.action = #selector(toggleProjectSelection(_:))
-    button.state = selectedProjectIDs.contains(project.id) ? .on : .off
-    button.identifier = NSUserInterfaceItemIdentifier(rawValue: String(project.id))
-    button.title = project.displayName
     return cellView
   }
 
-  func controlTextDidChange(_ obj: Notification) {
-    if obj.object as AnyObject? === projectsSearchField {
-      applyProjectsSearchFilter()
-      projectsTableView.reloadData()
-    } else {
+  func controlTextDidChange(_ notification: Notification) {
+    let query = searchField.stringValue
+    switch activeListKind {
+    case .repos:
+      repoSearchQuery = query
       applyReposSearchFilter()
-      reposTableView.reloadData()
+    case .projects:
+      projectSearchQuery = query
+      applyProjectsSearchFilter()
     }
+    tableView.reloadData()
   }
 
   @objc private func toggleRepoSelection(_ sender: NSButton) {
@@ -314,7 +306,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   }
 
   @objc private func toggleProjectSelection(_ sender: NSButton) {
-    guard let identifier = sender.identifier?.rawValue, let projectID = Int(identifier) else {
+    guard let rawValue = sender.identifier?.rawValue, let projectID = Int(rawValue) else {
       return
     }
     if sender.state == .on {
@@ -328,6 +320,13 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     selectedReviewMode = sender.indexOfSelectedItem == 1 ? .pending : .publish
   }
 
+  @objc private func sourcePickerChanged(_ sender: NSSegmentedControl) {
+    activeListKind = sender.selectedSegment == 1 ? .projects : .repos
+    searchField.stringValue = activeQuery
+    updateListChrome()
+    tableView.reloadData()
+  }
+
   private func buildUI(in panel: NSPanel) {
     guard let contentView = panel.contentView else {
       return
@@ -336,110 +335,75 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     let integrationsTitle = NSTextField(labelWithString: "Integrations")
     integrationsTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
     integrationsTitle.frame = NSRect(x: horizontalInset, y: 700, width: contentWidth, height: 20)
+    integrationsTitle.autoresizingMask = [.width, .minYMargin]
     contentView.addSubview(integrationsTitle)
 
     ghStatusRow.frame = NSRect(x: horizontalInset, y: 650, width: contentWidth, height: 38)
+    ghStatusRow.autoresizingMask = [.width, .minYMargin]
     contentView.addSubview(ghStatusRow)
 
     acliStatusRow.frame = NSRect(x: horizontalInset, y: 604, width: contentWidth, height: 38)
+    acliStatusRow.autoresizingMask = [.width, .minYMargin]
     contentView.addSubview(acliStatusRow)
 
     let integrationsDivider = NSBox(
       frame: NSRect(x: horizontalInset, y: 578, width: contentWidth, height: 1))
     integrationsDivider.boxType = .separator
+    integrationsDivider.autoresizingMask = [.width, .minYMargin]
     contentView.addSubview(integrationsDivider)
 
     let reviewTitle = NSTextField(labelWithString: "Review Mode")
     reviewTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
     reviewTitle.frame = NSRect(x: horizontalInset, y: 546, width: contentWidth, height: 20)
+    reviewTitle.autoresizingMask = [.width, .minYMargin]
     contentView.addSubview(reviewTitle)
 
     reviewModePopUp.addItems(withTitles: [
-      reviewModeTitle(for: .publish),
-      reviewModeTitle(for: .pending),
+      reviewModeTitle(for: .publish), reviewModeTitle(for: .pending),
     ])
     reviewModePopUp.target = self
     reviewModePopUp.action = #selector(reviewModeChanged(_:))
     reviewModePopUp.frame = NSRect(x: horizontalInset, y: 510, width: contentWidth, height: 28)
+    reviewModePopUp.autoresizingMask = [.width, .minYMargin]
     contentView.addSubview(reviewModePopUp)
 
     let reviewDivider = NSBox(
       frame: NSRect(x: horizontalInset, y: 482, width: contentWidth, height: 1))
     reviewDivider.boxType = .separator
+    reviewDivider.autoresizingMask = [.width, .minYMargin]
     contentView.addSubview(reviewDivider)
 
-    let reposTitle = NSTextField(labelWithString: "GitHub Repositories")
-    reposTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-    reposTitle.frame = NSRect(x: horizontalInset, y: 450, width: contentWidth, height: 20)
-    contentView.addSubview(reposTitle)
+    sourcePicker.target = self
+    sourcePicker.action = #selector(sourcePickerChanged(_:))
+    sourcePicker.selectedSegment = 0
+    sourcePicker.segmentStyle = .rounded
+    sourcePicker.frame = NSRect(x: horizontalInset, y: 446, width: contentWidth, height: 28)
+    sourcePicker.autoresizingMask = [.width, .minYMargin]
+    contentView.addSubview(sourcePicker)
 
-    reposSearchField.delegate = self
-    reposSearchField.placeholderString = "Search repositories"
-    reposSearchField.sendsSearchStringImmediately = true
-    reposSearchField.frame = NSRect(x: horizontalInset, y: 416, width: contentWidth, height: 26)
-    contentView.addSubview(reposSearchField)
+    searchField.delegate = self
+    searchField.placeholderString = "Search repositories"
+    searchField.sendsSearchStringImmediately = true
+    searchField.frame = NSRect(x: horizontalInset, y: 410, width: contentWidth, height: 26)
+    searchField.autoresizingMask = [.width, .minYMargin]
+    contentView.addSubview(searchField)
 
-    reposHint.textColor = .secondaryLabelColor
-    reposHint.frame = NSRect(x: horizontalInset, y: 392, width: contentWidth, height: 18)
-    contentView.addSubview(reposHint)
+    listHint.textColor = .secondaryLabelColor
+    listHint.frame = NSRect(x: horizontalInset, y: 386, width: contentWidth, height: 18)
+    listHint.autoresizingMask = [.width, .minYMargin]
+    contentView.addSubview(listHint)
 
-    configureProgressIndicator(reposProgressIndicator, x: horizontalInset, y: 392)
-    contentView.addSubview(reposProgressIndicator)
+    configureProgressIndicator(listProgressIndicator, x: horizontalInset, y: 386)
+    listProgressIndicator.autoresizingMask = [.minYMargin]
+    contentView.addSubview(listProgressIndicator)
 
-    configureSelectionTable(reposTableView, in: reposScrollView, y: 240, height: 144)
-    contentView.addSubview(reposScrollView)
-
-    let projectsDivider = NSBox(
-      frame: NSRect(x: horizontalInset, y: 220, width: contentWidth, height: 1))
-    projectsDivider.boxType = .separator
-    contentView.addSubview(projectsDivider)
-
-    let projectsTitle = NSTextField(labelWithString: "Jira Projects")
-    projectsTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-    projectsTitle.frame = NSRect(x: horizontalInset, y: 188, width: contentWidth, height: 20)
-    contentView.addSubview(projectsTitle)
-
-    projectsSearchField.delegate = self
-    projectsSearchField.placeholderString = "Search projects"
-    projectsSearchField.sendsSearchStringImmediately = true
-    projectsSearchField.frame = NSRect(x: horizontalInset, y: 154, width: contentWidth, height: 26)
-    contentView.addSubview(projectsSearchField)
-
-    projectsHint.textColor = .secondaryLabelColor
-    projectsHint.frame = NSRect(x: horizontalInset, y: 130, width: contentWidth, height: 18)
-    contentView.addSubview(projectsHint)
-
-    configureProgressIndicator(projectsProgressIndicator, x: horizontalInset, y: 130)
-    contentView.addSubview(projectsProgressIndicator)
-
-    configureSelectionTable(projectsTableView, in: projectsScrollView, y: 54, height: 68)
-    contentView.addSubview(projectsScrollView)
-
-    cancelButton.target = self
-    cancelButton.action = #selector(cancel(_:))
-    cancelButton.bezelStyle = .rounded
-    cancelButton.frame = NSRect(x: 300, y: 12, width: 80, height: 30)
-    contentView.addSubview(cancelButton)
-
-    saveButton.target = self
-    saveButton.action = #selector(save(_:))
-    saveButton.bezelStyle = .rounded
-    saveButton.frame = NSRect(x: 392, y: 12, width: 88, height: 30)
-    saveButton.keyEquivalent = "\r"
-    contentView.addSubview(saveButton)
-  }
-
-  private func configureSelectionTable(
-    _ tableView: NSTableView,
-    in scrollView: NSScrollView,
-    y: CGFloat,
-    height: CGFloat
-  ) {
-    scrollView.frame = NSRect(x: horizontalInset, y: y, width: contentWidth, height: height)
+    scrollView.frame = NSRect(x: horizontalInset, y: 54, width: contentWidth, height: 324)
     scrollView.hasVerticalScroller = true
     scrollView.borderType = .bezelBorder
+    scrollView.autoresizingMask = [.width, .height]
+    contentView.addSubview(scrollView)
 
-    let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(UUID().uuidString))
+    let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("selection-column"))
     column.width = 440
     tableView.addTableColumn(column)
     tableView.headerView = nil
@@ -451,6 +415,21 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     tableView.delegate = self
     tableView.dataSource = self
     scrollView.documentView = tableView
+
+    cancelButton.target = self
+    cancelButton.action = #selector(cancel(_:))
+    cancelButton.bezelStyle = .rounded
+    cancelButton.frame = NSRect(x: 300, y: 12, width: 80, height: 30)
+    cancelButton.autoresizingMask = [.minXMargin, .maxYMargin]
+    contentView.addSubview(cancelButton)
+
+    saveButton.target = self
+    saveButton.action = #selector(save(_:))
+    saveButton.bezelStyle = .rounded
+    saveButton.frame = NSRect(x: 392, y: 12, width: 88, height: 30)
+    saveButton.keyEquivalent = "\r"
+    saveButton.autoresizingMask = [.minXMargin, .maxYMargin]
+    contentView.addSubview(saveButton)
   }
 
   private func configureProgressIndicator(_ indicator: NSProgressIndicator, x: CGFloat, y: CGFloat)
@@ -461,25 +440,56 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     indicator.frame = NSRect(x: x, y: y, width: 16, height: 16)
   }
 
-  private func setListLoadingAppearance(kind: ListKind, isLoading: Bool) {
-    let hint = kind == .repos ? reposHint : projectsHint
-    let indicator = kind == .repos ? reposProgressIndicator : projectsProgressIndicator
-    let loadingText =
-      kind == .repos ? "Loading GitHub repositories…" : "Loading Jira projects…"
-    let defaultText =
-      kind == .repos
-      ? "Leave all unchecked to include every available repo."
-      : "Leave all unchecked to include every available project."
-    let hintX = isLoading ? horizontalInset + 24 : horizontalInset
-    let hintWidth = isLoading ? contentWidth - 24 : contentWidth
+  private var activeQuery: String {
+    switch activeListKind {
+    case .repos:
+      repoSearchQuery
+    case .projects:
+      projectSearchQuery
+    }
+  }
 
-    hint.stringValue = isLoading ? loadingText : defaultText
-    hint.frame = NSRect(x: hintX, y: hint.frame.origin.y, width: hintWidth, height: 18)
-    indicator.isHidden = !isLoading
+  private var currentRowCount: Int {
+    switch activeListKind {
+    case .repos:
+      filteredRepos.count
+    case .projects:
+      filteredProjects.count
+    }
+  }
+
+  private func updateListChrome() {
+    searchField.stringValue = activeQuery
+    searchField.placeholderString =
+      activeListKind == .repos ? "Search repositories" : "Search projects"
+
+    let isLoading: Bool
+    let loadingText: String
+    let defaultText: String
+
+    switch activeListKind {
+    case .repos:
+      isLoading = !reposLoaded
+      loadingText = "Loading GitHub repositories…"
+      defaultText = "Leave all unchecked to include every available repo."
+    case .projects:
+      isLoading = !projectsLoaded
+      loadingText = "Loading Jira projects…"
+      defaultText = "Leave all unchecked to include every available project."
+    }
+
+    listHint.stringValue = isLoading ? loadingText : defaultText
+    listHint.frame = NSRect(
+      x: isLoading ? horizontalInset + 24 : horizontalInset,
+      y: 386,
+      width: isLoading ? contentWidth - 24 : contentWidth,
+      height: 18
+    )
+    listProgressIndicator.isHidden = !isLoading
     if isLoading {
-      indicator.startAnimation(nil)
+      listProgressIndicator.startAnimation(nil)
     } else {
-      indicator.stopAnimation(nil)
+      listProgressIndicator.stopAnimation(nil)
     }
   }
 
@@ -488,7 +498,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   }
 
   private func applyReposSearchFilter() {
-    let query = reposSearchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    let query = repoSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !query.isEmpty else {
       filteredRepos = repos
       return
@@ -501,7 +511,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   }
 
   private func applyProjectsSearchFilter() {
-    let query = projectsSearchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    let query = projectSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !query.isEmpty else {
       filteredProjects = projects
       return
@@ -517,38 +527,42 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   private func reviewModeTitle(for mode: CodexCoreCLIClient.ReviewMode) -> String {
     switch mode {
     case .publish:
-      return "Publish"
+      "Publish"
     case .pending:
-      return "Pending"
+      "Pending"
     }
   }
 
-  private func reposEmptyStateView() -> NSView? {
-    let message: String
-    if let reposLoadErrorMessage {
-      message = reposLoadErrorMessage
-    } else if repos.isEmpty {
-      message = "No GitHub repositories available for this account."
-    } else if filteredRepos.isEmpty {
-      message = "No GitHub repositories match your search."
-    } else {
-      return nil
+  private func emptyStateView() -> NSView? {
+    let message: String?
+    switch activeListKind {
+    case .repos:
+      if !reposLoaded {
+        message = "Loading GitHub repositories..."
+      } else if let reposLoadErrorMessage {
+        message = reposLoadErrorMessage
+      } else if repos.isEmpty {
+        message = "No GitHub repositories available for this account."
+      } else if filteredRepos.isEmpty {
+        message = "No GitHub repositories match your search."
+      } else {
+        message = nil
+      }
+    case .projects:
+      if !projectsLoaded {
+        message = "Loading Jira projects..."
+      } else if let projectsLoadErrorMessage {
+        message = projectsLoadErrorMessage
+      } else if projects.isEmpty {
+        message = "No Jira projects available for this account."
+      } else if filteredProjects.isEmpty {
+        message = "No Jira projects match your search."
+      } else {
+        message = nil
+      }
     }
 
-    let label = NSTextField(labelWithString: message)
-    label.textColor = .secondaryLabelColor
-    return label
-  }
-
-  private func projectsEmptyStateView() -> NSView? {
-    let message: String
-    if let projectsLoadErrorMessage {
-      message = projectsLoadErrorMessage
-    } else if projects.isEmpty {
-      message = "No Jira projects available for this account."
-    } else if filteredProjects.isEmpty {
-      message = "No Jira projects match your search."
-    } else {
+    guard let message else {
       return nil
     }
 

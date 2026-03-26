@@ -41,9 +41,10 @@
 - `Agents -> Settings` verifies `acli` through a read-only Jira command so the status reflects actual Jira access instead of `acli auth status`.
 - `Agents -> Settings` includes a `Review Mode` section with `Publish` and `Pending`, saved through `codex-core agents config set-review-mode`.
 - `Agents -> Settings` shows a `GitHub Repositories` section for review filtering.
-- `Agents -> Settings` includes a local search field for GitHub repositories and a second one for Jira projects; each filters its own visible checklist as you type.
-- `Agents -> Settings` shows loading hints for GitHub repositories and Jira projects, then switches to the respective selection hints after load completes.
+- `Agents -> Settings` uses a segmented selector to switch between `GitHub Repositories` and `Jira Projects`, reusing one shared search field and one larger checklist area.
+- `Agents -> Settings` shows loading hints for the active source, then switches to the corresponding selection hint after load completes.
 - `Agents -> Settings` shows a `Jira Projects` section so you can include or exclude projects visible to your `acli jira` account, displaying each project by its Jira key and persisting the numeric project id.
+- `Agents -> Settings` is resizable so the shared checklist can grow for longer repository or project lists.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
 - In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.
