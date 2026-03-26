@@ -287,7 +287,7 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
         upstream_prompts.review_rubric,
         review_request,
         existing_feedback_prompt(&existing_feedback),
-        "Formatting:\n- When mentioning files, classes, methods, or variables, use `$reference`."
+        "Formatting:\n- Format file names, classes, methods, and variables as inline code. Use file:line only when pointing to a concrete location that matters."
     );
     let review = run_review_step(
         &mut job,
