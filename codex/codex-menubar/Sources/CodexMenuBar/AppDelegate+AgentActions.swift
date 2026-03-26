@@ -92,6 +92,7 @@ extension AppDelegate {
               try sessionsCLI.setReviewMode(selection.reviewMode)
               try sessionsCLI.setAllowedRepos(selection.allowedRepos)
               try sessionsCLI.setAllowedProjects(selection.allowedProjectIDs)
+              try sessionsCLI.setProjectRepoMappings(selection.projectRepoMappings)
             }
             self.refreshUI()
           } catch {

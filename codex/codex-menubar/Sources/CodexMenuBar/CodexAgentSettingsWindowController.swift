@@ -70,6 +70,7 @@ struct CodexAgentSettingsSelection {
   let reviewMode: CodexCoreCLIClient.ReviewMode
   let allowedRepos: [String]
   let allowedProjectIDs: [Int]
+  let projectRepoMappings: [Int: String]
 }
 
 @MainActor
@@ -79,6 +80,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   private enum ListKind {
     case repos
     case projects
+    case mappings
   }
 
   private let ghStatusRow = IntegrationStatusRowView(toolName: "gh")
@@ -87,8 +89,11 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   private let saveButton = NSButton(title: "Save", target: nil, action: nil)
   private let reviewModePopUp = NSPopUpButton()
   private let sourcePicker = NSSegmentedControl(
-    labels: ["GitHub Repositories", "Jira Projects"], trackingMode: .selectOne, target: nil,
-    action: nil)
+    labels: ["GitHub Repositories", "Jira Projects", "Project Repos"],
+    trackingMode: .selectOne,
+    target: nil,
+    action: nil
+  )
   private let searchField = NSSearchField()
   private let listProgressIndicator = NSProgressIndicator()
   private let listHint = NSTextField(labelWithString: "")
@@ -103,11 +108,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   private var selectedRepos: Set<String> = []
   private var projects: [CodexCoreCLIClient.AvailableProject] = []
   private var filteredProjects: [CodexCoreCLIClient.AvailableProject] = []
+  private var filteredMappingProjects: [CodexCoreCLIClient.AvailableProject] = []
   private var selectedProjectIDs: Set<Int> = []
+  private var selectedProjectRepoMappings: [Int: String] = [:]
   private var selectedReviewMode: CodexCoreCLIClient.ReviewMode = .publish
   private var activeListKind: ListKind = .repos
   private var repoSearchQuery = ""
   private var projectSearchQuery = ""
+  private var mappingSearchQuery = ""
   private var configLoaded = false
   private var reposLoaded = false
   private var projectsLoaded = false
@@ -155,13 +163,20 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     projectsLoaded = false
     reposLoadErrorMessage = nil
     projectsLoadErrorMessage = nil
+    repos = []
+    filteredRepos = []
+    selectedRepos = []
+    projects = []
+    filteredProjects = []
+    filteredMappingProjects = []
+    selectedProjectIDs = []
+    selectedProjectRepoMappings = [:]
     selectedReviewMode = .publish
     reviewModePopUp.selectItem(at: 0)
     saveButton.isEnabled = false
     ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
     acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
-    applyReposSearchFilter()
-    applyProjectsSearchFilter()
+    applyAllFilters()
     updateListChrome()
     tableView.reloadData()
   }
@@ -172,7 +187,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     reviewModePopUp.selectItem(withTitle: reviewModeTitle(for: currentConfig.reviewMode))
     selectedRepos = Set(currentConfig.allowedRepos)
     selectedProjectIDs = Set(currentConfig.allowedProjects)
+    selectedProjectRepoMappings = Dictionary(
+      uniqueKeysWithValues: currentConfig.projectRepoMappings.map {
+        ($0.projectID, $0.repoFullName)
+      })
+    sanitizeProjectRepoMappings()
+    applyAllFilters()
     updateSaveButtonState()
+    updateListChrome()
     tableView.reloadData()
   }
 
@@ -180,7 +202,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     reposLoaded = true
     reposLoadErrorMessage = nil
     repos = availableRepos.map(\.fullName)
-    applyReposSearchFilter()
+    sanitizeProjectRepoMappings()
+    applyAllFilters()
     updateSaveButtonState()
     updateListChrome()
     tableView.reloadData()
@@ -190,7 +213,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     projectsLoaded = true
     projectsLoadErrorMessage = nil
     projects = availableProjects
-    applyProjectsSearchFilter()
+    sanitizeProjectRepoMappings()
+    applyAllFilters()
     updateSaveButtonState()
     updateListChrome()
     tableView.reloadData()
@@ -215,9 +239,11 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     reposLoaded = false
     projectsLoaded = false
     repos = []
-    projects = []
     filteredRepos = []
+    projects = []
     filteredProjects = []
+    filteredMappingProjects = []
+    selectedProjectRepoMappings = [:]
     saveButton.isEnabled = false
     updateListChrome()
     tableView.reloadData()
@@ -231,7 +257,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
       CodexAgentSettingsSelection(
         reviewMode: selectedReviewMode,
         allowedRepos: selectedRepos.sorted(),
-        allowedProjectIDs: selectedProjectIDs.sorted()
+        allowedProjectIDs: selectedProjectIDs.sorted(),
+        projectRepoMappings: selectedProjectRepoMappings
       )
     )
     close()
@@ -255,30 +282,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
       return emptyStateView
     }
 
-    let identifier = NSUserInterfaceItemIdentifier(
-      rawValue: activeListKind == .repos ? "repo-cell" : "project-cell")
-    let cellView =
-      tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
-      ?? makeSelectionCellView(identifier: identifier.rawValue)
-    let button = cellView.subviews.compactMap({ $0 as? NSButton }).first!
-    button.target = self
-
     switch activeListKind {
     case .repos:
-      let repo = filteredRepos[row]
-      button.action = #selector(toggleRepoSelection(_:))
-      button.state = selectedRepos.contains(repo) ? .on : .off
-      button.identifier = NSUserInterfaceItemIdentifier(rawValue: repo)
-      button.title = repo
+      return repoCellView(for: row, in: tableView)
     case .projects:
-      let project = filteredProjects[row]
-      button.action = #selector(toggleProjectSelection(_:))
-      button.state = selectedProjectIDs.contains(project.id) ? .on : .off
-      button.identifier = NSUserInterfaceItemIdentifier(rawValue: String(project.id))
-      button.title = project.displayName
+      return projectCellView(for: row, in: tableView)
+    case .mappings:
+      return mappingCellView(for: row, in: tableView)
     }
-
-    return cellView
   }
 
   func controlTextDidChange(_ notification: Notification) {
@@ -286,11 +297,12 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     switch activeListKind {
     case .repos:
       repoSearchQuery = query
-      applyReposSearchFilter()
     case .projects:
       projectSearchQuery = query
-      applyProjectsSearchFilter()
+    case .mappings:
+      mappingSearchQuery = query
     }
+    applyAllFilters()
     tableView.reloadData()
   }
 
@@ -303,6 +315,10 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     } else {
       selectedRepos.remove(repo)
     }
+    sanitizeProjectRepoMappings()
+    applyMappingSearchFilter()
+    updateListChrome()
+    tableView.reloadData()
   }
 
   @objc private func toggleProjectSelection(_ sender: NSButton) {
@@ -314,6 +330,24 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     } else {
       selectedProjectIDs.remove(projectID)
     }
+    sanitizeProjectRepoMappings()
+    applyMappingSearchFilter()
+    updateListChrome()
+    tableView.reloadData()
+  }
+
+  @objc private func mappingSelectionChanged(_ sender: NSPopUpButton) {
+    guard let rawValue = sender.identifier?.rawValue, let projectID = Int(rawValue) else {
+      return
+    }
+    let selectedTitle = sender.titleOfSelectedItem ?? ""
+    if selectedTitle == "Unmapped" || selectedTitle.isEmpty {
+      selectedProjectRepoMappings.removeValue(forKey: projectID)
+    } else {
+      selectedProjectRepoMappings[projectID] = selectedTitle
+    }
+    applyMappingSearchFilter()
+    tableView.reloadData()
   }
 
   @objc private func reviewModeChanged(_ sender: NSPopUpButton) {
@@ -321,8 +355,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   }
 
   @objc private func sourcePickerChanged(_ sender: NSSegmentedControl) {
-    activeListKind = sender.selectedSegment == 1 ? .projects : .repos
-    searchField.stringValue = activeQuery
+    switch sender.selectedSegment {
+    case 1:
+      activeListKind = .projects
+    case 2:
+      activeListKind = .mappings
+    default:
+      activeListKind = .repos
+    }
     updateListChrome()
     tableView.reloadData()
   }
@@ -382,7 +422,6 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     contentView.addSubview(sourcePicker)
 
     searchField.delegate = self
-    searchField.placeholderString = "Search repositories"
     searchField.sendsSearchStringImmediately = true
     searchField.frame = NSRect(x: horizontalInset, y: 410, width: contentWidth, height: 26)
     searchField.autoresizingMask = [.width, .minYMargin]
@@ -407,7 +446,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     column.width = 440
     tableView.addTableColumn(column)
     tableView.headerView = nil
-    tableView.rowHeight = 26
+    tableView.rowHeight = 30
     tableView.intercellSpacing = NSSize(width: 0, height: 2)
     tableView.usesAlternatingRowBackgroundColors = false
     tableView.selectionHighlightStyle = .none
@@ -446,6 +485,8 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
       repoSearchQuery
     case .projects:
       projectSearchQuery
+    case .mappings:
+      mappingSearchQuery
     }
   }
 
@@ -455,29 +496,41 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
       filteredRepos.count
     case .projects:
       filteredProjects.count
+    case .mappings:
+      filteredMappingProjects.count
     }
   }
 
   private func updateListChrome() {
     searchField.stringValue = activeQuery
-    searchField.placeholderString =
-      activeListKind == .repos ? "Search repositories" : "Search projects"
 
     let isLoading: Bool
     let loadingText: String
     let defaultText: String
+    let placeholder: String
 
     switch activeListKind {
     case .repos:
       isLoading = !reposLoaded
-      loadingText = "Loading GitHub repositories…"
+      loadingText = "Loading GitHub repositories..."
       defaultText = "Leave all unchecked to include every available repo."
+      placeholder = "Search repositories"
     case .projects:
       isLoading = !projectsLoaded
-      loadingText = "Loading Jira projects…"
+      loadingText = "Loading Jira projects..."
       defaultText = "Leave all unchecked to include every available project."
+      placeholder = "Search projects"
+    case .mappings:
+      isLoading = !reposLoaded || !projectsLoaded
+      loadingText = "Loading GitHub repositories and Jira projects..."
+      defaultText =
+        selectedRepos.isEmpty
+        ? "Select GitHub repositories, then map each selected Jira project to one of them."
+        : "Map selected Jira projects to the GitHub repositories above."
+      placeholder = "Search project mappings"
     }
 
+    searchField.placeholderString = placeholder
     listHint.stringValue = isLoading ? loadingText : defaultText
     listHint.frame = NSRect(
       x: isLoading ? horizontalInset + 24 : horizontalInset,
@@ -495,6 +548,12 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
   private func updateSaveButtonState() {
     saveButton.isEnabled = configLoaded && reposLoaded && projectsLoaded
+  }
+
+  private func applyAllFilters() {
+    applyReposSearchFilter()
+    applyProjectsSearchFilter()
+    applyMappingSearchFilter()
   }
 
   private func applyReposSearchFilter() {
@@ -521,6 +580,39 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     filteredProjects = projects.filter { project in
       project.key.lowercased().contains(normalizedQuery)
         || String(project.id).contains(normalizedQuery)
+    }
+  }
+
+  private func applyMappingSearchFilter() {
+    let selectedProjects = projects.filter { project in
+      selectedProjectIDs.contains(project.id)
+    }
+    let query = mappingSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !query.isEmpty else {
+      filteredMappingProjects = selectedProjects
+      return
+    }
+
+    let normalizedQuery = query.lowercased()
+    filteredMappingProjects = selectedProjects.filter { project in
+      let mappedRepo = selectedProjectRepoMappings[project.id] ?? ""
+      return project.key.lowercased().contains(normalizedQuery)
+        || mappedRepo.lowercased().contains(normalizedQuery)
+        || String(project.id).contains(normalizedQuery)
+    }
+  }
+
+  private func sanitizeProjectRepoMappings() {
+    let validProjectIDs =
+      projectsLoaded
+      ? selectedProjectIDs.intersection(projects.map(\.id))
+      : selectedProjectIDs
+    let validRepos =
+      reposLoaded
+      ? selectedRepos.intersection(repos)
+      : selectedRepos
+    selectedProjectRepoMappings = selectedProjectRepoMappings.filter { projectID, repoFullName in
+      validProjectIDs.contains(projectID) && validRepos.contains(repoFullName)
     }
   }
 
@@ -560,6 +652,20 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
       } else {
         message = nil
       }
+    case .mappings:
+      if !reposLoaded || !projectsLoaded {
+        message = "Loading GitHub repositories and Jira projects..."
+      } else if let reposLoadErrorMessage {
+        message = reposLoadErrorMessage
+      } else if let projectsLoadErrorMessage {
+        message = projectsLoadErrorMessage
+      } else if selectedProjectIDs.isEmpty {
+        message = "Select Jira projects first."
+      } else if filteredMappingProjects.isEmpty {
+        message = "No project mappings match your search."
+      } else {
+        message = nil
+      }
     }
 
     guard let message else {
@@ -571,14 +677,110 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     return label
   }
 
+  private func repoCellView(for row: Int, in tableView: NSTableView) -> NSView {
+    let repo = filteredRepos[row]
+    let cellView = makeCheckboxCellView(
+      identifier: "repo-cell",
+      title: repo,
+      identifierValue: repo,
+      isSelected: selectedRepos.contains(repo),
+      action: #selector(toggleRepoSelection(_:))
+    )
+    return cellView
+  }
+
+  private func projectCellView(for row: Int, in tableView: NSTableView) -> NSView {
+    let project = filteredProjects[row]
+    let cellView = makeCheckboxCellView(
+      identifier: "project-cell",
+      title: project.displayName,
+      identifierValue: String(project.id),
+      isSelected: selectedProjectIDs.contains(project.id),
+      action: #selector(toggleProjectSelection(_:))
+    )
+    return cellView
+  }
+
+  private func mappingCellView(for row: Int, in tableView: NSTableView) -> NSView {
+    let project = filteredMappingProjects[row]
+    let cellIdentifier = NSUserInterfaceItemIdentifier("mapping-cell")
+    let cellView =
+      tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView
+      ?? makeMappingCellView()
+
+    guard
+      let titleLabel = cellView.viewWithTag(1) as? NSTextField,
+      let popup = cellView.viewWithTag(2) as? NSPopUpButton
+    else {
+      return cellView
+    }
+
+    titleLabel.stringValue = project.displayName
+    popup.removeAllItems()
+    popup.addItem(withTitle: "Unmapped")
+    let repoOptions = selectedRepos.sorted()
+    for repo in repoOptions {
+      popup.addItem(withTitle: repo)
+    }
+    popup.identifier = NSUserInterfaceItemIdentifier(rawValue: String(project.id))
+    popup.target = self
+    popup.action = #selector(mappingSelectionChanged(_:))
+    popup.isEnabled = !repoOptions.isEmpty
+    if let mappedRepo = selectedProjectRepoMappings[project.id], repoOptions.contains(mappedRepo) {
+      popup.selectItem(withTitle: mappedRepo)
+    } else {
+      popup.selectItem(at: 0)
+    }
+
+    return cellView
+  }
+
+  private func makeCheckboxCellView(
+    identifier: String,
+    title: String,
+    identifierValue: String,
+    isSelected: Bool,
+    action: Selector
+  ) -> NSTableCellView {
+    let cellIdentifier = NSUserInterfaceItemIdentifier(identifier)
+    let cellView =
+      tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView
+      ?? makeSelectionCellView(identifier: identifier)
+    let button = cellView.subviews.compactMap({ $0 as? NSButton }).first!
+    button.target = self
+    button.action = action
+    button.state = isSelected ? .on : .off
+    button.identifier = NSUserInterfaceItemIdentifier(rawValue: identifierValue)
+    button.title = title
+    return cellView
+  }
+
   private func makeSelectionCellView(identifier: String) -> NSTableCellView {
-    let cellView = NSTableCellView(frame: NSRect(x: 0, y: 0, width: 440, height: 24))
+    let cellView = NSTableCellView(frame: NSRect(x: 0, y: 0, width: 440, height: 26))
     cellView.identifier = NSUserInterfaceItemIdentifier(identifier)
 
     let button = NSButton(checkboxWithTitle: "", target: nil, action: nil)
-    button.frame = NSRect(x: 4, y: 1, width: 432, height: 22)
+    button.frame = NSRect(x: 4, y: 2, width: 432, height: 22)
     button.setButtonType(.switch)
     cellView.addSubview(button)
+    return cellView
+  }
+
+  private func makeMappingCellView() -> NSTableCellView {
+    let cellView = NSTableCellView(frame: NSRect(x: 0, y: 0, width: 440, height: 28))
+    cellView.identifier = NSUserInterfaceItemIdentifier("mapping-cell")
+
+    let titleLabel = NSTextField(labelWithString: "")
+    titleLabel.tag = 1
+    titleLabel.font = .systemFont(ofSize: 12, weight: .medium)
+    titleLabel.frame = NSRect(x: 8, y: 6, width: 150, height: 16)
+    cellView.addSubview(titleLabel)
+
+    let popup = NSPopUpButton()
+    popup.tag = 2
+    popup.frame = NSRect(x: 170, y: 1, width: 258, height: 26)
+    cellView.addSubview(popup)
+
     return cellView
   }
 }

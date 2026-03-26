@@ -15,23 +15,7 @@ use uuid::Uuid;
 const JIRA_BASE_URL: &str = "https://tonal.atlassian.net";
 const TASK_BRANCH_PREFIX: &str = "msanoguera/";
 const TASK_OUTPUT_FILE: &str = ".codex-task-result.json";
-const SUPPORTED_PROJECTS: &[TaskProject] = &[
-    TaskProject {
-        key: "TS",
-        repo_full_name: "tonalfitness/tonal",
-        default_branch: "main",
-    },
-    TaskProject {
-        key: "MOB",
-        repo_full_name: "tonalfitness/mobile",
-        default_branch: "main",
-    },
-    TaskProject {
-        key: "API",
-        repo_full_name: "tonalfitness/api-go",
-        default_branch: "main",
-    },
-];
+const DEFAULT_BASE_BRANCH: &str = "main";
 
 #[derive(Subcommand, Debug)]
 pub(super) enum TaskCommand {
@@ -71,11 +55,11 @@ pub(super) struct TaskShowArgs {
     pub json: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug)]
 struct TaskProject {
-    key: &'static str,
-    repo_full_name: &'static str,
-    default_branch: &'static str,
+    project_id: u64,
+    key: String,
+    repo_full_name: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -218,7 +202,7 @@ fn task_list(layout: &StateLayout, args: TaskListArgs) -> Result<()> {
 fn task_run(layout: &StateLayout, args: TaskRunArgs) -> Result<()> {
     validate_ticket_key(&args.ticket)?;
     let issue = load_issue(&args.ticket)?;
-    let project = project_for_ticket(&issue.key)?;
+    let project = project_for_ticket(layout, &issue.key)?;
     let branch = branch_name(&issue.key, &issue.fields.summary);
     let now = super::now_utc();
     let task_id = Uuid::new_v4().to_string();
@@ -228,7 +212,7 @@ fn task_run(layout: &StateLayout, args: TaskRunArgs) -> Result<()> {
         ticket: issue.key.clone(),
         summary: issue.fields.summary.clone(),
         issue_url: issue_url(&issue.key),
-        repo_full_name: project.repo_full_name.to_string(),
+        repo_full_name: project.repo_full_name.clone(),
         branch: branch.clone(),
         status: TaskJobStatus::InProgress,
         current_step: "preparing_repo".to_string(),
@@ -241,7 +225,7 @@ fn task_run(layout: &StateLayout, args: TaskRunArgs) -> Result<()> {
     };
     write_task_job(layout, &job)?;
 
-    let result = run_task_job(layout, project, &issue, &branch, &mut job);
+    let result = run_task_job(layout, &project, &issue, &branch, &mut job);
     match result {
         Ok(run_result) => {
             if args.json {
@@ -339,14 +323,14 @@ fn task_show(layout: &StateLayout, args: TaskShowArgs) -> Result<()> {
 
 fn run_task_job(
     layout: &StateLayout,
-    project: TaskProject,
+    project: &TaskProject,
     issue: &JiraIssueView,
     branch: &str,
     job: &mut TaskJob,
 ) -> Result<TaskRunResult> {
     let cache_repo_path = prepare_cache_repo(layout, project, job)?;
     let worktree_path =
-        create_task_worktree(layout, &cache_repo_path, project.default_branch, branch)?;
+        create_task_worktree(layout, &cache_repo_path, DEFAULT_BASE_BRANCH, branch)?;
     let _worktree_guard = WorktreeGuard {
         cache_repo_path,
         worktree_path: worktree_path.clone(),
@@ -356,7 +340,7 @@ fn run_task_job(
     job.updated_at = super::now_utc();
     write_task_job(layout, job)?;
 
-    let exec_result = run_codex_task(issue, branch, project.repo_full_name, &worktree_path)?;
+    let exec_result = run_codex_task(issue, branch, &project.repo_full_name, &worktree_path)?;
     job.status = TaskJobStatus::Completed;
     job.current_step = "completed".to_string();
     job.updated_at = super::now_utc();
@@ -377,14 +361,18 @@ fn run_task_job(
 }
 
 fn load_task_candidates(layout: &StateLayout) -> Result<Vec<TaskCandidate>> {
-    let project_keys = selected_project_keys(layout)?;
-    if project_keys.is_empty() {
+    let projects = selected_project_repo_configs(layout)?;
+    if projects.is_empty() {
         return Ok(Vec::new());
     }
 
     let jql = format!(
         "project in ({}) AND assignee = currentUser() AND Sprint in openSprints() AND statusCategory != Done ORDER BY Rank ASC",
-        project_keys.join(",")
+        projects
+            .iter()
+            .map(|project| project.key.as_str())
+            .collect::<Vec<_>>()
+            .join(",")
     );
     let issues: Vec<JiraIssueSummary> = run_json_command(
         "acli",
@@ -405,13 +393,14 @@ fn load_task_candidates(layout: &StateLayout) -> Result<Vec<TaskCandidate>> {
     Ok(issues
         .into_iter()
         .filter_map(|issue| {
-            let project = project_for_ticket(&issue.key).ok()?;
+            let project_key = issue.key.split('-').next()?;
+            let project = projects.iter().find(|project| project.key == project_key)?;
             Some(TaskCandidate {
                 ticket: issue.key.clone(),
                 summary: issue.fields.summary,
                 issue_url: issue_url(&issue.key),
-                repo_full_name: project.repo_full_name.to_string(),
-                project_key: project.key.to_string(),
+                repo_full_name: project.repo_full_name.clone(),
+                project_key: project.key.clone(),
                 status: issue.fields.status.name,
                 priority: issue.fields.priority.name,
             })
@@ -419,25 +408,37 @@ fn load_task_candidates(layout: &StateLayout) -> Result<Vec<TaskCandidate>> {
         .collect())
 }
 
-fn selected_project_keys(layout: &StateLayout) -> Result<Vec<String>> {
+fn selected_project_repo_configs(layout: &StateLayout) -> Result<Vec<TaskProject>> {
     let config = load_agents_config(layout)?;
     let available_projects = list_available_projects()?;
-    let mut keys = if config.allowed_projects.is_empty() {
-        SUPPORTED_PROJECTS
-            .iter()
-            .map(|project| project.key.to_string())
-            .collect::<Vec<_>>()
+    let filter_project_ids = if config.allowed_projects.is_empty() {
+        None
     } else {
-        available_projects
-            .into_iter()
-            .filter(|project| config.allowed_projects.contains(&project.id))
-            .map(|project| project.key)
-            .collect::<Vec<_>>()
+        Some(config.allowed_projects)
     };
-    keys.retain(|key| SUPPORTED_PROJECTS.iter().any(|project| project.key == key));
-    keys.sort();
-    keys.dedup();
-    Ok(keys)
+
+    let mut projects = config
+        .project_repo_mappings
+        .into_iter()
+        .filter(|mapping| {
+            filter_project_ids
+                .as_ref()
+                .is_none_or(|project_ids| project_ids.contains(&mapping.project_id))
+        })
+        .filter_map(|mapping| {
+            let project = available_projects
+                .iter()
+                .find(|project| project.id == mapping.project_id)?;
+            Some(TaskProject {
+                project_id: mapping.project_id,
+                key: project.key.clone(),
+                repo_full_name: mapping.repo_full_name,
+            })
+        })
+        .collect::<Vec<_>>();
+    projects.sort_by(|left, right| left.key.cmp(&right.key));
+    projects.dedup_by(|left, right| left.project_id == right.project_id);
+    Ok(projects)
 }
 
 fn list_available_projects() -> Result<Vec<AvailableProject>> {
@@ -482,10 +483,10 @@ fn load_issue(ticket: &str) -> Result<JiraIssueView> {
 
 fn prepare_cache_repo(
     layout: &StateLayout,
-    project: TaskProject,
+    project: &TaskProject,
     job: &mut TaskJob,
 ) -> Result<PathBuf> {
-    let (owner, repo) = split_repo_name(project.repo_full_name)?;
+    let (owner, repo) = split_repo_name(&project.repo_full_name)?;
     let repo_path = layout.repos_dir().join(owner).join(repo);
     if !repo_path.exists() {
         if let Some(parent) = repo_path.parent() {
@@ -497,7 +498,7 @@ fn prepare_cache_repo(
             &[
                 "repo",
                 "clone",
-                project.repo_full_name,
+                &project.repo_full_name,
                 repo_path.to_string_lossy().as_ref(),
                 "--",
                 "--quiet",
@@ -519,13 +520,13 @@ fn prepare_cache_repo(
     )?;
     run_command(
         "git",
-        &["checkout", project.default_branch],
+        &["checkout", DEFAULT_BASE_BRANCH],
         Some(&repo_path),
         None,
     )?;
     run_command(
         "git",
-        &["pull", "--ff-only", "origin", project.default_branch],
+        &["pull", "--ff-only", "origin", DEFAULT_BASE_BRANCH],
         Some(&repo_path),
         None,
     )?;
@@ -654,9 +655,7 @@ fn build_task_prompt(issue: &JiraIssueView, branch: &str, repo_full_name: &str) 
         summary = issue.fields.summary,
         description = description,
         branch = branch,
-        default_branch = project_for_ticket(&issue.key)
-            .map(|project| project.default_branch)
-            .unwrap_or("main"),
+        default_branch = DEFAULT_BASE_BRANCH,
         issue_url = issue_url(&issue.key),
     )
 }
@@ -823,16 +822,15 @@ fn validate_ticket_key(ticket: &str) -> Result<()> {
     )
 }
 
-fn project_for_ticket(ticket: &str) -> Result<TaskProject> {
+fn project_for_ticket(layout: &StateLayout, ticket: &str) -> Result<TaskProject> {
     let project_key = ticket
         .split('-')
         .next()
         .context("ticket key missing project prefix")?;
-    SUPPORTED_PROJECTS
-        .iter()
-        .copied()
+    selected_project_repo_configs(layout)?
+        .into_iter()
         .find(|project| project.key == project_key)
-        .with_context(|| format!("Unsupported Jira project for task automation: {project_key}"))
+        .with_context(|| format!("Missing project-to-repo mapping for Jira project: {project_key}"))
 }
 
 fn branch_name(ticket: &str, summary: &str) -> String {

@@ -91,18 +91,27 @@ struct AgentsConfig {
     allowed_repos: Vec<String>,
     #[serde(default, alias = "allowed_boards")]
     allowed_projects: Vec<u64>,
+    #[serde(default)]
+    project_repo_mappings: Vec<ProjectRepoMapping>,
 }
 
 impl AgentsConfig {
     fn new() -> Self {
         Self {
-            state_version: 4,
+            state_version: 5,
             initialized_at: now_utc(),
             review_mode: ReviewPublishMode::Publish,
             allowed_repos: Vec::new(),
             allowed_projects: Vec::new(),
+            project_repo_mappings: Vec::new(),
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+struct ProjectRepoMapping {
+    project_id: u64,
+    repo_full_name: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

@@ -32,6 +32,7 @@
 - Task job rows use status prefixes: `·` in progress, `✓` completed, `X` failed.
 - `Agents` includes a `Task` submenu populated from `codex-core agents task list --json`.
 - `Agents -> Task` lists only Jira work items assigned to the current user in the current sprint, filtered by the selected Jira projects from Settings.
+- `Agents -> Task` only includes Jira projects that also have a selected GitHub repository mapping in Settings.
 - `Agents -> Task` groups work items by mapped GitHub repository; clicking a repository row opens its GitHub page.
 - Selecting an item in `Agents -> Task` runs `codex-core agents task run <ticket>`, which updates cached `main`, creates a disposable worktree, runs `codex exec` to implement the ticket and open a PR, then removes the worktree on exit.
 - `Agents` includes a `Review` submenu populated from both `codex-core agents review jobs --json` and `codex-core agents review list --json`.
@@ -46,10 +47,11 @@
 - `Agents -> Settings` normalizes integration details to account labels like `GitHub: <username>` and `Jira: <account>`.
 - `Agents -> Settings` verifies `acli` through a read-only Jira command so the status reflects actual Jira access instead of `acli auth status`.
 - `Agents -> Settings` includes a `Review Mode` section with `Publish` and `Pending`, saved through `codex-core agents config set-review-mode`.
-- `Agents -> Settings` shows a `GitHub Repositories` section for review filtering.
-- `Agents -> Settings` uses a segmented selector to switch between `GitHub Repositories` and `Jira Projects`, reusing one shared search field and one larger checklist area.
+- `Agents -> Settings` shows a `GitHub Repositories` tab for review filtering.
+- `Agents -> Settings` uses a segmented selector to switch between `GitHub Repositories`, `Jira Projects`, and `Project Repos`, reusing one shared search field and one larger list area.
 - `Agents -> Settings` shows loading hints for the active source, then switches to the corresponding selection hint after load completes.
 - `Agents -> Settings` shows a `Jira Projects` section so you can include or exclude projects visible to your `acli jira` account, displaying each project by its Jira key and persisting the numeric project id used to filter the `Agents -> Task` submenu.
+- `Agents -> Settings -> Project Repos` shows one row per selected Jira project and lets you map it to one of the selected GitHub repositories.
 - `Agents -> Settings` is resizable so the shared checklist can grow for longer repository or project lists.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.

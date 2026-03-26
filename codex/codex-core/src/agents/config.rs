@@ -1,5 +1,6 @@
 use super::AvailableProject;
 use super::AvailableRepo;
+use super::ProjectRepoMapping;
 use super::RepoOwner;
 use super::ReviewPublishMode;
 use super::StateLayout;
@@ -25,10 +26,14 @@ pub(super) enum ConfigCommand {
     SetAllowedProjects(ConfigSetAllowedProjectsArgs),
     /// Set the default review publish mode
     SetReviewMode(ConfigSetReviewModeArgs),
+    /// Set the Jira-project to GitHub-repo mappings
+    SetProjectRepoMappings(ConfigSetProjectRepoMappingsArgs),
     /// Clear allowed review repo filters
     ClearAllowedRepos,
     /// Clear allowed Jira project filters
     ClearAllowedProjects,
+    /// Clear Jira-project to GitHub-repo mappings
+    ClearProjectRepoMappings,
 }
 
 #[derive(Args, Debug)]
@@ -64,6 +69,11 @@ pub(super) struct ConfigSetReviewModeArgs {
     pub mode: ReviewPublishMode,
 }
 
+#[derive(Args, Debug)]
+pub(super) struct ConfigSetProjectRepoMappingsArgs {
+    pub mappings: Vec<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct ListedRepo {
     name: String,
@@ -90,8 +100,12 @@ pub(super) fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Resu
         ConfigCommand::SetAllowedRepos(args) => config_set_allowed_repos(layout, args),
         ConfigCommand::SetAllowedProjects(args) => config_set_allowed_projects(layout, args),
         ConfigCommand::SetReviewMode(args) => config_set_review_mode(layout, args),
+        ConfigCommand::SetProjectRepoMappings(args) => {
+            config_set_project_repo_mappings(layout, args)
+        }
         ConfigCommand::ClearAllowedRepos => config_clear_allowed_repos(layout),
         ConfigCommand::ClearAllowedProjects => config_clear_allowed_projects(layout),
+        ConfigCommand::ClearProjectRepoMappings => config_clear_project_repo_mappings(layout),
     }
 }
 
@@ -136,6 +150,16 @@ fn config_show(layout: &StateLayout, args: ConfigShowArgs) -> Result<()> {
             .map(u64::to_string)
             .collect::<Vec<_>>();
         println!("allowed_projects={}", project_ids.join(","));
+    }
+    if config.project_repo_mappings.is_empty() {
+        println!("project_repo_mappings=");
+    } else {
+        let mappings = config
+            .project_repo_mappings
+            .iter()
+            .map(|mapping| format!("{}={}", mapping.project_id, mapping.repo_full_name))
+            .collect::<Vec<_>>();
+        println!("project_repo_mappings={}", mappings.join(","));
     }
     Ok(())
 }
@@ -219,6 +243,30 @@ fn config_set_review_mode(layout: &StateLayout, args: ConfigSetReviewModeArgs) -
     Ok(())
 }
 
+fn config_set_project_repo_mappings(
+    layout: &StateLayout,
+    args: ConfigSetProjectRepoMappingsArgs,
+) -> Result<()> {
+    let mut mappings = normalize_project_repo_mappings(args.mappings)?;
+    mappings.sort_by(|left, right| left.project_id.cmp(&right.project_id));
+    mappings.dedup_by(|left, right| left.project_id == right.project_id);
+
+    update_agents_config(layout, |config| {
+        config.project_repo_mappings = mappings.clone();
+    })?;
+
+    if mappings.is_empty() {
+        println!("Set project_repo_mappings=");
+    } else {
+        let values = mappings
+            .iter()
+            .map(|mapping| format!("{}={}", mapping.project_id, mapping.repo_full_name))
+            .collect::<Vec<_>>();
+        println!("Set project_repo_mappings={}", values.join(","));
+    }
+    Ok(())
+}
+
 fn config_clear_allowed_repos(layout: &StateLayout) -> Result<()> {
     update_agents_config(layout, |config| {
         config.allowed_repos.clear();
@@ -232,6 +280,14 @@ fn config_clear_allowed_projects(layout: &StateLayout) -> Result<()> {
         config.allowed_projects.clear();
     })?;
     println!("Cleared allowed_projects");
+    Ok(())
+}
+
+fn config_clear_project_repo_mappings(layout: &StateLayout) -> Result<()> {
+    update_agents_config(layout, |config| {
+        config.project_repo_mappings.clear();
+    })?;
+    println!("Cleared project_repo_mappings");
     Ok(())
 }
 
@@ -281,6 +337,29 @@ fn normalize_repo_filters(repos: Vec<String>) -> Result<Vec<String>> {
                 bail!("Invalid repo filter: {trimmed}. Expected OWNER/REPO.");
             }
             Ok(format!("{owner}/{name}"))
+        })
+        .collect()
+}
+
+fn normalize_project_repo_mappings(mappings: Vec<String>) -> Result<Vec<ProjectRepoMapping>> {
+    mappings
+        .into_iter()
+        .map(|mapping| {
+            let trimmed = mapping.trim();
+            let Some((project_id, repo_full_name)) = trimmed.split_once('=') else {
+                bail!("Invalid project repo mapping: {trimmed}. Expected PROJECT_ID=OWNER/REPO.");
+            };
+            let project_id = project_id
+                .parse::<u64>()
+                .with_context(|| format!("Invalid project id in mapping: {trimmed}"))?;
+            let repo_full_name = normalize_repo_filters(vec![repo_full_name.to_string()])?
+                .into_iter()
+                .next()
+                .context("normalized repo filter missing value")?;
+            Ok(ProjectRepoMapping {
+                project_id,
+                repo_full_name,
+            })
         })
         .collect()
 }
@@ -404,6 +483,7 @@ fn run_acli_json(args: &[&str]) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use super::normalize_project_repo_mappings;
     use super::normalize_repo_filters;
 
     #[test]
@@ -419,6 +499,25 @@ mod tests {
             error
                 .to_string()
                 .contains("Invalid repo filter: openai. Expected OWNER/REPO.")
+        );
+    }
+
+    #[test]
+    fn normalize_project_repo_mappings_accepts_expected_shape() {
+        let mappings =
+            normalize_project_repo_mappings(vec!["123=openai/codex".to_string()]).unwrap();
+        assert_eq!(mappings[0].project_id, 123);
+        assert_eq!(mappings[0].repo_full_name, "openai/codex");
+    }
+
+    #[test]
+    fn normalize_project_repo_mappings_rejects_invalid_shape() {
+        let error =
+            normalize_project_repo_mappings(vec!["123-openai/codex".to_string()]).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Expected PROJECT_ID=OWNER/REPO.")
         );
     }
 }

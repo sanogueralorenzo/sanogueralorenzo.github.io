@@ -12,10 +12,16 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     let reviewMode: ReviewMode
     let allowedRepos: [String]
     let allowedProjects: [Int]
+    let projectRepoMappings: [ProjectRepoMapping]
   }
 
   struct AvailableRepo: Decodable, Sendable {
     let fullName: String
+  }
+
+  struct ProjectRepoMapping: Decodable, Sendable {
+    let projectID: Int
+    let repoFullName: String
   }
 
   struct AvailableProject: Decodable, Sendable {
@@ -282,6 +288,19 @@ final class CodexCoreCLIClient: @unchecked Sendable {
 
   func setReviewMode(_ mode: ReviewMode) throws {
     _ = try runAgents(["config", "set-review-mode", mode.rawValue])
+  }
+
+  func setProjectRepoMappings(_ mappings: [Int: String]) throws {
+    if mappings.isEmpty {
+      _ = try runAgents(["config", "clear-project-repo-mappings"])
+      return
+    }
+
+    let serializedMappings =
+      mappings
+      .sorted { $0.key < $1.key }
+      .map { "\($0.key)=\($0.value)" }
+    _ = try runAgents(["config", "set-project-repo-mappings"] + serializedMappings)
   }
 
   private func runSessions(_ arguments: [String]) throws -> String {
