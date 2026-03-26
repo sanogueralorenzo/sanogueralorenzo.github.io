@@ -1387,7 +1387,12 @@ fn post_review_comments(
         };
 
         if let Some(error) = inline_error {
-            let top_level_body = render_top_level_comment_body(finding, &path_for_comment);
+            let top_level_body = render_top_level_comment_body(
+                pr_ref,
+                &pull_request.head_ref_oid,
+                finding,
+                &path_for_comment,
+            );
             if let Err(top_level_error) = post_top_level_comment(pr_ref, &top_level_body) {
                 failed_comments += 1;
                 failed_comment_details.push(ReviewCommentFailure {
@@ -1477,23 +1482,47 @@ fn render_inline_comment_body(finding: &ReviewFinding) -> String {
     lines.join("\n")
 }
 
-fn render_top_level_comment_body(finding: &ReviewFinding, path: &str) -> String {
+fn render_top_level_comment_body(
+    pr_ref: &PullRequestReference,
+    head_ref_oid: &str,
+    finding: &ReviewFinding,
+    path: &str,
+) -> String {
     let line_range = &finding.code_location.line_range;
     let location = if line_range.end > line_range.start {
         format!("{path}:{}-{}", line_range.start, line_range.end)
     } else {
         format!("{path}:{}", line_range.start)
     };
+    let location_link = github_blob_line_url(pr_ref, head_ref_oid, path, line_range);
 
     let mut lines = vec![
         render_finding_heading(finding),
         String::new(),
-        format!("File: `{location}`"),
+        format!("File: [`{location}`]({location_link})"),
         String::new(),
         finding.body.trim().to_string(),
     ];
     lines.push(format!("Confidence: {:.2}", finding.confidence_score));
     lines.join("\n")
+}
+
+fn github_blob_line_url(
+    pr_ref: &PullRequestReference,
+    head_ref_oid: &str,
+    path: &str,
+    line_range: &ReviewLineRange,
+) -> String {
+    let path = path.trim_start_matches('/');
+    let anchor = if line_range.end > line_range.start {
+        format!("#L{}-L{}", line_range.start, line_range.end)
+    } else {
+        format!("#L{}", line_range.start)
+    };
+    format!(
+        "https://github.com/{}/{}/blob/{}/{}{}",
+        pr_ref.owner, pr_ref.repo, head_ref_oid, path, anchor
+    )
 }
 
 fn render_finding_heading(finding: &ReviewFinding) -> String {
