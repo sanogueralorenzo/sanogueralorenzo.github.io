@@ -5,8 +5,8 @@ import Foundation
 final class CodexGlobalHotKeyController {
   private static let signature: OSType = 0x4344_5848  // CDXH
   private static let hotKeyID: UInt32 = 1
-  private static let zKeyCode: UInt32 = 6
-  private static let modifiers: UInt32 = UInt32(controlKey | optionKey)
+  private static let aKeyCode: UInt32 = 0
+  private static let modifiers: UInt32 = UInt32(shiftKey | optionKey)
 
   private var eventHandlerRef: EventHandlerRef?
   private var hotKeyRef: EventHotKeyRef?
@@ -50,7 +50,7 @@ final class CodexGlobalHotKeyController {
 
     let hotKeyID = EventHotKeyID(signature: Self.signature, id: Self.hotKeyID)
     let registerStatus = RegisterEventHotKey(
-      Self.zKeyCode,
+      Self.aKeyCode,
       Self.modifiers,
       hotKeyID,
       GetApplicationEventTarget(),
@@ -61,7 +61,7 @@ final class CodexGlobalHotKeyController {
     guard registerStatus == noErr else {
       unregister()
       throw CodexCoreCLIClient.Error(
-        message: "Failed to register global shortcut Control-Option-Z.")
+        message: "Failed to register global shortcut Option-Shift-A.")
     }
   }
 
