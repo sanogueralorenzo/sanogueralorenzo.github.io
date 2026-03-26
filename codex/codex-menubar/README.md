@@ -34,16 +34,16 @@
 - `Agents -> Review` groups pull requests by repository; clicking a repository row opens its GitHub page.
 - `Agents -> Review` shows PR rows as `#<number> <title>`.
 - The menubar watches `~/.codex/agents/reviews` (or `CODEX_AGENTS_HOME/reviews`) so review status markers update from persisted job writes instead of timer polling.
-- `Agents -> Settings` opens immediately, then loads GitHub repositories and Jira boards in the background through `codex-core agents config ...`.
+- `Agents -> Settings` opens immediately, then loads GitHub repositories and Jira projects in the background through `codex-core agents config ...`.
 - `Agents -> Settings` shows an `Integrations` section with `gh` and `acli` status pills plus setup instructions when needed.
 - `Agents -> Settings` centers the `gh` and `acli` labels inside their rounded status pills.
 - `Agents -> Settings` normalizes integration details to account labels like `GitHub: <username>` and `Jira: <account>`.
 - `Agents -> Settings` verifies `acli` through a read-only Jira command so the status reflects actual Jira access instead of `acli auth status`.
 - `Agents -> Settings` includes a `Review Mode` section with `Publish` and `Pending`, saved through `codex-core agents config set-review-mode`.
 - `Agents -> Settings` shows a `GitHub Repositories` section for review filtering.
-- `Agents -> Settings` includes a local search field for GitHub repositories and a second one for Jira boards; each filters its own visible checklist as you type.
-- `Agents -> Settings` shows loading hints for GitHub repositories and Jira boards, then switches to the respective selection hints after load completes.
-- `Agents -> Settings` shows a `Jira Boards` section so you can include or exclude boards visible to your `acli jira` account, displaying each board by its Jira key and persisting the numeric board id.
+- `Agents -> Settings` includes a local search field for GitHub repositories and a second one for Jira projects; each filters its own visible checklist as you type.
+- `Agents -> Settings` shows loading hints for GitHub repositories and Jira projects, then switches to the respective selection hints after load completes.
+- `Agents -> Settings` shows a `Jira Projects` section so you can include or exclude projects visible to your `acli jira` account, displaying each project by its Jira key and persisting the numeric project id.
 - Selecting an item in `Agents -> Review` runs `codex-core agents review run <pr>` using the configured review mode from `codex-core agents config`.
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
 - In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.

@@ -92,7 +92,7 @@ extension AppDelegate {
             try await Self.runAgentSettingsOperation {
               try sessionsCLI.setReviewMode(selection.reviewMode)
               try sessionsCLI.setAllowedRepos(selection.allowedRepos)
-              try sessionsCLI.setAllowedBoards(selection.allowedBoardIDs)
+              try sessionsCLI.setAllowedProjects(selection.allowedProjectIDs)
             }
             self.refreshUI()
           } catch {
@@ -119,8 +119,8 @@ extension AppDelegate {
         async let availableReposTask = Self.runAgentSettingsOperation {
           try sessionsCLI.availableRepos()
         }
-        async let availableBoardsTask = Self.runAgentSettingsOperation {
-          try sessionsCLI.availableBoards()
+        async let availableProjectsTask = Self.runAgentSettingsOperation {
+          try sessionsCLI.availableProjects()
         }
 
         let currentConfig = try await currentConfigTask
@@ -141,11 +141,11 @@ extension AppDelegate {
         }
         controller.applyAvailableRepos(availableRepos)
 
-        let availableBoards = try await availableBoardsTask
+        let availableProjects = try await availableProjectsTask
         guard codexAgentSettingsWindowController === controller else {
           return
         }
-        controller.applyAvailableBoards(availableBoards)
+        controller.applyAvailableProjects(availableProjects)
       } catch {
         guard codexAgentSettingsWindowController === controller else {
           return

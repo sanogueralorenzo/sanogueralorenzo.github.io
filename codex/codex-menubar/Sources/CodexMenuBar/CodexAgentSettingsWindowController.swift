@@ -69,7 +69,7 @@ private final class IntegrationStatusRowView: NSView {
 struct CodexAgentSettingsSelection {
   let reviewMode: CodexCoreCLIClient.ReviewMode
   let allowedRepos: [String]
-  let allowedBoardIDs: [Int]
+  let allowedProjectIDs: [Int]
 }
 
 @MainActor
@@ -78,26 +78,26 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 {
   private enum ListKind {
     case repos
-    case boards
+    case projects
   }
 
   private let ghStatusRow = IntegrationStatusRowView(toolName: "gh")
   private let acliStatusRow = IntegrationStatusRowView(toolName: "acli")
   private let reposProgressIndicator = NSProgressIndicator()
-  private let boardsProgressIndicator = NSProgressIndicator()
+  private let projectsProgressIndicator = NSProgressIndicator()
   private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
   private let saveButton = NSButton(title: "Save", target: nil, action: nil)
   private let reviewModePopUp = NSPopUpButton()
   private let reposSearchField = NSSearchField()
-  private let boardsSearchField = NSSearchField()
+  private let projectsSearchField = NSSearchField()
   private let reposTableView = NSTableView()
   private let reposScrollView = NSScrollView()
-  private let boardsTableView = NSTableView()
-  private let boardsScrollView = NSScrollView()
+  private let projectsTableView = NSTableView()
+  private let projectsScrollView = NSScrollView()
   private let reposHint = NSTextField(
     labelWithString: "Leave all unchecked to include every available repo.")
-  private let boardsHint = NSTextField(
-    labelWithString: "Leave all unchecked to include every available board.")
+  private let projectsHint = NSTextField(
+    labelWithString: "Leave all unchecked to include every available project.")
 
   private let onSave: (CodexAgentSettingsSelection) -> Void
   private let onClose: () -> Void
@@ -105,15 +105,15 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   private var repos: [String] = []
   private var filteredRepos: [String] = []
   private var selectedRepos: Set<String> = []
-  private var boards: [CodexCoreCLIClient.AvailableBoard] = []
-  private var filteredBoards: [CodexCoreCLIClient.AvailableBoard] = []
-  private var selectedBoardIDs: Set<Int> = []
+  private var projects: [CodexCoreCLIClient.AvailableProject] = []
+  private var filteredProjects: [CodexCoreCLIClient.AvailableProject] = []
+  private var selectedProjectIDs: Set<Int> = []
   private var selectedReviewMode: CodexCoreCLIClient.ReviewMode = .publish
   private var configLoaded = false
   private var reposLoaded = false
-  private var boardsLoaded = false
+  private var projectsLoaded = false
   private var reposLoadErrorMessage: String?
-  private var boardsLoadErrorMessage: String?
+  private var projectsLoadErrorMessage: String?
   private let horizontalInset: CGFloat = 20
   private let contentWidth: CGFloat = 460
 
@@ -152,20 +152,20 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   func setLoading() {
     configLoaded = false
     reposLoaded = false
-    boardsLoaded = false
+    projectsLoaded = false
     reposLoadErrorMessage = nil
-    boardsLoadErrorMessage = nil
+    projectsLoadErrorMessage = nil
     saveButton.isEnabled = false
     selectedReviewMode = .publish
     reviewModePopUp.selectItem(at: 0)
     setListLoadingAppearance(kind: .repos, isLoading: true)
-    setListLoadingAppearance(kind: .boards, isLoading: true)
+    setListLoadingAppearance(kind: .projects, isLoading: true)
     ghStatusRow.apply(status: IntegrationStatus(toolName: "gh", state: .checking))
     acliStatusRow.apply(status: IntegrationStatus(toolName: "acli", state: .checking))
     applyReposSearchFilter()
-    applyBoardsSearchFilter()
+    applyProjectsSearchFilter()
     reposTableView.reloadData()
-    boardsTableView.reloadData()
+    projectsTableView.reloadData()
   }
 
   func applyCurrentConfig(_ currentConfig: CodexCoreCLIClient.AgentsConfig) {
@@ -173,7 +173,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     selectedReviewMode = currentConfig.reviewMode
     reviewModePopUp.selectItem(withTitle: reviewModeTitle(for: currentConfig.reviewMode))
     selectedRepos = Set(currentConfig.allowedRepos)
-    selectedBoardIDs = Set(currentConfig.allowedBoards)
+    selectedProjectIDs = Set(currentConfig.allowedProjects)
     updateSaveButtonState()
   }
 
@@ -187,14 +187,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     reposTableView.reloadData()
   }
 
-  func applyAvailableBoards(_ availableBoards: [CodexCoreCLIClient.AvailableBoard]) {
-    boardsLoaded = true
-    boardsLoadErrorMessage = nil
-    boards = availableBoards
-    applyBoardsSearchFilter()
-    setListLoadingAppearance(kind: .boards, isLoading: false)
+  func applyAvailableProjects(_ availableProjects: [CodexCoreCLIClient.AvailableProject]) {
+    projectsLoaded = true
+    projectsLoadErrorMessage = nil
+    projects = availableProjects
+    applyProjectsSearchFilter()
+    setListLoadingAppearance(kind: .projects, isLoading: false)
     updateSaveButtonState()
-    boardsTableView.reloadData()
+    projectsTableView.reloadData()
   }
 
   func applyIntegrationStatuses(_ statuses: [IntegrationStatus]) {
@@ -212,29 +212,29 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
 
   func applyLoadError(_ message: String) {
     reposLoadErrorMessage = message
-    boardsLoadErrorMessage = message
+    projectsLoadErrorMessage = message
     reposLoaded = false
-    boardsLoaded = false
+    projectsLoaded = false
     repos = []
-    boards = []
+    projects = []
     filteredRepos = []
-    filteredBoards = []
+    filteredProjects = []
     saveButton.isEnabled = false
     setListLoadingAppearance(kind: .repos, isLoading: false)
-    setListLoadingAppearance(kind: .boards, isLoading: false)
+    setListLoadingAppearance(kind: .projects, isLoading: false)
     reposTableView.reloadData()
-    boardsTableView.reloadData()
+    projectsTableView.reloadData()
   }
 
   @objc func save(_ sender: Any?) {
-    guard configLoaded && reposLoaded && boardsLoaded else {
+    guard configLoaded && reposLoaded && projectsLoaded else {
       return
     }
     onSave(
       CodexAgentSettingsSelection(
         reviewMode: selectedReviewMode,
         allowedRepos: selectedRepos.sorted(),
-        allowedBoardIDs: selectedBoardIDs.sorted()
+        allowedProjectIDs: selectedProjectIDs.sorted()
       )
     )
     close()
@@ -252,7 +252,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     if tableView === reposTableView {
       return max(filteredRepos.count, 1)
     }
-    return max(filteredBoards.count, 1)
+    return max(filteredProjects.count, 1)
   }
 
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView?
@@ -275,27 +275,27 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
       return cellView
     }
 
-    if let emptyStateView = boardsEmptyStateView() {
+    if let emptyStateView = projectsEmptyStateView() {
       return emptyStateView
     }
 
-    let board = filteredBoards[row]
+    let project = filteredProjects[row]
     let cellView =
-      tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("board-cell"), owner: self)
-      as? NSTableCellView ?? makeSelectionCellView(identifier: "board-cell")
+      tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("project-cell"), owner: self)
+      as? NSTableCellView ?? makeSelectionCellView(identifier: "project-cell")
     let button = cellView.subviews.compactMap({ $0 as? NSButton }).first!
     button.target = self
-    button.action = #selector(toggleBoardSelection(_:))
-    button.state = selectedBoardIDs.contains(board.id) ? .on : .off
-    button.identifier = NSUserInterfaceItemIdentifier(rawValue: String(board.id))
-    button.title = board.displayName
+    button.action = #selector(toggleProjectSelection(_:))
+    button.state = selectedProjectIDs.contains(project.id) ? .on : .off
+    button.identifier = NSUserInterfaceItemIdentifier(rawValue: String(project.id))
+    button.title = project.displayName
     return cellView
   }
 
   func controlTextDidChange(_ obj: Notification) {
-    if obj.object as AnyObject? === boardsSearchField {
-      applyBoardsSearchFilter()
-      boardsTableView.reloadData()
+    if obj.object as AnyObject? === projectsSearchField {
+      applyProjectsSearchFilter()
+      projectsTableView.reloadData()
     } else {
       applyReposSearchFilter()
       reposTableView.reloadData()
@@ -313,14 +313,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     }
   }
 
-  @objc private func toggleBoardSelection(_ sender: NSButton) {
-    guard let identifier = sender.identifier?.rawValue, let boardID = Int(identifier) else {
+  @objc private func toggleProjectSelection(_ sender: NSButton) {
+    guard let identifier = sender.identifier?.rawValue, let projectID = Int(identifier) else {
       return
     }
     if sender.state == .on {
-      selectedBoardIDs.insert(boardID)
+      selectedProjectIDs.insert(projectID)
     } else {
-      selectedBoardIDs.remove(boardID)
+      selectedProjectIDs.remove(projectID)
     }
   }
 
@@ -389,31 +389,31 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     configureSelectionTable(reposTableView, in: reposScrollView, y: 240, height: 144)
     contentView.addSubview(reposScrollView)
 
-    let boardsDivider = NSBox(
+    let projectsDivider = NSBox(
       frame: NSRect(x: horizontalInset, y: 220, width: contentWidth, height: 1))
-    boardsDivider.boxType = .separator
-    contentView.addSubview(boardsDivider)
+    projectsDivider.boxType = .separator
+    contentView.addSubview(projectsDivider)
 
-    let boardsTitle = NSTextField(labelWithString: "Jira Boards")
-    boardsTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-    boardsTitle.frame = NSRect(x: horizontalInset, y: 188, width: contentWidth, height: 20)
-    contentView.addSubview(boardsTitle)
+    let projectsTitle = NSTextField(labelWithString: "Jira Projects")
+    projectsTitle.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+    projectsTitle.frame = NSRect(x: horizontalInset, y: 188, width: contentWidth, height: 20)
+    contentView.addSubview(projectsTitle)
 
-    boardsSearchField.delegate = self
-    boardsSearchField.placeholderString = "Search boards"
-    boardsSearchField.sendsSearchStringImmediately = true
-    boardsSearchField.frame = NSRect(x: horizontalInset, y: 154, width: contentWidth, height: 26)
-    contentView.addSubview(boardsSearchField)
+    projectsSearchField.delegate = self
+    projectsSearchField.placeholderString = "Search projects"
+    projectsSearchField.sendsSearchStringImmediately = true
+    projectsSearchField.frame = NSRect(x: horizontalInset, y: 154, width: contentWidth, height: 26)
+    contentView.addSubview(projectsSearchField)
 
-    boardsHint.textColor = .secondaryLabelColor
-    boardsHint.frame = NSRect(x: horizontalInset, y: 130, width: contentWidth, height: 18)
-    contentView.addSubview(boardsHint)
+    projectsHint.textColor = .secondaryLabelColor
+    projectsHint.frame = NSRect(x: horizontalInset, y: 130, width: contentWidth, height: 18)
+    contentView.addSubview(projectsHint)
 
-    configureProgressIndicator(boardsProgressIndicator, x: horizontalInset, y: 130)
-    contentView.addSubview(boardsProgressIndicator)
+    configureProgressIndicator(projectsProgressIndicator, x: horizontalInset, y: 130)
+    contentView.addSubview(projectsProgressIndicator)
 
-    configureSelectionTable(boardsTableView, in: boardsScrollView, y: 54, height: 68)
-    contentView.addSubview(boardsScrollView)
+    configureSelectionTable(projectsTableView, in: projectsScrollView, y: 54, height: 68)
+    contentView.addSubview(projectsScrollView)
 
     cancelButton.target = self
     cancelButton.action = #selector(cancel(_:))
@@ -462,14 +462,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   }
 
   private func setListLoadingAppearance(kind: ListKind, isLoading: Bool) {
-    let hint = kind == .repos ? reposHint : boardsHint
-    let indicator = kind == .repos ? reposProgressIndicator : boardsProgressIndicator
+    let hint = kind == .repos ? reposHint : projectsHint
+    let indicator = kind == .repos ? reposProgressIndicator : projectsProgressIndicator
     let loadingText =
-      kind == .repos ? "Loading GitHub repositories…" : "Loading Jira boards…"
+      kind == .repos ? "Loading GitHub repositories…" : "Loading Jira projects…"
     let defaultText =
       kind == .repos
       ? "Leave all unchecked to include every available repo."
-      : "Leave all unchecked to include every available board."
+      : "Leave all unchecked to include every available project."
     let hintX = isLoading ? horizontalInset + 24 : horizontalInset
     let hintWidth = isLoading ? contentWidth - 24 : contentWidth
 
@@ -484,7 +484,7 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
   }
 
   private func updateSaveButtonState() {
-    saveButton.isEnabled = configLoaded && reposLoaded && boardsLoaded
+    saveButton.isEnabled = configLoaded && reposLoaded && projectsLoaded
   }
 
   private func applyReposSearchFilter() {
@@ -500,17 +500,17 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     }
   }
 
-  private func applyBoardsSearchFilter() {
-    let query = boardsSearchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+  private func applyProjectsSearchFilter() {
+    let query = projectsSearchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !query.isEmpty else {
-      filteredBoards = boards
+      filteredProjects = projects
       return
     }
 
     let normalizedQuery = query.lowercased()
-    filteredBoards = boards.filter { board in
-      board.key.lowercased().contains(normalizedQuery)
-        || String(board.id).contains(normalizedQuery)
+    filteredProjects = projects.filter { project in
+      project.key.lowercased().contains(normalizedQuery)
+        || String(project.id).contains(normalizedQuery)
     }
   }
 
@@ -540,14 +540,14 @@ final class CodexAgentSettingsWindowController: NSWindowController, NSTableViewD
     return label
   }
 
-  private func boardsEmptyStateView() -> NSView? {
+  private func projectsEmptyStateView() -> NSView? {
     let message: String
-    if let boardsLoadErrorMessage {
-      message = boardsLoadErrorMessage
-    } else if boards.isEmpty {
-      message = "No Jira boards available for this account."
-    } else if filteredBoards.isEmpty {
-      message = "No Jira boards match your search."
+    if let projectsLoadErrorMessage {
+      message = projectsLoadErrorMessage
+    } else if projects.isEmpty {
+      message = "No Jira projects available for this account."
+    } else if filteredProjects.isEmpty {
+      message = "No Jira projects match your search."
     } else {
       return nil
     }

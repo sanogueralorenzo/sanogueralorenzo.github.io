@@ -1,4 +1,4 @@
-use super::AvailableBoard;
+use super::AvailableProject;
 use super::AvailableRepo;
 use super::RepoOwner;
 use super::ReviewPublishMode;
@@ -17,18 +17,18 @@ pub(super) enum ConfigCommand {
     Show(ConfigShowArgs),
     /// List GitHub repos available for review filtering
     AvailableRepos(ConfigAvailableReposArgs),
-    /// List Jira boards available for task filtering
-    AvailableBoards(ConfigAvailableBoardsArgs),
+    /// List Jira projects available for task filtering
+    AvailableProjects(ConfigAvailableProjectsArgs),
     /// Set the allowed review repo filters
     SetAllowedRepos(ConfigSetAllowedReposArgs),
-    /// Set the allowed Jira board filters
-    SetAllowedBoards(ConfigSetAllowedBoardsArgs),
+    /// Set the allowed Jira project filters
+    SetAllowedProjects(ConfigSetAllowedProjectsArgs),
     /// Set the default review publish mode
     SetReviewMode(ConfigSetReviewModeArgs),
     /// Clear allowed review repo filters
     ClearAllowedRepos,
-    /// Clear allowed Jira board filters
-    ClearAllowedBoards,
+    /// Clear allowed Jira project filters
+    ClearAllowedProjects,
 }
 
 #[derive(Args, Debug)]
@@ -44,7 +44,7 @@ pub(super) struct ConfigAvailableReposArgs {
 }
 
 #[derive(Args, Debug)]
-pub(super) struct ConfigAvailableBoardsArgs {
+pub(super) struct ConfigAvailableProjectsArgs {
     #[arg(long)]
     pub json: bool,
 }
@@ -55,8 +55,8 @@ pub(super) struct ConfigSetAllowedReposArgs {
 }
 
 #[derive(Args, Debug)]
-pub(super) struct ConfigSetAllowedBoardsArgs {
-    pub board_ids: Vec<u64>,
+pub(super) struct ConfigSetAllowedProjectsArgs {
+    pub project_ids: Vec<u64>,
 }
 
 #[derive(Args, Debug)]
@@ -75,15 +75,9 @@ struct ListedRepo {
 }
 
 #[derive(Debug, Deserialize)]
-struct BoardSearchResponse {
-    values: Vec<ListedBoard>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ListedBoard {
-    id: u64,
-    location: Option<String>,
-    name: String,
+struct ListedProject {
+    id: String,
+    key: String,
 }
 
 pub(super) fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Result<()> {
@@ -92,12 +86,12 @@ pub(super) fn handle_config(action: ConfigCommand, layout: &StateLayout) -> Resu
         ConfigCommand::Init => init(layout),
         ConfigCommand::Show(args) => config_show(layout, args),
         ConfigCommand::AvailableRepos(args) => config_available_repos(args),
-        ConfigCommand::AvailableBoards(args) => config_available_boards(args),
+        ConfigCommand::AvailableProjects(args) => config_available_projects(args),
         ConfigCommand::SetAllowedRepos(args) => config_set_allowed_repos(layout, args),
-        ConfigCommand::SetAllowedBoards(args) => config_set_allowed_boards(layout, args),
+        ConfigCommand::SetAllowedProjects(args) => config_set_allowed_projects(layout, args),
         ConfigCommand::SetReviewMode(args) => config_set_review_mode(layout, args),
         ConfigCommand::ClearAllowedRepos => config_clear_allowed_repos(layout),
-        ConfigCommand::ClearAllowedBoards => config_clear_allowed_boards(layout),
+        ConfigCommand::ClearAllowedProjects => config_clear_allowed_projects(layout),
     }
 }
 
@@ -133,15 +127,15 @@ fn config_show(layout: &StateLayout, args: ConfigShowArgs) -> Result<()> {
     } else {
         println!("allowed_repos={}", config.allowed_repos.join(","));
     }
-    if config.allowed_boards.is_empty() {
-        println!("allowed_boards=");
+    if config.allowed_projects.is_empty() {
+        println!("allowed_projects=");
     } else {
-        let board_ids = config
-            .allowed_boards
+        let project_ids = config
+            .allowed_projects
             .iter()
             .map(u64::to_string)
             .collect::<Vec<_>>();
-        println!("allowed_boards={}", board_ids.join(","));
+        println!("allowed_projects={}", project_ids.join(","));
     }
     Ok(())
 }
@@ -162,19 +156,19 @@ fn config_available_repos(args: ConfigAvailableReposArgs) -> Result<()> {
     Ok(())
 }
 
-fn config_available_boards(args: ConfigAvailableBoardsArgs) -> Result<()> {
-    let boards = list_available_boards()?;
+fn config_available_projects(args: ConfigAvailableProjectsArgs) -> Result<()> {
+    let projects = list_available_projects()?;
     if args.json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&boards)
-                .context("failed to serialize available boards")?
+            serde_json::to_string_pretty(&projects)
+                .context("failed to serialize available projects")?
         );
         return Ok(());
     }
 
-    for board in boards {
-        println!("{} {}", board.id, board.key);
+    for project in projects {
+        println!("{} {}", project.id, project.key);
     }
     Ok(())
 }
@@ -196,20 +190,23 @@ fn config_set_allowed_repos(layout: &StateLayout, args: ConfigSetAllowedReposArg
     Ok(())
 }
 
-fn config_set_allowed_boards(layout: &StateLayout, args: ConfigSetAllowedBoardsArgs) -> Result<()> {
-    let mut board_ids = args.board_ids;
-    board_ids.sort();
-    board_ids.dedup();
+fn config_set_allowed_projects(
+    layout: &StateLayout,
+    args: ConfigSetAllowedProjectsArgs,
+) -> Result<()> {
+    let mut project_ids = args.project_ids;
+    project_ids.sort();
+    project_ids.dedup();
 
     update_agents_config(layout, |config| {
-        config.allowed_boards = board_ids.clone();
+        config.allowed_projects = project_ids.clone();
     })?;
 
-    if board_ids.is_empty() {
-        println!("Set allowed_boards=");
+    if project_ids.is_empty() {
+        println!("Set allowed_projects=");
     } else {
-        let values = board_ids.iter().map(u64::to_string).collect::<Vec<_>>();
-        println!("Set allowed_boards={}", values.join(","));
+        let values = project_ids.iter().map(u64::to_string).collect::<Vec<_>>();
+        println!("Set allowed_projects={}", values.join(","));
     }
     Ok(())
 }
@@ -230,11 +227,11 @@ fn config_clear_allowed_repos(layout: &StateLayout) -> Result<()> {
     Ok(())
 }
 
-fn config_clear_allowed_boards(layout: &StateLayout) -> Result<()> {
+fn config_clear_allowed_projects(layout: &StateLayout) -> Result<()> {
     update_agents_config(layout, |config| {
-        config.allowed_boards.clear();
+        config.allowed_projects.clear();
     })?;
-    println!("Cleared allowed_boards");
+    println!("Cleared allowed_projects");
     Ok(())
 }
 
@@ -250,46 +247,26 @@ fn list_available_repos() -> Result<Vec<AvailableRepo>> {
     Ok(repos)
 }
 
-fn list_available_boards() -> Result<Vec<AvailableBoard>> {
-    let output = run_acli_json(&[
-        "jira",
-        "board",
-        "search",
-        "--json",
-        "--paginate",
-        "--limit",
-        "500",
-    ])?;
-    let mut boards = Vec::new();
-    let responses = serde_json::Deserializer::from_str(&output).into_iter::<BoardSearchResponse>();
-    for response in responses {
-        let response = response.context("failed to parse acli board search response")?;
-        boards.extend(response.values.into_iter().map(|board| AvailableBoard {
-            id: board.id,
-            key: extract_board_key(board.location.as_deref(), &board.name),
-        }));
-    }
+fn list_available_projects() -> Result<Vec<AvailableProject>> {
+    let output = run_acli_json(&["jira", "project", "list", "--json", "--paginate"])?;
+    let mut projects: Vec<AvailableProject> = serde_json::from_str::<Vec<ListedProject>>(&output)
+        .context("failed to parse acli project list response")?
+        .into_iter()
+        .filter_map(|project| {
+            project.id.parse::<u64>().ok().map(|id| AvailableProject {
+                id,
+                key: project.key,
+            })
+        })
+        .collect();
 
-    boards.sort_by(|left, right| {
+    projects.sort_by(|left, right| {
         left.key
             .cmp(&right.key)
             .then_with(|| left.id.cmp(&right.id))
     });
-    boards.dedup_by(|left, right| left.id == right.id);
-    Ok(boards)
-}
-
-fn extract_board_key(location: Option<&str>, name: &str) -> String {
-    if let Some(location) = location {
-        if let Some((_, suffix)) = location.rsplit_once('(') {
-            let key = suffix.trim_end_matches(')').trim();
-            if !key.is_empty() {
-                return key.to_string();
-            }
-        }
-    }
-
-    name.trim().to_string()
+    projects.dedup_by(|left, right| left.id == right.id);
+    Ok(projects)
 }
 
 fn normalize_repo_filters(repos: Vec<String>) -> Result<Vec<String>> {
@@ -427,7 +404,6 @@ fn run_acli_json(args: &[&str]) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_board_key;
     use super::normalize_repo_filters;
 
     #[test]
@@ -444,18 +420,5 @@ mod tests {
                 .to_string()
                 .contains("Invalid repo filter: openai. Expected OWNER/REPO.")
         );
-    }
-
-    #[test]
-    fn extract_board_key_prefers_location_suffix() {
-        assert_eq!(
-            extract_board_key(Some("Mobile (MOB)"), "Mobile board"),
-            "MOB"
-        );
-    }
-
-    #[test]
-    fn extract_board_key_falls_back_to_name() {
-        assert_eq!(extract_board_key(None, "My Open Issues"), "My Open Issues");
     }
 }
