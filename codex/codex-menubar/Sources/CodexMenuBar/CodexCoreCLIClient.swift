@@ -11,10 +11,22 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     let initializedAt: String
     let reviewMode: ReviewMode
     let allowedRepos: [String]
+    let allowedBoards: [Int]
   }
 
   struct AvailableRepo: Decodable, Sendable {
     let fullName: String
+  }
+
+  struct AvailableBoard: Decodable, Sendable {
+    let id: Int
+    let name: String
+    let location: String
+    let boardType: String
+
+    var displayName: String {
+      "\(name) [\(location)]"
+    }
   }
 
   struct ReviewPullRequest: Decodable {
@@ -179,12 +191,27 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     return try decoder.decode([AvailableRepo].self, from: Data(output.utf8))
   }
 
+  func availableBoards() throws -> [AvailableBoard] {
+    let output = try runAgents(["config", "available-boards", "--json"])
+    let decoder = JSONDecoder()
+    decoder.keyDecodingStrategy = .convertFromSnakeCase
+    return try decoder.decode([AvailableBoard].self, from: Data(output.utf8))
+  }
+
   func setAllowedRepos(_ repos: [String]) throws {
     if repos.isEmpty {
       _ = try runAgents(["config", "clear-allowed-repos"])
       return
     }
     _ = try runAgents(["config", "set-allowed-repos"] + repos)
+  }
+
+  func setAllowedBoards(_ boardIDs: [Int]) throws {
+    if boardIDs.isEmpty {
+      _ = try runAgents(["config", "clear-allowed-boards"])
+      return
+    }
+    _ = try runAgents(["config", "set-allowed-boards"] + boardIDs.map(String.init))
   }
 
   func setReviewMode(_ mode: ReviewMode) throws {

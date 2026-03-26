@@ -89,15 +89,18 @@ struct AgentsConfig {
     #[serde(default)]
     review_mode: ReviewPublishMode,
     allowed_repos: Vec<String>,
+    #[serde(default)]
+    allowed_boards: Vec<u64>,
 }
 
 impl AgentsConfig {
     fn new() -> Self {
         Self {
-            state_version: 2,
+            state_version: 3,
             initialized_at: now_utc(),
             review_mode: ReviewPublishMode::Publish,
             allowed_repos: Vec::new(),
+            allowed_boards: Vec::new(),
         }
     }
 }
@@ -105,6 +108,14 @@ impl AgentsConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 struct AvailableRepo {
     full_name: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+struct AvailableBoard {
+    id: u64,
+    name: String,
+    location: String,
+    board_type: String,
 }
 
 #[derive(Debug, Deserialize)]

@@ -29,12 +29,14 @@ codex-core noninteractive run --help
   - State lives under `~/.codex/auth`, including `profiles/`, `active-account-id`, `watch.pid`, and `watch.log`.
 - Agents commands:
   - `codex-core agents ...` manages local task files and worker loops.
-  - Primary verbs: `config init|show|available-repos|set-allowed-repos|set-review-mode|clear-allowed-repos`, `task create|list|show`, `worker start|loop`, `review list|run|jobs|show`.
+  - Primary verbs: `config init|show|available-repos|available-boards|set-allowed-repos|set-allowed-boards|set-review-mode|clear-allowed-repos|clear-allowed-boards`, `task create|list|show`, `worker start|loop`, `review list|run|jobs|show`.
   - `worker loop` starts a fresh `codex exec` run on every iteration; continuity is expected to come from your plan/prompt files, not from thread resume.
   - Important loop flags: `--prompt-file`, `--cd`, `--interval-seconds`, `--max-iterations`, `--stop-phrase`, `--once`, `--model`, `--full-auto`, `--dangerously-bypass-approvals-and-sandbox`, `--skip-git-repo-check`.
-  - `config show --json` returns the current agents settings, including `review_mode` and `allowed_repos`.
+  - `config show --json` returns the current agents settings, including `review_mode`, `allowed_repos`, and `allowed_boards`.
   - `config available-repos --json` returns available personal and organization repos from `gh` where your `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`.
+  - `config available-boards --json` returns Jira boards visible to your `acli jira` account, including each board's numeric `id`, name, location, and board type.
   - `config set-review-mode publish|pending` sets the default review posting mode used by `review run`.
+  - `config set-allowed-boards <id>...` stores the Jira board filter list used by agent clients; `clear-allowed-boards` removes that filter.
   - `review list --json` returns open PRs across your personal repos and orgs from `gh`, filtered by `allowed_repos` when configured and ordered by `created_at` newest first.
   - `review run <pr-url|owner/repo#number>` reuses a cached repo under `~/.codex/agents/repos/<owner>/<repo>`, creates a per-run worktree under `~/.codex/agents/worktrees`, fetches upstream review prompts from `openai/codex` `main`, runs `codex exec` with those prompts unchanged, validates findings against changed diff lines on both left and right sides, and supports `--publish-mode publish|pending` (defaulting to `config.review_mode`).
   - In `publish` mode, findings get Shields priority badges in the heading (`P1` red, `P2` orange, `P3` yellow), post inline GitHub review comments via `gh` against the latest PR head SHA when possible, and fall back to separate top-level PR comments with direct file+line hyperlinks when inline placement is not possible.
