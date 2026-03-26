@@ -12,3 +12,6 @@ Desktop.ini
 .env.*
 !.env.example
 !example.env
+# -------------------- Local Project Artifacts --------------------
+voice/.cache/
+codex/codex-*/target/
