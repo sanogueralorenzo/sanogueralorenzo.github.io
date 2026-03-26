@@ -1,21 +1,14 @@
-use crate::core::events::{parse_last_agent_message_from_events, parse_thread_id_from_events};
+use crate::core::events::parse_thread_id_from_events;
 use crate::core::process::exit_code_from_status;
 use crate::core::temp::temp_file_path;
 use crate::noninteractive::cli::WrapperOptions;
-use serde::Serialize;
-use std::fs;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-
-#[derive(Serialize)]
-struct ResultJson {
-    status: String,
-    exit_code: i32,
-    thread_id: Option<String>,
-    final_message: String,
-    stderr: String,
-}
+use crate::noninteractive::command::build_codex_command;
+use crate::noninteractive::output::{
+    cleanup_managed_file, render_final_message, write_result_json,
+};
+use crate::noninteractive::prompt::load_prompt_bytes;
+use crate::noninteractive::result::ResultJson;
+use std::process::Stdio;
 
 pub fn run_wrapper(mode: &str, options: WrapperOptions) -> u8 {
     let mut managed_output_last_message = false;
@@ -26,14 +19,14 @@ pub fn run_wrapper(mode: &str, options: WrapperOptions) -> u8 {
         temp_file_path("codex-core-last-message", "txt")
     };
 
-    let mut command = build_codex_command(mode, &options, &output_last_message);
-    let stdin_bytes =
+    let prompt_bytes =
         match load_prompt_bytes(&options, managed_output_last_message, &output_last_message) {
             Ok(stdin_bytes) => stdin_bytes,
             Err(exit_code) => return exit_code,
         };
 
-    if stdin_bytes.is_some() {
+    let mut command = build_codex_command(mode, &options, &output_last_message);
+    if prompt_bytes.is_some() {
         command.stdin(Stdio::piped());
     }
     command.stdout(Stdio::piped());
@@ -52,9 +45,9 @@ pub fn run_wrapper(mode: &str, options: WrapperOptions) -> u8 {
         }
     };
 
-    if let Some(bytes) = stdin_bytes
+    if let Some(bytes) = prompt_bytes
         && let Some(mut stdin) = child.stdin.take()
-        && let Err(error) = stdin.write_all(&bytes)
+        && let Err(error) = std::io::Write::write_all(&mut stdin, &bytes)
     {
         eprintln!("Failed to write prompt to codex stdin: {error}");
         cleanup_managed_file(managed_output_last_message, &output_last_message);
@@ -90,17 +83,12 @@ pub fn run_wrapper(mode: &str, options: WrapperOptions) -> u8 {
     if let Some(path) = options.result_json
         && let Err(error) = write_result_json(
             &path,
-            &ResultJson {
-                status: if exit_code == 0 {
-                    "completed".to_string()
-                } else {
-                    "failed".to_string()
-                },
+            &ResultJson::from_execution(
                 exit_code,
                 thread_id,
-                final_message: final_message.clone(),
-                stderr: stderr_text.clone(),
-            },
+                final_message.clone(),
+                stderr_text.clone(),
+            ),
         )
     {
         eprintln!("Failed to write result JSON '{}': {error}", path.display());
@@ -116,104 +104,4 @@ pub fn run_wrapper(mode: &str, options: WrapperOptions) -> u8 {
     }
 
     0
-}
-
-fn build_codex_command(
-    mode: &str,
-    options: &WrapperOptions,
-    output_last_message: &Path,
-) -> Command {
-    let mut command = Command::new("codex");
-    command.arg("exec");
-
-    match mode {
-        "run" => {}
-        "resume" => {
-            command.arg("resume");
-        }
-        "review" => {
-            command.arg("review");
-        }
-        _ => {}
-    }
-
-    command
-        .arg("--json")
-        .arg("--output-last-message")
-        .arg(output_last_message);
-
-    for passthrough in &options.passthrough_args {
-        command.arg(passthrough);
-    }
-
-    if let Some(prompt_text) = &options.prompt_text {
-        command.arg(prompt_text);
-    } else if options.prompt_stdin || options.prompt_file.is_some() {
-        command.arg("-");
-    }
-
-    command
-}
-
-fn load_prompt_bytes(
-    options: &WrapperOptions,
-    managed_output_last_message: bool,
-    output_last_message: &Path,
-) -> Result<Option<Vec<u8>>, u8> {
-    if options.prompt_stdin {
-        let mut buffer = Vec::new();
-        if let Err(error) = std::io::stdin().read_to_end(&mut buffer) {
-            eprintln!("Failed to read prompt from stdin: {error}");
-            cleanup_managed_file(managed_output_last_message, output_last_message);
-            return Err(1);
-        }
-        return Ok(Some(buffer));
-    }
-
-    let Some(path) = &options.prompt_file else {
-        return Ok(None);
-    };
-
-    match fs::read(path) {
-        Ok(contents) => Ok(Some(contents)),
-        Err(error) => {
-            eprintln!("Failed to read prompt file '{}': {error}", path.display());
-            cleanup_managed_file(managed_output_last_message, output_last_message);
-            Err(1)
-        }
-    }
-}
-
-fn render_final_message(
-    options: &WrapperOptions,
-    events_text: &str,
-    output_last_message: &Path,
-) -> String {
-    if options.raw_jsonl {
-        return String::new();
-    }
-
-    let from_file = fs::read_to_string(output_last_message).unwrap_or_default();
-    let text = if from_file.is_empty() {
-        parse_last_agent_message_from_events(events_text).unwrap_or_default()
-    } else {
-        from_file
-    };
-    print!("{text}");
-    text
-}
-
-fn cleanup_managed_file(is_managed: bool, path: &Path) {
-    if is_managed {
-        let _ = fs::remove_file(path);
-    }
-}
-
-fn write_result_json(path: &PathBuf, result: &ResultJson) -> std::io::Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let serialized = serde_json::to_string_pretty(result)
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
-    fs::write(path, format!("{serialized}\n"))
 }

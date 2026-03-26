@@ -1,5 +1,9 @@
 mod cli;
+mod command;
 mod help;
+mod output;
+mod prompt;
+mod result;
 mod runner;
 
 use std::ffi::OsString;
