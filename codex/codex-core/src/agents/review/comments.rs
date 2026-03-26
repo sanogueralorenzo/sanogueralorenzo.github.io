@@ -488,11 +488,21 @@ fn github_blob_line_url(
 }
 
 fn render_finding_heading(finding: &ReviewFinding) -> String {
-    let title = finding.title.trim();
+    let title = strip_priority_prefix(finding.title.trim());
     match render_priority_badge_markdown(finding.priority) {
         Some(badge) => format!("**<sub><sub>{badge}</sub></sub>  {title}**"),
         None => title.to_string(),
     }
+}
+
+fn strip_priority_prefix(title: &str) -> &str {
+    let trimmed = title.trim();
+    for prefix in ["[P0]", "[P1]", "[P2]", "[P3]"] {
+        if let Some(remaining) = trimmed.strip_prefix(prefix) {
+            return remaining.trim_start();
+        }
+    }
+    trimmed
 }
 
 fn render_priority_badge_markdown(priority: Option<i32>) -> Option<String> {
@@ -672,5 +682,21 @@ index 1111111..2222222 100644
         assert!(lines.left.contains(&10));
         assert!(lines.left.contains(&20));
         assert!(!lines.right.contains(&22));
+    }
+
+    #[test]
+    fn strip_priority_prefix_removes_leading_priority_tag() {
+        assert_eq!(
+            strip_priority_prefix("[P2] Keep the chatbot label in sync"),
+            "Keep the chatbot label in sync"
+        );
+    }
+
+    #[test]
+    fn strip_priority_prefix_keeps_title_without_priority_tag() {
+        assert_eq!(
+            strip_priority_prefix("Keep the chatbot label in sync"),
+            "Keep the chatbot label in sync"
+        );
     }
 }
