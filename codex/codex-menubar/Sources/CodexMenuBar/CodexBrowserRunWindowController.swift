@@ -236,7 +236,7 @@ final class CodexBrowserRunWindowController: NSWindowController, NSWindowDelegat
 
     cancelButton.target = self
     cancelButton.action = #selector(cancel(_:))
-    cancelButton.frame = NSRect(x: 162, y: 12, width: 90, height: 30)
+    cancelButton.frame = NSRect(x: 170, y: 12, width: 90, height: 30)
     contentView.addSubview(cancelButton)
 
     reviewButton.target = self
@@ -247,13 +247,13 @@ final class CodexBrowserRunWindowController: NSWindowController, NSWindowDelegat
 
     spikeButton.target = self
     spikeButton.action = #selector(runSpike(_:))
-    spikeButton.frame = NSRect(x: 162, y: 12, width: 90, height: 30)
+    spikeButton.frame = NSRect(x: 74, y: 12, width: 90, height: 30)
     contentView.addSubview(spikeButton)
 
     taskButton.target = self
     taskButton.action = #selector(runTask(_:))
     taskButton.keyEquivalent = "\r"
-    taskButton.frame = NSRect(x: 266, y: 12, width: 154, height: 30)
+    taskButton.frame = NSRect(x: 266, y: 12, width: 90, height: 30)
     contentView.addSubview(taskButton)
   }
 
