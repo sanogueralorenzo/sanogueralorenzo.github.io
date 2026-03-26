@@ -523,7 +523,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       showNotification(
         identifier: "io.github.sanogueralorenzo.codex-menubar.task.\(job.id)",
         title: title,
-        message: job.ticket
+        message: "Ticket: \(job.ticket)"
       )
     }
   }
@@ -549,7 +549,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       showNotification(
         identifier: "io.github.sanogueralorenzo.codex-menubar.spike.\(job.id)",
         title: title,
-        message: job.ticket
+        message: "Ticket: \(job.ticket)"
       )
     }
   }
@@ -575,7 +575,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       showNotification(
         identifier: "io.github.sanogueralorenzo.codex-menubar.review.\(job.id)",
         title: title,
-        message: "#\(job.number)"
+        message: "PR: #\(job.number)"
       )
     }
   }
