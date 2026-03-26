@@ -117,8 +117,6 @@ pub(super) struct PullRequestView {
 
 #[derive(Debug, Clone)]
 pub(super) struct ExistingReviewFeedback {
-    pub author_login: String,
-    pub kind: &'static str,
     pub body: String,
 }
 
@@ -130,13 +128,11 @@ struct PullRequestFeedbackView {
 
 #[derive(Debug, Deserialize)]
 struct PullRequestComment {
-    author: Option<LoginNode>,
     body: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct PullRequestReview {
-    author: Option<LoginNode>,
     body: String,
 }
 
@@ -268,11 +264,6 @@ pub(super) fn fetch_existing_review_feedback(
             None
         } else {
             Some(ExistingReviewFeedback {
-                author_login: comment
-                    .author
-                    .map(|author| author.login)
-                    .unwrap_or_else(|| "unknown".to_string()),
-                kind: "comment",
                 body: body.to_string(),
             })
         }
@@ -283,11 +274,6 @@ pub(super) fn fetch_existing_review_feedback(
             None
         } else {
             Some(ExistingReviewFeedback {
-                author_login: review
-                    .author
-                    .map(|author| author.login)
-                    .unwrap_or_else(|| "unknown".to_string()),
-                kind: "review",
                 body: body.to_string(),
             })
         }

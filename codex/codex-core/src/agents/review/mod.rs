@@ -367,25 +367,18 @@ fn run_review(layout: &StateLayout, args: ReviewRunArgs) -> Result<()> {
 
 fn existing_feedback_prompt(feedback: &[ExistingReviewFeedback]) -> String {
     if feedback.is_empty() {
-        return "Existing PR feedback:\nNo existing PR comments or review summaries were found.\n\nAvoid repeating feedback that is already present on the pull request.".to_string();
+        return "Existing PR comments:\nNo existing PR comments were found.\n\nAvoid repeating feedback that is already present on the pull request.".to_string();
     }
 
     let rendered = feedback
         .iter()
         .take(20)
-        .map(|entry| {
-            format!(
-                "- {} by {}: {}",
-                entry.kind,
-                entry.author_login,
-                truncate_review_feedback(&entry.body, 600)
-            )
-        })
+        .map(|entry| format!("- {}", truncate_review_feedback(&entry.body, 600)))
         .collect::<Vec<_>>()
         .join("\n");
 
     format!(
-        "Existing PR feedback:\n{}\n\nAvoid repeating feedback that is already present on the pull request unless you are correcting it or adding materially new information.",
+        "Existing PR comments:\n{}\n\nAvoid repeating feedback that is already present on the pull request unless you are correcting it or adding materially new information.",
         rendered
     )
 }
