@@ -49,6 +49,7 @@
 - In `Publish` mode, review findings are published immediately, using inline comments when possible and separate top-level PR comments otherwise.
 - In `Pending` mode, review findings are created as one pending GitHub review, keeping inline comments as draft review comments and grouping non-inline findings into the draft review body.
 - Task, spike, and review success paths use macOS notifications instead of modal completion alerts.
+- Task runs also send a start notification before background execution begins.
 - Review completion notifications include the persisted review job ID from `~/.codex/agents/reviews/<review-id>`.
 - Review completion notifications include per-comment failure reasons when inline comment posting is skipped or rejected.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.

@@ -137,6 +137,10 @@ extension AppDelegate {
 
   private func runTask(ticket: String) {
     refreshUI()
+    showNotification(
+      title: "Task Started",
+      message: "Running task for \(ticket)."
+    )
     let sessionsCLI = self.sessionsCLI
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self else {
