@@ -21,9 +21,11 @@ extension AppDelegate {
   }
 
   @objc func openRunFromBrowser(_ sender: Any?) {
+    let browserResult = Result { try CurrentBrowserURLReader.frontmostBrowserApplication() }
+
     if let existingController = codexBrowserRunWindowController {
       existingController.present()
-      loadCurrentBrowserTarget(into: existingController)
+      loadCurrentBrowserTarget(into: existingController, browserResult: browserResult)
       return
     }
 
@@ -44,7 +46,7 @@ extension AppDelegate {
 
     codexBrowserRunWindowController = controller
     controller.present()
-    loadCurrentBrowserTarget(into: controller)
+    loadCurrentBrowserTarget(into: controller, browserResult: browserResult)
   }
 
   @objc func runAgentTask(_ sender: NSMenuItem) {
@@ -271,11 +273,15 @@ extension AppDelegate {
     }
   }
 
-  private func loadCurrentBrowserTarget(into controller: CodexBrowserRunWindowController) {
+  private func loadCurrentBrowserTarget(
+    into controller: CodexBrowserRunWindowController,
+    browserResult: Result<BrowserApplication, Swift.Error>
+  ) {
     let browser: BrowserApplication
-    do {
-      browser = try CurrentBrowserURLReader.frontmostBrowserApplication()
-    } catch {
+    switch browserResult {
+    case .success(let resolvedBrowser):
+      browser = resolvedBrowser
+    case .failure(let error):
       let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
       controller.applyError(message)
       return
