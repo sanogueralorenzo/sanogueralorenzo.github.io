@@ -29,7 +29,7 @@
 - `Remote -> Start` enables remote auto-start for future app launches.
 - `Remote -> Stop` disables remote auto-start for future app launches.
 - `Agents -> Create` opens the same `Run From Browser` panel used by the global shortcut.
-- `Agents` includes only `Create`, `View`, and `Settings`; task and review launch pickers are no longer shown in the menu.
+- `Agents` includes `Create`, `View`, `Review`, and `Settings`; `Review` is currently a placeholder row with no action behind it, and task/review launch pickers are no longer shown directly in the menu.
 - `Agents -> View` shows persisted spike, task, and review runs.
 - Task run rows use status prefixes: `·` in progress, `✓` completed, `X` failed.
 - Review run rows use status prefixes: `·` in progress, `✓` published, `X` needs attention.

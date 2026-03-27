@@ -37,6 +37,7 @@ extension AppDelegate {
     menu.addItem(viewItem)
     menu.setSubmenu(viewMenu, for: viewItem)
 
+    menu.addItem(actionItem(title: "Review", action: #selector(noopHeader(_:))))
     menu.addItem(actionItem(title: "Settings", action: #selector(openCodexAgentSettings(_:))))
   }
 
