@@ -211,19 +211,9 @@ extension AppDelegate {
       return
     }
 
-    let controller = CodexPullRequestsWindowController(
-      onClose: { [weak self] in
-        self?.codexPullRequestsWindowController = nil
-      },
-      onNotify: { [weak self] title, message, targetURL in
-        self?.showNotification(
-          identifier: "io.github.sanogueralorenzo.codex-menubar.pullrequests.\(UUID().uuidString)",
-          title: title,
-          message: message,
-          targetURL: targetURL
-        )
-      }
-    )
+    let controller = CodexPullRequestsWindowController(onClose: { [weak self] in
+      self?.codexPullRequestsWindowController = nil
+    })
 
     codexPullRequestsWindowController = controller
     controller.present()

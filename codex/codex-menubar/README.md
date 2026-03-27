@@ -31,7 +31,7 @@
 - `Agents -> Create` opens the same `Run From Browser` panel used by the global shortcut.
 - `Agents` includes `Create`, `View`, `Pull Requests`, and `Settings`.
 - `Agents -> View` shows persisted spike, task, and review runs.
-- `Agents -> Pull Requests` opens a dedicated window for GitHub PR review workflows, including review drafting, apply-feedback runs, repository selection, and apply-threshold settings.
+- `Agents -> Pull Requests` opens a dedicated window for GitHub PR workflows. Its `Review` action uses the same `codex-core agents review run <pr>` flow and allowed-repository configuration as the rest of the app, while `Apply` remains a direct Codex CLI workflow with its own apply-threshold setting.
 - Task run rows use status prefixes: `·` in progress, `✓` completed, `X` failed.
 - Review run rows use status prefixes: `·` in progress, `✓` published, `X` needs attention.
 - `Agents -> View` exposes saved links as direct-click rows: spike runs open the Jira ticket, task runs open the draft PR when available, and review runs open the PR.

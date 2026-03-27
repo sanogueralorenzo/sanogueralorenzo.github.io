@@ -4,7 +4,6 @@ struct AppPaths {
   let root: URL
   let configFile: URL
   let activityFile: URL
-  let reviewsRoot: URL
   let reposRoot: URL
   let worktreesRoot: URL
 
@@ -15,14 +14,12 @@ struct AppPaths {
     root = appSupport
     configFile = appSupport.appendingPathComponent("config.json")
     activityFile = appSupport.appendingPathComponent("activity.json")
-    reviewsRoot = appSupport.appendingPathComponent("reviews", isDirectory: true)
     reposRoot = appSupport.appendingPathComponent("repos", isDirectory: true)
     worktreesRoot = appSupport.appendingPathComponent("worktrees", isDirectory: true)
   }
 
   func ensureExists(fileManager: FileManager = .default) throws {
     try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
-    try fileManager.createDirectory(at: reviewsRoot, withIntermediateDirectories: true)
     try fileManager.createDirectory(at: reposRoot, withIntermediateDirectories: true)
     try fileManager.createDirectory(at: worktreesRoot, withIntermediateDirectories: true)
   }

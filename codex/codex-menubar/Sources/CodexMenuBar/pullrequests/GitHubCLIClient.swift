@@ -29,50 +29,6 @@ final class GitHubCLIClient: @unchecked Sendable {
     }
   }
 
-  func listAvailableRepos() async throws -> [AvailableRepo] {
-    struct GraphQLResponse: Decodable {
-      struct DataNode: Decodable {
-        struct Viewer: Decodable {
-          struct Repositories: Decodable {
-            struct RepoNode: Decodable {
-              let nameWithOwner: String
-              let viewerPermission: String
-              let isArchived: Bool?
-            }
-            let nodes: [RepoNode]
-          }
-          let repositories: Repositories
-        }
-        let viewer: Viewer
-      }
-      let data: DataNode
-    }
-
-    let query = """
-    query {
-      viewer {
-        repositories(first: 100, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], orderBy: { field: UPDATED_AT, direction: DESC }) {
-          nodes {
-            nameWithOwner
-            viewerPermission
-            isArchived
-          }
-        }
-      }
-    }
-    """
-
-    let result = try await Shell.run(
-      executable: "gh",
-      arguments: ["api", "graphql", "-f", "query=\(query)"],
-      timeout: 30
-    )
-    let response = try jsonDecoder.decode(GraphQLResponse.self, from: Data(result.stdout.utf8))
-    return response.data.viewer.repositories.nodes
-      .filter { !($0.isArchived ?? false) }
-      .map { AvailableRepo(fullName: $0.nameWithOwner) }
-  }
-
   func listPullRequests(repos: [String], filter: PRFilter) async throws -> [PullRequestSummary] {
     var items = [PullRequestSummary]()
     try await withThrowingTaskGroup(of: [PullRequestSummary].self) { group in

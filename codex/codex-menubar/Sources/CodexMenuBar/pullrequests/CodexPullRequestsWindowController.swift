@@ -4,13 +4,12 @@ import Foundation
 @MainActor
 final class CodexPullRequestsWindowController: NSWindowController, NSWindowDelegate {
   private let github = GitHubCLIClient()
+  private let sessionsCLI = CodexCoreCLIClient()
   private let paths = AppPaths()
   private lazy var codexRunner = CodexActionRunner(paths: paths, github: github)
-  private lazy var reviewCoordinator = ReviewCoordinator(paths: paths)
   private let configStore = ConfigStore()
   private let activityStore = ActivityStore()
   private let onClose: () -> Void
-  private let onNotify: @MainActor (_ title: String, _ message: String, _ targetURL: String?) -> Void
 
   private lazy var reviewsViewController = PRReviewsViewController(
     onShowSettings: { [weak self] in
@@ -55,19 +54,15 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
   private var currentFilter: PRFilter = .all
   private var config = AppConfig.default
   private var activities: [String: ActivityRecord] = [:]
-  private var reviewJobsByURL: [String: ReviewJobSnapshot] = [:]
+  private var reviewJobsByURL: [String: CodexCoreCLIClient.ReviewJob] = [:]
   private var currentItems: [PullRequestSummary] = []
   private var isLoading = false
   private var currentError: String?
   private var refreshGeneration = 0
   private var hasLoadedInitialState = false
 
-  init(
-    onClose: @escaping () -> Void,
-    onNotify: @escaping @MainActor (_ title: String, _ message: String, _ targetURL: String?) -> Void
-  ) {
+  init(onClose: @escaping () -> Void) {
     self.onClose = onClose
-    self.onNotify = onNotify
 
     let panel = NSPanel(
       contentRect: NSRect(origin: .zero, size: PRReviewsViewController.preferredSize),
@@ -85,10 +80,6 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
 
     panel.delegate = self
     panel.contentViewController = reviewsViewController
-
-    reviewCoordinator.onSnapshotChange = { [weak self] snapshot in
-      self?.handleReviewJobSnapshotChange(snapshot)
-    }
   }
 
   @available(*, unavailable)
@@ -120,7 +111,8 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
     do {
       config = try await configStore.load()
       activities = try await activityStore.load()
-      setReviewJobs(try await reviewCoordinator.loadJobs())
+      config.allowedRepos = try await loadAgentsConfig().allowedRepos
+      setReviewJobs(try await loadReviewJobs())
     } catch {
       currentError = error.localizedDescription
     }
@@ -137,6 +129,9 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
     applyCurrentState()
 
     do {
+      let reviewJobs = try await loadReviewJobs()
+      setReviewJobs(reviewJobs)
+
       let repos = config.allowedRepos
       let items: [PullRequestSummary] =
         if repos.isEmpty {
@@ -157,7 +152,7 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
             guard let job = reviewJobsByURL[$0.url] else {
               return false
             }
-            return job.status == .completed
+            return job.status == .published
           }
         } else {
           items
@@ -196,7 +191,7 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
     let statuses = await [ghStatus, codexStatus]
 
     do {
-      let repos = try await github.listAvailableRepos()
+      let repos = try await loadAvailableRepos()
       reviewsViewController.applySettingsState(
         statuses: statuses,
         availableRepos: repos,
@@ -216,7 +211,12 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
   }
 
   private func updateSelectedRepos(_ repos: [String]) async {
-    config.allowedRepos = repos
+    do {
+      try await setAllowedRepos(repos)
+      config.allowedRepos = repos
+    } catch {
+      currentError = error.localizedDescription
+    }
     await saveConfigAndRefresh()
   }
 
@@ -238,8 +238,8 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
   private func clearFinishedActivities() async {
     do {
       activities = try await activityStore.clearFinished()
-      setReviewJobs(try await reviewCoordinator.clearFinishedJobs())
-      applyCurrentState()
+      try await clearFinishedReviewJobs()
+      await refreshPullRequests()
     } catch {
       currentError = error.localizedDescription
       applyCurrentState()
@@ -248,9 +248,38 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
 
   private func runAction(for pullRequest: PullRequestSummary, filter: PRFilter) async {
     if filter == .all {
+      await upsertActivity(
+        ActivityRecord(
+          pullRequestURL: pullRequest.url,
+          kind: .review,
+          status: .running,
+          detail: nil,
+          updatedAt: ISO8601DateFormatter().string(from: .now)
+        )
+      )
+
       do {
-        _ = try await reviewCoordinator.runReview(for: pullRequest)
+        let result = try await runReview(pullRequestURL: pullRequest.url)
+        await upsertActivity(
+          ActivityRecord(
+            pullRequestURL: pullRequest.url,
+            kind: .review,
+            status: .completed,
+            detail: result.summary,
+            updatedAt: ISO8601DateFormatter().string(from: .now)
+          )
+        )
+        await refreshPullRequests()
       } catch {
+        await upsertActivity(
+          ActivityRecord(
+            pullRequestURL: pullRequest.url,
+            kind: .review,
+            status: .failed,
+            detail: error.localizedDescription,
+            updatedAt: ISO8601DateFormatter().string(from: .now)
+          )
+        )
         currentError = error.localizedDescription
         applyCurrentState()
       }
@@ -331,11 +360,11 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
 
     for (url, job) in reviewJobsByURL {
       let status: JobStatus = switch job.status {
-      case .queued, .running, .postingComments:
+      case .inProgress:
         .running
-      case .completed:
+      case .published:
         .completed
-      case .failed:
+      case .needsAttention:
         .failed
       }
 
@@ -343,15 +372,15 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
         pullRequestURL: url,
         kind: .review,
         status: status,
-        detail: job.summary ?? job.error,
-        updatedAt: job.finishedAt ?? job.startedAt ?? job.createdAt
+        detail: job.summary,
+        updatedAt: job.createdAt
       )
     }
 
     return combined
   }
 
-  private func setReviewJobs(_ jobs: [ReviewJobSnapshot]) {
+  private func setReviewJobs(_ jobs: [CodexCoreCLIClient.ReviewJob]) {
     reviewJobsByURL = Dictionary(uniqueKeysWithValues: jobs.compactMap { job in
       guard let url = job.url else {
         return nil
@@ -360,34 +389,89 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
     })
   }
 
-  private func handleReviewJobSnapshotChange(_ snapshot: ReviewJobSnapshot) {
-    let previousStatus = snapshot.url.flatMap { reviewJobsByURL[$0]?.status }
-
-    if let url = snapshot.url {
-      reviewJobsByURL[url] = snapshot
+  private func loadAgentsConfig() async throws -> CodexCoreCLIClient.AgentsConfig {
+    let sessionsCLI = self.sessionsCLI
+    return try await Self.runCLIOperation {
+      try sessionsCLI.agentsConfig()
     }
+  }
 
-    if previousStatus != snapshot.status {
-      let title: String = switch snapshot.status {
-      case .queued, .running, .postingComments:
-        "Review Started"
-      case .completed:
-        "Review Completed"
-      case .failed:
-        "Review Failed"
-      }
-      onNotify(title, "PR: #\(snapshot.number)", snapshot.filesURL?.absoluteString)
+  private func loadReviewJobs() async throws -> [CodexCoreCLIClient.ReviewJob] {
+    let sessionsCLI = self.sessionsCLI
+    return try await Self.runCLIOperation {
+      try sessionsCLI.listReviewJobs()
     }
+  }
 
-    if snapshot.status == .failed {
-      currentError = snapshot.error
+  private func loadAvailableRepos() async throws -> [AvailableRepo] {
+    let sessionsCLI = self.sessionsCLI
+    let repos = try await Self.runCLIOperation {
+      try sessionsCLI.availableRepos()
     }
+    return repos.map { AvailableRepo(fullName: $0.fullName) }
+  }
 
-    if currentFilter == .reviews && snapshot.status == .completed {
-      Task { await refreshPullRequests() }
+  private func setAllowedRepos(_ repos: [String]) async throws {
+    let sessionsCLI = self.sessionsCLI
+    try await Self.runCLIOperation {
+      try sessionsCLI.setAllowedRepos(repos)
+    }
+  }
+
+  private func runReview(pullRequestURL: String) async throws -> CodexCoreCLIClient.ReviewRunResult {
+    let sessionsCLI = self.sessionsCLI
+    return try await Self.runCLIOperation {
+      try sessionsCLI.runReview(pullRequest: pullRequestURL)
+    }
+  }
+
+  private func clearFinishedReviewJobs() async throws {
+    let reviewJobs = try await loadReviewJobs()
+    let finishedJobIDs = reviewJobs
+      .filter { $0.status != .inProgress }
+      .map(\.id)
+
+    guard !finishedJobIDs.isEmpty else {
       return
     }
 
-    applyCurrentState()
+    let reviewsDirectoryURL = reviewStatusDirectoryURL()
+    try await Self.runCLIOperation {
+      let fileManager = FileManager.default
+      for jobID in finishedJobIDs {
+        let path = reviewsDirectoryURL.appendingPathComponent(jobID, isDirectory: true)
+        if fileManager.fileExists(atPath: path.path) {
+          try fileManager.removeItem(at: path)
+        }
+      }
+    }
+  }
+
+  private func reviewStatusDirectoryURL() -> URL {
+    if let configuredHome = ProcessInfo.processInfo.environment["CODEX_AGENTS_HOME"],
+      !configuredHome.isEmpty
+    {
+      return URL(fileURLWithPath: configuredHome, isDirectory: true)
+        .appendingPathComponent("reviews", isDirectory: true)
+    }
+
+    return FileManager.default.homeDirectoryForCurrentUser
+      .appendingPathComponent(".codex", isDirectory: true)
+      .appendingPathComponent("agents", isDirectory: true)
+      .appendingPathComponent("reviews", isDirectory: true)
+  }
+
+  private static func runCLIOperation<T: Sendable>(
+    _ operation: @escaping @Sendable () throws -> T
+  ) async throws -> T {
+    try await withCheckedThrowingContinuation { continuation in
+      DispatchQueue.global(qos: .userInitiated).async {
+        do {
+          continuation.resume(returning: try operation())
+        } catch {
+          continuation.resume(throwing: error)
+        }
+      }
+    }
   }
 }
