@@ -48,33 +48,20 @@ private enum PRReviewsPanelMode {
   case settings
 }
 
-private final class AppearanceAwareView: NSView {
-  var onEffectiveAppearanceChange: (() -> Void)?
-
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    onEffectiveAppearanceChange?()
-  }
-}
-
 private final class PanelCardView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    wantsLayer = true
-    layer?.cornerRadius = 16
-    refreshAppearance()
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    refreshAppearance()
-  }
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
 
-  func refreshAppearance() {
-    layer?.backgroundColor = PRReviewsColors.panelBackground.cgColor
+    let path = NSBezierPath(roundedRect: bounds, xRadius: 16, yRadius: 16)
+    PRReviewsColors.panelBackground.setFill()
+    path.fill()
   }
 }
 
@@ -85,22 +72,13 @@ private final class HeaderIconButton: NSButton {
     isBordered = false
     image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil)
     imagePosition = .imageOnly
+    contentTintColor = PRReviewsColors.primaryText
     self.target = target
     self.action = action
-    refreshAppearance()
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    refreshAppearance()
-  }
-
-  func refreshAppearance() {
-    contentTintColor = PRReviewsColors.primaryText
-  }
 }
 
 private final class BackButton: NSButton {
@@ -110,22 +88,13 @@ private final class BackButton: NSButton {
     isBordered = false
     image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
     imagePosition = .imageOnly
+    contentTintColor = PRReviewsColors.primaryText
     self.target = target
     self.action = action
-    refreshAppearance()
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    refreshAppearance()
-  }
-
-  func refreshAppearance() {
-    contentTintColor = PRReviewsColors.primaryText
-  }
 }
 
 private final class PrimaryActionButton: NSButton {
@@ -194,14 +163,14 @@ private final class PRRowView: NSView {
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    wantsLayer = true
-    refreshAppearance()
 
     titleLabel.font = .boldSystemFont(ofSize: 12)
+    titleLabel.textColor = PRReviewsColors.primaryText
     titleLabel.lineBreakMode = .byTruncatingTail
     addSubview(titleLabel)
 
     metaLabel.font = .systemFont(ofSize: 9, weight: .medium)
+    metaLabel.textColor = PRReviewsColors.secondaryText
     metaLabel.lineBreakMode = .byTruncatingTail
     addSubview(metaLabel)
 
@@ -210,6 +179,7 @@ private final class PRRowView: NSView {
 
     statusLabel.font = .systemFont(ofSize: 9, weight: .medium)
     statusLabel.alignment = .right
+    statusLabel.textColor = PRReviewsColors.secondaryText
     addSubview(statusLabel)
 
     spinner.style = .spinning
@@ -218,27 +188,12 @@ private final class PRRowView: NSView {
     addSubview(spinner)
 
     separator.boxType = .separator
+    separator.borderColor = PRReviewsColors.divider
     addSubview(separator)
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    refreshAppearance()
-  }
-
-  func refreshAppearance() {
-    layer?.backgroundColor = PRReviewsColors.rowBackground.cgColor
-    titleLabel.textColor = PRReviewsColors.primaryText
-    metaLabel.textColor = PRReviewsColors.secondaryText
-    separator.borderColor = PRReviewsColors.divider
-    if statusLabel.textColor != .systemRed {
-      statusLabel.textColor = PRReviewsColors.secondaryText
-    }
-    needsDisplay = true
-  }
 
   override func layout() {
     super.layout()
@@ -260,7 +215,8 @@ private final class PRRowView: NSView {
   ) {
     self.onAction = onAction
     titleLabel.stringValue = pullRequest.title
-    metaLabel.stringValue = filter == .yours ? "#\(pullRequest.number)   \(pullRequest.headRefName)" : pullRequest.metaLine
+    metaLabel.stringValue =
+      filter == .yours ? "#\(pullRequest.number)   \(pullRequest.headRefName)" : pullRequest.metaLine
 
     actionButton.title = switch filter {
     case .all: "Review"
@@ -294,29 +250,29 @@ private final class PRRowView: NSView {
     needsLayout = true
   }
 
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+    PRReviewsColors.rowBackground.setFill()
+    dirtyRect.fill()
+  }
+
   @objc private func handleAction() { onAction?() }
 }
 
 private final class PRTableRowView: NSTableRowView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    wantsLayer = true
-    refreshAppearance()
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    refreshAppearance()
-  }
-
-  func refreshAppearance() {
-    layer?.backgroundColor = PRReviewsColors.rowBackground.cgColor
-  }
-
   override func drawSelection(in dirtyRect: NSRect) {}
+
+  override func drawBackground(in dirtyRect: NSRect) {
+    PRReviewsColors.rowBackground.setFill()
+    dirtyRect.fill()
+  }
 }
 
 private final class IntegrationStatusPillButton: NSButton {
@@ -353,20 +309,15 @@ private final class IntegrationStatusPillButton: NSButton {
     bezelStyle = .regularSquare
     label.stringValue = title
     label.font = .systemFont(ofSize: 10, weight: .semibold)
+    label.textColor = PRReviewsColors.primaryText
     addSubview(label)
 
     dotLayer.cornerRadius = 3
     layer?.addSublayer(dotLayer)
-    refreshAppearance()
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    refreshAppearance()
-  }
 
   var preferredWidth: CGFloat {
     let labelWidth = ceil(label.attributedStringValue.size().width)
@@ -395,11 +346,6 @@ private final class IntegrationStatusPillButton: NSButton {
     PRReviewsColors.chromeBorder.setStroke()
     path.lineWidth = 1
     path.stroke()
-  }
-
-  func refreshAppearance() {
-    label.textColor = PRReviewsColors.primaryText
-    needsDisplay = true
   }
 
   func apply(status: IntegrationStatus, fallbackURL: URL?) {
@@ -541,17 +487,12 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
   override func loadView() {
-    let rootView = AppearanceAwareView(frame: NSRect(origin: .zero, size: Self.preferredSize))
-    rootView.onEffectiveAppearanceChange = { [weak self] in
-      self?.refreshAppearance()
-    }
-    view = rootView
+    view = NSView(frame: NSRect(origin: .zero, size: Self.preferredSize))
     view.wantsLayer = true
     view.layer?.backgroundColor = NSColor.clear.cgColor
     preferredContentSize = Self.preferredSize
     buildUI()
     applyPanelMode(.list)
-    refreshAppearance()
   }
 
   override func viewDidLayout() {
@@ -752,6 +693,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     view.addSubview(cardView)
 
     titleLabel.font = .boldSystemFont(ofSize: 16)
+    titleLabel.textColor = PRReviewsColors.primaryText
     titleLabel.frame = NSRect(x: 16, y: 307, width: 110, height: 22)
     cardView.addSubview(titleLabel)
 
@@ -786,6 +728,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     cardView.addSubview(codexPill)
 
     headerDivider.boxType = .separator
+    headerDivider.borderColor = PRReviewsColors.divider
     headerDivider.frame = NSRect(x: 0, y: 292, width: 480, height: 1)
     cardView.addSubview(headerDivider)
 
@@ -872,6 +815,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     thresholdTitleStackView.translatesAutoresizingMaskIntoConstraints = false
 
     thresholdLabel.font = .boldSystemFont(ofSize: 13)
+    thresholdLabel.textColor = PRReviewsColors.primaryText
     thresholdTitleStackView.addArrangedSubview(thresholdLabel)
     thresholdTitleStackView.addArrangedSubview(thresholdInfoButton)
     thresholdRowStackView.addArrangedSubview(thresholdTitleStackView)
@@ -880,6 +824,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     thresholdInfoButton.bezelStyle = .regularSquare
     thresholdInfoButton.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: "Threshold help")
     thresholdInfoButton.imagePosition = .imageOnly
+    thresholdInfoButton.contentTintColor = PRReviewsColors.secondaryText
     thresholdInfoButton.target = self
     thresholdInfoButton.action = #selector(toggleThresholdInfo(_:))
     thresholdInfoButton.translatesAutoresizingMaskIntoConstraints = false
@@ -890,6 +835,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     ])
 
     thresholdField.font = .monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+    thresholdField.textColor = PRReviewsColors.primaryText
     thresholdField.alignment = .center
     thresholdField.delegate = self
     thresholdField.formatter = Self.thresholdFormatter
@@ -908,6 +854,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     repositoriesRowStackView.translatesAutoresizingMaskIntoConstraints = false
 
     reposLabel.font = .boldSystemFont(ofSize: 13)
+    reposLabel.textColor = PRReviewsColors.primaryText
     repositoriesRowStackView.addArrangedSubview(reposLabel)
 
     searchField.placeholderString = "Search"
@@ -939,6 +886,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     settingsStackView.addArrangedSubview(settingsScrollView)
 
     settingsEmptyLabel.font = .systemFont(ofSize: 11)
+    settingsEmptyLabel.textColor = PRReviewsColors.secondaryText
     settingsEmptyLabel.alignment = .center
     settingsEmptyLabel.translatesAutoresizingMaskIntoConstraints = false
     settingsContentView.addSubview(settingsEmptyLabel)
@@ -1014,24 +962,5 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
   @objc private func changeFilter(_ sender: NSSegmentedControl) {
     guard let filter = PRFilter(rawValue: sender.selectedSegment) else { return }
     onFilterChange(filter)
-  }
-
-  private func refreshAppearance() {
-    cardView.refreshAppearance()
-    backButton.refreshAppearance()
-    clearButton.refreshAppearance()
-    settingsButton.refreshAppearance()
-    ghPill.refreshAppearance()
-    codexPill.refreshAppearance()
-    titleLabel.textColor = PRReviewsColors.primaryText
-    headerDivider.borderColor = PRReviewsColors.divider
-    thresholdLabel.textColor = PRReviewsColors.primaryText
-    thresholdInfoButton.contentTintColor = PRReviewsColors.secondaryText
-    thresholdField.textColor = PRReviewsColors.primaryText
-    reposLabel.textColor = PRReviewsColors.primaryText
-    settingsEmptyLabel.textColor = PRReviewsColors.secondaryText
-    listTableView.reloadData()
-    settingsTableView.reloadData()
-    view.needsDisplay = true
   }
 }
