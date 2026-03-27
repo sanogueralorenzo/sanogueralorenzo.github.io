@@ -381,12 +381,38 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
   }
 
   private func setReviewJobs(_ jobs: [CodexCoreCLIClient.ReviewJob]) {
-    reviewJobsByURL = Dictionary(uniqueKeysWithValues: jobs.compactMap { job in
+    var jobsByURL: [String: CodexCoreCLIClient.ReviewJob] = [:]
+
+    for job in jobs {
       guard let url = job.url else {
-        return nil
+        continue
       }
-      return (url, job)
-    })
+      guard let existingJob = jobsByURL[url] else {
+        jobsByURL[url] = job
+        continue
+      }
+
+      if shouldReplaceReviewJob(existingJob, with: job) {
+        jobsByURL[url] = job
+      }
+    }
+
+    reviewJobsByURL = jobsByURL
+  }
+
+  private func shouldReplaceReviewJob(
+    _ current: CodexCoreCLIClient.ReviewJob,
+    with candidate: CodexCoreCLIClient.ReviewJob
+  ) -> Bool {
+    if current.status != .inProgress && candidate.status == .inProgress {
+      return true
+    }
+
+    if current.status == .inProgress && candidate.status != .inProgress {
+      return false
+    }
+
+    return candidate.createdAt > current.createdAt
   }
 
   private func loadAgentsConfig() async throws -> CodexCoreCLIClient.AgentsConfig {
