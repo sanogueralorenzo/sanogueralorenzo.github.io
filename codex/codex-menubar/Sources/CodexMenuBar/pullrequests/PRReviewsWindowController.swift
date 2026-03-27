@@ -2,43 +2,16 @@ import AppKit
 import Foundation
 
 private enum PRReviewsColors {
-  private static func dynamic(
-    dark: NSColor,
-    light: NSColor
-  ) -> NSColor {
-    NSColor(name: nil) { appearance in
-      appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
-    }
-  }
-
-  static let panelBackground = dynamic(dark: .black, light: .white)
-  static let chromeBorder = dynamic(
-    dark: NSColor(calibratedWhite: 0.22, alpha: 1.0),
-    light: NSColor(calibratedWhite: 0.84, alpha: 1.0)
-  )
-  static let divider = dynamic(
-    dark: NSColor(calibratedWhite: 0.18, alpha: 1.0),
-    light: NSColor(calibratedWhite: 0.90, alpha: 1.0)
-  )
-  static let rowBackground = dynamic(
-    dark: NSColor(calibratedWhite: 0.06, alpha: 1.0),
-    light: NSColor(calibratedWhite: 0.97, alpha: 1.0)
-  )
-  static let pillBackground = dynamic(
-    dark: NSColor(calibratedWhite: 0.15, alpha: 1.0),
-    light: NSColor(calibratedWhite: 0.92, alpha: 1.0)
-  )
-  static let statusPillBackground = dynamic(
-    dark: NSColor(calibratedWhite: 0.12, alpha: 1.0),
-    light: NSColor(calibratedWhite: 0.95, alpha: 1.0)
-  )
-  static let statusPillPressedBackground = dynamic(
-    dark: NSColor(calibratedWhite: 0.18, alpha: 1.0),
-    light: NSColor(calibratedWhite: 0.90, alpha: 1.0)
-  )
-  static let pillSelected = NSColor.systemBlue
-  static let blueButton = NSColor.systemBlue
-  static let blueButtonPressed = NSColor.systemBlue.blended(withFraction: 0.18, of: .black) ?? .systemBlue
+  static let panelBackground = NSColor.windowBackgroundColor
+  static let chromeBorder = NSColor.separatorColor
+  static let divider = NSColor.separatorColor
+  static let rowBackground = NSColor.controlBackgroundColor
+  static let pillBackground = NSColor.quaternaryLabelColor.withAlphaComponent(0.24)
+  static let statusPillBackground = NSColor.controlBackgroundColor
+  static let statusPillPressedBackground = NSColor.selectedContentBackgroundColor
+  static let pillSelected = NSColor.controlAccentColor
+  static let blueButton = NSColor.controlAccentColor
+  static let blueButtonPressed = NSColor.selectedContentBackgroundColor
   static let primaryText = NSColor.labelColor
   static let secondaryText = NSColor.secondaryLabelColor
 }
@@ -241,7 +214,7 @@ private final class PRRowView: NSView {
         }
       case .completed:
         statusLabel.stringValue = activity.kind == .review ? "Reviewed" : "Applied"
-        statusLabel.textColor = NSColor(calibratedRed: 0.20, green: 0.83, blue: 0.49, alpha: 1.0)
+        statusLabel.textColor = .systemGreen
       case .failed:
         statusLabel.stringValue = "Failed"
         statusLabel.textColor = .systemRed
