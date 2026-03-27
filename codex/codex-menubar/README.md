@@ -29,9 +29,9 @@
 - `Remote -> Start` enables remote auto-start for future app launches.
 - `Remote -> Stop` disables remote auto-start for future app launches.
 - `Agents -> Create` opens the same `Run From Browser` panel used by the global shortcut.
-- `Agents` includes `Create`, `View`, `Pull Requests…`, and `Settings`.
+- `Agents` includes `Create`, `View`, `Pull Requests`, and `Settings`.
 - `Agents -> View` shows persisted spike, task, and review runs.
-- `Agents -> Pull Requests…` opens a dedicated window for GitHub PR review workflows, including review drafting, apply-feedback runs, repository selection, and apply-threshold settings.
+- `Agents -> Pull Requests` opens a dedicated window for GitHub PR review workflows, including review drafting, apply-feedback runs, repository selection, and apply-threshold settings.
 - Task run rows use status prefixes: `·` in progress, `✓` completed, `X` failed.
 - Review run rows use status prefixes: `·` in progress, `✓` published, `X` needs attention.
 - `Agents -> View` exposes saved links as direct-click rows: spike runs open the Jira ticket, task runs open the draft PR when available, and review runs open the PR.

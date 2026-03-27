@@ -37,7 +37,7 @@ extension AppDelegate {
     menu.addItem(viewItem)
     menu.setSubmenu(viewMenu, for: viewItem)
 
-    menu.addItem(actionItem(title: "Pull Requests…", action: #selector(openPullRequests(_:))))
+    menu.addItem(actionItem(title: "Pull Requests", action: #selector(openPullRequests(_:))))
     menu.addItem(actionItem(title: "Settings", action: #selector(openCodexAgentSettings(_:))))
   }
 
