@@ -10,6 +10,7 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
   private let configStore = ConfigStore()
   private let activityStore = ActivityStore()
   private let onClose: () -> Void
+  private let onReviewJobsChanged: @MainActor () -> Void
   private let popover = NSPopover()
 
   private lazy var reviewsViewController = PRReviewsViewController(
@@ -62,8 +63,12 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
   private var refreshGeneration = 0
   private var hasLoadedInitialState = false
 
-  init(onClose: @escaping () -> Void) {
+  init(
+    onClose: @escaping () -> Void,
+    onReviewJobsChanged: @escaping @MainActor () -> Void
+  ) {
     self.onClose = onClose
+    self.onReviewJobsChanged = onReviewJobsChanged
     super.init()
     popover.behavior = .transient
     popover.animates = true
@@ -249,6 +254,7 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
 
       do {
         let result = try await runReview(pullRequestURL: pullRequest.url)
+        onReviewJobsChanged()
         await upsertActivity(
           ActivityRecord(
             pullRequestURL: pullRequest.url,
@@ -260,6 +266,7 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
         )
         await refreshPullRequests()
       } catch {
+        onReviewJobsChanged()
         await upsertActivity(
           ActivityRecord(
             pullRequestURL: pullRequest.url,

@@ -215,9 +215,14 @@ extension AppDelegate {
       return
     }
 
-    let controller = CodexPullRequestsWindowController(onClose: { [weak self] in
-      self?.codexPullRequestsWindowController = nil
-    })
+    let controller = CodexPullRequestsWindowController(
+      onClose: { [weak self] in
+        self?.codexPullRequestsWindowController = nil
+      },
+      onReviewJobsChanged: { [weak self] in
+        self?.refreshUI()
+      }
+    )
 
     codexPullRequestsWindowController = controller
     controller.present(relativeTo: button.bounds, of: button)
