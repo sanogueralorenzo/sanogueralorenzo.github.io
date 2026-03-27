@@ -85,8 +85,28 @@ extension AppDelegate {
       return
     }
 
+    let sessionsCLI = self.sessionsCLI
     var controller: CodexAgentSettingsWindowController!
     controller = CodexAgentSettingsWindowController(
+      onSave: { [weak self] selection in
+        guard let self else {
+          return
+        }
+
+        Task {
+          do {
+            try await Self.runAgentSettingsOperation {
+              try sessionsCLI.setReviewMode(selection.reviewMode)
+              try sessionsCLI.setAllowedRepos(selection.allowedRepos)
+              try sessionsCLI.setAllowedProjects(selection.allowedProjectIDs)
+              try sessionsCLI.setProjectRepoMappings(selection.projectRepoMappings)
+            }
+            self.refreshUI()
+          } catch {
+            self.showError(error)
+          }
+        }
+      },
       onClose: { [weak self] in
         self?.codexAgentSettingsWindowController = nil
       },
@@ -102,9 +122,37 @@ extension AppDelegate {
     controller.present()
 
     Task {
-      let integrationStatusesResult = await loadAgentSettingsResult {
-        IntegrationStatusClient.loadAll()
+      do {
+        let currentConfig = try await Self.runAgentSettingsOperation {
+          try sessionsCLI.agentsConfig()
+        }
+        guard codexAgentSettingsWindowController === controller else {
+          return
+        }
+        controller.applyCurrentConfig(currentConfig)
+      } catch {
+        guard codexAgentSettingsWindowController === controller else {
+          return
+        }
+        let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+        controller.applyConfigLoadError(message)
+        return
       }
+
+      async let integrationStatusesTask: Result<[IntegrationStatus], Swift.Error> =
+        loadAgentSettingsResult {
+          IntegrationStatusClient.loadAll()
+        }
+      async let availableReposTask: Result<[CodexCoreCLIClient.AvailableRepo], Swift.Error> =
+        loadAgentSettingsResult {
+          try sessionsCLI.availableRepos()
+        }
+      async let availableProjectsTask: Result<[CodexCoreCLIClient.AvailableProject], Swift.Error> =
+        loadAgentSettingsResult {
+          try sessionsCLI.availableProjects()
+        }
+
+      let integrationStatusesResult = await integrationStatusesTask
       if codexAgentSettingsWindowController === controller {
         switch integrationStatusesResult {
         case .success(let statuses):
@@ -130,6 +178,28 @@ extension AppDelegate {
                 detail: "Unable to determine notification permission state."
               )),
           ])
+        }
+      }
+
+      let availableReposResult = await availableReposTask
+      if codexAgentSettingsWindowController === controller {
+        switch availableReposResult {
+        case .success(let repos):
+          controller.applyAvailableRepos(repos)
+        case .failure(let error):
+          let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+          controller.applyReposLoadError(message)
+        }
+      }
+
+      let availableProjectsResult = await availableProjectsTask
+      if codexAgentSettingsWindowController === controller {
+        switch availableProjectsResult {
+        case .success(let projects):
+          controller.applyAvailableProjects(projects)
+        case .failure(let error):
+          let message = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+          controller.applyProjectsLoadError(message)
         }
       }
     }
