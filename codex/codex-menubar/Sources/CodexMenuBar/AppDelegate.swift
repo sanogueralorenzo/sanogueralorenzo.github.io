@@ -48,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   private var lastAgentNotificationData = CodexMenuData.loading
   var codexAgentSettingsWindowController: CodexAgentSettingsWindowController?
   var codexBrowserRunWindowController: CodexBrowserRunWindowController?
+  var codexPullRequestsWindowController: CodexPullRequestsWindowController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     let notificationCenter = UNUserNotificationCenter.current()

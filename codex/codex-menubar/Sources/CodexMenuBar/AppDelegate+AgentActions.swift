@@ -205,6 +205,30 @@ extension AppDelegate {
     }
   }
 
+  @objc func openPullRequests(_ sender: Any?) {
+    if let existingController = codexPullRequestsWindowController {
+      existingController.present()
+      return
+    }
+
+    let controller = CodexPullRequestsWindowController(
+      onClose: { [weak self] in
+        self?.codexPullRequestsWindowController = nil
+      },
+      onNotify: { [weak self] title, message, targetURL in
+        self?.showNotification(
+          identifier: "io.github.sanogueralorenzo.codex-menubar.pullrequests.\(UUID().uuidString)",
+          title: title,
+          message: message,
+          targetURL: targetURL
+        )
+      }
+    )
+
+    codexPullRequestsWindowController = controller
+    controller.present()
+  }
+
   private func runTask(ticket: String) {
     refreshUI()
     let sessionsCLI = self.sessionsCLI

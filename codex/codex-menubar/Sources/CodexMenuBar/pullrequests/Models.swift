@@ -71,19 +71,6 @@ struct PullRequestSummary: Codable, Sendable, Hashable {
   var filesURL: String { "\(url)/files" }
 }
 
-enum IntegrationState: Equatable, Sendable {
-  case checking
-  case ready(summary: String, detail: String?)
-  case actionNeeded(summary: String, detail: String)
-  case missing(summary: String, detail: String)
-  case error(summary: String, detail: String)
-}
-
-struct IntegrationStatus: Equatable, Sendable {
-  let toolName: String
-  let state: IntegrationState
-}
-
 enum JobKind: String, Codable, Sendable {
   case review
   case applyFeedback

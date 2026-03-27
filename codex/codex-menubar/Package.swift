@@ -10,9 +10,6 @@ let package = Package(
         .executable(name: "CodexMenuBar", targets: ["CodexMenuBar"])
     ],
     targets: [
-        .executableTarget(
-            name: "CodexMenuBar",
-            exclude: ["pullrequests"]
-        )
+        .executableTarget(name: "CodexMenuBar")
     ]
 )

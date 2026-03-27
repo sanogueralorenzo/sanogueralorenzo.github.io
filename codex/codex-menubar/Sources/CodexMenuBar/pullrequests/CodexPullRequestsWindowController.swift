@@ -2,18 +2,55 @@ import AppKit
 import Foundation
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class CodexPullRequestsWindowController: NSWindowController, NSWindowDelegate {
   private let github = GitHubCLIClient()
   private let paths = AppPaths()
   private lazy var codexRunner = CodexActionRunner(paths: paths, github: github)
   private lazy var reviewCoordinator = ReviewCoordinator(paths: paths)
   private let configStore = ConfigStore()
   private let activityStore = ActivityStore()
-  private let notificationController = AppNotificationController()
+  private let onClose: () -> Void
+  private let onNotify: @MainActor (_ title: String, _ message: String, _ targetURL: String?) -> Void
 
-  private var statusItem: NSStatusItem!
-  private var reviewsPopover: NSPopover?
-  private var reviewsViewController: PRReviewsViewController?
+  private lazy var reviewsViewController = PRReviewsViewController(
+    onShowSettings: { [weak self] in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        await self.refreshSettingsPanel()
+      }
+    },
+    onClear: { [weak self] in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        await self.clearFinishedActivities()
+      }
+    },
+    onFilterChange: { [weak self] filter in
+      self?.currentFilter = filter
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        await self.refreshPullRequests()
+      }
+    },
+    onAction: { [weak self] pullRequest, filter in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        await self.runAction(for: pullRequest, filter: filter)
+      }
+    },
+    onSelectionChange: { [weak self] repos in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        await self.updateSelectedRepos(repos)
+      }
+    },
+    onThresholdChange: { [weak self] threshold in
+      Task { @MainActor [weak self] in
+        guard let self else { return }
+        await self.updateMinimumCommentsForApplyFeedback(threshold)
+      }
+    }
+  )
 
   private var currentFilter: PRFilter = .all
   private var config = AppConfig.default
@@ -23,64 +60,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
   private var isLoading = false
   private var currentError: String?
   private var refreshGeneration = 0
+  private var hasLoadedInitialState = false
 
-  func applicationDidFinishLaunching(_ notification: Notification) {
+  init(
+    onClose: @escaping () -> Void,
+    onNotify: @escaping @MainActor (_ title: String, _ message: String, _ targetURL: String?) -> Void
+  ) {
+    self.onClose = onClose
+    self.onNotify = onNotify
+
+    let panel = NSPanel(
+      contentRect: NSRect(origin: .zero, size: PRReviewsViewController.preferredSize),
+      styleMask: [.titled, .closable, .resizable],
+      backing: .buffered,
+      defer: false
+    )
+    panel.title = "Pull Requests"
+    panel.isFloatingPanel = true
+    panel.center()
+    panel.minSize = PRReviewsViewController.preferredSize
+    panel.setFrameAutosaveName("CodexPullRequestsPanel")
+
+    super.init(window: panel)
+
+    panel.delegate = self
+    panel.contentViewController = reviewsViewController
+
     reviewCoordinator.onSnapshotChange = { [weak self] snapshot in
       self?.handleReviewJobSnapshotChange(snapshot)
     }
-    notificationController.configure()
-    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    statusItem.button?.title = "PR"
-    statusItem.button?.target = self
-    statusItem.button?.action = #selector(togglePanel(_:))
-    statusItem.button?.sendAction(on: [.leftMouseUp])
-    Task { await loadInitialState() }
   }
 
-  @objc private func togglePanel(_ sender: Any?) {
-    if let reviewsPopover, reviewsPopover.isShown {
-      reviewsPopover.performClose(sender)
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  func present() {
+    NSApp.activate(ignoringOtherApps: true)
+    showWindow(nil)
+    window?.makeKeyAndOrderFront(nil)
+
+    if hasLoadedInitialState {
+      applyCurrentState()
+      Task { await refreshPullRequests() }
       return
     }
 
-    if reviewsViewController == nil {
-      reviewsViewController = PRReviewsViewController(
-        onShowSettings: { [weak self] in
-          Task { await self?.refreshSettingsPanel() }
-        },
-        onClear: { [weak self] in
-          Task { await self?.clearFinishedActivities() }
-        },
-        onFilterChange: { [weak self] filter in
-          self?.currentFilter = filter
-          Task { await self?.refreshPullRequests() }
-        },
-        onAction: { [weak self] pullRequest, filter in
-          Task { await self?.runAction(for: pullRequest, filter: filter) }
-        },
-        onSelectionChange: { [weak self] repos in
-          Task { await self?.updateSelectedRepos(repos) }
-        },
-        onThresholdChange: { [weak self] threshold in
-          Task { await self?.updateMinimumCommentsForApplyFeedback(threshold) }
-        }
-      )
-    }
+    hasLoadedInitialState = true
+    Task { await loadInitialState() }
+  }
 
-    if reviewsPopover == nil {
-      let popover = NSPopover()
-      popover.behavior = .transient
-      popover.animates = true
-      popover.delegate = self
-      popover.contentViewController = reviewsViewController
-      popover.contentSize = PRReviewsViewController.preferredSize
-      reviewsPopover = popover
-    }
-
-    applyCurrentState()
-    guard let button = statusItem.button, let reviewsPopover else { return }
-    Task { await self.refreshPullRequests() }
-    reviewsPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
+  func windowWillClose(_ notification: Notification) {
+    reviewsViewController.resetToMainScreen()
+    onClose()
   }
 
   private func loadInitialState() async {
@@ -113,11 +146,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         } else {
           try await github.listPullRequests(repos: repos, filter: currentFilter)
         }
-      guard generation == refreshGeneration else { return }
+
+      guard generation == refreshGeneration else {
+        return
+      }
+
       currentItems =
         if currentFilter == .reviews {
           items.filter {
-            guard let job = reviewJobsByURL[$0.url] else { return false }
+            guard let job = reviewJobsByURL[$0.url] else {
+              return false
+            }
             return job.status == .completed
           }
         } else {
@@ -125,18 +164,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
       currentError = nil
     } catch {
-      guard generation == refreshGeneration else { return }
+      guard generation == refreshGeneration else {
+        return
+      }
       currentItems = []
       currentError = error.localizedDescription
     }
 
-    guard generation == refreshGeneration else { return }
+    guard generation == refreshGeneration else {
+      return
+    }
+
     isLoading = false
     applyCurrentState()
   }
 
   private func refreshSettingsPanel() async {
-    reviewsViewController?.applySettingsState(
+    reviewsViewController.applySettingsState(
       statuses: [
         IntegrationStatus(toolName: "gh", state: .checking),
         IntegrationStatus(toolName: "codex", state: .checking),
@@ -153,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     do {
       let repos = try await github.listAvailableRepos()
-      reviewsViewController?.applySettingsState(
+      reviewsViewController.applySettingsState(
         statuses: statuses,
         availableRepos: repos,
         selectedRepos: config.allowedRepos,
@@ -161,7 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         isLoading: false
       )
     } catch {
-      reviewsViewController?.applySettingsState(
+      reviewsViewController.applySettingsState(
         statuses: statuses,
         availableRepos: [],
         selectedRepos: config.allowedRepos,
@@ -269,7 +313,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
   }
 
   private func applyCurrentState() {
-    reviewsViewController?.applyState(
+    reviewsViewController.applyState(
       filter: currentFilter,
       items: currentItems,
       activities: rowActivities(),
@@ -281,7 +325,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
   private func rowActivities() -> [String: ActivityRecord] {
     var combined = activities
-    guard currentFilter != .yours else { return combined }
+    guard currentFilter != .yours else {
+      return combined
+    }
+
     for (url, job) in reviewJobsByURL {
       let status: JobStatus = switch job.status {
       case .queued, .running, .postingComments:
@@ -291,6 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
       case .failed:
         .failed
       }
+
       combined[url] = ActivityRecord(
         pullRequestURL: url,
         kind: .review,
@@ -299,35 +347,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         updatedAt: job.finishedAt ?? job.startedAt ?? job.createdAt
       )
     }
+
     return combined
   }
 
   private func setReviewJobs(_ jobs: [ReviewJobSnapshot]) {
     reviewJobsByURL = Dictionary(uniqueKeysWithValues: jobs.compactMap { job in
-      guard let url = job.url else { return nil }
+      guard let url = job.url else {
+        return nil
+      }
       return (url, job)
     })
   }
 
   private func handleReviewJobSnapshotChange(_ snapshot: ReviewJobSnapshot) {
-    let previous = snapshot.url.flatMap { reviewJobsByURL[$0] }
+    let previousStatus = snapshot.url.flatMap { reviewJobsByURL[$0]?.status }
+
     if let url = snapshot.url {
       reviewJobsByURL[url] = snapshot
     }
-    if previous?.status != snapshot.status {
-      notificationController.postReviewNotification(snapshot: snapshot)
+
+    if previousStatus != snapshot.status {
+      let title: String = switch snapshot.status {
+      case .queued, .running, .postingComments:
+        "Review Started"
+      case .completed:
+        "Review Completed"
+      case .failed:
+        "Review Failed"
+      }
+      onNotify(title, "PR: #\(snapshot.number)", snapshot.filesURL?.absoluteString)
     }
+
     if snapshot.status == .failed {
       currentError = snapshot.error
     }
+
     if currentFilter == .reviews && snapshot.status == .completed {
-      Task { await self.refreshPullRequests() }
+      Task { await refreshPullRequests() }
       return
     }
-    applyCurrentState()
-  }
 
-  func popoverDidClose(_ notification: Notification) {
-    reviewsViewController?.resetToMainScreen()
+    applyCurrentState()
   }
 }
