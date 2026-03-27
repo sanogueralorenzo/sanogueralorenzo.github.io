@@ -12,7 +12,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "CodexMenuBar",
-            exclude: ["reviews"]
+            exclude: ["pullrequests"]
         )
     ]
 )
