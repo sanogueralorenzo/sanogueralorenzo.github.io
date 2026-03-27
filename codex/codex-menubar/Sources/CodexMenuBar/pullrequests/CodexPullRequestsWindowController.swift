@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 @MainActor
-final class CodexPullRequestsWindowController: NSWindowController, NSWindowDelegate {
+final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
   private let github = GitHubCLIClient()
   private let sessionsCLI = CodexCoreCLIClient()
   private let paths = AppPaths()
@@ -10,6 +10,7 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
   private let configStore = ConfigStore()
   private let activityStore = ActivityStore()
   private let onClose: () -> Void
+  private let popover = NSPopover()
 
   private lazy var reviewsViewController = PRReviewsViewController(
     onShowSettings: { [weak self] in
@@ -63,34 +64,22 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
 
   init(onClose: @escaping () -> Void) {
     self.onClose = onClose
-
-    let panel = NSPanel(
-      contentRect: NSRect(origin: .zero, size: PRReviewsViewController.preferredSize),
-      styleMask: [.titled, .closable, .resizable],
-      backing: .buffered,
-      defer: false
-    )
-    panel.title = "Pull Requests"
-    panel.isFloatingPanel = true
-    panel.center()
-    panel.minSize = PRReviewsViewController.preferredSize
-    panel.setFrameAutosaveName("CodexPullRequestsPanel")
-
-    super.init(window: panel)
-
-    panel.delegate = self
-    panel.contentViewController = reviewsViewController
+    super.init()
+    popover.behavior = .transient
+    popover.animates = true
+    popover.delegate = self
+    popover.contentViewController = reviewsViewController
+    popover.contentSize = PRReviewsViewController.preferredSize
   }
 
-  @available(*, unavailable)
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
+  func present(relativeTo positioningRect: NSRect, of view: NSView) {
+    if popover.isShown {
+      popover.performClose(nil)
+      return
+    }
 
-  func present() {
     NSApp.activate(ignoringOtherApps: true)
-    showWindow(nil)
-    window?.makeKeyAndOrderFront(nil)
+    popover.show(relativeTo: positioningRect, of: view, preferredEdge: .maxY)
 
     if hasLoadedInitialState {
       applyCurrentState()
@@ -102,7 +91,7 @@ final class CodexPullRequestsWindowController: NSWindowController, NSWindowDeleg
     Task { await loadInitialState() }
   }
 
-  func windowWillClose(_ notification: Notification) {
+  func popoverDidClose(_ notification: Notification) {
     reviewsViewController.resetToMainScreen()
     onClose()
   }

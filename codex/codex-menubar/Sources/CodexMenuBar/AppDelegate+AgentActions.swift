@@ -206,8 +206,12 @@ extension AppDelegate {
   }
 
   @objc func openPullRequests(_ sender: Any?) {
+    guard let button = statusItem.button else {
+      return
+    }
+
     if let existingController = codexPullRequestsWindowController {
-      existingController.present()
+      existingController.present(relativeTo: button.bounds, of: button)
       return
     }
 
@@ -216,7 +220,7 @@ extension AppDelegate {
     })
 
     codexPullRequestsWindowController = controller
-    controller.present()
+    controller.present(relativeTo: button.bounds, of: button)
   }
 
   private func runTask(ticket: String) {
