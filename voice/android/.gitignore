@@ -1,0 +1,30 @@
+# -------------------- IDE --------------------
+.idea/
+.vscode/
+
+# -------------------- OS --------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# -------------------- Environment / Secrets --------------------
+.env
+.env.*
+!.env.example
+!example.env
+
+# -------------------- Android / Gradle Generated --------------------
+
+# Gradle / Kotlin local caches
+.gradle/
+.kotlin/
+
+# Android build
+build/
+
+# Native build intermediates
+.externalNativeBuild/
+.cxx/
+
+# Machine-local config
+local.properties
