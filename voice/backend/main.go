@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	defaultListenAddr  = ":8787"
+	defaultListenAddr  = ":8080"
 	defaultBaseURL     = "https://api.openai.com/v1/audio/transcriptions"
 	defaultTimeout     = 60 * time.Second
 	defaultMaxUpload   = int64(25 * 1024 * 1024)
