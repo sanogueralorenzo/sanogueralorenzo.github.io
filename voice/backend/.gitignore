@@ -22,3 +22,4 @@ tmp/
 *.test
 *.prof
 coverage.out
+voice-backend
