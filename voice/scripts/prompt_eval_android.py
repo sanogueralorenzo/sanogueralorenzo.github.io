@@ -20,7 +20,7 @@ DEFAULT_RECEIVER = (
 DEFAULT_RESULTS_DIR = "benchmark_runs"
 DEFAULT_PROMPT_A_URL = (
     "https://raw.githubusercontent.com/sanogueralorenzo/"
-    "sanogueralorenzo.github.io/main/voice/android/scripts/prompt_a.json"
+    "sanogueralorenzo.github.io/main/voice/scripts/prompt_a.json"
 )
 
 

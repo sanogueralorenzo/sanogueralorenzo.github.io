@@ -21,16 +21,18 @@ class ImeSpeechProcessorEntryPoint internal constructor(
 ) {
     fun process(
         request: ImeSpeechProcessorRequest,
-        onShowRewriting: () -> Unit = {}
+        onShowRewriting: () -> Unit = {},
+        awaitChunkSessionQuiescence: (Int) -> Unit = {},
+        finalizeMoonshineTranscript: (Int) -> String = { "" }
     ): ImeSpeechProcessorResult {
         val result = speechProcessor.process(
             request = ImePipelineRequest(
                 recorder = request.recorder,
                 sourceTextSnapshot = request.sourceTextSnapshot,
-                chunkSessionId = 0
+                chunkSessionId = request.chunkSessionId
             ),
-            awaitChunkSessionQuiescence = {},
-            finalizeMoonshineTranscript = { "" },
+            awaitChunkSessionQuiescence = awaitChunkSessionQuiescence,
+            finalizeMoonshineTranscript = finalizeMoonshineTranscript,
             onShowRewriting = onShowRewriting
         )
         return ImeSpeechProcessorResult(
@@ -79,7 +81,8 @@ class ImeSpeechProcessorEntryPoint internal constructor(
 
 data class ImeSpeechProcessorRequest(
     val recorder: VoiceAudioRecorder,
-    val sourceTextSnapshot: String
+    val sourceTextSnapshot: String,
+    val chunkSessionId: Int = 0
 )
 
 data class ImeSpeechProcessorDiagnostics(

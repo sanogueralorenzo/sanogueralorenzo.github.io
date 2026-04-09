@@ -76,6 +76,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private var audioRecorder: VoiceAudioRecorder? = null
 
     @Volatile
+    private var allowInFlightCommitAfterFinishInput: Boolean = false
+
+    @Volatile
     private var activeChunkSessionId: Int = 0
 
     @Volatile
@@ -221,6 +224,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        allowInFlightCommitAfterFinishInput = false
         val darkTheme = isImeDarkThemeEnabled(themeRepository.keyboardThemeMode())
         applyImeNavigationBarTheme(
             darkTheme = darkTheme,
@@ -236,18 +240,22 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        allowInFlightCommitAfterFinishInput = false
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false
 
     override fun onFinishInputView(finishingInput: Boolean) {
-        cancelSessionWork(cancelProcessing = false)
+        val autoSubmitted = autoSubmitActiveRecordingFromKeyboardClose()
+        if (!autoSubmitted) {
+            cancelSessionWork(cancelProcessing = false)
+        }
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         super.onFinishInputView(finishingInput)
     }
 
     override fun onFinishInput() {
-        cancelSessionWork(cancelProcessing = true)
+        cancelSessionWork(cancelProcessing = !allowInFlightCommitAfterFinishInput)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
         super.onFinishInput()
     }
@@ -307,6 +315,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         audioRecorder = null
         keyboardViewModel.showTranscribing()
         val sourceTextSnapshot = currentInputTextSnapshot()
+        allowInFlightCommitAfterFinishInput = true
 
         submitSendRequest(
             SendRequest(
@@ -426,6 +435,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                     outputChars = outputForCommit.length
                 )
             )
+            allowInFlightCommitAfterFinishInput = false
             keyboardViewModel.showIdle()
         }
     }
@@ -440,6 +450,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun postIdleAfterBackgroundWork() {
         mainHandler.post {
             inFlight = null
+            allowInFlightCommitAfterFinishInput = false
             keyboardViewModel.showIdle()
         }
     }
@@ -593,6 +604,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     private fun cancelInFlight() {
+        allowInFlightCommitAfterFinishInput = false
         sessionCounter.incrementAndGet()
         moonshineTranscriberIfInitialized()?.cancelActive()
         inFlight?.cancel(true)
@@ -607,6 +619,25 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             cancelInFlight()
         }
         keyboardViewModel.showIdle()
+    }
+
+    private fun autoSubmitActiveRecordingFromKeyboardClose(): Boolean {
+        if (inFlight != null) return false
+        val recorder = audioRecorder ?: return false
+        audioRecorder = null
+        keyboardViewModel.showTranscribing()
+        val sourceTextSnapshot = currentInputTextSnapshot()
+        allowInFlightCommitAfterFinishInput = true
+        submitSendRequest(
+            SendRequest(
+                recorder = recorder,
+                sessionId = sessionCounter.incrementAndGet(),
+                packageName = currentInputEditorInfo?.packageName,
+                chunkSessionId = activeChunkSessionId,
+                sourceTextSnapshot = sourceTextSnapshot
+            )
+        )
+        return true
     }
 
     private fun stopRecordingDiscardAsync() {

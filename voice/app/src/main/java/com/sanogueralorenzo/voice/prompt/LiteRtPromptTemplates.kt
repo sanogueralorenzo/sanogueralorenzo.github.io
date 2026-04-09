@@ -73,7 +73,8 @@ internal object LiteRtPromptTemplates {
             "If instruction includes correction turns ('X no, Y'), apply the final correction Y. " +
             "When PREFER_LIST_FORMAT is yes and content is list-like, keep clean '- ' bullets. " +
             "Keep untouched content faithful. Do not invent facts or add social filler. " +
-            "Return only the fully edited final message, with no explanations."
+            "Return only the fully edited final message, with no explanations. " +
+            "Do not add labels/prefixes like message:, text:, cleaned:, output:, or result:."
 
     private fun normalizeRewriteSystemInstruction(raw: String): String {
         val withoutUserBlock = raw.substringBefore("\n\nUser input:").trim()
@@ -81,6 +82,9 @@ internal object LiteRtPromptTemplates {
             .replace("{{input}}", "")
             .replace("{input}", "")
             .replace("\n\nCleaned:", "")
-        return withoutPlaceholders.trim()
+        return (withoutPlaceholders.trim() + "\n" + OUTPUT_FORMAT_GUARDRAIL).trim()
     }
+
+    private const val OUTPUT_FORMAT_GUARDRAIL =
+        "Output format: plain cleaned text only, with no labels/prefixes like message:, text:, cleaned:, output:, or result:."
 }

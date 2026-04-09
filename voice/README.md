@@ -1,22 +1,17 @@
 ## Intro
 
-**Voice** now groups platform-specific implementations under `voice/`.
+**Voice** is an Android local-first voice keyboard (IME) with on-device ASR and rewrite.
+The overlay positioning screen keeps the bubble visible while a non-Voice keyboard is open, and tapping the bubble starts/stops overlay recording.
 
-## Structure
-
-- Android app: `voice/android`
-- Backend service: `voice/backend`
-
-## Android Quickstart
+## Quickstart
 
 ```shell
-cd voice/android
 ./gradlew :app:installDebug
 ```
 
-## Backend Install
+## Reference
 
-```shell
-cd voice/backend
-./install.sh
-```
+- Package: `com.sanogueralorenzo.voice`
+- Module: `voice/app`
+- Version catalog: `voice/gradle/libs.versions.toml`
+- Runtime models: Moonshine ASR + LiteRT-LM rewrite/edit.

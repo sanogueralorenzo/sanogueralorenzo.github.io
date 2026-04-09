@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.IntentFilter
 import android.content.Intent
 import android.content.res.Configuration
+import android.database.ContentObserver
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Point
@@ -18,6 +19,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
@@ -25,7 +27,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
-import android.view.inputmethod.InputMethodManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
@@ -49,13 +50,17 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class OverlayAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val processingExecutor = Executors.newSingleThreadExecutor()
+    private val chunkExecutor = Executors.newSingleThreadExecutor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Volatile
@@ -63,10 +68,16 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     @Volatile
     private var recorder: VoiceAudioRecorder? = null
+    private var recorderChunkSessionId: Int = 0
+    private val chunkLock = Any()
+    private val chunkSessionCounter = AtomicInteger(0)
+    private var activeChunkSessionId: Int = 0
+    private val activeChunkFutures = mutableListOf<Future<*>>()
 
     private var overlayView: TextView? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     private var systemDialogReceiverRegistered = false
+    private var imeSettingsObserverRegistered = false
     private var isBubbleDragging = false
     private var resizeAnchorCenterX: Float? = null
     private var resizeAnchorCenterY: Float? = null
@@ -81,6 +92,11 @@ class OverlayAccessibilityService : AccessibilityService() {
             }
         }
     }
+    private val imeSettingsObserver = object : ContentObserver(mainHandler) {
+        override fun onChange(selfChange: Boolean) {
+            evaluateOverlayVisibility()
+        }
+    }
 
     private val appGraph by lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
     private val overlayRepository by lazy(LazyThreadSafetyMode.NONE) {
@@ -88,9 +104,6 @@ class OverlayAccessibilityService : AccessibilityService() {
             context = applicationContext,
             setupRepository = appGraph.setupRepository
         )
-    }
-    private val inputMethodManager by lazy(LazyThreadSafetyMode.NONE) {
-        getSystemService(InputMethodManager::class.java)
     }
     private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
     private val speechProcessor by lazy(LazyThreadSafetyMode.NONE) {
@@ -108,6 +121,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         runningService = this
         registerSystemDialogReceiverIfNeeded()
+        registerImeSettingsObserverIfNeeded()
         startBubbleSizeObserver()
         startBubblePositionObservers()
         serviceInfo = serviceInfo.apply {
@@ -123,7 +137,6 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        cancelRecordingIfImeDisconnected()
         evaluateOverlayVisibility()
     }
 
@@ -149,39 +162,39 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
         serviceScope.cancel()
         unregisterSystemDialogReceiverIfNeeded()
+        unregisterImeSettingsObserverIfNeeded()
         stopForegroundIfNeeded()
         hideBubble()
         stopRecordingDiscard()
         inFlight?.cancel(true)
         processingExecutor.shutdownNow()
+        endChunkSession(activeChunkSessionId, cancelPending = true)
+        chunkExecutor.shutdownNow()
         runCatching { moonshineTranscriber.release() }
         super.onDestroy()
     }
 
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
-        val shouldShow = (config.overlayEnabled || positionPreviewActive) &&
+        val shouldShowByContext = (config.overlayEnabled || positionPreviewActive) &&
             !overlayRepository.isVoiceImeSelected() &&
             isInputMethodWindowVisible()
+        val shouldKeepVisibleForActiveWork = recorder != null || inFlight != null
+        val shouldShow = shouldShowByContext || shouldKeepVisibleForActiveWork
 
         if (shouldShow) {
             showOrUpdateBubble(config)
         } else {
             hideBubble()
-            stopRecordingDiscard()
+            if (recorder != null) {
+                stopRecordingDiscard()
+            }
         }
     }
 
     private fun isInputMethodWindowVisible(): Boolean {
         return windows.any { window ->
             window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
-        }
-    }
-
-    private fun cancelRecordingIfImeDisconnected() {
-        if (recorder == null) return
-        if (inputMethodManager?.isAcceptingText == false) {
-            cancelRecordingIfActive()
         }
     }
 
@@ -209,6 +222,29 @@ class OverlayAccessibilityService : AccessibilityService() {
         if (!systemDialogReceiverRegistered) return
         runCatching { unregisterReceiver(systemDialogReceiver) }
         systemDialogReceiverRegistered = false
+    }
+
+    private fun registerImeSettingsObserverIfNeeded() {
+        if (imeSettingsObserverRegistered) return
+        val registered = runCatching {
+            contentResolver.registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.DEFAULT_INPUT_METHOD),
+                false,
+                imeSettingsObserver
+            )
+            contentResolver.registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.ENABLED_INPUT_METHODS),
+                false,
+                imeSettingsObserver
+            )
+        }.isSuccess
+        imeSettingsObserverRegistered = registered
+    }
+
+    private fun unregisterImeSettingsObserverIfNeeded() {
+        if (!imeSettingsObserverRegistered) return
+        runCatching { contentResolver.unregisterContentObserver(imeSettingsObserver) }
+        imeSettingsObserverRegistered = false
     }
 
     private fun showOrUpdateBubble(config: OverlayConfig) {
@@ -461,11 +497,14 @@ class OverlayAccessibilityService : AccessibilityService() {
             startRecording()
         } else {
             recorder = null
-            submitProcessing(activeRecorder)
+            val chunkSessionId = recorderChunkSessionId
+            recorderChunkSessionId = 0
+            submitProcessing(activeRecorder, chunkSessionId)
         }
     }
 
     private fun startRecording() {
+        if (recorder != null) return
         if (!overlayRepository.hasRecordAudioPermission()) {
             showToast(getString(R.string.overlay_microphone_required))
             return
@@ -476,46 +515,59 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
 
         startForegroundForRecording()
+        val chunkSessionId = beginChunkSession()
         val audioRecorder = VoiceAudioRecorder(
             onLevelChanged = { },
-            onAudioFrame = { }
+            onAudioFrame = { frame ->
+                enqueueMoonshineAudioFrame(chunkSessionId, frame)
+            }
         )
         if (!audioRecorder.start()) {
+            endChunkSession(chunkSessionId, cancelPending = true)
             stopForegroundIfNeeded()
             showToast(getString(R.string.overlay_recording_start_failed))
             return
         }
+        enqueueMoonshineSessionStart(chunkSessionId)
         recorder = audioRecorder
+        recorderChunkSessionId = chunkSessionId
         updateBubbleVisual(BubbleVisualState.RECORDING)
     }
 
-    private fun submitProcessing(activeRecorder: VoiceAudioRecorder) {
+    private fun submitProcessing(activeRecorder: VoiceAudioRecorder, chunkSessionId: Int) {
         updateBubbleVisual(BubbleVisualState.PROCESSING)
         try {
             inFlight = processingExecutor.submit {
-                processRecording(activeRecorder)
+                processRecording(activeRecorder, chunkSessionId)
             }
         } catch (_: RejectedExecutionException) {
             activeRecorder.stopAndGetPcm()
+            endChunkSession(chunkSessionId, cancelPending = true)
             stopForegroundIfNeeded()
             updateBubbleVisual(BubbleVisualState.IDLE)
         }
     }
 
-    private fun processRecording(activeRecorder: VoiceAudioRecorder) {
+    private fun processRecording(activeRecorder: VoiceAudioRecorder, chunkSessionId: Int) {
         val sourceText = readFocusedInputText()
         val result = try {
             speechProcessor.process(
                 request = ImeSpeechProcessorRequest(
                     recorder = activeRecorder,
-                    sourceTextSnapshot = sourceText
+                    sourceTextSnapshot = sourceText,
+                    chunkSessionId = chunkSessionId
                 ),
+                awaitChunkSessionQuiescence = { awaitChunkSessionQuiescence(it) },
+                finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) },
                 onShowRewriting = {
                     mainHandler.post { updateBubbleVisual(BubbleVisualState.PROCESSING) }
                 }
             )
         } catch (_: Throwable) {
+            cancelPendingChunkWork(chunkSessionId)
             null
+        } finally {
+            endChunkSession(chunkSessionId, cancelPending = false)
         }
 
         if (result != null) {
@@ -550,7 +602,18 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun readFocusedInputText(): String {
         val node = findFocusedEditableNode() ?: return ""
-        return node.text?.toString().orEmpty()
+        val text = node.text?.toString().orEmpty().trim()
+        if (text.isBlank()) return ""
+        if (isHintText(node, text)) return ""
+        return text
+    }
+
+    private fun isHintText(node: AccessibilityNodeInfo, text: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (node.isShowingHintText) return true
+        val hint = node.hintText?.toString()?.trim().orEmpty()
+        if (hint.isBlank()) return false
+        return text.equals(hint, ignoreCase = true)
     }
 
     private fun replaceFocusedInputText(text: String): Boolean {
@@ -591,9 +654,142 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun beginChunkSession(): Int {
+        val id = chunkSessionCounter.incrementAndGet()
+        synchronized(chunkLock) {
+            activeChunkSessionId = id
+            activeChunkFutures.clear()
+        }
+        return id
+    }
+
+    private fun endChunkSession(sessionId: Int, cancelPending: Boolean) {
+        synchronized(chunkLock) {
+            if (sessionId == 0 || activeChunkSessionId != sessionId) return
+            if (cancelPending) {
+                activeChunkFutures.forEach { it.cancel(true) }
+            }
+            activeChunkFutures.clear()
+            activeChunkSessionId = 0
+        }
+    }
+
+    private fun enqueueMoonshineSessionStart(sessionId: Int) {
+        if (sessionId == 0) return
+        val isActive = synchronized(chunkLock) { activeChunkSessionId == sessionId }
+        if (!isActive) return
+        try {
+            val future = chunkExecutor.submit {
+                synchronized(chunkLock) {
+                    if (activeChunkSessionId != sessionId) return@submit
+                }
+                moonshineTranscriber.startSession()
+            }
+            synchronized(chunkLock) {
+                if (activeChunkSessionId == sessionId) {
+                    activeChunkFutures.add(future)
+                } else {
+                    future.cancel(true)
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            // Ignore late work during shutdown.
+        }
+    }
+
+    private fun enqueueMoonshineAudioFrame(sessionId: Int, pcm: ShortArray) {
+        if (sessionId == 0 || pcm.isEmpty()) return
+        val isActive = synchronized(chunkLock) { activeChunkSessionId == sessionId }
+        if (!isActive) return
+        try {
+            val future = chunkExecutor.submit {
+                synchronized(chunkLock) {
+                    if (activeChunkSessionId != sessionId) return@submit
+                }
+                moonshineTranscriber.addAudio(
+                    pcm = pcm,
+                    sampleRateHz = VoiceAudioRecorder.SAMPLE_RATE_HZ
+                )
+            }
+            synchronized(chunkLock) {
+                if (activeChunkSessionId == sessionId) {
+                    activeChunkFutures.add(future)
+                } else {
+                    future.cancel(true)
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            // Ignore late work during shutdown.
+        }
+    }
+
+    private fun awaitChunkSessionQuiescence(sessionId: Int) {
+        if (sessionId == 0) return
+        val waitDeadlineMs = android.os.SystemClock.uptimeMillis() + CHUNK_WAIT_TOTAL_MS
+        while (true) {
+            val pending = synchronized(chunkLock) {
+                if (activeChunkSessionId != sessionId) return
+                activeChunkFutures.removeAll { it.isDone || it.isCancelled }
+                activeChunkFutures.toList()
+            }
+            if (pending.isEmpty()) break
+            val remainingMs = waitDeadlineMs - android.os.SystemClock.uptimeMillis()
+            if (remainingMs <= 0L) {
+                cancelPendingChunkWork(sessionId)
+                break
+            }
+            var deadlineReached = false
+            for (future in pending) {
+                val remainingForFutureMs = waitDeadlineMs - android.os.SystemClock.uptimeMillis()
+                if (remainingForFutureMs <= 0L) {
+                    cancelPendingChunkWork(sessionId)
+                    deadlineReached = true
+                    break
+                }
+                val timeoutMs = minOf(remainingForFutureMs, CHUNK_WAIT_SLICE_MS)
+                runCatching {
+                    future.get(timeoutMs, TimeUnit.MILLISECONDS)
+                }.onFailure { error ->
+                    if (error is TimeoutException) return@onFailure
+                    future.cancel(true)
+                    moonshineTranscriber.cancelActive()
+                }
+            }
+            if (deadlineReached) break
+        }
+    }
+
+    private fun finalizeMoonshineTranscript(sessionId: Int): String {
+        return try {
+            val future = chunkExecutor.submit<String> {
+                synchronized(chunkLock) {
+                    if (activeChunkSessionId != sessionId) return@submit ""
+                }
+                moonshineTranscriber.stopSessionAndGetTranscript()
+            }
+            future.get(MOONSHINE_FINALIZE_WAIT_MS, TimeUnit.MILLISECONDS)
+        } catch (_: Throwable) {
+            moonshineTranscriber.cancelActive()
+            ""
+        }
+    }
+
+    private fun cancelPendingChunkWork(sessionId: Int) {
+        synchronized(chunkLock) {
+            if (activeChunkSessionId != sessionId) return
+            activeChunkFutures.forEach { it.cancel(true) }
+            activeChunkFutures.clear()
+        }
+        moonshineTranscriber.cancelActive()
+    }
+
     private fun stopRecordingDiscard() {
         val activeRecorder = recorder ?: return
+        val chunkSessionId = recorderChunkSessionId
         recorder = null
+        recorderChunkSessionId = 0
+        moonshineTranscriber.cancelActive()
+        endChunkSession(chunkSessionId, cancelPending = true)
         processingExecutor.submit {
             activeRecorder.stopAndGetPcm()
         }
@@ -726,5 +922,8 @@ class OverlayAccessibilityService : AccessibilityService() {
         private const val TAG = "OverlayService"
         private const val NOTIFICATION_CHANNEL_ID = "overlay_recording"
         private const val NOTIFICATION_ID = 12057
+        private const val CHUNK_WAIT_TOTAL_MS = 7_000L
+        private const val CHUNK_WAIT_SLICE_MS = 180L
+        private const val MOONSHINE_FINALIZE_WAIT_MS = 4_500L
     }
 }

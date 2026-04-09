@@ -116,7 +116,7 @@ def main() -> int:
         "--prompt-a-url",
         default=(
             "https://raw.githubusercontent.com/sanogueralorenzo/"
-            "sanogueralorenzo.github.io/main/voice/android/scripts/prompt_a.json"
+            "sanogueralorenzo.github.io/main/voice/scripts/prompt_a.json"
         ),
     )
     parser.add_argument("--prompt-b-file", default="scripts/prompt_b.json")

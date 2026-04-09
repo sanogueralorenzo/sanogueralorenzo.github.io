@@ -196,9 +196,9 @@ class PromptTemplateStore(context: Context) {
 
     companion object {
         const val SOURCE_BLOB_URL: String =
-            "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/blob/main/voice/android/scripts/prompt_a.json"
+            "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/blob/main/voice/scripts/prompt_a.json"
         const val SOURCE_RAW_URL: String =
-            "https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/voice/android/scripts/prompt_a.json"
+            "https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/voice/scripts/prompt_a.json"
         private const val PROMPT_RELATIVE_PATH = "prompts/prompt_a.json"
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val READ_TIMEOUT_MS = 20_000
