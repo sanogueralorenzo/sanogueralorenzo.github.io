@@ -191,7 +191,7 @@ class ComposePostLlmRules {
         private val SPACE_BEFORE_PUNCTUATION_REGEX = Regex("\\s+([,.;!?])")
         private val REPEATED_PUNCTUATION_REGEX = Regex("([,.;!?])\\1+")
         private val PREFIX_LABEL_REGEX = Regex(
-            "^(rewritten|rewrite|cleaned|output|result|message|text)\\s*:\\s*",
+            "^(rewritten|rewrite|cleaned|output|result)\\s*:\\s*",
             RegexOption.IGNORE_CASE
         )
         private val CLEANED_ANCHOR_REGEX = Regex(
