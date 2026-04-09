@@ -61,8 +61,9 @@ help     Print this help output.
 
 ### Voice Note Requirements
 
-- `whisper-cli` on `PATH`
-- `ffmpeg` on `PATH`
+- `whisper-cli` installed (auto-detected from `PATH` and common install locations)
+- `ffmpeg` installed (auto-detected from `PATH` and common install locations)
+- Optional override: `WHISPER_CLI_BIN=/absolute/path/to/whisper-cli`
 - Whisper model file at either:
   - `WHISPER_MODEL_PATH_TINY`, or
   - `codex-remote/models/ggml-tiny.en.bin`

@@ -6,12 +6,76 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
-if ! command -v whisper-cli >/dev/null 2>&1; then
-  echo "whisper-cli not found. Install whisper.cpp and ensure whisper-cli is in PATH." >&2
+resolve_whisper_cli() {
+  if [[ -n "${WHISPER_CLI_BIN:-}" ]]; then
+    if [[ -x "${WHISPER_CLI_BIN}" ]]; then
+      printf "%s\n" "${WHISPER_CLI_BIN}"
+      return 0
+    fi
+    return 1
+  fi
+
+  if command -v whisper-cli >/dev/null 2>&1; then
+    command -v whisper-cli
+    return 0
+  fi
+
+  local candidate=""
+  for candidate in \
+    "/opt/homebrew/bin/whisper-cli" \
+    "/usr/local/bin/whisper-cli" \
+    "$HOME/.local/bin/whisper-cli" \
+    "$HOME/bin/whisper-cli"; do
+    if [[ -x "$candidate" ]]; then
+      printf "%s\n" "$candidate"
+      return 0
+    fi
+  done
+
+  if command -v brew >/dev/null 2>&1; then
+    local brew_prefix=""
+    brew_prefix="$(brew --prefix whisper-cpp 2>/dev/null || true)"
+    if [[ -n "$brew_prefix" && -x "$brew_prefix/bin/whisper-cli" ]]; then
+      printf "%s\n" "$brew_prefix/bin/whisper-cli"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+resolve_ffmpeg_bin() {
+  if command -v ffmpeg >/dev/null 2>&1; then
+    command -v ffmpeg
+    return 0
+  fi
+
+  local candidate=""
+  for candidate in \
+    "/opt/homebrew/bin/ffmpeg" \
+    "/usr/local/bin/ffmpeg" \
+    "$HOME/.local/bin/ffmpeg" \
+    "$HOME/bin/ffmpeg"; do
+    if [[ -x "$candidate" ]]; then
+      printf "%s\n" "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+whisper_cli="$(resolve_whisper_cli || true)"
+if [[ -z "$whisper_cli" ]]; then
+  echo "whisper-cli not found. Install whisper.cpp, put whisper-cli in PATH, or set WHISPER_CLI_BIN." >&2
+  echo "Checked PATH and common locations (/opt/homebrew/bin, /usr/local/bin, \$HOME/.local/bin, \$HOME/bin)." >&2
   exit 1
 fi
-if ! command -v ffmpeg >/dev/null 2>&1; then
+
+ffmpeg_bin="$(resolve_ffmpeg_bin || true)"
+if [[ -z "$ffmpeg_bin" ]]; then
   echo "ffmpeg not found. Install ffmpeg and ensure it is in PATH." >&2
+  echo "Checked PATH and common locations (/opt/homebrew/bin, /usr/local/bin, \$HOME/.local/bin, \$HOME/bin)." >&2
   exit 1
 fi
 
@@ -42,10 +106,10 @@ cleanup() {
 trap cleanup EXIT
 
 wav_input="${tmp_base}.wav"
-ffmpeg -y -loglevel error -i "$input_file" -ar 16000 -ac 1 -c:a pcm_s16le "$wav_input"
+"$ffmpeg_bin" -y -loglevel error -i "$input_file" -ar 16000 -ac 1 -c:a pcm_s16le "$wav_input"
 
 # whisper-cli writes transcript to <output>.txt when using -otxt -of.
-whisper-cli -m "$model_path" -f "$wav_input" -t 4 -l en -otxt -of "$tmp_base" -np >/dev/null 2>&1
+"$whisper_cli" -m "$model_path" -f "$wav_input" -t 4 -l en -otxt -of "$tmp_base" -np >/dev/null 2>&1
 
 if [[ ! -f "${tmp_base}.txt" ]]; then
   echo "whisper-cli did not produce a transcript file." >&2
