@@ -1,17 +1,24 @@
 # super_overlay
 
-A new Flutter project.
+Flutter app scaffold for the Super Overlay project.
 
-## Getting Started
+## Login Example
 
-This project is a starting point for a Flutter application.
+`lib/features/login` shows a complete example using:
 
-A few resources to get you started if this is your first Flutter project:
+- `dio` for HTTP client setup
+- `retrofit` for typed API contracts
+- `get_it` + `injectable` as the injector setup
+- `freezed` for immutable state and models
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+The example uses a placeholder API base URL (`https://api.placeholder.super-overlay.dev`)
+and a placeholder login endpoint (`POST /auth/login`).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Useful Commands
+
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze
+flutter test
+```

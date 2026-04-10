@@ -1,30 +1,52 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:super_overlay/features/login/data/login_models.dart';
+import 'package:super_overlay/features/login/data/login_repository.dart';
+import 'package:super_overlay/features/login/login_screen.dart';
+import 'package:super_overlay/features/login/login_view_model.dart';
+import 'package:super_overlay/mavericks/mavericks_widgets.dart';
 
-import 'package:super_overlay/main.dart';
+class _FakeLoginRepository implements LoginRepository {
+  @override
+  Future<LoginResponse> login({
+    required String email,
+    required String password,
+  }) async {
+    return LoginResponse(
+      accessToken: 'fake-token',
+      user: LoginUser(id: '1', name: 'Test User', email: email),
+    );
+  }
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Login screen enables submit once both fields are filled', (
+    WidgetTester tester,
+  ) async {
+    final viewModel = LoginViewModelImpl(
+      loginRepository: _FakeLoginRepository(),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MavericksProvider<LoginViewModel>.value(
+          value: viewModel,
+          child: const LoginScreen(),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    expect(find.text('Login Example'), findsOneWidget);
+
+    final loginButtonFinder = find.widgetWithText(FilledButton, 'Login');
+    expect(tester.widget<FilledButton>(loginButtonFinder).onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField).first, 'person@example.com');
+    await tester.enterText(find.byType(TextField).last, 'secret');
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(tester.widget<FilledButton>(loginButtonFinder).onPressed, isNotNull);
+
+    await viewModel.close();
   });
 }
