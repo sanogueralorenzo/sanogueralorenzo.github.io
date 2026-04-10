@@ -13,7 +13,7 @@ From there, you can open the `Overlay` access point (ported UI) or the login arc
 The bridge implementation lives under `android/app/src/main/kotlin/com/example/super_overlay`.
 It includes two Android mechanisms:
 - black-screen overlay service
-- Voice-style accessibility bubble (tap to dictate into focused input)
+- Voice-style accessibility bubble (tap to record and transcribe with Moonshine into focused input)
 
 ## Login Example
 

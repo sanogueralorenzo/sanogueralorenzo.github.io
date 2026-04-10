@@ -3,7 +3,6 @@ package com.example.super_overlay.overlay
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Point
@@ -12,9 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -27,16 +23,22 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.super_overlay.R
+import com.example.super_overlay.overlay.moonshine.BubbleAudioRecorder
+import com.example.super_overlay.overlay.moonshine.BubbleMoonshineEngine
+import com.example.super_overlay.overlay.moonshine.MoonshineModelStore
 import kotlin.math.abs
 
-class BubbleOverlayAccessibilityService : AccessibilityService(), RecognitionListener {
+class BubbleOverlayAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var overlayView: TextView? = null
     private var overlayParams: WindowManager.LayoutParams? = null
-    private var speechRecognizer: SpeechRecognizer? = null
-    private var isListening: Boolean = false
     private var isBubbleDragging: Boolean = false
+    private var isRecording: Boolean = false
+    private var isTranscribing: Boolean = false
+
+    private var recorder: BubbleAudioRecorder? = null
+    private var moonshineEngine: BubbleMoonshineEngine? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -47,6 +49,16 @@ class BubbleOverlayAccessibilityService : AccessibilityService(), RecognitionLis
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             notificationTimeout = 0
+        }
+        moonshineEngine = BubbleMoonshineEngine(applicationContext) { downloading ->
+            moonshineModelDownloading = downloading
+            if (!downloading) {
+                requestRefresh()
+            }
+        }
+        moonshineModelDownloading = false
+        moonshineEngine?.ensureModelReadyAsync { _, _ ->
+            requestRefresh()
         }
         evaluateBubbleVisibility()
     }
@@ -61,53 +73,11 @@ class BubbleOverlayAccessibilityService : AccessibilityService(), RecognitionLis
         if (runningService === this) {
             runningService = null
         }
-        stopListeningIfNeeded()
-        speechRecognizer?.destroy()
-        speechRecognizer = null
+        stopAndDiscardRecording()
+        moonshineEngine?.release()
+        moonshineEngine = null
         hideBubble()
         super.onDestroy()
-    }
-
-    override fun onReadyForSpeech(params: Bundle?) = Unit
-
-    override fun onBeginningOfSpeech() = Unit
-
-    override fun onRmsChanged(rmsdB: Float) = Unit
-
-    override fun onBufferReceived(buffer: ByteArray?) = Unit
-
-    override fun onEndOfSpeech() = Unit
-
-    override fun onPartialResults(partialResults: Bundle?) = Unit
-
-    override fun onEvent(eventType: Int, params: Bundle?) = Unit
-
-    override fun onError(error: Int) {
-        isListening = false
-        updateBubbleVisual()
-        if (error != SpeechRecognizer.ERROR_CLIENT) {
-            showToast(getString(R.string.bubble_overlay_error_generic))
-        }
-    }
-
-    override fun onResults(results: Bundle?) {
-        isListening = false
-        updateBubbleVisual()
-
-        val spokenText = results
-            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            ?.firstOrNull()
-            ?.trim()
-            .orEmpty()
-
-        if (spokenText.isBlank()) {
-            return
-        }
-
-        val committed = commitSpokenText(spokenText)
-        if (!committed) {
-            showToast(getString(R.string.bubble_overlay_error_commit))
-        }
     }
 
     private fun evaluateBubbleVisibility() {
@@ -118,7 +88,7 @@ class BubbleOverlayAccessibilityService : AccessibilityService(), RecognitionLis
             showOrUpdateBubble()
         } else {
             hideBubble()
-            stopListeningIfNeeded()
+            stopAndDiscardRecording()
         }
     }
 
@@ -261,53 +231,103 @@ class BubbleOverlayAccessibilityService : AccessibilityService(), RecognitionLis
     }
 
     private fun onBubbleTapped() {
-        if (!BubbleOverlayPreferences.isEnabled(applicationContext)) {
+        if (!BubbleOverlayPreferences.isEnabled(applicationContext) || isTranscribing) {
             return
         }
-        if (isListening) {
-            stopListeningIfNeeded()
+        if (isRecording) {
+            stopRecordingAndTranscribe()
         } else {
-            startListening()
+            startRecording()
         }
     }
 
-    private fun startListening() {
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            showToast(getString(R.string.bubble_overlay_error_unavailable))
-            return
-        }
+    private fun startRecording() {
         if (!hasRecordAudioPermission()) {
             showToast(getString(R.string.bubble_overlay_error_mic_permission))
             return
         }
 
-        val recognizer = speechRecognizer ?: SpeechRecognizer.createSpeechRecognizer(this).also {
-            it.setRecognitionListener(this)
-            speechRecognizer = it
+        val engine = moonshineEngine
+        if (engine == null) {
+            showToast(getString(R.string.bubble_overlay_error_transcribe))
+            return
         }
 
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+        if (!engine.isModelReady()) {
+            engine.ensureModelReadyAsync { ready, error ->
+                requestRefresh()
+                if (ready) {
+                    showToast(getString(R.string.bubble_overlay_model_ready))
+                } else if (!error.isNullOrBlank()) {
+                    showToast(getString(R.string.bubble_overlay_error_download_failed))
+                }
+            }
+            showToast(getString(R.string.bubble_overlay_model_downloading))
+            updateBubbleVisual()
+            return
         }
 
-        runCatching {
-            recognizer.startListening(intent)
-            isListening = true
-            updateBubbleVisual()
-        }.onFailure {
-            isListening = false
-            updateBubbleVisual()
+        val recorder = BubbleAudioRecorder()
+        if (!recorder.start()) {
             showToast(getString(R.string.bubble_overlay_error_start))
+            recorder.release()
+            return
+        }
+
+        this.recorder = recorder
+        isRecording = true
+        updateBubbleVisual()
+    }
+
+    private fun stopRecordingAndTranscribe() {
+        val activeRecorder = recorder ?: return
+        isRecording = false
+        val pcm = activeRecorder.stopAndGetPcm()
+        activeRecorder.release()
+        recorder = null
+
+        if (pcm.isEmpty()) {
+            updateBubbleVisual()
+            return
+        }
+
+        val engine = moonshineEngine
+        if (engine == null) {
+            updateBubbleVisual()
+            showToast(getString(R.string.bubble_overlay_error_transcribe))
+            return
+        }
+
+        isTranscribing = true
+        updateBubbleVisual()
+        engine.transcribeAsync(
+            pcm16 = pcm,
+            sampleRateHz = BubbleAudioRecorder.SAMPLE_RATE_HZ
+        ) { text, error ->
+            isTranscribing = false
+            updateBubbleVisual()
+
+            if (!error.isNullOrBlank()) {
+                showToast(getString(R.string.bubble_overlay_error_transcribe))
+                return@transcribeAsync
+            }
+
+            if (text.isNullOrBlank()) {
+                return@transcribeAsync
+            }
+
+            val committed = commitSpokenText(text)
+            if (!committed) {
+                showToast(getString(R.string.bubble_overlay_error_commit))
+            }
         }
     }
 
-    private fun stopListeningIfNeeded() {
-        if (!isListening) {
-            return
-        }
-        isListening = false
-        speechRecognizer?.stopListening()
+    private fun stopAndDiscardRecording() {
+        isRecording = false
+        isTranscribing = false
+        recorder?.release()
+        recorder = null
         updateBubbleVisual()
     }
 
@@ -378,10 +398,10 @@ class BubbleOverlayAccessibilityService : AccessibilityService(), RecognitionLis
     private fun updateBubbleVisual() {
         val bubble = overlayView ?: return
         val background = bubble.background as? GradientDrawable ?: return
-        val color = if (isListening) {
-            Color.parseColor("#C62828")
-        } else {
-            Color.parseColor("#1B1F23")
+        val color = when {
+            isTranscribing -> Color.parseColor("#EF6C00")
+            isRecording -> Color.parseColor("#C62828")
+            else -> Color.parseColor("#1B1F23")
         }
         background.setColor(color)
         background.setStroke(dpToPx(2), color)
@@ -409,10 +429,21 @@ class BubbleOverlayAccessibilityService : AccessibilityService(), RecognitionLis
         @Volatile
         private var runningService: BubbleOverlayAccessibilityService? = null
 
-        fun requestRefresh(context: Context) {
+        @Volatile
+        private var moonshineModelDownloading: Boolean = false
+
+        fun requestRefresh() {
             runningService?.mainHandler?.post {
                 runningService?.evaluateBubbleVisibility()
             }
+        }
+
+        fun isMoonshineModelReady(context: Context): Boolean {
+            return MoonshineModelStore.areAllModelsPresent(context)
+        }
+
+        fun isMoonshineModelDownloading(): Boolean {
+            return moonshineModelDownloading
         }
     }
 }

@@ -27,7 +27,9 @@ class OverlayHostApiBridge(
             notificationPermissionGranted = isNotificationPermissionGranted(),
             overlayRunning = OverlayService.isRunning,
             bubbleEnabled = BubbleOverlayPreferences.isEnabled(context),
-            bubbleAccessibilityEnabled = isBubbleAccessibilityEnabled()
+            bubbleAccessibilityEnabled = isBubbleAccessibilityEnabled(),
+            moonshineModelReady = BubbleOverlayAccessibilityService.isMoonshineModelReady(context),
+            moonshineModelDownloading = BubbleOverlayAccessibilityService.isMoonshineModelDownloading()
         )
     }
 
@@ -66,7 +68,7 @@ class OverlayHostApiBridge(
 
     override fun setBubbleEnabled(enabled: Boolean) {
         BubbleOverlayPreferences.setEnabled(context, enabled)
-        BubbleOverlayAccessibilityService.requestRefresh(context)
+        BubbleOverlayAccessibilityService.requestRefresh()
     }
 
     override fun startOverlay() {

@@ -7,6 +7,8 @@ class OverlayState {
     required this.overlayRunning,
     required this.bubbleEnabled,
     required this.bubbleAccessibilityEnabled,
+    required this.moonshineModelReady,
+    required this.moonshineModelDownloading,
   });
 
   bool overlayPermissionGranted;
@@ -14,6 +16,8 @@ class OverlayState {
   bool overlayRunning;
   bool bubbleEnabled;
   bool bubbleAccessibilityEnabled;
+  bool moonshineModelReady;
+  bool moonshineModelDownloading;
 }
 
 @ConfigurePigeon(
@@ -23,6 +27,8 @@ class OverlayState {
     kotlinOut:
         'android/app/src/main/kotlin/com/example/super_overlay/pigeon/OverlayApi.g.kt',
     kotlinOptions: KotlinOptions(package: 'com.example.super_overlay.pigeon'),
+    swiftOut: 'ios/Runner/OverlayApi.g.swift',
+    swiftOptions: SwiftOptions(),
     dartOptions: DartOptions(),
   ),
 )

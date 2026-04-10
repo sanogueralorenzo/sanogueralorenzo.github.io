@@ -221,7 +221,7 @@ class _OverlayScreenState extends State<OverlayScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Enable bubble overlay'),
                     subtitle: const Text(
-                      'Shows a draggable bubble while a keyboard is visible. Tap once to dictate.',
+                      'Shows a draggable bubble while a keyboard is visible. Tap to start recording and tap again to transcribe with Moonshine.',
                     ),
                     value: _state.bubbleEnabled,
                     onChanged: (_isExecutingAction || !_state.bridgeAvailable)
@@ -229,6 +229,35 @@ class _OverlayScreenState extends State<OverlayScreen> {
                         : (value) => _runAction(
                             () => _overlayHostClient.setBubbleEnabled(value),
                           ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        _state.moonshineModelReady
+                            ? Icons.check_circle
+                            : (_state.moonshineModelDownloading
+                                  ? Icons.download
+                                  : Icons.error_outline),
+                        size: 20,
+                        color: _state.moonshineModelReady
+                            ? theme.colorScheme.primary
+                            : (_state.moonshineModelDownloading
+                                  ? theme.colorScheme.tertiary
+                                  : theme.colorScheme.error),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _state.moonshineModelReady
+                              ? 'Moonshine model ready'
+                              : (_state.moonshineModelDownloading
+                                    ? 'Moonshine model downloading'
+                                    : 'Moonshine model not downloaded'),
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(

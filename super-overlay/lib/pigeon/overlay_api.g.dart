@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,7 +97,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 class OverlayState {
   OverlayState({
     required this.overlayPermissionGranted,
@@ -104,6 +104,8 @@ class OverlayState {
     required this.overlayRunning,
     required this.bubbleEnabled,
     required this.bubbleAccessibilityEnabled,
+    required this.moonshineModelReady,
+    required this.moonshineModelDownloading,
   });
 
   bool overlayPermissionGranted;
@@ -116,6 +118,10 @@ class OverlayState {
 
   bool bubbleAccessibilityEnabled;
 
+  bool moonshineModelReady;
+
+  bool moonshineModelDownloading;
+
   List<Object?> _toList() {
     return <Object?>[
       overlayPermissionGranted,
@@ -123,11 +129,14 @@ class OverlayState {
       overlayRunning,
       bubbleEnabled,
       bubbleAccessibilityEnabled,
+      moonshineModelReady,
+      moonshineModelDownloading,
     ];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static OverlayState decode(Object result) {
     result as List<Object?>;
@@ -137,6 +146,8 @@ class OverlayState {
       overlayRunning: result[2]! as bool,
       bubbleEnabled: result[3]! as bool,
       bubbleAccessibilityEnabled: result[4]! as bool,
+      moonshineModelReady: result[5]! as bool,
+      moonshineModelDownloading: result[6]! as bool,
     );
   }
 
@@ -149,14 +160,28 @@ class OverlayState {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(overlayPermissionGranted, other.overlayPermissionGranted) && _deepEquals(notificationPermissionGranted, other.notificationPermissionGranted) && _deepEquals(overlayRunning, other.overlayRunning) && _deepEquals(bubbleEnabled, other.bubbleEnabled) && _deepEquals(bubbleAccessibilityEnabled, other.bubbleAccessibilityEnabled);
+    return _deepEquals(
+          overlayPermissionGranted,
+          other.overlayPermissionGranted,
+        ) &&
+        _deepEquals(
+          notificationPermissionGranted,
+          other.notificationPermissionGranted,
+        ) &&
+        _deepEquals(overlayRunning, other.overlayRunning) &&
+        _deepEquals(bubbleEnabled, other.bubbleEnabled) &&
+        _deepEquals(
+          bubbleAccessibilityEnabled,
+          other.bubbleAccessibilityEnabled,
+        ) &&
+        _deepEquals(moonshineModelReady, other.moonshineModelReady) &&
+        _deepEquals(moonshineModelDownloading, other.moonshineModelDownloading);
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -165,7 +190,7 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is OverlayState) {
+    } else if (value is OverlayState) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
     } else {
@@ -188,9 +213,13 @@ class OverlayHostApi {
   /// Constructor for [OverlayHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  OverlayHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  OverlayHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -198,7 +227,8 @@ class OverlayHostApi {
   final String pigeonVar_messageChannelSuffix;
 
   Future<OverlayState> getOverlayState() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.getOverlayState$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.super_overlay.OverlayHostApi.getOverlayState$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -208,16 +238,16 @@ class OverlayHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as OverlayState;
   }
 
   Future<void> openOverlaySettings() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.openOverlaySettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.super_overlay.OverlayHostApi.openOverlaySettings$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -227,15 +257,15 @@ class OverlayHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> openNotificationSettings() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.openNotificationSettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.super_overlay.OverlayHostApi.openNotificationSettings$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -245,15 +275,15 @@ class OverlayHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> openAccessibilitySettings() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.openAccessibilitySettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.super_overlay.OverlayHostApi.openAccessibilitySettings$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -263,33 +293,35 @@ class OverlayHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> setBubbleEnabled(bool enabled) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.setBubbleEnabled$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.super_overlay.OverlayHostApi.setBubbleEnabled$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[enabled]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[enabled],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> startOverlay() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.startOverlay$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.super_overlay.OverlayHostApi.startOverlay$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -299,15 +331,15 @@ class OverlayHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> stopOverlay() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.stopOverlay$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.super_overlay.OverlayHostApi.stopOverlay$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -317,10 +349,9 @@ class OverlayHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }

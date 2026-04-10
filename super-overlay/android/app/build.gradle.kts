@@ -42,3 +42,7 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation("ai.moonshine:moonshine-voice:0.0.52")
+}

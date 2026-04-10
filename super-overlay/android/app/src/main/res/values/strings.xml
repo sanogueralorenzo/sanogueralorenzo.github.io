@@ -4,10 +4,12 @@
     <string name="overlay_notification_title">Overlay active</string>
     <string name="overlay_notification_body">Press power or stop from the app to remove the overlay.</string>
     <string name="stop_overlay_action">Stop overlay</string>
-    <string name="bubble_overlay_accessibility_description">Bubble overlay to tap and dictate into focused inputs.</string>
-    <string name="bubble_overlay_error_generic">Could not complete speech recognition.</string>
-    <string name="bubble_overlay_error_unavailable">Speech recognition is unavailable on this device.</string>
+    <string name="bubble_overlay_accessibility_description">Bubble overlay to tap and dictate with Moonshine into focused inputs.</string>
     <string name="bubble_overlay_error_mic_permission">Microphone permission is required.</string>
     <string name="bubble_overlay_error_start">Could not start listening.</string>
+    <string name="bubble_overlay_error_transcribe">Could not transcribe audio with Moonshine.</string>
+    <string name="bubble_overlay_model_downloading">Downloading Moonshine model…</string>
+    <string name="bubble_overlay_model_ready">Moonshine model is ready.</string>
+    <string name="bubble_overlay_error_download_failed">Could not download Moonshine model files.</string>
     <string name="bubble_overlay_error_commit">Could not apply text to the focused input.</string>
 </resources>

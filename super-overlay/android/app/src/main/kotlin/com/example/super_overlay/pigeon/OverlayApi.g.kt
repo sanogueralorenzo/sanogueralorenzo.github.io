@@ -198,7 +198,9 @@ data class OverlayState (
   val notificationPermissionGranted: Boolean,
   val overlayRunning: Boolean,
   val bubbleEnabled: Boolean,
-  val bubbleAccessibilityEnabled: Boolean
+  val bubbleAccessibilityEnabled: Boolean,
+  val moonshineModelReady: Boolean,
+  val moonshineModelDownloading: Boolean
 )
  {
   companion object {
@@ -208,7 +210,9 @@ data class OverlayState (
       val overlayRunning = pigeonVar_list[2] as Boolean
       val bubbleEnabled = pigeonVar_list[3] as Boolean
       val bubbleAccessibilityEnabled = pigeonVar_list[4] as Boolean
-      return OverlayState(overlayPermissionGranted, notificationPermissionGranted, overlayRunning, bubbleEnabled, bubbleAccessibilityEnabled)
+      val moonshineModelReady = pigeonVar_list[5] as Boolean
+      val moonshineModelDownloading = pigeonVar_list[6] as Boolean
+      return OverlayState(overlayPermissionGranted, notificationPermissionGranted, overlayRunning, bubbleEnabled, bubbleAccessibilityEnabled, moonshineModelReady, moonshineModelDownloading)
     }
   }
   fun toList(): List<Any?> {
@@ -218,6 +222,8 @@ data class OverlayState (
       overlayRunning,
       bubbleEnabled,
       bubbleAccessibilityEnabled,
+      moonshineModelReady,
+      moonshineModelDownloading,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -228,7 +234,7 @@ data class OverlayState (
       return true
     }
     val other = other as OverlayState
-    return OverlayApiPigeonUtils.deepEquals(this.overlayPermissionGranted, other.overlayPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.notificationPermissionGranted, other.notificationPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.overlayRunning, other.overlayRunning) && OverlayApiPigeonUtils.deepEquals(this.bubbleEnabled, other.bubbleEnabled) && OverlayApiPigeonUtils.deepEquals(this.bubbleAccessibilityEnabled, other.bubbleAccessibilityEnabled)
+    return OverlayApiPigeonUtils.deepEquals(this.overlayPermissionGranted, other.overlayPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.notificationPermissionGranted, other.notificationPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.overlayRunning, other.overlayRunning) && OverlayApiPigeonUtils.deepEquals(this.bubbleEnabled, other.bubbleEnabled) && OverlayApiPigeonUtils.deepEquals(this.bubbleAccessibilityEnabled, other.bubbleAccessibilityEnabled) && OverlayApiPigeonUtils.deepEquals(this.moonshineModelReady, other.moonshineModelReady) && OverlayApiPigeonUtils.deepEquals(this.moonshineModelDownloading, other.moonshineModelDownloading)
   }
 
   override fun hashCode(): Int {
@@ -238,6 +244,8 @@ data class OverlayState (
     result = 31 * result + OverlayApiPigeonUtils.deepHash(this.overlayRunning)
     result = 31 * result + OverlayApiPigeonUtils.deepHash(this.bubbleEnabled)
     result = 31 * result + OverlayApiPigeonUtils.deepHash(this.bubbleAccessibilityEnabled)
+    result = 31 * result + OverlayApiPigeonUtils.deepHash(this.moonshineModelReady)
+    result = 31 * result + OverlayApiPigeonUtils.deepHash(this.moonshineModelDownloading)
     return result
   }
 }

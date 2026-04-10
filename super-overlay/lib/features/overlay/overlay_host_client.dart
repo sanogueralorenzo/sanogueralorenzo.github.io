@@ -11,6 +11,8 @@ class OverlayNativeState {
     required this.overlayRunning,
     required this.bubbleEnabled,
     required this.bubbleAccessibilityEnabled,
+    required this.moonshineModelReady,
+    required this.moonshineModelDownloading,
   });
 
   const OverlayNativeState.unsupported()
@@ -20,7 +22,9 @@ class OverlayNativeState {
       notificationPermissionGranted = false,
       overlayRunning = false,
       bubbleEnabled = false,
-      bubbleAccessibilityEnabled = false;
+      bubbleAccessibilityEnabled = false,
+      moonshineModelReady = false,
+      moonshineModelDownloading = false;
 
   final bool supported;
   final bool bridgeAvailable;
@@ -29,6 +33,8 @@ class OverlayNativeState {
   final bool overlayRunning;
   final bool bubbleEnabled;
   final bool bubbleAccessibilityEnabled;
+  final bool moonshineModelReady;
+  final bool moonshineModelDownloading;
 }
 
 class OverlayHostClient {
@@ -54,6 +60,8 @@ class OverlayHostClient {
         overlayRunning: state.overlayRunning,
         bubbleEnabled: state.bubbleEnabled,
         bubbleAccessibilityEnabled: state.bubbleAccessibilityEnabled,
+        moonshineModelReady: state.moonshineModelReady,
+        moonshineModelDownloading: state.moonshineModelDownloading,
       );
     } on PlatformException {
       return const OverlayNativeState(
@@ -64,6 +72,8 @@ class OverlayHostClient {
         overlayRunning: false,
         bubbleEnabled: false,
         bubbleAccessibilityEnabled: false,
+        moonshineModelReady: false,
+        moonshineModelDownloading: false,
       );
     }
   }
