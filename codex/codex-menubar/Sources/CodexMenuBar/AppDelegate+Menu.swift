@@ -6,7 +6,7 @@ extension AppDelegate {
     let data = menuDataStore.data
     menu.removeAllItems()
 
-    menu.addItem(actionItem(title: "Codex", action: #selector(openCodexApp(_:))))
+    menu.addItem(actionItem(title: "Open", action: #selector(openCodexApp(_:))))
     menu.addItem(.separator())
     addCodexAgentSection(to: menu)
     menu.addItem(.separator())
