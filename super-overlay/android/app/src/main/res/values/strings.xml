@@ -1,0 +1,7 @@
+<resources>
+    <string name="foreground_channel_name">Foreground service</string>
+    <string name="foreground_channel_description">Shows status when the overlay is running.</string>
+    <string name="overlay_notification_title">Overlay active</string>
+    <string name="overlay_notification_body">Press power or stop from the app to remove the overlay.</string>
+    <string name="stop_overlay_action">Stop overlay</string>
+</resources>

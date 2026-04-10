@@ -1,14 +1,84 @@
 import 'package:flutter/material.dart';
+import 'package:super_overlay/features/overlay/overlay_host_client.dart';
 
-class OverlayScreen extends StatelessWidget {
+class OverlayScreen extends StatefulWidget {
   const OverlayScreen({super.key});
+
+  @override
+  State<OverlayScreen> createState() => _OverlayScreenState();
+}
+
+class _OverlayScreenState extends State<OverlayScreen> {
+  final OverlayHostClient _overlayHostClient = OverlayHostClient();
+
+  OverlayNativeState _state = const OverlayNativeState.unsupported();
+  bool _isLoadingState = true;
+  bool _isExecutingAction = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshState();
+  }
+
+  Future<void> _refreshState() async {
+    setState(() {
+      _isLoadingState = true;
+      _errorMessage = null;
+    });
+
+    final state = await _overlayHostClient.loadState();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _state = state;
+      _isLoadingState = false;
+    });
+  }
+
+  Future<void> _runAction(Future<String?> Function() action) async {
+    setState(() {
+      _isExecutingAction = true;
+      _errorMessage = null;
+    });
+
+    final error = await action();
+    await _refreshState();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isExecutingAction = false;
+      _errorMessage = error;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final permissionIcon = _state.overlayPermissionGranted
+        ? Icons.check_circle
+        : Icons.error_outline;
+    final permissionColor = _state.overlayPermissionGranted
+        ? theme.colorScheme.primary
+        : theme.colorScheme.error;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Overlay')),
+      appBar: AppBar(
+        title: const Text('Overlay'),
+        actions: [
+          IconButton(
+            onPressed: _isLoadingState || _isExecutingAction
+                ? null
+                : _refreshState,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -89,18 +159,114 @@ class OverlayScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Card(
             child: ListTile(
-              leading: Icon(
-                Icons.error_outline,
-                color: theme.colorScheme.error,
-              ),
-              title: const Text('Permissions'),
+              leading: Icon(permissionIcon, color: permissionColor),
+              title: const Text('Display over other apps'),
               subtitle: Text(
-                'Required to use Overlay',
+                _state.overlayPermissionGranted
+                    ? 'Granted'
+                    : 'Required to use Overlay',
                 style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+              trailing: FilledButton.tonal(
+                onPressed: _isExecutingAction
+                    ? null
+                    : () => _runAction(_overlayHostClient.openOverlaySettings),
+                child: const Text('Open settings'),
+              ),
             ),
           ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: Icon(
+                _state.notificationPermissionGranted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+                color: _state.notificationPermissionGranted
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.error,
+              ),
+              title: const Text('Notifications'),
+              subtitle: Text(
+                _state.notificationPermissionGranted
+                    ? 'Enabled'
+                    : 'Required for foreground status',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              trailing: FilledButton.tonal(
+                onPressed: _isExecutingAction
+                    ? null
+                    : () => _runAction(
+                        _overlayHostClient.openNotificationSettings,
+                      ),
+                child: const Text('Open settings'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Overlay controls', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Text(
+                    _state.overlayRunning
+                        ? 'Overlay is active'
+                        : 'Overlay is inactive',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed:
+                              (_isExecutingAction ||
+                                  !_state.overlayPermissionGranted)
+                              ? null
+                              : () =>
+                                    _runAction(_overlayHostClient.startOverlay),
+                          child: const Text('Start overlay'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              (_isExecutingAction || !_state.overlayRunning)
+                              ? null
+                              : () =>
+                                    _runAction(_overlayHostClient.stopOverlay),
+                          child: const Text('Stop overlay'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isLoadingState || _isExecutingAction) ...[
+                    const SizedBox(height: 12),
+                    const LinearProgressIndicator(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (!_state.supported || !_state.bridgeAvailable) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Native overlay bridge is only available on Android runtime.',
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage!,
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
+          ],
         ],
       ),
     );

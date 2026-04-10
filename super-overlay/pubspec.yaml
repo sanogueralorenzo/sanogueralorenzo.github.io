@@ -56,6 +56,7 @@ dev_dependencies:
   injectable_generator: ^2.9.0
   freezed: ^3.2.3
   json_serializable: ^6.11.1
+  pigeon: ^26.3.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
