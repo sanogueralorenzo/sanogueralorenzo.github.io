@@ -27,7 +27,20 @@ void main() {
     await tester.pumpWidget(const SuperOverlayApp());
 
     expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Open Overlay'), findsOneWidget);
     expect(find.text('Open Login Example'), findsOneWidget);
+  });
+
+  testWidgets('Overlay entry opens overlay screen', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const SuperOverlayApp());
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Open Overlay'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Get started'), findsOneWidget);
+    expect(find.text('Play media with the screen off'), findsOneWidget);
   });
 
   testWidgets('Login screen enables submit once both fields are filled', (

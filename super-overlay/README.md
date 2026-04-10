@@ -5,7 +5,7 @@ Flutter app scaffold for the Super Overlay project.
 ## Default Entry Screen
 
 The app now opens on `lib/features/home/home_screen.dart` by default.
-From there, you can open the login architecture example.
+From there, you can open the `Overlay` access point (ported UI) or the login architecture example.
 
 ## Login Example
 

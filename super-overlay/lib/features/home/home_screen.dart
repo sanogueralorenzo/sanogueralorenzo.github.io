@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({required this.onOpenLoginExample, super.key});
+  const HomeScreen({
+    required this.onOpenOverlay,
+    required this.onOpenLoginExample,
+    super.key,
+  });
 
+  final VoidCallback onOpenOverlay;
   final VoidCallback onOpenLoginExample;
 
   @override
@@ -26,6 +31,30 @@ class HomeScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Overlay',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Open the ported Overlay home UI entry point.',
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: onOpenOverlay,
+                        child: const Text('Open Overlay'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
