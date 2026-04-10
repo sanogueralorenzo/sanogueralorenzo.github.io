@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:super_overlay/features/home/home_screen.dart';
 import 'package:super_overlay/features/login/login_injector.dart';
 import 'package:super_overlay/features/login/login_screen.dart';
 import 'package:super_overlay/features/login/login_view_model.dart';
@@ -17,10 +18,22 @@ class SuperOverlayApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Super Overlay',
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.blue)),
-      home: MavericksProvider<LoginViewModel>(
-        create: () => injector.get<LoginViewModel>(),
-        child: const LoginScreen(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+      ),
+      home: HomeScreen(
+        onOpenLoginExample: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) {
+                return MavericksProvider<LoginViewModel>(
+                  create: () => injector.get<LoginViewModel>(),
+                  child: const LoginScreen(),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

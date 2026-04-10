@@ -4,6 +4,7 @@ import 'package:super_overlay/features/login/data/login_models.dart';
 import 'package:super_overlay/features/login/data/login_repository.dart';
 import 'package:super_overlay/features/login/login_screen.dart';
 import 'package:super_overlay/features/login/login_view_model.dart';
+import 'package:super_overlay/main.dart';
 import 'package:super_overlay/mavericks/mavericks_widgets.dart';
 
 class _FakeLoginRepository implements LoginRepository {
@@ -20,6 +21,15 @@ class _FakeLoginRepository implements LoginRepository {
 }
 
 void main() {
+  testWidgets('App opens on home screen by default', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const SuperOverlayApp());
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Open Login Example'), findsOneWidget);
+  });
+
   testWidgets('Login screen enables submit once both fields are filled', (
     WidgetTester tester,
   ) async {
