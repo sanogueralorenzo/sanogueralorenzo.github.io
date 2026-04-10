@@ -83,6 +83,7 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
       return
     }
 
+    popover.appearance = view.window?.effectiveAppearance
     NSApp.activate(ignoringOtherApps: true)
     popover.show(relativeTo: positioningRect, of: view, preferredEdge: .maxY)
 
