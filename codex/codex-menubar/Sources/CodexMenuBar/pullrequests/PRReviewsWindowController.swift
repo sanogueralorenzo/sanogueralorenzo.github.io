@@ -26,9 +26,11 @@ private final class PanelCardView: NSVisualEffectView {
     wantsLayer = true
     layer?.cornerRadius = 16
     layer?.masksToBounds = true
-    blendingMode = .withinWindow
-    material = .menu
-    state = .active
+    layer?.borderWidth = 1
+    layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.45).cgColor
+    blendingMode = .behindWindow
+    material = .hudWindow
+    state = .followsWindowActiveState
   }
 
   @available(*, unavailable)
