@@ -2,9 +2,10 @@ import AppKit
 import Foundation
 
 private enum PRReviewsColors {
+  static let panelBackground = NSColor.windowBackgroundColor
   static let chromeBorder = NSColor.separatorColor
   static let divider = NSColor.separatorColor
-  static let rowBackground = NSColor.clear
+  static let rowBackground = NSColor.controlBackgroundColor
   static let pillBackground = NSColor.quaternaryLabelColor.withAlphaComponent(0.24)
   static let statusPillBackground = NSColor.controlBackgroundColor
   static let statusPillPressedBackground = NSColor.selectedContentBackgroundColor
@@ -18,6 +19,23 @@ private enum PRReviewsColors {
 private enum PRReviewsPanelMode {
   case list
   case settings
+}
+
+private final class PanelCardView: NSView {
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+
+    let path = NSBezierPath(roundedRect: bounds, xRadius: 16, yRadius: 16)
+    PRReviewsColors.panelBackground.setFill()
+    path.fill()
+  }
 }
 
 private final class HeaderIconButton: NSButton {
@@ -337,7 +355,7 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
     return formatter
   }()
 
-  private let cardView = NSVisualEffectView()
+  private let cardView = PanelCardView()
   private let headerDivider = NSBox()
   private let titleLabel = NSTextField(labelWithString: "PR Reviews")
   private let clearButton: HeaderIconButton
@@ -443,6 +461,8 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
 
   override func loadView() {
     view = NSView(frame: NSRect(origin: .zero, size: Self.preferredSize))
+    view.wantsLayer = true
+    view.layer?.backgroundColor = NSColor.clear.cgColor
     preferredContentSize = Self.preferredSize
     buildUI()
     applyPanelMode(.list)
@@ -643,10 +663,6 @@ final class PRReviewsViewController: NSViewController, NSTableViewDataSource, NS
 
   private func buildUI() {
     cardView.frame = NSRect(x: 0, y: 0, width: 480, height: 350)
-    cardView.autoresizingMask = [.width, .height]
-    cardView.blendingMode = .withinWindow
-    cardView.material = .menu
-    cardView.state = .active
     view.addSubview(cardView)
 
     titleLabel.font = .boldSystemFont(ofSize: 16)
