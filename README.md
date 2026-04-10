@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./assets/codex-menu-app.png" alt="Codex Menu App" width="100%" />
-</p>
-
 ## Intro
 
 **Hello 👋** continuing with the spirit of this repo, this is an AI-tools-first orchestration playground.
