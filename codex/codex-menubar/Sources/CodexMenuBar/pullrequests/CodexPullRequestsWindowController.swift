@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 @MainActor
-final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
+final class CodexPullRequestsWindowController: NSObject, NSWindowDelegate {
   private let github = GitHubCLIClient()
   private let sessionsCLI = CodexCoreCLIClient()
   private let paths = AppPaths()
@@ -11,7 +11,8 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
   private let activityStore = ActivityStore()
   private let onClose: () -> Void
   private let onReviewJobsChanged: @MainActor () -> Void
-  private let popover = NSPopover()
+  private var localEventMonitor: Any?
+  private var globalEventMonitor: Any?
 
   private lazy var reviewsViewController = PRReviewsViewController(
     onShowSettings: { [weak self] in
@@ -62,6 +63,24 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
   private var currentError: String?
   private var refreshGeneration = 0
   private var hasLoadedInitialState = false
+  private lazy var panel: NSPanel = {
+    let panel = NSPanel(
+      contentRect: NSRect(origin: .zero, size: PRReviewsViewController.preferredSize),
+      styleMask: [.borderless, .nonactivatingPanel],
+      backing: .buffered,
+      defer: false
+    )
+    panel.isFloatingPanel = true
+    panel.level = .statusBar
+    panel.hasShadow = true
+    panel.isOpaque = false
+    panel.backgroundColor = .clear
+    panel.hidesOnDeactivate = true
+    panel.collectionBehavior = [.moveToActiveSpace, .transient]
+    panel.contentViewController = reviewsViewController
+    panel.delegate = self
+    return panel
+  }()
 
   init(
     onClose: @escaping () -> Void,
@@ -70,22 +89,19 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
     self.onClose = onClose
     self.onReviewJobsChanged = onReviewJobsChanged
     super.init()
-    popover.behavior = .transient
-    popover.animates = true
-    popover.delegate = self
-    popover.contentViewController = reviewsViewController
-    popover.contentSize = PRReviewsViewController.preferredSize
   }
 
   func present(relativeTo positioningRect: NSRect, of view: NSView) {
-    if popover.isShown {
-      popover.performClose(nil)
+    if panel.isVisible {
+      panel.close()
       return
     }
 
-    popover.appearance = view.window?.effectiveAppearance
+    positionPanel(relativeTo: positioningRect, of: view)
+    panel.appearance = view.window?.effectiveAppearance
     NSApp.activate(ignoringOtherApps: true)
-    popover.show(relativeTo: positioningRect, of: view, preferredEdge: .maxY)
+    panel.orderFrontRegardless()
+    installDismissMonitors()
 
     if hasLoadedInitialState {
       applyCurrentState()
@@ -97,9 +113,78 @@ final class CodexPullRequestsWindowController: NSObject, NSPopoverDelegate {
     Task { await loadInitialState() }
   }
 
-  func popoverDidClose(_ notification: Notification) {
+  func windowWillClose(_ notification: Notification) {
+    removeDismissMonitors()
     reviewsViewController.resetToMainScreen()
     onClose()
+  }
+
+  private func positionPanel(relativeTo positioningRect: NSRect, of view: NSView) {
+    guard let anchorWindow = view.window else { return }
+    let anchorRectInWindow = view.convert(positioningRect, to: nil)
+    let anchorRectOnScreen = anchorWindow.convertToScreen(anchorRectInWindow)
+    let screenFrame = anchorWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? anchorRectOnScreen
+    let panelSize = panel.frame.size
+    let horizontalPadding: CGFloat = 8
+    let verticalPadding: CGFloat = 6
+
+    let preferredX = anchorRectOnScreen.midX - (panelSize.width / 2)
+    let minX = screenFrame.minX + horizontalPadding
+    let maxX = screenFrame.maxX - panelSize.width - horizontalPadding
+    let x = min(max(preferredX, minX), maxX)
+
+    var y = anchorRectOnScreen.minY - panelSize.height - verticalPadding
+    if y < screenFrame.minY + horizontalPadding {
+      y = min(
+        anchorRectOnScreen.maxY + verticalPadding,
+        screenFrame.maxY - panelSize.height - horizontalPadding
+      )
+    }
+
+    panel.setFrameOrigin(NSPoint(x: x, y: y))
+  }
+
+  private func installDismissMonitors() {
+    removeDismissMonitors()
+
+    localEventMonitor = NSEvent.addLocalMonitorForEvents(
+      matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]
+    ) { [weak self] event in
+      guard let self else { return event }
+
+      if event.type == .keyDown, event.keyCode == 53 {
+        self.panel.close()
+        return nil
+      }
+
+      guard event.type != .keyDown else {
+        return event
+      }
+
+      if event.window !== self.panel {
+        self.panel.close()
+      }
+      return event
+    }
+
+    globalEventMonitor = NSEvent.addGlobalMonitorForEvents(
+      matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+    ) { [weak self] _ in
+      DispatchQueue.main.async {
+        self?.panel.close()
+      }
+    }
+  }
+
+  private func removeDismissMonitors() {
+    if let localEventMonitor {
+      NSEvent.removeMonitor(localEventMonitor)
+      self.localEventMonitor = nil
+    }
+    if let globalEventMonitor {
+      NSEvent.removeMonitor(globalEventMonitor)
+      self.globalEventMonitor = nil
+    }
   }
 
   private func loadInitialState() async {
