@@ -2,9 +2,10 @@ import AppKit
 import Foundation
 
 private enum PRReviewsColors {
+  static let panelBackground = NSColor.windowBackgroundColor
   static let chromeBorder = NSColor.separatorColor
   static let divider = NSColor.separatorColor
-  static let rowBackground = NSColor.clear
+  static let rowBackground = NSColor.controlBackgroundColor
   static let pillBackground = NSColor.quaternaryLabelColor.withAlphaComponent(0.24)
   static let statusPillBackground = NSColor.controlBackgroundColor
   static let statusPillPressedBackground = NSColor.selectedContentBackgroundColor
@@ -20,19 +21,21 @@ private enum PRReviewsPanelMode {
   case settings
 }
 
-private final class PanelCardView: NSVisualEffectView {
+private final class PanelCardView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    wantsLayer = true
-    layer?.cornerRadius = 16
-    layer?.masksToBounds = true
-    blendingMode = .withinWindow
-    material = .menu
-    state = .active
   }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+
+    let path = NSBezierPath(roundedRect: bounds, xRadius: 16, yRadius: 16)
+    PRReviewsColors.panelBackground.setFill()
+    path.fill()
+  }
 }
 
 private final class HeaderIconButton: NSButton {
