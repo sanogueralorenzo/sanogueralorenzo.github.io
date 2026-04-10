@@ -102,6 +102,8 @@ class OverlayState {
     required this.overlayPermissionGranted,
     required this.notificationPermissionGranted,
     required this.overlayRunning,
+    required this.bubbleEnabled,
+    required this.bubbleAccessibilityEnabled,
   });
 
   bool overlayPermissionGranted;
@@ -110,11 +112,17 @@ class OverlayState {
 
   bool overlayRunning;
 
+  bool bubbleEnabled;
+
+  bool bubbleAccessibilityEnabled;
+
   List<Object?> _toList() {
     return <Object?>[
       overlayPermissionGranted,
       notificationPermissionGranted,
       overlayRunning,
+      bubbleEnabled,
+      bubbleAccessibilityEnabled,
     ];
   }
 
@@ -127,6 +135,8 @@ class OverlayState {
       overlayPermissionGranted: result[0]! as bool,
       notificationPermissionGranted: result[1]! as bool,
       overlayRunning: result[2]! as bool,
+      bubbleEnabled: result[3]! as bool,
+      bubbleAccessibilityEnabled: result[4]! as bool,
     );
   }
 
@@ -139,7 +149,7 @@ class OverlayState {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(overlayPermissionGranted, other.overlayPermissionGranted) && _deepEquals(notificationPermissionGranted, other.notificationPermissionGranted) && _deepEquals(overlayRunning, other.overlayRunning);
+    return _deepEquals(overlayPermissionGranted, other.overlayPermissionGranted) && _deepEquals(notificationPermissionGranted, other.notificationPermissionGranted) && _deepEquals(overlayRunning, other.overlayRunning) && _deepEquals(bubbleEnabled, other.bubbleEnabled) && _deepEquals(bubbleAccessibilityEnabled, other.bubbleAccessibilityEnabled);
   }
 
   @override
@@ -232,6 +242,42 @@ class OverlayHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> openAccessibilitySettings() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.openAccessibilitySettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> setBubbleEnabled(bool enabled) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.super_overlay.OverlayHostApi.setBubbleEnabled$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[enabled]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

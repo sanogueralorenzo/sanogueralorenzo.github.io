@@ -5,11 +5,15 @@ class OverlayState {
     required this.overlayPermissionGranted,
     required this.notificationPermissionGranted,
     required this.overlayRunning,
+    required this.bubbleEnabled,
+    required this.bubbleAccessibilityEnabled,
   });
 
   bool overlayPermissionGranted;
   bool notificationPermissionGranted;
   bool overlayRunning;
+  bool bubbleEnabled;
+  bool bubbleAccessibilityEnabled;
 }
 
 @ConfigurePigeon(
@@ -29,6 +33,10 @@ abstract class OverlayHostApi {
   void openOverlaySettings();
 
   void openNotificationSettings();
+
+  void openAccessibilitySettings();
+
+  void setBubbleEnabled(bool enabled);
 
   void startOverlay();
 

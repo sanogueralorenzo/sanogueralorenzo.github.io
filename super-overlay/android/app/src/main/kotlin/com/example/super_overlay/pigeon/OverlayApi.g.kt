@@ -196,7 +196,9 @@ class FlutterError (
 data class OverlayState (
   val overlayPermissionGranted: Boolean,
   val notificationPermissionGranted: Boolean,
-  val overlayRunning: Boolean
+  val overlayRunning: Boolean,
+  val bubbleEnabled: Boolean,
+  val bubbleAccessibilityEnabled: Boolean
 )
  {
   companion object {
@@ -204,7 +206,9 @@ data class OverlayState (
       val overlayPermissionGranted = pigeonVar_list[0] as Boolean
       val notificationPermissionGranted = pigeonVar_list[1] as Boolean
       val overlayRunning = pigeonVar_list[2] as Boolean
-      return OverlayState(overlayPermissionGranted, notificationPermissionGranted, overlayRunning)
+      val bubbleEnabled = pigeonVar_list[3] as Boolean
+      val bubbleAccessibilityEnabled = pigeonVar_list[4] as Boolean
+      return OverlayState(overlayPermissionGranted, notificationPermissionGranted, overlayRunning, bubbleEnabled, bubbleAccessibilityEnabled)
     }
   }
   fun toList(): List<Any?> {
@@ -212,6 +216,8 @@ data class OverlayState (
       overlayPermissionGranted,
       notificationPermissionGranted,
       overlayRunning,
+      bubbleEnabled,
+      bubbleAccessibilityEnabled,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -222,7 +228,7 @@ data class OverlayState (
       return true
     }
     val other = other as OverlayState
-    return OverlayApiPigeonUtils.deepEquals(this.overlayPermissionGranted, other.overlayPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.notificationPermissionGranted, other.notificationPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.overlayRunning, other.overlayRunning)
+    return OverlayApiPigeonUtils.deepEquals(this.overlayPermissionGranted, other.overlayPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.notificationPermissionGranted, other.notificationPermissionGranted) && OverlayApiPigeonUtils.deepEquals(this.overlayRunning, other.overlayRunning) && OverlayApiPigeonUtils.deepEquals(this.bubbleEnabled, other.bubbleEnabled) && OverlayApiPigeonUtils.deepEquals(this.bubbleAccessibilityEnabled, other.bubbleAccessibilityEnabled)
   }
 
   override fun hashCode(): Int {
@@ -230,6 +236,8 @@ data class OverlayState (
     result = 31 * result + OverlayApiPigeonUtils.deepHash(this.overlayPermissionGranted)
     result = 31 * result + OverlayApiPigeonUtils.deepHash(this.notificationPermissionGranted)
     result = 31 * result + OverlayApiPigeonUtils.deepHash(this.overlayRunning)
+    result = 31 * result + OverlayApiPigeonUtils.deepHash(this.bubbleEnabled)
+    result = 31 * result + OverlayApiPigeonUtils.deepHash(this.bubbleAccessibilityEnabled)
     return result
   }
 }
@@ -260,6 +268,8 @@ interface OverlayHostApi {
   fun getOverlayState(): OverlayState
   fun openOverlaySettings()
   fun openNotificationSettings()
+  fun openAccessibilitySettings()
+  fun setBubbleEnabled(enabled: Boolean)
   fun startOverlay()
   fun stopOverlay()
 
@@ -309,6 +319,40 @@ interface OverlayHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               api.openNotificationSettings()
+              listOf(null)
+            } catch (exception: Throwable) {
+              OverlayApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.super_overlay.OverlayHostApi.openAccessibilitySettings$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              api.openAccessibilitySettings()
+              listOf(null)
+            } catch (exception: Throwable) {
+              OverlayApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.super_overlay.OverlayHostApi.setBubbleEnabled$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val enabledArg = args[0] as Boolean
+            val wrapped: List<Any?> = try {
+              api.setBubbleEnabled(enabledArg)
               listOf(null)
             } catch (exception: Throwable) {
               OverlayApiPigeonUtils.wrapError(exception)

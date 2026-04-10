@@ -204,6 +204,68 @@ class _OverlayScreenState extends State<OverlayScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          Text(
+            'Bubble Tap-To-Talk',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Enable bubble overlay'),
+                    subtitle: const Text(
+                      'Shows a draggable bubble while a keyboard is visible. Tap once to dictate.',
+                    ),
+                    value: _state.bubbleEnabled,
+                    onChanged: (_isExecutingAction || !_state.bridgeAvailable)
+                        ? null
+                        : (value) => _runAction(
+                            () => _overlayHostClient.setBubbleEnabled(value),
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        _state.bubbleAccessibilityEnabled
+                            ? Icons.check_circle
+                            : Icons.error_outline,
+                        size: 20,
+                        color: _state.bubbleAccessibilityEnabled
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _state.bubbleAccessibilityEnabled
+                              ? 'Accessibility service enabled'
+                              : 'Accessibility service required',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                      FilledButton.tonal(
+                        onPressed: _isExecutingAction
+                            ? null
+                            : () => _runAction(
+                                _overlayHostClient.openAccessibilitySettings,
+                              ),
+                        child: const Text('Open settings'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),

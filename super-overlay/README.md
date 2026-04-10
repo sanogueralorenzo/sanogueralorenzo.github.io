@@ -11,6 +11,9 @@ From there, you can open the `Overlay` access point (ported UI) or the login arc
 
 `lib/features/overlay` now uses a Pigeon host API to call Android overlay code.
 The bridge implementation lives under `android/app/src/main/kotlin/com/example/super_overlay`.
+It includes two Android mechanisms:
+- black-screen overlay service
+- Voice-style accessibility bubble (tap to dictate into focused input)
 
 ## Login Example
 

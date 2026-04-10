@@ -9,6 +9,8 @@ class OverlayNativeState {
     required this.overlayPermissionGranted,
     required this.notificationPermissionGranted,
     required this.overlayRunning,
+    required this.bubbleEnabled,
+    required this.bubbleAccessibilityEnabled,
   });
 
   const OverlayNativeState.unsupported()
@@ -16,13 +18,17 @@ class OverlayNativeState {
       bridgeAvailable = false,
       overlayPermissionGranted = false,
       notificationPermissionGranted = false,
-      overlayRunning = false;
+      overlayRunning = false,
+      bubbleEnabled = false,
+      bubbleAccessibilityEnabled = false;
 
   final bool supported;
   final bool bridgeAvailable;
   final bool overlayPermissionGranted;
   final bool notificationPermissionGranted;
   final bool overlayRunning;
+  final bool bubbleEnabled;
+  final bool bubbleAccessibilityEnabled;
 }
 
 class OverlayHostClient {
@@ -46,6 +52,8 @@ class OverlayHostClient {
         overlayPermissionGranted: state.overlayPermissionGranted,
         notificationPermissionGranted: state.notificationPermissionGranted,
         overlayRunning: state.overlayRunning,
+        bubbleEnabled: state.bubbleEnabled,
+        bubbleAccessibilityEnabled: state.bubbleAccessibilityEnabled,
       );
     } on PlatformException {
       return const OverlayNativeState(
@@ -54,6 +62,8 @@ class OverlayHostClient {
         overlayPermissionGranted: false,
         notificationPermissionGranted: false,
         overlayRunning: false,
+        bubbleEnabled: false,
+        bubbleAccessibilityEnabled: false,
       );
     }
   }
@@ -62,6 +72,12 @@ class OverlayHostClient {
 
   Future<String?> openNotificationSettings() =>
       _run(_api.openNotificationSettings);
+
+  Future<String?> openAccessibilitySettings() =>
+      _run(_api.openAccessibilitySettings);
+
+  Future<String?> setBubbleEnabled(bool enabled) =>
+      _run(() => _api.setBubbleEnabled(enabled));
 
   Future<String?> startOverlay() => _run(_api.startOverlay);
 
