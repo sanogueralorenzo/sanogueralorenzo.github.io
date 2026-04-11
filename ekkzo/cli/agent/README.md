@@ -37,3 +37,14 @@ The command resolver checks binaries in this order:
 
 1. `AGENT_OPENAI_CODEX_BIN` (if set)
 2. `codex`
+
+## Bridge Contract
+
+The bridge turn event contract lives in:
+
+`src/bridge/contracts/turn_events.rs`
+
+It exposes:
+
+- `turn.started` with `threadId` and `state=in_progress`
+- `turn.completed` with `threadId`, `status`, `answer`, and optional `error`
