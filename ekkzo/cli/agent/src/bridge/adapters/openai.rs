@@ -1,6 +1,6 @@
 use super::BridgeAdapter;
 use crate::bridge::contracts::turn_events::{
-    TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
+    ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -168,6 +168,7 @@ impl OpenAiNotificationMapper {
             .map_err(|err| format!("invalid turn/started params: {err}"))?;
 
         Ok(Some(TurnEvent::Started(TurnStartedEvent::new(
+            ProviderName::Openai,
             params.thread_id,
         ))))
     }
@@ -218,6 +219,7 @@ impl OpenAiNotificationMapper {
         let error = params.turn.error.and_then(map_turn_error);
 
         Ok(Some(TurnEvent::Completed(TurnCompletedEvent::new(
+            ProviderName::Openai,
             params.thread_id,
             status,
             answer,
@@ -371,7 +373,7 @@ mod tests {
         OpenAiNotificationMapper, process_codex_output, resolve_openai_bin,
         run_codex_schema_generation, schema_output_dir,
     };
-    use crate::bridge::contracts::turn_events::{TurnStatus, TurnEvent};
+    use crate::bridge::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
     use std::fs;
     use std::io::Cursor;
 
@@ -396,6 +398,7 @@ mod tests {
 
         match event {
             TurnEvent::Started(value) => {
+                assert_eq!(value.provider, ProviderName::Openai);
                 assert_eq!(value.id, "thread-1");
                 assert_eq!(value.status, TurnStatus::Thinking);
             }
@@ -603,8 +606,10 @@ mod tests {
         let output_text = String::from_utf8(output).expect("output should be utf-8");
         let lines: Vec<&str> = output_text.lines().collect();
         assert_eq!(lines.len(), 2, "only started/completed should be emitted");
+        assert!(lines[0].contains("\"provider\":\"openai\""));
         assert!(lines[0].contains("\"id\":\"thread-live\""));
         assert!(lines[0].contains("\"status\":\"thinking\""));
+        assert!(lines[1].contains("\"provider\":\"openai\""));
         assert!(lines[1].contains("\"id\":\"thread-live\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));

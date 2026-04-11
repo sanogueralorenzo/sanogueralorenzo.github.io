@@ -1,6 +1,6 @@
 use super::BridgeAdapter;
 use crate::bridge::contracts::turn_events::{
-    TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
+    ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde_json::Value;
 use std::collections::VecDeque;
@@ -241,7 +241,10 @@ impl AnthropicNotificationMapper {
 
         if !turn.started {
             turn.started = true;
-            events.push(TurnEvent::Started(TurnStartedEvent::new(thread_id.clone())));
+            events.push(TurnEvent::Started(TurnStartedEvent::new(
+                ProviderName::Anthropic,
+                thread_id.clone(),
+            )));
         }
 
         if let Some(error_code) = value.get("error").and_then(Value::as_str)
@@ -287,7 +290,10 @@ impl AnthropicNotificationMapper {
 
         if !turn.started {
             turn.started = true;
-            events.push(TurnEvent::Started(TurnStartedEvent::new(thread_id.clone())));
+            events.push(TurnEvent::Started(TurnStartedEvent::new(
+                ProviderName::Anthropic,
+                thread_id.clone(),
+            )));
         }
 
         let status = map_result_status(value);
@@ -326,6 +332,7 @@ impl AnthropicNotificationMapper {
         };
 
         events.push(TurnEvent::Completed(TurnCompletedEvent::new(
+            ProviderName::Anthropic,
             thread_id, status, answer, error,
         )));
     }
@@ -394,7 +401,7 @@ fn command_exists(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{AnthropicNotificationMapper, process_claude_output, resolve_anthropic_bin};
-    use crate::bridge::contracts::turn_events::{TurnStatus, TurnEvent};
+    use crate::bridge::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
     use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};
@@ -447,6 +454,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TurnEvent::Started(value) => {
+                assert_eq!(value.provider, ProviderName::Anthropic);
                 assert_eq!(value.id, "session-started");
                 assert_eq!(value.status, TurnStatus::Thinking);
             }
@@ -714,8 +722,10 @@ mod tests {
         let output_text = String::from_utf8(output).expect("output should be utf-8");
         let lines: Vec<&str> = output_text.lines().collect();
         assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("\"provider\":\"anthropic\""));
         assert!(lines[0].contains("\"id\":\"session-live\""));
         assert!(lines[0].contains("\"status\":\"thinking\""));
+        assert!(lines[1].contains("\"provider\":\"anthropic\""));
         assert!(lines[1].contains("\"id\":\"session-live\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));

@@ -71,8 +71,8 @@ The chat turn event contract lives in:
 
 It exposes:
 
-- start event: `id`, `status=thinking`
-- end event: `id`, `status` (`completed|interrupted|failed`), `answer`, optional `error`
+- start event: `provider`, `id`, `status=thinking`
+- end event: `provider`, `id`, `status` (`completed|interrupted|failed`), `answer`, optional `error`
 
 ## Conversations Notes
 

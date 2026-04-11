@@ -2,13 +2,15 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TurnStartedEvent {
+    pub provider: ProviderName,
     pub id: String,
     pub status: TurnStatus,
 }
 
 impl TurnStartedEvent {
-    pub fn new(id: impl Into<String>) -> Self {
+    pub fn new(provider: ProviderName, id: impl Into<String>) -> Self {
         Self {
+            provider,
             id: id.into(),
             status: TurnStatus::Thinking,
         }
@@ -23,6 +25,7 @@ pub enum TurnEvent {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TurnCompletedEvent {
+    pub provider: ProviderName,
     pub id: String,
     pub status: TurnStatus,
     pub answer: Option<String>,
@@ -31,18 +34,28 @@ pub struct TurnCompletedEvent {
 
 impl TurnCompletedEvent {
     pub fn new(
+        provider: ProviderName,
         id: impl Into<String>,
         status: TurnStatus,
         answer: Option<String>,
         error: Option<TurnError>,
     ) -> Self {
         Self {
+            provider,
             id: id.into(),
             status,
             answer,
             error,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProviderName {
+    Openai,
+    Anthropic,
+    Google,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -91,12 +104,13 @@ impl TurnError {
 
 #[cfg(test)]
 mod tests {
-    use super::{TurnCompletedEvent, TurnError, TurnStartedEvent, TurnStatus};
+    use super::{ProviderName, TurnCompletedEvent, TurnError, TurnStartedEvent, TurnStatus};
     use serde_json::Value;
 
     #[test]
     fn started_event_matches_contract() {
-        let event = TurnStartedEvent::new("thread-1");
+        let event = TurnStartedEvent::new(ProviderName::Openai, "thread-1");
+        assert_eq!(event.provider, ProviderName::Openai);
         assert_eq!(event.id, "thread-1");
         assert_eq!(event.status, TurnStatus::Thinking);
     }
@@ -104,8 +118,15 @@ mod tests {
     #[test]
     fn completed_event_matches_contract() {
         let error = TurnError::new("failed to run tool", Some(String::from("tool_failure")));
-        let event = TurnCompletedEvent::new("thread-1", TurnStatus::Failed, None, Some(error));
+        let event = TurnCompletedEvent::new(
+            ProviderName::Openai,
+            "thread-1",
+            TurnStatus::Failed,
+            None,
+            Some(error),
+        );
 
+        assert_eq!(event.provider, ProviderName::Openai);
         assert_eq!(event.id, "thread-1");
         assert_eq!(event.status.as_str(), "failed");
         assert!(event.answer.is_none());
@@ -133,10 +154,14 @@ mod tests {
 
     #[test]
     fn serializes_started_event_with_expected_keys() {
-        let event = TurnStartedEvent::new("thread-1");
+        let event = TurnStartedEvent::new(ProviderName::Openai, "thread-1");
         let serialized =
             serde_json::to_value(&event).expect("turn.started event should serialize to JSON");
         assert_eq!(serialized.get("type"), None);
+        assert_eq!(
+            serialized.get("provider"),
+            Some(&Value::String("openai".to_string()))
+        );
         assert_eq!(
             serialized.get("id"),
             Some(&Value::String("thread-1".to_string()))
@@ -150,6 +175,7 @@ mod tests {
     #[test]
     fn serializes_completed_event_with_expected_keys() {
         let event = TurnCompletedEvent::new(
+            ProviderName::Openai,
             "thread-2",
             TurnStatus::Completed,
             Some("Done".to_string()),
@@ -158,6 +184,10 @@ mod tests {
         let serialized =
             serde_json::to_value(&event).expect("turn.completed event should serialize to JSON");
         assert_eq!(serialized.get("type"), None);
+        assert_eq!(
+            serialized.get("provider"),
+            Some(&Value::String("openai".to_string()))
+        );
         assert_eq!(
             serialized.get("id"),
             Some(&Value::String("thread-2".to_string()))

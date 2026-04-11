@@ -1,6 +1,6 @@
 use super::BridgeAdapter;
 use crate::bridge::contracts::turn_events::{
-    TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
+    ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -249,6 +249,7 @@ impl GoogleNotificationMapper {
         {
             self.started_sessions.insert(session_id.clone());
             events.push(TurnEvent::Started(TurnStartedEvent::new(
+                ProviderName::Google,
                 session_id.clone(),
             )));
         }
@@ -282,6 +283,7 @@ impl GoogleNotificationMapper {
         if !self.started_sessions.contains(&session_id) {
             self.started_sessions.insert(session_id.clone());
             events.push(TurnEvent::Started(TurnStartedEvent::new(
+                ProviderName::Google,
                 session_id.clone(),
             )));
         }
@@ -320,6 +322,7 @@ impl GoogleNotificationMapper {
         };
 
         events.push(TurnEvent::Completed(TurnCompletedEvent::new(
+            ProviderName::Google,
             session_id.clone(),
             status,
             answer,
@@ -405,7 +408,7 @@ fn command_exists(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{GoogleNotificationMapper, process_gemini_output, resolve_google_bin};
-    use crate::bridge::contracts::turn_events::{TurnStatus, TurnEvent};
+    use crate::bridge::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
     use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};
@@ -458,6 +461,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TurnEvent::Started(value) => {
+                assert_eq!(value.provider, ProviderName::Google);
                 assert_eq!(value.id, "session-started");
                 assert_eq!(value.status, TurnStatus::Thinking);
             }
@@ -729,8 +733,10 @@ mod tests {
         let output_text = String::from_utf8(output).expect("output should be utf-8");
         let lines: Vec<&str> = output_text.lines().collect();
         assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("\"provider\":\"google\""));
         assert!(lines[0].contains("\"id\":\"session-6\""));
         assert!(lines[0].contains("\"status\":\"thinking\""));
+        assert!(lines[1].contains("\"provider\":\"google\""));
         assert!(lines[1].contains("\"id\":\"session-6\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));
