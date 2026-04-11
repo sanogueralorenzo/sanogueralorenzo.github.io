@@ -3,7 +3,6 @@ use std::fs;
 use std::path::PathBuf;
 
 const PROVIDER_CONFIG_FILE: &str = "provider";
-const CONFIG_ENV: &str = "AGENT_CONFIG_PATH";
 
 pub fn load_provider_name() -> Result<Option<String>, String> {
     let path = provider_config_path()?;
@@ -34,13 +33,6 @@ pub fn save_provider_name(provider: &str) -> Result<(), String> {
 }
 
 fn provider_config_path() -> Result<PathBuf, String> {
-    if let Ok(custom_path) = env::var(CONFIG_ENV) {
-        let trimmed = custom_path.trim();
-        if !trimmed.is_empty() {
-            return Ok(PathBuf::from(trimmed).join(PROVIDER_CONFIG_FILE));
-        }
-    }
-
     let home = env::var("HOME").map_err(missing_home_error)?;
     Ok(PathBuf::from(home)
         .join(".config")

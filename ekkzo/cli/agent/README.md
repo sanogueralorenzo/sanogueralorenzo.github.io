@@ -23,10 +23,6 @@ By default, provider selection is stored at:
 
 `~/.config/agent/provider`
 
-To override the config directory path, set:
-
-`AGENT_CONFIG_PATH=/path/to/config/dir`
-
 ## Bridge Notes
 
 `agent bridge` currently has adapters for OpenAI, Anthropic, and Google:
