@@ -2,6 +2,7 @@ mod bridge;
 mod config;
 mod engine;
 mod providers;
+mod sessions;
 
 use engine::AgentEngine;
 use providers::{DEFAULT_PROVIDER, available_provider_names, create_provider};
