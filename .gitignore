@@ -16,3 +16,4 @@ Desktop.ini
 voice/.cache/
 codex/codex-*/target/
 ekkzo/cli/codex-*/target/
+ekkzo/cli/*/target/
