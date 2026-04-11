@@ -406,6 +406,7 @@ fn command_exists(command: &str) -> bool {
 mod tests {
     use super::{GoogleNotificationMapper, process_gemini_output, resolve_google_bin};
     use crate::bridge::contracts::turn_events::{TurnCompletionStatus, TurnEvent};
+    use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};
 
@@ -442,6 +443,29 @@ mod tests {
     }
 
     #[test]
+    fn started_event_matches_contract_fields() {
+        let mut mapper = GoogleNotificationMapper::new();
+        mapper.observe_client_request(
+            r#"{"jsonrpc":"2.0","id":"req-started","method":"session/prompt","params":{"sessionId":"session-started","prompt":[{"type":"text","text":"hello"}]}}"#,
+        );
+
+        let events = mapper
+            .map_server_message(
+                r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"session-started","update":{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"thinking"}}}}"#,
+            )
+            .expect("update should parse");
+
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            TurnEvent::Started(value) => {
+                assert_eq!(value.thread_id, "session-started");
+                assert_eq!(value.state, "in_progress");
+            }
+            _ => panic!("expected turn.started"),
+        }
+    }
+
+    #[test]
     fn completed_response_emits_completed_with_answer() {
         let mut mapper = GoogleNotificationMapper::new();
         mapper.observe_client_request(
@@ -472,6 +496,33 @@ mod tests {
                 assert_eq!(value.status, TurnCompletionStatus::Completed);
                 assert_eq!(value.answer.as_deref(), Some("Hello world"));
                 assert!(value.error.is_none());
+            }
+            _ => panic!("expected turn.completed"),
+        }
+    }
+
+    #[test]
+    fn supports_numeric_request_ids_for_prompt_tracking() {
+        let mut mapper = GoogleNotificationMapper::new();
+        mapper.observe_client_request(
+            r#"{"jsonrpc":"2.0","id":42,"method":"session/prompt","params":{"sessionId":"session-numeric","prompt":[{"type":"text","text":"hello"}]}}"#,
+        );
+
+        mapper
+            .map_server_message(
+                r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"session-numeric","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"hello numeric"}}}}"#,
+            )
+            .expect("chunk should parse");
+
+        let events = mapper
+            .map_server_message(r#"{"jsonrpc":"2.0","id":42,"result":{"stopReason":"end_turn"}}"#)
+            .expect("completion should parse");
+
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            TurnEvent::Completed(value) => {
+                assert_eq!(value.status, TurnCompletionStatus::Completed);
+                assert_eq!(value.answer.as_deref(), Some("hello numeric"));
             }
             _ => panic!("expected turn.completed"),
         }
@@ -550,6 +601,32 @@ mod tests {
     }
 
     #[test]
+    fn failed_response_with_string_code_and_unknown_fields_is_mapped() {
+        let mut mapper = GoogleNotificationMapper::new();
+        mapper.observe_client_request(
+            r#"{"jsonrpc":"2.0","id":"req-failed","method":"session/prompt","params":{"sessionId":"session-failed","prompt":[{"type":"text","text":"hello"}]}}"#,
+        );
+
+        let events = mapper
+            .map_server_message(
+                r#"{"jsonrpc":"2.0","id":"req-failed","error":{"code":"provider_overloaded","message":"Boom","extra":"ignored"},"unexpected":{"nested":true}}"#,
+            )
+            .expect("error response should parse");
+
+        assert_eq!(events.len(), 2);
+        match &events[1] {
+            TurnEvent::Completed(value) => {
+                assert_eq!(value.status, TurnCompletionStatus::Failed);
+                assert!(value.answer.is_none());
+                let error = value.error.as_ref().expect("error should be present");
+                assert_eq!(error.message, "Boom");
+                assert_eq!(error.code.as_deref(), Some("provider_overloaded"));
+            }
+            _ => panic!("expected turn.completed"),
+        }
+    }
+
+    #[test]
     fn ignores_non_json_and_untracked_messages() {
         let mut mapper = GoogleNotificationMapper::new();
         let non_json = mapper
@@ -561,6 +638,77 @@ mod tests {
             .map_server_message(r#"{"jsonrpc":"2.0","id":"init-1","result":{"protocolVersion":1}}"#)
             .expect("untracked response should be ignored");
         assert!(unrelated_json.is_empty());
+    }
+
+    #[test]
+    fn ignores_non_prompt_client_requests_for_tracking() {
+        let mut mapper = GoogleNotificationMapper::new();
+        mapper.observe_client_request(
+            r#"{"jsonrpc":"2.0","id":"req-init","method":"initialize","params":{"protocolVersion":1}}"#,
+        );
+
+        let events = mapper
+            .map_server_message(
+                r#"{"jsonrpc":"2.0","id":"req-init","result":{"protocolVersion":1}}"#,
+            )
+            .expect("initialize response should parse");
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn non_progress_updates_do_not_emit_started() {
+        let mut mapper = GoogleNotificationMapper::new();
+        mapper.observe_client_request(
+            r#"{"jsonrpc":"2.0","id":"req-commands","method":"session/prompt","params":{"sessionId":"session-commands","prompt":[{"type":"text","text":"hello"}]}}"#,
+        );
+
+        let events = mapper
+            .map_server_message(
+                r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"session-commands","update":{"sessionUpdate":"available_commands_update","availableCommands":[]}}}"#,
+            )
+            .expect("available commands update should parse");
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn completed_event_serializes_expected_fields() {
+        let mut mapper = GoogleNotificationMapper::new();
+        mapper.observe_client_request(
+            r#"{"jsonrpc":"2.0","id":"req-serial","method":"session/prompt","params":{"sessionId":"session-serial","prompt":[{"type":"text","text":"hello"}]}}"#,
+        );
+        mapper
+            .map_server_message(
+                r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"session-serial","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"done"}}}}"#,
+            )
+            .expect("chunk should parse");
+        let events = mapper
+            .map_server_message(
+                r#"{"jsonrpc":"2.0","id":"req-serial","result":{"stopReason":"end_turn"}}"#,
+            )
+            .expect("completion should parse");
+
+        let completed = match events.first() {
+            Some(TurnEvent::Completed(value)) => value,
+            _ => panic!("expected completed event"),
+        };
+
+        let serialized = serde_json::to_value(completed).expect("completed should serialize");
+        assert_eq!(
+            serialized.get("type"),
+            Some(&Value::String("turn.completed".to_string()))
+        );
+        assert_eq!(
+            serialized.get("threadId"),
+            Some(&Value::String("session-serial".to_string()))
+        );
+        assert_eq!(
+            serialized.get("status"),
+            Some(&Value::String("completed".to_string()))
+        );
+        assert_eq!(
+            serialized.get("answer"),
+            Some(&Value::String("done".to_string()))
+        );
     }
 
     #[test]
