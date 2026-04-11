@@ -44,7 +44,7 @@ impl BridgeAdapter for OpenAiBridgeAdapter {
         let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
             let mut stdin = io::stdin().lock();
             io::copy(&mut stdin, &mut child_stdin)
-                .map_err(|err| format!("failed forwarding bridge stdin to codex: {err}"))?;
+                .map_err(|err| format!("failed forwarding chat stdin to codex: {err}"))?;
             child_stdin
                 .flush()
                 .map_err(|err| format!("failed flushing codex stdin: {err}"))
@@ -57,8 +57,8 @@ impl BridgeAdapter for OpenAiBridgeAdapter {
 
         match stdin_forwarder.join() {
             Ok(Ok(())) => {}
-            Ok(Err(err)) => eprintln!("bridge stdin forwarder warning: {err}"),
-            Err(_) => eprintln!("bridge stdin forwarder warning: thread panicked"),
+            Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
+            Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
         }
 
         let status = child.wait().map_err(|err| {
@@ -95,14 +95,14 @@ fn process_codex_output<R: BufRead, W: Write>(
             Ok(Some(event)) => {
                 let serialized = serialize_turn_event(&event)?;
                 writeln!(output, "{serialized}")
-                    .map_err(|err| format!("failed writing bridge event output: {err}"))?;
+                    .map_err(|err| format!("failed writing chat event output: {err}"))?;
                 output
                     .flush()
-                    .map_err(|err| format!("failed flushing bridge event output: {err}"))?;
+                    .map_err(|err| format!("failed flushing chat event output: {err}"))?;
             }
             Ok(None) => {}
             Err(err) => {
-                eprintln!("bridge mapper warning: {err}");
+                eprintln!("chat mapper warning: {err}");
             }
         }
     }
@@ -315,7 +315,7 @@ fn resolve_openai_bin() -> Result<&'static str, String> {
         Ok(OPENAI_CLI_BIN)
     } else {
         Err(format!(
-            "openai bridge requires '{}' to be installed and available on PATH",
+            "openai chat requires '{}' to be installed and available on PATH",
             OPENAI_CLI_BIN
         ))
     }

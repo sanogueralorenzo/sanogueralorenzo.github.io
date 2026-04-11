@@ -48,8 +48,8 @@ impl BridgeAdapter for GoogleBridgeAdapter {
 
         match stdin_forwarder.join() {
             Ok(Ok(())) => {}
-            Ok(Err(err)) => eprintln!("bridge stdin forwarder warning: {err}"),
-            Err(_) => eprintln!("bridge stdin forwarder warning: thread panicked"),
+            Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
+            Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
         }
 
         let status = child
@@ -78,7 +78,7 @@ fn forward_stdin_to_gemini(
         line.clear();
         let bytes = reader
             .read_line(&mut line)
-            .map_err(|err| format!("failed reading bridge stdin: {err}"))?;
+            .map_err(|err| format!("failed reading chat stdin: {err}"))?;
         if bytes == 0 {
             break;
         }
@@ -89,7 +89,7 @@ fn forward_stdin_to_gemini(
 
         child_stdin
             .write_all(line.as_bytes())
-            .map_err(|err| format!("failed forwarding bridge stdin to gemini: {err}"))?;
+            .map_err(|err| format!("failed forwarding chat stdin to gemini: {err}"))?;
         child_stdin
             .flush()
             .map_err(|err| format!("failed flushing gemini stdin: {err}"))?;
@@ -116,19 +116,19 @@ fn process_gemini_output<R: BufRead, W: Write>(
 
         let events = match mapper.lock() {
             Ok(mut mapper) => mapper.map_server_message(line.trim_end())?,
-            Err(_) => return Err("failed to lock google bridge mapper".to_string()),
+            Err(_) => return Err("failed to lock google chat mapper".to_string()),
         };
 
         for event in events {
             let serialized = serialize_turn_event(&event)?;
             writeln!(output, "{serialized}")
-                .map_err(|err| format!("failed writing bridge event output: {err}"))?;
+                .map_err(|err| format!("failed writing chat event output: {err}"))?;
         }
 
         if !line.is_empty() {
             output
                 .flush()
-                .map_err(|err| format!("failed flushing bridge event output: {err}"))?;
+                .map_err(|err| format!("failed flushing chat event output: {err}"))?;
         }
     }
 
@@ -384,7 +384,7 @@ fn resolve_google_bin() -> Result<&'static str, String> {
         Ok(GOOGLE_CLI_BIN)
     } else {
         Err(format!(
-            "google bridge requires '{}' to be installed and available on PATH",
+            "google chat requires '{}' to be installed and available on PATH",
             GOOGLE_CLI_BIN
         ))
     }

@@ -63,8 +63,8 @@ impl BridgeAdapter for AnthropicBridgeAdapter {
 
         match stdin_forwarder.join() {
             Ok(Ok(())) => {}
-            Ok(Err(err)) => eprintln!("bridge stdin forwarder warning: {err}"),
-            Err(_) => eprintln!("bridge stdin forwarder warning: thread panicked"),
+            Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
+            Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
         }
 
         let status = child.wait().map_err(|err| {
@@ -95,7 +95,7 @@ fn forward_stdin_to_claude(
         line.clear();
         let bytes = reader
             .read_line(&mut line)
-            .map_err(|err| format!("failed reading bridge stdin: {err}"))?;
+            .map_err(|err| format!("failed reading chat stdin: {err}"))?;
         if bytes == 0 {
             break;
         }
@@ -106,7 +106,7 @@ fn forward_stdin_to_claude(
 
         child_stdin
             .write_all(line.as_bytes())
-            .map_err(|err| format!("failed forwarding bridge stdin to claude: {err}"))?;
+            .map_err(|err| format!("failed forwarding chat stdin to claude: {err}"))?;
         child_stdin
             .flush()
             .map_err(|err| format!("failed flushing claude stdin: {err}"))?;
@@ -133,19 +133,19 @@ fn process_claude_output<R: BufRead, W: Write>(
 
         let events = match mapper.lock() {
             Ok(mut mapper) => mapper.map_server_message(line.trim_end())?,
-            Err(_) => return Err("failed to lock anthropic bridge mapper".to_string()),
+            Err(_) => return Err("failed to lock anthropic chat mapper".to_string()),
         };
 
         for event in events {
             let serialized = serialize_turn_event(&event)?;
             writeln!(output, "{serialized}")
-                .map_err(|err| format!("failed writing bridge event output: {err}"))?;
+                .map_err(|err| format!("failed writing chat event output: {err}"))?;
         }
 
         if !line.is_empty() {
             output
                 .flush()
-                .map_err(|err| format!("failed flushing bridge event output: {err}"))?;
+                .map_err(|err| format!("failed flushing chat event output: {err}"))?;
         }
     }
 
@@ -373,7 +373,7 @@ fn resolve_anthropic_bin() -> Result<&'static str, String> {
         Ok(ANTHROPIC_CLI_BIN)
     } else {
         Err(format!(
-            "anthropic bridge requires '{}' to be installed and available on PATH",
+            "anthropic chat requires '{}' to be installed and available on PATH",
             ANTHROPIC_CLI_BIN
         ))
     }

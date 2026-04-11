@@ -5,7 +5,7 @@
 ## Commands
 
 - `agent` or `agent run`: starts the engine with the configured provider.
-- `agent bridge`: starts the provider bridge process.
+- `agent chat`: starts the provider chat process.
 - `agent health`: reports provider CLI availability + auth health across OpenAI, Anthropic, and Google.
 - `agent conversations list`: lists conversations from all providers using the unified session contract.
 - `agent conversations resume <id>`: resolves a session by id and executes the provider resume command.
@@ -43,15 +43,15 @@ By default, provider selection is stored at:
 - `auth_missing`
 - `cli_missing`
 
-## Bridge Notes
+## Chat Notes
 
-`agent bridge` currently has adapters for OpenAI, Anthropic, and Google:
+`agent chat` currently has adapters for OpenAI, Anthropic, and Google:
 
 - OpenAI: Codex App Server flow ([docs](https://developers.openai.com/codex/app-server))
 - Anthropic: Claude stream-json flow (`claude -p --verbose --output-format stream-json --input-format stream-json`)
 - Google: Gemini ACP flow (`gemini --acp`)
 
-The bridge uses the default CLI binaries on your `PATH`:
+The chat command uses the default CLI binaries on your `PATH`:
 
 - `codex app-server` for `openai`
 - `claude` for `anthropic`
@@ -59,13 +59,13 @@ The bridge uses the default CLI binaries on your `PATH`:
 
 Runtime behavior for now:
 
-- Incoming JSON-RPC is forwarded from bridge stdin to the selected provider runtime.
-- Bridge stdout emits only mapped contract events (`turn.started`, `turn.completed`).
-- All provider protocol messages and non-JSON log lines are ignored at bridge output.
+- Incoming JSON-RPC is forwarded from chat stdin to the selected provider runtime.
+- Chat stdout emits only mapped contract events (`turn.started`, `turn.completed`).
+- All provider protocol messages and non-JSON log lines are ignored at chat output.
 
-## Bridge Contract
+## Chat Contract
 
-The bridge turn event contract lives in:
+The chat turn event contract lives in:
 
 `src/bridge/contracts/turn_events.rs`
 

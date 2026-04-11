@@ -14,13 +14,13 @@ fn main() -> ExitCode {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
         Some("providers") => providers_command(args.collect()),
-        Some("bridge") => bridge_command(args.collect()),
+        Some("chat") => chat_command(args.collect()),
         Some("health") => health::health_command(args.collect()),
         Some("conversations") => conversations::conversations_command(args.collect()),
         Some("run") => run_command(),
         Some(cmd) => {
             eprintln!(
-                "unknown command '{cmd}', available commands: providers, bridge, health, conversations, run"
+                "unknown command '{cmd}', available commands: providers, chat, health, conversations, run"
             );
             ExitCode::from(1)
         }
@@ -28,7 +28,7 @@ fn main() -> ExitCode {
     }
 }
 
-fn bridge_command(args: Vec<String>) -> ExitCode {
+fn chat_command(args: Vec<String>) -> ExitCode {
     let provider_name = configured_provider_name();
     match bridge::run(&provider_name, &args) {
         Ok(()) => ExitCode::SUCCESS,
