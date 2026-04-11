@@ -1,3 +1,4 @@
+mod bridge;
 mod config;
 mod engine;
 mod providers;
@@ -11,12 +12,24 @@ fn main() -> ExitCode {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
         Some("providers") => providers_command(args.collect()),
+        Some("bridge") => bridge_command(args.collect()),
         Some("run") => run_command(),
         Some(cmd) => {
-            eprintln!("unknown command '{cmd}', available commands: providers, run");
+            eprintln!("unknown command '{cmd}', available commands: providers, bridge, run");
             ExitCode::from(1)
         }
         None => run_command(),
+    }
+}
+
+fn bridge_command(args: Vec<String>) -> ExitCode {
+    let provider_name = configured_provider_name();
+    match bridge::run(&provider_name, &args) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("{err}");
+            ExitCode::from(1)
+        }
     }
 }
 
