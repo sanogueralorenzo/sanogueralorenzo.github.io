@@ -33,10 +33,7 @@ To override the config directory path, set:
 
 https://developers.openai.com/codex/app-server
 
-The command resolver checks binaries in this order:
-
-1. `AGENT_OPENAI_CODEX_BIN` (if set)
-2. `codex`
+The bridge uses `codex app-server` from the default `codex` CLI on your PATH.
 
 ## Bridge Contract
 

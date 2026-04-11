@@ -13,13 +13,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct OpenAiBridgeAdapter;
 
 const OPENAI_APP_SERVER_SUBCOMMAND: &str = "app-server";
-const OPENAI_BIN_ENV: &str = "AGENT_OPENAI_CODEX_BIN";
-const DEFAULT_OPENAI_CANDIDATES: [&str; 1] = ["codex"];
+const OPENAI_CLI_BIN: &str = "codex";
 
 impl BridgeAdapter for OpenAiBridgeAdapter {
     fn run(&self, args: &[String]) -> Result<(), String> {
-        let candidates = configured_candidates();
-        let bin = resolve_openai_bin(&candidates)?;
+        let bin = resolve_openai_bin()?;
 
         let mut child = Command::new(&bin)
             .arg(OPENAI_APP_SERVER_SUBCOMMAND)
@@ -236,32 +234,15 @@ fn extract_error_code(value: &Value) -> Option<String> {
     }
 }
 
-fn configured_candidates() -> Vec<String> {
-    let mut candidates = Vec::new();
-    if let Ok(value) = env::var(OPENAI_BIN_ENV) {
-        let trimmed = value.trim();
-        if !trimmed.is_empty() {
-            candidates.push(trimmed.to_string());
-        }
+fn resolve_openai_bin() -> Result<&'static str, String> {
+    if command_exists(OPENAI_CLI_BIN) {
+        Ok(OPENAI_CLI_BIN)
+    } else {
+        Err(format!(
+            "openai bridge requires '{}' to be installed and available on PATH",
+            OPENAI_CLI_BIN
+        ))
     }
-    for candidate in DEFAULT_OPENAI_CANDIDATES {
-        if !candidates.iter().any(|value| value == candidate) {
-            candidates.push(candidate.to_string());
-        }
-    }
-    candidates
-}
-
-fn resolve_openai_bin(candidates: &[String]) -> Result<String, String> {
-    for candidate in candidates {
-        if command_exists(candidate) {
-            return Ok(candidate.clone());
-        }
-    }
-    Err(format!(
-        "openai bridge requires a codex app-server binary; looked for: {} (override with {OPENAI_BIN_ENV})",
-        candidates.join(", ")
-    ))
 }
 
 fn command_exists(command: &str) -> bool {
@@ -311,31 +292,19 @@ fn schema_output_dir() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::{
-        OpenAiNotificationMapper, configured_candidates, resolve_openai_bin,
-        run_codex_schema_generation, schema_output_dir,
+        OpenAiNotificationMapper, resolve_openai_bin, run_codex_schema_generation,
+        schema_output_dir,
     };
     use crate::bridge::contracts::turn_events::{TurnCompletionStatus, TurnEvent};
-    use std::env;
     use std::fs;
 
     #[test]
-    fn env_candidate_is_prioritized() {
-        unsafe { env::set_var("AGENT_OPENAI_CODEX_BIN", "custom-codex-bin") };
-        let candidates = configured_candidates();
-        unsafe { env::remove_var("AGENT_OPENAI_CODEX_BIN") };
-        assert_eq!(
-            candidates.first().map(String::as_str),
-            Some("custom-codex-bin")
-        );
-    }
-
-    #[test]
-    fn resolve_returns_error_when_no_candidate_exists() {
-        let candidates = vec![
-            String::from("this-command-should-not-exist-1"),
-            String::from("this-command-should-not-exist-2"),
-        ];
-        assert!(resolve_openai_bin(&candidates).is_err());
+    fn resolve_requires_codex_binary() {
+        if super::command_exists("codex") {
+            assert_eq!(resolve_openai_bin().ok(), Some("codex"));
+        } else {
+            assert!(resolve_openai_bin().is_err());
+        }
     }
 
     #[test]
