@@ -5,6 +5,7 @@
 ## Commands
 
 - `agent` or `agent run`: starts the engine with the configured provider.
+- `agent ask <prompt>`: runs a one-shot provider prompt and emits ask status events.
 - `agent chat`: starts the provider chat process.
 - `agent health`: reports provider CLI availability + auth health across OpenAI, Anthropic, and Google.
 - `agent conversations list`: lists conversations from all providers using the unified session contract.
@@ -42,6 +43,20 @@ By default, provider selection is stored at:
 - `connected`
 - `auth_missing`
 - `cli_missing`
+
+## Ask Notes
+
+`agent ask` currently has adapters for OpenAI, Anthropic, and Google:
+
+- OpenAI: `codex exec --color never "<prompt>"`
+- Anthropic: `claude -p --output-format text "<prompt>"`
+- Google: `gemini -p "<prompt>" --output-format text`
+
+Runtime behavior for now:
+
+- `agent ask` emits a start event with `status=thinking`.
+- It then emits a final event with `status` (`completed|interrupted|failed`), `answer`, and `error`.
+- `provider` and `id` are present on both events.
 
 ## Chat Notes
 

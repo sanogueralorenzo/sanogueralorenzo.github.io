@@ -1,9 +1,10 @@
+mod ask;
 mod bridge;
 mod config;
+mod conversations;
 mod engine;
 mod health;
 mod providers;
-mod conversations;
 
 use engine::AgentEngine;
 use providers::{DEFAULT_PROVIDER, available_provider_names, create_provider};
@@ -14,18 +15,24 @@ fn main() -> ExitCode {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
         Some("providers") => providers_command(args.collect()),
+        Some("ask") => ask_command(args.collect()),
         Some("chat") => chat_command(args.collect()),
         Some("health") => health::health_command(args.collect()),
         Some("conversations") => conversations::conversations_command(args.collect()),
         Some("run") => run_command(),
         Some(cmd) => {
             eprintln!(
-                "unknown command '{cmd}', available commands: providers, chat, health, conversations, run"
+                "unknown command '{cmd}', available commands: providers, ask, chat, health, conversations, run"
             );
             ExitCode::from(1)
         }
         None => run_command(),
     }
+}
+
+fn ask_command(args: Vec<String>) -> ExitCode {
+    let provider_name = configured_provider_name();
+    ask::ask_command(&provider_name, args)
 }
 
 fn chat_command(args: Vec<String>) -> ExitCode {
