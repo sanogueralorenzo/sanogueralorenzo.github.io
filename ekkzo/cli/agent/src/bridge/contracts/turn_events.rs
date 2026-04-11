@@ -158,4 +158,33 @@ mod tests {
             Some(&Value::String("in_progress".to_string()))
         );
     }
+
+    #[test]
+    fn serializes_completed_event_with_expected_keys() {
+        let event = TurnCompletedEvent::new(
+            "thread-2",
+            TurnCompletionStatus::Completed,
+            Some("Done".to_string()),
+            None,
+        );
+        let serialized =
+            serde_json::to_value(&event).expect("turn.completed event should serialize to JSON");
+        assert_eq!(
+            serialized.get("type"),
+            Some(&Value::String("turn.completed".to_string()))
+        );
+        assert_eq!(
+            serialized.get("threadId"),
+            Some(&Value::String("thread-2".to_string()))
+        );
+        assert_eq!(
+            serialized.get("status"),
+            Some(&Value::String("completed".to_string()))
+        );
+        assert_eq!(
+            serialized.get("answer"),
+            Some(&Value::String("Done".to_string()))
+        );
+        assert_eq!(serialized.get("error"), Some(&Value::Null));
+    }
 }

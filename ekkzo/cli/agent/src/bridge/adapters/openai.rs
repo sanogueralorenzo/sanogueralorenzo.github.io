@@ -53,32 +53,7 @@ impl BridgeAdapter for OpenAiBridgeAdapter {
         let mut mapper = OpenAiNotificationMapper::new();
         let mut output = io::stdout().lock();
         let mut reader = BufReader::new(child_stdout);
-        let mut line = String::new();
-
-        loop {
-            line.clear();
-            let bytes = reader
-                .read_line(&mut line)
-                .map_err(|err| format!("failed reading codex app-server output: {err}"))?;
-            if bytes == 0 {
-                break;
-            }
-
-            match mapper.map_notification_json(line.trim_end()) {
-                Ok(Some(event)) => {
-                    let serialized = serialize_turn_event(&event)?;
-                    writeln!(output, "{serialized}")
-                        .map_err(|err| format!("failed writing bridge event output: {err}"))?;
-                    output
-                        .flush()
-                        .map_err(|err| format!("failed flushing bridge event output: {err}"))?;
-                }
-                Ok(None) => {}
-                Err(err) => {
-                    eprintln!("bridge mapper warning: {err}");
-                }
-            }
-        }
+        process_codex_output(&mut reader, &mut output, &mut mapper)?;
 
         match stdin_forwarder.join() {
             Ok(Ok(())) => {}
@@ -98,6 +73,41 @@ impl BridgeAdapter for OpenAiBridgeAdapter {
             ))
         }
     }
+}
+
+fn process_codex_output<R: BufRead, W: Write>(
+    reader: &mut R,
+    output: &mut W,
+    mapper: &mut OpenAiNotificationMapper,
+) -> Result<(), String> {
+    let mut line = String::new();
+
+    loop {
+        line.clear();
+        let bytes = reader
+            .read_line(&mut line)
+            .map_err(|err| format!("failed reading codex app-server output: {err}"))?;
+        if bytes == 0 {
+            break;
+        }
+
+        match mapper.map_notification_json(line.trim_end()) {
+            Ok(Some(event)) => {
+                let serialized = serialize_turn_event(&event)?;
+                writeln!(output, "{serialized}")
+                    .map_err(|err| format!("failed writing bridge event output: {err}"))?;
+                output
+                    .flush()
+                    .map_err(|err| format!("failed flushing bridge event output: {err}"))?;
+            }
+            Ok(None) => {}
+            Err(err) => {
+                eprintln!("bridge mapper warning: {err}");
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn serialize_turn_event(event: &TurnEvent) -> Result<String, String> {
@@ -358,11 +368,12 @@ fn schema_output_dir() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::{
-        OpenAiNotificationMapper, resolve_openai_bin, run_codex_schema_generation,
-        schema_output_dir,
+        OpenAiNotificationMapper, process_codex_output, resolve_openai_bin,
+        run_codex_schema_generation, schema_output_dir,
     };
     use crate::bridge::contracts::turn_events::{TurnCompletionStatus, TurnEvent};
     use std::fs;
+    use std::io::Cursor;
 
     #[test]
     fn resolve_requires_codex_binary() {
@@ -430,6 +441,100 @@ mod tests {
     }
 
     #[test]
+    fn completed_without_final_phase_falls_back_to_last_agent_message() {
+        let mut mapper = OpenAiNotificationMapper::new();
+
+        mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"item/completed","params":{"threadId":"thread-2","turnId":"turn-1","item":{"type":"agentMessage","id":"item-1","phase":"commentary","text":"Working..."}}}"#,
+            )
+            .expect("commentary item should parse")
+            .expect_none();
+
+        mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"item/completed","params":{"threadId":"thread-2","turnId":"turn-1","item":{"type":"agentMessage","id":"item-2","phase":"commentary","text":"Final fallback answer"}}}"#,
+            )
+            .expect("second commentary item should parse")
+            .expect_none();
+
+        let completed = mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"turn/completed","params":{"threadId":"thread-2","turn":{"id":"turn-1","status":"completed","items":[]}}}"#,
+            )
+            .expect("turn/completed should parse")
+            .expect("turn/completed should produce event");
+
+        match completed {
+            TurnEvent::Completed(value) => {
+                assert_eq!(value.status, TurnCompletionStatus::Completed);
+                assert_eq!(value.answer.as_deref(), Some("Final fallback answer"));
+            }
+            _ => panic!("expected turn.completed event"),
+        }
+    }
+
+    #[test]
+    fn final_answer_is_not_overwritten_by_later_commentary_item() {
+        let mut mapper = OpenAiNotificationMapper::new();
+
+        mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"item/completed","params":{"threadId":"thread-3","turnId":"turn-1","item":{"type":"agentMessage","id":"item-1","phase":"final_answer","text":"Stable final answer"}}}"#,
+            )
+            .expect("final answer item should parse")
+            .expect_none();
+
+        mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"item/completed","params":{"threadId":"thread-3","turnId":"turn-1","item":{"type":"agentMessage","id":"item-2","phase":"commentary","text":"Late commentary"}}}"#,
+            )
+            .expect("commentary item should parse")
+            .expect_none();
+
+        let completed = mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"turn/completed","params":{"threadId":"thread-3","turn":{"id":"turn-1","status":"completed","items":[]}}}"#,
+            )
+            .expect("turn/completed should parse")
+            .expect("turn/completed should produce event");
+
+        match completed {
+            TurnEvent::Completed(value) => {
+                assert_eq!(value.answer.as_deref(), Some("Stable final answer"));
+            }
+            _ => panic!("expected turn.completed event"),
+        }
+    }
+
+    #[test]
+    fn interrupted_turn_drops_cached_answer() {
+        let mut mapper = OpenAiNotificationMapper::new();
+
+        mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"item/completed","params":{"threadId":"thread-4","turnId":"turn-1","item":{"type":"agentMessage","id":"item-1","phase":"final_answer","text":"Should not appear"}}}"#,
+            )
+            .expect("item/completed should parse")
+            .expect_none();
+
+        let completed = mapper
+            .map_notification_json(
+                r#"{"jsonrpc":"2.0","method":"turn/completed","params":{"threadId":"thread-4","turn":{"id":"turn-1","status":"interrupted","items":[]}}}"#,
+            )
+            .expect("turn/completed should parse")
+            .expect("turn/completed should produce event");
+
+        match completed {
+            TurnEvent::Completed(value) => {
+                assert_eq!(value.status, TurnCompletionStatus::Interrupted);
+                assert!(value.answer.is_none());
+            }
+            _ => panic!("expected turn.completed event"),
+        }
+    }
+
+    #[test]
     fn maps_failed_completion_with_error_and_ignores_unknown_fields() {
         let mut mapper = OpenAiNotificationMapper::new();
 
@@ -477,6 +582,32 @@ mod tests {
         assert!(turn_completed.contains("\"failed\""));
 
         let _ = fs::remove_dir_all(output_dir);
+    }
+
+    #[test]
+    fn process_codex_output_emits_only_contract_events() {
+        let input = concat!(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"turn/started\",\"params\":{\"threadId\":\"thread-live\"}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"item/completed\",\"params\":{\"threadId\":\"thread-live\",\"item\":{\"type\":\"agentMessage\",\"phase\":\"final_answer\",\"text\":\"Hello\"}}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"turn/completed\",\"params\":{\"threadId\":\"thread-live\",\"turn\":{\"status\":\"completed\"}}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"thread/started\",\"params\":{\"threadId\":\"ignored\"}}\n"
+        );
+
+        let mut reader = Cursor::new(input.as_bytes());
+        let mut output: Vec<u8> = Vec::new();
+        let mut mapper = OpenAiNotificationMapper::new();
+        process_codex_output(&mut reader, &mut output, &mut mapper)
+            .expect("processing should succeed");
+
+        let output_text = String::from_utf8(output).expect("output should be utf-8");
+        let lines: Vec<&str> = output_text.lines().collect();
+        assert_eq!(lines.len(), 2, "only started/completed should be emitted");
+        assert!(lines[0].contains("\"type\":\"turn.started\""));
+        assert!(lines[0].contains("\"threadId\":\"thread-live\""));
+        assert!(lines[1].contains("\"type\":\"turn.completed\""));
+        assert!(lines[1].contains("\"status\":\"completed\""));
+        assert!(lines[1].contains("\"answer\":\"Hello\""));
     }
 
     trait TestOptionExt<T> {
