@@ -1,6 +1,10 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TurnStartedEvent {
+    #[serde(rename = "type")]
     pub event_type: &'static str,
+    #[serde(rename = "threadId")]
     pub thread_id: String,
     pub state: &'static str,
 }
@@ -15,15 +19,17 @@ impl TurnStartedEvent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TurnEvent {
     Started(TurnStartedEvent),
     Completed(TurnCompletedEvent),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TurnCompletedEvent {
+    #[serde(rename = "type")]
     pub event_type: &'static str,
+    #[serde(rename = "threadId")]
     pub thread_id: String,
     pub status: TurnCompletionStatus,
     pub answer: Option<String>,
@@ -47,7 +53,8 @@ impl TurnCompletedEvent {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TurnCompletionStatus {
     Completed,
     Interrupted,
@@ -73,7 +80,7 @@ impl TurnCompletionStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TurnError {
     pub message: String,
     pub code: Option<String>,
@@ -91,6 +98,7 @@ impl TurnError {
 #[cfg(test)]
 mod tests {
     use super::{TurnCompletedEvent, TurnCompletionStatus, TurnError, TurnStartedEvent};
+    use serde_json::Value;
 
     #[test]
     fn started_event_matches_contract() {
@@ -129,6 +137,25 @@ mod tests {
         assert_eq!(
             TurnCompletionStatus::from_codex_status("failed"),
             Some(TurnCompletionStatus::Failed)
+        );
+    }
+
+    #[test]
+    fn serializes_started_event_with_expected_keys() {
+        let event = TurnStartedEvent::new("thread-1");
+        let serialized =
+            serde_json::to_value(&event).expect("turn.started event should serialize to JSON");
+        assert_eq!(
+            serialized.get("type"),
+            Some(&Value::String("turn.started".to_string()))
+        );
+        assert_eq!(
+            serialized.get("threadId"),
+            Some(&Value::String("thread-1".to_string()))
+        );
+        assert_eq!(
+            serialized.get("state"),
+            Some(&Value::String("in_progress".to_string()))
         );
     }
 }

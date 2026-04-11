@@ -6,8 +6,10 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
+use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct OpenAiBridgeAdapter;
@@ -19,16 +21,70 @@ impl BridgeAdapter for OpenAiBridgeAdapter {
     fn run(&self, args: &[String]) -> Result<(), String> {
         let bin = resolve_openai_bin()?;
 
-        let mut child = Command::new(&bin)
+        let mut child = Command::new(bin)
             .arg(OPENAI_APP_SERVER_SUBCOMMAND)
             .args(args)
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .spawn()
             .map_err(|err| {
                 format!("failed to start '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}")
             })?;
+
+        let mut child_stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| "failed to capture child stdin".to_string())?;
+        let child_stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| "failed to capture child stdout".to_string())?;
+
+        let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
+            let mut stdin = io::stdin().lock();
+            io::copy(&mut stdin, &mut child_stdin)
+                .map_err(|err| format!("failed forwarding bridge stdin to codex: {err}"))?;
+            child_stdin
+                .flush()
+                .map_err(|err| format!("failed flushing codex stdin: {err}"))
+        });
+
+        let mut mapper = OpenAiNotificationMapper::new();
+        let mut output = io::stdout().lock();
+        let mut reader = BufReader::new(child_stdout);
+        let mut line = String::new();
+
+        loop {
+            line.clear();
+            let bytes = reader
+                .read_line(&mut line)
+                .map_err(|err| format!("failed reading codex app-server output: {err}"))?;
+            if bytes == 0 {
+                break;
+            }
+
+            match mapper.map_notification_json(line.trim_end()) {
+                Ok(Some(event)) => {
+                    let serialized = serialize_turn_event(&event)?;
+                    writeln!(output, "{serialized}")
+                        .map_err(|err| format!("failed writing bridge event output: {err}"))?;
+                    output
+                        .flush()
+                        .map_err(|err| format!("failed flushing bridge event output: {err}"))?;
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    eprintln!("bridge mapper warning: {err}");
+                }
+            }
+        }
+
+        match stdin_forwarder.join() {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => eprintln!("bridge stdin forwarder warning: {err}"),
+            Err(_) => eprintln!("bridge stdin forwarder warning: thread panicked"),
+        }
 
         let status = child.wait().map_err(|err| {
             format!("failed while running '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}")
@@ -41,6 +97,15 @@ impl BridgeAdapter for OpenAiBridgeAdapter {
                 "'{bin} {OPENAI_APP_SERVER_SUBCOMMAND}' exited with status {status}"
             ))
         }
+    }
+}
+
+fn serialize_turn_event(event: &TurnEvent) -> Result<String, String> {
+    match event {
+        TurnEvent::Started(value) => serde_json::to_string(value)
+            .map_err(|err| format!("failed to serialize started event: {err}")),
+        TurnEvent::Completed(value) => serde_json::to_string(value)
+            .map_err(|err| format!("failed to serialize completed event: {err}")),
     }
 }
 
@@ -67,15 +132,23 @@ impl OpenAiNotificationMapper {
         &mut self,
         raw_notification: &str,
     ) -> Result<Option<TurnEvent>, String> {
-        let notification: CodexNotificationEnvelope = serde_json::from_str(raw_notification)
-            .map_err(|err| {
-                format!("failed to parse codex notification JSON: {err}; input: {raw_notification}")
-            })?;
+        if raw_notification.trim().is_empty() {
+            return Ok(None);
+        }
 
-        match notification.method.as_str() {
-            "turn/started" => self.map_turn_started(notification.params),
-            "item/completed" => self.map_item_completed(notification.params),
-            "turn/completed" => self.map_turn_completed(notification.params),
+        let json_value: Value = serde_json::from_str(raw_notification).map_err(|err| {
+            format!("failed to parse codex notification JSON: {err}; input: {raw_notification}")
+        })?;
+
+        let Some(method) = json_value.get("method").and_then(Value::as_str) else {
+            return Ok(None);
+        };
+        let params = json_value.get("params").cloned().unwrap_or(Value::Null);
+
+        match method {
+            "turn/started" => self.map_turn_started(params),
+            "item/completed" => self.map_item_completed(params),
+            "turn/completed" => self.map_turn_completed(params),
             _ => Ok(None),
         }
     }
@@ -160,13 +233,6 @@ impl OpenAiNotificationMapper {
             }
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-struct CodexNotificationEnvelope {
-    method: String,
-    #[serde(default)]
-    params: Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -324,6 +390,15 @@ mod tests {
             }
             _ => panic!("expected turn.started event"),
         }
+    }
+
+    #[test]
+    fn ignores_non_notification_json_rpc_messages() {
+        let mut mapper = OpenAiNotificationMapper::new();
+        let response = mapper
+            .map_notification_json(r#"{"jsonrpc":"2.0","id":1,"result":{"ok":true}}"#)
+            .expect("json-rpc response should parse");
+        assert!(response.is_none());
     }
 
     #[test]

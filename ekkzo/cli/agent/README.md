@@ -34,6 +34,11 @@ To override the config directory path, set:
 https://developers.openai.com/codex/app-server
 
 The bridge uses `codex app-server` from the default `codex` CLI on your PATH.
+Runtime behavior for now:
+
+- Incoming JSON-RPC is forwarded from bridge stdin to `codex app-server`.
+- Bridge stdout emits only mapped contract events (`turn.started`, `turn.completed`).
+- All other Codex protocol messages are ignored at bridge output.
 
 ## Bridge Contract
 
