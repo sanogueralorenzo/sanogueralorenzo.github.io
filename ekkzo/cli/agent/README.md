@@ -71,8 +71,8 @@ The chat turn event contract lives in:
 
 It exposes:
 
-- `turn.started` with `threadId` and `state=in_progress`
-- `turn.completed` with `threadId`, `status`, `answer`, and optional `error`
+- `turn.started` with `id` and `state=in_progress`
+- `turn.completed` with `id`, `status`, `answer`, and optional `error`
 
 ## Conversations Notes
 

@@ -396,7 +396,7 @@ mod tests {
 
         match event {
             TurnEvent::Started(value) => {
-                assert_eq!(value.thread_id, "thread-1");
+                assert_eq!(value.id, "thread-1");
                 assert_eq!(value.state, "in_progress");
             }
             _ => panic!("expected turn.started event"),
@@ -604,7 +604,7 @@ mod tests {
         let lines: Vec<&str> = output_text.lines().collect();
         assert_eq!(lines.len(), 2, "only started/completed should be emitted");
         assert!(lines[0].contains("\"type\":\"turn.started\""));
-        assert!(lines[0].contains("\"threadId\":\"thread-live\""));
+        assert!(lines[0].contains("\"id\":\"thread-live\""));
         assert!(lines[1].contains("\"type\":\"turn.completed\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));

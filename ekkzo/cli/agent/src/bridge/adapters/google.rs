@@ -458,7 +458,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TurnEvent::Started(value) => {
-                assert_eq!(value.thread_id, "session-started");
+                assert_eq!(value.id, "session-started");
                 assert_eq!(value.state, "in_progress");
             }
             _ => panic!("expected turn.started"),
@@ -698,7 +698,7 @@ mod tests {
             Some(&Value::String("turn.completed".to_string()))
         );
         assert_eq!(
-            serialized.get("threadId"),
+            serialized.get("id"),
             Some(&Value::String("session-serial".to_string()))
         );
         assert_eq!(

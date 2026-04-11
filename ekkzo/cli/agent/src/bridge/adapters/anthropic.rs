@@ -447,7 +447,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TurnEvent::Started(value) => {
-                assert_eq!(value.thread_id, "session-started");
+                assert_eq!(value.id, "session-started");
                 assert_eq!(value.state, "in_progress");
             }
             _ => panic!("expected turn.started"),
@@ -612,7 +612,7 @@ mod tests {
             .expect("assistant should parse");
         assert_eq!(events.len(), 1);
         match &events[0] {
-            TurnEvent::Started(value) => assert_eq!(value.thread_id, "session-init"),
+            TurnEvent::Started(value) => assert_eq!(value.id, "session-init"),
             _ => panic!("expected turn.started"),
         }
     }
@@ -682,7 +682,7 @@ mod tests {
             Some(&Value::String("turn.completed".to_string()))
         );
         assert_eq!(
-            serialized.get("threadId"),
+            serialized.get("id"),
             Some(&Value::String("session-serial".to_string()))
         );
         assert_eq!(
@@ -718,7 +718,7 @@ mod tests {
         let lines: Vec<&str> = output_text.lines().collect();
         assert_eq!(lines.len(), 2);
         assert!(lines[0].contains("\"type\":\"turn.started\""));
-        assert!(lines[0].contains("\"threadId\":\"session-live\""));
+        assert!(lines[0].contains("\"id\":\"session-live\""));
         assert!(lines[1].contains("\"type\":\"turn.completed\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));

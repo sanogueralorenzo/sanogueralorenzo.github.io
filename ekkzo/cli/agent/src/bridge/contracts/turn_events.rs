@@ -4,16 +4,15 @@ use serde::Serialize;
 pub struct TurnStartedEvent {
     #[serde(rename = "type")]
     pub event_type: &'static str,
-    #[serde(rename = "threadId")]
-    pub thread_id: String,
+    pub id: String,
     pub state: &'static str,
 }
 
 impl TurnStartedEvent {
-    pub fn new(thread_id: impl Into<String>) -> Self {
+    pub fn new(id: impl Into<String>) -> Self {
         Self {
             event_type: "turn.started",
-            thread_id: thread_id.into(),
+            id: id.into(),
             state: "in_progress",
         }
     }
@@ -29,8 +28,7 @@ pub enum TurnEvent {
 pub struct TurnCompletedEvent {
     #[serde(rename = "type")]
     pub event_type: &'static str,
-    #[serde(rename = "threadId")]
-    pub thread_id: String,
+    pub id: String,
     pub status: TurnCompletionStatus,
     pub answer: Option<String>,
     pub error: Option<TurnError>,
@@ -38,14 +36,14 @@ pub struct TurnCompletedEvent {
 
 impl TurnCompletedEvent {
     pub fn new(
-        thread_id: impl Into<String>,
+        id: impl Into<String>,
         status: TurnCompletionStatus,
         answer: Option<String>,
         error: Option<TurnError>,
     ) -> Self {
         Self {
             event_type: "turn.completed",
-            thread_id: thread_id.into(),
+            id: id.into(),
             status,
             answer,
             error,
@@ -104,7 +102,7 @@ mod tests {
     fn started_event_matches_contract() {
         let event = TurnStartedEvent::new("thread-1");
         assert_eq!(event.event_type, "turn.started");
-        assert_eq!(event.thread_id, "thread-1");
+        assert_eq!(event.id, "thread-1");
         assert_eq!(event.state, "in_progress");
     }
 
@@ -115,7 +113,7 @@ mod tests {
             TurnCompletedEvent::new("thread-1", TurnCompletionStatus::Failed, None, Some(error));
 
         assert_eq!(event.event_type, "turn.completed");
-        assert_eq!(event.thread_id, "thread-1");
+        assert_eq!(event.id, "thread-1");
         assert_eq!(event.status.as_str(), "failed");
         assert!(event.answer.is_none());
         assert_eq!(
@@ -150,7 +148,7 @@ mod tests {
             Some(&Value::String("turn.started".to_string()))
         );
         assert_eq!(
-            serialized.get("threadId"),
+            serialized.get("id"),
             Some(&Value::String("thread-1".to_string()))
         );
         assert_eq!(
@@ -174,7 +172,7 @@ mod tests {
             Some(&Value::String("turn.completed".to_string()))
         );
         assert_eq!(
-            serialized.get("threadId"),
+            serialized.get("id"),
             Some(&Value::String("thread-2".to_string()))
         );
         assert_eq!(
