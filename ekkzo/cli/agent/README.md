@@ -6,6 +6,7 @@
 
 - `agent` or `agent run`: starts the engine with the configured provider.
 - `agent bridge`: starts the provider bridge process.
+- `agent health`: reports provider CLI availability + auth health across OpenAI, Anthropic, and Google.
 - `agent sessions list`: lists sessions from all providers using the unified session contract.
 - `agent sessions resume <id>`: resolves a session by id and executes the provider resume command.
 - `agent sessions resume <id> --dry-run`: prints the resolved provider resume command without executing it.
@@ -27,6 +28,14 @@
 By default, provider selection is stored at:
 
 `~/.config/agent/provider`
+
+## Health Notes
+
+`agent health` checks:
+
+- OpenAI via `codex login status`
+- Anthropic via `claude auth status`
+- Google via `gemini --version` plus `~/.gemini/google_accounts.json` active account state
 
 ## Bridge Notes
 

@@ -1,6 +1,7 @@
 mod bridge;
 mod config;
 mod engine;
+mod health;
 mod providers;
 mod sessions;
 
@@ -14,11 +15,12 @@ fn main() -> ExitCode {
     match args.next().as_deref() {
         Some("providers") => providers_command(args.collect()),
         Some("bridge") => bridge_command(args.collect()),
+        Some("health") => health::health_command(args.collect()),
         Some("sessions") => sessions::sessions_command(args.collect()),
         Some("run") => run_command(),
         Some(cmd) => {
             eprintln!(
-                "unknown command '{cmd}', available commands: providers, bridge, sessions, run"
+                "unknown command '{cmd}', available commands: providers, bridge, health, sessions, run"
             );
             ExitCode::from(1)
         }
