@@ -1,5 +1,5 @@
 use super::{SessionsAdapter, required_string_at_path, required_string_or_number};
-use crate::sessions::contracts::{SessionContractRecord, SessionProvider};
+use crate::conversations::contracts::{SessionContractRecord, SessionProvider};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::env;
@@ -377,7 +377,7 @@ mod tests {
         OpenAiSessionsAdapter, SessionsAdapter, delete_all_local_sessions_in_root,
         delete_local_session_in_root, list_local_sessions_in_root,
     };
-    use crate::sessions::contracts::SessionProvider;
+    use crate::conversations::contracts::SessionProvider;
     use serde_json::json;
     use std::fs;
     use std::path::PathBuf;

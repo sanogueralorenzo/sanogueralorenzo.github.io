@@ -2,7 +2,7 @@ mod anthropic;
 mod google;
 mod openai;
 
-use crate::sessions::contracts::{SessionContractRecord, SessionProvider};
+use crate::conversations::contracts::{SessionContractRecord, SessionProvider};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -247,7 +247,7 @@ mod tests {
         ProviderSessionRoots, build_delete_summary, map_session_with_provider,
         map_sessions_with_provider, resolve_resume_session_with_roots,
     };
-    use crate::sessions::contracts::SessionProvider;
+    use crate::conversations::contracts::SessionProvider;
     use serde_json::json;
     use std::path::PathBuf;
 

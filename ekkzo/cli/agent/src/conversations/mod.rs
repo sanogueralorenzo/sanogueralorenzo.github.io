@@ -4,7 +4,7 @@ pub mod contracts;
 use std::path::Path;
 use std::process::{Command, ExitCode, Stdio};
 
-pub fn sessions_command(args: Vec<String>) -> ExitCode {
+pub fn conversations_command(args: Vec<String>) -> ExitCode {
     match args.as_slice() {
         [] => print_list(),
         [single] if single == "list" => print_list(),
@@ -53,11 +53,11 @@ pub fn sessions_command(args: Vec<String>) -> ExitCode {
         }
         _ => {
             eprintln!("usage:");
-            eprintln!("  agent sessions list");
-            eprintln!("  agent sessions resume <id>");
-            eprintln!("  agent sessions resume <id> --dry-run");
-            eprintln!("  agent sessions delete <id>");
-            eprintln!("  agent sessions deleteAll");
+            eprintln!("  agent conversations list");
+            eprintln!("  agent conversations resume <id>");
+            eprintln!("  agent conversations resume <id> --dry-run");
+            eprintln!("  agent conversations delete <id>");
+            eprintln!("  agent conversations deleteAll");
             ExitCode::from(1)
         }
     }
@@ -141,7 +141,7 @@ mod tests {
         delete_session_all_providers_with_roots, list_sessions_all_providers_with_roots,
     };
     use super::{adapters::ResumeSessionResult, run_resume_command_code};
-    use crate::sessions::contracts::SessionProvider;
+    use crate::conversations::contracts::SessionProvider;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
