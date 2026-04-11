@@ -29,16 +29,21 @@ To override the config directory path, set:
 
 ## Bridge Notes
 
-`agent bridge` currently has an adapter for OpenAI only, and follows the Codex App Server flow:
+`agent bridge` currently has adapters for OpenAI and Google:
 
-https://developers.openai.com/codex/app-server
+- OpenAI: Codex App Server flow ([docs](https://developers.openai.com/codex/app-server))
+- Google: Gemini ACP flow (`gemini --acp`)
 
-The bridge uses `codex app-server` from the default `codex` CLI on your PATH.
+The bridge uses the default CLI binaries on your `PATH`:
+
+- `codex app-server` for `openai`
+- `gemini --acp` for `google`
+
 Runtime behavior for now:
 
-- Incoming JSON-RPC is forwarded from bridge stdin to `codex app-server`.
+- Incoming JSON-RPC is forwarded from bridge stdin to the selected provider runtime.
 - Bridge stdout emits only mapped contract events (`turn.started`, `turn.completed`).
-- All other Codex protocol messages are ignored at bridge output.
+- All provider protocol messages and non-JSON log lines are ignored at bridge output.
 
 ## Bridge Contract
 
