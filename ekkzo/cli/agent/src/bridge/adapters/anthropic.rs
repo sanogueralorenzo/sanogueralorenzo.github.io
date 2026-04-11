@@ -1,6 +1,6 @@
 use super::BridgeAdapter;
 use crate::bridge::contracts::turn_events::{
-    TurnCompletedEvent, TurnCompletionStatus, TurnError, TurnEvent, TurnStartedEvent,
+    TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde_json::Value;
 use std::collections::VecDeque;
@@ -291,7 +291,7 @@ impl AnthropicNotificationMapper {
         }
 
         let status = map_result_status(value);
-        let answer = if status == TurnCompletionStatus::Completed {
+        let answer = if status == TurnStatus::Completed {
             if turn.assistant_text.trim().is_empty() {
                 value
                     .get("result")
@@ -306,7 +306,7 @@ impl AnthropicNotificationMapper {
             None
         };
 
-        let error = if status == TurnCompletionStatus::Failed {
+        let error = if status == TurnStatus::Failed {
             let message = value
                 .get("result")
                 .and_then(Value::as_str)
@@ -345,7 +345,7 @@ impl AnthropicNotificationMapper {
     }
 }
 
-fn map_result_status(value: &Value) -> TurnCompletionStatus {
+fn map_result_status(value: &Value) -> TurnStatus {
     let stop_reason = value
         .get("stop_reason")
         .and_then(Value::as_str)
@@ -360,11 +360,11 @@ fn map_result_status(value: &Value) -> TurnCompletionStatus {
         .unwrap_or(false);
 
     if stop_reason == "cancelled" || terminal_reason == "cancelled" {
-        TurnCompletionStatus::Interrupted
+        TurnStatus::Interrupted
     } else if is_error {
-        TurnCompletionStatus::Failed
+        TurnStatus::Failed
     } else {
-        TurnCompletionStatus::Completed
+        TurnStatus::Completed
     }
 }
 
@@ -394,7 +394,7 @@ fn command_exists(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{AnthropicNotificationMapper, process_claude_output, resolve_anthropic_bin};
-    use crate::bridge::contracts::turn_events::{TurnCompletionStatus, TurnEvent};
+    use crate::bridge::contracts::turn_events::{TurnStatus, TurnEvent};
     use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};
@@ -448,7 +448,7 @@ mod tests {
         match &events[0] {
             TurnEvent::Started(value) => {
                 assert_eq!(value.id, "session-started");
-                assert_eq!(value.state, "in_progress");
+                assert_eq!(value.status, TurnStatus::Thinking);
             }
             _ => panic!("expected turn.started"),
         }
@@ -476,7 +476,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Completed);
+                assert_eq!(value.status, TurnStatus::Completed);
                 assert_eq!(value.answer.as_deref(), Some("Hello world"));
                 assert!(value.error.is_none());
             }
@@ -501,7 +501,7 @@ mod tests {
         assert!(matches!(events[0], TurnEvent::Started(_)));
         match &events[1] {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Completed);
+                assert_eq!(value.status, TurnStatus::Completed);
                 assert_eq!(value.answer.as_deref(), Some("Result text"));
             }
             _ => panic!("expected turn.completed"),
@@ -529,7 +529,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Interrupted);
+                assert_eq!(value.status, TurnStatus::Interrupted);
                 assert!(value.answer.is_none());
                 assert!(value.error.is_none());
             }
@@ -558,7 +558,7 @@ mod tests {
         assert_eq!(events.len(), 1);
         match &events[0] {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Failed);
+                assert_eq!(value.status, TurnStatus::Failed);
                 assert!(value.answer.is_none());
                 let error = value.error.as_ref().expect("error should be present");
                 assert_eq!(error.message, "Not logged in");
@@ -677,10 +677,7 @@ mod tests {
         };
 
         let serialized = serde_json::to_value(completed).expect("completed should serialize");
-        assert_eq!(
-            serialized.get("type"),
-            Some(&Value::String("turn.completed".to_string()))
-        );
+        assert_eq!(serialized.get("type"), None);
         assert_eq!(
             serialized.get("id"),
             Some(&Value::String("session-serial".to_string()))
@@ -717,9 +714,9 @@ mod tests {
         let output_text = String::from_utf8(output).expect("output should be utf-8");
         let lines: Vec<&str> = output_text.lines().collect();
         assert_eq!(lines.len(), 2);
-        assert!(lines[0].contains("\"type\":\"turn.started\""));
         assert!(lines[0].contains("\"id\":\"session-live\""));
-        assert!(lines[1].contains("\"type\":\"turn.completed\""));
+        assert!(lines[0].contains("\"status\":\"thinking\""));
+        assert!(lines[1].contains("\"id\":\"session-live\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));
     }

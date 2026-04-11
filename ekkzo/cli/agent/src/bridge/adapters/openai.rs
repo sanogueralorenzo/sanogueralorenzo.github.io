@@ -1,6 +1,6 @@
 use super::BridgeAdapter;
 use crate::bridge::contracts::turn_events::{
-    TurnCompletedEvent, TurnCompletionStatus, TurnError, TurnEvent, TurnStartedEvent,
+    TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -199,14 +199,14 @@ impl OpenAiNotificationMapper {
         let params: TurnCompletedParams = serde_json::from_value(params)
             .map_err(|err| format!("invalid turn/completed params: {err}"))?;
 
-        let Some(status) = TurnCompletionStatus::from_codex_status(&params.turn.status) else {
+        let Some(status) = TurnStatus::from_codex_status(&params.turn.status) else {
             return Err(format!(
                 "unsupported turn status '{}' in turn/completed",
                 params.turn.status
             ));
         };
 
-        let answer = if status == TurnCompletionStatus::Completed {
+        let answer = if status == TurnStatus::Completed {
             self.final_answers_by_thread
                 .remove(&params.thread_id)
                 .map(|value| value.text)
@@ -371,7 +371,7 @@ mod tests {
         OpenAiNotificationMapper, process_codex_output, resolve_openai_bin,
         run_codex_schema_generation, schema_output_dir,
     };
-    use crate::bridge::contracts::turn_events::{TurnCompletionStatus, TurnEvent};
+    use crate::bridge::contracts::turn_events::{TurnStatus, TurnEvent};
     use std::fs;
     use std::io::Cursor;
 
@@ -397,7 +397,7 @@ mod tests {
         match event {
             TurnEvent::Started(value) => {
                 assert_eq!(value.id, "thread-1");
-                assert_eq!(value.state, "in_progress");
+                assert_eq!(value.status, TurnStatus::Thinking);
             }
             _ => panic!("expected turn.started event"),
         }
@@ -432,7 +432,7 @@ mod tests {
 
         match completed {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Completed);
+                assert_eq!(value.status, TurnStatus::Completed);
                 assert_eq!(value.answer.as_deref(), Some("Final answer text"));
                 assert!(value.error.is_none());
             }
@@ -467,7 +467,7 @@ mod tests {
 
         match completed {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Completed);
+                assert_eq!(value.status, TurnStatus::Completed);
                 assert_eq!(value.answer.as_deref(), Some("Final fallback answer"));
             }
             _ => panic!("expected turn.completed event"),
@@ -527,7 +527,7 @@ mod tests {
 
         match completed {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Interrupted);
+                assert_eq!(value.status, TurnStatus::Interrupted);
                 assert!(value.answer.is_none());
             }
             _ => panic!("expected turn.completed event"),
@@ -547,7 +547,7 @@ mod tests {
 
         match completed {
             TurnEvent::Completed(value) => {
-                assert_eq!(value.status, TurnCompletionStatus::Failed);
+                assert_eq!(value.status, TurnStatus::Failed);
                 assert!(value.answer.is_none());
                 let error = value.error.expect("failed turn should include error");
                 assert_eq!(error.message, "Boom");
@@ -603,9 +603,9 @@ mod tests {
         let output_text = String::from_utf8(output).expect("output should be utf-8");
         let lines: Vec<&str> = output_text.lines().collect();
         assert_eq!(lines.len(), 2, "only started/completed should be emitted");
-        assert!(lines[0].contains("\"type\":\"turn.started\""));
         assert!(lines[0].contains("\"id\":\"thread-live\""));
-        assert!(lines[1].contains("\"type\":\"turn.completed\""));
+        assert!(lines[0].contains("\"status\":\"thinking\""));
+        assert!(lines[1].contains("\"id\":\"thread-live\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));
     }

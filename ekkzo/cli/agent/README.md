@@ -60,7 +60,7 @@ The chat command uses the default CLI binaries on your `PATH`:
 Runtime behavior for now:
 
 - Incoming JSON-RPC is forwarded from chat stdin to the selected provider runtime.
-- Chat stdout emits only mapped contract events (`turn.started`, `turn.completed`).
+- Chat stdout emits mapped status events only.
 - All provider protocol messages and non-JSON log lines are ignored at chat output.
 
 ## Chat Contract
@@ -71,8 +71,8 @@ The chat turn event contract lives in:
 
 It exposes:
 
-- `turn.started` with `id` and `state=in_progress`
-- `turn.completed` with `id`, `status`, `answer`, and optional `error`
+- start event: `id`, `status=thinking`
+- end event: `id`, `status` (`completed|interrupted|failed`), `answer`, optional `error`
 
 ## Conversations Notes
 
