@@ -7,7 +7,8 @@
 - `agent` or `agent run`: starts the engine with the configured provider.
 - `agent bridge`: starts the provider bridge process.
 - `agent sessions list`: lists sessions from all providers using the unified session contract.
-- `agent sessions resume <id>`: resolves a session by id and prints the provider resume command.
+- `agent sessions resume <id>`: resolves a session by id and executes the provider resume command.
+- `agent sessions resume <id> --dry-run`: prints the resolved provider resume command without executing it.
 - `agent sessions delete <id>`: deletes a session id across all providers.
 - `agent sessions deleteAll`: deletes all sessions across all providers.
 - `agent providers`: prints current and available providers.

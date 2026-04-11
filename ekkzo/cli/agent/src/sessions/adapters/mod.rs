@@ -5,6 +5,7 @@ mod openai;
 use crate::sessions::contracts::{SessionContractRecord, SessionProvider};
 use serde::Serialize;
 use serde_json::Value;
+use std::path::PathBuf;
 
 use anthropic::AnthropicSessionsAdapter;
 use google::GoogleSessionsAdapter;
@@ -39,6 +40,13 @@ pub struct ResumeSessionResult {
     pub command: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ProviderSessionRoots {
+    pub openai_root: Option<PathBuf>,
+    pub anthropic_projects_root: Option<PathBuf>,
+    pub google_tmp_root: Option<PathBuf>,
+}
+
 pub fn map_session_with_provider(
     provider_name: &str,
     value: &Value,
@@ -62,10 +70,22 @@ pub fn map_sessions_with_provider(
 }
 
 pub fn list_sessions_all_providers() -> Result<Vec<SessionContractRecord>, String> {
+    list_sessions_all_providers_with_roots(&ProviderSessionRoots::default())
+}
+
+pub(crate) fn list_sessions_all_providers_with_roots(
+    roots: &ProviderSessionRoots,
+) -> Result<Vec<SessionContractRecord>, String> {
     let mut sessions = Vec::new();
-    sessions.extend(openai::list_local_sessions()?);
-    sessions.extend(anthropic::list_local_sessions()?);
-    sessions.extend(google::list_local_sessions()?);
+    sessions.extend(openai::list_local_sessions_at_root(
+        roots.openai_root.as_deref(),
+    )?);
+    sessions.extend(anthropic::list_local_sessions_at_root(
+        roots.anthropic_projects_root.as_deref(),
+    )?);
+    sessions.extend(google::list_local_sessions_at_root(
+        roots.google_tmp_root.as_deref(),
+    )?);
     sessions.sort_by(|left, right| {
         right
             .updated_at
@@ -76,21 +96,43 @@ pub fn list_sessions_all_providers() -> Result<Vec<SessionContractRecord>, Strin
 }
 
 pub fn delete_session_all_providers(id: &str) -> Result<DeleteSummary, String> {
-    let openai_deleted = openai::delete_local_session(id)?;
-    let anthropic_deleted = anthropic::delete_local_session(id)?;
-    let google_deleted = google::delete_local_session(id)?;
+    delete_session_all_providers_with_roots(id, &ProviderSessionRoots::default())
+}
+
+pub(crate) fn delete_session_all_providers_with_roots(
+    id: &str,
+    roots: &ProviderSessionRoots,
+) -> Result<DeleteSummary, String> {
+    let openai_deleted = openai::delete_local_session_at_root(id, roots.openai_root.as_deref())?;
+    let anthropic_deleted =
+        anthropic::delete_local_session_at_root(id, roots.anthropic_projects_root.as_deref())?;
+    let google_deleted = google::delete_local_session_at_root(id, roots.google_tmp_root.as_deref())?;
     build_delete_summary(openai_deleted, anthropic_deleted, google_deleted)
 }
 
 pub fn delete_all_sessions_all_providers() -> Result<DeleteSummary, String> {
-    let openai_deleted = openai::delete_all_local_sessions()?;
-    let anthropic_deleted = anthropic::delete_all_local_sessions()?;
-    let google_deleted = google::delete_all_local_sessions()?;
+    delete_all_sessions_all_providers_with_roots(&ProviderSessionRoots::default())
+}
+
+pub(crate) fn delete_all_sessions_all_providers_with_roots(
+    roots: &ProviderSessionRoots,
+) -> Result<DeleteSummary, String> {
+    let openai_deleted = openai::delete_all_local_sessions_at_root(roots.openai_root.as_deref())?;
+    let anthropic_deleted =
+        anthropic::delete_all_local_sessions_at_root(roots.anthropic_projects_root.as_deref())?;
+    let google_deleted = google::delete_all_local_sessions_at_root(roots.google_tmp_root.as_deref())?;
     build_delete_summary(openai_deleted, anthropic_deleted, google_deleted)
 }
 
 pub fn resolve_resume_session(id: &str) -> Result<ResumeSessionResult, String> {
-    let matches = list_sessions_all_providers()?
+    resolve_resume_session_with_roots(id, &ProviderSessionRoots::default())
+}
+
+pub(crate) fn resolve_resume_session_with_roots(
+    id: &str,
+    roots: &ProviderSessionRoots,
+) -> Result<ResumeSessionResult, String> {
+    let matches = list_sessions_all_providers_with_roots(roots)?
         .into_iter()
         .filter(|session| session.id == id)
         .collect::<Vec<_>>();
@@ -201,9 +243,13 @@ fn required_string_at_path(value: &Value, path: &[&str]) -> Result<String, Strin
 
 #[cfg(test)]
 mod tests {
-    use super::{build_delete_summary, map_session_with_provider, map_sessions_with_provider};
+    use super::{
+        ProviderSessionRoots, build_delete_summary, map_session_with_provider,
+        map_sessions_with_provider, resolve_resume_session_with_roots,
+    };
     use crate::sessions::contracts::SessionProvider;
     use serde_json::json;
+    use std::path::PathBuf;
 
     #[test]
     fn rejects_unknown_provider() {
@@ -233,5 +279,18 @@ mod tests {
         assert_eq!(summary.by_provider[0].provider, SessionProvider::OpenAi);
         assert_eq!(summary.by_provider[1].provider, SessionProvider::Anthropic);
         assert_eq!(summary.by_provider[2].provider, SessionProvider::Google);
+    }
+
+    #[test]
+    fn resume_with_roots_reports_missing_session() {
+        let roots = ProviderSessionRoots {
+            openai_root: Some(PathBuf::from("/tmp/does-not-exist-openai")),
+            anthropic_projects_root: Some(PathBuf::from("/tmp/does-not-exist-anthropic")),
+            google_tmp_root: Some(PathBuf::from("/tmp/does-not-exist-google")),
+        };
+
+        let err = resolve_resume_session_with_roots("missing", &roots)
+            .expect_err("missing session should return an error");
+        assert!(err.contains("was not found"));
     }
 }

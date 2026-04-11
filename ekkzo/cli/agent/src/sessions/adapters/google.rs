@@ -23,21 +23,6 @@ impl SessionsAdapter for GoogleSessionsAdapter {
     }
 }
 
-pub fn list_local_sessions() -> Result<Vec<SessionContractRecord>, String> {
-    let root = google_tmp_root()?;
-    list_local_sessions_in_root(&root)
-}
-
-pub fn delete_local_session(id: &str) -> Result<usize, String> {
-    let root = google_tmp_root()?;
-    delete_local_session_in_root(&root, id)
-}
-
-pub fn delete_all_local_sessions() -> Result<usize, String> {
-    let root = google_tmp_root()?;
-    delete_all_local_sessions_in_root(&root)
-}
-
 pub fn resume_command(id: &str) -> Vec<String> {
     vec!["gemini".to_string(), "--resume".to_string(), id.to_string()]
 }
@@ -45,6 +30,16 @@ pub fn resume_command(id: &str) -> Vec<String> {
 fn google_tmp_root() -> Result<PathBuf, String> {
     let home = env::var("HOME").map_err(|_| "HOME is not set".to_string())?;
     Ok(PathBuf::from(home).join(".gemini").join(TMP_SUBDIR))
+}
+
+pub(crate) fn list_local_sessions_at_root(
+    root_override: Option<&Path>,
+) -> Result<Vec<SessionContractRecord>, String> {
+    let root = match root_override {
+        Some(value) => value.to_path_buf(),
+        None => google_tmp_root()?,
+    };
+    list_local_sessions_in_root(&root)
 }
 
 fn list_local_sessions_in_root(tmp_root: &Path) -> Result<Vec<SessionContractRecord>, String> {
@@ -123,6 +118,17 @@ fn list_local_sessions_in_root(tmp_root: &Path) -> Result<Vec<SessionContractRec
     Ok(sessions)
 }
 
+pub(crate) fn delete_local_session_at_root(
+    id: &str,
+    root_override: Option<&Path>,
+) -> Result<usize, String> {
+    let root = match root_override {
+        Some(value) => value.to_path_buf(),
+        None => google_tmp_root()?,
+    };
+    delete_local_session_in_root(&root, id)
+}
+
 fn delete_local_session_in_root(tmp_root: &Path, id: &str) -> Result<usize, String> {
     let mut files = Vec::new();
     collect_files_recursively(tmp_root, &mut files)?;
@@ -143,6 +149,16 @@ fn delete_local_session_in_root(tmp_root: &Path, id: &str) -> Result<usize, Stri
     }
 
     Ok(removed)
+}
+
+pub(crate) fn delete_all_local_sessions_at_root(
+    root_override: Option<&Path>,
+) -> Result<usize, String> {
+    let root = match root_override {
+        Some(value) => value.to_path_buf(),
+        None => google_tmp_root()?,
+    };
+    delete_all_local_sessions_in_root(&root)
 }
 
 fn delete_all_local_sessions_in_root(tmp_root: &Path) -> Result<usize, String> {

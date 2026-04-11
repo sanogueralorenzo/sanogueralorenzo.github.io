@@ -44,21 +44,6 @@ struct SessionFileMetadata {
     updated_at: String,
 }
 
-pub fn list_local_sessions() -> Result<Vec<SessionContractRecord>, String> {
-    let root = openai_config_root()?;
-    list_local_sessions_in_root(&root)
-}
-
-pub fn delete_local_session(id: &str) -> Result<usize, String> {
-    let root = openai_config_root()?;
-    delete_local_session_in_root(&root, id)
-}
-
-pub fn delete_all_local_sessions() -> Result<usize, String> {
-    let root = openai_config_root()?;
-    delete_all_local_sessions_in_root(&root)
-}
-
 pub fn resume_command(id: &str) -> Vec<String> {
     vec!["codex".to_string(), "resume".to_string(), id.to_string()]
 }
@@ -66,6 +51,16 @@ pub fn resume_command(id: &str) -> Vec<String> {
 fn openai_config_root() -> Result<PathBuf, String> {
     let home = env::var("HOME").map_err(|_| "HOME is not set".to_string())?;
     Ok(PathBuf::from(home).join(".codex"))
+}
+
+pub(crate) fn list_local_sessions_at_root(
+    root_override: Option<&Path>,
+) -> Result<Vec<SessionContractRecord>, String> {
+    let root = match root_override {
+        Some(value) => value.to_path_buf(),
+        None => openai_config_root()?,
+    };
+    list_local_sessions_in_root(&root)
 }
 
 fn list_local_sessions_in_root(root: &Path) -> Result<Vec<SessionContractRecord>, String> {
@@ -130,11 +125,32 @@ fn list_local_sessions_in_root(root: &Path) -> Result<Vec<SessionContractRecord>
     Ok(sessions)
 }
 
+pub(crate) fn delete_local_session_at_root(
+    id: &str,
+    root_override: Option<&Path>,
+) -> Result<usize, String> {
+    let root = match root_override {
+        Some(value) => value.to_path_buf(),
+        None => openai_config_root()?,
+    };
+    delete_local_session_in_root(&root, id)
+}
+
 fn delete_local_session_in_root(root: &Path, id: &str) -> Result<usize, String> {
     let mut deleted = 0;
     deleted += remove_index_entry(root, id)?;
     deleted += remove_session_files(root, Some(id))?;
     Ok(deleted)
+}
+
+pub(crate) fn delete_all_local_sessions_at_root(
+    root_override: Option<&Path>,
+) -> Result<usize, String> {
+    let root = match root_override {
+        Some(value) => value.to_path_buf(),
+        None => openai_config_root()?,
+    };
+    delete_all_local_sessions_in_root(&root)
 }
 
 fn delete_all_local_sessions_in_root(root: &Path) -> Result<usize, String> {
