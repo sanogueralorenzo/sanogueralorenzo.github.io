@@ -6,7 +6,7 @@ pub struct OpenAiBridgeAdapter;
 
 const OPENAI_APP_SERVER_SUBCOMMAND: &str = "app-server";
 const OPENAI_BIN_ENV: &str = "AGENT_OPENAI_CODEX_BIN";
-const DEFAULT_OPENAI_CANDIDATES: [&str; 2] = ["codex", "codex-core"];
+const DEFAULT_OPENAI_CANDIDATES: [&str; 1] = ["codex"];
 
 impl BridgeAdapter for OpenAiBridgeAdapter {
     fn run(&self, args: &[String]) -> Result<(), String> {

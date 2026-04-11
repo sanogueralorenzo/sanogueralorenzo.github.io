@@ -37,4 +37,3 @@ The command resolver checks binaries in this order:
 
 1. `AGENT_OPENAI_CODEX_BIN` (if set)
 2. `codex`
-3. `codex-core`
