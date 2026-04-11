@@ -29,14 +29,16 @@ To override the config directory path, set:
 
 ## Bridge Notes
 
-`agent bridge` currently has adapters for OpenAI and Google:
+`agent bridge` currently has adapters for OpenAI, Anthropic, and Google:
 
 - OpenAI: Codex App Server flow ([docs](https://developers.openai.com/codex/app-server))
+- Anthropic: Claude stream-json flow (`claude -p --verbose --output-format stream-json --input-format stream-json`)
 - Google: Gemini ACP flow (`gemini --acp`)
 
 The bridge uses the default CLI binaries on your `PATH`:
 
 - `codex app-server` for `openai`
+- `claude` for `anthropic`
 - `gemini --acp` for `google`
 
 Runtime behavior for now:

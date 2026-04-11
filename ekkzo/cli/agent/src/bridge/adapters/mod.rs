@@ -1,6 +1,8 @@
+mod anthropic;
 mod google;
 mod openai;
 
+use anthropic::AnthropicBridgeAdapter;
 use google::GoogleBridgeAdapter;
 use openai::OpenAiBridgeAdapter;
 
@@ -12,9 +14,7 @@ pub fn run_with_provider(provider_name: &str, args: &[String]) -> Result<(), Str
     match provider_name {
         "openai" => OpenAiBridgeAdapter.run(args),
         "google" => GoogleBridgeAdapter.run(args),
-        "anthropic" => Err(format!(
-            "provider '{provider_name}' does not have a bridge adapter yet"
-        )),
+        "anthropic" => AnthropicBridgeAdapter.run(args),
         _ => Err(format!("unknown provider '{provider_name}'")),
     }
 }
