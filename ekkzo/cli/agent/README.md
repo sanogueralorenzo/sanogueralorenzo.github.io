@@ -7,11 +7,11 @@
 - `agent` or `agent run`: starts the engine with the configured provider.
 - `agent bridge`: starts the provider bridge process.
 - `agent health`: reports provider CLI availability + auth health across OpenAI, Anthropic, and Google.
-- `agent conversations list`: lists sessions from all providers using the unified session contract.
+- `agent conversations list`: lists conversations from all providers using the unified session contract.
 - `agent conversations resume <id>`: resolves a session by id and executes the provider resume command.
 - `agent conversations resume <id> --dry-run`: prints the resolved provider resume command without executing it.
 - `agent conversations delete <id>`: deletes a session id across all providers.
-- `agent conversations deleteAll`: deletes all sessions across all providers.
+- `agent conversations deleteAll`: deletes all conversations across all providers.
 - `agent providers`: prints current and available providers.
 - `agent providers list`: lists available providers.
 - `agent providers current`: prints the selected provider.
