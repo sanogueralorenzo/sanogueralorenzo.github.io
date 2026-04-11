@@ -15,3 +15,4 @@ Desktop.ini
 # -------------------- Local Project Artifacts --------------------
 voice/.cache/
 codex/codex-*/target/
+ekkzo/cli/codex-*/target/
