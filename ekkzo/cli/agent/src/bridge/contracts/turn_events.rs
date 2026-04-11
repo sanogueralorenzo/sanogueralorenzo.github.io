@@ -16,6 +16,12 @@ impl TurnStartedEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TurnEvent {
+    Started(TurnStartedEvent),
+    Completed(TurnCompletedEvent),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnCompletedEvent {
     pub event_type: &'static str,
     pub thread_id: String,
