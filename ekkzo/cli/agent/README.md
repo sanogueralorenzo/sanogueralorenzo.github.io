@@ -37,6 +37,12 @@ By default, provider selection is stored at:
 - Anthropic via `claude auth status`
 - Google via `gemini --version` plus `~/.gemini/google_accounts.json` active account state
 
+`agent health` contract returns provider statuses only:
+
+- `connected`
+- `auth_missing`
+- `cli_missing`
+
 ## Bridge Notes
 
 `agent bridge` currently has adapters for OpenAI, Anthropic, and Google:

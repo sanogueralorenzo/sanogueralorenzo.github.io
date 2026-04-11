@@ -1,46 +1,34 @@
 use super::{CommandResult, HealthAdapter, run_command};
-use crate::health::contracts::{HealthState, ProviderHealth};
+use crate::health::contracts::{ProviderHealth, ProviderHealthStatus};
 
 pub struct OpenAiHealthAdapter;
 
 impl HealthAdapter for OpenAiHealthAdapter {
     fn check(&self) -> ProviderHealth {
         let result = run_command("codex", &["login", "status"]);
-        from_command_result("openai", "codex login status", result)
+        from_command_result("openai", result)
     }
 }
 
-fn from_command_result(provider: &str, method: &str, result: CommandResult) -> ProviderHealth {
+fn from_command_result(provider: &str, result: CommandResult) -> ProviderHealth {
     match result {
         CommandResult::MissingBinary => ProviderHealth {
             provider: provider.to_string(),
-            status: HealthState::Unhealthy,
-            cli_available: false,
-            authenticated: false,
-            check_method: method.to_string(),
-            detail: "binary not found on PATH".to_string(),
+            status: ProviderHealthStatus::CliMissing,
         },
-        CommandResult::CommandError(message) => ProviderHealth {
+        CommandResult::CommandError => ProviderHealth {
             provider: provider.to_string(),
-            status: HealthState::Unhealthy,
-            cli_available: true,
-            authenticated: false,
-            check_method: method.to_string(),
-            detail: message,
+            status: ProviderHealthStatus::AuthMissing,
         },
         CommandResult::Output(output) => {
             let authenticated = parse_logged_in_status(&output.stdout, output.success);
             ProviderHealth {
                 provider: provider.to_string(),
                 status: if authenticated {
-                    HealthState::Healthy
+                    ProviderHealthStatus::Connected
                 } else {
-                    HealthState::Degraded
+                    ProviderHealthStatus::AuthMissing
                 },
-                cli_available: true,
-                authenticated,
-                check_method: method.to_string(),
-                detail: summarize_output(&output.stdout, &output.stderr),
             }
         }
     }
@@ -61,19 +49,9 @@ fn parse_logged_in_status(stdout: &str, success: bool) -> bool {
         || success
 }
 
-fn summarize_output(stdout: &str, stderr: &str) -> String {
-    if !stdout.trim().is_empty() {
-        return stdout.trim().to_string();
-    }
-    if !stderr.trim().is_empty() {
-        return stderr.trim().to_string();
-    }
-    "no output".to_string()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{parse_logged_in_status, summarize_output};
+    use super::parse_logged_in_status;
 
     #[test]
     fn parse_logged_in_status_detects_logged_in_text() {
@@ -85,8 +63,4 @@ mod tests {
         assert!(!parse_logged_in_status("Not logged in", false));
     }
 
-    #[test]
-    fn summarize_output_prefers_stdout() {
-        assert_eq!(summarize_output("hello\n", "ignored\n"), "hello");
-    }
 }

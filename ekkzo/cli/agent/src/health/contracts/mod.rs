@@ -1,27 +1,20 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum HealthState {
-    Healthy,
-    Degraded,
-    Unhealthy,
+#[serde(rename_all = "snake_case")]
+pub enum ProviderHealthStatus {
+    Connected,
+    AuthMissing,
+    CliMissing,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ProviderHealth {
     pub provider: String,
-    pub status: HealthState,
-    #[serde(rename = "cliAvailable")]
-    pub cli_available: bool,
-    pub authenticated: bool,
-    #[serde(rename = "checkMethod")]
-    pub check_method: String,
-    pub detail: String,
+    pub status: ProviderHealthStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct HealthReport {
-    pub status: HealthState,
     pub providers: Vec<ProviderHealth>,
 }
