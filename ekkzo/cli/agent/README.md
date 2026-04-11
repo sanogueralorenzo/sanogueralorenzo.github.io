@@ -6,6 +6,10 @@
 
 - `agent` or `agent run`: starts the engine with the configured provider.
 - `agent bridge`: starts the provider bridge process.
+- `agent sessions list`: lists sessions from all providers using the unified session contract.
+- `agent sessions resume <id>`: resolves a session by id and prints the provider resume command.
+- `agent sessions delete <id>`: deletes a session id across all providers.
+- `agent sessions deleteAll`: deletes all sessions across all providers.
 - `agent providers`: prints current and available providers.
 - `agent providers list`: lists available providers.
 - `agent providers current`: prints the selected provider.
@@ -53,3 +57,11 @@ It exposes:
 
 - `turn.started` with `threadId` and `state=in_progress`
 - `turn.completed` with `threadId`, `status`, `answer`, and optional `error`
+
+## Sessions Notes
+
+`agent sessions` uses provider-local stores:
+
+- OpenAI: `~/.codex/session_index.jsonl` and `~/.codex/sessions/**/rollout-*.jsonl`
+- Anthropic: `~/.claude/projects/**/*.jsonl`
+- Google: `~/.gemini/tmp/**/session-*.json`

@@ -2,7 +2,8 @@ mod anthropic;
 mod google;
 mod openai;
 
-use crate::sessions::contracts::SessionContractRecord;
+use crate::sessions::contracts::{SessionContractRecord, SessionProvider};
+use serde::Serialize;
 use serde_json::Value;
 
 use anthropic::AnthropicSessionsAdapter;
@@ -11,6 +12,31 @@ use openai::OpenAiSessionsAdapter;
 
 pub trait SessionsAdapter {
     fn map_session(&self, value: &Value) -> Result<SessionContractRecord, String>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProviderDeleteResult {
+    pub provider: SessionProvider,
+    pub deleted: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DeleteSummary {
+    #[serde(rename = "totalDeleted")]
+    pub total_deleted: usize,
+    #[serde(rename = "byProvider")]
+    pub by_provider: Vec<ProviderDeleteResult>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ResumeSessionResult {
+    pub provider: SessionProvider,
+    pub id: String,
+    pub name: String,
+    pub cwd: String,
+    #[serde(rename = "updatedAt")]
+    pub updated_at: String,
+    pub command: Vec<String>,
 }
 
 pub fn map_session_with_provider(
@@ -33,6 +59,98 @@ pub fn map_sessions_with_provider(
         .iter()
         .map(|value| map_session_with_provider(provider_name, value))
         .collect()
+}
+
+pub fn list_sessions_all_providers() -> Result<Vec<SessionContractRecord>, String> {
+    let mut sessions = Vec::new();
+    sessions.extend(openai::list_local_sessions()?);
+    sessions.extend(anthropic::list_local_sessions()?);
+    sessions.extend(google::list_local_sessions()?);
+    sessions.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    Ok(sessions)
+}
+
+pub fn delete_session_all_providers(id: &str) -> Result<DeleteSummary, String> {
+    let openai_deleted = openai::delete_local_session(id)?;
+    let anthropic_deleted = anthropic::delete_local_session(id)?;
+    let google_deleted = google::delete_local_session(id)?;
+    build_delete_summary(openai_deleted, anthropic_deleted, google_deleted)
+}
+
+pub fn delete_all_sessions_all_providers() -> Result<DeleteSummary, String> {
+    let openai_deleted = openai::delete_all_local_sessions()?;
+    let anthropic_deleted = anthropic::delete_all_local_sessions()?;
+    let google_deleted = google::delete_all_local_sessions()?;
+    build_delete_summary(openai_deleted, anthropic_deleted, google_deleted)
+}
+
+pub fn resolve_resume_session(id: &str) -> Result<ResumeSessionResult, String> {
+    let matches = list_sessions_all_providers()?
+        .into_iter()
+        .filter(|session| session.id == id)
+        .collect::<Vec<_>>();
+
+    if matches.is_empty() {
+        return Err(format!("session '{id}' was not found in any provider"));
+    }
+
+    if matches.len() > 1 {
+        let providers = matches
+            .iter()
+            .map(|session| format!("{:?}", session.provider).to_lowercase())
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(format!(
+            "session '{id}' exists in multiple providers ({providers}), delete duplicates first"
+        ));
+    }
+
+    let session = matches.into_iter().next().expect("single match should exist");
+    let command = match session.provider {
+        SessionProvider::OpenAi => openai::resume_command(&session.id),
+        SessionProvider::Anthropic => anthropic::resume_command(&session.id),
+        SessionProvider::Google => google::resume_command(&session.id),
+    };
+
+    Ok(ResumeSessionResult {
+        provider: session.provider,
+        id: session.id,
+        name: session.name,
+        cwd: session.cwd,
+        updated_at: session.updated_at,
+        command,
+    })
+}
+
+fn build_delete_summary(
+    openai_deleted: usize,
+    anthropic_deleted: usize,
+    google_deleted: usize,
+) -> Result<DeleteSummary, String> {
+    let by_provider = vec![
+        ProviderDeleteResult {
+            provider: SessionProvider::OpenAi,
+            deleted: openai_deleted,
+        },
+        ProviderDeleteResult {
+            provider: SessionProvider::Anthropic,
+            deleted: anthropic_deleted,
+        },
+        ProviderDeleteResult {
+            provider: SessionProvider::Google,
+            deleted: google_deleted,
+        },
+    ];
+    let total_deleted = by_provider.iter().map(|entry| entry.deleted).sum();
+    Ok(DeleteSummary {
+        total_deleted,
+        by_provider,
+    })
 }
 
 fn required_string(value: &Value, key: &str) -> Result<String, String> {
@@ -83,7 +201,8 @@ fn required_string_at_path(value: &Value, path: &[&str]) -> Result<String, Strin
 
 #[cfg(test)]
 mod tests {
-    use super::{map_session_with_provider, map_sessions_with_provider};
+    use super::{build_delete_summary, map_session_with_provider, map_sessions_with_provider};
+    use crate::sessions::contracts::SessionProvider;
     use serde_json::json;
 
     #[test]
@@ -104,5 +223,15 @@ mod tests {
         assert_eq!(mapped.len(), 2);
         assert_eq!(mapped[0].id, "s-1");
         assert_eq!(mapped[1].id, "s-2");
+    }
+
+    #[test]
+    fn delete_summary_contains_all_providers() {
+        let summary = build_delete_summary(2, 1, 3).expect("summary should build");
+        assert_eq!(summary.total_deleted, 6);
+        assert_eq!(summary.by_provider.len(), 3);
+        assert_eq!(summary.by_provider[0].provider, SessionProvider::OpenAi);
+        assert_eq!(summary.by_provider[1].provider, SessionProvider::Anthropic);
+        assert_eq!(summary.by_provider[2].provider, SessionProvider::Google);
     }
 }
