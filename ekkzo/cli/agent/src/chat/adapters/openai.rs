@@ -1,5 +1,5 @@
-use super::BridgeAdapter;
-use crate::bridge::contracts::turn_events::{
+use super::ChatAdapter;
+use crate::chat::contracts::turn_events::{
     ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde::Deserialize;
@@ -12,12 +12,12 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub struct OpenAiBridgeAdapter;
+pub struct OpenAiChatAdapter;
 
 const OPENAI_APP_SERVER_SUBCOMMAND: &str = "app-server";
 const OPENAI_CLI_BIN: &str = "codex";
 
-impl BridgeAdapter for OpenAiBridgeAdapter {
+impl ChatAdapter for OpenAiChatAdapter {
     fn run(&self, args: &[String]) -> Result<(), String> {
         let bin = resolve_openai_bin()?;
 
@@ -373,7 +373,7 @@ mod tests {
         OpenAiNotificationMapper, process_codex_output, resolve_openai_bin,
         run_codex_schema_generation, schema_output_dir,
     };
-    use crate::bridge::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
+    use crate::chat::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
     use std::fs;
     use std::io::Cursor;
 

@@ -82,7 +82,7 @@ Runtime behavior for now:
 
 The chat turn event contract lives in:
 
-`src/bridge/contracts/turn_events.rs`
+`src/chat/contracts/turn_events.rs`
 
 It exposes:
 

@@ -1,5 +1,5 @@
-use super::BridgeAdapter;
-use crate::bridge::contracts::turn_events::{
+use super::ChatAdapter;
+use crate::chat::contracts::turn_events::{
     ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde_json::Value;
@@ -9,7 +9,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-pub struct AnthropicBridgeAdapter;
+pub struct AnthropicChatAdapter;
 
 const ANTHROPIC_CLI_BIN: &str = "claude";
 const ANTHROPIC_PRINT_FLAG: &str = "-p";
@@ -19,7 +19,7 @@ const ANTHROPIC_INPUT_FLAG: &str = "--input-format";
 const ANTHROPIC_STREAM_JSON: &str = "stream-json";
 const ANTHROPIC_REPLAY_USER_MESSAGES_FLAG: &str = "--replay-user-messages";
 
-impl BridgeAdapter for AnthropicBridgeAdapter {
+impl ChatAdapter for AnthropicChatAdapter {
     fn run(&self, args: &[String]) -> Result<(), String> {
         let bin = resolve_anthropic_bin()?;
 
@@ -401,7 +401,7 @@ fn command_exists(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{AnthropicNotificationMapper, process_claude_output, resolve_anthropic_bin};
-    use crate::bridge::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
+    use crate::chat::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
     use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};

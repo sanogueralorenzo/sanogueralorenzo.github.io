@@ -1,5 +1,5 @@
-use super::BridgeAdapter;
-use crate::bridge::contracts::turn_events::{
+use super::ChatAdapter;
+use crate::chat::contracts::turn_events::{
     ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
 };
 use serde_json::Value;
@@ -9,12 +9,12 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-pub struct GoogleBridgeAdapter;
+pub struct GoogleChatAdapter;
 
 const GOOGLE_ACP_FLAG: &str = "--acp";
 const GOOGLE_CLI_BIN: &str = "gemini";
 
-impl BridgeAdapter for GoogleBridgeAdapter {
+impl ChatAdapter for GoogleChatAdapter {
     fn run(&self, args: &[String]) -> Result<(), String> {
         let bin = resolve_google_bin()?;
 
@@ -408,7 +408,7 @@ fn command_exists(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{GoogleNotificationMapper, process_gemini_output, resolve_google_bin};
-    use crate::bridge::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
+    use crate::chat::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
     use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};

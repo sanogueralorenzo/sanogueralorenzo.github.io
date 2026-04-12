@@ -1,5 +1,5 @@
 mod ask;
-mod bridge;
+mod chat;
 mod config;
 mod conversations;
 mod engine;
@@ -37,7 +37,7 @@ fn ask_command(args: Vec<String>) -> ExitCode {
 
 fn chat_command(args: Vec<String>) -> ExitCode {
     let provider_name = configured_provider_name();
-    match bridge::run(&provider_name, &args) {
+    match chat::run(&provider_name, &args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("{err}");
