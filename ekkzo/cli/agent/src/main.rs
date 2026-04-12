@@ -2,11 +2,9 @@ mod ask;
 mod chat;
 mod config;
 mod conversations;
-mod engine;
 mod health;
 mod providers;
 
-use engine::AgentEngine;
 use providers::{DEFAULT_PROVIDER, available_provider_names, create_provider};
 use std::env;
 use std::process::ExitCode;
@@ -19,14 +17,13 @@ fn main() -> ExitCode {
         Some("chat") => chat_command(args.collect()),
         Some("health") => health::health_command(args.collect()),
         Some("conversations") => conversations::conversations_command(args.collect()),
-        Some("run") => run_command(),
         Some(cmd) => {
             eprintln!(
-                "unknown command '{cmd}', available commands: providers, ask, chat, health, conversations, run"
+                "unknown command '{cmd}', available commands: providers, ask, chat, health, conversations"
             );
             ExitCode::from(1)
         }
-        None => run_command(),
+        None => usage(),
     }
 }
 
@@ -44,22 +41,6 @@ fn chat_command(args: Vec<String>) -> ExitCode {
             ExitCode::from(1)
         }
     }
-}
-
-fn run_command() -> ExitCode {
-    let provider_name = configured_provider_name();
-    let Some(provider) = create_provider(&provider_name) else {
-        eprintln!(
-            "configured provider '{}' is not supported, available providers: {}",
-            provider_name,
-            available_provider_names().join(", ")
-        );
-        return ExitCode::from(1);
-    };
-
-    let engine = AgentEngine::new(provider);
-    println!("{}", engine.describe());
-    ExitCode::SUCCESS
 }
 
 fn providers_command(args: Vec<String>) -> ExitCode {
@@ -122,6 +103,16 @@ fn providers_command(args: Vec<String>) -> ExitCode {
             ExitCode::from(1)
         }
     }
+}
+
+fn usage() -> ExitCode {
+    eprintln!("usage:");
+    eprintln!("  agent providers");
+    eprintln!("  agent ask [--json] <prompt>");
+    eprintln!("  agent chat");
+    eprintln!("  agent health");
+    eprintln!("  agent conversations <list|resume|delete|deleteAll>");
+    ExitCode::from(1)
 }
 
 fn configured_provider_name() -> String {

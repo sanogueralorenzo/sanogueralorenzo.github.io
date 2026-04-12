@@ -4,7 +4,6 @@
 
 ## Commands
 
-- `agent` or `agent run`: starts the engine with the configured provider.
 - `agent ask [--json] <prompt>`: runs a one-shot provider prompt.
 - `agent chat`: starts the provider chat process.
 - `agent health`: reports provider CLI availability + auth health across OpenAI, Anthropic, and Google.
