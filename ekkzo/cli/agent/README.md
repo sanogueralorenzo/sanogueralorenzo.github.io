@@ -5,7 +5,7 @@
 ## Commands
 
 - `agent` or `agent run`: starts the engine with the configured provider.
-- `agent ask <prompt>`: runs a one-shot provider prompt and emits ask status events.
+- `agent ask [--json] <prompt>`: runs a one-shot provider prompt.
 - `agent chat`: starts the provider chat process.
 - `agent health`: reports provider CLI availability + auth health across OpenAI, Anthropic, and Google.
 - `agent conversations list`: lists conversations from all providers using the unified session contract.
@@ -54,9 +54,10 @@ By default, provider selection is stored at:
 
 Runtime behavior for now:
 
-- `agent ask` emits a start event with `status=thinking`.
-- It then emits a final event with `status` (`completed|interrupted|failed`), `answer`, and `error`.
-- `provider` and `id` are present on both events.
+- `agent ask --json` emits a start event with `status=thinking`.
+- `agent ask --json` then emits a final event with `status` (`completed|interrupted|failed`), `answer`, and `error`.
+- `provider` and `id` are present on both JSON events.
+- `agent ask` (without `--json`) emits human-readable text output (not contract-stable).
 
 ## Chat Notes
 

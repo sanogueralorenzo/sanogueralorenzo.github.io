@@ -1,20 +1,27 @@
 use super::{AskAdapter, AskFinalResult, command_exists, execute_headless_command};
+use std::env;
 
 pub struct GoogleAskAdapter;
 
 const GOOGLE_CLI_BIN: &str = "gemini";
+const GOOGLE_ASK_BIN_ENV: &str = "AGENT_GOOGLE_ASK_BIN";
 
 impl AskAdapter for GoogleAskAdapter {
     fn ask(&self, prompt: &str) -> Result<AskFinalResult, String> {
-        if !command_exists(GOOGLE_CLI_BIN) {
+        let command = resolve_google_bin();
+        if !command_exists(&command) {
             return Err(format!(
                 "google ask requires '{}' to be installed and available on PATH",
                 GOOGLE_CLI_BIN
             ));
         }
 
-        execute_headless_command(GOOGLE_CLI_BIN, &command_args(prompt))
+        execute_headless_command(&command, &command_args(prompt))
     }
+}
+
+fn resolve_google_bin() -> String {
+    env::var(GOOGLE_ASK_BIN_ENV).unwrap_or_else(|_| GOOGLE_CLI_BIN.to_string())
 }
 
 fn command_args(prompt: &str) -> Vec<String> {

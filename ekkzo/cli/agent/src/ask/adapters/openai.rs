@@ -1,20 +1,27 @@
 use super::{AskAdapter, AskFinalResult, command_exists, execute_headless_command};
+use std::env;
 
 pub struct OpenAiAskAdapter;
 
 const OPENAI_CLI_BIN: &str = "codex";
+const OPENAI_ASK_BIN_ENV: &str = "AGENT_OPENAI_ASK_BIN";
 
 impl AskAdapter for OpenAiAskAdapter {
     fn ask(&self, prompt: &str) -> Result<AskFinalResult, String> {
-        if !command_exists(OPENAI_CLI_BIN) {
+        let command = resolve_openai_bin();
+        if !command_exists(&command) {
             return Err(format!(
                 "openai ask requires '{}' to be installed and available on PATH",
                 OPENAI_CLI_BIN
             ));
         }
 
-        execute_headless_command(OPENAI_CLI_BIN, &command_args(prompt))
+        execute_headless_command(&command, &command_args(prompt))
     }
+}
+
+fn resolve_openai_bin() -> String {
+    env::var(OPENAI_ASK_BIN_ENV).unwrap_or_else(|_| OPENAI_CLI_BIN.to_string())
 }
 
 fn command_args(prompt: &str) -> Vec<String> {

@@ -1,0 +1,7 @@
+#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "claude-fake"
+  exit 0
+fi
+echo "anthropic-failure" 1>&2
+exit 7

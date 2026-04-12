@@ -1,0 +1,7 @@
+#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "gemini-fake"
+  exit 0
+fi
+echo "cancelled" 1>&2
+exit 130

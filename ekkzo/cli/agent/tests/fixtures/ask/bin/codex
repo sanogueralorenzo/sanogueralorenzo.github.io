@@ -1,0 +1,11 @@
+#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "codex-fake"
+  exit 0
+fi
+if [ "$1" = "exec" ]; then
+  echo "openai-answer"
+  exit 0
+fi
+echo "unexpected codex args: $*" 1>&2
+exit 2

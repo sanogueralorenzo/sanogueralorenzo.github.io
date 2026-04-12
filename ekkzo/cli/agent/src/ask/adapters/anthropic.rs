@@ -1,20 +1,27 @@
 use super::{AskAdapter, AskFinalResult, command_exists, execute_headless_command};
+use std::env;
 
 pub struct AnthropicAskAdapter;
 
 const ANTHROPIC_CLI_BIN: &str = "claude";
+const ANTHROPIC_ASK_BIN_ENV: &str = "AGENT_ANTHROPIC_ASK_BIN";
 
 impl AskAdapter for AnthropicAskAdapter {
     fn ask(&self, prompt: &str) -> Result<AskFinalResult, String> {
-        if !command_exists(ANTHROPIC_CLI_BIN) {
+        let command = resolve_anthropic_bin();
+        if !command_exists(&command) {
             return Err(format!(
                 "anthropic ask requires '{}' to be installed and available on PATH",
                 ANTHROPIC_CLI_BIN
             ));
         }
 
-        execute_headless_command(ANTHROPIC_CLI_BIN, &command_args(prompt))
+        execute_headless_command(&command, &command_args(prompt))
     }
+}
+
+fn resolve_anthropic_bin() -> String {
+    env::var(ANTHROPIC_ASK_BIN_ENV).unwrap_or_else(|_| ANTHROPIC_CLI_BIN.to_string())
 }
 
 fn command_args(prompt: &str) -> Vec<String> {
