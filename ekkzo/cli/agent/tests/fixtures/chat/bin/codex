@@ -1,0 +1,53 @@
+#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "codex-fake"
+  exit 0
+fi
+
+if [ "$1" = "app-server" ]; then
+  thread_id=""
+  while IFS= read -r line; do
+    if printf '%s' "$line" | grep -q '"method":"initialize"'; then
+      echo '{"id":1,"result":{"ok":true}}'
+      continue
+    fi
+
+    if printf '%s' "$line" | grep -q '"method":"thread/start"'; then
+      thread_id="openai-session-new"
+      echo '{"id":2,"result":{"thread":{"id":"openai-session-new"}}}'
+      continue
+    fi
+
+    if printf '%s' "$line" | grep -q '"method":"thread/resume"'; then
+      thread_id=$(printf '%s' "$line" | sed -n 's/.*"threadId":"\([^"]*\)".*/\1/p')
+      if [ -z "$thread_id" ]; then
+        echo '{"id":2,"error":{"message":"missing thread id"}}'
+      else
+        echo "{\"id\":2,\"result\":{\"thread\":{\"id\":\"$thread_id\"}}}"
+      fi
+      continue
+    fi
+
+    if printf '%s' "$line" | grep -q '"method":"turn/start"'; then
+      prompt=$(printf '%s' "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p')
+      if [ -z "$thread_id" ]; then
+        thread_id=$(printf '%s' "$line" | sed -n 's/.*"threadId":"\([^"]*\)".*/\1/p')
+      fi
+
+      echo '{"id":3,"result":{"turn":{"id":"turn-1","status":"inProgress"}}}'
+      echo "{\"method\":\"turn/started\",\"params\":{\"threadId\":\"$thread_id\",\"turn\":{\"id\":\"turn-1\",\"status\":\"inProgress\",\"items\":[]}}}"
+
+      if printf '%s' "$prompt" | grep -q 'FAIL'; then
+        echo "{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"$thread_id\",\"turn\":{\"id\":\"turn-1\",\"status\":\"failed\",\"items\":[],\"error\":{\"message\":\"openai-failed\",\"code\":\"openai_code\"}}}}"
+      else
+        echo "{\"method\":\"item/completed\",\"params\":{\"threadId\":\"$thread_id\",\"turnId\":\"turn-1\",\"item\":{\"type\":\"agentMessage\",\"phase\":\"final_answer\",\"text\":\"openai-success\"}}}"
+        echo "{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"$thread_id\",\"turn\":{\"id\":\"turn-1\",\"status\":\"completed\",\"items\":[]}}}"
+      fi
+      exit 0
+    fi
+  done
+  exit 0
+fi
+
+echo "unexpected codex args: $*" 1>&2
+exit 2

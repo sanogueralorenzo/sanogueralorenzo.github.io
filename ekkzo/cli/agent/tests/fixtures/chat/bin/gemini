@@ -1,0 +1,34 @@
+#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "gemini-fake"
+  exit 0
+fi
+
+if [ "$1" != "--acp" ]; then
+  echo "unexpected gemini args: $*" 1>&2
+  exit 2
+fi
+
+session_id=""
+prompt_line=""
+while IFS= read -r line; do
+  if printf '%s' "$line" | grep -q '"method":"session/prompt"'; then
+    session_id=$(printf '%s' "$line" | sed -n 's/.*"sessionId":"\([^"]*\)".*/\1/p')
+    prompt_line="$line"
+  fi
+done
+
+if [ -z "$session_id" ]; then
+  session_id="session-missing"
+fi
+
+echo '{"jsonrpc":"2.0","id":"agent-init","result":{"protocolVersion":1}}'
+echo "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"$session_id\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"google-success\"}}}}"
+
+if printf '%s' "$prompt_line" | grep -q 'FAIL'; then
+  echo '{"jsonrpc":"2.0","id":"agent-prompt","error":{"code":-32001,"message":"google-failed"}}'
+else
+  echo '{"jsonrpc":"2.0","id":"agent-prompt","result":{"stopReason":"end_turn"}}'
+fi
+
+exit 0
