@@ -1,11 +1,11 @@
-use super::ChatAdapter;
+use super::{ChatAdapter, ChatInvocation, ChatPromptTarget};
 use crate::chat::contracts::turn_events::{
-    ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
+    ProviderName, TurnCompletedEvent, TurnError, TurnEvent, TurnStartedEvent, TurnStatus,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::io::{self, BufRead, BufReader, Write};
-use std::process::{Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -20,66 +20,152 @@ const ANTHROPIC_STREAM_JSON: &str = "stream-json";
 const ANTHROPIC_REPLAY_USER_MESSAGES_FLAG: &str = "--replay-user-messages";
 
 impl ChatAdapter for AnthropicChatAdapter {
-    fn run(&self, args: &[String]) -> Result<(), String> {
-        let bin = resolve_anthropic_bin()?;
-
-        let mut child = Command::new(bin)
-            .arg(ANTHROPIC_PRINT_FLAG)
-            .arg(ANTHROPIC_VERBOSE_FLAG)
-            .arg(ANTHROPIC_OUTPUT_FLAG)
-            .arg(ANTHROPIC_STREAM_JSON)
-            .arg(ANTHROPIC_INPUT_FLAG)
-            .arg(ANTHROPIC_STREAM_JSON)
-            .arg(ANTHROPIC_REPLAY_USER_MESSAGES_FLAG)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .map_err(|err| {
-                format!(
-                    "failed to start '{bin} {ANTHROPIC_PRINT_FLAG} {ANTHROPIC_OUTPUT_FLAG} {ANTHROPIC_STREAM_JSON}': {err}"
-                )
-            })?;
-
-        let child_stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| "failed to capture child stdin".to_string())?;
-        let child_stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| "failed to capture child stdout".to_string())?;
-
-        let mapper = Arc::new(Mutex::new(AnthropicNotificationMapper::new()));
-        let stdin_mapper = Arc::clone(&mapper);
-        let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
-            forward_stdin_to_claude(child_stdin, stdin_mapper)
-        });
-
-        let mut output = io::stdout().lock();
-        let mut reader = BufReader::new(child_stdout);
-        process_claude_output(&mut reader, &mut output, mapper)?;
-
-        match stdin_forwarder.join() {
-            Ok(Ok(())) => {}
-            Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
-            Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
+    fn run(&self, invocation: &ChatInvocation) -> Result<(), String> {
+        match invocation {
+            ChatInvocation::Passthrough { provider_args } => run_passthrough(provider_args),
+            ChatInvocation::Prompt { target, prompt } => run_prompt(target, prompt),
         }
+    }
+}
 
-        let status = child.wait().map_err(|err| {
+fn run_passthrough(args: &[String]) -> Result<(), String> {
+    let bin = resolve_anthropic_bin()?;
+    let mut child = spawn_anthropic_child(bin, args)?;
+
+    let child_stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to capture child stdin".to_string())?;
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture child stdout".to_string())?;
+
+    let mapper = Arc::new(Mutex::new(AnthropicNotificationMapper::new()));
+    let stdin_mapper = Arc::clone(&mapper);
+    let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
+        forward_stdin_to_claude(child_stdin, stdin_mapper)
+    });
+
+    let mut output = io::stdout().lock();
+    let mut reader = BufReader::new(child_stdout);
+    process_claude_output(&mut reader, &mut output, mapper)?;
+
+    match stdin_forwarder.join() {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
+        Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
+    }
+
+    wait_for_anthropic_child(bin, child)
+}
+
+fn run_prompt(target: &ChatPromptTarget, prompt: &str) -> Result<(), String> {
+    let bin = resolve_anthropic_bin()?;
+    let provider_args = prompt_mode_provider_args(target);
+    let mut child = spawn_anthropic_child(bin, &provider_args)?;
+
+    let mut child_stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to capture child stdin".to_string())?;
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture child stdout".to_string())?;
+
+    let mapper = Arc::new(Mutex::new(AnthropicNotificationMapper::new()));
+    let user_message = build_user_stream_message(prompt);
+    if let Ok(mut locked) = mapper.lock() {
+        locked.observe_client_request(&user_message);
+    }
+    write_json_line(&mut child_stdin, &user_message)?;
+    drop(child_stdin);
+
+    let expected_id = match target {
+        ChatPromptTarget::Existing(id) => Some(id.as_str()),
+        ChatPromptTarget::New => None,
+    };
+
+    let mut output = io::stdout().lock();
+    let mut reader = BufReader::new(child_stdout);
+    let completed =
+        process_claude_output_until_completion(&mut reader, &mut output, mapper, expected_id)?;
+
+    if !completed {
+        return Err("anthropic chat prompt ended before turn completion".to_string());
+    }
+
+    let _ = child.kill();
+    let _ = child.wait();
+    Ok(())
+}
+
+fn prompt_mode_provider_args(target: &ChatPromptTarget) -> Vec<String> {
+    match target {
+        ChatPromptTarget::Existing(id) => vec!["--resume".to_string(), id.clone()],
+        ChatPromptTarget::New => Vec::new(),
+    }
+}
+
+fn build_user_stream_message(prompt: &str) -> String {
+    json!({
+        "type": "user",
+        "message": {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": prompt
+                }
+            ]
+        }
+    })
+    .to_string()
+}
+
+fn write_json_line(stdin: &mut ChildStdin, message: &str) -> Result<(), String> {
+    writeln!(stdin, "{message}")
+        .map_err(|err| format!("failed writing message to claude stdin: {err}"))?;
+    stdin
+        .flush()
+        .map_err(|err| format!("failed flushing claude stdin: {err}"))
+}
+
+fn spawn_anthropic_child(bin: &str, args: &[String]) -> Result<Child, String> {
+    Command::new(bin)
+        .arg(ANTHROPIC_PRINT_FLAG)
+        .arg(ANTHROPIC_VERBOSE_FLAG)
+        .arg(ANTHROPIC_OUTPUT_FLAG)
+        .arg(ANTHROPIC_STREAM_JSON)
+        .arg(ANTHROPIC_INPUT_FLAG)
+        .arg(ANTHROPIC_STREAM_JSON)
+        .arg(ANTHROPIC_REPLAY_USER_MESSAGES_FLAG)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|err| {
             format!(
-                "failed while running '{bin} {ANTHROPIC_PRINT_FLAG} {ANTHROPIC_OUTPUT_FLAG} {ANTHROPIC_STREAM_JSON}': {err}"
+                "failed to start '{bin} {ANTHROPIC_PRINT_FLAG} {ANTHROPIC_OUTPUT_FLAG} {ANTHROPIC_STREAM_JSON}': {err}"
             )
-        })?;
+        })
+}
 
-        if status.success() {
-            Ok(())
-        } else {
-            Err(format!(
-                "'{bin} {ANTHROPIC_PRINT_FLAG} {ANTHROPIC_OUTPUT_FLAG} {ANTHROPIC_STREAM_JSON}' exited with status {status}"
-            ))
-        }
+fn wait_for_anthropic_child(bin: &str, mut child: Child) -> Result<(), String> {
+    let status = child.wait().map_err(|err| {
+        format!(
+            "failed while running '{bin} {ANTHROPIC_PRINT_FLAG} {ANTHROPIC_OUTPUT_FLAG} {ANTHROPIC_STREAM_JSON}': {err}"
+        )
+    })?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "'{bin} {ANTHROPIC_PRINT_FLAG} {ANTHROPIC_OUTPUT_FLAG} {ANTHROPIC_STREAM_JSON}' exited with status {status}"
+        ))
     }
 }
 
@@ -150,6 +236,53 @@ fn process_claude_output<R: BufRead, W: Write>(
     }
 
     Ok(())
+}
+
+fn process_claude_output_until_completion<R: BufRead, W: Write>(
+    reader: &mut R,
+    output: &mut W,
+    mapper: Arc<Mutex<AnthropicNotificationMapper>>,
+    expected_id: Option<&str>,
+) -> Result<bool, String> {
+    let mut line = String::new();
+
+    loop {
+        line.clear();
+        let bytes = reader
+            .read_line(&mut line)
+            .map_err(|err| format!("failed reading claude stream-json output: {err}"))?;
+        if bytes == 0 {
+            break;
+        }
+
+        let events = match mapper.lock() {
+            Ok(mut mapper) => mapper.map_server_message(line.trim_end())?,
+            Err(_) => return Err("failed to lock anthropic chat mapper".to_string()),
+        };
+
+        for event in events {
+            let serialized = serialize_turn_event(&event)?;
+            writeln!(output, "{serialized}")
+                .map_err(|err| format!("failed writing chat event output: {err}"))?;
+            output
+                .flush()
+                .map_err(|err| format!("failed flushing chat event output: {err}"))?;
+
+            if let TurnEvent::Completed(value) = event {
+                if let Some(id) = expected_id
+                    && id != value.id
+                {
+                    eprintln!(
+                        "chat mapper warning: expected anthropic session '{id}' but completed session '{}'",
+                        value.id
+                    );
+                }
+                return Ok(true);
+            }
+        }
+    }
+
+    Ok(false)
 }
 
 fn serialize_turn_event(event: &TurnEvent) -> Result<String, String> {
@@ -333,7 +466,10 @@ impl AnthropicNotificationMapper {
 
         events.push(TurnEvent::Completed(TurnCompletedEvent::new(
             ProviderName::Anthropic,
-            thread_id, status, answer, error,
+            thread_id,
+            status,
+            answer,
+            error,
         )));
     }
 
@@ -401,7 +537,7 @@ fn command_exists(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{AnthropicNotificationMapper, process_claude_output, resolve_anthropic_bin};
-    use crate::chat::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
+    use crate::chat::contracts::turn_events::{ProviderName, TurnEvent, TurnStatus};
     use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};

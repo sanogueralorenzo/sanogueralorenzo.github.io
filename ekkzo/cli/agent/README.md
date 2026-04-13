@@ -5,7 +5,9 @@
 ## Commands
 
 - `agent ask [--json] <prompt>`: runs a one-shot provider prompt.
-- `agent chat`: starts the provider chat process.
+- `agent chat`: starts provider chat passthrough mode (you send provider protocol messages on stdin).
+- `agent chat --new <prompt>`: creates a new conversation and runs one prompt turn.
+- `agent chat --id <conversation-id> <prompt>`: resumes an existing conversation and runs one prompt turn.
 - `agent health`: reports provider CLI availability + auth health across OpenAI, Anthropic, and Google.
 - `agent conversations list`: lists conversations from all providers using the unified session contract.
 - `agent conversations resume <id>`: resolves a session by id and executes the provider resume command.
@@ -74,8 +76,9 @@ The chat command uses the default CLI binaries on your `PATH`:
 
 Runtime behavior for now:
 
-- Incoming JSON-RPC is forwarded from chat stdin to the selected provider runtime.
-- Chat stdout emits mapped status events only.
+- In passthrough mode (`agent chat`), incoming protocol input from stdin is forwarded to the selected provider runtime.
+- In prompt mode (`agent chat --new ...` / `agent chat --id ...`), `agent` sends provider-specific protocol calls/messages for you.
+- Chat stdout emits mapped status events only in both modes.
 - All provider protocol messages and non-JSON log lines are ignored at chat output.
 
 ## Chat Contract

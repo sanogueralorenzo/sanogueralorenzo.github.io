@@ -1,14 +1,14 @@
-use super::ChatAdapter;
+use super::{ChatAdapter, ChatInvocation, ChatPromptTarget};
 use crate::chat::contracts::turn_events::{
-    ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
+    ProviderName, TurnCompletedEvent, TurnError, TurnEvent, TurnStartedEvent, TurnStatus,
 };
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::env;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -16,63 +16,304 @@ pub struct OpenAiChatAdapter;
 
 const OPENAI_APP_SERVER_SUBCOMMAND: &str = "app-server";
 const OPENAI_CLI_BIN: &str = "codex";
+const OPENAI_INIT_REQUEST_ID: u64 = 1;
+const OPENAI_THREAD_REQUEST_ID: u64 = 2;
+const OPENAI_TURN_REQUEST_ID: u64 = 3;
 
 impl ChatAdapter for OpenAiChatAdapter {
-    fn run(&self, args: &[String]) -> Result<(), String> {
-        let bin = resolve_openai_bin()?;
-
-        let mut child = Command::new(bin)
-            .arg(OPENAI_APP_SERVER_SUBCOMMAND)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .map_err(|err| {
-                format!("failed to start '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}")
-            })?;
-
-        let mut child_stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| "failed to capture child stdin".to_string())?;
-        let child_stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| "failed to capture child stdout".to_string())?;
-
-        let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
-            let mut stdin = io::stdin().lock();
-            io::copy(&mut stdin, &mut child_stdin)
-                .map_err(|err| format!("failed forwarding chat stdin to codex: {err}"))?;
-            child_stdin
-                .flush()
-                .map_err(|err| format!("failed flushing codex stdin: {err}"))
-        });
-
-        let mut mapper = OpenAiNotificationMapper::new();
-        let mut output = io::stdout().lock();
-        let mut reader = BufReader::new(child_stdout);
-        process_codex_output(&mut reader, &mut output, &mut mapper)?;
-
-        match stdin_forwarder.join() {
-            Ok(Ok(())) => {}
-            Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
-            Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
-        }
-
-        let status = child.wait().map_err(|err| {
-            format!("failed while running '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}")
-        })?;
-
-        if status.success() {
-            Ok(())
-        } else {
-            Err(format!(
-                "'{bin} {OPENAI_APP_SERVER_SUBCOMMAND}' exited with status {status}"
-            ))
+    fn run(&self, invocation: &ChatInvocation) -> Result<(), String> {
+        match invocation {
+            ChatInvocation::Passthrough { provider_args } => run_passthrough(provider_args),
+            ChatInvocation::Prompt { target, prompt } => run_prompt(target, prompt),
         }
     }
+}
+
+fn run_passthrough(args: &[String]) -> Result<(), String> {
+    let bin = resolve_openai_bin()?;
+
+    let mut child = spawn_openai_child(bin, args)?;
+
+    let mut child_stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to capture child stdin".to_string())?;
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture child stdout".to_string())?;
+
+    let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
+        let mut stdin = io::stdin().lock();
+        io::copy(&mut stdin, &mut child_stdin)
+            .map_err(|err| format!("failed forwarding chat stdin to codex: {err}"))?;
+        child_stdin
+            .flush()
+            .map_err(|err| format!("failed flushing codex stdin: {err}"))
+    });
+
+    let mut mapper = OpenAiNotificationMapper::new();
+    let mut output = io::stdout().lock();
+    let mut reader = BufReader::new(child_stdout);
+    process_codex_output(&mut reader, &mut output, &mut mapper)?;
+
+    match stdin_forwarder.join() {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
+        Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
+    }
+
+    wait_for_openai_child(bin, child)
+}
+
+fn run_prompt(target: &ChatPromptTarget, prompt: &str) -> Result<(), String> {
+    let bin = resolve_openai_bin()?;
+    let mut child = spawn_openai_child(bin, &[])?;
+
+    let mut child_stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to capture child stdin".to_string())?;
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture child stdout".to_string())?;
+
+    write_json_line(&mut child_stdin, &build_initialize_request())?;
+    write_json_line(&mut child_stdin, &build_initialized_notification())?;
+
+    let mut expected_thread_id = match target {
+        ChatPromptTarget::New => None,
+        ChatPromptTarget::Existing(id) => Some(id.clone()),
+    };
+    let mut turn_request_sent = false;
+
+    match target {
+        ChatPromptTarget::New => {
+            write_json_line(&mut child_stdin, &build_thread_start_request())?;
+        }
+        ChatPromptTarget::Existing(id) => {
+            write_json_line(&mut child_stdin, &build_thread_resume_request(id))?;
+        }
+    }
+
+    let mut mapper = OpenAiNotificationMapper::new();
+    let mut output = io::stdout().lock();
+    let mut reader = BufReader::new(child_stdout);
+    let mut line = String::new();
+    let mut completed = false;
+
+    loop {
+        line.clear();
+        let bytes = reader
+            .read_line(&mut line)
+            .map_err(|err| format!("failed reading codex app-server output: {err}"))?;
+        if bytes == 0 {
+            break;
+        }
+
+        let trimmed = line.trim_end();
+
+        if let Some(message) = extract_response_error(trimmed, OPENAI_THREAD_REQUEST_ID) {
+            return Err(format!("openai chat thread setup failed: {message}"));
+        }
+        if let Some(message) = extract_response_error(trimmed, OPENAI_TURN_REQUEST_ID) {
+            return Err(format!("openai chat turn/start failed: {message}"));
+        }
+
+        if !turn_request_sent {
+            match target {
+                ChatPromptTarget::New => {
+                    if let Some(thread_id) = extract_thread_id_from_thread_start_response(trimmed) {
+                        expected_thread_id = Some(thread_id.clone());
+                        write_json_line(
+                            &mut child_stdin,
+                            &build_turn_start_request(&thread_id, prompt),
+                        )?;
+                        turn_request_sent = true;
+                    }
+                }
+                ChatPromptTarget::Existing(id) => {
+                    if is_success_response_for_id(trimmed, OPENAI_THREAD_REQUEST_ID) {
+                        write_json_line(&mut child_stdin, &build_turn_start_request(id, prompt))?;
+                        turn_request_sent = true;
+                    }
+                }
+            }
+        }
+
+        match mapper.map_notification_json(trimmed) {
+            Ok(Some(event)) => {
+                let serialized = serialize_turn_event(&event)?;
+                writeln!(output, "{serialized}")
+                    .map_err(|err| format!("failed writing chat event output: {err}"))?;
+                output
+                    .flush()
+                    .map_err(|err| format!("failed flushing chat event output: {err}"))?;
+
+                if let TurnEvent::Completed(value) = &event {
+                    let should_finish = expected_thread_id
+                        .as_ref()
+                        .map(|thread_id| thread_id == &value.id)
+                        .unwrap_or(true);
+                    if should_finish {
+                        completed = true;
+                        break;
+                    }
+                }
+            }
+            Ok(None) => {}
+            Err(err) => eprintln!("chat mapper warning: {err}"),
+        }
+    }
+
+    drop(child_stdin);
+    if !completed {
+        return Err("openai chat prompt ended before turn completion".to_string());
+    }
+
+    let _ = child.kill();
+    let _ = child.wait();
+    Ok(())
+}
+
+fn spawn_openai_child(bin: &str, args: &[String]) -> Result<Child, String> {
+    Command::new(bin)
+        .arg(OPENAI_APP_SERVER_SUBCOMMAND)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|err| format!("failed to start '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}"))
+}
+
+fn wait_for_openai_child(bin: &str, mut child: Child) -> Result<(), String> {
+    let status = child.wait().map_err(|err| {
+        format!("failed while running '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}")
+    })?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "'{bin} {OPENAI_APP_SERVER_SUBCOMMAND}' exited with status {status}"
+        ))
+    }
+}
+
+fn write_json_line(stdin: &mut ChildStdin, value: &Value) -> Result<(), String> {
+    let serialized = serde_json::to_string(value)
+        .map_err(|err| format!("failed to serialize request: {err}"))?;
+    writeln!(stdin, "{serialized}")
+        .map_err(|err| format!("failed writing request to codex app-server stdin: {err}"))?;
+    stdin
+        .flush()
+        .map_err(|err| format!("failed flushing codex app-server stdin: {err}"))
+}
+
+fn build_initialize_request() -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "id": OPENAI_INIT_REQUEST_ID,
+        "method": "initialize",
+        "params": {
+            "clientInfo": {
+                "name": "agent-chat",
+                "version": "0.1",
+                "title": null
+            },
+            "capabilities": {
+                "experimentalApi": true
+            }
+        }
+    })
+}
+
+fn build_initialized_notification() -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "method": "initialized"
+    })
+}
+
+fn build_thread_start_request() -> Value {
+    let cwd = env::current_dir()
+        .ok()
+        .map(|value| value.to_string_lossy().to_string());
+
+    json!({
+        "jsonrpc": "2.0",
+        "id": OPENAI_THREAD_REQUEST_ID,
+        "method": "thread/start",
+        "params": {
+            "cwd": cwd
+        }
+    })
+}
+
+fn build_thread_resume_request(thread_id: &str) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "id": OPENAI_THREAD_REQUEST_ID,
+        "method": "thread/resume",
+        "params": {
+            "threadId": thread_id
+        }
+    })
+}
+
+fn build_turn_start_request(thread_id: &str, prompt: &str) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "id": OPENAI_TURN_REQUEST_ID,
+        "method": "turn/start",
+        "params": {
+            "threadId": thread_id,
+            "input": [
+                {
+                    "type": "text",
+                    "text": prompt
+                }
+            ]
+        }
+    })
+}
+
+fn is_success_response_for_id(raw_line: &str, id: u64) -> bool {
+    let Ok(value) = serde_json::from_str::<Value>(raw_line) else {
+        return false;
+    };
+    value.get("id").and_then(Value::as_u64) == Some(id) && value.get("result").is_some()
+}
+
+fn extract_response_error(raw_line: &str, id: u64) -> Option<String> {
+    let Ok(value) = serde_json::from_str::<Value>(raw_line) else {
+        return None;
+    };
+    if value.get("id").and_then(Value::as_u64) != Some(id) {
+        return None;
+    }
+    value
+        .get("error")
+        .and_then(|error| error.get("message"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+fn extract_thread_id_from_thread_start_response(raw_line: &str) -> Option<String> {
+    let Ok(value) = serde_json::from_str::<Value>(raw_line) else {
+        return None;
+    };
+    if value.get("id").and_then(Value::as_u64) != Some(OPENAI_THREAD_REQUEST_ID) {
+        return None;
+    }
+    value
+        .get("result")
+        .and_then(|result| result.get("thread"))
+        .and_then(|thread| thread.get("id"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
 }
 
 fn process_codex_output<R: BufRead, W: Write>(
@@ -373,7 +614,7 @@ mod tests {
         OpenAiNotificationMapper, process_codex_output, resolve_openai_bin,
         run_codex_schema_generation, schema_output_dir,
     };
-    use crate::chat::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
+    use crate::chat::contracts::turn_events::{ProviderName, TurnEvent, TurnStatus};
     use std::fs;
     use std::io::Cursor;
 

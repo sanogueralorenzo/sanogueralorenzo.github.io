@@ -1,68 +1,173 @@
-use super::ChatAdapter;
+use super::{ChatAdapter, ChatInvocation, ChatPromptTarget};
 use crate::chat::contracts::turn_events::{
-    ProviderName, TurnCompletedEvent, TurnStatus, TurnError, TurnEvent, TurnStartedEvent,
+    ProviderName, TurnCompletedEvent, TurnError, TurnEvent, TurnStartedEvent, TurnStatus,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, BufReader, Write};
-use std::process::{Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct GoogleChatAdapter;
 
 const GOOGLE_ACP_FLAG: &str = "--acp";
 const GOOGLE_CLI_BIN: &str = "gemini";
+const GOOGLE_INIT_REQUEST_ID: &str = "agent-init";
+const GOOGLE_PROMPT_REQUEST_ID: &str = "agent-prompt";
 
 impl ChatAdapter for GoogleChatAdapter {
-    fn run(&self, args: &[String]) -> Result<(), String> {
-        let bin = resolve_google_bin()?;
-
-        let mut child = Command::new(bin)
-            .arg(GOOGLE_ACP_FLAG)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .map_err(|err| format!("failed to start '{bin} {GOOGLE_ACP_FLAG}': {err}"))?;
-
-        let child_stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| "failed to capture child stdin".to_string())?;
-        let child_stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| "failed to capture child stdout".to_string())?;
-
-        let mapper = Arc::new(Mutex::new(GoogleNotificationMapper::new()));
-        let stdin_mapper = Arc::clone(&mapper);
-        let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
-            forward_stdin_to_gemini(child_stdin, stdin_mapper)
-        });
-
-        let mut output = io::stdout().lock();
-        let mut reader = BufReader::new(child_stdout);
-        process_gemini_output(&mut reader, &mut output, mapper)?;
-
-        match stdin_forwarder.join() {
-            Ok(Ok(())) => {}
-            Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
-            Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
+    fn run(&self, invocation: &ChatInvocation) -> Result<(), String> {
+        match invocation {
+            ChatInvocation::Passthrough { provider_args } => run_passthrough(provider_args),
+            ChatInvocation::Prompt { target, prompt } => run_prompt(target, prompt),
         }
+    }
+}
 
-        let status = child
-            .wait()
-            .map_err(|err| format!("failed while running '{bin} {GOOGLE_ACP_FLAG}': {err}"))?;
+fn run_passthrough(args: &[String]) -> Result<(), String> {
+    let bin = resolve_google_bin()?;
+    let mut child = spawn_google_child(bin, args)?;
 
-        if status.success() {
-            Ok(())
-        } else {
-            Err(format!(
-                "'{bin} {GOOGLE_ACP_FLAG}' exited with status {status}"
-            ))
+    let child_stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to capture child stdin".to_string())?;
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture child stdout".to_string())?;
+
+    let mapper = Arc::new(Mutex::new(GoogleNotificationMapper::new()));
+    let stdin_mapper = Arc::clone(&mapper);
+    let stdin_forwarder = thread::spawn(move || -> Result<(), String> {
+        forward_stdin_to_gemini(child_stdin, stdin_mapper)
+    });
+
+    let mut output = io::stdout().lock();
+    let mut reader = BufReader::new(child_stdout);
+    process_gemini_output(&mut reader, &mut output, mapper)?;
+
+    match stdin_forwarder.join() {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => eprintln!("chat stdin forwarder warning: {err}"),
+        Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
+    }
+
+    wait_for_google_child(bin, child)
+}
+
+fn run_prompt(target: &ChatPromptTarget, prompt: &str) -> Result<(), String> {
+    let bin = resolve_google_bin()?;
+    let mut child = spawn_google_child(bin, &[])?;
+
+    let mut child_stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to capture child stdin".to_string())?;
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture child stdout".to_string())?;
+
+    let session_id = match target {
+        ChatPromptTarget::Existing(id) => id.clone(),
+        ChatPromptTarget::New => build_new_session_id(),
+    };
+
+    let mapper = Arc::new(Mutex::new(GoogleNotificationMapper::new()));
+    let init_request = build_initialize_request();
+    write_json_line(&mut child_stdin, &init_request)?;
+    let prompt_request = build_prompt_request(&session_id, prompt);
+    if let Ok(mut locked) = mapper.lock() {
+        locked.observe_client_request(&prompt_request);
+    }
+    write_json_line(&mut child_stdin, &prompt_request)?;
+    drop(child_stdin);
+
+    let mut output = io::stdout().lock();
+    let mut reader = BufReader::new(child_stdout);
+    let completed =
+        process_gemini_output_until_completion(&mut reader, &mut output, mapper, &session_id)?;
+
+    if !completed {
+        return Err("google chat prompt ended before turn completion".to_string());
+    }
+
+    let _ = child.kill();
+    let _ = child.wait();
+    Ok(())
+}
+
+fn build_new_session_id() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_nanos())
+        .unwrap_or_default();
+    format!("session-{nanos}")
+}
+
+fn build_initialize_request() -> String {
+    json!({
+        "jsonrpc": "2.0",
+        "id": GOOGLE_INIT_REQUEST_ID,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": 1
         }
+    })
+    .to_string()
+}
+
+fn build_prompt_request(session_id: &str, prompt: &str) -> String {
+    json!({
+        "jsonrpc": "2.0",
+        "id": GOOGLE_PROMPT_REQUEST_ID,
+        "method": "session/prompt",
+        "params": {
+            "sessionId": session_id,
+            "prompt": [
+                {
+                    "type": "text",
+                    "text": prompt
+                }
+            ]
+        }
+    })
+    .to_string()
+}
+
+fn write_json_line(stdin: &mut ChildStdin, message: &str) -> Result<(), String> {
+    writeln!(stdin, "{message}")
+        .map_err(|err| format!("failed writing message to gemini stdin: {err}"))?;
+    stdin
+        .flush()
+        .map_err(|err| format!("failed flushing gemini stdin: {err}"))
+}
+
+fn spawn_google_child(bin: &str, args: &[String]) -> Result<Child, String> {
+    Command::new(bin)
+        .arg(GOOGLE_ACP_FLAG)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|err| format!("failed to start '{bin} {GOOGLE_ACP_FLAG}': {err}"))
+}
+
+fn wait_for_google_child(bin: &str, mut child: Child) -> Result<(), String> {
+    let status = child
+        .wait()
+        .map_err(|err| format!("failed while running '{bin} {GOOGLE_ACP_FLAG}': {err}"))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "'{bin} {GOOGLE_ACP_FLAG}' exited with status {status}"
+        ))
     }
 }
 
@@ -133,6 +238,51 @@ fn process_gemini_output<R: BufRead, W: Write>(
     }
 
     Ok(())
+}
+
+fn process_gemini_output_until_completion<R: BufRead, W: Write>(
+    reader: &mut R,
+    output: &mut W,
+    mapper: Arc<Mutex<GoogleNotificationMapper>>,
+    session_id: &str,
+) -> Result<bool, String> {
+    let mut line = String::new();
+
+    loop {
+        line.clear();
+        let bytes = reader
+            .read_line(&mut line)
+            .map_err(|err| format!("failed reading gemini acp output: {err}"))?;
+        if bytes == 0 {
+            break;
+        }
+
+        let events = match mapper.lock() {
+            Ok(mut mapper) => mapper.map_server_message(line.trim_end())?,
+            Err(_) => return Err("failed to lock google chat mapper".to_string()),
+        };
+
+        for event in events {
+            let serialized = serialize_turn_event(&event)?;
+            writeln!(output, "{serialized}")
+                .map_err(|err| format!("failed writing chat event output: {err}"))?;
+            output
+                .flush()
+                .map_err(|err| format!("failed flushing chat event output: {err}"))?;
+
+            if let TurnEvent::Completed(value) = event {
+                if value.id != session_id {
+                    eprintln!(
+                        "chat mapper warning: expected google session '{session_id}' but completed session '{}'",
+                        value.id
+                    );
+                }
+                return Ok(true);
+            }
+        }
+    }
+
+    Ok(false)
 }
 
 fn serialize_turn_event(event: &TurnEvent) -> Result<String, String> {
@@ -299,10 +449,7 @@ impl GoogleNotificationMapper {
                 Value::Number(value) => Some(value.to_string()),
                 _ => None,
             });
-            (
-                TurnStatus::Failed,
-                Some(TurnError::new(message, code)),
-            )
+            (TurnStatus::Failed, Some(TurnError::new(message, code)))
         } else {
             let stop_reason = value
                 .get("result")
@@ -408,7 +555,7 @@ fn command_exists(command: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{GoogleNotificationMapper, process_gemini_output, resolve_google_bin};
-    use crate::chat::contracts::turn_events::{ProviderName, TurnStatus, TurnEvent};
+    use crate::chat::contracts::turn_events::{ProviderName, TurnEvent, TurnStatus};
     use serde_json::Value;
     use std::io::Cursor;
     use std::sync::{Arc, Mutex};
