@@ -37,7 +37,9 @@ if [ "$1" = "app-server" ]; then
       echo '{"id":3,"result":{"turn":{"id":"turn-1","status":"inProgress"}}}'
       echo "{\"method\":\"turn/started\",\"params\":{\"threadId\":\"$thread_id\",\"turn\":{\"id\":\"turn-1\",\"status\":\"inProgress\",\"items\":[]}}}"
 
-      if printf '%s' "$prompt" | grep -q 'FAIL'; then
+      if printf '%s' "$prompt" | grep -q 'NO_FINAL'; then
+        exit 0
+      elif printf '%s' "$prompt" | grep -q 'FAIL'; then
         echo "{\"method\":\"turn/completed\",\"params\":{\"threadId\":\"$thread_id\",\"turn\":{\"id\":\"turn-1\",\"status\":\"failed\",\"items\":[],\"error\":{\"message\":\"openai-failed\",\"code\":\"openai_code\"}}}}"
       else
         echo "{\"method\":\"item/completed\",\"params\":{\"threadId\":\"$thread_id\",\"turnId\":\"turn-1\",\"item\":{\"type\":\"agentMessage\",\"phase\":\"final_answer\",\"text\":\"openai-success\"}}}"

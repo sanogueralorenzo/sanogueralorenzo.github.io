@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const OPENAI_ASK_BIN_ENV: &str = "AGENT_OPENAI_ASK_BIN";
@@ -34,7 +35,7 @@ fn ask_json_maps_interrupted_for_google() {
     let output = run_agent_ask(&workspace, "google", &["ask", "--json", "cancel"])
         .expect("agent ask should run");
 
-    assert_eq!(output.status.code(), Some(130));
+    assert_eq!(output.status.code(), Some(0));
     let events = parse_json_lines(&output.stdout);
     assert_eq!(events.len(), 2);
     assert_eq!(json_field(&events[1], "provider"), Some("google"));
@@ -48,7 +49,7 @@ fn ask_json_maps_failed_for_anthropic() {
     let output = run_agent_ask(&workspace, "anthropic", &["ask", "--json", "boom"])
         .expect("agent ask should run");
 
-    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.status.code(), Some(0));
     let events = parse_json_lines(&output.stdout);
     assert_eq!(events.len(), 2);
     assert_eq!(json_field(&events[1], "provider"), Some("anthropic"));
@@ -217,11 +218,16 @@ fn copy_dir_recursively(source: &Path, destination: &Path) -> Result<(), String>
 }
 
 fn temp_dir(prefix: &str) -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let suffix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("time should be valid")
         .as_nanos();
-    let path = std::env::temp_dir().join(format!("{prefix}-{suffix}"));
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path = std::env::temp_dir().join(format!(
+        "{prefix}-{}-{suffix}-{counter}",
+        std::process::id()
+    ));
     fs::create_dir_all(&path).expect("temp dir should be created");
     path
 }

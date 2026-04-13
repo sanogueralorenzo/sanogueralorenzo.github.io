@@ -55,7 +55,7 @@ fn run_passthrough(args: &[String]) -> Result<(), String> {
     let mut mapper = OpenAiNotificationMapper::new();
     let mut output = io::stdout().lock();
     let mut reader = BufReader::new(child_stdout);
-    process_codex_output(&mut reader, &mut output, &mut mapper)?;
+    let emitted_final_event = process_codex_output(&mut reader, &mut output, &mut mapper)?;
 
     match stdin_forwarder.join() {
         Ok(Ok(())) => {}
@@ -63,7 +63,7 @@ fn run_passthrough(args: &[String]) -> Result<(), String> {
         Err(_) => eprintln!("chat stdin forwarder warning: thread panicked"),
     }
 
-    wait_for_openai_child(bin, child)
+    wait_for_openai_child(bin, child, emitted_final_event)
 }
 
 fn run_prompt(target: &ChatPromptTarget, prompt: &str) -> Result<(), String> {
@@ -188,12 +188,16 @@ fn spawn_openai_child(bin: &str, args: &[String]) -> Result<Child, String> {
         .map_err(|err| format!("failed to start '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}"))
 }
 
-fn wait_for_openai_child(bin: &str, mut child: Child) -> Result<(), String> {
+fn wait_for_openai_child(
+    bin: &str,
+    mut child: Child,
+    emitted_final_event: bool,
+) -> Result<(), String> {
     let status = child.wait().map_err(|err| {
         format!("failed while running '{bin} {OPENAI_APP_SERVER_SUBCOMMAND}': {err}")
     })?;
 
-    if status.success() {
+    if status.success() || emitted_final_event {
         Ok(())
     } else {
         Err(format!(
@@ -320,8 +324,9 @@ fn process_codex_output<R: BufRead, W: Write>(
     reader: &mut R,
     output: &mut W,
     mapper: &mut OpenAiNotificationMapper,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     let mut line = String::new();
+    let mut emitted_final_event = false;
 
     loop {
         line.clear();
@@ -334,6 +339,9 @@ fn process_codex_output<R: BufRead, W: Write>(
 
         match mapper.map_notification_json(line.trim_end()) {
             Ok(Some(event)) => {
+                if matches!(event, TurnEvent::Completed(_)) {
+                    emitted_final_event = true;
+                }
                 let serialized = serialize_turn_event(&event)?;
                 writeln!(output, "{serialized}")
                     .map_err(|err| format!("failed writing chat event output: {err}"))?;
@@ -348,7 +356,7 @@ fn process_codex_output<R: BufRead, W: Write>(
         }
     }
 
-    Ok(())
+    Ok(emitted_final_event)
 }
 
 fn serialize_turn_event(event: &TurnEvent) -> Result<String, String> {
@@ -841,7 +849,7 @@ mod tests {
         let mut reader = Cursor::new(input.as_bytes());
         let mut output: Vec<u8> = Vec::new();
         let mut mapper = OpenAiNotificationMapper::new();
-        process_codex_output(&mut reader, &mut output, &mut mapper)
+        let emitted_final_event = process_codex_output(&mut reader, &mut output, &mut mapper)
             .expect("processing should succeed");
 
         let output_text = String::from_utf8(output).expect("output should be utf-8");
@@ -854,6 +862,7 @@ mod tests {
         assert!(lines[1].contains("\"id\":\"thread-live\""));
         assert!(lines[1].contains("\"status\":\"completed\""));
         assert!(lines[1].contains("\"answer\":\"Hello\""));
+        assert!(emitted_final_event);
     }
 
     trait TestOptionExt<T> {

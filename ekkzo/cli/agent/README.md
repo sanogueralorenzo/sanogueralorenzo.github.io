@@ -59,6 +59,7 @@ Runtime behavior for now:
 - `agent ask --json` then emits a final event with `status` (`completed|interrupted|failed`), `answer`, and `error`.
 - `provider` and `id` are present on both JSON events.
 - `agent ask` (without `--json`) emits human-readable text output (not contract-stable).
+- `agent ask` exits `0` whenever a final event is emitted; non-zero is reserved for transport/protocol failures.
 
 ## Chat Notes
 
@@ -80,6 +81,7 @@ Runtime behavior for now:
 - In prompt mode (`agent chat --new ...` / `agent chat --id ...`), `agent` sends provider-specific protocol calls/messages for you.
 - Chat stdout emits mapped status events only in both modes.
 - All provider protocol messages and non-JSON log lines are ignored at chat output.
+- `agent chat` exits `0` whenever a final event is emitted; non-zero is reserved for transport/protocol failures.
 
 ## Chat Contract
 

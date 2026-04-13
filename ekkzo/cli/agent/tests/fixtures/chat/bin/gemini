@@ -25,7 +25,9 @@ fi
 echo '{"jsonrpc":"2.0","id":"agent-init","result":{"protocolVersion":1}}'
 echo "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"$session_id\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"google-success\"}}}}"
 
-if printf '%s' "$prompt_line" | grep -q 'FAIL'; then
+if printf '%s' "$prompt_line" | grep -q 'NO_FINAL'; then
+  exit 0
+elif printf '%s' "$prompt_line" | grep -q 'FAIL'; then
   echo '{"jsonrpc":"2.0","id":"agent-prompt","error":{"code":-32001,"message":"google-failed"}}'
 else
   echo '{"jsonrpc":"2.0","id":"agent-prompt","result":{"stopReason":"end_turn"}}'

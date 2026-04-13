@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
@@ -71,6 +72,23 @@ fn chat_openai_failed_turn_maps_failed_status() {
             .and_then(Value::as_str),
         Some("openai_code")
     );
+}
+
+#[test]
+fn chat_openai_missing_final_event_exits_non_zero() {
+    let workspace = create_fixture_workspace().expect("workspace should be created");
+    let output = run_agent_chat(
+        &workspace,
+        "openai",
+        &["chat", "--new", "NO_FINAL-openai-turn"],
+    )
+    .expect("agent chat should run");
+
+    assert!(!output.status.success());
+    let events = parse_json_lines(&output.stdout);
+    assert_eq!(events.len(), 1);
+    assert_eq!(json_field(&events[0], "provider"), Some("openai"));
+    assert_eq!(json_field(&events[0], "status"), Some("thinking"));
 }
 
 #[test]
@@ -155,6 +173,23 @@ fn chat_anthropic_failed_turn_maps_failed_status() {
 }
 
 #[test]
+fn chat_anthropic_missing_final_event_exits_non_zero() {
+    let workspace = create_fixture_workspace().expect("workspace should be created");
+    let output = run_agent_chat(
+        &workspace,
+        "anthropic",
+        &["chat", "--new", "NO_FINAL-anthropic-turn"],
+    )
+    .expect("agent chat should run");
+
+    assert!(!output.status.success());
+    let events = parse_json_lines(&output.stdout);
+    assert_eq!(events.len(), 1);
+    assert_eq!(json_field(&events[0], "provider"), Some("anthropic"));
+    assert_eq!(json_field(&events[0], "status"), Some("thinking"));
+}
+
+#[test]
 fn chat_new_google_emits_completed_contract() {
     let workspace = create_fixture_workspace().expect("workspace should be created");
     let output = run_agent_chat(&workspace, "google", &["chat", "--new", "hello-google"])
@@ -222,6 +257,23 @@ fn chat_google_failed_turn_maps_failed_status() {
             .and_then(Value::as_str),
         Some("-32001")
     );
+}
+
+#[test]
+fn chat_google_missing_final_event_exits_non_zero() {
+    let workspace = create_fixture_workspace().expect("workspace should be created");
+    let output = run_agent_chat(
+        &workspace,
+        "google",
+        &["chat", "--new", "NO_FINAL-google-turn"],
+    )
+    .expect("agent chat should run");
+
+    assert!(!output.status.success());
+    let events = parse_json_lines(&output.stdout);
+    assert_eq!(events.len(), 1);
+    assert_eq!(json_field(&events[0], "provider"), Some("google"));
+    assert_eq!(json_field(&events[0], "status"), Some("thinking"));
 }
 
 fn run_agent_chat(
@@ -351,11 +403,16 @@ fn copy_dir_recursively(source: &Path, destination: &Path) -> Result<(), String>
 }
 
 fn temp_dir(prefix: &str) -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let suffix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("time should be valid")
         .as_nanos();
-    let path = std::env::temp_dir().join(format!("{prefix}-{suffix}"));
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path = std::env::temp_dir().join(format!(
+        "{prefix}-{}-{suffix}-{counter}",
+        std::process::id()
+    ));
     fs::create_dir_all(&path).expect("temp dir should be created");
     path
 }

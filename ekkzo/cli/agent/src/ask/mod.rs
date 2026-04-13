@@ -1,7 +1,7 @@
 pub mod adapters;
 pub mod contracts;
 
-use contracts::{AskError, AskEvent, AskStatus, ProviderName};
+use contracts::{AskEvent, AskStatus, ProviderName};
 use std::io::Write;
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -54,27 +54,22 @@ fn ask_command_with_writer<W: Write>(
         return ExitCode::from(1);
     }
 
-    let final_event = match adapters::ask_with_provider(provider_name, &ask_input.prompt) {
-        Ok(result) => AskEvent::new(provider, id, result.status, result.answer, result.error),
-        Err(err) => AskEvent::new(
-            provider,
-            id,
-            AskStatus::Failed,
-            None,
-            Some(AskError::new(err, Some("adapter_error".to_string()))),
-        ),
+    let result = match adapters::ask_with_provider(provider_name, &ask_input.prompt) {
+        Ok(value) => value,
+        Err(err) => {
+            eprintln!("{err}");
+            return ExitCode::from(1);
+        }
     };
+
+    let final_event = AskEvent::new(provider, id, result.status, result.answer, result.error);
 
     if let Err(err) = print_event(output, ask_input.output_mode, &final_event) {
         eprintln!("{err}");
         return ExitCode::from(1);
     }
 
-    match final_event.status {
-        AskStatus::Completed => ExitCode::SUCCESS,
-        AskStatus::Interrupted => ExitCode::from(130),
-        AskStatus::Failed | AskStatus::Thinking => ExitCode::from(1),
-    }
+    ExitCode::SUCCESS
 }
 
 fn parse_args(args: Vec<String>) -> Result<AskCommandInput, String> {
@@ -241,7 +236,7 @@ mod tests {
             &mut output,
         );
 
-        assert_eq!(code, std::process::ExitCode::from(130));
+        assert_eq!(code, std::process::ExitCode::SUCCESS);
         let lines = parse_lines(&output);
         assert_eq!(lines.len(), 2);
         assert_eq!(json_field(&lines[1], "provider"), Some("google"));
@@ -261,7 +256,7 @@ mod tests {
             &mut output,
         );
 
-        assert_eq!(code, std::process::ExitCode::from(1));
+        assert_eq!(code, std::process::ExitCode::SUCCESS);
         let lines = parse_lines(&output);
         assert_eq!(lines.len(), 2);
         assert_eq!(json_field(&lines[1], "provider"), Some("anthropic"));
@@ -284,6 +279,27 @@ mod tests {
         assert!(text.contains("thinking"));
         assert!(text.contains("completed"));
         assert!(!text.trim_start().starts_with('{'));
+    }
+
+    #[test]
+    fn transport_failure_exits_non_zero_without_final_event() {
+        let _guard = env_lock().lock().expect("env lock should be acquired");
+        let fixtures = create_fake_provider_bins().expect("fixtures should be created");
+        let _env = configure_fake_binaries(&fixtures);
+        let _override = ScopedEnvVar::set(OPENAI_ASK_BIN_ENV, "definitely-missing-openai-bin");
+
+        let mut output = Vec::new();
+        let code = ask_command_with_writer(
+            "openai",
+            vec!["--json".to_string(), "hello".to_string()],
+            &mut output,
+        );
+
+        assert_eq!(code, std::process::ExitCode::from(1));
+        let lines = parse_lines(&output);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(json_field(&lines[0], "provider"), Some("openai"));
+        assert_eq!(json_field(&lines[0], "status"), Some("thinking"));
     }
 
     fn parse_lines(output: &[u8]) -> Vec<serde_json::Value> {

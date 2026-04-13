@@ -22,7 +22,9 @@ done
 echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"$session_id\"}"
 echo "{\"type\":\"assistant\",\"session_id\":\"$session_id\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"anthropic-success\"}]}}"
 
-if printf '%s' "$input" | grep -q 'FAIL'; then
+if printf '%s' "$input" | grep -q 'NO_FINAL'; then
+  exit 0
+elif printf '%s' "$input" | grep -q 'FAIL'; then
   echo "{\"type\":\"result\",\"session_id\":\"$session_id\",\"is_error\":true,\"result\":\"anthropic-failed\",\"error\":\"anthropic_code\",\"stop_reason\":\"stop_sequence\",\"terminal_reason\":\"completed\"}"
 else
   echo "{\"type\":\"result\",\"session_id\":\"$session_id\",\"is_error\":false,\"result\":\"done\",\"stop_reason\":\"end_turn\",\"terminal_reason\":\"completed\"}"
