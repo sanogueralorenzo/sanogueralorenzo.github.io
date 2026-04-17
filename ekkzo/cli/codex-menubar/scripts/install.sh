@@ -8,7 +8,7 @@ APP_BUNDLE_IDENTIFIER="io.github.sanogueralorenzo.codex.menubar"
 APP_BUNDLE_NAME="Codex Menu Bar"
 APP_DIR="$ROOT_DIR/release/$APP_BUNDLE_NAME.app"
 TARGET_APP_DIR="/Applications/$APP_BUNDLE_NAME.app"
-ICON_PATH="$ROOT_DIR/assets/codex.png"
+ICON_PATH="$ROOT_DIR/assets/codex.svg"
 LAUNCH_AGENT_PLIST="$HOME/Library/LaunchAgents/$APP_BUNDLE_IDENTIFIER.plist"
 LAUNCHD_DOMAIN="gui/$(id -u)"
 
@@ -91,7 +91,7 @@ PLIST
 cp "$BIN_PATH" "$APP_DIR/Contents/MacOS/$APP_EXECUTABLE_NAME"
 chmod +x "$APP_DIR/Contents/MacOS/$APP_EXECUTABLE_NAME"
 
-cp "$ICON_PATH" "$APP_DIR/Contents/Resources/codex.png"
+cp "$ICON_PATH" "$APP_DIR/Contents/Resources/codex.svg"
 
 codesign --force --sign - "$APP_DIR" >/dev/null 2>&1 || true
 
