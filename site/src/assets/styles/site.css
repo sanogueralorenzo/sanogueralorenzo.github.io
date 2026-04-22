@@ -267,7 +267,7 @@ a {
 
 .post-link {
   display: grid;
-  grid-template-columns: 138px minmax(0, 224px);
+  grid-template-columns: 138px minmax(0, 448px);
   gap: 38px;
   padding: 36px 0 46px;
   align-items: start;
@@ -291,7 +291,7 @@ a {
 }
 
 .post-card-body {
-  max-width: 224px;
+  max-width: 448px;
 }
 
 .post-card h2 a {
@@ -300,7 +300,7 @@ a {
 
 .post-card-excerpt {
   display: -webkit-box;
-  max-width: 22ch;
+  max-width: 44ch;
   margin: 8px 0 0;
   overflow: hidden;
   -webkit-line-clamp: 2;
