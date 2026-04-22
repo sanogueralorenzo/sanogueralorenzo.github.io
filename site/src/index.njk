@@ -7,11 +7,6 @@ layout: base.njk
       <p class="hero-eyebrow">{{ site.hero.eyebrow }}</p>
       <h1>{{ site.hero.title }}</h1>
       <p class="hero-intro">{{ site.hero.intro }}</p>
-      <div class="hero-actions">
-        {% for action in site.actions %}
-          <a class="button {% if loop.first %}button-primary{% else %}button-secondary{% endif %}" href="{{ action.url }}" target="_blank" rel="noreferrer">{{ action.label }}</a>
-        {% endfor %}
-      </div>
     </div>
     <figure class="hero-media">
       <img src="{{ site.hero.image }}" alt="{{ site.hero.imageAlt }}">
@@ -30,8 +25,8 @@ layout: base.njk
         <p class="profile-blurb">{{ site.profile.blurb }}</p>
         <div class="profile-links" aria-label="Profile links">
           {% for link in site.links %}
-            <a class="icon-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
-              <span>{{ link.iconText }}</span>
+            <a class="profile-link-pill" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
+              <span>{{ link.name }}</span>
             </a>
           {% endfor %}
         </div>

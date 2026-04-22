@@ -103,39 +103,8 @@ a {
   max-width: 36ch;
 }
 
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 40px;
-}
-
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 52px;
-  padding: 0 22px;
-  border-radius: 999px;
-  border: 1px solid rgba(21, 20, 18, 0.09);
-  font-weight: 600;
-  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
-}
-
-.button:hover,
-.link-card:hover,
 .post-card:hover {
   transform: translateY(-2px);
-}
-
-.button-primary {
-  background: #161412;
-  color: #fffaf4;
-  box-shadow: var(--shadow);
-}
-
-.button-secondary {
-  background: rgba(255, 255, 255, 0.88);
 }
 
 .hero-media {
@@ -206,29 +175,30 @@ a {
   margin-top: 26px;
 }
 
-.icon-link {
+.profile-link-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
-  box-shadow: var(--shadow);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  box-shadow: none;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
-.icon-link span {
-  font-size: 0.92rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+.profile-link-pill span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-.icon-link:hover {
+.profile-link-pill:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-strong);
+  box-shadow: var(--shadow);
   border-color: rgba(24, 23, 22, 0.14);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .profile-image {
