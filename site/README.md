@@ -13,7 +13,7 @@ npm run dev
 
 - Build: `npm run build`
 - Config: `site/.eleventy.js`
-- Site data: `site/src/_data/site.js`
+- Site data and homepage content: `site/src/_data/site.js`
 - Layouts: `site/src/_includes`
 - Posts: `site/src/posts`
 - Assets: `site/src/assets`

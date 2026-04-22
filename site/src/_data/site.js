@@ -2,7 +2,6 @@ export default {
   title: "Mario Sanoguera de Lorenzo",
   description:
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
-  socialImage: "/assets/images/hero-air-thoughts-v10.png",
   hero: {
     title: "hey",
     subline: "zero to one",
