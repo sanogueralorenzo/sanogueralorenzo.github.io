@@ -8,55 +8,126 @@ if (canvas) {
 
   const waveSets = [
     {
-      startX: 0.36,
-      endX: 0.94,
-      baseY: 0.18,
-      amplitude: 0.055,
-      frequency: 1.6,
-      lineWidth: 1.15,
-      alpha: 0.16,
-      speed: 0.00008,
-      color: "38, 44, 56",
+      startX: 0.46,
+      endX: 0.98,
+      baseY: 0.11,
+      amplitude: 0.05,
+      frequency: 1.5,
+      lineWidth: 1.05,
+      alpha: 0.18,
+      speed: 0.000075,
+      color: "40, 48, 62",
     },
     {
-      startX: 0.48,
+      startX: 0.42,
       endX: 0.96,
-      baseY: 0.29,
-      amplitude: 0.042,
-      frequency: 2.3,
+      baseY: 0.19,
+      amplitude: 0.038,
+      frequency: 1.9,
       lineWidth: 0.9,
-      alpha: 0.11,
-      speed: -0.00005,
-      color: "62, 78, 96",
+      alpha: 0.135,
+      speed: -0.000045,
+      color: "68, 84, 102",
+    },
+    {
+      startX: 0.18,
+      endX: 0.84,
+      baseY: 0.62,
+      amplitude: 0.042,
+      frequency: 1.7,
+      lineWidth: 0.95,
+      alpha: 0.12,
+      speed: 0.000055,
+      color: "48, 58, 72",
     },
     {
       startX: 0.08,
-      endX: 0.46,
-      baseY: 0.7,
-      amplitude: 0.048,
-      frequency: 1.9,
-      lineWidth: 0.95,
-      alpha: 0.12,
-      speed: 0.00006,
-      color: "50, 58, 70",
+      endX: 0.66,
+      baseY: 0.82,
+      amplitude: 0.034,
+      frequency: 1.8,
+      lineWidth: 0.82,
+      alpha: 0.1,
+      speed: -0.000038,
+      color: "74, 88, 106",
     },
     {
-      startX: 0.22,
-      endX: 0.72,
-      baseY: 0.86,
-      amplitude: 0.04,
-      frequency: 2.0,
-      lineWidth: 0.85,
-      alpha: 0.09,
+      startX: 0.52,
+      endX: 0.98,
+      baseY: 0.31,
+      amplitude: 0.03,
+      frequency: 2.35,
+      lineWidth: 0.78,
+      alpha: 0.11,
+      speed: 0.000042,
+      color: "86, 102, 120",
+    },
+    {
+      startX: 0.26,
+      endX: 0.92,
+      baseY: 0.48,
+      amplitude: 0.024,
+      frequency: 2.15,
+      lineWidth: 0.72,
+      alpha: 0.08,
+      speed: -0.00003,
+      color: "88, 100, 116",
+    },
+  ];
+
+  const branchSets = [
+    {
+      startX: 0.98,
+      startY: 0.02,
+      c1x: 0.9,
+      c1y: 0.16,
+      c2x: 0.78,
+      c2y: 0.3,
+      endX: 0.62,
+      endY: 0.44,
+      alpha: 0.12,
+      lineWidth: 0.9,
+      speed: 0.000045,
+      swing: 0.018,
+      color: "52, 64, 80",
+    },
+    {
+      startX: 0.96,
+      startY: 0.04,
+      c1x: 0.9,
+      c1y: 0.24,
+      c2x: 0.86,
+      c2y: 0.46,
+      endX: 0.76,
+      endY: 0.69,
+      alpha: 0.1,
+      lineWidth: 0.82,
       speed: -0.00004,
-      color: "76, 88, 104",
+      swing: 0.015,
+      color: "68, 84, 102",
+    },
+    {
+      startX: 0.9,
+      startY: 0.1,
+      c1x: 0.86,
+      c1y: 0.2,
+      c2x: 0.68,
+      c2y: 0.42,
+      endX: 0.48,
+      endY: 0.56,
+      alpha: 0.09,
+      lineWidth: 0.76,
+      speed: 0.000032,
+      swing: 0.02,
+      color: "78, 94, 112",
     },
   ];
 
   const mistForms = [
-    { x: 0.78, y: 0.22, width: 0.24, height: 0.11, alpha: 0.065 },
-    { x: 0.69, y: 0.58, width: 0.18, height: 0.08, alpha: 0.045 },
-    { x: 0.24, y: 0.74, width: 0.24, height: 0.1, alpha: 0.035 },
+    { x: 0.84, y: 0.16, width: 0.28, height: 0.12, alpha: 0.075 },
+    { x: 0.7, y: 0.38, width: 0.22, height: 0.09, alpha: 0.05 },
+    { x: 0.62, y: 0.67, width: 0.21, height: 0.08, alpha: 0.04 },
+    { x: 0.28, y: 0.76, width: 0.26, height: 0.1, alpha: 0.032 },
   ];
 
   function resizeCanvas() {
@@ -146,12 +217,45 @@ if (canvas) {
     ctx.stroke();
   }
 
+  function drawBranch(set, width, height, time) {
+    const phase = prefersReducedMotion ? 0 : time * set.speed;
+    const swing = Math.sin(phase) * set.swing * width;
+    const sway = Math.cos(phase * 0.8) * set.swing * height * 0.34;
+
+    const startX = set.startX * width;
+    const startY = set.startY * height;
+    const c1x = set.c1x * width + swing;
+    const c1y = set.c1y * height + sway;
+    const c2x = set.c2x * width - swing * 0.8;
+    const c2y = set.c2y * height + sway * 0.7;
+    const endX = set.endX * width - swing * 0.55;
+    const endY = set.endY * height + sway * 0.55;
+
+    const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+    gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
+    gradient.addColorStop(0.12, `rgba(${set.color}, ${set.alpha * 0.4})`);
+    gradient.addColorStop(0.5, `rgba(${set.color}, ${set.alpha})`);
+    gradient.addColorStop(0.82, `rgba(${set.color}, ${set.alpha * 0.34})`);
+    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, endX, endY);
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = set.lineWidth;
+    ctx.stroke();
+  }
+
   function draw(time = 0) {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
 
     ctx.clearRect(0, 0, width, height);
     drawMist(width, height);
+
+    for (const branch of branchSets) {
+      drawBranch(branch, width, height, time);
+    }
 
     for (const wave of waveSets) {
       drawWave(wave, width, height, time);
