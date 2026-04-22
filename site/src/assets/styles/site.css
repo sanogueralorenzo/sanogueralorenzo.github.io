@@ -229,6 +229,7 @@ a {
 }
 
 .post-card {
+  position: relative;
   display: block;
   width: fit-content;
   max-width: 100%;
@@ -237,13 +238,33 @@ a {
   border-radius: 0;
   background: none;
   box-shadow: none;
-  border-top: 1px solid var(--line);
   transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.post-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 1px;
+  width: min(760px, calc(100% + 120px));
+  background: var(--line);
+}
+
+.post-card:nth-child(2n)::before {
+  width: min(700px, calc(100% + 88px));
+}
+
+.post-card:nth-child(3n)::before {
+  width: min(820px, calc(100% + 152px));
 }
 
 .post-card:hover {
   transform: translateX(6px);
-  border-color: rgba(20, 19, 16, 0.18);
+}
+
+.post-card:hover::before {
+  background: rgba(20, 19, 16, 0.18);
 }
 
 .post-link {
