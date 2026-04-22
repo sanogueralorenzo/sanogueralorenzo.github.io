@@ -1,6 +1,7 @@
 const canvas = document.querySelector("[data-wave-canvas]");
 const postsSection = document.querySelector(".posts-section");
 const pageShell = document.querySelector(".page-shell");
+const heroLinks = document.querySelector(".hero-links");
 
 if (canvas) {
   const ctx = canvas.getContext("2d");
@@ -96,10 +97,14 @@ if (canvas) {
     const shellLeft = pageShell?.getBoundingClientRect().left ?? 0;
     const postsTop =
       postsSection.getBoundingClientRect().top + window.scrollY;
+    const linksBottom = heroLinks
+      ? heroLinks.getBoundingClientRect().bottom + window.scrollY
+      : postsTop - 72;
+    const targetY = Math.min(postsTop - 28, linksBottom + 40);
 
     return {
       endX: Math.max(guideX + shellLeft, width * 0.22),
-      endY: Math.min(postsTop + 2, wave.endY * height),
+      endY: Math.min(targetY, wave.endY * height),
     };
   }
 
