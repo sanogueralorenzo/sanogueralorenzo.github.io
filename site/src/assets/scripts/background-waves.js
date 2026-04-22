@@ -1,7 +1,6 @@
 const canvas = document.querySelector("[data-wave-canvas]");
-const postsSection = document.querySelector(".posts-section");
+const firstPostCard = document.querySelector(".post-card");
 const pageShell = document.querySelector(".page-shell");
-const heroLinks = document.querySelector(".hero-links");
 
 if (canvas) {
   const ctx = canvas.getContext("2d");
@@ -76,17 +75,12 @@ if (canvas) {
   }
 
   function resolveGuideX(width) {
-    const guideValue = Number.parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue("--guide-left"),
-    );
-    if (Number.isFinite(guideValue)) {
-      return guideValue;
-    }
-    return wave.endX * width;
+    const shellLeft = pageShell?.getBoundingClientRect().left ?? 0;
+    return shellLeft + width * 0.08 + 92;
   }
 
   function resolveEndPoint(width, height) {
-    if (!postsSection) {
+    if (!firstPostCard) {
       return {
         endX: wave.endX * width,
         endY: wave.endY * height,
@@ -94,17 +88,12 @@ if (canvas) {
     }
 
     const guideX = resolveGuideX(width);
-    const shellLeft = pageShell?.getBoundingClientRect().left ?? 0;
-    const postsTop =
-      postsSection.getBoundingClientRect().top + window.scrollY;
-    const linksBottom = heroLinks
-      ? heroLinks.getBoundingClientRect().bottom + window.scrollY
-      : postsTop - 72;
-    const targetY = Math.min(postsTop - 28, linksBottom + 40);
+    const postRailY =
+      firstPostCard.getBoundingClientRect().top + window.scrollY;
 
     return {
-      endX: Math.max(guideX + shellLeft, width * 0.22),
-      endY: Math.min(targetY, wave.endY * height),
+      endX: guideX,
+      endY: Math.min(postRailY, wave.endY * height),
     };
   }
 
