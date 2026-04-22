@@ -16,8 +16,6 @@ export default {
   profile: {
     image: "/assets/images/profile.png",
     imageAlt: "Profile image of Mario Sanoguera de Lorenzo",
-    blurb:
-      "I work for ideas and learn from people",
   },
   links: [
     {

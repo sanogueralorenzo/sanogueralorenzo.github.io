@@ -59,7 +59,7 @@ a {
   position: relative;
   min-height: 120vh;
   padding: 10vh 0 22vh;
-  margin-bottom: 18vh;
+  margin-bottom: 14vh;
 }
 
 .hero-copy {
@@ -140,6 +140,20 @@ a {
   filter: saturate(0.88);
 }
 
+.hero-portrait {
+  position: absolute;
+  left: calc(min(16vw, 250px) - 1.3rem);
+  top: clamp(28rem, 58vh, 40rem);
+  z-index: 3;
+  margin: 0;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(20, 19, 16, 0.08);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  transform: rotate(-4deg);
+}
+
 .hero-note {
   position: relative;
   z-index: 2;
@@ -165,8 +179,8 @@ a {
 
 .line-links {
   position: absolute;
-  top: clamp(34rem, 66vh, 48rem);
-  left: calc(min(16vw, 250px) - 2.3rem);
+  top: clamp(37rem, 72vh, 51rem);
+  left: calc(min(16vw, 250px) - 2.2rem);
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -231,50 +245,16 @@ a {
   background: rgba(255, 255, 255, 0.96);
 }
 
-.profile-section {
-  position: relative;
-  z-index: 2;
-  margin-bottom: 28vh;
-  padding-left: 16vw;
-}
-
-.profile-ribbon {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 20px;
-  max-width: 700px;
-  align-items: start;
-  padding: 38px 0 0;
-  border-top: 1px solid var(--line);
-}
-
-.profile-copy {
-  max-width: 480px;
-}
-
-.profile-name {
-  margin: 0;
-  font-size: clamp(1.8rem, 2.6vw, 2.5rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
-}
-
-.profile-blurb {
-  max-width: 24ch;
-  margin: 12px 0 0;
-}
-
 .profile-image {
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   border-radius: 22px;
   object-fit: cover;
-  box-shadow: var(--shadow);
 }
 
 .posts-section {
   margin-bottom: 18vh;
-  padding-left: 16vw;
+  padding-left: 24vw;
 }
 
 .posts-layout {
@@ -385,9 +365,16 @@ a {
     padding-top: 0;
   }
 
-  .profile-section,
   .posts-section {
     padding-left: 0;
+  }
+
+  .hero-portrait {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: fit-content;
+    margin: 28px 0 0;
   }
 
   .line-links {
@@ -407,11 +394,6 @@ a {
   .line-link-pill::before {
     display: none;
   }
-
-  .profile-section {
-    margin-bottom: 120px;
-  }
-
   .post-link {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -432,11 +414,6 @@ a {
     max-width: 240px;
   }
 
-  .profile-ribbon {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
   .profile-image {
     width: 96px;
     height: 96px;
@@ -444,10 +421,6 @@ a {
 
   .hero-stage {
     padding-bottom: 54px;
-  }
-
-  .profile-section {
-    margin-bottom: 96px;
   }
 
   .posts-section,

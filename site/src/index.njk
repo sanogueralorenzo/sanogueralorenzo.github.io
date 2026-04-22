@@ -16,6 +16,10 @@ layout: base.njk
       {% endif %}
     </div>
 
+    <figure class="hero-portrait">
+      <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
+    </figure>
+
     <figure class="hero-drift">
       <img src="{{ site.hero.image }}" alt="{{ site.hero.imageAlt }}">
     </figure>
@@ -35,16 +39,6 @@ layout: base.njk
       </a>
     {% endfor %}
   </nav>
-
-  <section class="profile-section">
-    <div class="profile-ribbon">
-      <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
-      <div class="profile-copy">
-        <h2 class="profile-name">{{ site.title }}</h2>
-        <p class="profile-blurb">{{ site.profile.blurb }}</p>
-      </div>
-    </div>
-  </section>
 
   <section class="posts-section">
     <div class="posts-layout">
