@@ -10,6 +10,8 @@
   --hero-anchor-left: calc(44px + 8vw);
   --guide-left: calc(8vw + 92px);
   --guide-gap: 40px;
+  --posts-offset: calc(var(--guide-left) + var(--guide-gap));
+  --rail-page-gap: 28px;
 }
 
 *,
@@ -217,7 +219,7 @@ a {
 
 .posts-section {
   margin-bottom: 18vh;
-  padding-left: calc(var(--guide-left) + var(--guide-gap));
+  padding-left: var(--posts-offset);
 }
 
 .posts-layout {
@@ -227,7 +229,7 @@ a {
 }
 
 .post-card {
-  --rail-left-reach: 24%;
+  --rail-left-reach: calc(var(--posts-offset) - var(--rail-page-gap));
   --rail-right-trim: 6%;
   position: relative;
   display: block;
@@ -252,17 +254,14 @@ a {
 }
 
 .post-card:nth-child(2n) {
-  --rail-left-reach: 19%;
   --rail-right-trim: 9%;
 }
 
 .post-card:nth-child(3n) {
-  --rail-left-reach: 28%;
   --rail-right-trim: 4.5%;
 }
 
 .post-card:nth-child(4n) {
-  --rail-left-reach: 15%;
   --rail-right-trim: 11%;
 }
 
@@ -384,7 +383,6 @@ a {
   }
 
   .post-card {
-    --rail-left-reach: clamp(36px, 7vw, 84px);
     --rail-right-trim: clamp(22px, 4vw, 42px);
     width: min(860px, calc(100vw - 48px));
   }
@@ -429,7 +427,6 @@ a {
   }
 
   .post-card {
-    --rail-left-reach: clamp(16px, 4vw, 28px);
     --rail-right-trim: clamp(12px, 3vw, 20px);
     width: 100%;
   }
