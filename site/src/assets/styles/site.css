@@ -355,6 +355,13 @@ a {
     padding-left: 0;
   }
 
+  .posts-layout,
+  .posts-list {
+    display: block;
+    width: 100%;
+    max-width: none;
+  }
+
   .hero-portrait {
     width: fit-content;
     margin: 28px 0 0;
@@ -363,13 +370,13 @@ a {
   .post-link {
     grid-template-columns: 1fr;
     gap: 10px;
-    width: min(100%, 720px);
+    width: 100%;
   }
 
   .post-card {
-    --rail-left-reach: 0%;
-    --rail-right-trim: 4%;
-    width: min(100%, 720px);
+    --rail-left-reach: clamp(36px, 7vw, 84px);
+    --rail-right-trim: clamp(22px, 4vw, 42px);
+    width: min(860px, calc(100vw - 48px));
   }
 }
 
@@ -400,5 +407,11 @@ a {
   .post-page,
   .not-found {
     margin-bottom: 96px;
+  }
+
+  .post-card {
+    --rail-left-reach: clamp(16px, 4vw, 28px);
+    --rail-right-trim: clamp(12px, 3vw, 20px);
+    width: 100%;
   }
 }
