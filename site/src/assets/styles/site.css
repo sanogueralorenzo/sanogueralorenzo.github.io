@@ -289,7 +289,7 @@ a {
 .posts-list {
   display: grid;
   gap: 0;
-  width: min(1120px, calc(100vw - var(--posts-offset) - var(--shell-pad-right)));
+  width: min(860px, calc(100vw - var(--posts-offset) - var(--shell-pad-right)));
   max-width: 100%;
 }
 
