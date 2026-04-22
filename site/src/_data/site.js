@@ -4,14 +4,14 @@ export default {
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
   hero: {
     eyebrow: "Mario Sanoguera de Lorenzo",
-    title: "Calm work, built with a human point of view.",
+    title: "Calm software. Human taste.",
     intro:
-      "Engineer, indie builder, and product-minded generalist. This is the personal home for projects, selected writing, and the kind of work that should still feel clear and useful a few years from now.",
-    image: "/assets/images/hero-mountains.png",
-    imageAlt: "Mountain landscape with a small figure at sunrise.",
+      "Engineer, indie builder, and product-minded generalist. A quiet home for projects, selected writing, and work that should age well.",
+    image: "/assets/images/hero-mountains-v2.png",
+    imageAlt: "Bright mountain landscape with a small figure and expansive white sky.",
     noteTitle: "Perspective",
     note:
-      "Less noise. Better judgment. Enough room to make something that lasts.",
+      "More room, less noise, and enough clarity to build things that last.",
   },
   profile: {
     image: "/assets/images/profile.png",
@@ -58,6 +58,6 @@ export default {
   ],
   postsIntro: {
     label: "Posts",
-    text: "A minimal archive of things worth keeping around.",
+    text: "A small archive of notes worth keeping around.",
   },
 };
