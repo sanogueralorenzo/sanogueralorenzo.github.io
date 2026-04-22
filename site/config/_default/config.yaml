@@ -8,17 +8,6 @@ languageCode: "en-us"
 enableRobotsTXT: true
 enableGitInfo: true
 
-menu:
-  main:
-    - identifier: "stories"
-      name: "Stories"
-      url: "/stories/"
-      weight: 10
-    - identifier: "search"
-      name: "Search"
-      url: "/search/"
-      weight: 20
-
 params:
   env: production
   description: "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work."
@@ -32,25 +21,21 @@ params:
   # PaperMod "Home Info" block shown at the top of the home page.
   # We extended the stock template to also render an avatar from these keys.
   homeInfoParams:
-    Eyebrow: "Mario Sanoguera de Lorenzo"
-    Title: "I build calm software and quietly ambitious products."
-    Content: "Engineer, indie builder, and product-minded generalist. This site is the home base for projects, selected writing, and the kind of work I want my name attached to."
-    ImageURL: "images/home-hero-studio-v3.png"
-    ImageWidth: 760
-    ImageHeight: 380
-    MediaNoteTitle: "Independent work"
-    MediaNote: "Minimal systems, sharper taste, and room for the next thing."
-    IntroPills:
-      - "Products"
-      - "Software"
-      - "Indie"
-      - "Minimal systems"
+    Title: "Calm work, built with a human point of view."
+    Content: "Engineer, indie builder, and product-minded generalist. This is the personal home for projects, selected writing, and the kind of work that should still feel clear and useful a few years from now."
+    ImageURL: "images/home-hero-mountains-v4.png"
+    ImageWidth: 960
+    ImageHeight: 480
+    MediaNoteTitle: "Perspective"
+    MediaNote: "Less noise. Better judgment. Enough room to make something that lasts."
+    PostsIntroTitle: "Recent posts"
+    PostsIntroContent: "A few notes, essays, and things worth keeping around."
     PrimaryAction:
       Text: "Open GitHub"
       URL: "https://github.com/sanogueralorenzo/"
     SecondaryAction:
-      Text: "Read posts"
-      URL: "/stories/"
+      Text: "Open Medium"
+      URL: "https://medium.com/@sanogueralorenzo/"
   socialIcons:
     - name: "linkedin"
       url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/"

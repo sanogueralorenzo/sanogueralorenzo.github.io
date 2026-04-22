@@ -1,4 +1,4 @@
 ---
 images:
-  - "images/home-hero-studio-v3.png"
+  - "images/home-hero-mountains-v4.png"
 ---

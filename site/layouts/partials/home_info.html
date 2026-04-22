@@ -10,6 +10,8 @@ PaperMod `home_info.html` partial override.
 {{- $eyebrow := (index . "Eyebrow") | default "" -}}
 {{- $mediaNoteTitle := (index . "MediaNoteTitle") | default "" -}}
 {{- $mediaNote := (index . "MediaNote") | default "" -}}
+{{- $postsIntroTitle := (index . "PostsIntroTitle") | default "" -}}
+{{- $postsIntroContent := (index . "PostsIntroContent") | default "" -}}
 {{- $primaryAction := index . "PrimaryAction" -}}
 {{- $secondaryAction := index . "SecondaryAction" -}}
 {{- $imgSrc := "" -}}
@@ -86,7 +88,7 @@ PaperMod `home_info.html` partial override.
           class="home-info-image"
           draggable="false"
           src="{{ $imgSrc }}"
-          alt="minimal studio still life"
+          alt="mountain landscape with a small figure at sunrise"
           height="{{ $imgH }}"
           width="{{ $imgW }}"
           loading="eager"
@@ -106,4 +108,15 @@ PaperMod `home_info.html` partial override.
     {{- end -}}
   </div>
 </article>
+
+{{- if or $postsIntroTitle $postsIntroContent -}}
+  <section class="home-posts-intro">
+    {{- with $postsIntroTitle -}}
+      <p class="home-posts-intro-label">{{ . }}</p>
+    {{- end -}}
+    {{- with $postsIntroContent -}}
+      <p class="home-posts-intro-copy">{{ . }}</p>
+    {{- end -}}
+  </section>
+{{- end -}}
 {{- end -}}

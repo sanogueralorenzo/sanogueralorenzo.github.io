@@ -17,16 +17,22 @@ Keeping this file as an index note.
 }
 
 .main {
-  max-width: 1320px;
-  padding: 32px 28px 96px;
+  max-width: 1440px;
+  padding: 56px 40px 144px;
 }
 
 .first-entry {
   margin-top: 0;
 }
 
+.post-entry {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 @media (max-width: 768px) {
   .main {
-    padding: 20px 18px 72px;
+    padding: 28px 18px 88px;
   }
 }

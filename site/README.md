@@ -14,6 +14,6 @@ hugo server
 - Config: `site/config/_default/config.yaml`
 - Content: `site/content`
 - Templates: `site/layouts`
-- Homepage hero: `site/layouts/partials/home_info.html` with image asset at `site/assets/images/home-hero-studio-v3.png`
+- Homepage hero: `site/layouts/partials/home_info.html` with image asset at `site/assets/images/home-hero-mountains-v4.png`
 - Post cards keep hover styling while clicked; no pressed-size shrink on click.
 - Generated output: `site/public`
