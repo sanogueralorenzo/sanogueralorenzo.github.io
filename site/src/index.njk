@@ -2,25 +2,31 @@
 layout: base.njk
 ---
 <main class="page-shell">
-  <section class="hero-section">
+  <section class="hero-stage">
     <div class="hero-copy">
-      <p class="hero-eyebrow">{{ site.hero.eyebrow }}</p>
+      {% if site.hero.eyebrow %}
+        <p class="hero-eyebrow">{{ site.hero.eyebrow }}</p>
+      {% endif %}
       <h1>{{ site.hero.title }}</h1>
       <p class="hero-intro">{{ site.hero.intro }}</p>
     </div>
-    <figure class="hero-media">
+
+    <figure class="hero-drift">
       <img src="{{ site.hero.image }}" alt="{{ site.hero.imageAlt }}">
-      <figcaption>
+    </figure>
+
+    {% if site.hero.noteTitle and site.hero.note %}
+      <div class="hero-note">
         <span>{{ site.hero.noteTitle }}</span>
         <p>{{ site.hero.note }}</p>
-      </figcaption>
-    </figure>
+      </div>
+    {% endif %}
   </section>
 
-  <section class="about-section">
-    <div class="about-card">
+  <section class="profile-section">
+    <div class="profile-ribbon">
       <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
-      <div class="about-copy">
+      <div class="profile-copy">
         <h2 class="profile-name">{{ site.title }}</h2>
         <p class="profile-blurb">{{ site.profile.blurb }}</p>
         <div class="profile-links" aria-label="Profile links">
@@ -35,20 +41,26 @@ layout: base.njk
   </section>
 
   <section class="posts-section">
-    <div class="section-heading posts-heading">
-      <p class="section-label">{{ site.postsIntro.label }}</p>
-      <p class="section-intro">{{ site.postsIntro.text }}</p>
-    </div>
-    <div class="posts-list">
-      {% for post in collections.posts | reverse %}
-        <article class="post-card">
-          <p class="post-card-date">{{ post.date | displayDate }}</p>
-          <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
-          {% if post.data.excerpt %}
-            <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
-          {% endif %}
-        </article>
-      {% endfor %}
+    <div class="posts-layout">
+      <div class="section-heading posts-heading">
+        <p class="section-label">{{ site.postsIntro.label }}</p>
+        <p class="section-intro">{{ site.postsIntro.text }}</p>
+      </div>
+      <div class="posts-list">
+        {% for post in collections.posts | reverse %}
+          <article class="post-card">
+            <a class="post-link" href="{{ post.url }}">
+              <p class="post-card-date">{{ post.date | displayDate }}</p>
+              <div class="post-card-body">
+                <h2>{{ post.data.title }}</h2>
+                {% if post.data.excerpt %}
+                  <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
+                {% endif %}
+              </div>
+            </a>
+          </article>
+        {% endfor %}
+      </div>
     </div>
   </section>
 </main>

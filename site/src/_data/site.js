@@ -3,16 +3,15 @@ export default {
   description:
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
   hero: {
-    eyebrow: "Mario Sanoguera de Lorenzo",
-    title: "I make software and write things down.",
+    eyebrow: "",
+    title: "hey",
     intro:
-      "This is my corner of the internet for projects, notes, and a few things I want to keep around.",
-    image: "/assets/images/hero-town-sketch-v4.png",
+      "small products, clear systems, a few things worth keeping.",
+    image: "/assets/images/hero-head-drift-v5.png",
     imageAlt:
-      "A sketch-like scene of one person walking away through a quiet East Asian town lane.",
-    noteTitle: "A quiet place",
-    note:
-      "Simple things, clearly made.",
+      "A hand-drawn head looking away with wave-like lines fading into empty space.",
+    noteTitle: "",
+    note: "",
   },
   profile: {
     image: "/assets/images/profile.png",
@@ -48,7 +47,7 @@ export default {
     },
   ],
   postsIntro: {
-    label: "Posts",
-    text: "Short posts, notes, and the occasional recommendation.",
+    label: "posts",
+    text: "short notes, kept light.",
   },
 };
