@@ -11,7 +11,9 @@ layout: base.njk
       {% if site.hero.subline %}
         <p class="hero-subline">{{ site.hero.subline }}</p>
       {% endif %}
-      <p class="hero-intro">{{ site.hero.intro }}</p>
+      {% if site.hero.intro %}
+        <p class="hero-intro">{{ site.hero.intro }}</p>
+      {% endif %}
     </div>
 
     <figure class="hero-drift">

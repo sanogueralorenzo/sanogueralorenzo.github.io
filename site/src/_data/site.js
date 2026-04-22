@@ -6,11 +6,10 @@ export default {
     eyebrow: "",
     title: "hey",
     subline: "morphing ideas to software",
-    intro:
-      "small products, clear systems, a few things worth keeping.",
-    image: "/assets/images/hero-head-drift-v5.png",
+    intro: "",
+    image: "/assets/images/hero-head-tide-v6.png",
     imageAlt:
-      "A hand-drawn head looking away with wave-like lines fading into empty space.",
+      "A hand-drawn figure from behind dissolving into darker tidal brushstrokes and distant landscape forms.",
     noteTitle: "",
     note: "",
   },
