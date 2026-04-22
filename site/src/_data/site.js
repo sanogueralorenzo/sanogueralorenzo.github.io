@@ -18,28 +18,33 @@ export default {
     image: "/assets/images/profile.png",
     imageAlt: "Profile image of Mario Sanoguera de Lorenzo",
     blurb:
-      "I like products with taste, simple systems, and technology that still feels human when you come back to it later.",
+      "I work for ideas and learn from people",
   },
   links: [
     {
       name: "LinkedIn",
       url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/",
+      label: "linkedin",
     },
     {
       name: "CV",
       url: "https://docs.google.com/document/d/1EPTrdfhl943lO1M98AZua6YlP5cUxEex3BngMLOuMKA/",
+      label: "cv",
     },
     {
       name: "Medium",
       url: "https://medium.com/@sanogueralorenzo/",
+      label: "medium",
     },
     {
       name: "X",
       url: "https://x.com/MarioSanoguera/",
+      label: "x",
     },
     {
       name: "GitHub",
       url: "https://github.com/sanogueralorenzo/",
+      label: "github",
     },
   ],
   postsIntro: {

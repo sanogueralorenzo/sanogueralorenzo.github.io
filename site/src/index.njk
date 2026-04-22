@@ -26,7 +26,7 @@ layout: base.njk
         <div class="profile-links" aria-label="Profile links">
           {% for link in site.links %}
             <a class="profile-link-pill" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
-              <span>{{ link.name }}</span>
+              <span>{{ link.label or (link.name | lower) }}</span>
             </a>
           {% endfor %}
         </div>
