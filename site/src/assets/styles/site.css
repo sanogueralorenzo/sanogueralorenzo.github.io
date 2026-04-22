@@ -10,7 +10,7 @@
   --hero-anchor-left: calc(44px + 8vw);
   --guide-left: calc(8vw + 92px);
   --guide-gap: 10px;
-  --posts-offset: 164px;
+  --posts-offset: calc(var(--guide-left) + var(--guide-gap));
   --rail-page-gap: 28px;
   --hero-subline-gap: 16px;
   --hero-portrait-gap: 84px;
