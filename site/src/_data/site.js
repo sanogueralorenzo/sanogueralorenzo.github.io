@@ -7,9 +7,9 @@ export default {
     title: "hey",
     subline: "zero to one",
     intro: "",
-    image: "/assets/images/hero-head-fade-v8.png",
+    image: "/assets/images/hero-wind-thoughts-v9.png",
     imageAlt:
-      "A simpler hand-drawn figure from behind with faint mountains and clouds, fading softly into white at the bottom.",
+      "A minimalist figure dissolving into airy lines and watercolor forms, blending into white around the edges.",
     noteTitle: "",
     note: "",
   },
