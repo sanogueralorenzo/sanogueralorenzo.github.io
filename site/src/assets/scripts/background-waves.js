@@ -1,4 +1,5 @@
 const canvas = document.querySelector("[data-wave-canvas]");
+const postsSection = document.querySelector(".posts-section");
 
 if (canvas) {
   const ctx = canvas.getContext("2d");
@@ -9,23 +10,63 @@ if (canvas) {
   const wave = {
     startX: 0.98,
     startY: 0.02,
-    c1x: 0.92,
-    c1y: 0.16,
-    c2x: 0.72,
-    c2y: 0.34,
-    c3x: 0.88,
-    c3y: 0.56,
-    c4x: 0.62,
-    c4y: 0.78,
-    endX: 0.74,
-    endY: 1.02,
+    c1x: 0.94,
+    c1y: 0.12,
+    c2x: 0.7,
+    c2y: 0.26,
+    c3x: 0.9,
+    c3y: 0.42,
+    c4x: 0.58,
+    c4y: 0.6,
+    c5x: 0.86,
+    c5y: 0.76,
+    c6x: 0.64,
+    c6y: 0.88,
+    endX: 0.8,
+    endY: 0.94,
     alpha: 0.2,
-    lineWidth: 1.8,
+    lineWidth: 2.1,
     speed: 0.00004,
-    swingX: 0.018,
-    swingY: 0.022,
+    swingX: 0.024,
+    swingY: 0.028,
     color: "58, 72, 92",
   };
+
+  const offshoots = [
+    {
+      anchor: 0.2,
+      c1x: -0.02,
+      c1y: 0.04,
+      c2x: -0.1,
+      c2y: 0.14,
+      endX: -0.16,
+      endY: 0.24,
+      alpha: 0.11,
+      lineWidth: 1.1,
+    },
+    {
+      anchor: 0.48,
+      c1x: -0.03,
+      c1y: 0.05,
+      c2x: -0.08,
+      c2y: 0.12,
+      endX: -0.12,
+      endY: 0.2,
+      alpha: 0.09,
+      lineWidth: 0.95,
+    },
+    {
+      anchor: 0.72,
+      c1x: -0.015,
+      c1y: 0.04,
+      c2x: -0.06,
+      c2y: 0.1,
+      endX: -0.1,
+      endY: 0.17,
+      alpha: 0.08,
+      lineWidth: 0.85,
+    },
+  ];
 
   const mistForms = [
     { x: 0.84, y: 0.18, width: 0.22, height: 0.1, alpha: 0.045 },
@@ -80,6 +121,26 @@ if (canvas) {
     ctx.restore();
   }
 
+  function clampEndY(height) {
+    if (!postsSection) {
+      return wave.endY * height;
+    }
+
+    const postsTop =
+      postsSection.getBoundingClientRect().top + window.scrollY;
+    return Math.min(wave.endY * height, postsTop - 48);
+  }
+
+  function cubicPoint(t, p0, p1, p2, p3) {
+    const inv = 1 - t;
+    return (
+      inv ** 3 * p0 +
+      3 * inv ** 2 * t * p1 +
+      3 * inv * t ** 2 * p2 +
+      t ** 3 * p3
+    );
+  }
+
   function drawWave(width, height, time) {
     const phase = prefersReducedMotion ? 0 : time * wave.speed;
     const driftX = Math.sin(phase) * wave.swingX * width;
@@ -99,7 +160,7 @@ if (canvas) {
     const p4y = wave.c4y * height + driftY * 0.5;
 
     const endX = wave.endX * width + driftX * 0.28;
-    const endY = wave.endY * height;
+    const endY = clampEndY(height);
 
     const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
     gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
@@ -117,6 +178,100 @@ if (canvas) {
     ctx.lineWidth = wave.lineWidth;
     ctx.lineCap = "round";
     ctx.stroke();
+
+    const midX = (p2x + p3x) / 2;
+    const midY = (p2y + p3y) / 2;
+
+    return {
+      startX,
+      startY,
+      p1x,
+      p1y,
+      p2x,
+      p2y,
+      midX,
+      midY,
+      p3x,
+      p3y,
+      p4x,
+      p4y,
+      endX,
+      endY,
+    };
+  }
+
+  function drawOffshoots(points, width) {
+    for (const offshoot of offshoots) {
+      const { anchor } = offshoot;
+      let baseX;
+      let baseY;
+      let tangentX;
+      let tangentY;
+
+      if (anchor <= 0.5) {
+        const localT = anchor / 0.5;
+        baseX = cubicPoint(
+          localT,
+          points.startX,
+          points.p1x,
+          points.p2x,
+          points.midX,
+        );
+        baseY = cubicPoint(
+          localT,
+          points.startY,
+          points.p1y,
+          points.p2y,
+          points.midY,
+        );
+        tangentX = points.midX - points.p2x;
+        tangentY = points.midY - points.p2y;
+      } else {
+        const localT = (anchor - 0.5) / 0.5;
+        baseX = cubicPoint(
+          localT,
+          points.midX,
+          points.p3x,
+          points.p4x,
+          points.endX,
+        );
+        baseY = cubicPoint(
+          localT,
+          points.midY,
+          points.p3y,
+          points.p4y,
+          points.endY,
+        );
+        tangentX = points.endX - points.p4x;
+        tangentY = points.endY - points.p4y;
+      }
+
+      const normalX = -tangentY || -1;
+      const normalY = tangentX || 0;
+      const normalLength = Math.hypot(normalX, normalY) || 1;
+      const dirX = normalX / normalLength;
+      const dirY = normalY / normalLength;
+
+      const c1x = baseX + width * (offshoot.c1x * dirX);
+      const c1y = baseY + width * (offshoot.c1y * dirY);
+      const c2x = baseX + width * (offshoot.c2x * dirX);
+      const c2y = baseY + width * (offshoot.c2y * dirY);
+      const endX = baseX + width * (offshoot.endX * dirX);
+      const endY = baseY + width * (offshoot.endY * dirY);
+
+      const gradient = ctx.createLinearGradient(baseX, baseY, endX, endY);
+      gradient.addColorStop(0, `rgba(${wave.color}, ${offshoot.alpha})`);
+      gradient.addColorStop(0.72, `rgba(${wave.color}, ${offshoot.alpha * 0.34})`);
+      gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+      ctx.beginPath();
+      ctx.moveTo(baseX, baseY);
+      ctx.bezierCurveTo(c1x, c1y, c2x, c2y, endX, endY);
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = offshoot.lineWidth;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
   }
 
   function draw(time = 0) {
@@ -125,7 +280,8 @@ if (canvas) {
 
     ctx.clearRect(0, 0, width, height);
     drawMist(width, height);
-    drawWave(width, height, time);
+    const points = drawWave(width, height, time);
+    drawOffshoots(points, width);
   }
 
   function frame(time) {
