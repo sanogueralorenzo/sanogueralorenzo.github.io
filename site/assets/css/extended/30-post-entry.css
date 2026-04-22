@@ -2,8 +2,20 @@
 /* Keep post list cards compact and consistent across pages. */
 .post-entry {
   padding: 20px;
-  /* Only animate border color for a subtle interaction cue. */
-  transition: border-color 160ms ease;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.42)),
+    var(--entry);
+  box-shadow: 0 18px 42px -32px rgba(15, 23, 42, 0.36);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.post-entry .entry-header h2 {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: -0.02em;
 }
 
 /* Keep click/tap from shrinking post cards while preserving hover visuals. */
@@ -15,7 +27,8 @@
 @media (hover: hover) and (pointer: fine) {
   .post-entry:hover,
   .post-entry:active {
-    /* Slight border shift to signal clickability without extra motion. */
+    transform: translateY(-3px);
     border-color: var(--tertiary);
+    box-shadow: 0 24px 52px -30px rgba(15, 23, 42, 0.42);
   }
 }

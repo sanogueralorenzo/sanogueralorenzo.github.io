@@ -10,3 +10,8 @@ Rules were split into focused files:
 
 Keeping this file as an index note.
 */
+
+:root {
+  --home-accent: #355978;
+  --home-accent-strong: #22364e;
+}

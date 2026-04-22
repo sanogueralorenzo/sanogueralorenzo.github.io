@@ -1,65 +1,231 @@
 /* -------------------- Home Hero -------------------- */
-/* Home info hero (homeInfoParams), layout is row on desktop and stacks on mobile */
 .home-info--hero {
-  margin: 0 0 24px 0;
-  padding: 16px 0;
+  position: relative;
+  margin: 0 0 40px;
+  padding: 28px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(184, 108, 75, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(53, 89, 120, 0.1), rgba(53, 89, 120, 0) 44%),
+    var(--entry);
+  box-shadow: 0 32px 80px -52px rgba(15, 23, 42, 0.5);
 }
 
-/* Desktop layout that centers text block relative to avatar and sets avatar text margin */
-.home-info--hero .home-info-inner {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
+.home-info--hero::after {
+  content: "";
+  position: absolute;
+  inset: auto auto -72px -56px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(184, 108, 75, 0.08);
+  filter: blur(8px);
+}
+
+.home-info--hero .home-info-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
   gap: 32px;
+  align-items: stretch;
 }
 
-/* Avatar round */
-.home-info--hero .home-info-avatar {
-  flex: none;
+.home-info--hero .home-info-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.home-info--hero .home-info-eyebrow {
+  margin: 0 0 14px;
+  color: var(--secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.home-info--hero .entry-header h1 {
+  margin-bottom: 18px;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: clamp(2.8rem, 5vw, 4.8rem);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+}
+
+.home-info--hero .entry-content {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--secondary);
+  font-size: 1.02rem;
+  line-height: 1.72;
+}
+
+.home-info--hero .entry-content p {
+  margin-bottom: 0;
+}
+
+.home-info--hero .home-info-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 22px 0 0;
+  list-style: none;
+}
+
+.home-info--hero .home-info-pills li {
+  padding: 8px 12px;
+  border: 1px solid rgba(53, 89, 120, 0.14);
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--secondary);
+  font-size: 0.9rem;
+}
+
+.home-info--hero .home-info-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.home-info--hero .home-info-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.home-info--hero .home-info-action:hover {
+  transform: translateY(-1px);
+}
+
+.home-info--hero .home-info-action--primary {
+  background: var(--home-accent);
+  color: #fff;
+  box-shadow: 0 16px 28px -20px rgba(53, 89, 120, 0.8);
+}
+
+.home-info--hero .home-info-action--primary:hover {
+  background: var(--home-accent-strong);
+}
+
+.home-info--hero .home-info-action--secondary {
+  border: 1px solid rgba(53, 89, 120, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--primary);
+}
+
+.home-info--hero .home-info-action--secondary:hover {
+  border-color: rgba(53, 89, 120, 0.35);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.home-info--hero .entry-footer {
+  margin-top: 24px;
+}
+
+.home-info--hero .home-info-media {
+  position: relative;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 28px;
+  background: #111;
+  box-shadow: 0 28px 54px -30px rgba(15, 23, 42, 0.42);
+}
+
+.home-info--hero .home-info-image {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
   object-fit: cover;
-  transition: transform 160ms ease, box-shadow 160ms ease;
-  will-change: transform;
+  object-position: center;
+  transition: transform 260ms ease;
 }
 
-/* Avatar hover */
-.home-info--hero .home-info-avatar:hover {
-  transform: scale(1.05);
-  /* Tailwind-ish shadow-xl */
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.12),
-    0 8px 10px -6px rgba(0, 0, 0, 0.12);
+.home-info--hero .home-info-media:hover .home-info-image {
+  transform: scale(1.02);
 }
 
-/* Counteract desktop layout social media glyphs to align with the text edge. */
-@media (min-width: 769px) {
-  .home-info--hero .social-icons {
-    /* Visually align social icons with the left edge of hero text. */
-    margin-left: -6px;
-  }
+.home-info--hero .home-info-media-note {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  background: rgba(22, 27, 35, 0.56);
+  color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
 }
 
-/* Compact hero layout (stacked). */
-@media (max-width: 768px) {
-  /* Prevent the hero spacing from shrinking as the viewport gets narrower. */
+.home-info--hero .home-info-media-note-title {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.home-info--hero .home-info-media-note p {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 960px) {
   .home-info--hero {
-    margin-bottom: 14px;
+    padding: 22px;
   }
 
-  .home-info--hero .home-info-inner {
-    /* Switch from row to stacked layout on smaller screens. */
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 16px;
+  .home-info--hero .home-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-info--hero {
+    margin-bottom: 24px;
+    padding: 18px;
+    border-radius: 26px;
   }
 
-  .home-info--hero .home-info-text {
-    align-items: center;
+  .home-info--hero .entry-header h1 {
+    font-size: clamp(2.25rem, 11vw, 3.4rem);
   }
 
-  /* Compact title: show only first name. */
-  .home-info--hero .hero-title-rest {
-    display: none;
+  .home-info--hero .entry-content {
+    max-width: none;
+    font-size: 0.98rem;
+  }
+
+  .home-info--hero .home-info-image {
+    min-height: 320px;
+  }
+
+  .home-info--hero .home-info-media-note {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    padding: 14px;
   }
 }

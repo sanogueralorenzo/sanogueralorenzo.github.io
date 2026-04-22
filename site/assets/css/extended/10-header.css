@@ -1,5 +1,27 @@
 /* -------------------- Header -------------------- */
-/* Hide site title in header while keeping it available for metadata */
 .header .logo {
-  display: none;
+  display: flex;
+}
+
+.header .logo a {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+
+.header .nav {
+  align-items: center;
+}
+
+#menu {
+  gap: 18px;
+}
+
+#menu a {
+  color: var(--secondary);
+  font-size: 0.92rem;
+}
+
+#menu a:hover {
+  color: var(--primary);
 }

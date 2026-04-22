@@ -1,4 +1,4 @@
 ---
 images:
-  - "https://avatars.githubusercontent.com/u/5630683"
+  - "images/home-hero-workspace-v2.png"
 ---
