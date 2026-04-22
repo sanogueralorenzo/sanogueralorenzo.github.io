@@ -7,8 +7,9 @@ export default {
     title: "Calm software. Human taste.",
     intro:
       "Engineer, indie builder, and product-minded generalist. A quiet home for projects, selected writing, and work that should age well.",
-    image: "/assets/images/hero-mountains-v2.png",
-    imageAlt: "Bright mountain landscape with a small figure and expansive white sky.",
+    image: "/assets/images/hero-town-v3.png",
+    imageAlt:
+      "A solitary person walking away through a bright East Asian mountain town street.",
     noteTitle: "Perspective",
     note:
       "More room, less noise, and enough clarity to build things that last.",
