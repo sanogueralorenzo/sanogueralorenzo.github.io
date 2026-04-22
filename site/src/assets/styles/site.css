@@ -65,7 +65,15 @@ a {
   left: calc(8vw + 92px);
   bottom: 10rem;
   width: 1px;
-  background: linear-gradient(180deg, transparent 0%, rgba(20, 19, 16, 0.08) 8%, rgba(20, 19, 16, 0.08) 82%, transparent 100%);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    transparent 12%,
+    rgba(20, 19, 16, 0.02) 18%,
+    rgba(20, 19, 16, 0.08) 28%,
+    rgba(20, 19, 16, 0.08) 82%,
+    transparent 100%
+  );
   pointer-events: none;
 }
 
