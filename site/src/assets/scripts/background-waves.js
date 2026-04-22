@@ -1,5 +1,6 @@
 const canvas = document.querySelector("[data-wave-canvas]");
 const postsSection = document.querySelector(".posts-section");
+const pageShell = document.querySelector(".page-shell");
 
 if (canvas) {
   const ctx = canvas.getContext("2d");
@@ -15,8 +16,8 @@ if (canvas) {
     alpha: 0.2,
     lineWidth: 2.1,
     speed: 0.000032,
-    amplitude: 0.028,
-    frequency: 3.2,
+    amplitude: 0.022,
+    frequency: 3.0,
     color: "58, 72, 92",
   };
 
@@ -73,22 +74,40 @@ if (canvas) {
     ctx.restore();
   }
 
-  function clampEndY(height) {
+  function resolveGuideX(width) {
+    const guideValue = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--guide-left"),
+    );
+    if (Number.isFinite(guideValue)) {
+      return guideValue;
+    }
+    return wave.endX * width;
+  }
+
+  function resolveEndPoint(width, height) {
     if (!postsSection) {
-      return wave.endY * height;
+      return {
+        endX: wave.endX * width,
+        endY: wave.endY * height,
+      };
     }
 
+    const guideX = resolveGuideX(width);
+    const shellLeft = pageShell?.getBoundingClientRect().left ?? 0;
     const postsTop =
       postsSection.getBoundingClientRect().top + window.scrollY;
-    return Math.min(wave.endY * height, postsTop - 48);
+
+    return {
+      endX: Math.max(guideX + shellLeft, width * 0.22),
+      endY: Math.min(postsTop + 2, wave.endY * height),
+    };
   }
 
   function drawWave(width, height, time) {
     const phase = prefersReducedMotion ? 0 : time * wave.speed;
     const startX = wave.startX * width;
     const startY = wave.startY * height;
-    const endX = wave.endX * width;
-    const endY = clampEndY(height);
+    const { endX, endY } = resolveEndPoint(width, height);
     const deltaX = endX - startX;
     const deltaY = endY - startY;
     const normalX = -deltaY;
