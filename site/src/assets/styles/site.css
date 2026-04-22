@@ -278,17 +278,7 @@ a {
 }
 
 .posts-layout {
-  display: grid;
-  grid-template-columns: minmax(160px, 210px) minmax(0, 720px);
-  gap: clamp(44px, 8vw, 120px);
-  align-items: start;
-}
-
-.posts-heading {
-  position: sticky;
-  top: 36px;
-  margin-bottom: 0;
-  max-width: 180px;
+  display: block;
 }
 
 .post-card {
@@ -420,16 +410,6 @@ a {
 
   .profile-section {
     margin-bottom: 120px;
-  }
-
-  .posts-layout {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-
-  .posts-heading {
-    position: static;
-    max-width: 260px;
   }
 
   .post-link {

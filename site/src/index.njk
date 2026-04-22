@@ -48,10 +48,6 @@ layout: base.njk
 
   <section class="posts-section">
     <div class="posts-layout">
-      <div class="section-heading posts-heading">
-        <p class="section-label">{{ site.postsIntro.label }}</p>
-        <p class="section-intro">{{ site.postsIntro.text }}</p>
-      </div>
       <div class="posts-list">
         {% for post in collections.posts | reverse %}
           <article class="post-card">

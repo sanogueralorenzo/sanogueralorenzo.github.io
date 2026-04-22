@@ -46,8 +46,4 @@ export default {
       label: "github",
     },
   ],
-  postsIntro: {
-    label: "posts",
-    text: "short notes, kept light.",
-  },
 };
