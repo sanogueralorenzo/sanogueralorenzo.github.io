@@ -7,9 +7,9 @@ export default {
     title: "hey",
     subline: "zero to one",
     intro: "",
-    image: "/assets/images/hero-head-ridge-v7.png",
+    image: "/assets/images/hero-head-fade-v8.png",
     imageAlt:
-      "A clean hand-drawn figure from behind dissolving into mountain-like brushstrokes, with faint mountains and a few clouds fading into white.",
+      "A simpler hand-drawn figure from behind with faint mountains and clouds, fading softly into white at the bottom.",
     noteTitle: "",
     note: "",
   },
