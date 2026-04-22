@@ -275,10 +275,11 @@ a {
 
 .post-link {
   display: grid;
-  grid-template-columns: 138px minmax(0, 448px);
-  gap: 38px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   padding: 36px 0 46px;
   align-items: start;
+  width: 100%;
 }
 
 .posts-list {
@@ -292,7 +293,7 @@ a {
 .post-card h2,
 .post-header h1 {
   margin: 0;
-  font-size: clamp(1.5rem, 2.4vw, 2.1rem);
+  font-size: 1.5rem;
   line-height: 1.04;
   letter-spacing: -0.04em;
   text-transform: lowercase;
@@ -374,12 +375,6 @@ a {
   .hero-portrait {
     width: fit-content;
     margin: 56px 0 0;
-  }
-
-  .post-link {
-    grid-template-columns: 1fr;
-    gap: 10px;
-    width: 100%;
   }
 
   .post-card {
