@@ -4,21 +4,21 @@ export default {
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
   hero: {
     eyebrow: "Mario Sanoguera de Lorenzo",
-    title: "Calm software. Human taste.",
+    title: "I make software and write things down.",
     intro:
-      "Engineer, indie builder, and product-minded generalist. A quiet home for projects, selected writing, and work that should age well.",
+      "This is my corner of the internet for projects, notes, and a few things I want to keep around.",
     image: "/assets/images/hero-town-v3.png",
     imageAlt:
       "A solitary person walking away through a bright East Asian mountain town street.",
-    noteTitle: "Perspective",
+    noteTitle: "A quiet place",
     note:
-      "More room, less noise, and enough clarity to build things that last.",
+      "Simple things, clearly made.",
   },
   profile: {
     image: "/assets/images/profile.png",
     imageAlt: "Profile image of Mario Sanoguera de Lorenzo",
     blurb:
-      "I like products with taste, simple systems, and technology that still feels human when you come back to it later.",
+      "I like simple products, clean systems, and technology that does not get in the way.",
   },
   actions: [
     {
@@ -34,31 +34,31 @@ export default {
     {
       name: "LinkedIn",
       url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/",
-      description: "Work history, roles, and current context.",
+      description: "Work and background.",
     },
     {
       name: "CV",
       url: "https://docs.google.com/document/d/1EPTrdfhl943lO1M98AZua6YlP5cUxEex3BngMLOuMKA/",
-      description: "A plain version of the long-form professional summary.",
+      description: "The longer version.",
     },
     {
       name: "Medium",
       url: "https://medium.com/@sanogueralorenzo/",
-      description: "External writing and longer posts.",
+      description: "Longer posts.",
     },
     {
       name: "X",
       url: "https://x.com/MarioSanoguera/",
-      description: "Shorter thoughts and loose ends.",
+      description: "Shorter thoughts.",
     },
     {
       name: "GitHub",
       url: "https://github.com/sanogueralorenzo/",
-      description: "Code, experiments, and public work.",
+      description: "Code and side projects.",
     },
   ],
   postsIntro: {
     label: "Posts",
-    text: "A small archive of notes worth keeping around.",
+    text: "Short posts, notes, and the occasional recommendation.",
   },
 };
