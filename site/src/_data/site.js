@@ -7,9 +7,9 @@ export default {
     title: "hey",
     subline: "zero to one",
     intro: "",
-    image: "/assets/images/hero-wind-thoughts-v9.png",
+    image: "/assets/images/hero-air-thoughts-v10.png",
     imageAlt:
-      "A minimalist figure dissolving into airy lines and watercolor forms, blending into white around the edges.",
+      "An abstract composition of airy lines, drifting ink forms, and thought-like currents blending into white at the edges.",
     noteTitle: "",
     note: "",
   },
