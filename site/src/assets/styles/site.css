@@ -181,6 +181,14 @@ a {
   transform: rotate(-4deg);
 }
 
+.hero-portrait-name {
+  margin: 8px 2px 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+}
+
 .hero-note {
   position: relative;
   z-index: 2;
@@ -217,11 +225,15 @@ a {
 }
 
 .posts-layout {
-  display: block;
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .post-card {
   display: block;
+  width: fit-content;
+  max-width: 100%;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -245,9 +257,11 @@ a {
 }
 
 .posts-list {
-  display: grid;
+  display: inline-grid;
   gap: 0;
-  max-width: 720px;
+  width: fit-content;
+  max-width: min(720px, 100%);
+  justify-items: start;
 }
 
 .post-card h2,
@@ -339,6 +353,7 @@ a {
   .post-link {
     grid-template-columns: 1fr;
     gap: 10px;
+    width: min(100%, 720px);
   }
 }
 
