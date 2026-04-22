@@ -19,24 +19,19 @@ export default {
   },
   links: [
     {
-      name: "LinkedIn",
-      url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/",
-      label: "linkedin",
-    },
-    {
       name: "CV",
       url: "https://docs.google.com/document/d/1EPTrdfhl943lO1M98AZua6YlP5cUxEex3BngMLOuMKA/",
       label: "cv",
     },
     {
-      name: "X",
-      url: "https://x.com/MarioSanoguera/",
-      label: "x",
-    },
-    {
       name: "GitHub",
       url: "https://github.com/sanogueralorenzo/",
       label: "github",
+    },
+    {
+      name: "LinkedIn",
+      url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/",
+      label: "linkedin",
     },
   ],
 };
