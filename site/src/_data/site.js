@@ -5,7 +5,7 @@ export default {
   hero: {
     eyebrow: "",
     title: "hey",
-    subline: "morphing ideas to software",
+    subline: "ideas to things",
     intro: "",
     image: "/assets/images/hero-head-ridge-v7.png",
     imageAlt:
