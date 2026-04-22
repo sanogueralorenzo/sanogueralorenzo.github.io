@@ -7,9 +7,9 @@ export default {
     title: "hey",
     subline: "morphing ideas to software",
     intro: "",
-    image: "/assets/images/hero-head-tide-v6.png",
+    image: "/assets/images/hero-head-ridge-v7.png",
     imageAlt:
-      "A hand-drawn figure from behind dissolving into darker tidal brushstrokes and distant landscape forms.",
+      "A clean hand-drawn figure from behind dissolving into mountain-like brushstrokes, with faint mountains and a few clouds fading into white.",
     noteTitle: "",
     note: "",
   },

@@ -28,19 +28,20 @@ layout: base.njk
     {% endif %}
   </section>
 
+  <nav class="line-links" aria-label="Profile links">
+    {% for link in site.links %}
+      <a class="line-link-pill" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
+        <span>{{ link.label or (link.name | lower) }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+
   <section class="profile-section">
     <div class="profile-ribbon">
       <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
       <div class="profile-copy">
         <h2 class="profile-name">{{ site.title }}</h2>
         <p class="profile-blurb">{{ site.profile.blurb }}</p>
-        <div class="profile-links" aria-label="Profile links">
-          {% for link in site.links %}
-            <a class="profile-link-pill" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
-              <span>{{ link.label or (link.name | lower) }}</span>
-            </a>
-          {% endfor %}
-        </div>
       </div>
     </div>
   </section>
