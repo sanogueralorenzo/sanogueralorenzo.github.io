@@ -103,8 +103,18 @@ a {
   line-height: 1.8;
 }
 
+.hero-subline {
+  margin: 16px 0 0;
+  max-width: 16ch;
+  font-size: clamp(1rem, 1.7vw, 1.28rem);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  text-transform: lowercase;
+}
+
 .hero-intro {
-  margin: 28px 0 0;
+  margin: 20px 0 0;
   max-width: 19ch;
   font-size: 1.02rem;
 }

@@ -8,6 +8,9 @@ layout: base.njk
         <p class="hero-eyebrow">{{ site.hero.eyebrow }}</p>
       {% endif %}
       <h1>{{ site.hero.title }}</h1>
+      {% if site.hero.subline %}
+        <p class="hero-subline">{{ site.hero.subline }}</p>
+      {% endif %}
       <p class="hero-intro">{{ site.hero.intro }}</p>
     </div>
 

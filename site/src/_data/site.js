@@ -5,6 +5,7 @@ export default {
   hero: {
     eyebrow: "",
     title: "hey",
+    subline: "morphing ideas to software",
     intro:
       "small products, clear systems, a few things worth keeping.",
     image: "/assets/images/hero-head-drift-v5.png",
