@@ -108,7 +108,6 @@ a {
   padding-top: 2vh;
 }
 
-.hero-eyebrow,
 .section-label,
 .post-date,
 .post-card-date,
@@ -131,7 +130,6 @@ a {
   text-transform: lowercase;
 }
 
-.hero-intro,
 .section-intro,
 .post-card-excerpt,
 .post-content {
@@ -178,12 +176,6 @@ a {
   transform: translateX(4px);
 }
 
-.hero-intro {
-  margin: 20px 0 0;
-  max-width: 19ch;
-  font-size: 1.02rem;
-}
-
 .hero-portrait {
   position: relative;
   z-index: 2;
@@ -192,24 +184,6 @@ a {
   padding: 0;
 }
 
-.hero-note {
-  position: relative;
-  z-index: 2;
-  width: min(240px, 30vw);
-  margin-top: 54vh;
-  margin-left: 8vw;
-}
-
-.hero-note span {
-  display: inline-block;
-  margin-bottom: 6px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: lowercase;
-}
-
-.hero-note p,
 .section-intro,
 .not-found p {
   margin: 0;

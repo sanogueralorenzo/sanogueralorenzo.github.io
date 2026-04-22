@@ -3,15 +3,9 @@ export default {
   description:
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
   hero: {
-    eyebrow: "",
     title: "hey",
     subline: "zero to one",
-    intro: "",
     image: "/assets/images/hero-air-thoughts-v10.png",
-    imageAlt:
-      "An abstract composition of airy lines, drifting ink forms, and thought-like currents blending into white at the edges.",
-    noteTitle: "",
-    note: "",
   },
   profile: {
     image: "/assets/images/profile.png",

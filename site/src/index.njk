@@ -4,9 +4,6 @@ layout: base.njk
 <main class="page-shell">
   <section class="hero-stage">
     <div class="hero-copy">
-      {% if site.hero.eyebrow %}
-        <p class="hero-eyebrow">{{ site.hero.eyebrow }}</p>
-      {% endif %}
       <h1>{{ site.hero.title }}</h1>
       {% if site.hero.subline %}
         <p class="hero-subline">{{ site.hero.subline }}</p>
@@ -21,17 +18,7 @@ layout: base.njk
           </a>
         {% endfor %}
       </nav>
-      {% if site.hero.intro %}
-        <p class="hero-intro">{{ site.hero.intro }}</p>
-      {% endif %}
     </div>
-
-    {% if site.hero.noteTitle and site.hero.note %}
-      <div class="hero-note">
-        <span>{{ site.hero.noteTitle }}</span>
-        <p>{{ site.hero.note }}</p>
-      </div>
-    {% endif %}
   </section>
 
   <section class="posts-section">
