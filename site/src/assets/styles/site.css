@@ -5,6 +5,8 @@
   --muted: #6d665f;
   --line: rgba(20, 19, 16, 0.1);
   --shadow: 0 16px 50px rgba(33, 31, 29, 0.045);
+  --guide-left: calc(8vw + 92px);
+  --guide-gap: 40px;
 }
 
 *,
@@ -62,7 +64,7 @@ a {
   content: "";
   position: absolute;
   top: clamp(10.4rem, 19vh, 12.2rem);
-  left: calc(8vw + 92px);
+  left: var(--guide-left);
   bottom: 10rem;
   width: 1px;
   background: linear-gradient(
@@ -208,7 +210,7 @@ a {
 
 .posts-section {
   margin-bottom: 18vh;
-  padding-left: 8vw;
+  padding-left: calc(var(--guide-left) + var(--guide-gap));
 }
 
 .posts-layout {
@@ -331,12 +333,13 @@ a {
 }
 
 @media (max-width: 1120px) {
-  .page-shell {
-    padding-inline: 24px;
+  :root {
+    --guide-left: 20px;
+    --guide-gap: 24px;
   }
 
-  .page-shell::before {
-    display: none;
+  .page-shell {
+    padding-inline: 24px;
   }
 
   .hero-stage {
@@ -347,12 +350,12 @@ a {
 
   .hero-copy {
     max-width: 280px;
-    margin-left: 0;
+    margin-left: calc(var(--guide-left) + var(--guide-gap));
     padding-top: 0;
   }
 
   .posts-section {
-    padding-left: 0;
+    padding-left: calc(var(--guide-left) + var(--guide-gap));
   }
 
   .posts-layout,
@@ -381,6 +384,11 @@ a {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --guide-left: 16px;
+    --guide-gap: 18px;
+  }
+
   .page-shell {
     padding: 18px 18px 120px;
   }
