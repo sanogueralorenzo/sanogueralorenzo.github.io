@@ -199,7 +199,7 @@ a {
 }
 
 .post-card {
-  --rail-left-reach: calc(var(--posts-offset) - var(--rail-page-gap));
+  --rail-left-reach: calc(var(--guide-gap) - 1px);
   --rail-right-trim: 6%;
   position: relative;
   display: block;
