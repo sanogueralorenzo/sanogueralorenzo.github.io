@@ -79,9 +79,9 @@ a {
 
 .hero-stage {
   position: relative;
-  min-height: 120vh;
-  padding: 10vh 0 22vh;
-  margin-bottom: 14vh;
+  min-height: auto;
+  padding: 10vh 0 10vh;
+  margin-bottom: 6vh;
 }
 
 .hero-copy {
@@ -208,7 +208,7 @@ a {
 
 .posts-section {
   margin-bottom: 18vh;
-  padding-left: 24vw;
+  padding-left: 8vw;
 }
 
 .posts-layout {
