@@ -47,11 +47,11 @@ a {
 .page-shell::before {
   content: "";
   position: absolute;
-  top: 19rem;
-  left: min(16vw, 250px);
+  top: clamp(12rem, 24vh, 15rem);
+  left: calc(8vw + 48px);
   bottom: 10rem;
   width: 1px;
-  background: linear-gradient(180deg, transparent 0%, rgba(20, 19, 16, 0.08) 15%, rgba(20, 19, 16, 0.08) 78%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(20, 19, 16, 0.08) 8%, rgba(20, 19, 16, 0.08) 82%, transparent 100%);
   pointer-events: none;
 }
 
