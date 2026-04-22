@@ -18,7 +18,7 @@ export default {
     image: "/assets/images/profile.png",
     imageAlt: "Profile image of Mario Sanoguera de Lorenzo",
     blurb:
-      "I like simple products, clean systems, and technology that does not get in the way.",
+      "I like products with taste, simple systems, and technology that still feels human when you come back to it later.",
   },
   actions: [
     {
@@ -34,27 +34,27 @@ export default {
     {
       name: "LinkedIn",
       url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/",
-      description: "Work and background.",
+      iconText: "in",
     },
     {
       name: "CV",
       url: "https://docs.google.com/document/d/1EPTrdfhl943lO1M98AZua6YlP5cUxEex3BngMLOuMKA/",
-      description: "The longer version.",
+      iconText: "CV",
     },
     {
       name: "Medium",
       url: "https://medium.com/@sanogueralorenzo/",
-      description: "Longer posts.",
+      iconText: "M",
     },
     {
       name: "X",
       url: "https://x.com/MarioSanoguera/",
-      description: "Shorter thoughts.",
+      iconText: "X",
     },
     {
       name: "GitHub",
       url: "https://github.com/sanogueralorenzo/",
-      description: "Code and side projects.",
+      iconText: "GH",
     },
   ],
   postsIntro: {

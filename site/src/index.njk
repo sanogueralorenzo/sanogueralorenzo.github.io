@@ -26,24 +26,16 @@ layout: base.njk
     <div class="about-card">
       <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
       <div class="about-copy">
-        <p class="section-label">About</p>
-        <p>{{ site.profile.blurb }}</p>
+        <h2 class="profile-name">{{ site.title }}</h2>
+        <p class="profile-blurb">{{ site.profile.blurb }}</p>
+        <div class="profile-links" aria-label="Profile links">
+          {% for link in site.links %}
+            <a class="icon-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
+              <span>{{ link.iconText }}</span>
+            </a>
+          {% endfor %}
+        </div>
       </div>
-    </div>
-  </section>
-
-  <section class="links-section">
-    <div class="section-heading">
-      <p class="section-label">Links</p>
-      <p class="section-intro">The useful places to find me.</p>
-    </div>
-    <div class="links-grid">
-      {% for link in site.links %}
-        <a class="link-card" href="{{ link.url }}" target="_blank" rel="noreferrer">
-          <span class="link-name">{{ link.name }}</span>
-          <span class="link-description">{{ link.description }}</span>
-        </a>
-      {% endfor %}
     </div>
   </section>
 

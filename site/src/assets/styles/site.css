@@ -48,7 +48,6 @@ a {
 
 .hero-section,
 .about-section,
-.links-section,
 .posts-section,
 .post-page,
 .not-found {
@@ -175,13 +174,61 @@ a {
   display: grid;
   grid-template-columns: 160px minmax(0, 1fr);
   gap: 28px;
-  max-width: 760px;
+  max-width: 920px;
   align-items: center;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: none;
   box-shadow: none;
+}
+
+.about-copy {
+  max-width: 640px;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.profile-blurb {
+  max-width: 40ch;
+  margin: 18px 0 0;
+}
+
+.profile-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.icon-link span {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.icon-link:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-strong);
+  border-color: rgba(24, 23, 22, 0.14);
 }
 
 .profile-image {
@@ -192,14 +239,6 @@ a {
   box-shadow: var(--shadow);
 }
 
-.links-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-  margin-top: 32px;
-}
-
-.link-card,
 .post-card {
   display: block;
   padding: 24px;
@@ -210,23 +249,9 @@ a {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
-.link-card:hover,
 .post-card:hover {
   box-shadow: var(--shadow);
   border-color: rgba(24, 23, 22, 0.14);
-}
-
-.link-name {
-  display: block;
-  margin-bottom: 10px;
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-}
-
-.link-description {
-  color: var(--muted);
-  line-height: 1.8;
 }
 
 .posts-section {
@@ -314,7 +339,6 @@ a {
 
   .hero-section,
   .about-section,
-  .links-section,
   .posts-section,
   .post-page,
   .not-found {
@@ -335,15 +359,11 @@ a {
   .about-card {
     grid-template-columns: 1fr;
     gap: 20px;
-    padding: 20px;
+    padding: 0;
   }
 
   .profile-image {
     width: 132px;
     height: 132px;
-  }
-
-  .links-grid {
-    grid-template-columns: 1fr;
   }
 }
