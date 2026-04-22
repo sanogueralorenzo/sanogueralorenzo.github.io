@@ -210,6 +210,8 @@ a {
 }
 
 .post-card {
+  --rail-left-reach: clamp(180px, 20vw, 360px);
+  --rail-right-trim: clamp(52px, 6vw, 110px);
   position: relative;
   display: block;
   width: min(1180px, calc(100vw - 18vw - 88px));
@@ -226,22 +228,25 @@ a {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
+  left: calc(-1 * var(--rail-left-reach));
   height: 1px;
-  width: min(1120px, calc(100% - 36px));
+  width: calc(100% + var(--rail-left-reach) - var(--rail-right-trim));
   background: var(--line);
 }
 
-.post-card:nth-child(2n)::before {
-  width: min(1050px, calc(100% - 78px));
+.post-card:nth-child(2n) {
+  --rail-left-reach: clamp(150px, 17vw, 300px);
+  --rail-right-trim: clamp(84px, 8vw, 148px);
 }
 
-.post-card:nth-child(3n)::before {
-  width: min(1190px, calc(100% + 8px));
+.post-card:nth-child(3n) {
+  --rail-left-reach: clamp(210px, 23vw, 420px);
+  --rail-right-trim: clamp(36px, 4vw, 82px);
 }
 
-.post-card:nth-child(4n)::before {
-  width: min(980px, calc(100% - 122px));
+.post-card:nth-child(4n) {
+  --rail-left-reach: clamp(130px, 14vw, 250px);
+  --rail-right-trim: clamp(112px, 10vw, 190px);
 }
 
 .post-card:hover {
@@ -346,6 +351,12 @@ a {
   .post-link {
     grid-template-columns: 1fr;
     gap: 10px;
+    width: min(100%, 720px);
+  }
+
+  .post-card {
+    --rail-left-reach: 0px;
+    --rail-right-trim: 22px;
     width: min(100%, 720px);
   }
 }
