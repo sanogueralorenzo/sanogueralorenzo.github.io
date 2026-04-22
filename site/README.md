@@ -1,19 +1,21 @@
 ## Intro
 
-**Site** contains static website content, templates, and generation config.
+**Site** is a custom Eleventy personal website with a long-scroll homepage and a minimal posts section.
 
 ## Quickstart
 
 ```shell
-hugo server
+npm install
+npm run dev
 ```
 
 ## Reference
 
-- Build: `hugo --minify`
-- Config: `site/config/_default/config.yaml`
-- Content: `site/content`
-- Templates: `site/layouts`
-- Homepage hero: `site/layouts/partials/home_info.html` with image asset at `site/assets/images/home-hero-mountains-v4.png`
-- Post cards keep hover styling while clicked; no pressed-size shrink on click.
-- Generated output: `site/public`
+- Build: `npm run build`
+- Config: `site/.eleventy.js`
+- Site data: `site/src/_data/site.js`
+- Layouts: `site/src/_includes`
+- Posts: `site/src/posts`
+- Assets: `site/src/assets`
+- Static files: `site/src/static`
+- Output: `site/_site`

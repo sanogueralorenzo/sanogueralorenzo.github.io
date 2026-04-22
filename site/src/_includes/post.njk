@@ -1,0 +1,17 @@
+---
+layout: base.njk
+---
+<main class="page-shell">
+  <section class="post-page">
+    <a class="post-back" href="/">Home</a>
+    <article class="post-body">
+      <header class="post-header">
+        <p class="post-date">{{ page.date | displayDate }}</p>
+        <h1>{{ title }}</h1>
+      </header>
+      <div class="post-content prose">
+        {{ content | safe }}
+      </div>
+    </article>
+  </section>
+</main>

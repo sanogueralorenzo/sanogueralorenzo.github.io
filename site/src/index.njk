@@ -1,0 +1,67 @@
+---
+layout: base.njk
+---
+<main class="page-shell">
+  <section class="hero-section">
+    <div class="hero-copy">
+      <p class="hero-eyebrow">{{ site.hero.eyebrow }}</p>
+      <h1>{{ site.hero.title }}</h1>
+      <p class="hero-intro">{{ site.hero.intro }}</p>
+      <div class="hero-actions">
+        {% for action in site.actions %}
+          <a class="button {% if loop.first %}button-primary{% else %}button-secondary{% endif %}" href="{{ action.url }}" target="_blank" rel="noreferrer">{{ action.label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    <figure class="hero-media">
+      <img src="{{ site.hero.image }}" alt="{{ site.hero.imageAlt }}">
+      <figcaption>
+        <span>{{ site.hero.noteTitle }}</span>
+        <p>{{ site.hero.note }}</p>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="about-section">
+    <div class="about-card">
+      <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
+      <div class="about-copy">
+        <p class="section-label">About</p>
+        <p>{{ site.profile.blurb }}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="links-section">
+    <div class="section-heading">
+      <p class="section-label">Links</p>
+      <p class="section-intro">The useful places to find me.</p>
+    </div>
+    <div class="links-grid">
+      {% for link in site.links %}
+        <a class="link-card" href="{{ link.url }}" target="_blank" rel="noreferrer">
+          <span class="link-name">{{ link.name }}</span>
+          <span class="link-description">{{ link.description }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="posts-section">
+    <div class="section-heading posts-heading">
+      <p class="section-label">{{ site.postsIntro.label }}</p>
+      <p class="section-intro">{{ site.postsIntro.text }}</p>
+    </div>
+    <div class="posts-list">
+      {% for post in collections.posts | reverse %}
+        <article class="post-card">
+          <p class="post-card-date">{{ post.date | displayDate }}</p>
+          <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
+          {% if post.data.excerpt %}
+            <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</main>
