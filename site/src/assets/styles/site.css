@@ -219,7 +219,7 @@ a {
 .post-card {
   position: relative;
   display: block;
-  width: min(980px, calc(100vw - 24vw - 88px));
+  width: min(1180px, calc(100vw - 18vw - 88px));
   max-width: 100%;
   padding: 0;
   border: 0;
@@ -235,16 +235,20 @@ a {
   top: 0;
   left: 0;
   height: 1px;
-  width: min(980px, calc(100% - 32px));
+  width: min(1120px, calc(100% - 36px));
   background: var(--line);
 }
 
 .post-card:nth-child(2n)::before {
-  width: min(920px, calc(100% - 64px));
+  width: min(1050px, calc(100% - 78px));
 }
 
 .post-card:nth-child(3n)::before {
-  width: min(1040px, calc(100% + 12px));
+  width: min(1190px, calc(100% + 8px));
+}
+
+.post-card:nth-child(4n)::before {
+  width: min(980px, calc(100% - 122px));
 }
 
 .post-card:hover {
@@ -257,9 +261,9 @@ a {
 
 .post-link {
   display: grid;
-  grid-template-columns: 132px minmax(0, 280px);
-  gap: 28px;
-  padding: 34px 0 42px;
+  grid-template-columns: 138px minmax(0, 238px);
+  gap: 34px;
+  padding: 36px 0 46px;
   align-items: start;
 }
 
@@ -267,7 +271,7 @@ a {
   display: inline-grid;
   gap: 0;
   width: fit-content;
-  max-width: min(980px, 100%);
+  max-width: min(1180px, 100%);
   justify-items: start;
 }
 
@@ -281,7 +285,7 @@ a {
 }
 
 .post-card-body {
-  max-width: 280px;
+  max-width: 238px;
 }
 
 .post-card h2 a {
@@ -289,8 +293,8 @@ a {
 }
 
 .post-card-excerpt {
-  max-width: 30ch;
-  margin: 10px 0 0;
+  max-width: 24ch;
+  margin: 8px 0 0;
 }
 
 .post-page {
