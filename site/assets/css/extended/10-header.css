@@ -4,22 +4,25 @@
 }
 
 .header .logo a {
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  font-size: 1rem;
-  letter-spacing: 0.01em;
+  font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .header .nav {
   align-items: center;
+  min-height: 84px;
 }
 
 #menu {
-  gap: 18px;
+  gap: 22px;
 }
 
 #menu a {
   color: var(--secondary);
   font-size: 0.92rem;
+  font-weight: 500;
 }
 
 #menu a:hover {

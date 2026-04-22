@@ -1,12 +1,13 @@
 /* -------------------- Post Entry -------------------- */
 /* Keep post list cards compact and consistent across pages. */
 .post-entry {
-  padding: 20px;
-  border-radius: 24px;
+  padding: 28px;
+  margin-bottom: 22px;
+  border-radius: 28px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.42)),
     var(--entry);
-  box-shadow: 0 18px 42px -32px rgba(15, 23, 42, 0.36);
+  box-shadow: 0 24px 56px -38px rgba(15, 23, 42, 0.22);
   transition:
     transform 180ms ease,
     border-color 180ms ease,
@@ -14,8 +15,15 @@
 }
 
 .post-entry .entry-header h2 {
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  letter-spacing: -0.02em;
+  font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: clamp(1.5rem, 2vw, 1.8rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.post-entry .entry-content {
+  color: var(--secondary);
+  line-height: 1.78;
 }
 
 /* Keep click/tap from shrinking post cards while preserving hover visuals. */
@@ -29,6 +37,6 @@
   .post-entry:active {
     transform: translateY(-3px);
     border-color: var(--tertiary);
-    box-shadow: 0 24px 52px -30px rgba(15, 23, 42, 0.42);
+    box-shadow: 0 28px 60px -34px rgba(15, 23, 42, 0.26);
   }
 }

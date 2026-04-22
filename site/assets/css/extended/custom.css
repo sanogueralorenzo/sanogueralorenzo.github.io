@@ -12,6 +12,21 @@ Keeping this file as an index note.
 */
 
 :root {
-  --home-accent: #355978;
-  --home-accent-strong: #22364e;
+  --home-accent: #101214;
+  --home-accent-strong: #000;
+}
+
+.main {
+  max-width: 1320px;
+  padding: 32px 28px 96px;
+}
+
+.first-entry {
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 20px 18px 72px;
+  }
 }

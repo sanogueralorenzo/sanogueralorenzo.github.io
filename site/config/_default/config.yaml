@@ -1,6 +1,6 @@
 baseURL: "https://sanogueralorenzo.github.io/"
 title: "Mario Sanoguera de Lorenzo"
-description: "Short posts about software, recommendations, and whatever is worth writing down."
+description: "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work."
 module:
   imports:
     - path: github.com/adityatelange/hugo-PaperMod
@@ -21,7 +21,7 @@ menu:
 
 params:
   env: production
-  description: "Short posts about software, recommendations, and whatever is worth writing down."
+  description: "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work."
   defaultTheme: light
   disableThemeToggle: true
   ShowReadingTime: true
@@ -33,23 +33,24 @@ params:
   # We extended the stock template to also render an avatar from these keys.
   homeInfoParams:
     Eyebrow: "Mario Sanoguera de Lorenzo"
-    Title: "Software, recommendations, and things worth keeping."
-    Content: "A quiet place for short posts, tech notes, and recommendations worth sending to a friend instead of leaving buried in a tab."
-    ImageURL: "images/home-hero-workspace-v2.png"
-    ImageWidth: 720
-    ImageHeight: 540
-    MediaNoteTitle: "Where posts start"
-    MediaNote: "Writing, tinkering, and collecting things worth sharing."
+    Title: "I build calm software and quietly ambitious products."
+    Content: "Engineer, indie builder, and product-minded generalist. This site is the home base for projects, selected writing, and the kind of work I want my name attached to."
+    ImageURL: "images/home-hero-studio-v3.png"
+    ImageWidth: 760
+    ImageHeight: 380
+    MediaNoteTitle: "Independent work"
+    MediaNote: "Minimal systems, sharper taste, and room for the next thing."
     IntroPills:
+      - "Products"
       - "Software"
-      - "Recommendations"
-      - "Field notes"
+      - "Indie"
+      - "Minimal systems"
     PrimaryAction:
-      Text: "Read the posts"
-      URL: "/stories/"
+      Text: "Open GitHub"
+      URL: "https://github.com/sanogueralorenzo/"
     SecondaryAction:
-      Text: "Open Medium"
-      URL: "https://medium.com/@sanogueralorenzo/"
+      Text: "Read posts"
+      URL: "/stories/"
   socialIcons:
     - name: "linkedin"
       url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/"

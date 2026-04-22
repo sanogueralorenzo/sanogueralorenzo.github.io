@@ -1,4 +1,4 @@
 ---
 images:
-  - "images/home-hero-workspace-v2.png"
+  - "images/home-hero-studio-v3.png"
 ---

@@ -1,35 +1,35 @@
 /* -------------------- Home Hero -------------------- */
 .home-info--hero {
   position: relative;
-  margin: 0 0 40px;
-  padding: 28px;
+  margin: 0 0 72px;
+  padding: 40px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 32px;
+  border: 1px solid rgba(22, 27, 35, 0.08);
+  border-radius: 40px;
   background:
-    radial-gradient(circle at top left, rgba(184, 108, 75, 0.12), transparent 34%),
-    linear-gradient(135deg, rgba(53, 89, 120, 0.1), rgba(53, 89, 120, 0) 44%),
+    radial-gradient(circle at top left, rgba(215, 202, 187, 0.34), transparent 34%),
+    linear-gradient(135deg, rgba(42, 56, 71, 0.08), rgba(42, 56, 71, 0) 44%),
     var(--entry);
-  box-shadow: 0 32px 80px -52px rgba(15, 23, 42, 0.5);
+  box-shadow: 0 36px 90px -56px rgba(15, 23, 42, 0.34);
 }
 
 .home-info--hero::after {
   content: "";
   position: absolute;
-  inset: auto auto -72px -56px;
-  width: 220px;
-  height: 220px;
+  inset: auto auto -90px -72px;
+  width: 260px;
+  height: 260px;
   border-radius: 50%;
-  background: rgba(184, 108, 75, 0.08);
-  filter: blur(8px);
+  background: rgba(200, 188, 172, 0.18);
+  filter: blur(12px);
 }
 
 .home-info--hero .home-info-grid {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-  gap: 32px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(400px, 0.95fr);
+  gap: 48px;
   align-items: stretch;
 }
 
@@ -41,29 +41,31 @@
 }
 
 .home-info--hero .home-info-eyebrow {
-  margin: 0 0 14px;
+  margin: 0 0 20px;
   color: var(--secondary);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .home-info--hero .entry-header h1 {
-  margin-bottom: 18px;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  font-size: clamp(2.8rem, 5vw, 4.8rem);
-  line-height: 0.94;
+  max-width: 10ch;
+  margin-bottom: 24px;
+  font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: clamp(3.4rem, 6vw, 6rem);
+  font-weight: 700;
+  line-height: 0.9;
   letter-spacing: -0.05em;
   text-wrap: balance;
 }
 
 .home-info--hero .entry-content {
-  max-width: 42ch;
+  max-width: 46ch;
   margin: 0;
   color: var(--secondary);
-  font-size: 1.02rem;
-  line-height: 1.72;
+  font-size: 1.08rem;
+  line-height: 1.82;
 }
 
 .home-info--hero .entry-content p {
@@ -73,34 +75,35 @@
 .home-info--hero .home-info-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   padding: 0;
-  margin: 22px 0 0;
+  margin: 32px 0 0;
   list-style: none;
 }
 
 .home-info--hero .home-info-pills li {
-  padding: 8px 12px;
-  border: 1px solid rgba(53, 89, 120, 0.14);
+  padding: 9px 14px;
+  border: 1px solid rgba(22, 27, 35, 0.08);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--secondary);
-  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--primary);
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .home-info--hero .home-info-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 14px;
+  margin-top: 32px;
 }
 
 .home-info--hero .home-info-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  padding: 0 16px;
+  min-height: 52px;
+  padding: 0 20px;
   border-radius: 999px;
   font-weight: 600;
   text-decoration: none;
@@ -117,28 +120,28 @@
 }
 
 .home-info--hero .home-info-action--primary {
-  background: var(--home-accent);
+  background: #101214;
   color: #fff;
-  box-shadow: 0 16px 28px -20px rgba(53, 89, 120, 0.8);
+  box-shadow: 0 22px 34px -24px rgba(16, 18, 20, 0.8);
 }
 
 .home-info--hero .home-info-action--primary:hover {
-  background: var(--home-accent-strong);
+  background: #000;
 }
 
 .home-info--hero .home-info-action--secondary {
-  border: 1px solid rgba(53, 89, 120, 0.18);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(22, 27, 35, 0.1);
+  background: rgba(255, 255, 255, 0.82);
   color: var(--primary);
 }
 
 .home-info--hero .home-info-action--secondary:hover {
-  border-color: rgba(53, 89, 120, 0.35);
-  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(22, 27, 35, 0.22);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .home-info--hero .entry-footer {
-  margin-top: 24px;
+  margin-top: 32px;
 }
 
 .home-info--hero .home-info-media {
@@ -146,17 +149,17 @@
   min-height: 100%;
   margin: 0;
   overflow: hidden;
-  border-radius: 28px;
+  border-radius: 32px;
   background: #111;
-  box-shadow: 0 28px 54px -30px rgba(15, 23, 42, 0.42);
+  box-shadow: 0 34px 72px -38px rgba(15, 23, 42, 0.34);
 }
 
 .home-info--hero .home-info-image {
   width: 100%;
   height: 100%;
-  min-height: 420px;
+  min-height: 520px;
   object-fit: cover;
-  object-position: center;
+  object-position: 44% center;
   transition: transform 260ms ease;
 }
 
@@ -166,13 +169,13 @@
 
 .home-info--hero .home-info-media-note {
   position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 18px;
-  padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  background: rgba(22, 27, 35, 0.56);
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background: rgba(17, 18, 20, 0.5);
   color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(14px);
 }
@@ -194,32 +197,38 @@
 
 @media (max-width: 960px) {
   .home-info--hero {
-    padding: 22px;
+    margin-bottom: 56px;
+    padding: 28px;
   }
 
   .home-info--hero .home-info-grid {
     grid-template-columns: 1fr;
   }
+
+  .home-info--hero .entry-header h1 {
+    max-width: 12ch;
+  }
 }
 
 @media (max-width: 768px) {
   .home-info--hero {
-    margin-bottom: 24px;
-    padding: 18px;
-    border-radius: 26px;
+    margin-bottom: 40px;
+    padding: 20px;
+    border-radius: 30px;
   }
 
   .home-info--hero .entry-header h1 {
-    font-size: clamp(2.25rem, 11vw, 3.4rem);
+    max-width: none;
+    font-size: clamp(2.8rem, 11vw, 4.2rem);
   }
 
   .home-info--hero .entry-content {
     max-width: none;
-    font-size: 0.98rem;
+    font-size: 1rem;
   }
 
   .home-info--hero .home-info-image {
-    min-height: 320px;
+    min-height: 360px;
   }
 
   .home-info--hero .home-info-media-note {
