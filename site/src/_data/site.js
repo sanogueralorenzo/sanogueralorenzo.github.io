@@ -7,9 +7,9 @@ export default {
     title: "I make software and write things down.",
     intro:
       "This is my corner of the internet for projects, notes, and a few things I want to keep around.",
-    image: "/assets/images/hero-town-v3.png",
+    image: "/assets/images/hero-town-sketch-v4.png",
     imageAlt:
-      "A solitary person walking away through a bright East Asian mountain town street.",
+      "A sketch-like scene of one person walking away through a quiet East Asian town lane.",
     noteTitle: "A quiet place",
     note:
       "Simple things, clearly made.",
