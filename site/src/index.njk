@@ -11,6 +11,10 @@ layout: base.njk
       {% if site.hero.subline %}
         <p class="hero-subline">{{ site.hero.subline }}</p>
       {% endif %}
+      <figure class="hero-portrait">
+        <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
+        <figcaption class="hero-portrait-name">mario</figcaption>
+      </figure>
       <nav class="hero-links" aria-label="Profile links">
         {% for link in site.links %}
           <a class="hero-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
@@ -22,11 +26,6 @@ layout: base.njk
         <p class="hero-intro">{{ site.hero.intro }}</p>
       {% endif %}
     </div>
-
-    <figure class="hero-portrait">
-      <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}">
-      <figcaption class="hero-portrait-name">mario</figcaption>
-    </figure>
 
     <figure class="hero-drift">
       <img src="{{ site.hero.image }}" alt="{{ site.hero.imageAlt }}">

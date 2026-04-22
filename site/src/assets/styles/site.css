@@ -117,7 +117,7 @@ a {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  margin-top: calc(1.8rem * 3);
+  margin-top: calc(1.15rem * 3);
 }
 
 .hero-link {
@@ -168,11 +168,10 @@ a {
 }
 
 .hero-portrait {
-  position: absolute;
-  left: calc(min(16vw, 250px) - 1.3rem);
-  top: clamp(28rem, 58vh, 40rem);
-  z-index: 3;
-  margin: 0;
+  position: relative;
+  z-index: 2;
+  width: fit-content;
+  margin: 30px 0 0;
   padding: 8px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(20, 19, 16, 0.08);
@@ -343,9 +342,6 @@ a {
   }
 
   .hero-portrait {
-    position: relative;
-    top: auto;
-    left: auto;
     width: fit-content;
     margin: 28px 0 0;
   }
