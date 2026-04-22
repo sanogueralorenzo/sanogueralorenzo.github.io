@@ -218,11 +218,11 @@ a {
 }
 
 .post-card {
-  --rail-left-reach: clamp(180px, 20vw, 360px);
-  --rail-right-trim: clamp(36px, 4.6vw, 86px);
+  --rail-left-reach: 24%;
+  --rail-right-trim: 6%;
   position: relative;
   display: block;
-  width: min(1240px, calc(100vw - 16vw - 72px));
+  width: min(1120px, calc(100vw - clamp(220px, 24vw, 420px) - 72px));
   max-width: 100%;
   padding: 0;
   border: 0;
@@ -243,18 +243,18 @@ a {
 }
 
 .post-card:nth-child(2n) {
-  --rail-left-reach: clamp(150px, 17vw, 300px);
-  --rail-right-trim: clamp(62px, 6.8vw, 122px);
+  --rail-left-reach: 19%;
+  --rail-right-trim: 9%;
 }
 
 .post-card:nth-child(3n) {
-  --rail-left-reach: clamp(210px, 23vw, 420px);
-  --rail-right-trim: clamp(24px, 3vw, 58px);
+  --rail-left-reach: 28%;
+  --rail-right-trim: 4.5%;
 }
 
 .post-card:nth-child(4n) {
-  --rail-left-reach: clamp(130px, 14vw, 250px);
-  --rail-right-trim: clamp(86px, 8vw, 154px);
+  --rail-left-reach: 15%;
+  --rail-right-trim: 11%;
 }
 
 .post-card:hover {
@@ -277,7 +277,7 @@ a {
   display: inline-grid;
   gap: 0;
   width: fit-content;
-  max-width: min(1240px, 100%);
+  max-width: min(1120px, 100%);
   justify-items: start;
 }
 
@@ -367,8 +367,8 @@ a {
   }
 
   .post-card {
-    --rail-left-reach: 0px;
-    --rail-right-trim: 22px;
+    --rail-left-reach: 0%;
+    --rail-right-trim: 4%;
     width: min(100%, 720px);
   }
 }
