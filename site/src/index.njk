@@ -13,8 +13,8 @@ layout: base.njk
       </figure>
       <nav class="hero-links" aria-label="Profile links">
         {% for link in site.links %}
-          <a class="hero-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.label or (link.name | lower) }}" title="{{ link.label or (link.name | lower) }}">
-            <span>{{ link.label or (link.name | lower) }}</span>
+          <a class="hero-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.label }}" title="{{ link.label }}">
+            <span>{{ link.label }}</span>
           </a>
         {% endfor %}
       </nav>
@@ -22,22 +22,20 @@ layout: base.njk
   </section>
 
   <section class="posts-section">
-    <div class="posts-layout">
-      <div class="posts-list">
-        {% for post in collections.posts | reverse %}
-          <article class="post-card">
-            <a class="post-link" href="{{ post.url }}">
-              <p class="post-card-date">{{ post.date | displayDate }}</p>
-              <div class="post-card-body">
-                <h2>{{ post.data.title }}</h2>
-                {% if post.data.excerpt %}
-                  <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
-                {% endif %}
-              </div>
-            </a>
-          </article>
-        {% endfor %}
-      </div>
+    <div class="posts-list">
+      {% for post in collections.posts | reverse %}
+        <article class="post-card">
+          <a class="post-link" href="{{ post.url }}">
+            <p class="post-card-date">{{ post.date | displayDate }}</p>
+            <div class="post-card-body">
+              <h2>{{ post.data.title }}</h2>
+              {% if post.data.excerpt %}
+                <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
+              {% endif %}
+            </div>
+          </a>
+        </article>
+      {% endfor %}
     </div>
   </section>
 </main>

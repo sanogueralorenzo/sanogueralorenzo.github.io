@@ -2,10 +2,10 @@ export default {
   title: "Mario Sanoguera de Lorenzo",
   description:
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
+  socialImage: "/assets/images/hero-air-thoughts-v10.png",
   hero: {
     title: "hey",
     subline: "zero to one",
-    image: "/assets/images/hero-air-thoughts-v10.png",
   },
   profile: {
     image: "/assets/images/profile.png",
@@ -13,17 +13,14 @@ export default {
   },
   links: [
     {
-      name: "CV",
       url: "https://docs.google.com/document/d/1EPTrdfhl943lO1M98AZua6YlP5cUxEex3BngMLOuMKA/",
       label: "cv",
     },
     {
-      name: "GitHub",
       url: "https://github.com/sanogueralorenzo/",
       label: "github",
     },
     {
-      name: "LinkedIn",
       url: "https://www.linkedin.com/in/mario-sanoguera-de-lorenzo-b7b392103/",
       label: "linkedin",
     },
