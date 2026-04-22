@@ -15,6 +15,8 @@
   --hero-subline-gap: 16px;
   --hero-portrait-gap: 84px;
   --hero-links-gap: calc(1.65rem * 3);
+  --hero-top-pad: 10vh;
+  --hero-bottom-pad: 10vh;
 }
 
 *,
@@ -94,7 +96,7 @@ a {
 .hero-stage {
   position: relative;
   min-height: auto;
-  padding: 10vh 0 10vh;
+  padding: var(--hero-top-pad) 0 var(--hero-bottom-pad);
   margin-bottom: 6vh;
 }
 
@@ -354,7 +356,7 @@ a {
 
   .hero-stage {
     min-height: auto;
-    padding: 20px 0 80px;
+    padding: var(--hero-top-pad) 0 var(--hero-bottom-pad);
     margin-bottom: 60px;
   }
 
