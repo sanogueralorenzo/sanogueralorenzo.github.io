@@ -18,6 +18,7 @@ html {
 }
 
 body {
+  position: relative;
   margin: 0;
   font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: var(--text);
@@ -25,6 +26,18 @@ body {
     radial-gradient(circle at top left, rgba(250, 240, 226, 0.44), transparent 26%),
     linear-gradient(180deg, #fffefb 0%, #fcfbf7 50%, #faf8f3 100%);
   line-height: 1.6;
+  overflow-x: hidden;
+}
+
+.site-atmosphere {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.96;
 }
 
 img {
@@ -39,6 +52,7 @@ a {
 
 .page-shell {
   position: relative;
+  z-index: 1;
   max-width: 1700px;
   margin: 0 auto;
   padding: 28px 44px 240px;
@@ -144,27 +158,6 @@ a {
   margin: 20px 0 0;
   max-width: 19ch;
   font-size: 1.02rem;
-}
-
-.hero-drift {
-  position: absolute;
-  top: -2vh;
-  right: -8vw;
-  width: min(96vw, 1720px);
-  margin: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.hero-drift img {
-  width: 100%;
-  height: auto;
-  opacity: 0.96;
-  mix-blend-mode: multiply;
-  mask-image:
-    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.24) 14%, rgba(0, 0, 0, 1) 30%, rgba(0, 0, 0, 1) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 70%, rgba(0, 0, 0, 0.18) 88%, transparent 100%);
-  filter: saturate(0.88);
 }
 
 .hero-portrait {
@@ -335,14 +328,6 @@ a {
     margin-bottom: 60px;
   }
 
-  .hero-drift {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: 100%;
-    margin-top: 36px;
-  }
-
   .hero-copy {
     max-width: 280px;
     margin-left: 0;
@@ -392,9 +377,5 @@ a {
   .post-page,
   .not-found {
     margin-bottom: 96px;
-  }
-
-  .hero-drift img {
-    mask-image: none;
   }
 }

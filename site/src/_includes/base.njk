@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="/assets/styles/site.css">
   </head>
   <body>
+    <canvas class="site-atmosphere" data-wave-canvas aria-hidden="true"></canvas>
     {{ content | safe }}
+    <script src="/assets/scripts/background-waves.js" defer></script>
   </body>
 </html>

@@ -2,6 +2,7 @@ export default function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ "src/static": "/" });
   eleventyConfig.addPassthroughCopy({ "src/assets/images": "assets/images" });
   eleventyConfig.addPassthroughCopy({ "src/assets/styles": "assets/styles" });
+  eleventyConfig.addPassthroughCopy({ "src/assets/scripts": "assets/scripts" });
 
   eleventyConfig.addFilter("displayDate", (value) => {
     const date = value instanceof Date ? value : new Date(value);
