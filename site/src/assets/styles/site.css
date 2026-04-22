@@ -176,10 +176,13 @@ a {
 }
 
 .hero-portrait-name {
-  margin: 8px 0 0;
-  font-size: 0.72rem;
+  margin: 10px 0 0;
+  width: 100%;
+  text-align: center;
+  font-size: clamp(1rem, 1.7vw, 1.28rem);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
   text-transform: lowercase;
   color: var(--muted);
 }
