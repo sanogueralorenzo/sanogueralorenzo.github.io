@@ -228,9 +228,8 @@ a {
 }
 
 .posts-layout {
-  display: inline-block;
-  width: fit-content;
-  max-width: 100%;
+  display: block;
+  width: 100%;
 }
 
 .post-card {
@@ -238,7 +237,7 @@ a {
   --rail-right-trim: 6%;
   position: relative;
   display: block;
-  width: min(1120px, calc(100vw - clamp(220px, 24vw, 420px) - 72px));
+  width: 100%;
   max-width: 100%;
   padding: 0;
   border: 0;
@@ -288,11 +287,10 @@ a {
 }
 
 .posts-list {
-  display: inline-grid;
+  display: grid;
   gap: 0;
-  width: fit-content;
-  max-width: min(1120px, 100%);
-  justify-items: start;
+  width: min(1120px, calc(100vw - var(--posts-offset) - var(--shell-pad-right)));
+  max-width: 100%;
 }
 
 .post-card h2,
@@ -370,16 +368,8 @@ a {
     padding-left: calc(var(--guide-left) + var(--guide-gap));
   }
 
-  .posts-layout,
-  .posts-list {
-    display: block;
-    width: 100%;
-    max-width: none;
-  }
-
   .post-card {
     --rail-right-trim: clamp(22px, 4vw, 42px);
-    width: min(860px, calc(100vw - 48px));
   }
 }
 
@@ -419,6 +409,5 @@ a {
 
   .post-card {
     --rail-right-trim: clamp(12px, 3vw, 20px);
-    width: 100%;
   }
 }
