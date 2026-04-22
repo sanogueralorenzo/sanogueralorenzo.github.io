@@ -352,22 +352,6 @@ a {
     padding-inline: var(--shell-pad-right) var(--shell-pad-left);
   }
 
-  .hero-stage {
-    min-height: auto;
-    padding: var(--hero-top-pad) 0 var(--hero-bottom-pad);
-    margin-bottom: 60px;
-  }
-
-  .hero-copy {
-    max-width: 360px;
-    margin-left: calc(var(--hero-anchor-left) - var(--shell-pad-left));
-    padding-top: 0;
-  }
-
-  .posts-section {
-    padding-left: calc(var(--guide-left) + var(--guide-gap));
-  }
-
   .post-card {
     --rail-right-trim: clamp(22px, 4vw, 42px);
   }
@@ -390,15 +374,6 @@ a {
   .hero-copy h1,
   .not-found h1 {
     font-size: clamp(3.8rem, 18vw, 6rem);
-  }
-
-  .profile-image {
-    width: 96px;
-    height: 96px;
-  }
-
-  .hero-stage {
-    padding-bottom: 54px;
   }
 
   .posts-section,
