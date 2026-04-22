@@ -333,11 +333,6 @@ a {
 }
 
 @media (max-width: 1120px) {
-  :root {
-    --guide-left: 20px;
-    --guide-gap: 24px;
-  }
-
   .page-shell {
     padding-inline: 24px;
   }
@@ -384,11 +379,6 @@ a {
 }
 
 @media (max-width: 760px) {
-  :root {
-    --guide-left: 16px;
-    --guide-gap: 18px;
-  }
-
   .page-shell {
     padding: 18px 18px 120px;
   }
