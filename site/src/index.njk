@@ -11,6 +11,13 @@ layout: base.njk
       {% if site.hero.subline %}
         <p class="hero-subline">{{ site.hero.subline }}</p>
       {% endif %}
+      <nav class="hero-links" aria-label="Profile links">
+        {% for link in site.links %}
+          <a class="hero-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
+            <span>{{ link.label or (link.name | lower) }}</span>
+          </a>
+        {% endfor %}
+      </nav>
       {% if site.hero.intro %}
         <p class="hero-intro">{{ site.hero.intro }}</p>
       {% endif %}
@@ -31,14 +38,6 @@ layout: base.njk
       </div>
     {% endif %}
   </section>
-
-  <nav class="line-links" aria-label="Profile links">
-    {% for link in site.links %}
-      <a class="line-link-pill" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.name }}" title="{{ link.name }}">
-        <span>{{ link.label or (link.name | lower) }}</span>
-      </a>
-    {% endfor %}
-  </nav>
 
   <section class="posts-section">
     <div class="posts-layout">

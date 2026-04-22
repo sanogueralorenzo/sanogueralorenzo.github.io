@@ -5,7 +5,7 @@ export default {
   hero: {
     eyebrow: "",
     title: "hey",
-    subline: "0 to 1",
+    subline: "zero to one",
     intro: "",
     image: "/assets/images/hero-head-ridge-v7.png",
     imageAlt:
@@ -27,11 +27,6 @@ export default {
       name: "CV",
       url: "https://docs.google.com/document/d/1EPTrdfhl943lO1M98AZua6YlP5cUxEex3BngMLOuMKA/",
       label: "cv",
-    },
-    {
-      name: "Medium",
-      url: "https://medium.com/@sanogueralorenzo/",
-      label: "medium",
     },
     {
       name: "X",
