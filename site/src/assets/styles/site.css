@@ -293,6 +293,42 @@ a {
   min-height: 65vh;
 }
 
+.not-found h1 {
+  margin-bottom: 22px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.button::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--line);
+  transition: background 180ms ease, width 180ms ease;
+}
+
+.button:hover {
+  color: var(--text);
+  transform: translateX(4px);
+}
+
+.button:hover::before {
+  width: 36px;
+  background: rgba(20, 19, 16, 0.18);
+}
+
 @media (max-width: 1120px) {
   .post-card {
     --rail-right-trim: clamp(22px, 4vw, 42px);
