@@ -29,7 +29,7 @@ html {
 body {
   position: relative;
   margin: 0;
-  font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: "Avenir Next", sans-serif;
   color: var(--text);
   background:
     radial-gradient(circle at top left, rgba(250, 240, 226, 0.44), transparent 26%),
