@@ -1,7 +1,10 @@
 export default {
   title: "Mario Sanoguera de Lorenzo",
+  url: "https://sanogueralorenzo.github.io",
   description:
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
+  image: "/share-image.png",
+  imageAlt: "A black M monogram on a warm white background.",
   hero: {
     title: "hey",
     subline: "zero to one",

@@ -18,4 +18,5 @@ npm run dev
 - Posts: `site/src/posts`
 - Assets: `site/src/assets`
 - Static files: `site/src/static`
+- Favicons and social share image: `site/src/static`
 - Output: `site/_site`

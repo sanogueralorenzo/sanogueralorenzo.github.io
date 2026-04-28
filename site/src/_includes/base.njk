@@ -2,15 +2,23 @@
 <html lang="en">
   <head>
     {% set metaDescription = description or excerpt or site.description %}
+    {% set metaImage = site.url + site.image %}
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% if title %}{{ title }} | {% endif %}{{ site.title }}</title>
     <meta name="description" content="{{ metaDescription }}">
     <meta property="og:title" content="{% if title %}{{ title }} | {% endif %}{{ site.title }}">
     <meta property="og:description" content="{{ metaDescription }}">
+    <meta property="og:image" content="{{ metaImage }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="1200">
+    <meta property="og:image:alt" content="{{ site.imageAlt }}">
     <meta property="og:type" content="{% if title %}article{% else %}website{% endif %}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:description" content="{{ metaDescription }}">
+    <meta name="twitter:image" content="{{ metaImage }}">
+    <meta name="twitter:image:alt" content="{{ site.imageAlt }}">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="icon" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
