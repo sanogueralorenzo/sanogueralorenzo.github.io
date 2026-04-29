@@ -23,11 +23,14 @@
 }
 
 html {
+  min-height: 100%;
+  background: #faf8f3;
   scroll-behavior: smooth;
 }
 
 body {
   position: relative;
+  min-height: 100vh;
   margin: 0;
   font-family: "Avenir Next", sans-serif;
   color: var(--text);
@@ -51,6 +54,7 @@ a {
 .page-shell {
   position: relative;
   z-index: 1;
+  min-height: 100vh;
   max-width: 1700px;
   margin: 0 auto;
   padding:
@@ -77,6 +81,10 @@ a {
     transparent 100%
   );
   pointer-events: none;
+}
+
+.post-shell::before {
+  display: none;
 }
 
 .hero-stage {
