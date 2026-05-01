@@ -25,7 +25,7 @@ layout: base.njk
     <div class="posts-list">
       {% for post in collections.posts | reverse %}
         <article class="post-card">
-          <a class="post-link" href="{{ post.url }}">
+          <div class="post-summary">
             <p class="post-card-date">{{ post.date | displayDate }}</p>
             <div class="post-card-body">
               <h2>{{ post.data.title }}</h2>
@@ -33,7 +33,7 @@ layout: base.njk
                 <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
               {% endif %}
             </div>
-          </a>
+          </div>
         </article>
       {% endfor %}
     </div>

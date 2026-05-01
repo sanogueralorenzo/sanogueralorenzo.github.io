@@ -207,7 +207,6 @@ a {
   border-radius: 0;
   background: none;
   box-shadow: none;
-  transition: transform 180ms ease, border-color 180ms ease;
 }
 
 .post-card::before {
@@ -232,15 +231,7 @@ a {
   --rail-right-trim: 11%;
 }
 
-.post-card:hover {
-  transform: translateX(6px);
-}
-
-.post-card:hover::before {
-  background: rgba(20, 19, 16, 0.18);
-}
-
-.post-link {
+.post-summary {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
