@@ -257,16 +257,20 @@ a {
 }
 
 .post-card-body {
-  max-width: 448px;
+  max-width: 680px;
 }
 
-.post-card-excerpt {
-  display: -webkit-box;
-  max-width: 44ch;
-  margin: 8px 0 0;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.post-card-content {
+  max-width: 62ch;
+  margin-top: 18px;
+}
+
+.post-card-content p {
+  margin: 0 0 1.3em;
+}
+
+.post-card-content p:last-child {
+  margin-bottom: 0;
 }
 
 .post-page {

@@ -1,6 +1,6 @@
 ## Intro
 
-**Site** is a custom Eleventy personal website with a long-scroll homepage and an inline posts section that shows each post title and excerpt.
+**Site** is a custom Eleventy personal website with a long-scroll homepage and an inline posts section that shows each full post.
 
 ## Quickstart
 

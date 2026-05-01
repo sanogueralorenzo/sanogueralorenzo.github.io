@@ -29,9 +29,9 @@ layout: base.njk
             <p class="post-card-date">{{ post.date | displayDate }}</p>
             <div class="post-card-body">
               <h2>{{ post.data.title }}</h2>
-              {% if post.data.excerpt %}
-                <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
-              {% endif %}
+              <div class="post-card-content prose">
+                {{ post.templateContent | safe }}
+              </div>
             </div>
           </div>
         </article>
