@@ -9,11 +9,11 @@
   --guide-gap: 10px;
   --posts-offset: calc(var(--guide-left) + var(--guide-gap));
   --rail-page-gap: 28px;
-  --hero-subline-gap: 14px;
-  --hero-portrait-gap: clamp(48px, 7vh, 68px);
-  --hero-links-gap: clamp(34px, 5vh, 52px);
-  --hero-top-pad: clamp(56px, 7vh, 96px);
-  --hero-bottom-pad: clamp(28px, 4vh, 56px);
+  --hero-subline-gap: 16px;
+  --hero-portrait-gap: 84px;
+  --hero-links-gap: calc(1.65rem * 3);
+  --hero-top-pad: 10vh;
+  --hero-bottom-pad: 10vh;
 }
 
 *,
@@ -91,7 +91,7 @@ a {
   position: relative;
   min-height: auto;
   padding: var(--hero-top-pad) 0 var(--hero-bottom-pad);
-  margin-bottom: clamp(24px, 3vh, 48px);
+  margin-bottom: 6vh;
 }
 
 .hero-copy {
@@ -99,6 +99,7 @@ a {
   z-index: 2;
   max-width: 360px;
   margin-left: calc(var(--hero-anchor-left) - var(--shell-pad-left));
+  padding-top: 2vh;
 }
 
 .section-label,
@@ -206,6 +207,7 @@ a {
   border-radius: 0;
   background: none;
   box-shadow: none;
+  transition: transform 180ms ease, border-color 180ms ease;
 }
 
 .post-card::before {
@@ -230,7 +232,15 @@ a {
   --rail-right-trim: 11%;
 }
 
-.post-summary {
+.post-card:hover {
+  transform: translateX(6px);
+}
+
+.post-card:hover::before {
+  background: rgba(20, 19, 16, 0.18);
+}
+
+.post-link {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
@@ -256,20 +266,16 @@ a {
 }
 
 .post-card-body {
-  max-width: 680px;
+  max-width: 448px;
 }
 
-.post-card-content {
-  max-width: 62ch;
-  margin-top: 18px;
-}
-
-.post-card-content p {
-  margin: 0 0 1.3em;
-}
-
-.post-card-content p:last-child {
-  margin-bottom: 0;
+.post-card-excerpt {
+  display: -webkit-box;
+  max-width: 44ch;
+  margin: 8px 0 0;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .post-page {

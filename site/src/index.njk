@@ -25,15 +25,15 @@ layout: base.njk
     <div class="posts-list">
       {% for post in collections.posts | reverse %}
         <article class="post-card">
-          <div class="post-summary">
+          <a class="post-link" href="{{ post.url }}">
             <p class="post-card-date">{{ post.date | displayDate }}</p>
             <div class="post-card-body">
               <h2>{{ post.data.title }}</h2>
-              <div class="post-card-content prose">
-                {{ post.templateContent | safe }}
-              </div>
+              {% if post.data.excerpt %}
+                <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
+              {% endif %}
             </div>
-          </div>
+          </a>
         </article>
       {% endfor %}
     </div>
