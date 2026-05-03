@@ -1,0 +1,4 @@
+dist/
+.codex-web/
+node_modules/
+public/client.js

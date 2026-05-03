@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codex Web</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <header>
+          <h1>Codex</h1>
+          <p id="status">Checking Codex CLI</p>
+        </header>
+        <div class="create">
+          <input id="session-title" placeholder="New session title" />
+          <button id="new-session" type="button">New</button>
+        </div>
+        <nav id="sessions" aria-label="Sessions"></nav>
+      </aside>
+      <section class="workspace">
+        <div id="events" class="events"></div>
+        <footer class="composer">
+          <textarea id="prompt" rows="4" placeholder="Send a prompt or slash command. Use Cmd/Ctrl+Enter to send."></textarea>
+          <div class="actions">
+            <button id="cancel" type="button">Cancel</button>
+            <button id="send" type="button">Send</button>
+          </div>
+        </footer>
+      </section>
+    </main>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>
