@@ -16,10 +16,6 @@ abstract class ExampleState extends MavericksState<ExampleState>
   const factory ExampleState({
     @Default(Uninitialized<ExampleTodo>()) Async<ExampleTodo> todo,
   }) = _ExampleState;
-
-  ExampleTodo? get loadedTodo => todo.valueOrNull;
-
-  String? get errorMessage => todo.errorOrNull.messageOrNull;
 }
 
 abstract class ExampleViewModel extends MavericksViewModel<ExampleState> {
