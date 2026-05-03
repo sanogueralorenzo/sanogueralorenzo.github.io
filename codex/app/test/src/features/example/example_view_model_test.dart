@@ -1,0 +1,39 @@
+import 'package:app/src/features/example/example_repository.dart';
+import 'package:app/src/features/example/example_todo.dart';
+import 'package:app/src/features/example/example_view_model.dart';
+import 'package:app/src/mavericks/async.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+final class _FakeExampleRepository implements ExampleRepository {
+  _FakeExampleRepository(this.todo);
+
+  final ExampleTodo todo;
+
+  @override
+  Future<ExampleTodo> getExampleTodo() async => todo;
+}
+
+void main() {
+  test('load reduces state through loading and success', () async {
+    const todo = ExampleTodo(
+      id: 1,
+      userId: 2,
+      title: 'Exercise the Mavericks flow',
+      completed: true,
+    );
+    final viewModel = ExampleViewModelImpl(
+      repository: _FakeExampleRepository(todo),
+    );
+    final states = <ExampleState>[];
+    final subscription = viewModel.stream.listen(states.add);
+
+    await viewModel.load();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(states.first.todo, isA<Loading<ExampleTodo>>());
+    expect(states.last.todo, const Success(todo));
+
+    await subscription.cancel();
+    await viewModel.close();
+  });
+}

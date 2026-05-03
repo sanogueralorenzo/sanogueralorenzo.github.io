@@ -1,17 +1,24 @@
-# app
+# App
 
-A new Flutter project.
+Flutter client scaffold for Codex tooling.
 
-## Getting Started
+## Quickstart
 
-This project is a starting point for a Flutter application.
+```shell
+flutter pub get
+dart run build_runner build
+flutter analyze
+flutter test
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Architecture
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- `lib/src/mavericks`: Mavericks-style state, view model, and widgets.
+- `lib/src/di`: `get_it` + `injectable` dependency wiring.
+- `lib/src/navigation`: typed `go_router` routes.
+- `lib/src/network`: Dio client setup, API selection, proxy support, and error handling.
+- `lib/src/theme`: shared Material theme.
+- `lib/src/features/example`: neutral example feature with UI, Mavericks view model, repository, Retrofit API, and generated models.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Generated files are committed so the project builds immediately after dependency restore.
