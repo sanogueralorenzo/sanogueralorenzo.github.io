@@ -99,6 +99,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Example'**
   String get exampleTitle;
+
+  /// No description provided for @exampleRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Request failed.'**
+  String get exampleRequestFailed;
+
+  /// No description provided for @exampleRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get exampleRetry;
 }
 
 class _AppLocalizationsDelegate

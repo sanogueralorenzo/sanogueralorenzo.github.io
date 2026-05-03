@@ -1,4 +1,6 @@
 {
   "@@locale": "en",
-  "exampleTitle": "Example"
+  "exampleTitle": "Example",
+  "exampleRequestFailed": "Request failed.",
+  "exampleRetry": "Retry"
 }

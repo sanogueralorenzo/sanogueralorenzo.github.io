@@ -47,11 +47,11 @@ class _ExampleContent extends StatelessWidget {
         children: [
           _ExampleTodoCard(title: todo.title, completed: todo.completed),
           const SizedBox(height: 16),
-          Text(error.messageOrNull ?? 'Request failed.'),
+          Text(error.messageOrNull ?? context.l10n.exampleRequestFailed),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: () => context.read<ExampleViewModel>().load(),
-            child: const Text('Retry'),
+            child: Text(context.l10n.exampleRetry),
           ),
         ],
       ),
@@ -59,11 +59,11 @@ class _ExampleContent extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(error.messageOrNull ?? 'Request failed.'),
+          Text(error.messageOrNull ?? context.l10n.exampleRequestFailed),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: () => context.read<ExampleViewModel>().load(),
-            child: const Text('Retry'),
+            child: Text(context.l10n.exampleRetry),
           ),
         ],
       ),

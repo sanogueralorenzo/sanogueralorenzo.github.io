@@ -10,4 +10,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exampleTitle => 'Example';
+
+  @override
+  String get exampleRequestFailed => 'Request failed.';
+
+  @override
+  String get exampleRetry => 'Retry';
 }
