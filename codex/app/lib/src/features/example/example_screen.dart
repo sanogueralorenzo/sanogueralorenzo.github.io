@@ -1,3 +1,4 @@
+import 'package:app/l10n/l10n_extensions.dart';
 import 'package:app/src/features/example/example_view_model.dart';
 import 'package:app/src/mavericks/async.dart';
 import 'package:app/src/mavericks/mavericks_widgets.dart';
@@ -11,7 +12,7 @@ class ExampleScreen extends StatelessWidget {
     return MavericksInvalidate<ExampleViewModel, ExampleState>(
       builder: (context, state) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Example')),
+          appBar: AppBar(title: Text(context.l10n.exampleTitle)),
           body: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),

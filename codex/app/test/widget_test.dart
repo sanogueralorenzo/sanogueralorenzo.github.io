@@ -1,3 +1,4 @@
+import 'package:app/l10n/gen/app_localizations.dart';
 import 'package:app/src/features/example/example_screen.dart';
 import 'package:app/src/features/example/example_todo.dart';
 import 'package:app/src/features/example/example_view_model.dart';
@@ -51,6 +52,10 @@ class _TestApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: child);
+    return MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    );
   }
 }

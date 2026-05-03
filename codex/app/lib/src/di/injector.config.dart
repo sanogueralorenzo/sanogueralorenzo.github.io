@@ -19,6 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart' as _i460;
 import '../features/example/example_api.dart' as _i469;
 import '../features/example/example_repository.dart' as _i504;
 import '../features/example/example_view_model.dart' as _i48;
+import '../l10n/app_strings.dart' as _i248;
 import 'injector.dart' as _i811;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -40,6 +41,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i469.ExampleApi>(
       () => injectorModule.exampleApi(gh<_i361.Dio>()),
     );
+    gh.lazySingleton<_i248.AppStrings>(() => _i248.AppStringsImpl());
     gh.lazySingleton<_i504.ExampleRepository>(
       () => _i504.ExampleRepositoryImpl(api: gh<_i469.ExampleApi>()),
     );
