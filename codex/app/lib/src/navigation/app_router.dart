@@ -20,7 +20,7 @@ class ExampleRoute extends GoRouteData with $ExampleRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     return MavericksProvider<ExampleViewModel>(
-      create: () => Injector.get<ExampleViewModel>()..load(),
+      create: () => Injector.get<ExampleViewModel>(),
       child: const ExampleScreen(),
     );
   }

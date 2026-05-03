@@ -14,7 +14,7 @@ final class _FakeExampleRepository implements ExampleRepository {
 }
 
 void main() {
-  test('load reduces state through loading and success', () async {
+  test('starts loading example data on creation', () async {
     const todo = ExampleTodo(
       id: 1,
       userId: 2,
@@ -27,7 +27,6 @@ void main() {
     final states = <ExampleState>[];
     final subscription = viewModel.stream.listen(states.add);
 
-    await viewModel.load();
     await Future<void>.delayed(Duration.zero);
 
     expect(states.first.todo, isA<Loading<ExampleTodo>>());

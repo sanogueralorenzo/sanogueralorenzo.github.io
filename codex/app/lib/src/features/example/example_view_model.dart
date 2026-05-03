@@ -31,7 +31,9 @@ abstract class ExampleViewModel extends MavericksViewModel<ExampleState> {
 @Injectable(as: ExampleViewModel)
 class ExampleViewModelImpl extends ExampleViewModel {
   ExampleViewModelImpl({required this.repository})
-    : super(const ExampleState());
+    : super(const ExampleState()) {
+    load();
+  }
 
   final ExampleRepository repository;
 
