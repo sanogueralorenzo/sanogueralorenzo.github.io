@@ -1,3 +1,15 @@
+/// Async state for work such as a network request or database read.
+///
+/// This follows the official Mavericks pattern of keeping async work in state
+/// so a screen stays a pure function of state instead of splitting loading,
+/// success, and failure across separate flags or callbacks.
+///
+/// `Async<T>` has four cases:
+/// `Uninitialized`, `Loading(previousValue?)`, `Success(value)`, and
+/// `Fail(error, previousValue?)`.
+///
+/// In this package, `MavericksViewModel.execute` is the standard way to move a
+/// state field through those transitions.
 sealed class Async<T> {
   const Async();
 

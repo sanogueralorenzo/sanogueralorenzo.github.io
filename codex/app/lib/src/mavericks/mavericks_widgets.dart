@@ -38,6 +38,32 @@ final class _OnEachMavericksListener<S extends MavericksState<S>, V>
   }
 }
 
+/// Creates a side-effect listener for a selected value.
+///
+/// This is the Flutter equivalent of a Mavericks `onEach` subscription from a
+/// Fragment: observe a selected value and run work that does not belong in the
+/// render path.
+///
+/// Use `uniqueOnly: true` for one-off effects such as navigation or snackbars.
+/// Use `uniqueOnly: false` when synchronizing an imperative collaborator on
+/// every state delivery.
+///
+/// Example:
+/// ```dart
+/// listeners: [
+///   onEach<ExampleState, String?>(
+///     (state) => state.errorMessage,
+///     (context, message) {
+///       if (message != null) {
+///         ScaffoldMessenger.of(context).showSnackBar(
+///           SnackBar(content: Text(message)),
+///         );
+///       }
+///     },
+///     uniqueOnly: true,
+///   ),
+/// ]
+/// ```
 MavericksListener<S> onEach<S extends MavericksState<S>, V>(
   V Function(S state) selector,
   MavericksSelectedValueListener<V> onValue, {
@@ -50,14 +76,41 @@ MavericksListener<S> onEach<S extends MavericksState<S>, V>(
   );
 }
 
+/// Provides a Mavericks view model to a widget subtree.
+///
+/// Example:
+/// ```dart
+/// MavericksProvider<ExampleViewModel>(
+///   create: () => ExampleViewModelImpl(repository: repository),
+///   child: const ExampleScreen(),
+/// )
+/// ```
 class MavericksProvider<T extends MavericksViewModel<dynamic>>
     extends StatefulWidget {
+  /// Creates and owns a view model for the lifetime of this subtree.
+  ///
+  /// Example:
+  /// ```dart
+  /// MavericksProvider<ExampleViewModel>(
+  ///   create: () => ExampleViewModelImpl(repository: repository),
+  ///   child: const ExampleScreen(),
+  /// )
+  /// ```
   const MavericksProvider({
     required this.create,
     required this.child,
     super.key,
   }) : value = null;
 
+  /// Reuses an existing view model without taking ownership of its lifecycle.
+  ///
+  /// Example:
+  /// ```dart
+  /// MavericksProvider.value(
+  ///   value: existingViewModel,
+  ///   child: const ExampleScreen(),
+  /// )
+  /// ```
   const MavericksProvider.value({
     required T this.value,
     required this.child,
@@ -68,6 +121,23 @@ class MavericksProvider<T extends MavericksViewModel<dynamic>>
   final T? value;
   final Widget child;
 
+  /// Reads a provided view model from the widget tree.
+  ///
+  /// Example:
+  /// ```dart
+  /// final viewModel = MavericksProvider.of<ExampleViewModel>(context);
+  /// ```
+  ///
+  /// Pass `listen: false` to avoid rebuilding when the provider instance
+  /// changes.
+  ///
+  /// Example:
+  /// ```dart
+  /// final viewModel = MavericksProvider.of<ExampleViewModel>(
+  ///   context,
+  ///   listen: false,
+  /// );
+  /// ```
   static T of<T extends MavericksViewModel<dynamic>>(
     BuildContext context, {
     bool listen = true,
@@ -164,10 +234,22 @@ class _MavericksProviderState<T extends MavericksViewModel<dynamic>>
 }
 
 extension MavericksBuildContext on BuildContext {
+  /// Reads a view model without establishing a dependency on the provider.
+  ///
+  /// Example:
+  /// ```dart
+  /// context.read<ExampleViewModel>().load();
+  /// ```
   T read<T extends MavericksViewModel<dynamic>>() {
     return MavericksProvider.of<T>(this, listen: false);
   }
 
+  /// Reads a view model and rebuilds if the provider instance changes.
+  ///
+  /// Example:
+  /// ```dart
+  /// final viewModel = context.watch<ExampleViewModel>();
+  /// ```
   T watch<T extends MavericksViewModel<dynamic>>() {
     return MavericksProvider.of<T>(this);
   }
@@ -185,11 +267,45 @@ class _MavericksScope<T extends MavericksViewModel<dynamic>>
   }
 }
 
+/// Rebuilds from state changes and optionally runs side effects.
+///
+/// In official Mavericks, `invalidate()` is expected to be a pure render pass
+/// over the latest state. This widget keeps the same split:
+/// [builder] renders from state, while [listeners] handle non-render work such
+/// as navigation, analytics, snackbars, or coordinator sync.
+///
+/// Example:
+/// ```dart
+/// MavericksInvalidate<ExampleViewModel, ExampleState>(
+///   listeners: [
+///     onEach<ExampleState, String?>(
+///       (state) => state.errorMessage,
+///       (context, message) {
+///         if (message != null) {
+///           ScaffoldMessenger.of(context).showSnackBar(
+///             SnackBar(content: Text(message)),
+///           );
+///         }
+///       },
+///       uniqueOnly: true,
+///     ),
+///   ],
+///   builder: (context, state) => Text(state.loadedTodo?.title ?? ''),
+/// )
+/// ```
 class MavericksInvalidate<
   T extends MavericksViewModel<S>,
   S extends MavericksState<S>
 >
     extends StatefulWidget {
+  /// Creates a widget that invalidates on every state change.
+  ///
+  /// Example:
+  /// ```dart
+  /// MavericksInvalidate<ExampleViewModel, ExampleState>(
+  ///   builder: (context, state) => Text(state.loadedTodo?.title ?? ''),
+  /// )
+  /// ```
   const MavericksInvalidate({
     required this.builder,
     this.listeners = const [],
