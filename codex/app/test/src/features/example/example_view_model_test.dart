@@ -1,16 +1,16 @@
+import 'dart:async';
+
 import 'package:app/src/features/example/example_repository.dart';
 import 'package:app/src/features/example/example_todo.dart';
 import 'package:app/src/features/example/example_view_model.dart';
 import 'package:app/src/mavericks/async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final class _FakeExampleRepository implements ExampleRepository {
-  _FakeExampleRepository(this.todo);
-
-  final ExampleTodo todo;
+final class _CompleterExampleRepository implements ExampleRepository {
+  final completer = Completer<ExampleTodo>();
 
   @override
-  Future<ExampleTodo> getExampleTodo() async => todo;
+  Future<ExampleTodo> getExampleTodo() => completer.future;
 }
 
 void main() {
@@ -21,15 +21,19 @@ void main() {
       title: 'Exercise the Mavericks flow',
       completed: true,
     );
-    final viewModel = ExampleViewModelImpl(
-      repository: _FakeExampleRepository(todo),
-    );
+    final repository = _CompleterExampleRepository();
+    final viewModel = ExampleViewModelImpl(repository: repository);
     final states = <ExampleState>[];
     final subscription = viewModel.stream.listen(states.add);
 
     await Future<void>.delayed(Duration.zero);
 
-    expect(states.first.todo, isA<Loading<ExampleTodo>>());
+    expect(viewModel.state.todo, isA<Loading<ExampleTodo>>());
+    expect(states, [viewModel.state]);
+
+    repository.completer.complete(todo);
+    await Future<void>.delayed(Duration.zero);
+
     expect(states.last.todo, const Success(todo));
 
     await subscription.cancel();
