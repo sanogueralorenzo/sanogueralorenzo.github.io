@@ -6,12 +6,14 @@ export default {
   image: "/share-image.png",
   imageAlt: "A black M monogram on a warm white background.",
   hero: {
-    title: "hey",
+    title: "Mario Sanoguera de Lorenzo",
     subline: "zero to one",
+    intro:
+      "I build software products from early idea to useful launch.",
   },
   profile: {
-    image: "/assets/images/profile.png",
-    imageAlt: "Profile image of Mario Sanoguera de Lorenzo",
+    image: "/assets/images/profile-side-bw.png",
+    imageAlt: "Black and white side portrait of Mario Sanoguera de Lorenzo",
   },
   links: [
     {

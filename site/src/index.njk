@@ -3,17 +3,22 @@ layout: base.njk
 ---
 <main class="page-shell">
   <section class="hero-stage">
+    <div class="hero-meta" aria-label="Site context">
+      <p>personal site</p>
+      <p>software / products / independent work</p>
+    </div>
+
+    <figure class="hero-portrait">
+      <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}" title="mario">
+    </figure>
+
     <div class="hero-copy">
+      <p class="hero-subline">{{ site.hero.subline }}</p>
       <h1>{{ site.hero.title }}</h1>
-      {% if site.hero.subline %}
-        <p class="hero-subline">{{ site.hero.subline }}</p>
-      {% endif %}
-      <figure class="hero-portrait">
-        <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}" title="mario">
-      </figure>
+      <p class="hero-intro">{{ site.hero.intro }}</p>
       <nav class="hero-links" aria-label="Profile links">
         {% for link in site.links %}
-          <a class="hero-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.label }}" title="{{ link.label }}">
+          <a class="hero-link{% if link.label == 'chat' %} hero-link-primary{% endif %}" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.label }}" title="{{ link.label }}">
             <span>{{ link.label }}</span>
           </a>
         {% endfor %}
@@ -22,6 +27,10 @@ layout: base.njk
   </section>
 
   <section class="posts-section">
+    <div class="section-heading">
+      <p class="section-label">writing</p>
+      <p class="section-intro">notes from the workbench.</p>
+    </div>
     <div class="posts-list">
       {% for post in collections.posts | reverse %}
         <article class="post-card">

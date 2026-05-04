@@ -1,6 +1,6 @@
 ## Intro
 
-**Site** is a custom Eleventy personal website with a long-scroll homepage and a minimal posts section.
+**Site** is a custom Eleventy personal website with a sparse portfolio homepage, profile links, and a minimal posts section.
 
 ## Quickstart
 
