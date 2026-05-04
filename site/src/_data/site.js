@@ -8,11 +8,6 @@ export default {
   hero: {
     title: "Mario Sanoguera de Lorenzo",
     subline: "zero to one",
-    introLines: [
-      "Builder of software.",
-      "Shipping useful things.",
-      "Independently.",
-    ],
   },
   profile: {
     image: "/assets/images/mario-transparent.png",

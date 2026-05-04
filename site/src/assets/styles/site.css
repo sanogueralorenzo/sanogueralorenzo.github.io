@@ -108,15 +108,6 @@ a {
   background: var(--accent);
 }
 
-.hero-intro {
-  display: none;
-  margin: 0;
-}
-
-.hero-intro span {
-  display: block;
-}
-
 .hero-links {
   display: flex;
   flex-wrap: wrap;
@@ -365,10 +356,6 @@ a {
     order: 3;
     width: 39px;
     margin-top: 39px;
-  }
-
-  .hero-intro {
-    display: none;
   }
 
   .hero-links {
