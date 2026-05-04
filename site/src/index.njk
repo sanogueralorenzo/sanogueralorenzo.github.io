@@ -43,7 +43,7 @@ layout: base.njk
             <a class="post-link" href="{{ post.url }}">
               <div>
                 <h2>{{ post.data.title }}</h2>
-                <p class="post-card-date">May 19, 2024 · 3 min read</p>
+                <p class="post-card-date">{{ post.date | displayDate }} · 3 min read</p>
               </div>
               <span class="panel-arrow" aria-hidden="true">→</span>
             </a>
