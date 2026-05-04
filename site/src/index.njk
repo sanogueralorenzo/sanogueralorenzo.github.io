@@ -14,7 +14,7 @@ layout: base.njk
       </p>
       <nav class="hero-links" aria-label="Profile links">
         {% for link in site.links %}
-          <a class="hero-link{% if link.label == 'chat' %} hero-link-primary{% endif %}" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{% if link.label == 'chat' %}Chat with Mario{% else %}{{ link.label }}{% endif %}" title="{% if link.label == 'chat' %}Chat with Mario{% else %}{{ link.label }}{% endif %}">
+          <a class="hero-link" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.label }}" title="{{ link.label }}">
             <span class="link-icon" aria-hidden="true">
               {% if link.label == 'cv' %}
                 <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v5h5"></path><path d="M9.5 13h5"></path><path d="M9.5 16h5"></path></svg>
@@ -27,8 +27,7 @@ layout: base.njk
               {% endif %}
             </span>
             <span class="link-label link-label-short">{{ link.label }}</span>
-            <span class="link-label link-label-long">{% if link.label == 'chat' %}Chat with Mario{% else %}{{ link.label }}{% endif %}</span>
-            <span class="link-arrow" aria-hidden="true">→</span>
+            <span class="link-label link-label-long">{{ link.label }}</span>
           </a>
         {% endfor %}
       </nav>
