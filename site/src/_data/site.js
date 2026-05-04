@@ -8,8 +8,11 @@ export default {
   hero: {
     title: "Mario Sanoguera de Lorenzo",
     subline: "zero to one",
-    intro:
-      "I build software products from early idea to useful launch.",
+    introLines: [
+      "Builder of software.",
+      "Shipping useful things.",
+      "Independently.",
+    ],
   },
   profile: {
     image: "/assets/images/profile-side-bw.png",

@@ -1,50 +1,86 @@
 ---
 layout: base.njk
 ---
+<header class="site-header">
+  <a class="site-logo" href="/" aria-label="{{ site.title }}">m<span>/</span></a>
+  <button class="menu-button" type="button" aria-label="Open menu">
+    <span></span>
+    <span></span>
+  </button>
+  <div class="site-meta" aria-label="Site context">
+    <p>builder · software</p>
+    <p>barcelona, spain</p>
+    <p>utc+2</p>
+  </div>
+</header>
+
 <main class="page-shell">
   <section class="hero-stage">
-    <div class="hero-meta" aria-label="Site context">
-      <p>personal site</p>
-      <p>software / products / independent work</p>
+    <div class="hero-copy">
+      <h1>{{ site.hero.title }}</h1>
+      <p class="hero-subline">{{ site.hero.subline }}</p>
+      <span class="accent-rule" aria-hidden="true"></span>
+      <p class="hero-intro">
+        {% for line in site.hero.introLines %}
+          <span>{{ line }}</span>
+        {% endfor %}
+      </p>
+      <nav class="hero-links" aria-label="Profile links">
+        {% for link in site.links %}
+          <a class="hero-link{% if link.label == 'chat' %} hero-link-primary{% endif %}" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{% if link.label == 'chat' %}Chat with Mario{% else %}{{ link.label }}{% endif %}" title="{% if link.label == 'chat' %}Chat with Mario{% else %}{{ link.label }}{% endif %}">
+            <span class="link-icon" aria-hidden="true">
+              {% if link.label == 'cv' %}
+                <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v5h5"></path><path d="M9.5 13h5"></path><path d="M9.5 16h5"></path></svg>
+              {% elif link.label == 'chat' %}
+                <svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-11.2 6.5L4 19l1.3-4.4A7.5 7.5 0 1 1 20 11.5z"></path></svg>
+              {% elif link.label == 'github' %}
+                <svg viewBox="0 0 24 24"><path d="M12 2.8a9.2 9.2 0 0 0-2.9 17.9c.5.1.7-.2.7-.5v-1.9c-2.8.6-3.4-1.2-3.4-1.2-.5-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 0 1.6 1.1 1.6 1.1.9 1.6 2.4 1.1 2.9.9.1-.7.4-1.1.7-1.4-2.2-.3-4.6-1.1-4.6-4.8 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.5 9.5 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.7.7 1 1.6 1 2.7 0 3.7-2.3 4.5-4.6 4.8.4.3.7 1 .7 2v2.9c0 .3.2.6.7.5A9.2 9.2 0 0 0 12 2.8z"></path></svg>
+              {% else %}
+                <svg viewBox="0 0 24 24"><path d="M5 8.5h3.3V19H5z"></path><path d="M6.7 5a1.9 1.9 0 1 1 0 3.8A1.9 1.9 0 0 1 6.7 5z"></path><path d="M11 8.5h3.1V10c.5-.9 1.5-1.8 3.2-1.8 3.4 0 4 2.2 4 5.1V19H18v-5c0-1.2 0-2.8-1.7-2.8s-2 1.3-2 2.7V19H11z"></path></svg>
+              {% endif %}
+            </span>
+            <span class="link-label link-label-short">{{ link.label }}</span>
+            <span class="link-label link-label-long">{% if link.label == 'chat' %}Chat with Mario{% else %}{{ link.label }}{% endif %}</span>
+            <span class="link-arrow" aria-hidden="true">→</span>
+          </a>
+        {% endfor %}
+      </nav>
     </div>
 
     <figure class="hero-portrait">
       <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}" title="mario">
     </figure>
 
-    <div class="hero-copy">
-      <p class="hero-subline">{{ site.hero.subline }}</p>
-      <h1>{{ site.hero.title }}</h1>
-      <p class="hero-intro">{{ site.hero.intro }}</p>
-      <nav class="hero-links" aria-label="Profile links">
-        {% for link in site.links %}
-          <a class="hero-link{% if link.label == 'chat' %} hero-link-primary{% endif %}" href="{{ link.url }}" target="_blank" rel="noreferrer" aria-label="{{ link.label }}" title="{{ link.label }}">
-            <span>{{ link.label }}</span>
-          </a>
-        {% endfor %}
-      </nav>
-    </div>
+    <p class="hero-note">
+      <span>Shipping</span>
+      <span>useful things.</span>
+      <span>Independently.</span>
+    </p>
   </section>
 
-  <section class="posts-section">
-    <div class="section-heading">
-      <p class="section-label">writing</p>
-      <p class="section-intro">notes from the workbench.</p>
-    </div>
-    <div class="posts-list">
+  <section class="home-panels">
+    <section class="writing-panel" id="writing">
+      <p class="section-label">writing <span>/</span></p>
       {% for post in collections.posts | reverse %}
-        <article class="post-card">
-          <a class="post-link" href="{{ post.url }}">
-            <p class="post-card-date">{{ post.date | displayDate }}</p>
-            <div class="post-card-body">
-              <h2>{{ post.data.title }}</h2>
-              {% if post.data.excerpt %}
-                <p class="post-card-excerpt">{{ post.data.excerpt }}</p>
-              {% endif %}
-            </div>
-          </a>
-        </article>
+        {% if loop.first %}
+          <article class="post-card">
+            <a class="post-link" href="{{ post.url }}">
+              <div>
+                <h2>{{ post.data.title }}</h2>
+                <p class="post-card-date">May 19, 2024 · 3 min read</p>
+              </div>
+              <span class="panel-arrow" aria-hidden="true">→</span>
+            </a>
+          </article>
+        {% endif %}
       {% endfor %}
-    </div>
+      <a class="text-link" href="/posts/hi-im-mario/">view all posts <span>→</span></a>
+    </section>
+
+    <section class="work-panel" aria-label="Selected work">
+      <p class="section-label">selected work <span>/</span></p>
+      <p>A small selection of projects I’ve built from zero to one.</p>
+      <a class="text-link" href="https://github.com/sanogueralorenzo/" target="_blank" rel="noreferrer">view selected work <span>→</span></a>
+    </section>
   </section>
 </main>
