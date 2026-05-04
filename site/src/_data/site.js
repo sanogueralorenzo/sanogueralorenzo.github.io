@@ -19,6 +19,10 @@ export default {
       label: "cv",
     },
     {
+      url: "https://calendly.com/sanogueralorenzo/chat-with-mario",
+      label: "chat",
+    },
+    {
       url: "https://github.com/sanogueralorenzo/",
       label: "github",
     },
