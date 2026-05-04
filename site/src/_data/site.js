@@ -9,7 +9,7 @@ export default {
     title: "Mario Sanoguera de Lorenzo",
   },
   profile: {
-    image: "/assets/images/mario-transparent.png",
+    image: "/assets/images/mario-final.png",
     imageAlt: "Black and white side portrait of Mario Sanoguera de Lorenzo",
   },
   links: [
