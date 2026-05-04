@@ -70,6 +70,10 @@ a {
   display: none;
 }
 
+.menu-mark {
+  display: none;
+}
+
 .site-meta {
   display: grid;
   gap: 4px;
@@ -386,25 +390,6 @@ a {
     padding-top: 44px;
   }
 
-  .site-header::before,
-  .site-header::after {
-    content: "";
-    position: fixed;
-    left: calc(100vw - 88px);
-    z-index: 11;
-    width: 42px;
-    height: 2px;
-    background: var(--text);
-  }
-
-  .site-header::before {
-    top: 54px;
-  }
-
-  .site-header::after {
-    top: 68px;
-  }
-
   .site-logo {
     font-size: 2rem;
   }
@@ -414,37 +399,21 @@ a {
   }
 
   .menu-button {
+    display: none;
+  }
+
+  .menu-mark {
     position: fixed;
     top: 53px;
-    right: 48px;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    gap: 11px;
+    right: max(48px, calc(100vw - 342px));
+    z-index: 12;
+    display: block;
     width: 42px;
-    height: 24px;
-    margin-top: 5px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  .menu-button span {
-    display: block;
-    height: 1px;
-    background: var(--text);
-  }
-
-  .menu-button::before,
-  .menu-button::after {
-    content: "";
-    display: block;
-    height: 1px;
-    background: var(--text);
-  }
-
-  .menu-button span {
-    display: none;
+    height: 15px;
+    margin-top: 9px;
+    background:
+      linear-gradient(var(--text), var(--text)) 0 0 / 42px 2px no-repeat,
+      linear-gradient(var(--text), var(--text)) 0 13px / 42px 2px no-repeat;
   }
 
   .page-shell {
@@ -468,7 +437,7 @@ a {
   .hero-copy h1 {
     order: 1;
     max-width: 9ch;
-    font-size: clamp(4.1rem, 17.4vw, 4.62rem);
+    font-size: clamp(3.72rem, 15.8vw, 4.18rem);
     line-height: 0.91;
   }
 
@@ -502,11 +471,14 @@ a {
   .hero-link,
   .hero-link-primary {
     position: relative;
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) 30px;
     width: 100%;
     min-height: 72px;
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: stretch;
     gap: 26px;
-    padding: 0 0;
+    padding: 0;
     border: 0;
     border-bottom: 1px solid var(--line);
     border-radius: 0;
@@ -542,7 +514,7 @@ a {
   }
 
   .link-label {
-    flex: 1;
+    min-width: 0;
   }
 
   .link-label-short {
@@ -556,9 +528,10 @@ a {
   .link-arrow,
   .hero-link:first-child .link-arrow {
     position: absolute;
-    right: 0;
-    display: inline;
+    right: max(22px, calc(100vw - 364px));
+    display: inline-block !important;
     font-size: 1.8rem;
+    line-height: 1;
   }
 
   .hero-portrait {
@@ -618,6 +591,6 @@ a {
   }
 
   .hero-copy h1 {
-    font-size: clamp(3.95rem, 16.8vw, 4.35rem);
+    font-size: clamp(3.5rem, 14.9vw, 3.88rem);
   }
 }
