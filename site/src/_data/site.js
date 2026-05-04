@@ -15,7 +15,7 @@ export default {
     ],
   },
   profile: {
-    image: "/assets/images/profile-side-bw.png",
+    image: "/assets/images/mario-transparent.png",
     imageAlt: "Black and white side portrait of Mario Sanoguera de Lorenzo",
   },
   links: [

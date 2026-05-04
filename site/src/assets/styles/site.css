@@ -158,6 +158,7 @@ a {
   aspect-ratio: 1.3;
   object-fit: cover;
   object-position: center top;
+  background: transparent;
 }
 
 .hero-note {
