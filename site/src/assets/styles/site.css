@@ -365,13 +365,13 @@ a {
   .hero-portrait {
     order: 6;
     align-self: center;
-    width: 74%;
+    width: min(68%, 280px);
     margin-top: 18px;
   }
 
   .profile-image {
-    aspect-ratio: 1.05;
-    object-fit: cover;
+    aspect-ratio: auto;
+    object-fit: contain;
     object-position: center top;
   }
 
