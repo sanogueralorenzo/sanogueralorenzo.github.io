@@ -113,8 +113,7 @@ a {
   margin: 0;
 }
 
-.hero-intro span,
-.hero-note span {
+.hero-intro span {
   display: block;
 }
 
@@ -165,13 +164,15 @@ a {
   position: absolute;
   z-index: 3;
   right: 0;
-  bottom: 176px;
+  bottom: 232px;
   width: 160px;
   margin: 0;
   padding-left: 18px;
   border-left: 1px solid var(--text);
   font-size: 0.9rem;
+  letter-spacing: 0.08em;
   line-height: 1.45;
+  text-transform: lowercase;
 }
 
 .home-panels {
@@ -367,11 +368,7 @@ a {
   }
 
   .hero-intro {
-    order: 4;
-    display: block;
-    margin-top: 45px;
-    font-size: 1.08rem;
-    line-height: 1.55;
+    display: none;
   }
 
   .hero-links {

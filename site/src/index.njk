@@ -5,7 +5,6 @@ layout: base.njk
   <section class="hero-stage">
     <div class="hero-copy">
       <h1>{{ site.hero.title }}</h1>
-      <p class="hero-subline">{{ site.hero.subline }}</p>
       <span class="accent-rule" aria-hidden="true"></span>
       <p class="hero-intro">
         {% for line in site.hero.introLines %}
@@ -37,11 +36,7 @@ layout: base.njk
       <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}" title="mario">
     </figure>
 
-    <p class="hero-note">
-      <span>Shipping</span>
-      <span>useful things.</span>
-      <span>Independently.</span>
-    </p>
+    <p class="hero-note">{{ site.hero.subline }}</p>
   </section>
 
   <section class="home-panels">
