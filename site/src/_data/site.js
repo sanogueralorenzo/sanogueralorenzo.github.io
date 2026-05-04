@@ -7,7 +7,6 @@ export default {
   imageAlt: "A black M monogram on a warm white background.",
   hero: {
     title: "Mario Sanoguera de Lorenzo",
-    subline: "zero to one",
   },
   profile: {
     image: "/assets/images/mario-transparent.png",
