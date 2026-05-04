@@ -71,7 +71,7 @@ a {
   grid-template-columns: minmax(0, 1fr) minmax(460px, 0.92fr);
   column-gap: clamp(64px, 7vw, 132px);
   align-items: end;
-  padding-bottom: 29px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -129,8 +129,9 @@ a {
 .hero-portrait {
   position: relative;
   z-index: 1;
-  width: min(100%, 584px);
-  margin: 0;
+  width: min(100%, 488px);
+  margin: -10px 0 0;
+  align-self: start;
   justify-self: end;
 }
 
