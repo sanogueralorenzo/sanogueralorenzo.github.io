@@ -364,10 +364,9 @@ a {
 
   .hero-portrait {
     order: 6;
-    align-self: flex-end;
+    align-self: center;
     width: 74%;
     margin-top: 18px;
-    border-bottom: 1px solid var(--line);
   }
 
   .profile-image {
