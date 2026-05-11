@@ -8,6 +8,8 @@ import {
   JsonRpcMessage,
   JsonRpcNotification,
   JsonRpcRequest,
+  JsonRpcClientNotification,
+  JsonRpcClientRequest,
   NotificationHandler,
 } from "./protocol.js";
 import { handleServerRequest } from "./server-requests.js";
@@ -91,7 +93,10 @@ export class AppServerConnection {
     };
   }
 
-  async send(method: string, params: unknown): Promise<unknown> {
+  async send<M extends JsonRpcClientRequest["method"]>(
+    method: M,
+    params: Extract<JsonRpcClientRequest, { method: M }>["params"]
+  ): Promise<unknown> {
     const id = this.nextId++;
     const result = new Promise<unknown>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -106,7 +111,7 @@ export class AppServerConnection {
     return result;
   }
 
-  notify(method: string, params?: unknown): void {
+  notify(method: JsonRpcClientNotification["method"], params?: unknown): void {
     this.writeMessage({
       jsonrpc: "2.0",
       method,

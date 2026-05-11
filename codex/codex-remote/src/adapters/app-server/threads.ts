@@ -3,6 +3,10 @@ import {
   ThreadSummary,
   THREAD_LIST_SOURCE_KINDS,
 } from "./types.js";
+import type { AppServerConnection } from "./connection.js";
+import type { JsonValue } from "./generated/serde_json/JsonValue.js";
+import type { ThreadListParams } from "./generated/v2/ThreadListParams.js";
+import type { ThreadStartParams } from "./generated/v2/ThreadStartParams.js";
 import { withAppServer } from "./connection.js";
 import { asArray, asObject, getNumber, getString } from "./json.js";
 
@@ -28,7 +32,7 @@ export async function listThreads(limit: number): Promise<ThreadSummary[]> {
 }
 
 export async function startThreadOnClient(
-  client: { send: (method: string, params: unknown) => Promise<unknown> },
+  client: Pick<AppServerConnection, "send">,
   options: ConversationOptions
 ): Promise<string> {
   const result = await client.send("thread/start", buildThreadStartParams(options));
@@ -71,7 +75,7 @@ function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextC
   return { threads, nextCursor };
 }
 
-function buildThreadListParams(limit: number, cursor: string | null): Record<string, unknown> {
+function buildThreadListParams(limit: number, cursor: string | null): ThreadListParams {
   return {
     limit: Math.max(1, Math.trunc(limit)),
     sortKey: "updated_at",
@@ -97,9 +101,11 @@ function normalizeSource(source: unknown): string {
   return kind;
 }
 
-function buildThreadStartParams(options: ConversationOptions): Record<string, unknown> {
-  const params: Record<string, unknown> = {
+function buildThreadStartParams(options: ConversationOptions): ThreadStartParams {
+  const params: ThreadStartParams = {
     cwd: options.cwd,
+    experimentalRawEvents: false,
+    persistExtendedHistory: false,
   };
 
   if (options.model) {
@@ -123,8 +129,8 @@ function buildThreadStartParams(options: ConversationOptions): Record<string, un
 function buildConfigOverrides(
   networkAccessEnabled?: boolean | null,
   skipGitRepoCheck?: boolean | null
-): Record<string, unknown> | null {
-  const overrides: Record<string, unknown> = {};
+): Record<string, JsonValue> | null {
+  const overrides: Record<string, JsonValue> = {};
 
   if (networkAccessEnabled !== null && networkAccessEnabled !== undefined) {
     overrides.sandbox_workspace_write = {

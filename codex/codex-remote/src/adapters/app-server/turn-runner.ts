@@ -44,7 +44,10 @@ async function runTurn(
   onTurnEvent?: (event: TurnProgressEvent) => void
 ): Promise<string> {
   if (resumeFirst) {
-    await client.send("thread/resume", { threadId });
+    await client.send("thread/resume", {
+      threadId,
+      persistExtendedHistory: false,
+    });
   }
 
   const { state, turnDone } = createRunTurnState(threadId, onTurnEvent);
@@ -59,6 +62,7 @@ async function runTurn(
         {
           type: "text",
           text,
+          text_elements: [],
         },
       ],
     });

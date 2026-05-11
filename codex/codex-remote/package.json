@@ -9,7 +9,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
+    "generate:app-server-types": "node scripts/generate-app-server-types.mjs",
+    "check:app-server-types": "node scripts/generate-app-server-types.mjs --check",
+    "typecheck": "npm run check:app-server-types && tsc --noEmit",
     "test": "vitest run"
   },
   "keywords": [],

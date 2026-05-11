@@ -8,6 +8,7 @@
 ../codex-core/scripts/install.sh
 ./scripts/install.sh
 npm install
+npm run generate:app-server-types
 npm run typecheck
 npm run test
 ```
@@ -58,6 +59,11 @@ help     Print this help output.
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
 - Node dependencies installed in `codex-remote` (`npm install`)
+
+### App Server Protocol Types
+
+- `npm run generate:app-server-types` refreshes generated TypeScript protocol types from `codex app-server generate-ts --experimental`.
+- `npm run typecheck` first runs `npm run check:app-server-types` and fails when committed generated types are stale.
 
 ### Voice Note Requirements
 

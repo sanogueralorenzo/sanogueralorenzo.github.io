@@ -1,8 +1,17 @@
 import process from "node:process";
 
-export type ApprovalPolicy = "never" | "on-request" | "on-failure" | "untrusted";
-export type SandboxMode = "read-only" | "workspace-write" | "danger-full-access";
-export type ApprovalDecision = "accept" | "acceptForSession" | "decline" | "cancel";
+import type { CommandExecutionApprovalDecision } from "./generated/v2/CommandExecutionApprovalDecision.js";
+import type { FileChangeApprovalDecision } from "./generated/v2/FileChangeApprovalDecision.js";
+import type { AskForApproval } from "./generated/v2/AskForApproval.js";
+import type { SandboxMode as GeneratedSandboxMode } from "./generated/v2/SandboxMode.js";
+import type { ThreadSourceKind } from "./generated/v2/ThreadSourceKind.js";
+
+export type ApprovalPolicy = Extract<AskForApproval, string>;
+export type SandboxMode = GeneratedSandboxMode;
+export type ApprovalDecision = Extract<
+  CommandExecutionApprovalDecision | FileChangeApprovalDecision,
+  "accept" | "acceptForSession" | "decline" | "cancel"
+>;
 
 export type ApprovalRequest = {
   method: "item/commandExecution/requestApproval" | "item/fileChange/requestApproval";
@@ -96,7 +105,7 @@ export type TimedCreateTurnResult =
 
 export const TURN_TIMEOUT_MS = 5 * 60 * 1000;
 export const CODEX_CORE_BIN = process.env.CODEX_CORE_BIN?.trim() || "codex-core";
-export const THREAD_LIST_SOURCE_KINDS = ["vscode", "cli", "appServer"] as const;
+export const THREAD_LIST_SOURCE_KINDS = ["vscode", "cli", "appServer"] as const satisfies ReadonlyArray<ThreadSourceKind>;
 
 // Keep transport-side policy in the app-server stream itself; clients focus on rendering.
 export const DEFAULT_OPT_OUT_NOTIFICATION_METHODS = [
