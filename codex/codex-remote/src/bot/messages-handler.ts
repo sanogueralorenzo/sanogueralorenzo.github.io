@@ -50,10 +50,6 @@ export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): vo
       return;
     }
 
-    if (text.startsWith("/")) {
-      return;
-    }
-
     await handlers.onPrompt(ctx as PromptContext, chatId, text);
   });
 
