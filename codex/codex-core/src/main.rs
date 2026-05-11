@@ -1,5 +1,4 @@
 mod agents;
-mod appserver;
 mod auth;
 mod core;
 mod noninteractive;
@@ -14,7 +13,6 @@ fn main() -> ExitCode {
     let forwarded_args: Vec<OsString> = args.iter().skip(1).cloned().collect();
 
     match forwarded_args.first().and_then(|value| value.to_str()) {
-        Some("app-server") => ExitCode::from(appserver::run_from(forwarded_args)),
         Some("auth") => ExitCode::from(auth::run_from(forwarded_args)),
         Some("agents") => ExitCode::from(agents::run_from(forwarded_args)),
         Some("sessions") => ExitCode::from(sessions::run_from(forwarded_args)),
@@ -34,14 +32,12 @@ fn main() -> ExitCode {
 
 fn print_help() {
     println!("Usage:");
-    println!("  codex-core app-server [-- app-server-options]");
     println!("  codex-core auth <command> [options]");
     println!("  codex-core agents <command> [options]");
     println!("  codex-core sessions <command> [options]");
     println!("  codex-core noninteractive run|resume|review [wrapper-options]");
     println!();
     println!("Commands:");
-    println!("  app-server      Run codex app-server passthrough.");
     println!("  auth            Manage Codex auth profiles.");
     println!("  agents          Run local Codex agent workflows.");
     println!("  sessions        Manage local Codex session files.");

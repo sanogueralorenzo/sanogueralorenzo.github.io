@@ -1,7 +1,6 @@
 ## Intro
 
 **Codex Core** is a unified CLI for:
-- app-server passthrough (`codex app-server`)
 - auth profile management
 - local agent workflows
 - local session/thread maintenance commands
@@ -11,7 +10,6 @@
 
 ```shell
 ./scripts/install.sh
-codex-core app-server --listen stdio://
 codex-core auth list --plain
 codex-core agents task list
 codex-core agents task run TS-123 --json
@@ -22,8 +20,6 @@ codex-core noninteractive run --help
 
 ## Reference
 
-- App-server passthrough:
-  - `codex-core app-server --listen stdio://` forwards to `codex app-server --listen stdio://`.
 - Auth commands:
   - `codex-core auth ...` manages profiles, current auth selection, and the auth watcher.
   - Primary verbs: `save`, `use`, `list`, `current`, `remove`, `watch`.
