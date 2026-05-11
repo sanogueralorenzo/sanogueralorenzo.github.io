@@ -17,7 +17,6 @@
 
 ### Runtime Behavior
 
-- Launch starts `codex-core auth watch start`.
 - Launch starts `codex-core sessions watch thread-titles start`.
 - Launch starts `codex-remote start --plain` only when remote auto-start has been enabled by a prior successful `Remote -> Start`.
 - Launch starts background auto-remove runs only when a day+mode selection is configured.
@@ -26,7 +25,7 @@
 - Menu includes `Codex` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Status bar icon uses a template-rendered brain glyph (`codex.svg`) so macOS automatically adapts it for light/dark menu bar themes.
 - Global shortcut `Option-Shift-A` opens a small `Run From Browser` panel regardless of Caps Lock state.
-- Menu section labels are `Agents`, `Remote`, `Profiles`, and `Threads`.
+- Menu section labels are `Agents`, `Remote`, and `Threads`.
 - `Remote -> Start` enables remote auto-start for future app launches.
 - `Remote -> Stop` disables remote auto-start for future app launches.
 - `Agents -> Create` opens the same `Run From Browser` panel used by the global shortcut.
@@ -60,8 +59,6 @@
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.
 - CLI executable lookup is deterministic and only checks `/opt/homebrew/bin` and `/usr/local/bin`.
 - Managed CLI subprocesses run with a deterministic environment that includes `/opt/homebrew/bin`, `/usr/local/bin`, and standard system paths.
-- Profile management section is labeled `Profiles` and includes profile switch/remove actions plus `Add`.
-- When profile listing fails transiently, the menu preserves the last loaded profile list so logged-out state can still show known profiles as unselected.
 - Threads menu includes:
   - `Auto-Remove` bold title row clears the saved day+mode selection (disables auto-remove).
   - `Now` closes Codex only when running, executes immediate `prune --older-than-days 0 --mode delete`, then reopens Codex.

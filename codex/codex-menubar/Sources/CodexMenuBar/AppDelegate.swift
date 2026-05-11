@@ -10,7 +10,6 @@ private let agentNotificationURLKey = "target_url"
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   UNUserNotificationCenterDelegate
 {
-  let authCLI = CodexAuthCLIClient()
   let remoteCLI = CodexRemoteCLIClient()
   let sessionsCLI = CodexCoreCLIClient()
   let menuDataStore = CodexMenuDataStore()
@@ -58,12 +57,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       try LaunchAgentInstaller.ensureLaunchAgentPlistExists()
     } catch {
       fputs("Warning: failed to configure auto-start: \(error)\n", stderr)
-    }
-
-    do {
-      try authCLI.startWatcher()
-    } catch {
-      fputs("Warning: failed to start codex-core auth watcher: \(error)\n", stderr)
     }
 
     let sessionsCLI = self.sessionsCLI
@@ -131,27 +124,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   }
 
   func refreshTitle() {
-    let profile = menuDataStore.data.currentProfileName
-    let tooltip: String
-    if let profile {
-      tooltip = "Profiles (\(displayProfileName(profile)))"
-    } else {
-      tooltip = "Profiles"
-    }
-    statusItem.button?.toolTip = tooltip
-  }
-
-  func displayProfileName(_ normalizedName: String) -> String {
-    let withSpaces = normalizedName.replacingOccurrences(of: "-", with: " ")
-    guard let first = withSpaces.first else {
-      return withSpaces
-    }
-    return String(first).uppercased() + withSpaces.dropFirst()
+    statusItem.button?.toolTip = "Codex Menu"
   }
 
   func refreshUI() {
     menuDataStore.refresh(
-      authCLI: authCLI,
       remoteCLI: remoteCLI,
       sessionsCLI: sessionsCLI)
   }

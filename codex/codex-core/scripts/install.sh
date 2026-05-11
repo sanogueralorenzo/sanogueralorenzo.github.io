@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 stop_existing_runtime() {
   if command -v codex-core >/dev/null 2>&1; then
+    codex-core auth watch stop >/dev/null 2>&1 || true
     codex-core sessions watch thread-titles stop >/dev/null 2>&1 || true
   fi
 }
@@ -23,7 +24,6 @@ remove_obsolete_state_files() {
   rm -f "$auth_dir/codex-auth-watch.log"
   rm -f "$auth_dir/codex-core-auth-watch.pid"
   rm -f "$auth_dir/codex-core-auth-watch.log"
-  rm -f "$auth_dir/codex-remote.log"
 }
 
 resolve_npm_bin_dir() {

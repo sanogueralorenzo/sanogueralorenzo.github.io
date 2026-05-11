@@ -1,7 +1,6 @@
 ## Intro
 
 **Codex Core** is a unified CLI for:
-- auth profile management
 - local agent workflows
 - local session/thread maintenance commands
 - non-interactive `codex exec` wrappers
@@ -10,7 +9,6 @@
 
 ```shell
 ./scripts/install.sh
-codex-core auth list --plain
 codex-core agents task list
 codex-core agents task run TS-123 --json
 codex-core agents spike run TS-123 --json
@@ -20,11 +18,6 @@ codex-core noninteractive run --help
 
 ## Reference
 
-- Auth commands:
-  - `codex-core auth ...` manages profiles, current auth selection, and the auth watcher.
-  - Primary verbs: `save`, `use`, `list`, `current`, `remove`, `watch`.
-  - `save` reads the current `auth.json` by default; use `--path <auth.json>` only when importing from another file.
-  - State lives under `~/.codex/auth`, including `profiles/`, `active-account-id`, `watch.pid`, and `watch.log`.
 - Agents commands:
   - `codex-core agents ...` manages local task and review workflows plus worker loops.
   - Primary verbs: `config init|show|available-repos|available-projects|set-allowed-repos|set-allowed-projects|set-project-repo-mappings|set-review-mode|clear-allowed-repos|clear-allowed-projects|clear-project-repo-mappings`, `task list|run|jobs|show`, `spike run|jobs`, `worker start|loop`, `review list|run|jobs|show`.
