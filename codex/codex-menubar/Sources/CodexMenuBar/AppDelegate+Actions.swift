@@ -64,6 +64,73 @@ extension AppDelegate {
     // Intentionally empty: keeps the title row clickable without side effects.
   }
 
+  @objc func addProfileFromCurrent(_ sender: Any?) {
+    do {
+      if let currentProfileName = try authCLI.currentProfileName() {
+        showCurrentAuthAlreadyRegisteredWarning(profileName: currentProfileName)
+        return
+      }
+
+      let existingProfiles = try authCLI.listProfiles()
+      guard let name = promptForProfileName(existingProfiles: existingProfiles) else {
+        return
+      }
+
+      try authCLI.saveProfile(name: name)
+      refreshUI()
+    } catch {
+      showError(error)
+    }
+  }
+
+  @objc func useNamedProfile(_ sender: NSMenuItem) {
+    guard let name = sender.representedObject as? String else {
+      return
+    }
+    let authCLI = self.authCLI
+    let remoteCLI = self.remoteCLI
+
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      guard let self else {
+        return
+      }
+      do {
+        let shouldRestartRemote = try remoteCLI.isRunning()
+
+        try authCLI.useProfile(name: name)
+
+        if shouldRestartRemote {
+          do {
+            try remoteCLI.restart()
+          } catch {
+            throw RemoteRestartWarning(profileName: name, underlyingError: error)
+          }
+        }
+
+        DispatchQueue.main.async {
+          self.refreshUI()
+        }
+      } catch {
+        DispatchQueue.main.async {
+          self.showError(error)
+        }
+      }
+    }
+  }
+
+  @objc func removeNamedProfile(_ sender: NSMenuItem) {
+    guard let name = sender.representedObject as? String else {
+      return
+    }
+
+    do {
+      try authCLI.removeProfile(name: name)
+      refreshUI()
+    } catch {
+      showError(error)
+    }
+  }
+
   @objc func openHelp(_ sender: Any?) {
     guard
       let url = URL(
@@ -125,6 +192,7 @@ extension AppDelegate {
   @objc func quit(_ sender: Any?) {
     let remoteCLI = self.remoteCLI
     let sessionsCLI = self.sessionsCLI
+    let authCLI = self.authCLI
 
     DispatchQueue.global(qos: .userInitiated).async {
       if (try? remoteCLI.isRunning()) == true {
@@ -132,6 +200,7 @@ extension AppDelegate {
       }
 
       try? sessionsCLI.stopTitleWatcher()
+      try? authCLI.stopWatcher()
       try? terminateCodexAppIfRunning()
 
       DispatchQueue.main.async {
@@ -172,6 +241,19 @@ extension AppDelegate {
     }
   }
 
+  private func showCurrentAuthAlreadyRegisteredWarning(profileName: String) {
+    NSApp.activate(ignoringOtherApps: true)
+
+    let alert = NSAlert()
+    alert.messageText = "Add Profile"
+    alert.informativeText = """
+      This auth is already linked to the \(displayProfileName(profileName)) profile.
+
+      Log in with a different account and try again.
+      """
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
+  }
 }
 
 private func launchCodexApp() throws {
@@ -234,4 +316,21 @@ private struct CodexAppLaunchError: LocalizedError {
 private struct CodexAppTerminationError: LocalizedError {
   let message: String
   var errorDescription: String? { message }
+}
+
+private struct RemoteRestartWarning: LocalizedError {
+  let profileName: String
+  let underlyingError: Error
+
+  var errorDescription: String? {
+    let message: String
+    if let localized = underlyingError as? LocalizedError,
+      let description = localized.errorDescription
+    {
+      message = description
+    } else {
+      message = String(describing: underlyingError)
+    }
+    return "Profile '\(profileName)' was applied, but Codex Remote failed to restart.\n\n\(message)"
+  }
 }

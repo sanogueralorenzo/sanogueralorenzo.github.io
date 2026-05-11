@@ -12,6 +12,8 @@ extension AppDelegate {
     menu.addItem(.separator())
     addRemoteSection(to: menu, data: data)
     menu.addItem(.separator())
+    addProfilesSection(to: menu, data: data)
+    menu.addItem(.separator())
     menu.addItem(actionItem(title: "Help", action: #selector(openHelp(_:))))
     menu.addItem(.separator())
     let quit = actionItem(title: "Quit", action: #selector(quit(_:)), keyEquivalent: "q")
@@ -138,6 +140,32 @@ extension AppDelegate {
     menu.addItem(actionItem(title: title, action: action))
   }
 
+  private func addProfilesSection(to menu: NSMenu, data: CodexMenuData) {
+    menu.addItem(sectionHeaderItem(title: "Profiles"))
+
+    let authMenuProfiles = authCLI.menuProfiles(
+      currentProfileName: data.currentProfileName,
+      profiles: data.profiles,
+      isLoading: data.isLoading
+    )
+
+    for profile in authMenuProfiles {
+      let profileItem = NSMenuItem(
+        title: displayProfileName(profile.normalizedName), action: nil, keyEquivalent: "")
+      profileItem.state = profile.isCurrent ? .on : .off
+
+      let profileMenu = NSMenu()
+      for action in profile.actions {
+        profileMenu.addItem(authProfileActionItem(for: action, profileName: profile.normalizedName))
+      }
+
+      menu.addItem(profileItem)
+      menu.setSubmenu(profileMenu, for: profileItem)
+    }
+
+    menu.addItem(actionItem(title: "Add", action: #selector(addProfileFromCurrent(_:))))
+  }
+
   private func sectionHeaderItem(title: String, action: Selector = #selector(noopHeader(_:)))
     -> NSMenuItem
   {
@@ -225,4 +253,27 @@ extension AppDelegate {
       || reviewJobs.contains { $0.status != .inProgress }
   }
 
+  private func authProfileActionItem(
+    for action: CodexAuthCLIClient.MenuProfileAction,
+    profileName: String
+  ) -> NSMenuItem {
+    let item: NSMenuItem
+
+    switch action {
+    case .use:
+      item = NSMenuItem(
+        title: "Use",
+        action: #selector(useNamedProfile(_:)),
+        keyEquivalent: "")
+    case .remove:
+      item = NSMenuItem(
+        title: "Remove",
+        action: #selector(removeNamedProfile(_:)),
+        keyEquivalent: "")
+    }
+
+    item.target = self
+    item.representedObject = profileName
+    return item
+  }
 }
