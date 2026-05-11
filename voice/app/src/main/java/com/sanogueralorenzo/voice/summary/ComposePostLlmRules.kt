@@ -66,7 +66,50 @@ class ComposePostLlmRules {
     fun normalizeComposeOutputText(text: String): String {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return ""
-        return capitalizeOutput(trimmed)
+        return convertSpokenNumbers(capitalizeOutput(trimmed))
+    }
+
+    private fun convertSpokenNumbers(text: String): String {
+        return SPOKEN_NUMBER_SEQUENCE_REGEX.replace(text) { match ->
+            spokenNumberToDigits(match.value) ?: match.value
+        }
+    }
+
+    private fun spokenNumberToDigits(text: String): String? {
+        val words = text
+            .lowercase()
+            .replace(NUMBER_SEPARATOR_REGEX, " ")
+            .split(WHITESPACE_REGEX)
+            .map { it.trim() }
+            .filter { it.isNotBlank() && it != "and" }
+        if (words.isEmpty()) return null
+        if (words.any { it !in NUMBER_WORDS }) return null
+        if (words.size > 1 && words.all { it in DIGIT_WORDS }) {
+            return words.joinToString("") { DIGIT_WORDS.getValue(it).toString() }
+        }
+        return parseCardinalNumber(words)?.toString()
+    }
+
+    private fun parseCardinalNumber(words: List<String>): Long? {
+        var total = 0L
+        var current = 0L
+        for (word in words) {
+            when (word) {
+                in SMALL_NUMBER_WORDS -> current += SMALL_NUMBER_WORDS.getValue(word)
+                in TENS_WORDS -> current += TENS_WORDS.getValue(word)
+                "hundred" -> current = current.coerceAtLeast(1L) * 100L
+                "thousand" -> {
+                    total += current.coerceAtLeast(1L) * 1_000L
+                    current = 0L
+                }
+                "million" -> {
+                    total += current.coerceAtLeast(1L) * 1_000_000L
+                    current = 0L
+                }
+                else -> return null
+            }
+        }
+        return total + current
     }
 
     fun finalizeComposeOutput(
@@ -201,5 +244,47 @@ class ComposePostLlmRules {
         private val WORD_TOKEN_REGEX = Regex("\\b[\\p{L}\\p{N}']+\\b")
         private val STANDALONE_I_REGEX = Regex("(?i)\\bi\\b")
         private val I_CONTRACTION_REGEX = Regex("(?i)\\bi'([a-z]+)\\b")
+        private val SMALL_NUMBER_WORDS = mapOf(
+            "zero" to 0L,
+            "one" to 1L,
+            "two" to 2L,
+            "three" to 3L,
+            "four" to 4L,
+            "five" to 5L,
+            "six" to 6L,
+            "seven" to 7L,
+            "eight" to 8L,
+            "nine" to 9L,
+            "ten" to 10L,
+            "eleven" to 11L,
+            "twelve" to 12L,
+            "thirteen" to 13L,
+            "fourteen" to 14L,
+            "fifteen" to 15L,
+            "sixteen" to 16L,
+            "seventeen" to 17L,
+            "eighteen" to 18L,
+            "nineteen" to 19L
+        )
+        private val TENS_WORDS = mapOf(
+            "twenty" to 20L,
+            "thirty" to 30L,
+            "forty" to 40L,
+            "fifty" to 50L,
+            "sixty" to 60L,
+            "seventy" to 70L,
+            "eighty" to 80L,
+            "ninety" to 90L
+        )
+        private val DIGIT_WORDS = SMALL_NUMBER_WORDS.filterValues { it in 0L..9L }
+        private val NUMBER_WORDS = SMALL_NUMBER_WORDS.keys +
+            TENS_WORDS.keys +
+            setOf("hundred", "thousand", "million")
+        private val NUMBER_WORD_PATTERN = NUMBER_WORDS.joinToString("|")
+        private val SPOKEN_NUMBER_SEQUENCE_REGEX = Regex(
+            "\\b(?:$NUMBER_WORD_PATTERN)(?:(?:\\s*,\\s*|\\s+|-)(?:and\\s+)?(?:$NUMBER_WORD_PATTERN))*\\b",
+            RegexOption.IGNORE_CASE
+        )
+        private val NUMBER_SEPARATOR_REGEX = Regex("[,\\-]")
     }
 }

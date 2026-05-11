@@ -35,4 +35,34 @@ class ComposePostLlmRulesTest {
 
         assertEquals("Apple milk avocado", cleaned)
     }
+
+    @Test
+    fun cleanModelOutput_convertsSpokenDigitSequenceWithCommasToNumber() {
+        val cleaned = policy.cleanModelOutput(
+            text = "the code is one, two, three",
+            bulletMode = false
+        )
+
+        assertEquals("The code is 123", cleaned)
+    }
+
+    @Test
+    fun cleanModelOutput_convertsSpokenDigitSequenceWithoutCommasToNumber() {
+        val cleaned = policy.cleanModelOutput(
+            text = "call one two three four five",
+            bulletMode = false
+        )
+
+        assertEquals("Call 12345", cleaned)
+    }
+
+    @Test
+    fun cleanModelOutput_convertsSpokenCardinalNumberToNumber() {
+        val cleaned = policy.cleanModelOutput(
+            text = "set it to three hundred twenty one",
+            bulletMode = false
+        )
+
+        assertEquals("Set it to 321", cleaned)
+    }
 }
