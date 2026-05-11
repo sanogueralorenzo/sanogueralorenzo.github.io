@@ -12,7 +12,16 @@ describe("handleTurnNotification", () => {
       method: "turn/started",
       params: {
         threadId: "thread-1",
-        turn: { id: "turn-1" },
+        turn: {
+          id: "turn-1",
+          items: [],
+          itemsView: "notLoaded",
+          status: "inProgress",
+          error: null,
+          startedAt: null,
+          completedAt: null,
+          durationMs: null,
+        },
       },
     });
     handleTurnNotification(state, {
@@ -29,12 +38,13 @@ describe("handleTurnNotification", () => {
       params: {
         threadId: "thread-1",
         turnId: "turn-1",
-        itemId: "item-1",
+        completedAtMs: 0,
         item: {
           id: "item-1",
-          type: "agent_message",
+          type: "agentMessage",
           phase: "final_answer",
           text: "Hello world",
+          memoryCitation: null,
         },
       },
     });
@@ -42,10 +52,15 @@ describe("handleTurnNotification", () => {
       method: "turn/completed",
       params: {
         threadId: "thread-1",
-        turnId: "turn-1",
         turn: {
           id: "turn-1",
+          items: [],
+          itemsView: "notLoaded",
           status: "completed",
+          error: null,
+          startedAt: null,
+          completedAt: null,
+          durationMs: null,
         },
       },
     });
@@ -62,6 +77,7 @@ describe("handleTurnNotification", () => {
       method: "item/agentMessage/delta",
       params: {
         threadId: "thread-2",
+        turnId: "turn-1",
         itemId: "item-1",
         delta: "Hello",
       },

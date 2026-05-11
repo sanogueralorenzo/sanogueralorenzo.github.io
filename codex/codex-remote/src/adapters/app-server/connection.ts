@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import {
-  CODEX_CORE_BIN,
+  CODEX_BIN,
   DEFAULT_OPT_OUT_NOTIFICATION_METHODS,
   TurnRuntimeOptions,
 } from "./types.js";
@@ -17,7 +17,7 @@ import { handleServerRequest } from "./server-requests.js";
 export { type JsonRpcNotification } from "./protocol.js";
 
 export class AppServerConnection {
-  private readonly child = spawn(CODEX_CORE_BIN, ["app-server", "--listen", "stdio://"], {
+  private readonly child = spawn(CODEX_BIN, ["app-server", "--listen", "stdio://"], {
     stdio: ["pipe", "pipe", "pipe"],
     env: process.env,
   });

@@ -1,5 +1,5 @@
 import { TurnProgressEvent } from "./types.js";
-import { asObject, getString } from "./json.js";
+import type { Turn } from "./generated/v2/Turn.js";
 
 export type RunTurnState = {
   threadId: string;
@@ -64,16 +64,12 @@ export function latestTurnResponse(state: RunTurnState): string {
   return (state.lastFinalAgentMessage || state.lastAgentMessage).trim();
 }
 
-export function getTurnFailureMessage(turn: Record<string, unknown>): string {
-  const error = asObject(turn.error);
-  const message = getString(error.message);
-  const details = getString(error.additionalDetails);
-
-  if (message && details) {
-    return `${message}\n${details}`;
+export function getTurnFailureMessage(turn: Turn): string {
+  if (turn.error?.message && turn.error.additionalDetails) {
+    return `${turn.error.message}\n${turn.error.additionalDetails}`;
   }
-  if (message) {
-    return message;
+  if (turn.error?.message) {
+    return turn.error.message;
   }
   return "Turn failed.";
 }

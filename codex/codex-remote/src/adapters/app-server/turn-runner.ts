@@ -3,7 +3,8 @@ import {
   TurnProgressEvent,
 } from "./types.js";
 import { AppServerConnection } from "./connection.js";
-import { asObject, getString } from "./json.js";
+import { asObject } from "./json.js";
+import type { Turn } from "./generated/v2/Turn.js";
 import {
   createRunTurnState,
   getTurnFailureMessage,
@@ -67,11 +68,10 @@ async function runTurn(
       ],
     });
 
-    const startedTurn = asObject(asObject(started).turn);
-    state.currentTurnId = getString(startedTurn.id);
+    const startedTurn = asObject(asObject(started).turn) as unknown as Turn;
+    state.currentTurnId = startedTurn.id;
 
-    const status = getString(startedTurn.status);
-    switch (status) {
+    switch (startedTurn.status) {
       case "completed":
         return latestTurnResponse(state);
       case "failed":
@@ -79,10 +79,9 @@ async function runTurn(
       case "interrupted":
         throw new Error("Turn was interrupted before completion.");
       case "inProgress":
-      case null:
         return await turnDone;
       default:
-        throw new Error(`Turn started with unexpected status: ${status}`);
+        throw new Error(`Turn started with unexpected status: ${startedTurn.status}`);
     }
   } finally {
     detachNotification();

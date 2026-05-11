@@ -104,7 +104,7 @@ export type TimedCreateTurnResult =
     };
 
 export const TURN_TIMEOUT_MS = 5 * 60 * 1000;
-export const CODEX_CORE_BIN = process.env.CODEX_CORE_BIN?.trim() || "codex-core";
+export const CODEX_BIN = process.env.CODEX_BIN?.trim() || "codex";
 export const THREAD_LIST_SOURCE_KINDS = ["vscode", "cli", "appServer"] as const satisfies ReadonlyArray<ThreadSourceKind>;
 
 // Keep transport-side policy in the app-server stream itself; clients focus on rendering.

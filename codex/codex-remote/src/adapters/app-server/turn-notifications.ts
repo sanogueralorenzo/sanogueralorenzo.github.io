@@ -1,15 +1,5 @@
-import { JsonRpcNotification } from "./connection.js";
-import { asObject, getString, normalizeTextToken } from "./json.js";
-import {
-  extractCommandText,
-  extractDeltaItemType,
-  extractDeltaText,
-  extractItemOutput,
-  extractItemStatus,
-  extractItemText,
-  isCommandOutputDeltaMethod,
-  normalizeItemType,
-} from "./turn-event-data.js";
+import type { JsonRpcNotification } from "./connection.js";
+import type { ThreadItem } from "./generated/v2/ThreadItem.js";
 import {
   getTurnFailureMessage,
   latestTurnResponse,
@@ -17,169 +7,159 @@ import {
 } from "./turn-state.js";
 
 export function handleTurnNotification(state: RunTurnState, notification: JsonRpcNotification): void {
-  const params = asObject(notification.params);
-  if (!shouldHandleNotification(state, params)) {
-    return;
-  }
-
   switch (notification.method) {
-    case "turn/started":
-      handleTurnStartedNotification(state, params);
+    case "turn/started": {
+      if (notification.params.threadId === state.threadId) {
+        state.currentTurnId = notification.params.turn.id;
+      }
       return;
-    case "item/started":
-      handleItemStartedNotification(state, params);
+    }
+    case "item/started": {
+      const { params } = notification;
+      if (!isCurrentTurnNotification(state, params.threadId, params.turnId)) {
+        return;
+      }
+      state.emitTurnEvent({
+        kind: "itemStarted",
+        threadId: state.threadId,
+        turnId: params.turnId,
+        itemId: params.item.id,
+        itemType: params.item.type,
+        command: itemCommand(params.item),
+      });
       return;
-    case "item/agentMessage/delta":
-      handleAgentDeltaNotification(state, params);
+    }
+    case "item/agentMessage/delta": {
+      const { params } = notification;
+      if (!isCurrentTurnNotification(state, params.threadId, params.turnId)) {
+        return;
+      }
+      const nextSnapshot = (state.agentSnapshots.get(params.itemId) ?? "") + params.delta;
+      state.agentSnapshots.set(params.itemId, nextSnapshot);
+      state.lastAgentMessage = nextSnapshot;
+      state.emitTurnEvent({
+        kind: "agentDelta",
+        threadId: state.threadId,
+        turnId: params.turnId,
+        itemId: params.itemId,
+        itemType: "agentMessage",
+        text: params.delta,
+      });
       return;
-    case "item/completed":
-      handleItemCompletedNotification(state, params);
+    }
+    case "item/commandExecution/outputDelta": {
+      const { params } = notification;
+      if (!isCurrentTurnNotification(state, params.threadId, params.turnId)) {
+        return;
+      }
+      state.emitTurnEvent({
+        kind: "commandOutputDelta",
+        threadId: state.threadId,
+        turnId: params.turnId,
+        itemId: params.itemId,
+        itemType: "commandExecution",
+        text: params.delta,
+      });
       return;
-    case "turn/completed":
-      handleTurnCompletedNotification(state, params);
+    }
+    case "item/completed": {
+      const { params } = notification;
+      if (!isCurrentTurnNotification(state, params.threadId, params.turnId)) {
+        return;
+      }
+      handleCompletedItem(state, params.turnId, params.item);
       return;
-    default:
-      handleOutputDeltaNotification(state, notification.method, params);
+    }
+    case "turn/completed": {
+      const { params } = notification;
+      if (params.threadId !== state.threadId || params.turn.id !== state.currentTurnId) {
+        return;
+      }
+      switch (params.turn.status) {
+        case "completed":
+          state.finalizeSuccess(latestTurnResponse(state));
+          return;
+        case "interrupted": {
+          const response = latestTurnResponse(state);
+          if (response) {
+            state.finalizeSuccess(response);
+          } else {
+            state.finalizeFailure(new Error("Turn was interrupted before producing a response."));
+          }
+          return;
+        }
+        case "failed":
+          state.finalizeFailure(new Error(getTurnFailureMessage(params.turn)));
+          return;
+        case "inProgress":
+          return;
+      }
+    }
   }
 }
 
-function shouldHandleNotification(state: RunTurnState, params: Record<string, unknown>): boolean {
-  return isTurnNotificationForThread(state, params) && isTurnNotificationForCurrentTurn(state, params);
-}
-
-function isTurnNotificationForThread(state: RunTurnState, params: Record<string, unknown>): boolean {
-  const eventThreadId = getString(params.threadId) ?? getString(params.conversationId);
-  return eventThreadId === state.threadId;
-}
-
-function isTurnNotificationForCurrentTurn(state: RunTurnState, params: Record<string, unknown>): boolean {
-  const eventTurnId = getString(params.turnId);
-  if (!state.currentTurnId && eventTurnId) {
-    state.currentTurnId = eventTurnId;
+function isCurrentTurnNotification(state: RunTurnState, threadId: string, turnId: string): boolean {
+  if (threadId !== state.threadId) {
+    return false;
   }
-  return !!state.currentTurnId && (!eventTurnId || eventTurnId === state.currentTurnId);
-}
-
-function handleTurnStartedNotification(state: RunTurnState, params: Record<string, unknown>): void {
-  const turn = asObject(params.turn);
-  const turnId = getString(turn.id);
-  if (turnId) {
+  if (!state.currentTurnId) {
     state.currentTurnId = turnId;
   }
+  return turnId === state.currentTurnId;
 }
 
-function handleItemStartedNotification(state: RunTurnState, params: Record<string, unknown>): void {
-  const item = asObject(params.item);
-  state.emitTurnEvent({
-    kind: "itemStarted",
-    threadId: state.threadId,
-    turnId: state.currentTurnId!,
-    itemId: getString(item.id) ?? getString(params.itemId) ?? "unknown-item",
-    itemType: normalizeItemType(getString(item.type)),
-    command: extractCommandText(item),
-  });
-}
-
-function handleAgentDeltaNotification(state: RunTurnState, params: Record<string, unknown>): void {
-  const delta = getString(params.delta);
-  if (!delta) {
-    return;
-  }
-
-  const itemId = getString(params.itemId) ?? "agent-message";
-  const nextSnapshot = (state.agentSnapshots.get(itemId) ?? "") + delta;
-  state.agentSnapshots.set(itemId, nextSnapshot);
-  state.lastAgentMessage = nextSnapshot;
-  state.emitTurnEvent({
-    kind: "agentDelta",
-    threadId: state.threadId,
-    turnId: state.currentTurnId!,
-    itemId,
-    itemType: "agentMessage",
-    text: delta,
-  });
-}
-
-function handleOutputDeltaNotification(
-  state: RunTurnState,
-  method: string,
-  params: Record<string, unknown>
-): void {
-  if (!isCommandOutputDeltaMethod(method)) {
-    return;
-  }
-
-  const delta = extractDeltaText(params);
-  if (!delta) {
-    return;
-  }
-
-  state.emitTurnEvent({
-    kind: "commandOutputDelta",
-    threadId: state.threadId,
-    turnId: state.currentTurnId!,
-    itemId: getString(params.itemId) ?? "unknown-item",
-    itemType: extractDeltaItemType(method),
-    text: delta,
-  });
-}
-
-function handleItemCompletedNotification(state: RunTurnState, params: Record<string, unknown>): void {
-  const item = asObject(params.item);
-  const itemId = getString(item.id) ?? getString(params.itemId) ?? "unknown-item";
-  const itemType = normalizeItemType(getString(item.type));
-  const text = extractItemText(item);
-
-  if (itemType === "agentMessage" && text !== null) {
-    state.lastAgentMessage = text;
-    state.agentSnapshots.set(itemId, text);
-    const phase = normalizeTextToken(getString(item.phase));
-    if (phase === "finalanswer" || phase === "final") {
-      state.lastFinalAgentMessage = text;
+function handleCompletedItem(state: RunTurnState, turnId: string, item: ThreadItem): void {
+  const text = itemText(item);
+  if (item.type === "agentMessage") {
+    state.lastAgentMessage = item.text;
+    state.agentSnapshots.set(item.id, item.text);
+    if (item.phase === "final_answer") {
+      state.lastFinalAgentMessage = item.text;
     }
   }
 
   state.emitTurnEvent({
     kind: "itemCompleted",
     threadId: state.threadId,
-    turnId: state.currentTurnId!,
-    itemId,
-    itemType,
+    turnId,
+    itemId: item.id,
+    itemType: item.type,
     text,
-    status: extractItemStatus(item),
-    command: extractCommandText(item),
-    output: extractItemOutput(item),
+    status: itemStatus(item),
+    command: itemCommand(item),
+    output: itemOutput(item),
   });
 }
 
-function handleTurnCompletedNotification(state: RunTurnState, params: Record<string, unknown>): void {
-  const turn = asObject(params.turn);
-  const completedTurnId = getString(turn.id);
-  if (!state.currentTurnId || !completedTurnId || completedTurnId !== state.currentTurnId) {
-    return;
+function itemText(item: ThreadItem): string | null {
+  switch (item.type) {
+    case "agentMessage":
+    case "plan":
+      return item.text;
+    case "reasoning":
+      return item.summary.join("\n");
+    default:
+      return null;
   }
+}
 
-  const status = getString(turn.status);
-  if (status === "completed") {
-    state.finalizeSuccess(latestTurnResponse(state));
-    return;
+function itemStatus(item: ThreadItem): string | null {
+  switch (item.type) {
+    case "commandExecution":
+    case "fileChange":
+    case "mcpToolCall":
+    case "dynamicToolCall":
+    case "collabAgentToolCall":
+      return item.status;
+    default:
+      return null;
   }
-  if (status === "interrupted") {
-    const response = latestTurnResponse(state);
-    if (response) {
-      state.finalizeSuccess(response);
-    } else {
-      state.finalizeFailure(new Error("Turn was interrupted before producing a response."));
-    }
-    return;
-  }
-  if (status === "failed") {
-    state.finalizeFailure(new Error(getTurnFailureMessage(turn)));
-    return;
-  }
-  if (status === "inProgress") {
-    return;
-  }
+}
 
-  state.finalizeFailure(new Error(`Turn ended with unexpected status: ${status ?? "unknown"}`));
+function itemCommand(item: ThreadItem): string | null {
+  return item.type === "commandExecution" ? item.command : null;
+}
+
+function itemOutput(item: ThreadItem): string | null {
+  return item.type === "commandExecution" ? item.aggregatedOutput : null;
 }

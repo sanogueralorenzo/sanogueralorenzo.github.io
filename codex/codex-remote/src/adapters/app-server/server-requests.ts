@@ -3,7 +3,6 @@ import {
   ApprovalRequest,
   TurnRuntimeOptions,
 } from "./types.js";
-import { asArray, asObject, getString } from "./json.js";
 import { JsonRpcRequest } from "./protocol.js";
 
 export async function handleServerRequest(
@@ -11,25 +10,41 @@ export async function handleServerRequest(
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<unknown> {
   switch (request.method) {
-    case "execCommandApproval":
-    case "applyPatchApproval": {
+    case "item/commandExecution/requestApproval": {
       const decision = await requestDecisionFromHandler(
-        toLegacyApprovalRequest(request.method, request.params),
+        {
+          method: request.method,
+          threadId: request.params.threadId,
+          turnId: request.params.turnId,
+          itemId: request.params.itemId,
+          approvalId: request.params.approvalId ?? null,
+          reason: request.params.reason ?? null,
+          command: request.params.command ?? null,
+          cwd: request.params.cwd ?? null,
+        },
         runtimeOptions
       );
-      return { decision: mapLegacyApprovalDecision(decision) };
+      return { decision };
     }
-    case "item/commandExecution/requestApproval":
     case "item/fileChange/requestApproval": {
       const decision = await requestDecisionFromHandler(
-        toV2ApprovalRequest(request.method, request.params),
+        {
+          method: request.method,
+          threadId: request.params.threadId,
+          turnId: request.params.turnId,
+          itemId: request.params.itemId,
+          approvalId: null,
+          reason: request.params.reason ?? null,
+          command: null,
+          cwd: null,
+        },
         runtimeOptions
       );
       return { decision };
     }
     case "item/tool/requestUserInput":
       return {
-        answers: buildEmptyToolInputAnswers(asArray(asObject(request.params).questions)),
+        answers: buildEmptyToolInputAnswers(request.params.questions),
       };
     case "item/tool/call":
       return {
@@ -63,88 +78,10 @@ async function requestDecisionFromHandler(
   }
 }
 
-function buildEmptyToolInputAnswers(questions: unknown[]): Record<string, { answers: string[] }> {
+function buildEmptyToolInputAnswers(questions: Array<{ id: string }>): Record<string, { answers: string[] }> {
   const answers: Record<string, { answers: string[] }> = {};
   for (const question of questions) {
-    const questionId = getString(asObject(question).id);
-    if (!questionId) {
-      continue;
-    }
-    answers[questionId] = { answers: [] };
+    answers[question.id] = { answers: [] };
   }
   return answers;
-}
-
-function toV2ApprovalRequest(
-  method: "item/commandExecution/requestApproval" | "item/fileChange/requestApproval",
-  paramsValue: unknown
-): ApprovalRequest | null {
-  const params = asObject(paramsValue);
-  const threadId = getString(params.threadId);
-  const turnId = getString(params.turnId);
-  const itemId = getString(params.itemId);
-  if (!threadId || !turnId || !itemId) {
-    return null;
-  }
-
-  return {
-    method,
-    threadId,
-    turnId,
-    itemId,
-    approvalId: getString(params.approvalId),
-    reason: getString(params.reason),
-    command: getString(params.command),
-    cwd: getString(params.cwd),
-  };
-}
-
-function toLegacyApprovalRequest(
-  method: "execCommandApproval" | "applyPatchApproval",
-  paramsValue: unknown
-): ApprovalRequest | null {
-  const params = asObject(paramsValue);
-  const threadId = getString(params.conversationId);
-  const callId = getString(params.callId);
-  if (!threadId || !callId) {
-    return null;
-  }
-
-  let command: string | null = null;
-  const cmd = params.command;
-  if (Array.isArray(cmd)) {
-    const parts = cmd.filter((part): part is string => typeof part === "string");
-    if (parts.length) {
-      command = parts.join(" ");
-    }
-  }
-
-  return {
-    method:
-      method === "execCommandApproval"
-        ? "item/commandExecution/requestApproval"
-        : "item/fileChange/requestApproval",
-    threadId,
-    turnId: callId,
-    itemId: callId,
-    approvalId: getString(params.approvalId),
-    reason: getString(params.reason),
-    command,
-    cwd: getString(params.cwd),
-  };
-}
-
-function mapLegacyApprovalDecision(
-  decision: ApprovalDecision
-): "approved" | "approved_for_session" | "denied" | "abort" {
-  switch (decision) {
-    case "accept":
-      return "approved";
-    case "acceptForSession":
-      return "approved_for_session";
-    case "cancel":
-      return "abort";
-    default:
-      return "denied";
-  }
 }

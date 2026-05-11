@@ -51,11 +51,10 @@ help     Print this help output.
 ### Required Config
 
 - `.env`
-- `codex-core` on `PATH` (installed by root `./install.sh` or `../codex-core/scripts/install.sh`)
-- `codex-core` command surfaces used by remote:
-  - `app-server` (for app-server transport)
-  - `sessions` (for thread/session operations)
-- `CODEX_CORE_BIN` (optional override path/name; defaults to `codex-core`)
+- `codex` on `PATH` for app-server transport
+- `codex-core` on `PATH` for thread/session operations (installed by root `./install.sh` or `../codex-core/scripts/install.sh`)
+- `CODEX_BIN` (optional app-server CLI override; defaults to `codex`)
+- `CODEX_CORE_BIN` (optional session CLI override; defaults to `codex-core`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
 - Node dependencies installed in `codex-remote` (`npm install`)

@@ -19,8 +19,8 @@ export type JsonRpcError = {
   };
 };
 
-export type JsonRpcNotification = ServerNotification | { method: string; params?: unknown };
-export type JsonRpcRequest = ServerRequest | { id: string | number; method: string; params?: unknown };
+export type JsonRpcNotification = ServerNotification;
+export type JsonRpcRequest = ServerRequest;
 export type JsonRpcClientRequest = ClientRequest;
 export type JsonRpcClientNotification = ClientNotification;
 

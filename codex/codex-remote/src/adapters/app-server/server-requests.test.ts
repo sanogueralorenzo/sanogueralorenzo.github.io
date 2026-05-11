@@ -3,15 +3,17 @@ import { describe, expect, it } from "vitest";
 import { handleServerRequest } from "./server-requests.js";
 
 describe("handleServerRequest", () => {
-  it("maps legacy approval requests through the approval handler", async () => {
+  it("maps command approval requests through the approval handler", async () => {
     const result = await handleServerRequest(
       {
         id: 1,
-        method: "execCommandApproval",
+        method: "item/commandExecution/requestApproval",
         params: {
-          conversationId: "thread-1",
-          callId: "call-1",
-          command: ["git", "status"],
+          threadId: "thread-1",
+          turnId: "turn-1",
+          itemId: "item-1",
+          startedAtMs: 0,
+          command: "git status",
           cwd: "/tmp/project",
         },
       },
@@ -20,8 +22,8 @@ describe("handleServerRequest", () => {
           expect(request).toMatchObject({
             method: "item/commandExecution/requestApproval",
             threadId: "thread-1",
-            turnId: "call-1",
-            itemId: "call-1",
+            turnId: "turn-1",
+            itemId: "item-1",
             command: "git status",
             cwd: "/tmp/project",
           });
@@ -30,7 +32,25 @@ describe("handleServerRequest", () => {
       }
     );
 
-    expect(result).toEqual({ decision: "approved_for_session" });
+    expect(result).toEqual({ decision: "acceptForSession" });
+  });
+
+  it("rejects unsupported legacy approval requests", async () => {
+    await expect(
+      handleServerRequest({
+        id: 1,
+        method: "execCommandApproval",
+        params: {
+          conversationId: "thread-1",
+          callId: "call-1",
+          approvalId: null,
+          command: ["git", "status"],
+          cwd: "/tmp/project",
+          reason: null,
+          parsedCmd: [],
+        },
+      })
+    ).rejects.toThrow("Unsupported server request method: execCommandApproval");
   });
 
   it("returns empty answers for requestUserInput prompts", async () => {
@@ -38,7 +58,27 @@ describe("handleServerRequest", () => {
       id: 1,
       method: "item/tool/requestUserInput",
       params: {
-        questions: [{ id: "q1" }, { id: "q2" }],
+        threadId: "thread-1",
+        turnId: "turn-1",
+        itemId: "item-1",
+        questions: [
+          {
+            id: "q1",
+            header: "One",
+            question: "Question one?",
+            isOther: false,
+            isSecret: false,
+            options: null,
+          },
+          {
+            id: "q2",
+            header: "Two",
+            question: "Question two?",
+            isOther: false,
+            isSecret: false,
+            options: null,
+          },
+        ],
       },
     });
 
