@@ -4,6 +4,8 @@
 
 The website is intentionally light-mode only and opts out of browser or system dark-mode color adjustments.
 
+The mobile homepage uses a wider portrait crop so the shoulders stay fully visible.
+
 ## Quickstart
 
 ```shell

@@ -28,7 +28,10 @@ layout: base.njk
     </div>
 
     <figure class="hero-portrait">
-      <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}" title="mario">
+      <picture class="profile-picture">
+        <source media="(max-width: 720px)" srcset="{{ site.profile.mobileImage }}">
+        <img class="profile-image" src="{{ site.profile.image }}" alt="{{ site.profile.imageAlt }}" title="mario">
+      </picture>
     </figure>
 
   </section>

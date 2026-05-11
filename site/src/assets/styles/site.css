@@ -136,11 +136,15 @@ a {
   justify-self: end;
 }
 
+.profile-picture {
+  display: block;
+}
+
 .profile-image {
   width: 100%;
   aspect-ratio: 1.3;
   object-fit: cover;
-  object-position: center top;
+  object-position: center;
   background: transparent;
 }
 
@@ -366,7 +370,7 @@ a {
   .hero-portrait {
     order: 6;
     align-self: center;
-    width: min(68%, 280px);
+    width: min(86%, 340px);
     margin-top: 18px;
   }
 
