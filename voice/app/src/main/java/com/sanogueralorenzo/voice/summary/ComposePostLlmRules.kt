@@ -84,6 +84,7 @@ class ComposePostLlmRules {
             .filter { it.isNotBlank() && it != "and" }
         if (words.isEmpty()) return null
         if (words.any { it !in NUMBER_WORDS }) return null
+        if (words.size == 1) return null
         if (words.size > 1 && words.all { it in DIGIT_WORDS }) {
             return words.joinToString("") { DIGIT_WORDS.getValue(it).toString() }
         }
@@ -91,25 +92,60 @@ class ComposePostLlmRules {
     }
 
     private fun parseCardinalNumber(words: List<String>): Long? {
-        var total = 0L
-        var current = 0L
-        for (word in words) {
-            when (word) {
-                in SMALL_NUMBER_WORDS -> current += SMALL_NUMBER_WORDS.getValue(word)
-                in TENS_WORDS -> current += TENS_WORDS.getValue(word)
-                "hundred" -> current = current.coerceAtLeast(1L) * 100L
-                "thousand" -> {
-                    total += current.coerceAtLeast(1L) * 1_000L
-                    current = 0L
-                }
-                "million" -> {
-                    total += current.coerceAtLeast(1L) * 1_000_000L
-                    current = 0L
-                }
-                else -> return null
-            }
+        return parseScaledCardinal(words = words, scaleWord = "million", scaleValue = 1_000_000L)
+            ?: parseScaledCardinal(words = words, scaleWord = "thousand", scaleValue = 1_000L)
+            ?: parseUnderThousand(words)
+    }
+
+    private fun parseScaledCardinal(
+        words: List<String>,
+        scaleWord: String,
+        scaleValue: Long
+    ): Long? {
+        val scaleIndex = words.indexOf(scaleWord)
+        if (scaleIndex <= 0) return null
+        if (words.indexOfLast { it == scaleWord } != scaleIndex) return null
+        val prefix = parseUnderThousand(words.take(scaleIndex)) ?: return null
+        if (prefix == 0L) return null
+        val suffixWords = words.drop(scaleIndex + 1)
+        val suffix = if (suffixWords.isEmpty()) {
+            0L
+        } else {
+            parseCardinalNumber(suffixWords) ?: return null
         }
-        return total + current
+        return prefix * scaleValue + suffix
+    }
+
+    private fun parseUnderThousand(words: List<String>): Long? {
+        if (words.isEmpty()) return null
+        val hundredIndex = words.indexOf("hundred")
+        if (hundredIndex >= 0) {
+            if (hundredIndex != 1) return null
+            if (words.indexOfLast { it == "hundred" } != hundredIndex) return null
+            val hundreds = DIGIT_WORDS[words.first()] ?: return null
+            if (hundreds == 0L) return null
+            val remainderWords = words.drop(2)
+            val remainder = if (remainderWords.isEmpty()) {
+                0L
+            } else {
+                parseUnderHundred(remainderWords) ?: return null
+            }
+            return hundreds * 100L + remainder
+        }
+        return parseUnderHundred(words)
+    }
+
+    private fun parseUnderHundred(words: List<String>): Long? {
+        return when (words.size) {
+            1 -> SMALL_NUMBER_WORDS[words.first()] ?: TENS_WORDS[words.first()]
+            2 -> {
+                val tens = TENS_WORDS[words[0]] ?: return null
+                val ones = DIGIT_WORDS[words[1]] ?: return null
+                if (ones == 0L) return null
+                tens + ones
+            }
+            else -> null
+        }
     }
 
     fun finalizeComposeOutput(

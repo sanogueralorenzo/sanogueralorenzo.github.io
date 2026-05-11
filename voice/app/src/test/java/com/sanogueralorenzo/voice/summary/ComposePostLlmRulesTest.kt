@@ -65,4 +65,54 @@ class ComposePostLlmRulesTest {
 
         assertEquals("Set it to 321", cleaned)
     }
+
+    @Test
+    fun cleanModelOutput_convertsSpokenCardinalNumberWithAndToNumber() {
+        val cleaned = policy.cleanModelOutput(
+            text = "set it to one hundred and five",
+            bulletMode = false
+        )
+
+        assertEquals("Set it to 105", cleaned)
+    }
+
+    @Test
+    fun cleanModelOutput_convertsTwoWordCardinalNumberToNumber() {
+        val cleaned = policy.cleanModelOutput(
+            text = "set it to twenty one",
+            bulletMode = false
+        )
+
+        assertEquals("Set it to 21", cleaned)
+    }
+
+    @Test
+    fun cleanModelOutput_doesNotConvertSingleNumberWordInProse() {
+        val cleaned = policy.cleanModelOutput(
+            text = "one more thing",
+            bulletMode = false
+        )
+
+        assertEquals("One more thing", cleaned)
+    }
+
+    @Test
+    fun cleanModelOutput_doesNotConvertAmbiguousMixedSpokenNumberPhrase() {
+        val cleaned = policy.cleanModelOutput(
+            text = "the code is one twenty three",
+            bulletMode = false
+        )
+
+        assertEquals("The code is one twenty three", cleaned)
+    }
+
+    @Test
+    fun cleanModelOutput_doesNotConvertTrailingDigitAfterCardinalPhrase() {
+        val cleaned = policy.cleanModelOutput(
+            text = "the code is twenty one five",
+            bulletMode = false
+        )
+
+        assertEquals("The code is twenty one five", cleaned)
+    }
 }

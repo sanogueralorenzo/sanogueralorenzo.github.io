@@ -1,7 +1,7 @@
 ## Intro
 
 **Voice** is an Android local-first voice keyboard (IME) with on-device ASR and rewrite.
-Post-rewrite cleanup converts spoken number phrases such as "one, two, three" and "three hundred twenty one" into digits.
+Post-rewrite cleanup converts unambiguous multi-word spoken number phrases such as "one, two, three" and "three hundred twenty one" into digits.
 The overlay positioning screen keeps the bubble visible while a non-Voice keyboard is open, and tapping the bubble starts/stops overlay recording.
 
 ## Quickstart
