@@ -4,7 +4,6 @@ import Observation
 struct CodexMenuData {
   let isLoading: Bool
   let remoteStatus: CodexRemoteCLIClient.Status?
-  let sessionsStatus: CodexCoreCLIClient.Status?
   let spikeJobs: [CodexCoreCLIClient.SpikeJob]
   let taskJobs: [CodexCoreCLIClient.TaskJob]
   let reviewJobs: [CodexCoreCLIClient.ReviewJob]
@@ -12,7 +11,6 @@ struct CodexMenuData {
   static let loading = CodexMenuData(
     isLoading: true,
     remoteStatus: nil,
-    sessionsStatus: nil,
     spikeJobs: [],
     taskJobs: [],
     reviewJobs: []
@@ -40,27 +38,12 @@ final class CodexMenuDataStore {
     let previousReviewJobs = data.reviewJobs
 
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      let sessionsStatus = (try? sessionsCLI.status()) ?? .notInstalled
-      let spikeJobs: [CodexCoreCLIClient.SpikeJob]
-      let taskJobs: [CodexCoreCLIClient.TaskJob]
-      let reviewJobs: [CodexCoreCLIClient.ReviewJob]
-      if sessionsStatus == .ready {
-        spikeJobs = (try? sessionsCLI.listSpikeJobs()) ?? previousSpikeJobs
-        taskJobs = (try? sessionsCLI.listTaskJobs()) ?? previousTaskJobs
-        reviewJobs = (try? sessionsCLI.listReviewJobs()) ?? previousReviewJobs
-      } else {
-        spikeJobs = []
-        taskJobs = []
-        reviewJobs = []
-      }
-
       let refreshedData = CodexMenuData(
         isLoading: false,
         remoteStatus: (try? remoteCLI.status()) ?? .notInstalled,
-        sessionsStatus: sessionsStatus,
-        spikeJobs: spikeJobs,
-        taskJobs: taskJobs,
-        reviewJobs: reviewJobs
+        spikeJobs: (try? sessionsCLI.listSpikeJobs()) ?? previousSpikeJobs,
+        taskJobs: (try? sessionsCLI.listTaskJobs()) ?? previousTaskJobs,
+        reviewJobs: (try? sessionsCLI.listReviewJobs()) ?? previousReviewJobs
       )
 
       DispatchQueue.main.async {

@@ -183,16 +183,6 @@ final class CodexCoreCLIClient: @unchecked Sendable {
     }
   }
 
-  enum AutoRemoveMode: String {
-    case archive
-    case delete
-  }
-
-  enum Status: Equatable {
-    case notInstalled
-    case ready
-  }
-
   struct Error: LocalizedError {
     let message: String
     var errorDescription: String? { message }
@@ -204,36 +194,6 @@ final class CodexCoreCLIClient: @unchecked Sendable {
   init(fileManager: FileManager = .default) {
     self.fileManager = fileManager
     self.executablePath = Self.resolveExecutablePath()
-  }
-
-  func status() throws -> Status {
-    guard let executablePath else {
-      return .notInstalled
-    }
-
-    guard fileManager.isExecutableFile(atPath: executablePath) else {
-      return .notInstalled
-    }
-
-    return .ready
-  }
-
-  func runAutoRemove(olderThanDays: Int, mode: AutoRemoveMode) throws {
-    guard olderThanDays >= 0 else {
-      throw Error(message: "olderThanDays must be zero or greater.")
-    }
-
-    _ = try runSessions([
-      "prune",
-      "--older-than-days", String(olderThanDays),
-      "--mode", mode.rawValue,
-    ])
-  }
-
-  func isTitleWatcherRunning() throws -> Bool {
-    let output = try runSessions(["watch", "thread-titles", "status"])
-    let normalized = output.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    return normalized.contains("running")
   }
 
   func startTitleWatcher() throws {
