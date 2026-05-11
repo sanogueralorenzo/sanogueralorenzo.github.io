@@ -2,6 +2,8 @@
 
 **Site** is a custom Eleventy personal website with a sparse portfolio homepage, profile links, and a minimal posts section.
 
+The website is intentionally light-mode only and opts out of browser or system dark-mode color adjustments.
+
 ## Quickstart
 
 ```shell
