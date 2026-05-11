@@ -72,9 +72,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     }
 
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    statusItem.button?.image = StatusBarIcon.codex()
-    statusItem.button?.imagePosition = .imageOnly
-    statusItem.button?.title = ""
+    statusItem.button?.image = nil
+    statusItem.button?.title = "CA"
 
     let menu = NSMenu()
     menu.delegate = self
