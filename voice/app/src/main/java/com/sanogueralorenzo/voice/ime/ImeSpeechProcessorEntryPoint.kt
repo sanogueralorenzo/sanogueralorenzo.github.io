@@ -4,7 +4,7 @@ import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
-import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
+import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
 import com.sanogueralorenzo.voice.summary.SummaryEngine
 
 /**

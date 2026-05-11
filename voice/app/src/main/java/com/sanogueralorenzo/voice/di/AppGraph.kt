@@ -8,8 +8,8 @@ import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
-import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
-import com.sanogueralorenzo.voice.summary.ComposePostLlmRules
+import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
+import com.sanogueralorenzo.voice.summary.rules.post.ComposePostLlmRules
 import com.sanogueralorenzo.voice.summary.SummaryEngine
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph

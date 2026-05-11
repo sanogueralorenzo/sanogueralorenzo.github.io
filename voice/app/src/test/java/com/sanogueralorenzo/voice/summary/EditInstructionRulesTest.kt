@@ -1,5 +1,7 @@
 package com.sanogueralorenzo.voice.summary
 
+import com.sanogueralorenzo.voice.summary.rules.post.PostReplaceCapitalizationRule
+import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -8,6 +10,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EditInstructionRulesTest {
+    private val postReplaceCapitalizationRule = PostReplaceCapitalizationRule()
+
     @Test
     fun analyzeInstruction_detectsDeleteAllPhrases() {
         val deleteAll = EditInstructionRules.analyzeInstruction("delete all")
@@ -230,7 +234,7 @@ class EditInstructionRulesTest {
 
     @Test
     fun postReplaceCapitalization_capitalizesEditedOutputForReplaceCommand() {
-        val output = EditInstructionRules.applyPostReplaceCapitalization(
+        val output = postReplaceCapitalizationRule.apply(
             sourceText = "Hey Mia, can you review this?",
             instructionText = "replace Mia with john",
             editedOutput = "Hey john, can you review this?"

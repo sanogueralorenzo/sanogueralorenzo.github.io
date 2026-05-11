@@ -15,6 +15,9 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.prompt.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
+import com.sanogueralorenzo.voice.summary.rules.post.ComposePostLlmRules
+import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
+import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

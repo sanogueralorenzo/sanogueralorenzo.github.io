@@ -42,7 +42,7 @@ import com.sanogueralorenzo.voice.ime.ImeSpeechProcessorEntryPoint
 import com.sanogueralorenzo.voice.ime.ImeSpeechProcessorRequest
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.summary.EditInstructionRules
+import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

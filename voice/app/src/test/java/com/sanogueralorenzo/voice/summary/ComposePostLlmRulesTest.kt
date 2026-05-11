@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.summary
 
+import com.sanogueralorenzo.voice.summary.rules.post.ComposePostLlmRules
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

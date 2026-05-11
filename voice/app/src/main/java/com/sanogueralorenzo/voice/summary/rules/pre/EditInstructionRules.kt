@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.summary
+package com.sanogueralorenzo.voice.summary.rules.pre
 
 /**
  * Parses edit instructions and applies deterministic local edit rules.
@@ -49,6 +49,11 @@ internal object EditInstructionRules {
         val matchedCount: Int,
         val ruleConfidence: RuleConfidence,
         val noMatchDetected: Boolean
+    )
+
+    internal data class ReplacementTerms(
+        val target: String,
+        val replacement: String
     )
 
     private data class ParsedCommand(
@@ -133,27 +138,18 @@ internal object EditInstructionRules {
         return intent == EditIntent.DELETE_ALL
     }
 
-    fun applyPostReplaceCapitalization(
-        sourceText: String,
-        instructionText: String,
-        editedOutput: String
-    ): String {
-        if (sourceText.isBlank() || instructionText.isBlank() || editedOutput.isBlank()) return editedOutput
+    fun replacementTermsForPostCapitalization(instructionText: String): ReplacementTerms? {
+        if (instructionText.isBlank()) return null
         val commandCandidate = analyzeInstruction(instructionText).normalizedInstruction
-        val parsed = parseDeterministicCommand(commandCandidate) ?: return editedOutput
-        if (parsed.kind != CommandKind.REPLACE_TERM) return editedOutput
+        val parsed = parseDeterministicCommand(commandCandidate) ?: return null
+        if (parsed.kind != CommandKind.REPLACE_TERM) return null
         val target = parsed.target.orEmpty()
         val replacement = parsed.replacement.orEmpty()
-        if (target.isBlank() || replacement.isBlank()) return editedOutput
-
-        val sourceMatches = targetRegex(target).findAll(sourceText).toList()
-        val capitalizedSourceMatch = sourceMatches.firstOrNull { isCapitalizedWordMatch(it.value) }
-            ?: return editedOutput
-
-        val replacementRegex = targetRegex(replacement)
-        return replacementRegex.replace(editedOutput) { match ->
-            applyReplacementCasing(capitalizedSourceMatch.value, match.value)
-        }
+        if (target.isBlank() || replacement.isBlank()) return null
+        return ReplacementTerms(
+            target = target,
+            replacement = replacement
+        )
     }
 
     fun tryApplyDeterministicEdit(

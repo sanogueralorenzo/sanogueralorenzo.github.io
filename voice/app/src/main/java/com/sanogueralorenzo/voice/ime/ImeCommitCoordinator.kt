@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.ime
 
-import com.sanogueralorenzo.voice.summary.EditInstructionRules
+import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 
 internal class ImeCommitCoordinator {
     fun commit(

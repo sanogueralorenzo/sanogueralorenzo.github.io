@@ -7,10 +7,11 @@ import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
-import com.sanogueralorenzo.voice.summary.ComposePreLlmRules
-import com.sanogueralorenzo.voice.summary.EditInstructionRules
 import com.sanogueralorenzo.voice.summary.RewriteResult
 import com.sanogueralorenzo.voice.summary.SummaryEngine
+import com.sanogueralorenzo.voice.summary.rules.post.PostReplaceCapitalizationRule
+import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
+import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 
 /**
  * 4-stage speech pipeline orchestrator:
@@ -374,6 +375,8 @@ internal class LlmStage(
  * final rewrite result and diagnostics for commit/debug trace.
  */
 internal class PostLlmRulesStage {
+    private val postReplaceCapitalizationRule = PostReplaceCapitalizationRule()
+
     fun processComplete(
         input: PreLlmResult.Complete
     ): ImeRewriteResult {
@@ -432,7 +435,7 @@ internal class PostLlmRulesStage {
         llm: LlmStageResult
     ): ImeRewriteResult {
         val localRulesAfterLlm = mutableListOf<String>()
-        val normalizedOutput = EditInstructionRules.applyPostReplaceCapitalization(
+        val normalizedOutput = postReplaceCapitalizationRule.apply(
             sourceText = input.sourceText,
             instructionText = input.instruction,
             editedOutput = llm.output
