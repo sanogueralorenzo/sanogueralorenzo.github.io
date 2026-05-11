@@ -4,6 +4,7 @@ import Observation
 struct CodexMenuData {
   let isLoading: Bool
   let remoteStatus: CodexRemoteCLIClient.Status?
+  let sessionsStatus: CodexCoreCLIClient.Status?
   let currentProfileName: String?
   let profiles: [String]
   let spikeJobs: [CodexCoreCLIClient.SpikeJob]
@@ -13,6 +14,7 @@ struct CodexMenuData {
   static let loading = CodexMenuData(
     isLoading: true,
     remoteStatus: nil,
+    sessionsStatus: nil,
     currentProfileName: nil,
     profiles: [],
     spikeJobs: [],
@@ -49,6 +51,7 @@ final class CodexMenuDataStore {
       let refreshedData = CodexMenuData(
         isLoading: false,
         remoteStatus: (try? remoteCLI.status()) ?? .notInstalled,
+        sessionsStatus: (try? sessionsCLI.status()) ?? .notInstalled,
         currentProfileName: try? authCLI.currentProfileName(),
         profiles: profiles,
         spikeJobs: (try? sessionsCLI.listSpikeJobs()) ?? previousSpikeJobs,

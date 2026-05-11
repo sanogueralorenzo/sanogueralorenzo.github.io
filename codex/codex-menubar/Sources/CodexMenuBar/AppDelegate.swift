@@ -15,6 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   let sessionsCLI = CodexCoreCLIClient()
   let menuDataStore = CodexMenuDataStore()
   var remoteLaunchPreference = RemoteLaunchPreference.load()
+  var autoRemoveSettings = AutoRemoveSettings.load()
+  let autoRemoveQueue = DispatchQueue(
+    label: "io.github.sanogueralorenzo.codex-menubar.auto-remove",
+    qos: .utility
+  )
   let reviewStatusWatcherQueue = DispatchQueue(
     label: "io.github.sanogueralorenzo.codex-menubar.review-status",
     qos: .utility
@@ -29,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
   )
   var reviewStatusWatcher: DispatchSourceFileSystemObject?
   var reviewStatusWatcherFileDescriptor: CInt = -1
+  var autoRemoveSchedulerTimer: DispatchSourceTimer?
+  let autoRemoveIntervalMinutes = 60
   var spikeStatusWatcher: DispatchSourceFileSystemObject?
   var spikeStatusWatcherFileDescriptor: CInt = -1
   var taskStatusWatcher: DispatchSourceFileSystemObject?
@@ -88,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
       fputs("Warning: failed to register global shortcut: \(error)\n", stderr)
     }
 
+    startAutoRemoveScheduler()
     startReviewStatusWatcher()
     startSpikeStatusWatcher()
     startTaskStatusWatcher()
@@ -627,5 +635,48 @@ struct RemoteLaunchPreference: Equatable {
 
   func save(defaults: UserDefaults = .standard) {
     defaults.set(shouldAutoStart, forKey: Self.key)
+  }
+}
+
+struct AutoRemoveSettings: Equatable {
+  let olderThanDays: Int?
+  let mode: CodexCoreCLIClient.AutoRemoveMode?
+
+  static let supportedDays = [1, 3, 7]
+  static let none = AutoRemoveSettings(olderThanDays: nil, mode: nil)
+
+  private static let selectionKey = "threads.autoRemove.selection"
+
+  static func load(defaults: UserDefaults = .standard) -> AutoRemoveSettings {
+    guard let selection = defaults.string(forKey: selectionKey) else {
+      return .none
+    }
+
+    let components = selection.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true)
+    guard components.count == 2,
+      let days = Int(components[0]),
+      supportedDays.contains(days),
+      let mode = CodexCoreCLIClient.AutoRemoveMode(rawValue: String(components[1]))
+    else {
+      return .none
+    }
+
+    return AutoRemoveSettings(olderThanDays: days, mode: mode)
+  }
+
+  func save(defaults: UserDefaults = .standard) {
+    guard let olderThanDays, let mode else {
+      defaults.removeObject(forKey: Self.selectionKey)
+      return
+    }
+    defaults.set("\(olderThanDays):\(mode.rawValue)", forKey: Self.selectionKey)
+  }
+
+  var isConfigured: Bool {
+    olderThanDays != nil && mode != nil
+  }
+
+  func withSelection(days: Int, mode: CodexCoreCLIClient.AutoRemoveMode) -> AutoRemoveSettings {
+    AutoRemoveSettings(olderThanDays: days, mode: mode)
   }
 }

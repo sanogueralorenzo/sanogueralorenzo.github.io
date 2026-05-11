@@ -14,6 +14,8 @@ extension AppDelegate {
     menu.addItem(.separator())
     addProfilesSection(to: menu, data: data)
     menu.addItem(.separator())
+    addThreadsSection(to: menu, data: data)
+    menu.addItem(.separator())
     menu.addItem(actionItem(title: "Help", action: #selector(openHelp(_:))))
     menu.addItem(.separator())
     let quit = actionItem(title: "Quit", action: #selector(quit(_:)), keyEquivalent: "q")
@@ -166,6 +168,30 @@ extension AppDelegate {
     menu.addItem(actionItem(title: "Add", action: #selector(addProfileFromCurrent(_:))))
   }
 
+  private func addThreadsSection(to menu: NSMenu, data: CodexMenuData) {
+    let sessionsItem = NSMenuItem(title: "Threads", action: nil, keyEquivalent: "")
+    let sessionsMenu = NSMenu()
+
+    if data.isLoading {
+      sessionsMenu.addItem(disabledItem(title: "Loading..."))
+    } else {
+      switch data.sessionsStatus ?? .notInstalled {
+      case .notInstalled:
+        sessionsMenu.addItem(disabledItem(title: "Threads CLI not installed (codex-core)"))
+      case .ready:
+        sessionsMenu.addItem(
+          sectionHeaderItem(title: "Auto-Remove", action: #selector(clearAutoRemoveSelection(_:))))
+        sessionsMenu.addItem(actionItem(title: "Delete Now", action: #selector(runAutoRemoveNow(_:))))
+        sessionsMenu.addItem(autoRemoveDayMenuItem(days: 1))
+        sessionsMenu.addItem(autoRemoveDayMenuItem(days: 3))
+        sessionsMenu.addItem(autoRemoveDayMenuItem(days: 7))
+      }
+    }
+
+    menu.addItem(sessionsItem)
+    menu.setSubmenu(sessionsMenu, for: sessionsItem)
+  }
+
   private func sectionHeaderItem(title: String, action: Selector = #selector(noopHeader(_:)))
     -> NSMenuItem
   {
@@ -274,6 +300,36 @@ extension AppDelegate {
 
     item.target = self
     item.representedObject = profileName
+    return item
+  }
+
+  private func autoRemoveDayMenuItem(days: Int) -> NSMenuItem {
+    let item = NSMenuItem(
+      title: "\(days) day" + (days == 1 ? "" : "s"),
+      action: nil,
+      keyEquivalent: ""
+    )
+    item.state = autoRemoveSettings.olderThanDays == days ? .on : .off
+    let submenu = NSMenu()
+    submenu.addItem(autoRemoveModeSubmenuItem(days: days, mode: .archive))
+    submenu.addItem(autoRemoveModeSubmenuItem(days: days, mode: .delete))
+    item.submenu = submenu
+    return item
+  }
+
+  private func autoRemoveModeSubmenuItem(
+    days: Int,
+    mode: CodexCoreCLIClient.AutoRemoveMode
+  ) -> NSMenuItem {
+    let item = NSMenuItem(
+      title: mode == .archive ? "Archive" : "Delete",
+      action: #selector(setAutoRemoveSelection(_:)),
+      keyEquivalent: ""
+    )
+    item.target = self
+    item.representedObject = "\(days):\(mode.rawValue)"
+    item.state =
+      autoRemoveSettings.olderThanDays == days && autoRemoveSettings.mode == mode ? .on : .off
     return item
   }
 }
