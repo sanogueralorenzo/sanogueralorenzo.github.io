@@ -1,13 +1,27 @@
 :root {
-  color-scheme: only light;
+  color-scheme: light dark;
   --bg: #fffdfa;
   --text: #050504;
   --muted: #2c2b28;
   --line: rgba(5, 5, 4, 0.24);
   --accent: #e13a1f;
+  --ambient: rgba(0, 0, 0, 0.035);
+  --ambient-mobile: rgba(0, 0, 0, 0.04);
   --serif: "Bodoni 72", Didot, "Times New Roman", serif;
   --mono: "SF Mono", "Roboto Mono", "Courier New", monospace;
   --page: min(82.5vw, 1268px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #090908;
+    --text: #fffdfa;
+    --muted: #c9c1b8;
+    --line: rgba(255, 253, 250, 0.24);
+    --accent: #ff6b52;
+    --ambient: rgba(255, 253, 250, 0.055);
+    --ambient-mobile: rgba(255, 253, 250, 0.06);
+  }
 }
 
 *,
@@ -27,7 +41,7 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(circle at 50% 42%, rgba(0, 0, 0, 0.035), transparent 38%),
+    radial-gradient(circle at 50% 42%, var(--ambient), transparent 38%),
     var(--bg);
   font-family: var(--mono);
   line-height: 1.55;
@@ -290,7 +304,7 @@ a {
 
   body {
     background:
-      radial-gradient(circle at 50% 44%, rgba(0, 0, 0, 0.04), transparent 42%),
+      radial-gradient(circle at 50% 44%, var(--ambient-mobile), transparent 42%),
       var(--bg);
   }
 
