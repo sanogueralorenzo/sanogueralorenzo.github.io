@@ -4,7 +4,7 @@ layout: base.njk
 <main class="page-shell">
   <section class="hero-stage">
     <div class="hero-copy">
-      <h1>{{ site.hero.title }}</h1>
+      <h1>{{ site.hero.title | replace("de Lorenzo", "de&nbsp;Lorenzo") | safe }}</h1>
       <span class="accent-rule" aria-hidden="true"></span>
       <nav class="hero-links" aria-label="Profile links">
         {% for link in site.links %}
