@@ -341,24 +341,20 @@ a {
 
   .hero-links {
     order: 5;
-    display: block;
-    margin-top: 30px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: clamp(20px, 7vw, 34px);
+    margin-top: 32px;
   }
 
   .hero-link {
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    width: 100%;
-    min-height: 72px;
+    display: inline-flex;
+    width: auto;
+    min-height: 44px;
     align-items: center;
-    justify-content: stretch;
-    padding: 0;
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    border-radius: 0;
-    color: var(--text);
-    font-size: 1.17rem;
+    justify-content: flex-start;
+    font-size: 1rem;
   }
 
   .link-icon {
@@ -370,11 +366,11 @@ a {
   }
 
   .link-label-short {
-    display: none;
+    display: inline;
   }
 
   .link-label-long {
-    display: inline;
+    display: none;
   }
 
   .hero-portrait {
