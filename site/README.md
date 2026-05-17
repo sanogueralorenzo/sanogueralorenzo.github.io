@@ -3,6 +3,7 @@
 **Site** is a custom Eleventy personal website with a sparse portfolio homepage, profile links, and a minimal posts section.
 
 The website follows the visitor's system light or dark mode preference.
+The profile portrait keeps a black shirt in light mode and switches to a white shirt in dark mode.
 
 ## Quickstart
 
