@@ -116,7 +116,7 @@ a {
 
 .hero-links {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: clamp(40px, 4.8vw, 66px);
   margin-top: 38px;
@@ -295,6 +295,11 @@ a {
     font-size: clamp(4.2rem, 8.7vw, 5.1rem);
   }
 
+  .hero-links {
+    justify-content: space-between;
+    gap: 0;
+  }
+
 }
 
 @media (max-width: 720px) {
@@ -344,7 +349,8 @@ a {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
-    gap: clamp(20px, 7vw, 34px);
+    justify-content: space-between;
+    gap: 0;
     margin-top: 32px;
   }
 
