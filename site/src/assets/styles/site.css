@@ -152,8 +152,8 @@ a {
 
 .profile-image {
   width: 100%;
-  aspect-ratio: 1.3;
-  object-fit: cover;
+  aspect-ratio: auto;
+  object-fit: contain;
   object-position: center top;
   background: transparent;
 }
@@ -384,12 +384,6 @@ a {
     align-self: center;
     width: min(68%, 280px);
     margin-top: 18px;
-  }
-
-  .profile-image {
-    aspect-ratio: auto;
-    object-fit: contain;
-    object-position: center top;
   }
 
   .home-panels {
