@@ -9,7 +9,7 @@
   --ambient-mobile: rgba(0, 0, 0, 0.04);
   --serif: "Bodoni 72", Didot, "Times New Roman", serif;
   --mono: "SF Mono", "Roboto Mono", "Courier New", monospace;
-  --page: min(82.5vw, 1268px);
+  --page: calc(100% - 96px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -83,8 +83,8 @@ a {
 .hero-stage {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(460px, 0.92fr);
-  column-gap: clamp(64px, 7vw, 132px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.76fr);
+  column-gap: 44px;
   align-items: end;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
@@ -100,7 +100,7 @@ a {
   max-width: 8.2ch;
   margin: 0;
   font-family: var(--serif);
-  font-size: clamp(5.2rem, 7vw, 6.35rem);
+  font-size: clamp(4.2rem, 8.7vw, 5.1rem);
   font-weight: 400;
   letter-spacing: 0;
   line-height: 0.86;
@@ -118,7 +118,8 @@ a {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: clamp(40px, 4.8vw, 66px);
+  justify-content: space-between;
+  gap: 0;
   margin-top: 38px;
 }
 
@@ -278,28 +279,6 @@ a {
   border-bottom: 1px solid var(--text);
   font-size: 0.9rem;
   text-transform: lowercase;
-}
-
-@media (max-width: 979px) {
-  :root {
-    --page: calc(100% - 96px);
-  }
-
-  .hero-stage {
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.76fr);
-    column-gap: 44px;
-  }
-
-  .hero-copy h1,
-  .not-found h1 {
-    font-size: clamp(4.2rem, 8.7vw, 5.1rem);
-  }
-
-  .hero-links {
-    justify-content: space-between;
-    gap: 0;
-  }
-
 }
 
 @media (max-width: 720px) {
