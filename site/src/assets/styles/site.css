@@ -144,7 +144,7 @@ a {
 .hero-portrait {
   position: relative;
   z-index: 1;
-  width: min(100%, 488px);
+  width: min(100%, 460px);
   margin: -10px 0 0;
   align-self: start;
   justify-self: end;
@@ -280,7 +280,7 @@ a {
   text-transform: lowercase;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 979px) {
   :root {
     --page: calc(100% - 96px);
   }
