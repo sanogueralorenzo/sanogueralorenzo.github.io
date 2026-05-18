@@ -361,7 +361,7 @@ a {
   .hero-portrait {
     order: 6;
     align-self: center;
-    width: min(68%, 280px);
+    width: clamp(248px, 68%, 280px);
     margin-top: 18px;
   }
 
