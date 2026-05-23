@@ -63,13 +63,21 @@ export type PrecedentTurnEventInput = {
 type PrecedentBridgeConfig = {
   enabled: boolean;
   stateDir?: string;
+  hookTimeoutMs?: number;
+  contextTimeoutMs?: number;
 };
 
 type JsonRunner = (input: {
   cwd: string;
   args: string[];
   stdinJson?: unknown;
+  timeoutMs?: number;
 }) => Promise<unknown>;
+
+const DEFAULT_HOOK_TIMEOUT_MS = 1500;
+const DEFAULT_CONTEXT_TIMEOUT_MS = 2500;
+const PROCESS_KILL_GRACE_MS = 250;
+const MAX_PROCESS_OUTPUT_BYTES = 512 * 1024;
 
 export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: JsonRunner = runPrecedentJson): PrecedentBridge {
   if (!config.enabled) {
@@ -77,11 +85,13 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
   }
 
   const stateDir = config.stateDir ?? ".precedent";
+  const hookTimeoutMs = positiveNumber(config.hookTimeoutMs) ?? DEFAULT_HOOK_TIMEOUT_MS;
+  const contextTimeoutMs = positiveNumber(config.contextTimeoutMs) ?? DEFAULT_CONTEXT_TIMEOUT_MS;
 
   return {
     beforeTurn: async (input) => {
       try {
-        const attach = await runner({
+        const attach = await runWithTimeout(runner, {
           cwd: input.cwd,
           args: [
             "attach",
@@ -95,16 +105,18 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
             input.task,
             "--json",
           ],
-        }) as { adapter?: { beforeTurn?: { command?: string[] } } };
+          timeoutMs: contextTimeoutMs,
+        }, contextTimeoutMs) as { adapter?: { beforeTurn?: { command?: string[] } } };
         const command = attach.adapter?.beforeTurn?.command;
         if (!Array.isArray(command) || command.length < 3) {
           return emptyBeforeTurn(input.task);
         }
 
-        const context = await runner({
+        const context = await runWithTimeout(runner, {
           cwd: input.cwd,
           args: command.slice(2),
-        }) as {
+          timeoutMs: contextTimeoutMs,
+        }, contextTimeoutMs) as {
           contextBlock?: string;
           candidateHints?: unknown[];
           promotionTrials?: unknown[];
@@ -120,13 +132,14 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
             ? context.injections.map((injection) => injection.id).filter((id): id is string => typeof id === "string")
             : [],
         };
-      } catch {
+      } catch (error) {
+        logPrecedentFailure("context.before_turn", input, error);
         return emptyBeforeTurn(input.task);
       }
     },
     beforeRetry: async (input) => {
       try {
-        const result = await runner({
+        const result = await runWithTimeout(runner, {
           cwd: input.cwd,
           args: [
             "hook",
@@ -142,13 +155,15 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
             task: input.task,
             attributedPrecedents: input.attributedPrecedents,
           },
-        }) as { repairBlock?: string; repairId?: string | null };
+          timeoutMs: contextTimeoutMs,
+        }, contextTimeoutMs) as { repairBlock?: string; repairId?: string | null };
         const repairBlock = typeof result.repairBlock === "string" ? result.repairBlock : "";
         const repairId = typeof result.repairId === "string" && result.repairId.trim()
           ? result.repairId
           : null;
         return { repairBlock, repairId };
-      } catch {
+      } catch (error) {
+        logPrecedentFailure("repair.before_retry", input, error);
         return emptyBeforeRetry();
       }
     },
@@ -158,7 +173,7 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
         if (!payload) {
           return;
         }
-        await runner({
+        await runWithTimeout(runner, {
           cwd: input.cwd,
           args: [
             "hook",
@@ -167,14 +182,16 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
             "--json",
           ],
           stdinJson: payload,
-        });
-      } catch {
+          timeoutMs: hookTimeoutMs,
+        }, hookTimeoutMs);
+      } catch (error) {
+        logPrecedentFailure("turn_event", input, error);
         // Precedent is advisory; runtime turns must fail open.
       }
     },
     afterRetry: async (input) => {
       try {
-        await runner({
+        await runWithTimeout(runner, {
           cwd: input.cwd,
           args: [
             "hook",
@@ -190,14 +207,16 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
             repairSessionId: sessionIdForThread(input.cwd, input.threadId),
             attributedPrecedents: input.attributedPrecedents,
           },
-        });
-      } catch {
+          timeoutMs: hookTimeoutMs,
+        }, hookTimeoutMs);
+      } catch (error) {
+        logPrecedentFailure("repair.after_retry", input, error);
         // Precedent is advisory; runtime turns must fail open.
       }
     },
     afterTurn: async (input) => {
       try {
-        await runner({
+        await runWithTimeout(runner, {
           cwd: input.cwd,
           args: [
             "hook",
@@ -215,8 +234,10 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
             notes: input.response,
             attributedPrecedents: input.attributedPrecedents,
           },
-        });
-      } catch {
+          timeoutMs: hookTimeoutMs,
+        }, hookTimeoutMs);
+      } catch (error) {
+        logPrecedentFailure("outcome.after_task", input, error);
         // Precedent is advisory; runtime turns must fail open.
       }
     },
@@ -227,6 +248,8 @@ export function precedentBridgeConfigFromEnv(env: NodeJS.ProcessEnv): PrecedentB
   return {
     enabled: env.PRECEDENT_ENABLED === "1" || env.PRECEDENT_ENABLED === "true",
     stateDir: env.PRECEDENT_STATE_DIR,
+    hookTimeoutMs: parsePositiveInteger(env.PRECEDENT_HOOK_TIMEOUT_MS),
+    contextTimeoutMs: parsePositiveInteger(env.PRECEDENT_CONTEXT_TIMEOUT_MS),
   };
 }
 
@@ -299,8 +322,30 @@ function turnEventHookPayload(input: PrecedentTurnEventInput): unknown | null {
   return null;
 }
 
-async function runPrecedentJson(input: { cwd: string; args: string[]; stdinJson?: unknown }): Promise<unknown> {
+async function runWithTimeout(runner: JsonRunner, input: Parameters<JsonRunner>[0], timeoutMs: number): Promise<unknown> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      runner(input),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new PrecedentTimeoutError(timeoutMs));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function runPrecedentJson(input: { cwd: string; args: string[]; stdinJson?: unknown; timeoutMs?: number }): Promise<unknown> {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    let timedOut = false;
+    let killTimer: ReturnType<typeof setTimeout> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     const child = spawn(process.execPath, [join(input.cwd, "precedent/bin/precedent.mjs"), ...input.args], {
       cwd: input.cwd,
       stdio: ["pipe", "pipe", "pipe"],
@@ -311,31 +356,122 @@ async function runPrecedentJson(input: { cwd: string; args: string[]; stdinJson?
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
-      stdout += chunk;
+      stdout = appendBounded(stdout, chunk);
     });
     child.stderr.on("data", (chunk) => {
-      stderr += chunk;
+      stderr = appendBounded(stderr, chunk);
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      rejectOnce(error);
+    });
     child.on("close", (exitCode) => {
+      if (timedOut) {
+        return;
+      }
+      clearTimers();
       if (exitCode !== 0) {
-        reject(new Error(stderr || `precedent exited ${exitCode}`));
+        rejectOnce(new Error(stderr || `precedent exited ${exitCode}`));
         return;
       }
 
       try {
-        resolve(JSON.parse(stdout));
+        resolveOnce(JSON.parse(stdout));
       } catch (error) {
-        reject(error);
+        rejectOnce(error);
       }
     });
+
+    if (input.timeoutMs && input.timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        timedOut = true;
+        child.kill("SIGTERM");
+        killTimer = setTimeout(() => {
+          if (child.exitCode === null && child.signalCode === null) {
+            child.kill("SIGKILL");
+          }
+        }, PROCESS_KILL_GRACE_MS);
+        rejectOnce(new PrecedentTimeoutError(input.timeoutMs ?? 0));
+      }, input.timeoutMs);
+    }
 
     if (input.stdinJson) {
       child.stdin.end(`${JSON.stringify(input.stdinJson)}\n`);
     } else {
       child.stdin.end();
     }
+
+    function resolveOnce(value: unknown): void {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimers();
+      resolve(value);
+    }
+
+    function rejectOnce(error: unknown): void {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimers();
+      reject(error);
+    }
+
+    function clearTimers(): void {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+      if (killTimer) {
+        clearTimeout(killTimer);
+        killTimer = null;
+      }
+    }
   });
+}
+
+class PrecedentTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`precedent timed out after ${timeoutMs}ms`);
+    this.name = "PrecedentTimeoutError";
+  }
+}
+
+function appendBounded(current: string, chunk: string): string {
+  const next = current + chunk;
+  if (Buffer.byteLength(next, "utf8") <= MAX_PROCESS_OUTPUT_BYTES) {
+    return next;
+  }
+  return next.slice(-MAX_PROCESS_OUTPUT_BYTES);
+}
+
+function parsePositiveInteger(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return positiveNumber(parsed);
+}
+
+function positiveNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : undefined;
+}
+
+function logPrecedentFailure(hook: string, input: { cwd: string; threadId: string }, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(JSON.stringify({
+    level: "warn",
+    service: "codex-remote",
+    component: "precedent",
+    hook,
+    threadId: input.threadId,
+    sessionId: sessionIdForThread(input.cwd, input.threadId),
+    message,
+  }));
 }
 
 function stableHash(value: unknown): string {

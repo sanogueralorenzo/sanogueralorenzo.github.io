@@ -52,6 +52,24 @@ describe("createPrecedentBridge", () => {
     })).resolves.toBeUndefined();
   });
 
+  it("returns the original prompt when context delivery times out", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bridge = createPrecedentBridge({ enabled: true, contextTimeoutMs: 5 }, async () => {
+      await new Promise(() => {});
+    });
+
+    const prepared = await bridge.beforeTurn({
+      cwd: "/repo",
+      threadId: "thread-1",
+      task: "ship",
+    });
+
+    expect(prepared.task).toBe("ship");
+    expect(prepared.attributedPrecedents).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("precedent timed out"));
+    warn.mockRestore();
+  });
+
   it("returns repair context for retry prompts", async () => {
     const calls: Array<{ args: string[]; stdinJson?: unknown }> = [];
     const bridge = createPrecedentBridge({ enabled: true }, async (input) => {
@@ -153,6 +171,50 @@ describe("createPrecedentBridge", () => {
     });
   });
 
+  it("fails open when advisory hook delivery times out", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const bridge = createPrecedentBridge({ enabled: true, hookTimeoutMs: 5 }, async () => {
+      await new Promise(() => {});
+    });
+
+    await expect(bridge.observeTurnEvent({
+      cwd: "/repo",
+      threadId: "thread-1",
+      attributedPrecedents: ["prec_validation"],
+      event: {
+        kind: "itemCompleted",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        itemId: "cmd-1",
+        itemType: "commandExecution",
+        text: null,
+        status: "completed",
+        command: "npm test",
+        output: "pass",
+        exitCode: 0,
+        durationMs: 1234,
+      },
+    })).resolves.toBeUndefined();
+
+    await expect(bridge.afterTurn({
+      cwd: "/repo",
+      threadId: "thread-1",
+      task: "ship",
+      success: true,
+      response: "done",
+      attributedPrecedents: [],
+    })).resolves.toBeUndefined();
+
+    await expect(bridge.afterRetry({
+      cwd: "/repo",
+      threadId: "thread-1",
+      repairId: "repair_123",
+      attributedPrecedents: [],
+    })).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("precedent timed out"));
+    warn.mockRestore();
+  });
+
   it("records turn diff evidence through diff hooks", async () => {
     const calls: Array<{ args: string[]; stdinJson?: unknown }> = [];
     const bridge = createPrecedentBridge({ enabled: true }, async (input) => {
@@ -178,6 +240,43 @@ describe("createPrecedentBridge", () => {
       unifiedDiff: "diff --git a/a b/a",
       attributedPrecedents: ["prec_diff"],
     });
+  });
+
+  it("passes configured timeout budgets to the runner", async () => {
+    const calls: Array<{ args: string[]; timeoutMs?: number }> = [];
+    const bridge = createPrecedentBridge({
+      enabled: true,
+      hookTimeoutMs: 111,
+      contextTimeoutMs: 222,
+    }, async (input) => {
+      calls.push({ args: input.args, timeoutMs: input.timeoutMs });
+      if (input.args[0] === "attach") {
+        return {
+          adapter: {
+            beforeTurn: {
+              command: ["node", "precedent/bin/precedent.mjs", "context", "--state-dir", ".precedent", "--task", "ship", "--json"],
+            },
+          },
+        };
+      }
+      return {};
+    });
+
+    await bridge.beforeTurn({
+      cwd: "/repo",
+      threadId: "thread-1",
+      task: "ship",
+    });
+    await bridge.afterTurn({
+      cwd: "/repo",
+      threadId: "thread-1",
+      task: "ship",
+      success: true,
+      response: "done",
+      attributedPrecedents: [],
+    });
+
+    expect(calls.map((call) => call.timeoutMs)).toEqual([222, 222, 111]);
   });
 
   it("returns the original prompt when disabled", async () => {

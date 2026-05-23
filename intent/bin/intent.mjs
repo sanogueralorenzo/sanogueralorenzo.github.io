@@ -1262,6 +1262,9 @@ function validateGraph(graph, options = {}) {
       || typeof graphNode.id !== "string"
       || typeof graphNode.kind !== "string"
       || typeof graphNode.label !== "string"
+      || graphNode.id.trim() === ""
+      || graphNode.kind.trim() === ""
+      || graphNode.label.trim() === ""
       || !isSpan(graphNode.span)
       || !isPlainObject(graphNode.data)
     ) {
@@ -1270,6 +1273,9 @@ function validateGraph(graph, options = {}) {
         node_id: isPlainObject(graphNode) ? graphNode.id ?? null : null,
         node_kind: isPlainObject(graphNode) ? graphNode.kind ?? null : null,
         label_is_string: isPlainObject(graphNode) && typeof graphNode.label === "string",
+        id_is_nonempty: isPlainObject(graphNode) && typeof graphNode.id === "string" && graphNode.id.trim() !== "",
+        kind_is_nonempty: isPlainObject(graphNode) && typeof graphNode.kind === "string" && graphNode.kind.trim() !== "",
+        label_is_nonempty: isPlainObject(graphNode) && typeof graphNode.label === "string" && graphNode.label.trim() !== "",
         span_is_valid: isPlainObject(graphNode) && isSpan(graphNode.span),
         data_is_object: isPlainObject(graphNode) && isPlainObject(graphNode.data),
       }));
@@ -1305,12 +1311,23 @@ function validateGraph(graph, options = {}) {
   const guardTargetsByInvariant = new Map();
 
   for (const [edgeIndex, graphEdge] of graph.edges.entries()) {
-    if (!isPlainObject(graphEdge) || typeof graphEdge.from !== "string" || typeof graphEdge.to !== "string" || typeof graphEdge.kind !== "string") {
+    if (
+      !isPlainObject(graphEdge)
+      || typeof graphEdge.from !== "string"
+      || typeof graphEdge.to !== "string"
+      || typeof graphEdge.kind !== "string"
+      || graphEdge.from.trim() === ""
+      || graphEdge.to.trim() === ""
+      || graphEdge.kind.trim() === ""
+    ) {
       diagnostics.push(error("INTENT_GRAPH_EDGE_INVALID", `graph edge must be an object with string from, to, and kind fields.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
         edge_index: edgeIndex,
         edge: isPlainObject(graphEdge) ? graphEdge.kind ?? null : null,
         from: isPlainObject(graphEdge) ? graphEdge.from ?? null : null,
         to: isPlainObject(graphEdge) ? graphEdge.to ?? null : null,
+        from_is_nonempty: isPlainObject(graphEdge) && typeof graphEdge.from === "string" && graphEdge.from.trim() !== "",
+        to_is_nonempty: isPlainObject(graphEdge) && typeof graphEdge.to === "string" && graphEdge.to.trim() !== "",
+        kind_is_nonempty: isPlainObject(graphEdge) && typeof graphEdge.kind === "string" && graphEdge.kind.trim() !== "",
       }));
       continue;
     }

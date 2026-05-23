@@ -1230,15 +1230,17 @@ describe("intent static model CLI", () => {
         { id: "node:missing-kind", label: "bad", span: testSpan(2), data: {} },
         { id: "node:missing-payload", kind: "Type", span: testSpan(3) },
         { id: "node:bad-span", kind: "Type", label: "bad span", span: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } }, data: {} },
-        { id: "node:a", kind: "Type", label: "a", span: testSpan(5), data: {} },
+        { id: "   ", kind: "Type", label: "blank", span: testSpan(5), data: {} },
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(6), data: {} },
       ],
       edges: [
         "bad",
         { from: "node:a", to: 1, kind: "requests" },
+        { from: "node:a", to: "   ", kind: "requests" },
       ],
     });
 
-    assert.equal(diagnostics.length, 6);
+    assert.equal(diagnostics.length, 8);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_NODE_INVALID");
     assert.equal(diagnostics[0].node_index, 0);
     assert.equal(diagnostics[0].node_id, null);
@@ -1261,16 +1263,27 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[3].node_index, 3);
     assert.equal(diagnostics[3].node_id, "node:bad-span");
     assert.equal(diagnostics[3].span_is_valid, false);
-    assert.equal(diagnostics[4].code, "INTENT_GRAPH_EDGE_INVALID");
-    assert.equal(diagnostics[4].edge_index, 0);
-    assert.equal(diagnostics[4].edge, null);
-    assert.equal(diagnostics[4].from, null);
-    assert.equal(diagnostics[4].to, null);
+    assert.equal(diagnostics[4].code, "INTENT_GRAPH_NODE_INVALID");
+    assert.equal(diagnostics[4].node_index, 4);
+    assert.equal(diagnostics[4].node_id, "   ");
+    assert.equal(diagnostics[4].id_is_nonempty, false);
+    assert.equal(diagnostics[4].kind_is_nonempty, true);
+    assert.equal(diagnostics[4].label_is_nonempty, true);
     assert.equal(diagnostics[5].code, "INTENT_GRAPH_EDGE_INVALID");
-    assert.equal(diagnostics[5].edge_index, 1);
-    assert.equal(diagnostics[5].edge, "requests");
-    assert.equal(diagnostics[5].from, "node:a");
-    assert.equal(diagnostics[5].to, 1);
+    assert.equal(diagnostics[5].edge_index, 0);
+    assert.equal(diagnostics[5].edge, null);
+    assert.equal(diagnostics[5].from, null);
+    assert.equal(diagnostics[5].to, null);
+    assert.equal(diagnostics[6].code, "INTENT_GRAPH_EDGE_INVALID");
+    assert.equal(diagnostics[6].edge_index, 1);
+    assert.equal(diagnostics[6].edge, "requests");
+    assert.equal(diagnostics[6].from, "node:a");
+    assert.equal(diagnostics[6].to, 1);
+    assert.equal(diagnostics[7].code, "INTENT_GRAPH_EDGE_INVALID");
+    assert.equal(diagnostics[7].edge_index, 2);
+    assert.equal(diagnostics[7].to_is_nonempty, false);
+    assert.equal(diagnostics[7].from_is_nonempty, true);
+    assert.equal(diagnostics[7].kind_is_nonempty, true);
   });
 
   it("validates graph edge payload diagnostics", () => {
