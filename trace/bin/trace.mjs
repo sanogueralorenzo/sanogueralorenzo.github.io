@@ -1683,9 +1683,12 @@ async function reviewMemories() {
     lines.push(`## ${memory.commit.slice(0, 12)} ${memory.title}`, "");
     lines.push(`Memory: \`${memory.path}\``);
     lines.push(`Status: ${memory.status}`);
+    lines.push(`Checkpoint: \`${memory.checkpoint}\``);
+    lines.push(`Session: \`${memory.session}\``);
     appendReviewSection(lines, "Intent", memory.intent);
     appendReviewSection(lines, "Summary", memory.summary);
     appendReviewSection(lines, "Decisions", memory.decisions);
+    appendReviewSection(lines, "Files", memory.files);
     appendReviewSection(lines, "Validation", memory.validation);
     appendReviewSection(lines, "Risks", memory.risks);
     appendReviewSection(lines, "Handoff", memory.handoff);
@@ -1716,9 +1719,12 @@ async function memoryReviewEntry(root, file, status) {
     commit,
     title,
     created: content.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
+    checkpoint: content.match(/^Checkpoint: `([^`]+)`/m)?.[1] ?? "none",
+    session: content.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
     intent: section(content, "Intent") ?? "Not recorded.",
     summary: section(content, "Summary") ?? "Not recorded.",
     decisions: section(content, "Decisions") ?? "Not recorded.",
+    files: section(content, "Files") ?? "Not recorded.",
     validation: section(content, "Validation") ?? "Not recorded.",
     risks: section(content, "Risks") ?? "No known open risks recorded.",
     handoff: section(content, "Handoff") ?? "Not recorded.",

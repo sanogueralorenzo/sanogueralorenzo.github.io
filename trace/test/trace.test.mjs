@@ -321,12 +321,18 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.match(review.stdout, /Mode: pending memories/);
     assert.match(review.stdout, /check committed trace state/);
     assert.match(review.stdout, /node --test/);
+    assert.match(review.stdout, /Checkpoint: `[0-9a-f]+`/);
+    assert.match(review.stdout, /Session: `[A-Za-z0-9-]+`/);
+    assert.match(review.stdout, /## Files\n\n- `check.txt`/);
     assert.match(review.stdout, /## Handoff\n\n- Last known validation: node --test/);
 
     const reviewJson = JSON.parse((await runTrace(repo, ["review", "--json"])).stdout);
     assert.equal(reviewJson.mode, "pending");
     assert.equal(reviewJson.memories.length, 1);
     assert.equal(reviewJson.memories[0].status, "untracked");
+    assert.match(reviewJson.memories[0].checkpoint, /^[0-9a-f]+$/);
+    assert.match(reviewJson.memories[0].session, /^[A-Za-z0-9-]+$/);
+    assert.equal(reviewJson.memories[0].files, "- `check.txt`");
     assert.match(reviewJson.memories[0].handoff, /Last known validation: node --test/);
 
     const dirty = await runTraceAllowFailure(repo, ["check"]);
