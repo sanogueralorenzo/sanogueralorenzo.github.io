@@ -13,11 +13,43 @@ jobs:
     with:
       package-dir: jury
 
-  publish:
+  dry-run-publication:
     runs-on: ubuntu-latest
     needs: package-manifest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Create Jury package dry-run record
+        env:
+          JURY_PACKAGE_DIR: jury
+        run: |
+          (cd "$JURY_PACKAGE_DIR" && npm pack --dry-run --json) > jury-pack-dry-run.json
+          node -e 'const fs=require("node:fs"); const [pack]=JSON.parse(fs.readFileSync("jury-pack-dry-run.json","utf8")); fs.writeFileSync("jury-pack-dry-run-record.json", JSON.stringify({ packageVersion: pack.version, tarballName: pack.filename }, null, 2) + "\n");'
+      - name: Upload Jury package dry-run record
+        uses: actions/upload-artifact@v4
+        with:
+          name: jury-package-dry-run
+          path: |
+            jury-pack-dry-run.json
+            jury-pack-dry-run-record.json
+
+  publish:
+    runs-on: ubuntu-latest
+    needs:
+      - package-manifest
+      - dry-run-publication
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Jury package dry-run record
+        uses: actions/download-artifact@v4
+        with:
+          name: jury-package-dry-run
+          path: .
+      - name: Verify Jury package dry-run record
+        run: |
+          node -e 'const fs=require("node:fs"); const pkg=JSON.parse(fs.readFileSync("jury/package.json","utf8")); const record=JSON.parse(fs.readFileSync("jury-pack-dry-run-record.json","utf8")); const expectedTarball=`sanogueralorenzo-jury-${pkg.version}.tgz`; if (record.packageVersion !== pkg.version) throw new Error(`packageVersion ${record.packageVersion} did not match ${pkg.version}`); if (record.tarballName !== expectedTarball) throw new Error(`tarballName ${record.tarballName} did not match ${expectedTarball}`);'
       - uses: actions/setup-node@v4
         with:
           node-version: 20

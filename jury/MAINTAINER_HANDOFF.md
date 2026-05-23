@@ -11,7 +11,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml): two-job workflow that downloads the signed producer artifact and verifies it with the key policy.
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml): reusable downstream workflow for signed trusted-producer bundle verification.
 - [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml): reusable workflow step that runs the package manifest check before publication.
-- [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml): release workflow example where npm publication depends on the package manifest check.
+- [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml): release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, trusted key policy manifest, and untrusted-producer troubleshooting policy.
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
@@ -31,7 +31,7 @@ npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 npm --prefix jury run package:manifest:check
 ```
 
-The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -51,4 +51,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a CI artifact handoff for the dry-run release publication record before the publish job consumes npm credentials.
+Add a release troubleshooting note for stale or mismatched dry-run publication artifacts.

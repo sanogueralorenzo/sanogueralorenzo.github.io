@@ -13,9 +13,11 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Run `(cd jury && npm pack --dry-run --json) > jury-pack-dry-run.json` after the package manifest check.
 - [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.
 - [ ] Record the dry-run tarball name from `jury-pack-dry-run.json` as `tarballName`, for example `sanogueralorenzo-jury-0.1.0.tgz`.
+- [ ] Upload `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as the `jury-package-dry-run` CI artifact.
+- [ ] Download and verify the `jury-package-dry-run` artifact before any step maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`.
 - [ ] Confirm `tarballName` matches the recorded `packageVersion` before `npm publish --provenance --access public`.
 - [ ] Store the npm publish token as `secrets.NPM_TOKEN` with scope limited to publishing `@sanogueralorenzo/jury`.
-- [ ] Expose `NODE_AUTH_TOKEN` only in the publish job after `needs: package-manifest` passes.
+- [ ] Expose `NODE_AUTH_TOKEN` only in the publish job after `needs: package-manifest` passes and the dry-run artifact verifies.
 - [ ] Keep `permissions.id-token: write` and `npm publish --provenance --access public` enabled for npm provenance.
 - [ ] Copy [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml) into `.github/workflows/`.
 - [ ] Copy [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml) when the producer must sign `review-bundle.signed.json` with `secrets.JURY_CI_PRIVATE_KEY`.
