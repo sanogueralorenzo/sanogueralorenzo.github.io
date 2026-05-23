@@ -16,6 +16,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] `verdict.json` exists and has `schema_version: jury.verdict.v1`.
 - [ ] `review-bundle.json` exists and has `schema_version: jury.review_bundle.v1`.
 - [ ] `gate.json` exists and has `ok: true`.
+- [ ] `node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json` passes before import.
 - [ ] `.jury/*.jsonl` exists when raw append-only audit state is needed.
 
 Expected fixture files:

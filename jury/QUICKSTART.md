@@ -30,6 +30,7 @@ Expected artifacts:
 To replay the portable bundle in a fresh state directory:
 
 ```shell
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json
 node jury/bin/jury.mjs init --state-dir .jury-imported
 node jury/bin/jury.mjs bundle import --state-dir .jury-imported --bundle review-bundle.json --verdict-out imported-verdict.json
 node jury/bin/jury.mjs gate --state-dir .jury-imported --claim claim_ci_change --verdict imported-verdict.json

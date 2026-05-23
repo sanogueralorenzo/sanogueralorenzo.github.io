@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, readFile, appendFile, cp, stat } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile, appendFile, cp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -561,8 +561,65 @@ test("release metadata references existing schemas, exports, and commands", asyn
     assert.match(artifact.schema_version, /^jury\.(check|verdict|review_bundle)\.v1$/);
   }
 
-  for (const commandName of ["judge", "gate", "bundle export", "bundle import", "check", "demo code-change"]) {
+  for (const commandName of ["judge", "gate", "bundle export", "bundle preflight", "bundle import", "check", "demo code-change"]) {
     assert.ok(release.cli.commands.includes(commandName), `${commandName} must be listed`);
+  }
+});
+
+test("bundle preflight validates portable bundles without mutating state", async () => {
+  const cwd = await tempState();
+  const stateDir = join(cwd, "preflight-state");
+  const bundlePath = join(repoRoot, "jury/examples/ci/fixtures/quickstart/review-bundle.json");
+
+  try {
+    const result = await runProcess(["bundle", "preflight", "--state-dir", stateDir, "--bundle", bundlePath]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 0);
+    assert.deepEqual(payload, {
+      ok: true,
+      claim_id: "claim_ci_change",
+      records: {
+        claims: 3,
+        checks: 2,
+        evidence: 1,
+        objections: 0,
+        waivers: 0,
+        verdicts: 1,
+      },
+      latest_verdict_id: "verdict_claim_ci_change_accept",
+    });
+    await assertPathMissing(stateDir);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("bundle preflight and import reject invalid bundles before state mutation", async () => {
+  const cwd = await tempState();
+  const stateDir = join(cwd, "import-state");
+  const invalidBundlePath = join(cwd, "invalid-review-bundle.json");
+
+  try {
+    const bundle = JSON.parse(await readFile(join(repoRoot, "jury/examples/ci/fixtures/quickstart/review-bundle.json"), "utf8"));
+    bundle.records.checks.at(-1).evidence_ids = ["ev_missing"];
+    bundle.records.evidence[0].claim_id = "claim_other";
+    delete bundle.records.verdicts[0].reason;
+    await writeFile(invalidBundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
+
+    for (const command of ["preflight", "import"]) {
+      const result = await runProcess(["bundle", command, "--state-dir", stateDir, "--bundle", invalidBundlePath]);
+      const payload = JSON.parse(result.stdout);
+
+      assert.equal(result.exitCode, 1);
+      assert.equal(payload.ok, false);
+      assert.ok(payload.errors.includes("verdict.reason must be a non-empty string"));
+      assert.ok(payload.errors.includes("bundle.records.evidence contains ev_ci_tests from claim claim_other, expected claim_ci_change"));
+      assert.ok(payload.errors.includes("check check_ci_tests evidence_ids references missing record ev_missing"));
+      await assertPathMissing(stateDir);
+    }
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
   }
 });
 
@@ -739,8 +796,9 @@ test("maintainer handoff references current adoption artifacts and validation co
     assert.ok(handoff.includes(artifact), `MAINTAINER_HANDOFF.md should mention ${artifact}`);
   }
 
-  assert.match(handoff, /schema validation for imported `review-bundle\.json` files/);
-  assert.match(handoff, /without mutating `\.jury\/`/);
+  assert.match(handoff, /validates imported bundles before local state is created or mutated/);
+  assert.match(handoff, /before local state is created or mutated/);
+  assert.match(handoff, /producer metadata and provenance checks/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
@@ -851,6 +909,17 @@ async function assertQuickstartFixturesMatch(cwd) {
 
     assert.deepEqual(generated, expected, `${filename} should match quickstart fixture`);
   }
+}
+
+async function assertPathMissing(path) {
+  try {
+    await stat(path);
+  } catch (error) {
+    assert.equal(error.code, "ENOENT");
+    return;
+  }
+
+  assert.fail(`${path} should not exist`);
 }
 
 function extractShellBlock(markdown, heading) {

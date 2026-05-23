@@ -22,6 +22,10 @@ npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 
 The test suite covers the quickstart, GitHub Actions workflow commands, fixture synchronization, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
+## Current Hardening Step
+
+`bundle preflight --bundle review-bundle.json` validates imported bundles before local state is created or mutated. It reports bundle schema, record, and cross-reference errors so CI consumers can reject third-party artifacts before `bundle import`.
+
 ## Next Hardening Step
 
-Add deterministic schema validation for imported `review-bundle.json` files before they are appended into local state. The current bundle import path validates records as they are written, but a preflight command that reports all bundle errors without mutating `.jury/` would make CI adoption safer for third-party producers and easier to debug.
+Add producer metadata and provenance checks to `review-bundle.json` so imported bundles can identify which job, tool version, and source revision created them.

@@ -21,6 +21,7 @@
       "judge",
       "gate",
       "bundle export",
+      "bundle preflight",
       "bundle import",
       "check",
       "demo code-change"

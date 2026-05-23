@@ -61,6 +61,7 @@ node jury/bin/jury.mjs check --strict
 - `judge`: emits and records a verdict.
 - `gate`: exits zero only for an `accept` verdict that matches current claim state.
 - `bundle export`: writes a portable `jury.review_bundle.v1` for one claim.
+- `bundle preflight`: validates a `jury.review_bundle.v1` without creating or mutating state.
 - `bundle import`: imports a `jury.review_bundle.v1` into a state directory and can materialize its latest verdict with `--verdict-out`.
 - `check --strict`: validates JSONL files, schema files, and cross-record consistency.
 - `demo code-change`: creates a failing-then-passing code-change transcript plus an accepted final verdict.
@@ -68,5 +69,7 @@ node jury/bin/jury.mjs check --strict
 ## Diagnostics
 
 `gate --claim <id>` reports `missing_fields`, `unresolved_objections`, `next_actions`, and `consistency_errors` when the verdict does not match current state.
+
+`bundle preflight --bundle review-bundle.json` reports all bundle schema, record, and cross-reference errors before import. It exits non-zero for invalid bundles and does not create `.jury/` files.
 
 `check --strict` reports malformed JSON, schema problems, missing claim references, missing evidence/check/objection/waiver references, cross-claim references, and verdict claim-version mismatches.

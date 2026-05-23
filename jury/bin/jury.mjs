@@ -108,6 +108,11 @@ async function main() {
     return;
   }
 
+  if (command === "bundle" && subcommand === "preflight") {
+    await preflightBundle();
+    return;
+  }
+
   if (command === "bundle" && subcommand === "import") {
     await importBundle();
     return;
@@ -473,12 +478,18 @@ async function exportBundle() {
 }
 
 async function importBundle() {
-  const dir = stateDir();
-  await ensureState(dir);
   const path = resolve(requireArg("bundle"));
   const bundle = parseJson(await readFile(path, "utf8"), path);
+  const preflight = preflightReviewBundle(bundle);
 
-  validateReviewBundle(bundle);
+  if (!preflight.ok) {
+    print(preflight);
+    process.exitCode = 1;
+    return;
+  }
+
+  const dir = stateDir();
+  await ensureState(dir);
 
   for (const name of STATE_RECORD_TYPES) {
     for (const record of bundle.records[name]) {
@@ -507,6 +518,18 @@ async function importBundle() {
     stateDir: dir,
     verdictOut,
   });
+}
+
+async function preflightBundle() {
+  const path = resolve(requireArg("bundle"));
+  const bundle = parseJson(await readFile(path, "utf8"), path);
+  const preflight = preflightReviewBundle(bundle);
+
+  print(preflight);
+
+  if (!preflight.ok) {
+    process.exitCode = 1;
+  }
 }
 
 async function checkState() {
@@ -715,63 +738,13 @@ async function checkSchemaFiles() {
 
 async function checkStateConsistency(dir) {
   try {
-    const claims = latestById(await readJsonl(fileFor(dir, "claims")));
-    const checks = latestById(await readJsonl(fileFor(dir, "checks")));
-    const evidence = latestById(await readJsonl(fileFor(dir, "evidence")));
-    const objections = latestById(await readJsonl(fileFor(dir, "objections")));
-    const waivers = latestById(await readJsonl(fileFor(dir, "waivers")));
-    const verdicts = latestById(await readJsonl(fileFor(dir, "verdicts")));
-    const errors = [];
+    const records = {};
 
-    for (const check of checks.values()) {
-      assertKnownClaim(errors, "check", check.id, check.claim_id, claims);
-      errors.push(...missingReferences(`check ${check.id} evidence_ids`, check.evidence_ids, evidence));
-      errors.push(...crossClaimReferences(`check ${check.id} evidence_ids`, check.claim_id, check.evidence_ids, evidence));
+    for (const name of STATE_RECORD_TYPES) {
+      records[name] = await readJsonl(fileFor(dir, name));
     }
 
-    for (const item of evidence.values()) {
-      assertKnownClaim(errors, "evidence", item.id, item.claim_id, claims);
-    }
-
-    for (const objection of objections.values()) {
-      assertKnownClaim(errors, "objection", objection.id, objection.claim_id, claims);
-      errors.push(...missingReferences(`objection ${objection.id} evidence_ids`, objection.evidence_ids, evidence));
-      errors.push(...crossClaimReferences(`objection ${objection.id} evidence_ids`, objection.claim_id, objection.evidence_ids, evidence));
-    }
-
-    for (const waiver of waivers.values()) {
-      assertKnownClaim(errors, "waiver", waiver.id, waiver.claim_id, claims);
-
-      const objection = objections.get(waiver.objection_id);
-
-      if (!objection) {
-        errors.push(`waiver ${waiver.id} references missing objection ${waiver.objection_id}`);
-      } else if (objection.claim_id !== waiver.claim_id) {
-        errors.push(`waiver ${waiver.id} references objection ${waiver.objection_id} from claim ${objection.claim_id}`);
-      }
-    }
-
-    for (const verdict of verdicts.values()) {
-      const claim = claims.get(verdict.claim_id);
-
-      if (!claim) {
-        errors.push(`verdict ${verdict.id} references missing claim ${verdict.claim_id}`);
-        continue;
-      }
-
-      if (verdict.claim_version !== claim.version) {
-        errors.push(`verdict ${verdict.id} claim_version ${verdict.claim_version} does not match current claim version ${claim.version}`);
-      }
-
-      errors.push(...missingReferences(`verdict ${verdict.id} evidence_ids`, verdict.evidence_ids, evidence));
-      errors.push(...missingReferences(`verdict ${verdict.id} objection_ids`, verdict.objection_ids, objections));
-      errors.push(...missingReferences(`verdict ${verdict.id} waiver_ids`, verdict.waiver_ids, waivers));
-      errors.push(...missingReferences(`verdict ${verdict.id} check_ids`, verdict.check_ids ?? [], checks));
-      errors.push(...crossClaimReferences(`verdict ${verdict.id} evidence_ids`, verdict.claim_id, verdict.evidence_ids, evidence));
-      errors.push(...crossClaimReferences(`verdict ${verdict.id} objection_ids`, verdict.claim_id, verdict.objection_ids, objections));
-      errors.push(...crossClaimReferences(`verdict ${verdict.id} waiver_ids`, verdict.claim_id, verdict.waiver_ids, waivers));
-      errors.push(...crossClaimReferences(`verdict ${verdict.id} check_ids`, verdict.claim_id, verdict.check_ids ?? [], checks));
-    }
+    const errors = consistencyErrorsForRecords(records);
 
     if (errors.length > 0) {
       return { name: "state_consistency", ok: false, message: errors.join("; ") };
@@ -781,6 +754,68 @@ async function checkStateConsistency(dir) {
   } catch (error) {
     return { name: "state_consistency", ok: false, message: error.message };
   }
+}
+
+function consistencyErrorsForRecords(records) {
+  const claims = latestById(records.claims);
+  const checks = latestById(records.checks);
+  const evidence = latestById(records.evidence);
+  const objections = latestById(records.objections);
+  const waivers = latestById(records.waivers);
+  const verdicts = latestById(records.verdicts);
+  const errors = [];
+
+  for (const check of checks.values()) {
+    assertKnownClaim(errors, "check", check.id, check.claim_id, claims);
+    errors.push(...missingReferences(`check ${check.id} evidence_ids`, check.evidence_ids, evidence));
+    errors.push(...crossClaimReferences(`check ${check.id} evidence_ids`, check.claim_id, check.evidence_ids, evidence));
+  }
+
+  for (const item of evidence.values()) {
+    assertKnownClaim(errors, "evidence", item.id, item.claim_id, claims);
+  }
+
+  for (const objection of objections.values()) {
+    assertKnownClaim(errors, "objection", objection.id, objection.claim_id, claims);
+    errors.push(...missingReferences(`objection ${objection.id} evidence_ids`, objection.evidence_ids, evidence));
+    errors.push(...crossClaimReferences(`objection ${objection.id} evidence_ids`, objection.claim_id, objection.evidence_ids, evidence));
+  }
+
+  for (const waiver of waivers.values()) {
+    assertKnownClaim(errors, "waiver", waiver.id, waiver.claim_id, claims);
+
+    const objection = objections.get(waiver.objection_id);
+
+    if (!objection) {
+      errors.push(`waiver ${waiver.id} references missing objection ${waiver.objection_id}`);
+    } else if (objection.claim_id !== waiver.claim_id) {
+      errors.push(`waiver ${waiver.id} references objection ${waiver.objection_id} from claim ${objection.claim_id}`);
+    }
+  }
+
+  for (const verdict of verdicts.values()) {
+    const claim = claims.get(verdict.claim_id);
+
+    if (!claim) {
+      errors.push(`verdict ${verdict.id} references missing claim ${verdict.claim_id}`);
+      continue;
+    }
+
+    if (verdict.claim_version !== claim.version) {
+      errors.push(`verdict ${verdict.id} claim_version ${verdict.claim_version} does not match current claim version ${claim.version}`);
+    }
+
+    errors.push(...missingReferences(`verdict ${verdict.id} evidence_ids`, verdict.evidence_ids, evidence));
+    errors.push(...missingReferences(`verdict ${verdict.id} objection_ids`, verdict.objection_ids, objections));
+    errors.push(...missingReferences(`verdict ${verdict.id} waiver_ids`, verdict.waiver_ids, waivers));
+    errors.push(...missingReferences(`verdict ${verdict.id} check_ids`, verdict.check_ids ?? [], checks));
+    errors.push(...crossClaimReferences(`verdict ${verdict.id} evidence_ids`, verdict.claim_id, verdict.evidence_ids, evidence));
+    errors.push(...crossClaimReferences(`verdict ${verdict.id} objection_ids`, verdict.claim_id, verdict.objection_ids, objections));
+    errors.push(...crossClaimReferences(`verdict ${verdict.id} waiver_ids`, verdict.claim_id, verdict.waiver_ids, waivers));
+    errors.push(...crossClaimReferences(`verdict ${verdict.id} check_ids`, verdict.claim_id, verdict.check_ids ?? [], checks));
+  }
+
+  return errors;
 }
 
 async function recordsForClaim(dir, claimId) {
@@ -833,6 +868,79 @@ function validateReviewBundle(bundle) {
 
   if (bundle.records.claims.length === 0) {
     fail("bundle.records.claims must include at least one claim record");
+  }
+}
+
+function preflightReviewBundle(bundle) {
+  const errors = [];
+
+  if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) {
+    return { ok: false, errors: ["bundle must be an object"] };
+  }
+
+  collectValidationError(errors, () => requireEnum(bundle.schema_version, [REVIEW_BUNDLE_SCHEMA_VERSION], "bundle.schema_version"));
+  collectValidationError(errors, () => requireString(bundle.exported_at, "bundle.exported_at"));
+  collectValidationError(errors, () => requireString(bundle.claim_id, "bundle.claim_id"));
+
+  if (!bundle.records || typeof bundle.records !== "object" || Array.isArray(bundle.records)) {
+    errors.push("bundle.records must be an object");
+    return { ok: false, errors };
+  }
+
+  for (const name of STATE_RECORD_TYPES) {
+    collectValidationError(errors, () => requireArray(bundle.records[name], `bundle.records.${name}`));
+
+    if (!Array.isArray(bundle.records[name])) {
+      continue;
+    }
+
+    for (const record of bundle.records[name]) {
+      collectValidationError(errors, () => validateRecord(name, record));
+
+      if (!record || typeof record !== "object" || Array.isArray(record)) {
+        continue;
+      }
+
+      if (name === "claims") {
+        if (record.id !== bundle.claim_id) {
+          errors.push(`bundle.records.claims contains claim ${record.id}, expected ${bundle.claim_id}`);
+        }
+      } else if (record.claim_id !== bundle.claim_id) {
+        errors.push(`bundle.records.${name} contains ${record.id} from claim ${record.claim_id}, expected ${bundle.claim_id}`);
+      }
+    }
+  }
+
+  if (Array.isArray(bundle.records.claims) && bundle.records.claims.length === 0) {
+    errors.push("bundle.records.claims must include at least one claim record");
+  }
+
+  if (STATE_RECORD_TYPES.every((name) => Array.isArray(bundle.records[name]))) {
+    errors.push(...consistencyErrorsForRecords(bundle.records));
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    claim_id: bundle.claim_id,
+    records: Object.fromEntries(STATE_RECORD_TYPES.map((name) => [name, bundle.records[name].length])),
+    latest_verdict_id: latestVerdictFromBundle(bundle)?.id ?? null,
+  };
+}
+
+function collectValidationError(errors, action) {
+  const previous = collectValidationErrors;
+  collectValidationErrors = true;
+
+  try {
+    action();
+  } catch (error) {
+    errors.push(error.message);
+  } finally {
+    collectValidationErrors = previous;
   }
 }
 
@@ -1363,6 +1471,7 @@ Commands:
   jury judge --claim <id> [--out verdict.json] [--require-human-approval true]
   jury gate --verdict verdict.json [--claim <id>]
   jury bundle export --claim <id> --out review-bundle.json
+  jury bundle preflight --bundle review-bundle.json
   jury bundle import --bundle review-bundle.json [--verdict-out verdict.json]
   jury check --strict
   jury demo code-change`);

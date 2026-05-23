@@ -31,6 +31,7 @@ node jury/bin/jury.mjs check --state-dir .jury --strict
 To consume a shared bundle in a fresh job:
 
 ```shell
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json
 node jury/bin/jury.mjs init --state-dir .jury-imported
 node jury/bin/jury.mjs bundle import --state-dir .jury-imported --bundle review-bundle.json --verdict-out imported-verdict.json
 node jury/bin/jury.mjs gate --state-dir .jury-imported --claim claim_ci_change --verdict imported-verdict.json
@@ -52,3 +53,5 @@ node jury/bin/jury.mjs check --state-dir .jury-imported --strict
 ## Compatibility
 
 Use [release.json](release.json) to discover supported schema files, state files, export examples, and CLI commands. Consumers should reject artifacts with unknown `schema_version` values instead of guessing.
+
+Run `bundle preflight` before `bundle import` for third-party bundles. Preflight reports all bundle validation errors it can find and exits before creating or mutating `.jury/` state.
