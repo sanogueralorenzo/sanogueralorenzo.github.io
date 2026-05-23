@@ -45,6 +45,12 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.deepEqual(dryRun.memoryPreview.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(dryRun.memoryPreview.validation, ["node --test"]);
     assert.match(dryRun.memoryPreview.handoff[0], /Preserve the decision/);
+    assert.equal(dryRun.checkpointPreview.schema_version, "trace.record_checkpoint_preview.v1");
+    assert.equal(dryRun.checkpointPreview.ref, "refs/trace/checkpoints");
+    assert.match(dryRun.checkpointPreview.path, /^checkpoints\/[0-9a-f]+\.json$/);
+    assert.equal(dryRun.checkpointPreview.events, 4);
+    assert.equal(dryRun.checkpointPreview.integrity, true);
+    assert.match(dryRun.checkpointPreview.payload_sha256, /^[0-9a-f]{64}$/);
     const missingDryRunMemory = await runTraceAllowFailure(repo, ["show", "HEAD"]);
     assert.equal(missingDryRunMemory.exitCode, 1);
     const missingDryRunCheckpoint = await run(repo, ["git", "rev-parse", "--verify", "refs/trace/checkpoints"], fixedEnv);
@@ -60,6 +66,9 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(payload.memoryPreview.schema_version, "trace.record_memory_preview.v1");
     assert.equal(payload.memoryPreview.intent, "remember why app text exists");
     assert.deepEqual(payload.memoryPreview.validation, ["node --test"]);
+    assert.equal(payload.checkpointPreview.schema_version, "trace.record_checkpoint_preview.v1");
+    assert.equal(payload.checkpointPreview.integrity, true);
+    assert.equal(payload.checkpointPreview.checkpoint_id, payload.checkpoint);
 
     const strictMemoryCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--strict-memory"])).stdout);
     assert.equal(strictMemoryCi.ok, true);

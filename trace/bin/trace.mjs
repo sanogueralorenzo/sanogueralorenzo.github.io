@@ -2246,6 +2246,7 @@ async function recordMemory() {
       session: sessionId,
       markdown: memory.markdown,
       memoryPreview: recordMemoryPreview(memory.markdown),
+      checkpointPreview: recordCheckpointPreview(memory.rawCheckpoint),
     };
     if (sessionReport) {
       output.sessionCheck = sessionReport;
@@ -2265,6 +2266,7 @@ async function recordMemory() {
     checkpoint: checkpointId,
     session: sessionId,
     memoryPreview: recordMemoryPreview(memory.markdown),
+    checkpointPreview: recordCheckpointPreview(memory.rawCheckpoint),
   };
   if (sessionReport) {
     output.sessionCheck = sessionReport;
@@ -2445,6 +2447,17 @@ function recordMemoryPreview(markdown) {
   return {
     schema_version: "trace.record_memory_preview.v1",
     ...memoryRecord(markdown),
+  };
+}
+
+function recordCheckpointPreview(payload) {
+  const checkpoint = withCheckpointIntegrity(payload);
+  return {
+    schema_version: "trace.record_checkpoint_preview.v1",
+    ref: CHECKPOINT_REF,
+    path: `checkpoints/${checkpoint.checkpoint_id}.json`,
+    ...checkpointSummary(checkpoint),
+    payload_sha256: checkpoint.integrity.payload_sha256,
   };
 }
 
