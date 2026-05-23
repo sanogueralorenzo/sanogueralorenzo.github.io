@@ -973,6 +973,14 @@ async function nextActionCommand() {
         evidenceEventId: stringOrNull(args["evidence-event-id"]),
       })
       : null;
+    const completionFinalization = complete
+      ? await completeNextActionFinalization({
+        stateDir,
+        action,
+        runId: stringOrNull(args["run-id"]),
+        evidence,
+      })
+      : null;
     const receipt = {
       schema_version: "precedent.next_action.v1",
       type: complete ? "next_action_completed" : "next_action_failed",
@@ -987,6 +995,7 @@ async function nextActionCommand() {
       evidence,
       evidenceEventId: evidence?.eventId ?? null,
       evidenceStatus: evidence?.status ?? null,
+      completionFinalization,
     };
     await appendJsonLine(file, receipt);
     payload = {
@@ -1034,6 +1043,87 @@ async function nextActionCompletionEvidence({ stateDir, action, evidenceEventId 
     sessionId: action.sessionId,
     command: event.command,
     exitCode: event.exitCode,
+  };
+}
+
+async function completeNextActionFinalization({ stateDir, action, runId, evidence }) {
+  if (!action || action.actionType !== "run_validation" || action.nextAction?.refinalize !== true) {
+    return null;
+  }
+
+  if (evidence?.status !== "accepted") {
+    fail("next-action --complete requires accepted validation evidence before refinalization");
+  }
+
+  const eventId = `${action.id}:finalize.after_completion`;
+  const existing = await findSessionEventByEventId(stateDir, action.sessionId, eventId);
+  if (existing?.event?.finalization) {
+    return {
+      status: existing.event.finalization.decision === "ready" ? "ready" : "blocked",
+      decision: existing.event.finalization.decision,
+      reason: existing.event.finalization.reason ?? null,
+      finalizationEventId: eventId,
+      finalization: existing.event.finalization,
+      queuedAction: existing.event.queuedAction ?? null,
+      recorded: false,
+      deduped: true,
+    };
+  }
+
+  const sessionEvents = await readSessionEvents(stateDir, action.sessionId);
+  const warrant = await finalizationWarrant(stateDir, sessionEvents, null);
+  const finalization = finalizeSessionDecision({ sessionEvents, warrant });
+  const contextBlock = formatFinalizeContextBlock(finalization);
+  const sessionEvent = await appendSessionEvent(stateDir, {
+    type: "hook_event",
+    receivedAt: new Date().toISOString(),
+    hook: "finalize.before_response",
+    sessionId: action.sessionId,
+    eventId,
+    warrantId: finalization.warrantId ?? warrant?.warrantId ?? null,
+    finalization,
+    contextBlock,
+    source: {
+      hook: "next-action.complete",
+      nextActionId: action.id,
+      runId,
+      evidenceEventId: evidence.eventId,
+    },
+  });
+  if (!sessionEvent.deduped) {
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "hook_event",
+      receivedAt: sessionEvent.receivedAt,
+      hook: "finalize.before_response",
+      sessionId: action.sessionId,
+      eventId,
+      warrantId: finalization.warrantId ?? warrant?.warrantId ?? null,
+      finalization,
+      contextBlock,
+      source: {
+        hook: "next-action.complete",
+        nextActionId: action.id,
+        runId,
+        evidenceEventId: evidence.eventId,
+      },
+    });
+  }
+
+  return {
+    status: finalization.decision === "ready" ? "ready" : "blocked",
+    decision: finalization.decision,
+    reason: finalization.reason ?? null,
+    finalizationEventId: eventId,
+    finalization,
+    queuedAction: await queueFinalizationNextAction({
+      stateDir,
+      sessionId: action.sessionId,
+      idleEventId: null,
+      finalizationEventId: eventId,
+      finalization,
+    }),
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
   };
 }
 
@@ -4388,6 +4478,9 @@ function nextActionState(id, records, nowMs, maxAttempts) {
       evidenceEventId: latestTerminal.evidenceEventId ?? latestTerminal.evidence?.eventId ?? null,
       evidenceStatus: latestTerminal.evidenceStatus ?? latestTerminal.evidence?.status ?? null,
       evidence: latestTerminal.evidence ?? null,
+      completionFinalization: latestTerminal.completionFinalization ?? null,
+      completionFinalizationStatus: latestTerminal.completionFinalization?.status ?? null,
+      completionFinalizationEventId: latestTerminal.completionFinalization?.finalizationEventId ?? null,
       error: latestTerminal.type === "next_action_failed" ? latestTerminal.reason ?? "next_action_failed" : null,
     };
   }
@@ -9785,9 +9878,15 @@ async function checkNextActions(checks, stateDir, strict) {
     && item.actionType === "run_validation"
     && item.evidenceStatus !== "accepted"
   ));
+  const missingFinalization = queue.items.filter((item) => (
+    item.status === "completed"
+    && item.actionType === "run_validation"
+    && item.nextAction?.refinalize === true
+    && !item.completionFinalization
+  ));
 
   checks.push({
-    ok: !strict || (failed.length === 0 && missingEvidence.length === 0),
+    ok: !strict || (failed.length === 0 && missingEvidence.length === 0 && missingFinalization.length === 0),
     name: "next_action",
     file: join(stateDir, "next_actions.jsonl"),
     strict,
@@ -9800,8 +9899,10 @@ async function checkNextActions(checks, stateDir, strict) {
     failedIds: failed.map((item) => item.id),
     missingEvidence: missingEvidence.length,
     missingEvidenceIds: missingEvidence.map((item) => item.id),
-    message: strict && (failed.length > 0 || missingEvidence.length > 0)
-      ? "next actions failed, exceeded retry budget, or completed without evidence"
+    missingFinalization: missingFinalization.length,
+    missingFinalizationIds: missingFinalization.map((item) => item.id),
+    message: strict && (failed.length > 0 || missingEvidence.length > 0 || missingFinalization.length > 0)
+      ? "next actions failed, exceeded retry budget, or completed without evidence/finalization"
       : undefined,
   });
 }

@@ -240,6 +240,7 @@ test("next-action claim and completion receipts are leased and reported", async 
       hook: "validation.after_run",
       sessionId: "claimable",
       eventId: "next-action-validation",
+      warrantId: warrant.warrantId,
       command: "pnpm test:webhooks",
       exitCode: 0,
     });
@@ -260,11 +261,17 @@ test("next-action claim and completion receipts are leased and reported", async 
     assert.equal(completed.receipt.runId, claim.claim.runId);
     assert.equal(completed.receipt.evidenceStatus, "accepted");
     assert.equal(completed.receipt.evidence.exitCode, 0);
+    assert.equal(completed.receipt.completionFinalization.status, "ready");
+    assert.equal(completed.receipt.completionFinalization.decision, "ready");
+    assert.equal(completed.receipt.completionFinalization.recorded, true);
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(report.nextActionQueue.completed, 1);
     assert.equal(report.nextActionQueue.running, 0);
     assert.equal(report.nextActionQueue.items[0].evidenceEventId, "next-action-validation");
+    assert.equal(report.nextActionQueue.items[0].completionFinalizationStatus, "ready");
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/claimable.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.eventId === `${claim.action.id}:finalize.after_completion`).length, 1);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

@@ -666,6 +666,31 @@ test("strict check fails failed next actions", async () => {
       runId: "next_run_missing_evidence",
       completedAt: new Date().toISOString(),
     })}\n`);
+    await appendFile(join(stateDir, "next_actions.jsonl"), `${JSON.stringify({
+      schema_version: "precedent.next_action.v1",
+      type: "next_action_queued",
+      id: "next_missing_finalization",
+      status: "ready",
+      actionType: "run_validation",
+      sessionId: "missing-finalization",
+      commands: ["pnpm test:webhooks"],
+      nextAction: {
+        type: "run_validation",
+        commands: ["pnpm test:webhooks"],
+        refinalize: true,
+      },
+      createdAt: new Date().toISOString(),
+    })}\n`);
+    await appendFile(join(stateDir, "next_actions.jsonl"), `${JSON.stringify({
+      schema_version: "precedent.next_action.v1",
+      type: "next_action_completed",
+      id: "next_missing_finalization",
+      status: "completed",
+      runId: "next_run_missing_finalization",
+      completedAt: new Date().toISOString(),
+      evidenceStatus: "accepted",
+      evidenceEventId: "validation-1",
+    })}\n`);
 
     const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
     const payload = JSON.parse(result.stdout);
@@ -677,6 +702,8 @@ test("strict check fails failed next actions", async () => {
       && item.failedIds.includes("next_failed")
       && item.missingEvidence === 1
       && item.missingEvidenceIds.includes("next_missing_evidence")
+      && item.missingFinalization === 1
+      && item.missingFinalizationIds.includes("next_missing_finalization")
     )));
   } finally {
     await rm(stateDir, { force: true, recursive: true });
