@@ -248,6 +248,99 @@ test("conversation observe turns user corrections into replay-gated candidate ev
   }
 });
 
+test("conversation observe turns boundary corrections into wrong-slice candidate evidence", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const correction = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "boundary",
+      eventId: "message-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts", "features/billing/refunds.ts"],
+      messages: [{
+        role: "user",
+        content: "Keep edits inside features/webhooks, not features/billing.",
+      }],
+    });
+
+    assert.equal(correction.correctionSafetyReceipt.status, "accepted");
+    assert.deepEqual(correction.observation.correctionSignals, [{
+      type: "boundary_correction",
+      expected: "features/webhooks",
+      actual: "features/billing",
+      source: "user",
+    }]);
+    assert.equal(correction.contextBlock, "Precedent correction:\n- Keep edits inside features/webhooks instead of features/billing.");
+    assert.deepEqual(correction.correctionSafetyReceipt.boundarySafety[0].pathAnchors, ["scope", "path"]);
+
+    await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "boundary",
+      changedFiles: ["features/billing/refunds.ts"],
+      breadthSignals: ["wrong_repo_slice"],
+    });
+    const outcome = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "boundary",
+      eventId: "outcome-1",
+      success: false,
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts", "features/billing/refunds.ts"],
+      notes: "User corrected the edit boundary.",
+    });
+
+    assert.equal(outcome.learning.status, "candidate");
+    assert.deepEqual(outcome.learning.candidateIds, ["cand_feature_webhooks_wrong_repo_slice"]);
+
+    const trace = JSON.parse(await readFile(join(stateDir, "traces/session-boundary.json"), "utf8"));
+    assert.ok(trace.failures.some((failure) => failure.includes("user corrected edits from features/billing to features/webhooks")));
+
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    assert.equal(candidates[0].id, "cand_feature_webhooks_wrong_repo_slice");
+    assert.ok(candidates[0].paths.includes("features/webhooks"));
+    assert.ok(candidates[0].evidence.includes("conversation-correction: keep edits inside features/webhooks instead of features/billing"));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("conversation observe quarantines unanchored boundary corrections", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const correction = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "unanchored-boundary",
+      eventId: "message-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{
+        role: "user",
+        content: "Keep edits inside features/payments, not features/billing.",
+      }],
+    });
+
+    assert.equal(correction.correctionSafetyReceipt.status, "quarantined");
+    assert.ok(correction.correctionSafetyReceipt.reasons.includes("expected_unanchored_path"));
+    assert.deepEqual(correction.observation.acceptedCorrectionSignals, []);
+    assert.equal(correction.contextBlock, "");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("conversation observe quarantines unsafe or untrusted corrections", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
 

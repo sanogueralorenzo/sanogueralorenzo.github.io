@@ -3736,7 +3736,7 @@ function compileTraceCandidates(trace) {
     trigger: triggerForTrace(trace),
     lesson: lessonForFailureTypes(failureTypes, scope),
     artifact: "skill",
-    paths: pathsForScope(scope),
+    paths: pathsForCandidateTrace(trace, scope, failureTypes),
     source_traces: [traceId],
     failure_types: failureTypes,
     evidence,
@@ -6544,6 +6544,10 @@ function formatCorrectionFailureForTrace(signal) {
     return `wrong test command: user corrected ${signal.actual} to ${signal.expected}`;
   }
 
+  if (signal.type === "boundary_correction") {
+    return `wrong repo slice: user corrected edits from ${signal.actual} to ${signal.expected}`;
+  }
+
   return `conversation correction: ${signal.message ?? signal.type ?? "unknown"}`;
 }
 
@@ -6686,6 +6690,12 @@ function conversationCorrectionSignals(messages) {
     for (const match of content.matchAll(/\b(?:do not|don't)\s+use\s+([^.;\n]+?)[,;]\s*use\s+([^.;\n]+)/giu)) {
       signals.push(commandCorrectionSignal(match[2], match[1], message.role));
     }
+    for (const match of content.matchAll(/\b(?:keep|stay)\s+(?:(?:edits|changes|work)\s+)?(?:inside|in|within)\s+([^.;\n]+?)\s*,?\s+not\s+([^.;\n]+)/giu)) {
+      signals.push(boundaryCorrectionSignal(match[1], match[2], message.role));
+    }
+    for (const match of content.matchAll(/\b(?:edit|change|touch)\s+([^.;\n]+?)\s*,?\s+not\s+([^.;\n]+)/giu)) {
+      signals.push(boundaryCorrectionSignal(match[1], match[2], message.role));
+    }
   }
 
   return uniqueBy(signals.filter((signal) => signal.expected && signal.actual), (signal) => `${signal.type}:${signal.expected}:${signal.actual}`);
@@ -6728,11 +6738,31 @@ function correctionSafetyReceiptFor({ event, messages, correctionSignals, change
       },
     ];
   });
+  const boundarySafety = correctionSignals.flatMap((signal) => {
+    if (signal.type !== "boundary_correction") {
+      return [];
+    }
+
+    return [
+      {
+        field: "expected",
+        path: signal.expected,
+        ...boundaryPathSafety(signal.expected, event.scope, changedFiles, true),
+      },
+      {
+        field: "actual",
+        path: signal.actual,
+        ...boundaryPathSafety(signal.actual, event.scope, changedFiles, false),
+      },
+    ];
+  });
   const unsafeCommands = commandSafety.filter((item) => !item.safe);
+  const unsafeBoundaryPaths = boundarySafety.filter((item) => !item.safe);
   const reasons = [
     ...(trustedSources.length === 0 ? ["untrusted_source"] : []),
     ...(anchors.length === 0 ? ["unanchored_context"] : []),
     ...unsafeCommands.map((item) => `${item.field}_${item.reason}`),
+    ...unsafeBoundaryPaths.map((item) => `${item.field}_${item.reason}`),
   ];
 
   return {
@@ -6741,15 +6771,29 @@ function correctionSafetyReceiptFor({ event, messages, correctionSignals, change
     reasons,
     anchors,
     commandSafety,
+    boundarySafety,
     trustedSources,
   };
 }
 
 function commandCorrectionSignal(expected, actual, role) {
+  if (looksLikeRepoPath(expected) && looksLikeRepoPath(actual)) {
+    return boundaryCorrectionSignal(expected, actual, role);
+  }
+
   return {
     type: "command_correction",
     expected: cleanCorrectionCommand(expected),
     actual: cleanCorrectionCommand(actual),
+    source: role,
+  };
+}
+
+function boundaryCorrectionSignal(expected, actual, role) {
+  return {
+    type: "boundary_correction",
+    expected: cleanCorrectionPath(expected),
+    actual: cleanCorrectionPath(actual),
     source: role,
   };
 }
@@ -6761,15 +6805,84 @@ function cleanCorrectionCommand(value) {
     .trim();
 }
 
+function cleanCorrectionPath(value) {
+  return String(value)
+    .replace(/^["'`]+|["'`]+$/gu, "")
+    .replace(/\s+/gu, " ")
+    .replace(/\s+(?:directory|folder|module|path)$/iu, "")
+    .replace(/[),]+$/gu, "")
+    .trim();
+}
+
+function looksLikeRepoPath(value) {
+  return repoPathSafe(cleanCorrectionPath(value));
+}
+
+function boundaryPathSafety(path, scope, changedFiles, requireAnchor) {
+  if (!repoPathSafe(path)) {
+    return {
+      safe: false,
+      reason: "unsafe_path",
+      pathAnchors: [],
+    };
+  }
+
+  const pathAnchors = correctionPathAnchors(path, scope, changedFiles);
+  if (requireAnchor && pathAnchors.length === 0) {
+    return {
+      safe: false,
+      reason: "unanchored_path",
+      pathAnchors,
+    };
+  }
+
+  return {
+    safe: true,
+    reason: null,
+    pathAnchors,
+  };
+}
+
+function correctionPathAnchors(path, scope, changedFiles) {
+  return uniqueStrings([
+    ...(pathsForScope(typeof scope === "string" ? scope : "").some((scopePath) => repoPathsOverlap(path, scopePath)) ? ["scope"] : []),
+    ...(changedFiles.some((changedFile) => repoPathsOverlap(path, changedFile)) ? ["path"] : []),
+  ]);
+}
+
+function repoPathSafe(path) {
+  if (!nonEmptyString(path)) {
+    return false;
+  }
+  if (path.startsWith("/") || path.startsWith("~") || /^[a-z][a-z0-9+.-]*:/iu.test(path)) {
+    return false;
+  }
+  if (path.split("/").includes("..")) {
+    return false;
+  }
+
+  return /^[A-Za-z0-9._@/-]+$/u.test(path) && path.includes("/");
+}
+
+function repoPathsOverlap(left, right) {
+  if (!repoPathSafe(left) || !repoPathSafe(right)) {
+    return false;
+  }
+
+  return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`);
+}
+
 function formatCorrectionContextBlock(signals) {
   const commandCorrections = signals.filter((signal) => signal.type === "command_correction");
-  if (commandCorrections.length === 0) {
+  const boundaryCorrections = signals.filter((signal) => signal.type === "boundary_correction");
+  if (commandCorrections.length === 0 && boundaryCorrections.length === 0) {
     return "";
   }
 
   return [
     "Precedent correction:",
     ...commandCorrections.slice(0, 3).map((signal) => `- Use ${signal.expected} instead of ${signal.actual}.`),
+    ...boundaryCorrections.slice(0, 3).map((signal) => `- Keep edits inside ${signal.expected} instead of ${signal.actual}.`),
   ].join("\n");
 }
 
@@ -7137,6 +7250,8 @@ function collectTraceEvidence(trace) {
   for (const signal of Array.isArray(observation?.acceptedCorrectionSignals) ? observation.acceptedCorrectionSignals : []) {
     if (signal.type === "command_correction") {
       evidence.push(`conversation-correction: use ${signal.expected} instead of ${signal.actual}`);
+    } else if (signal.type === "boundary_correction") {
+      evidence.push(`conversation-correction: keep edits inside ${signal.expected} instead of ${signal.actual}`);
     }
   }
 
@@ -7241,6 +7356,21 @@ function pathsForScope(scope) {
   }
 
   return [`features/${name}`];
+}
+
+function pathsForCandidateTrace(trace, scope, failureTypes) {
+  return uniqueStrings([
+    ...pathsForScope(scope),
+    ...correctedBoundaryPaths(trace),
+    ...(failureTypes.includes("wrong_repo_slice") ? commonPathPrefixes(trace.changedFiles ?? []) : []),
+  ]);
+}
+
+function correctedBoundaryPaths(trace) {
+  return uniqueStrings((trace.hooks?.["conversation.observe"]?.acceptedCorrectionSignals ?? [])
+    .filter((signal) => signal.type === "boundary_correction")
+    .map((signal) => signal.expected)
+    .filter(repoPathSafe));
 }
 
 function capitalizeSentence(value) {
