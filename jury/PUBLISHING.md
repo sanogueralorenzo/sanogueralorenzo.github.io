@@ -44,3 +44,25 @@ npm --prefix jury run package:manifest:check
 ```
 
 The manifest check runs `npm pack --dry-run --json` from the package root, equivalent to `cd jury && npm pack --dry-run --json`, and fails if the tarball would omit `release.json`, the CI adoption guide, any `release.json.ciAdoption.workflows[].path` file, or any required package file above.
+
+## Failure Examples
+
+If the tarball omits the CI adoption guide, the check exits non-zero and reports the missing contract path:
+
+```json
+{
+  "ok": false,
+  "missing": ["CI_ADOPTION.md"]
+}
+```
+
+If the tarball omits a supported workflow, the missing workflow path is reported directly:
+
+```json
+{
+  "ok": false,
+  "missing": ["examples/ci/jury-trusted-bundle-verify.yml"]
+}
+```
+
+Use `node jury/scripts/check-package-manifest.mjs --pack-manifest <npm-pack-json>` to replay a saved `npm pack --dry-run --json` manifest while debugging package file omissions.

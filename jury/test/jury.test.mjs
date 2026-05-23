@@ -966,6 +966,9 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("ciAdoption"));
   assert.ok(publicationNotes.includes(release.packagePublication.manifestCheckCommand));
   assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
+  assert.ok(publicationNotes.includes("--pack-manifest <npm-pack-json>"));
+  assert.ok(publicationNotes.includes('"missing": ["CI_ADOPTION.md"]'));
+  assert.ok(publicationNotes.includes('"missing": ["examples/ci/jury-trusted-bundle-verify.yml"]'));
 
   for (const relativePath of release.packagePublication.requiredFiles) {
     await stat(join(repoRoot, "jury", relativePath));
@@ -988,6 +991,49 @@ test("release metadata references existing schemas, exports, and commands", asyn
 
   for (const commandName of ["judge", "gate", "bundle export", "bundle preflight", "bundle import", "check", "demo code-change"]) {
     assert.ok(release.cli.commands.includes(commandName), `${commandName} must be listed`);
+  }
+});
+
+test("package manifest check reports omitted CI adoption metadata files", async () => {
+  const cwd = await tempState();
+  const release = JSON.parse(await readFile(releasePath, "utf8"));
+  const requiredPaths = [
+    "package.json",
+    "release.json",
+    release.packagePublication.notes,
+    release.ciAdoption.guide,
+    ...release.ciAdoption.workflows.map((workflow) => workflow.path),
+    ...release.packagePublication.requiredFiles,
+  ];
+  const packageId = `${release.name}@${release.version}`;
+
+  try {
+    const missingGuideManifest = join(cwd, "missing-guide-pack.json");
+    await writeFile(missingGuideManifest, JSON.stringify([{
+      id: packageId,
+      files: packManifestFiles(requiredPaths.filter((relativePath) => relativePath !== release.ciAdoption.guide)),
+    }]));
+
+    const missingGuide = await runShell(`node jury/scripts/check-package-manifest.mjs --pack-manifest ${shellQuote(missingGuideManifest)}`);
+    assert.equal(missingGuide.exitCode, 1);
+    const missingGuidePayload = JSON.parse(missingGuide.stdout);
+    assert.equal(missingGuidePayload.ok, false);
+    assert.deepEqual(missingGuidePayload.missing, [release.ciAdoption.guide]);
+
+    const missingWorkflowPath = "examples/ci/jury-trusted-bundle-verify.yml";
+    const missingWorkflowManifest = join(cwd, "missing-workflow-pack.json");
+    await writeFile(missingWorkflowManifest, JSON.stringify([{
+      id: packageId,
+      files: packManifestFiles(requiredPaths.filter((relativePath) => relativePath !== missingWorkflowPath)),
+    }]));
+
+    const missingWorkflow = await runShell(`node jury/scripts/check-package-manifest.mjs --pack-manifest ${shellQuote(missingWorkflowManifest)}`);
+    assert.equal(missingWorkflow.exitCode, 1);
+    const missingWorkflowPayload = JSON.parse(missingWorkflow.stdout);
+    assert.equal(missingWorkflowPayload.ok, false);
+    assert.deepEqual(missingWorkflowPayload.missing, [missingWorkflowPath]);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
   }
 });
 
@@ -2075,6 +2121,10 @@ function extractWorkflowCallInputDefaults(workflow) {
   }
 
   return defaults;
+}
+
+function packManifestFiles(paths) {
+  return [...new Set(paths)].map((path) => ({ path }));
 }
 
 function shellQuote(value) {
