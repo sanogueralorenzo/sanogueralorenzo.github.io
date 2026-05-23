@@ -158,6 +158,16 @@
         "outputType": {
           "type": ["string", "null"]
         },
+        "outputTypeSpan": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "context": {
           "type": "array",
           "items": {
@@ -464,6 +474,16 @@
         },
         "outputType": {
           "type": ["string", "null"]
+        },
+        "outputTypeSpan": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "effects": {
           "type": "array",

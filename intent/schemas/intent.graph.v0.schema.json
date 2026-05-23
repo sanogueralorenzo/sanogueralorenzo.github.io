@@ -326,6 +326,16 @@
                 },
                 "outputType": {
                   "type": ["string", "null"]
+                },
+                "outputTypeSpan": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/span"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               }
             }
@@ -588,6 +598,16 @@
                 "outputType": {
                   "type": ["string", "null"]
                 },
+                "outputTypeSpan": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/span"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "effects": {
                   "type": "array",
                   "items": {
@@ -707,6 +727,16 @@
               "properties": {
                 "outputType": {
                   "type": ["string", "null"]
+                },
+                "outputTypeSpan": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/span"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               }
             }

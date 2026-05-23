@@ -103,6 +103,11 @@ Rules:
 - Generated graph nodes keep `span` from the AST node that caused them.
 - Goal header parameters and step header parameters keep `span` on the
   parameter object itself.
+- Goal and step output type tokens keep `outputTypeSpan` alongside
+  `outputType`; it is `null` when no output type is declared.
+- Goal, Step, and Completion graph node data may carry the same
+  `outputTypeSpan` so diagnostics can point at the exact declared output type
+  instead of the wider node span.
 - Graph node and edge data that embeds parameters keeps those parameter spans
   for provenance.
 - Parsed call arguments keep `argSpans` alongside `args` and `argKinds`.
@@ -235,7 +240,8 @@ most nodes and edges:
       "data": {
         "title": null,
         "parameters": [],
-        "outputType": "PullRequest"
+        "outputType": "PullRequest",
+        "outputTypeSpan": "loc.4"
       }
     },
     {
@@ -248,7 +254,8 @@ most nodes and edges:
         "end": { "line": 22, "column": 1, "offset": 420 }
       },
       "data": {
-        "outputType": "PullRequest"
+        "outputType": "PullRequest",
+        "outputTypeSpan": "loc.4"
       }
     }
   ],
@@ -1035,7 +1042,8 @@ node id. It is an intermediate contract for a local runtime.
       "data": {
         "title": null,
         "parameters": [{ "name": "ticket", "type": "TicketRef", "span": "loc.4" }],
-        "outputType": "PullRequest"
+        "outputType": "PullRequest",
+        "outputTypeSpan": "loc.4"
       }
     },
     {
@@ -1100,6 +1108,7 @@ node id. It is an intermediate contract for a local runtime.
       "data": {
         "inputs": [{ "name": "ticket", "type": "TicketRef", "span": "loc.12" }],
         "outputType": "GitDiff",
+        "outputTypeSpan": "loc.12",
         "effects": ["FileRead"]
       }
     },
@@ -1121,6 +1130,7 @@ node id. It is an intermediate contract for a local runtime.
       "data": {
         "inputs": [{ "name": "patch", "type": "GitDiff", "span": "loc.15" }],
         "outputType": "ShellExecResult",
+        "outputTypeSpan": "loc.15",
         "effects": ["ShellExec"],
         "approvals": ["release_manager_review"],
         "requirements": [],
@@ -1253,7 +1263,8 @@ node id. It is an intermediate contract for a local runtime.
       "label": "ship_checkout_fix",
       "span": "loc.4",
       "data": {
-        "outputType": "PullRequest"
+        "outputType": "PullRequest",
+        "outputTypeSpan": "loc.4"
       }
     }
   ],
