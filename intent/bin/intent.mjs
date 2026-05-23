@@ -1677,6 +1677,7 @@ function invariantGuardTargetIds(nodes, goalId) {
       }
       return candidate.kind === "Effect"
         || candidate.kind === "Checkpoint"
+        || candidate.kind === "Policy"
         || (candidate.kind === "Check" && candidate.data?.scope === "step");
     })
     .map((candidate) => candidate.id);

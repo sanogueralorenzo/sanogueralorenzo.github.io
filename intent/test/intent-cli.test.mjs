@@ -878,17 +878,21 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.from === checkpoint.id && edge.kind === "verifies"), false);
   });
 
-  it("emits invariant guards to completion, effects, checkpoints, and step requirements", () => {
-    const graph = runJson(["graph", VALID_INVARIANT_GUARD_GRAPH]);
+  it("emits invariant guards to completion, effects, checkpoints, policies, and step requirements", () => {
+    const graph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
     const invariant = graph.nodes.find((node) => node.kind === "Invariant" && node.data.invariant === "secret_write");
     const effect = graph.nodes.find((node) => node.kind === "Effect" && node.data.family === "file");
     const checkpoint = graph.nodes.find((node) => node.kind === "Checkpoint" && node.data.ownerStep === "patch_code");
+    const timeout = graph.nodes.find((node) => node.kind === "Policy" && node.data.policyKind === "timeout" && node.data.ownerStep === "patch_code");
+    const retry = graph.nodes.find((node) => node.kind === "Policy" && node.data.policyKind === "retry" && node.data.ownerStep === "patch_code");
     const requirement = graph.nodes.find((node) => node.kind === "Check" && node.data.scope === "step");
 
     assert.equal(graph.ok, true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === effect.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === checkpoint.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === timeout.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === retry.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === requirement.id), true);
   });
 
@@ -1453,6 +1457,8 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(6) },
         { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(7) },
         { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(8), data: { scope: "step" } },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(9), data: { policyKind: "timeout" } },
+        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(10), data: { policyKind: "retry" } },
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
@@ -1463,6 +1469,8 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints" },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires" },
+        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts" },
+        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries" },
         { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
       ],
     });
@@ -1474,6 +1482,8 @@ describe("intent static model CLI", () => {
       "goal:demo:step:patch:effect:0",
       "goal:demo:step:patch:checkpoint:0",
       "goal:demo:step:patch:requirement:0",
+      "goal:demo:step:patch:timeout:0",
+      "goal:demo:step:patch:retry:0",
     ]);
   });
 
