@@ -126,6 +126,9 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Approval") {
     return { scope: "step", ownerStep: "patch", approval: "maintainer", ...normalizedData };
   }
+  if (kind === "Checkpoint") {
+    return { scope: "step", ownerStep: "patch", checkpoint: "before patch", ...normalizedData };
+  }
   if (kind === "Check" && isPlainObject(normalizedData.effect)) {
     return {
       ...normalizedData,
@@ -1589,6 +1592,32 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_APPROVAL_INVALID");
     assert.equal(diagnostics[2].approval_gate, "   ");
     assert.equal(diagnostics[2].approval_is_nonempty, false);
+    assert.equal(diagnostics[2].owner_step_is_nonempty, true);
+  });
+
+  it("validates graph step checkpoint diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "checkpoint:missing", kind: "Checkpoint", label: "missing checkpoint", span: testSpan(1), data: { checkpoint: null } },
+        { id: "checkpoint:blank-owner", kind: "Checkpoint", label: "blank owner", span: testSpan(2), data: { checkpoint: "before patch", ownerStep: "" } },
+        { id: "checkpoint:blank-value", kind: "Checkpoint", label: "blank value", span: testSpan(3), data: { checkpoint: "   ", ownerStep: "patch" } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CHECKPOINT_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_CHECKPOINT_INVALID");
+    assert.equal(diagnostics[0].checkpoint_id, "checkpoint:missing");
+    assert.equal(diagnostics[0].checkpoint_is_nonempty, false);
+    assert.equal(diagnostics[0].owner_step_is_nonempty, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_CHECKPOINT_INVALID");
+    assert.equal(diagnostics[1].checkpoint_value, "before patch");
+    assert.equal(diagnostics[1].checkpoint_is_nonempty, true);
+    assert.equal(diagnostics[1].owner_step_is_nonempty, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_CHECKPOINT_INVALID");
+    assert.equal(diagnostics[2].checkpoint_value, "   ");
+    assert.equal(diagnostics[2].checkpoint_is_nonempty, false);
     assert.equal(diagnostics[2].owner_step_is_nonempty, true);
   });
 

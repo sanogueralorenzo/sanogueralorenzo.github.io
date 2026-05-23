@@ -1346,6 +1346,10 @@ function validateGraph(graph, options = {}) {
     if (approvalDiagnostic) {
       diagnostics.push(approvalDiagnostic);
     }
+    const checkpointDiagnostic = validateGraphCheckpoint(graphNode, graphSpan);
+    if (checkpointDiagnostic) {
+      diagnostics.push(checkpointDiagnostic);
+    }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
       diagnostics.push(trustDiagnostic);
@@ -1790,6 +1794,25 @@ function validateGraphApproval(graphNode, graphSpan) {
     approval_gate: typeof graphNode.data.approval === "string" ? graphNode.data.approval : null,
     owner_step: typeof graphNode.data.ownerStep === "string" ? graphNode.data.ownerStep : null,
     approval_is_nonempty: approvalIsNonempty,
+    owner_step_is_nonempty: ownerStepIsNonempty,
+  });
+}
+
+function validateGraphCheckpoint(graphNode, graphSpan) {
+  if (graphNode.kind !== "Checkpoint") {
+    return null;
+  }
+  const checkpointIsNonempty = typeof graphNode.data.checkpoint === "string" && graphNode.data.checkpoint.trim() !== "";
+  const ownerStepIsNonempty = typeof graphNode.data.ownerStep === "string" && graphNode.data.ownerStep.trim() !== "";
+  if (checkpointIsNonempty && ownerStepIsNonempty) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CHECKPOINT_INVALID", `checkpoint '${graphNode.label}' must carry valid step checkpoint data.`, graphNode.span ?? graphSpan, {
+    checkpoint: graphNode.label,
+    checkpoint_id: graphNode.id,
+    checkpoint_value: typeof graphNode.data.checkpoint === "string" ? graphNode.data.checkpoint : null,
+    owner_step: typeof graphNode.data.ownerStep === "string" ? graphNode.data.ownerStep : null,
+    checkpoint_is_nonempty: checkpointIsNonempty,
     owner_step_is_nonempty: ownerStepIsNonempty,
   });
 }
