@@ -149,7 +149,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path plus intent, summary, decisions, validation, and risks. `trace recall --files src/auth.ts` ranks memories by affected files, and plain `trace recall` uses locally changed files when available.
 
-`trace doctor` audits the local Trace installation in one read-only command: config, managed hook commands, adapter specs, committed memory shape, uncommitted Trace files, checkpoint ref integrity, and search index freshness. Missing or stale rebuildable caches are warnings, while missing or tampered hooks, malformed memory files, malformed adapter configs, and checkpoint integrity errors fail the command.
+`trace doctor` audits the local Trace installation in one read-only command: config, managed hook commands, adapter contract specs, committed memory shape, uncommitted Trace files, checkpoint ref integrity, and search index freshness. Missing or stale rebuildable caches are warnings, while missing or tampered hooks, malformed memory files, malformed adapter configs, and checkpoint integrity errors fail the command.
 
 Agent integrations can use first-class adapters or the generic hook endpoint:
 
@@ -176,7 +176,7 @@ See `trace/examples/` for complete local workflows covering adapter capture, com
 trace hook agent --adapter codex
 ```
 
-This keeps the first version agent-agnostic while making the hook contract explicit and reviewable.
+This keeps the first version agent-agnostic while making the hook contract explicit and reviewable. `trace agent list` and `trace doctor` validate that each adapter spec uses the supported schema, adapter command, stdin mode, and lifecycle events.
 
 Checkpoint commands keep the raw side of Trace explicit:
 

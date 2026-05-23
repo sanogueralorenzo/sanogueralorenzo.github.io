@@ -588,6 +588,8 @@ test("agent add list remove manages local hook adapter configs", async () => {
     const listed = await runTrace(repo, ["agent", "list"]);
     const listedPayload = JSON.parse(listed.stdout);
     assert.deepEqual(listedPayload.agents.map((agent) => agent.agent), ["codex"]);
+    assert.equal(listedPayload.agents[0].valid, true);
+    assert.deepEqual(listedPayload.agents[0].errors, []);
 
     const status = await runTrace(repo, ["status"]);
     const statusPayload = JSON.parse(status.stdout);
@@ -700,7 +702,28 @@ test("agent command validates names and reports malformed configs", async () => 
     const payload = JSON.parse(listed.stdout);
     assert.equal(payload.agents[0].agent, "bad");
     assert.equal(payload.agents[0].valid, false);
-    assert.match(payload.agents[0].error, /JSON/);
+    assert.match(payload.agents[0].errors[0], /JSON/);
+
+    await writeFile(join(repo, ".trace/agents/codex.json"), JSON.stringify({
+      schema_version: "trace.agent.v1",
+      agent: "codex",
+      adapter: "generic",
+      command: "trace hook agent --adapter generic",
+      events: ["prompt"],
+      stdin: "json",
+    }, null, 2));
+    const invalid = JSON.parse((await runTrace(repo, ["agent", "list"])).stdout);
+    const codex = invalid.agents.find((agent) => agent.agent === "codex");
+    assert.equal(codex.valid, false);
+    assert.ok(codex.errors.some((error) => error.includes("adapter must match")));
+    assert.ok(codex.errors.some((error) => error.includes("events missing")));
+
+    const doctor = await runTraceAllowFailure(repo, ["doctor"]);
+    assert.equal(doctor.exitCode, 1);
+    const doctorPayload = JSON.parse(doctor.stdout);
+    const agents = doctorPayload.checks.find((check) => check.name === "agents");
+    assert.equal(agents.ok, false);
+    assert.ok(agents.invalidAgents.some((agent) => agent.agent === "codex"));
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

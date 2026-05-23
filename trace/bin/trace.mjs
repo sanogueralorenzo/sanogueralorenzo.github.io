@@ -1077,12 +1077,15 @@ async function listAgentConfigs(root) {
     const configPath = relativePath(root, file);
     try {
       const config = JSON.parse(await readFile(file, "utf8"));
+      const errors = validateAgentConfig(config);
       agents.push({
         agent: config.agent ?? entry.name.replace(/\.json$/, ""),
         adapter: config.adapter ?? null,
         config: configPath,
         command: config.command ?? null,
-        valid: config.schema_version === AGENT_CONFIG_VERSION,
+        events: Array.isArray(config.events) ? config.events : [],
+        valid: errors.length === 0,
+        errors,
       });
     } catch (error) {
       agents.push({
@@ -1090,12 +1093,40 @@ async function listAgentConfigs(root) {
         config: configPath,
         command: null,
         valid: false,
-        error: error.message,
+        errors: [error.message],
       });
     }
   }
 
   return agents.sort((left, right) => left.agent.localeCompare(right.agent));
+}
+
+function validateAgentConfig(config) {
+  const errors = [];
+  if (config.schema_version !== AGENT_CONFIG_VERSION) {
+    errors.push(`unsupported schema ${config.schema_version ?? "none"}`);
+  }
+  if (!SUPPORTED_AGENTS.has(config.agent)) {
+    errors.push(`unsupported agent ${config.agent ?? "none"}`);
+  }
+  if (config.adapter !== config.agent) {
+    errors.push(`adapter must match agent ${config.agent ?? "none"}`);
+  }
+  if (config.command !== `trace hook agent --adapter ${config.agent}`) {
+    errors.push("command must call trace hook agent with the adapter");
+  }
+  if (!Array.isArray(config.events) || config.events.some((event) => !TRACE_EVENTS.includes(event))) {
+    errors.push(`events must be supported Trace lifecycle events: ${TRACE_EVENTS.join(", ")}`);
+  } else {
+    const missing = TRACE_EVENTS.filter((event) => !config.events.includes(event));
+    if (missing.length > 0) {
+      errors.push(`events missing ${missing.join(", ")}`);
+    }
+  }
+  if (config.stdin !== "json-or-text") {
+    errors.push("stdin must be json-or-text");
+  }
+  return errors;
 }
 
 async function appendEvent(root, input) {
