@@ -1956,13 +1956,14 @@ async function hookAgent(values) {
   await ensureTrace(root);
   const raw = await readStdin();
   const payload = parseOptionalJson(raw);
-  const payloads = Array.isArray(payload) ? payload : [payload];
+  const jsonLines = payload == null ? parseOptionalJsonLines(raw) : null;
+  const payloads = jsonLines ?? (Array.isArray(payload) ? payload : [payload]);
   const events = [];
 
   for (const item of payloads) {
     const adapter = normalizeAdapterName(args.adapter ?? args.source ?? item?.adapter ?? item?.agent ?? item?.source);
     const eventName = normalizeAgentEvent(adapter, args.event ?? firstPositional(values), item);
-    const message = args.message ?? agentPayloadMessage(adapter, eventName, item) ?? raw;
+    const message = args.message ?? agentPayloadMessage(adapter, eventName, item) ?? payloadFallbackMessage(item, raw);
     const role = args.role ?? item?.role ?? inferRole(eventName);
     const source = args.source ?? item?.agent ?? item?.source ?? adapter;
     const sessionId = args.session ?? item?.session_id ?? item?.sessionId;
@@ -2994,6 +2995,27 @@ function parseOptionalJson(raw) {
   }
 }
 
+function parseOptionalJsonLines(raw) {
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) {
+    return null;
+  }
+
+  const payloads = [];
+  for (const line of lines) {
+    if (!line.startsWith("{")) {
+      return null;
+    }
+
+    try {
+      payloads.push(JSON.parse(line));
+    } catch {
+      return null;
+    }
+  }
+  return payloads;
+}
+
 function agentPayloadMessage(adapter, eventName, payload) {
   if (!payload) {
     return null;
@@ -3004,6 +3026,13 @@ function agentPayloadMessage(adapter, eventName, payload) {
   }
 
   return payloadMessage(payload);
+}
+
+function payloadFallbackMessage(payload, raw) {
+  if (payload == null) {
+    return raw;
+  }
+  return stringifyCompact(payload);
 }
 
 function toolPayloadMessage(adapter, payload) {

@@ -944,24 +944,39 @@ test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle ev
       },
     ]))).stdout);
     assert.deepEqual(batch.events.map((event) => event.event), ["decision", "risk"]);
+    const ndjson = JSON.parse((await runTraceWithInput(repo, ["hook", "agent", "--adapter", "generic"], [
+      JSON.stringify({
+        session_id: "adapter-session",
+        event: "note",
+        message: "ndjson adapters capture streamed notes",
+      }),
+      JSON.stringify({
+        session_id: "adapter-session",
+        event: "validation",
+        message: "ndjson adapters preserve streamed validation",
+      }),
+    ].join("\n"))).stdout);
+    assert.deepEqual(ndjson.events.map((event) => event.event), ["note", "validation"]);
 
     const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
     const session = await readFile(join(repo, commonDir, "trace/sessions/adapter-session.jsonl"), "utf8");
     const events = session.trim().split("\n").map((line) => JSON.parse(line));
-    assert.deepEqual(events.map((event) => event.event), ["tool", "prompt", "response", "validation", "decision", "risk"]);
-    assert.deepEqual(events.map((event) => event.adapter), ["codex", "claude-code", "gemini", "generic", "generic", "generic"]);
+    assert.deepEqual(events.map((event) => event.event), ["tool", "prompt", "response", "validation", "decision", "risk", "note", "validation"]);
+    assert.deepEqual(events.map((event) => event.adapter), ["codex", "claude-code", "gemini", "generic", "generic", "generic", "generic", "generic"]);
     assert.match(events[0].message, /codex tool shell input=npm test/);
     assert.equal(events[1].message, "explain the storage tradeoff");
     assert.equal(events[2].message, "memory summary completed");
     assert.equal(events[3].message, "npm --prefix trace test passed");
     assert.equal(events[4].message, "batch adapters keep lifecycle ordering");
     assert.equal(events[5].message, "batch adapters must preserve risk events");
+    assert.equal(events[6].message, "ndjson adapters capture streamed notes");
+    assert.equal(events[7].message, "ndjson adapters preserve streamed validation");
 
     const listed = JSON.parse((await runTrace(repo, ["session", "list"])).stdout);
     assert.equal(listed.current, "adapter-session");
     assert.equal(listed.sessions[0].session, "adapter-session");
-    assert.equal(listed.sessions[0].events, 6);
-    assert.deepEqual(listed.sessions[0].counts, { tool: 1, prompt: 1, response: 1, validation: 1, decision: 1, risk: 1 });
+    assert.equal(listed.sessions[0].events, 8);
+    assert.deepEqual(listed.sessions[0].counts, { tool: 1, prompt: 1, response: 1, validation: 2, decision: 1, risk: 1, note: 1 });
     assert.deepEqual(listed.sessions[0].adapters, ["claude-code", "codex", "gemini", "generic"]);
 
     const current = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
@@ -969,7 +984,7 @@ test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle ev
 
     const shown = JSON.parse((await runTrace(repo, ["session", "show", "adapter-session", "--limit", "2"])).stdout);
     assert.equal(shown.session, "adapter-session");
-    assert.deepEqual(shown.events.map((event) => event.event), ["decision", "risk"]);
+    assert.deepEqual(shown.events.map((event) => event.event), ["note", "validation"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

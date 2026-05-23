@@ -182,7 +182,7 @@ printf '{"kind":"model_response","content":"implemented the requested change"}' 
 
 The hook accepts JSON or plain text on stdin and records it into the local raw session store. The Codex, Claude Code, Gemini, and generic adapters normalize provider payloads into Trace lifecycle events: prompt, response, tool, decision, validation, risk, and note. Tool payloads are compacted into one-line activity entries, while full raw session data stays in the git common directory.
 
-Adapters may also send a JSON array to `trace hook agent` when a provider emits multiple lifecycle events at once. Trace records each item as an ordered event in the same local session.
+Adapters may also send a JSON array or newline-delimited JSON objects to `trace hook agent` when a provider emits multiple lifecycle events at once. Trace records each item as an ordered event in the same local session.
 
 See `trace/examples/` for complete local workflows covering adapter capture, commit memory review, PR/release summaries, and CI checks.
 
