@@ -529,7 +529,7 @@ async function buildCoverageReport(root, range, options = {}) {
   const memoryAudit = await auditMemoryFiles(root);
   const redaction = await redactionAudit(root);
   const agentContracts = options.agents ? await buildAgentCheckReport(root, "all") : null;
-  const checkpointIntegrity = options.checkpoints ? await checkpointIntegrityReport(root) : null;
+  const checkpointIntegrity = options.checkpoints ? await checkpointIntegrityReport(root, coveredMemories) : null;
   const ok = missingMemories.length === 0
     && unsafeFiles.length === 0
     && memoryAudit.invalidMemories.length === 0
@@ -556,16 +556,50 @@ async function buildCoverageReport(root, range, options = {}) {
   };
 }
 
-async function checkpointIntegrityReport(root) {
+async function checkpointIntegrityReport(root, coveredMemories = []) {
   const audit = await checkpointAudit(root);
+  const memoryLinks = audit.present ? await checkpointMemoryLinkErrors(root, coveredMemories) : { checked: 0, errors: [] };
+  const errors = [...audit.errors, ...memoryLinks.errors];
   return {
-    ok: audit.present && audit.errors.length === 0,
+    ok: audit.present && errors.length === 0,
     ref: audit.ref,
     present: audit.present,
     commit: audit.commit,
     checked: audit.checked,
-    errors: audit.errors,
+    linkedMemories: memoryLinks.checked,
+    errors,
   };
+}
+
+async function checkpointMemoryLinkErrors(root, coveredMemories) {
+  const checkpointPayloads = await readCheckpointPayloads(root);
+  const checkpointsById = new Map(
+    checkpointPayloads
+      .filter(({ payload, error }) => payload?.checkpoint_id && !error)
+      .map(({ payload }) => [payload.checkpoint_id, payload]),
+  );
+  const errors = [];
+
+  for (const memory of coveredMemories) {
+    const file = join(root, memory.memory);
+    const content = await readFile(file, "utf8");
+    const checkpoint = content.match(/^Checkpoint: `([^`]+)`/m)?.[1];
+    if (!checkpoint) {
+      continue;
+    }
+
+    const payload = checkpointsById.get(checkpoint);
+    if (!payload) {
+      errors.push({ file: memory.memory, checkpoint, error: `missing checkpoint payload ${checkpoint}` });
+      continue;
+    }
+
+    if (payload.commit && payload.commit !== memory.commit) {
+      errors.push({ file: memory.memory, checkpoint, error: `checkpoint commit mismatch ${payload.commit}` });
+    }
+  }
+
+  return { checked: coveredMemories.length, errors };
 }
 
 async function coverageEntry(root, sha, status, memory) {
