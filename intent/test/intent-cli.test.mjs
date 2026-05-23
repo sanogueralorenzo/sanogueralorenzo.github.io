@@ -111,23 +111,27 @@ function testGrant(action, key, value, line) {
 }
 
 function validateTestGraph(graph) {
+  const normalizedNodes = graph.nodes?.map((node, index) => {
+    return isPlainObject(node)
+      ? {
+          label: node.id ?? `node:${index}`,
+          span: testSpan(index + 1),
+          ...node,
+          data: defaultGraphNodeData(node.kind, node.data),
+        }
+      : node;
+  });
+  const nodesById = new Map((normalizedNodes ?? [])
+    .filter((node) => isPlainObject(node) && typeof node.id === "string")
+    .map((node) => [node.id, node]));
   const normalizedGraph = {
     ...graph,
-    nodes: graph.nodes?.map((node, index) => {
-      return isPlainObject(node)
-        ? {
-            label: node.id ?? `node:${index}`,
-            span: testSpan(index + 1),
-            ...node,
-            data: defaultGraphNodeData(node.kind, node.data),
-          }
-        : node;
-    }),
+    nodes: normalizedNodes,
     edges: graph.edges?.map((edge) => {
       return isPlainObject(edge)
         ? {
             ...edge,
-            data: defaultGraphEdgeData(edge, edge.data),
+            data: defaultGraphEdgeData(edge, edge.data, nodesById),
           }
         : edge;
     }),
@@ -242,9 +246,19 @@ function defaultGraphNodeData(kind, data) {
   return normalizedData;
 }
 
-function defaultGraphEdgeData(edge, data) {
+function defaultGraphEdgeData(edge, data, nodesById = new Map()) {
   if (data !== undefined) {
     return data;
+  }
+  if (edge.kind === "gates" || edge.kind === "verifies") {
+    const sourceNode = nodesById.get(edge.from);
+    const targetNode = nodesById.get(edge.to);
+    return {
+      requirement: sourceNode?.data?.requirement ?? "synthetic",
+      scope: sourceNode?.data?.scope === "step" ? "step" : "goal",
+      sourceSpan: sourceNode?.span ?? testSpan(1),
+      targetSpan: targetNode?.span ?? testSpan(1),
+    };
   }
   if (edge.kind === "produces") {
     return { type: "Synthetic", sourceSpan: testSpan(1), targetSpan: testSpan(1) };
@@ -1140,6 +1154,22 @@ describe("intent static model CLI", () => {
         && edge.data.targetSpan.start.column === 19;
     }), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "verifies" && edge.to.endsWith(":completion")), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "gates"
+        && edge.data.requirement === "shell(\"npm test\").exit_code == 0"
+        && edge.data.scope === "goal"
+        && edge.data.sourceSpan.start.line === 47
+        && edge.data.sourceSpan.start.column === 5
+        && edge.data.targetSpan.start.line === 19
+        && edge.data.targetSpan.start.column === 1;
+    }), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "verifies"
+        && edge.data.requirement === "shell(\"npm test\").exit_code == 0"
+        && edge.data.scope === "goal"
+        && edge.data.sourceSpan.start.line === 47
+        && edge.data.targetSpan.start.line === 19;
+    }), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => {
       return edge.kind === "produces"
@@ -1160,7 +1190,15 @@ describe("intent static model CLI", () => {
     assert.equal(stepRequirement.data.ownerStep, "patch_code");
     assert.equal(stepRequirement.data.requirement, "input.summary != \"\"");
     assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "requires" && edge.to.endsWith(":step:patch_code")), true);
-    assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "gates" && edge.to === "goal:apply_guarded_code_change"), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.from === stepRequirement.id
+        && edge.kind === "gates"
+        && edge.to === "goal:apply_guarded_code_change"
+        && edge.data.requirement === "input.summary != \"\""
+        && edge.data.scope === "step"
+        && edge.data.sourceSpan.start.line === 39
+        && edge.data.targetSpan.start.line === 15;
+    }), true);
     assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "verifies"), false);
   });
 
@@ -2833,6 +2871,36 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[4].requirement_is_nonempty, false);
   });
 
+  it("validates graph check gate edge payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ready", span: testSpan(2), data: { requirement: "ready", scope: "goal" } },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
+      ],
+      edges: [
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates", data: {} },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates", data: { requirement: "", scope: "goal", sourceSpan: testSpan(2), targetSpan: testSpan(1) } },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies", data: { requirement: "ready", scope: "job", sourceSpan: testSpan(2), targetSpan: testSpan(3) } },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies", data: { requirement: "ready", scope: "goal", sourceSpan: testSpan(2) } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+
+    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics[0].edge, "gates");
+    assert.equal(diagnostics[0].requirement_is_nonempty, false);
+    assert.equal(diagnostics[0].scope_is_valid, false);
+    assert.equal(diagnostics[0].source_span_is_valid, false);
+    assert.equal(diagnostics[0].target_span_is_valid, false);
+    assert.equal(diagnostics[1].requirement_is_nonempty, false);
+    assert.equal(diagnostics[1].scope_is_valid, true);
+    assert.equal(diagnostics[2].edge, "verifies");
+    assert.equal(diagnostics[2].scope_is_valid, false);
+    assert.equal(diagnostics[3].requirement_is_nonempty, true);
+    assert.equal(diagnostics[3].target_span_is_valid, false);
+  });
+
   it("validates graph step attachment edge payload diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -3464,6 +3532,7 @@ describe("intent static model CLI", () => {
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1), data: { outputType: "Report" } },
         { id: "goal:other", kind: "Goal", label: "other", span: testSpan(6), data: { outputType: "Other" } },
+        { id: "goal:other:completion", kind: "Completion", label: "other", span: testSpan(7), data: { outputType: "Other" } },
         { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: testSpan(2), data: { scope: "goal", type: "Ticket" } },
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(3), data: { outputType: "Patch" } },
         { id: "goal:demo:step:patch:input:ticket", kind: "Input", label: "ticket", span: testSpan(4), data: { scope: "step", type: "Ticket" } },
@@ -3478,11 +3547,13 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:patch:input:ticket", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "ticket_id", type: "Issue", targetSpan: testSpan(5) } },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "ticket.closed" } },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: testSpan(2), targetSpan: testSpan(4) } },
+        { from: "goal:demo:verify:0", to: "goal:other", kind: "gates", data: { requirement: "closed", scope: "step", sourceSpan: testSpan(1), targetSpan: testSpan(6) } },
+        { from: "goal:demo:verify:0", to: "goal:other:completion", kind: "verifies", data: { requirement: "closed", scope: "step", sourceSpan: testSpan(1), targetSpan: testSpan(6) } },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPED_EDGE_INVALID");
 
-    assert.equal(diagnostics.length, 5);
+    assert.equal(diagnostics.length, 7);
     assert.equal(diagnostics[0].edge, "supplies");
     assert.deepEqual(diagnostics[0].checks.map((check) => [check.name, check.ok]), [
       ["owner_goal_matches_target", false],
@@ -3519,6 +3590,22 @@ describe("intent static model CLI", () => {
       ["type_matches_target", true],
       ["source_span_matches_source", false],
       ["target_span_matches_target", true],
+    ]);
+    assert.equal(diagnostics[5].edge, "gates");
+    assert.deepEqual(diagnostics[5].checks.map((check) => [check.name, check.ok]), [
+      ["owner_goal_matches_target", false],
+      ["requirement_matches_source", false],
+      ["scope_matches_source", false],
+      ["source_span_matches_source", false],
+      ["target_span_matches_target", true],
+    ]);
+    assert.equal(diagnostics[6].edge, "verifies");
+    assert.deepEqual(diagnostics[6].checks.map((check) => [check.name, check.ok]), [
+      ["owner_completion_matches_target", false],
+      ["requirement_matches_source", false],
+      ["scope_matches_source", false],
+      ["source_span_matches_source", false],
+      ["target_span_matches_target", false],
     ]);
   });
 

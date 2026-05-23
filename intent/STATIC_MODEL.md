@@ -454,7 +454,12 @@ Next graph envelope validation milestone:
   verifies, and step-scoped checks with otherwise role-valid verifies edges
   remain `INTENT_GRAPH_CHECK_GATE_INVALID`; malformed `Check` payloads remain
   `INTENT_GRAPH_CHECK_INVALID`; and malformed `Completion` payloads remain
-  `INTENT_GRAPH_COMPLETION_INVALID`. Constraining the generic roles prevents
+  `INTENT_GRAPH_COMPLETION_INVALID`. Role-valid `gates` and `verifies` edges
+  must also carry non-empty `data.requirement`, valid `data.scope`,
+  `sourceSpan`, and `targetSpan` values that match the source `Check`, owning
+  `Goal`, and owning `Completion`; malformed payloads emit
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and typed endpoint mismatches emit
+  `INTENT_GRAPH_TYPED_EDGE_INVALID`. Constraining the generic roles prevents
   verification edges from becoming ambiguous runtime-control edges while
   preserving check-specific gate coverage diagnostics.
 - Runtime graph `completes` and `produces` edges have constrained completion
@@ -545,21 +550,25 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_CHECKPOINT_INVALID`, and `INTENT_GRAPH_POLICY_INVALID`. This
   prevents step attachment edges from being replayed as ambiguous runtime-control
   edges while preserving attachment coverage and payload diagnostics.
-- Runtime graph check gate edge contracts are the next Phase 2 static-model
-  milestone. Every `Check` node is a runtime gate and must have exactly one
-  outgoing `gates` edge to its owning `Goal`. Goal-scoped verification `Check`
-  nodes must also have exactly one outgoing `verifies` edge to the owning
-  `Completion` node. Step-scoped requirement `Check` nodes must have no
-  `verifies` edges; they attach to their owning step with the existing
-  `requires` edge contract and gate the owning goal with `gates`. Missing,
-  duplicate, or wrong-owner goal gates, missing goal-scoped completion
-  verifies, and step-scoped checks with otherwise role-valid verifies edges
-  emit `INTENT_GRAPH_CHECK_GATE_INVALID` and make graph output
-  non-executable. Unsupported `gates` and `verifies` endpoint roles instead
-  emit `INTENT_GRAPH_GATE_INVALID` or `INTENT_GRAPH_VERIFY_INVALID`;
-  malformed `Check` node data remains `INTENT_GRAPH_CHECK_INVALID`; malformed
-  `Completion` node data remains `INTENT_GRAPH_COMPLETION_INVALID`; and missing
-  step attachment edges remain `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+- Runtime graph check gate edges are typed contracts. Every `Check` node is a
+  runtime gate and must have exactly one outgoing `gates` edge to its owning
+  `Goal`. Goal-scoped verification `Check` nodes must also have exactly one
+  outgoing `verifies` edge to the owning `Completion` node. Step-scoped
+  requirement `Check` nodes must have no `verifies` edges; they attach to their
+  owning step with the existing `requires` edge contract and gate the owning
+  goal with `gates`. Role-valid `gates` and `verifies` edges must carry
+  non-empty `data.requirement`, valid `data.scope`, and valid source/target
+  spans matching the source check and owning target. Missing, duplicate, or
+  wrong-owner goal gates, missing goal-scoped completion verifies, and
+  step-scoped checks with otherwise role-valid verifies edges emit
+  `INTENT_GRAPH_CHECK_GATE_INVALID` and make graph output non-executable.
+  Malformed edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, typed
+  endpoint mismatches emit `INTENT_GRAPH_TYPED_EDGE_INVALID`, unsupported
+  `gates` and `verifies` endpoint roles instead emit `INTENT_GRAPH_GATE_INVALID`
+  or `INTENT_GRAPH_VERIFY_INVALID`, malformed `Check` node data remains
+  `INTENT_GRAPH_CHECK_INVALID`, malformed `Completion` node data remains
+  `INTENT_GRAPH_COMPLETION_INVALID`, and missing step attachment edges remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
@@ -2461,7 +2470,11 @@ a goal-scoped verification `Check` lacks exactly one outgoing role-valid
 `gates` endpoint roles instead emit `INTENT_GRAPH_GATE_INVALID`, unsupported
 `verifies` endpoint roles instead emit `INTENT_GRAPH_VERIFY_INVALID`, malformed
 `Check` payloads remain `INTENT_GRAPH_CHECK_INVALID`, and malformed
-`Completion` payloads remain `INTENT_GRAPH_COMPLETION_INVALID`. Graph
+`Completion` payloads remain `INTENT_GRAPH_COMPLETION_INVALID`. Role-valid
+`gates` and `verifies` edge payloads must carry non-empty `data.requirement`,
+valid `data.scope`, and valid source/target spans matching the source check and
+owning target; malformed payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and
+typed endpoint mismatches emit `INTENT_GRAPH_TYPED_EDGE_INVALID`. Graph
 validation emits
 `INTENT_GRAPH_STEP_ATTACHMENT_INVALID` when a step-scoped `Check` lacks a
 `requires` edge to its owning `Step`, an `Approval` lacks an `approves` edge to
@@ -2641,7 +2654,10 @@ non-executable. Malformed trust metadata inside `data.effect` remains
 missing goal-scoped completion verifies, and step-scoped checks with otherwise
 role-valid verifies edges emit `INTENT_GRAPH_CHECK_GATE_INVALID` and make graph
 output non-executable. Unsupported `gates` and `verifies` endpoint roles emit
-`INTENT_GRAPH_GATE_INVALID` or `INTENT_GRAPH_VERIFY_INVALID`.
+`INTENT_GRAPH_GATE_INVALID` or `INTENT_GRAPH_VERIFY_INVALID`. Malformed
+role-valid `gates` and `verifies` payloads emit
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and typed endpoint mismatches emit
+`INTENT_GRAPH_TYPED_EDGE_INVALID`.
 
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
@@ -2783,9 +2799,12 @@ otherwise role-valid `verifies` edge. Unsupported `gates` endpoint roles
 instead emit `INTENT_GRAPH_GATE_INVALID`; unsupported `verifies` endpoint roles
 instead emit `INTENT_GRAPH_VERIFY_INVALID`; malformed `Check` payloads remain
 `INTENT_GRAPH_CHECK_INVALID`; and malformed `Completion` payloads remain
-`INTENT_GRAPH_COMPLETION_INVALID`. These generic role diagnostics prevent
-verification edges from becoming ambiguous runtime-control edges while
-preserving check-specific gate coverage diagnostics. Graph validation emits
+`INTENT_GRAPH_COMPLETION_INVALID`. Role-valid `gates` and `verifies` payloads
+must match source check requirement/scope/spans and owning target spans;
+malformed payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and typed endpoint
+mismatches emit `INTENT_GRAPH_TYPED_EDGE_INVALID`. These generic role
+diagnostics prevent verification edges from becoming ambiguous runtime-control
+edges while preserving check-specific gate coverage diagnostics. Graph validation emits
 `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID` when an `Invariant` node lacks
 exactly one outgoing role-valid `constrains` edge to its owning `Goal`, has
 duplicate role-valid `constrains` edges, or has a role-valid `constrains` edge

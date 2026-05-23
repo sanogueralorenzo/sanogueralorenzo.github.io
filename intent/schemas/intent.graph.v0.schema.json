@@ -985,6 +985,9 @@
             "policy": {
               "type": "string"
             },
+            "scope": {
+              "enum": ["goal", "step"]
+            },
             "access": {
               "enum": ["read", "write", "cite"]
             },
@@ -1001,11 +1004,11 @@
               "type": ["string", "null"]
             },
             "sourceSpan": {
-              "description": "For supplies edges, the declared goal parameter span. For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
+              "description": "For supplies edges, the declared goal parameter span. For gates/verifies edges, the source check span. For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
               "$ref": "#/$defs/span"
             },
             "targetSpan": {
-              "description": "For supplies edges, the declared goal parameter span. For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span. For memory access edges, the provenance target span.",
+              "description": "For supplies edges, the declared goal parameter span. For gates/verifies edges, the owning goal or completion span. For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span. For memory access edges, the provenance target span.",
               "$ref": "#/$defs/span"
             }
           }

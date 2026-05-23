@@ -1202,7 +1202,12 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           assertion: requirement.kind,
           requirement: requirement.value,
         }));
-        edges.push(edge(requirementId, goalId, "gates"));
+        edges.push(edge(requirementId, goalId, "gates", {
+          requirement: requirement.value,
+          scope: "step",
+          sourceSpan: requirement.span,
+          targetSpan: goal.span,
+        }));
         edges.push(edge(requirementId, id, "requires", {
           requirement: requirement.value,
         }));
@@ -1364,6 +1369,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       const effect = verificationEffect(check);
       nodes.push(node(id, "Check", check.value, check.span, effect ? {
         requirement: check.value,
+        scope: "goal",
         effect: {
           family: effect.family,
           action: effect.action,
@@ -1374,9 +1380,20 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         },
       } : {
         requirement: check.value,
+        scope: "goal",
       }));
-      edges.push(edge(id, goalId, "gates"));
-      edges.push(edge(id, completionId, "verifies"));
+      edges.push(edge(id, goalId, "gates", {
+        requirement: check.value,
+        scope: "goal",
+        sourceSpan: check.span,
+        targetSpan: goal.span,
+      }));
+      edges.push(edge(id, completionId, "verifies", {
+        requirement: check.value,
+        scope: "goal",
+        sourceSpan: check.span,
+        targetSpan: goal.span,
+      }));
       if (effect) {
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
           if (isFamilyMatch(effect.family, capability.family) && !getCapabilityDenial(effect, [capability])) {
@@ -2285,7 +2302,7 @@ function validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, f
 }
 
 function validateGraphTypedEdgeContract(nodesById, graphEdge, fallbackSpan) {
-  if (!["data", "supplies", "requires", "produces", "approves", "timeouts", "retries", "checkpoints"].includes(graphEdge.kind)) {
+  if (!["data", "supplies", "requires", "produces", "approves", "timeouts", "retries", "checkpoints", "gates", "verifies"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
@@ -2323,6 +2340,12 @@ function typedEdgeChecks(graphEdge, sourceNode, targetNode) {
   }
   if (graphEdge.kind === "checkpoints") {
     return checkpointEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "gates") {
+    return gatesEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "verifies") {
+    return verifiesEdgeChecks(graphEdge, sourceNode, targetNode);
   }
   return [];
 }
@@ -2427,6 +2450,40 @@ function checkpointEdgeChecks(graphEdge, sourceNode, targetNode) {
     typedCheck("owner_step_matches_source", parentNodeId(targetNode.id, ":checkpoint:") === sourceNode.id, parentNodeId(targetNode.id, ":checkpoint:"), sourceNode.id),
     typedCheck("checkpoint_matches_target", graphEdge.data?.checkpoint === targetNode.data?.checkpoint, graphEdge.data?.checkpoint, targetNode.data?.checkpoint),
   ];
+}
+
+function gatesEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind !== "Check" || targetNode?.kind !== "Goal") {
+    return [];
+  }
+  const sourceScope = graphCheckScope(sourceNode);
+  return [
+    typedCheck("owner_goal_matches_target", checkOwnerGoalId(sourceNode.id) === targetNode.id, checkOwnerGoalId(sourceNode.id), targetNode.id),
+    typedCheck("requirement_matches_source", graphEdge.data?.requirement === sourceNode.data?.requirement, graphEdge.data?.requirement, sourceNode.data?.requirement),
+    typedCheck("scope_matches_source", graphEdge.data?.scope === sourceScope, graphEdge.data?.scope, sourceScope),
+    typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceNode.span), graphEdge.data?.sourceSpan, sourceNode.span),
+    typedCheck("target_span_matches_target", spansEqual(graphEdge.data?.targetSpan, targetNode.span), graphEdge.data?.targetSpan, targetNode.span),
+  ];
+}
+
+function verifiesEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind !== "Check" || targetNode?.kind !== "Completion") {
+    return [];
+  }
+  const ownerGoalId = checkOwnerGoalId(sourceNode.id);
+  const sourceScope = graphCheckScope(sourceNode);
+  const expectedCompletionId = ownerGoalId ? `${ownerGoalId}:completion` : null;
+  return [
+    typedCheck("owner_completion_matches_target", expectedCompletionId === targetNode.id, expectedCompletionId, targetNode.id),
+    typedCheck("requirement_matches_source", graphEdge.data?.requirement === sourceNode.data?.requirement, graphEdge.data?.requirement, sourceNode.data?.requirement),
+    typedCheck("scope_matches_source", graphEdge.data?.scope === sourceScope, graphEdge.data?.scope, sourceScope),
+    typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceNode.span), graphEdge.data?.sourceSpan, sourceNode.span),
+    typedCheck("target_span_matches_target", spansEqual(graphEdge.data?.targetSpan, targetNode.span), graphEdge.data?.targetSpan, targetNode.span),
+  ];
+}
+
+function graphCheckScope(sourceNode) {
+  return sourceNode?.data?.scope === "step" ? "step" : "goal";
 }
 
 function graphProducerType(sourceNode) {
@@ -2574,6 +2631,8 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     "timeouts",
     "retries",
     "checkpoints",
+    "gates",
+    "verifies",
     "reads",
     "writes",
     "cites",
@@ -2589,6 +2648,7 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
   const approvalIsNonempty = typeof payload.approval === "string" && payload.approval.trim() !== "";
   const policyIsNonempty = typeof payload.policy === "string" && payload.policy.trim() !== "";
   const checkpointIsNonempty = typeof payload.checkpoint === "string" && payload.checkpoint.trim() !== "";
+  const scopeIsValid = payload.scope === "goal" || payload.scope === "step";
   const accessIsValid = payload.access === "read" || payload.access === "write" || payload.access === "cite";
   const memoryIsNonempty = typeof payload.memory === "string" && payload.memory.trim() !== "";
   const targetIsNonempty = typeof payload.target === "string" && payload.target.trim() !== "";
@@ -2612,11 +2672,19 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     && sourceNode?.kind === "Input"
     && sourceNode.data?.scope === "goal"
     && targetNode?.kind === "Goal";
+  const gatesCheck = graphEdge.kind === "gates"
+    && sourceNode?.kind === "Check"
+    && targetNode?.kind === "Goal";
+  const verifiesCheck = graphEdge.kind === "verifies"
+    && sourceNode?.kind === "Check"
+    && targetNode?.kind === "Completion";
   const memoryAccess = ["reads", "writes", "cites"].includes(graphEdge.kind);
   const payloadIsValid = graphEdge.kind === "data"
     ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
     : suppliesGoalInput
       ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
+    : gatesCheck || verifiesCheck
+      ? requirementIsNonempty && scopeIsValid && sourceSpanIsValid && targetSpanIsValid
     : graphEdge.kind === "produces"
       ? typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
       : requiresStepInput
@@ -2643,6 +2711,7 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     approval: typeof payload.approval === "string" ? payload.approval : null,
     policy: typeof payload.policy === "string" ? payload.policy : null,
     checkpoint: typeof payload.checkpoint === "string" ? payload.checkpoint : null,
+    scope: typeof payload.scope === "string" ? payload.scope : null,
     access: typeof payload.access === "string" ? payload.access : null,
     memory: typeof payload.memory === "string" ? payload.memory : null,
     target: typeof payload.target === "string" ? payload.target : null,
@@ -2652,6 +2721,7 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     approval_is_nonempty: approvalIsNonempty,
     policy_is_nonempty: policyIsNonempty,
     checkpoint_is_nonempty: checkpointIsNonempty,
+    scope_is_valid: scopeIsValid,
     access_is_valid: accessIsValid,
     memory_is_nonempty: memoryIsNonempty,
     target_is_nonempty: targetIsNonempty,
