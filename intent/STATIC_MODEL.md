@@ -382,14 +382,23 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
-- Runtime input metadata is the next Phase 2 static-model milestone. Goal
-  inputs and step inputs must carry `data.scope` as either `goal` or `step` and
-  a non-empty `data.type`. Step input nodes must additionally be attached to
-  their owning step through the existing graph edge contracts, including the
-  incoming `data` edge from a goal input or earlier producing step and the
-  `requires` edge to the owning step. Malformed input payloads emit
-  `INTENT_GRAPH_INPUT_INVALID` and make the graph non-executable because
-  runtimes must not infer missing type, scope, or step ownership.
+- Runtime Step node metadata is the next Phase 2 static-model milestone.
+  `Step` node data must carry arrays for `inputs`, `effects`, `requirements`,
+  `checkpoints`, `approvals`, `timeouts`, and `retries`. Each input must be a
+  valid parameter record with non-empty `name` and `type` strings and a valid
+  `span`. `outputType` may be `null` or a non-empty string, and
+  `outputTypeSpan` may be `null` or a valid span. Malformed Step node payloads
+  emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
+  runtimes must not infer executable inputs, side effects, gates, checkpoints,
+  approvals, timeouts, retries, or output types.
+- Runtime input metadata is part of graph validation. Goal inputs and step
+  inputs must carry `data.scope` as either `goal` or `step` and a non-empty
+  `data.type`. Step input nodes must additionally be attached to their owning
+  step through the existing graph edge contracts, including the incoming `data`
+  edge from a goal input or earlier producing step and the `requires` edge to
+  the owning step. Malformed input payloads emit `INTENT_GRAPH_INPUT_INVALID`
+  and make the graph non-executable because runtimes must not infer missing
+  type, scope, or step ownership.
 - Runtime effect adapter metadata is part of graph validation. `Effect` nodes
   must carry non-empty string `data.family` and `data.action` values, object
   `data.args`, `data.argKinds`, and `data.argSpans` maps, valid source spans
@@ -568,6 +577,12 @@ blocking diagnostics.
 - Emit step timeout and retry policies as `Policy` nodes, list them on the
   owning `Step` node data, and connect each one with a `timeouts` or `retries`
   edge from that `Policy` node to the owning `Step`.
+- Emit every `Step` node with `data.inputs`, `data.effects`,
+  `data.requirements`, `data.checkpoints`, `data.approvals`, `data.timeouts`,
+  and `data.retries` arrays. Each `data.inputs` entry must be a valid parameter
+  record with non-empty `name` and `type` strings and a valid `span`.
+  `data.outputType` may be `null` or a non-empty string, and
+  `data.outputTypeSpan` may be `null` or a valid span.
 - Emit each invariant statement as an `Invariant` node with `guards` edges to
   completion and to every effect, checkpoint, and step requirement check in the
   same goal.
@@ -1266,6 +1281,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
 - `INTENT_GRAPH_POLICY_INVALID`
+- `INTENT_GRAPH_STEP_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_NODE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
@@ -1376,7 +1392,12 @@ node id. It is an intermediate contract for a local runtime.
         "inputs": [{ "name": "ticket", "type": "TicketRef", "span": "loc.12" }],
         "outputType": "GitDiff",
         "outputTypeSpan": "loc.12",
-        "effects": ["FileRead"]
+        "effects": ["FileRead"],
+        "requirements": [],
+        "checkpoints": [],
+        "approvals": [],
+        "timeouts": [],
+        "retries": []
       }
     },
     {
@@ -1712,6 +1733,12 @@ not from a `Capability`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
+Graph validation emits `INTENT_GRAPH_STEP_INVALID` when a `Step` node omits
+array data for `inputs`, `effects`, `requirements`, `checkpoints`, `approvals`,
+`timeouts`, or `retries`, when any step input is not a valid parameter record
+with non-empty `name` and `type` strings and a valid `span`, when `outputType`
+is neither `null` nor a non-empty string, or when `outputTypeSpan` is neither
+`null` nor a valid span.
 Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
 multiple `Step` nodes does not have exactly one linear `precedes` chain across
 those steps, or when the `Step` producing `Completion` is not the tail step of
@@ -1730,6 +1757,7 @@ validators must reject any graph with a missing or unsupported
 schema-level structural strings are empty, whose runtime structural strings are
 blank after trimming, whose node or edge kind is outside the supported sets
 above, whose edge endpoint does not resolve inside the same payload, whose
+`Step` nodes omit valid runtime Step node data, whose
 `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
 nodes omit valid runtime retention lifecycle data, whose `Policy` nodes omit
 valid runtime step execution policy data, whose `Approval` nodes omit valid
@@ -1794,6 +1822,16 @@ Capability nodes are also runtime policy inputs. Graph validation requires
 emits `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable
 because runtime authorization and approval enforcement must not infer missing
 policy.
+
+Step nodes carry the runtime graph contract for executable work. Their data
+must include arrays for `inputs`, `effects`, `requirements`, `checkpoints`,
+`approvals`, `timeouts`, and `retries`, even when a list is empty. Each input
+entry must be a valid parameter record with non-empty `name` and `type` strings
+and a valid `span`. `outputType` may be `null` or a non-empty string, and
+`outputTypeSpan` may be `null` or a valid span. Malformed Step node payloads
+emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
+runtimes must not infer executable inputs, side effects, gates, checkpoints,
+approvals, timeouts, retries, or output types.
 
 Step requirement nodes are `Check` nodes scoped to one owning step. They create
 `requires` edges into that step and `gates` edges to the owning goal. They are

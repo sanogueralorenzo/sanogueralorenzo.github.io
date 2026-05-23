@@ -165,6 +165,15 @@ Validation expectations:
   step. Malformed input payloads emit `INTENT_GRAPH_INPUT_INVALID` and make the
   graph non-executable because runtimes must not infer missing type, scope, or
   step ownership.
+- Graph `Step` nodes are the next Phase 2 static-model milestone. Step node
+  data must carry arrays for `inputs`, `effects`, `requirements`,
+  `checkpoints`, `approvals`, `timeouts`, and `retries`. Each input must be a
+  valid parameter record with non-empty `name` and `type` strings and a valid
+  `span`. `outputType` may be `null` or a non-empty string, and
+  `outputTypeSpan` may be `null` or a valid span. Malformed Step node payloads
+  emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable
+  because runtimes must not infer executable inputs, side effects, gates,
+  checkpoints, approvals, timeouts, retries, or output types.
 - Graph `Effect` nodes are runtime adapter invocations. They must carry valid
   adapter data: `data.family` and `data.action` must be non-empty strings,
   `data.args`, `data.argKinds`, and `data.argSpans` must be objects, every
