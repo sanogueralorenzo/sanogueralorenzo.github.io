@@ -149,6 +149,14 @@ Validation expectations:
   `source`, and an optional non-empty `argument`. Malformed trust metadata
   emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
   runtime trust sinks must not infer missing or malformed trust.
+- Graph `Context` nodes are runtime source bindings, not executable operations.
+  They must carry valid context source data: `data.source` and
+  `data.expression` must be non-empty strings, `data.args`, `data.argKinds`, and
+  `data.argSpans` must be objects, and every `data.argSpans` value must be a
+  valid source span. Malformed context source data emits
+  `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
+  runtimes must not infer source identity, argument provenance, or executable
+  behavior from incomplete context records.
 - Graph `Effect` nodes are runtime adapter invocations. They must carry valid
   adapter data: `data.family` and `data.action` must be non-empty strings,
   `data.args`, `data.argKinds`, and `data.argSpans` must be objects, every

@@ -374,6 +374,14 @@ Next graph envelope validation milestone:
   `source`, and an optional non-empty `argument`. Malformed trust metadata
   emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
   runtime trust sinks must not infer missing or malformed trust.
+- Runtime context source metadata is part of graph validation. `Context` nodes
+  are non-executable source bindings and must carry non-empty string
+  `data.source` and `data.expression` values, object `data.args`,
+  `data.argKinds`, and `data.argSpans` maps, and valid source spans for every
+  `data.argSpans` value. Malformed context source data emits
+  `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
+  runtimes must not infer source identity, argument provenance, or executable
+  behavior from incomplete context records.
 - Runtime effect adapter metadata is part of graph validation. `Effect` nodes
   must carry non-empty string `data.family` and `data.action` values, object
   `data.args`, `data.argKinds`, and `data.argSpans` maps, valid source spans
@@ -717,6 +725,12 @@ Rules:
   prototype.
 - Graph `Context` nodes carry the same source name, args, argKinds, argSpans,
   expression, and trust zone/source data as their originating `ContextDecl`.
+- Graph `Context` nodes are non-executable runtime source bindings. Runtime
+  validation requires non-empty `data.source` and `data.expression` strings,
+  object `data.args`, `data.argKinds`, and `data.argSpans` maps, and valid
+  source spans for every `data.argSpans` value. Malformed context source records
+  emit `INTENT_GRAPH_CONTEXT_INVALID`; malformed context trust records remain
+  `INTENT_GRAPH_TRUST_INVALID`.
 
 ## Step Requirements
 
@@ -1221,6 +1235,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_SHAPE_INVALID`
 - `INTENT_GRAPH_DIAGNOSTIC_INVALID`
 - `INTENT_GRAPH_TRUST_INVALID`
+- `INTENT_GRAPH_CONTEXT_INVALID`
 - `INTENT_GRAPH_EFFECT_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
 - `INTENT_GRAPH_APPROVAL_INVALID`
@@ -1705,12 +1720,17 @@ and every retention rule to include non-empty `raw`, `subject.raw`, and
 execution is considered.
 
 Context nodes carry the same structured source call data as `ContextDecl`:
-`source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Repo, doc,
-and file context nodes use trusted local trust metadata. Web context nodes and
-browser/page state use untrusted external trust metadata. Runtime validation
-requires every `Context` node trust record to carry zone `trusted`,
-`untrusted`, or `unknown`, a non-empty `source`, and an optional non-empty
-`argument`; malformed records emit `INTENT_GRAPH_TRUST_INVALID`.
+`source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Runtime
+validation treats `Context` nodes as non-executable source bindings: `source`
+and `expression` must be non-empty strings, `args`, `argKinds`, and `argSpans`
+must be objects, and every `argSpans` value must be a valid source span.
+Malformed context source records emit `INTENT_GRAPH_CONTEXT_INVALID` and make
+the graph non-executable. Repo, doc, and file context nodes use trusted local
+trust metadata. Web context nodes and browser/page state use untrusted external
+trust metadata. Runtime validation requires every `Context` node trust record to
+carry zone `trusted`, `untrusted`, or `unknown`, a non-empty `source`, and an
+optional non-empty `argument`; malformed trust records emit
+`INTENT_GRAPH_TRUST_INVALID`.
 
 Effect nodes carry normalized runtime adapter call data: `family`, `action`,
 `args`, `argKinds`, `argSpans`, `expression`, `approvalRequired`, and trust
