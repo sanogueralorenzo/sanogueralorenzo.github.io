@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 
 const DEFAULT_WORKER_INTERVAL_SECONDS: u64 = 30;
 const DEFAULT_PRECEDENT_TIMEOUT_MS: u64 = 5_000;
+const DEFAULT_PRECEDENT_VALIDATION_TIMEOUT_MS: u64 = 120_000;
 
 #[derive(Subcommand, Debug)]
 pub(super) enum WorkerCommand {
@@ -88,6 +89,17 @@ pub(super) struct WorkerLoopArgs {
     /// Comma-separated changed files passed to Precedent when ranking context
     #[arg(long = "precedent-changed-files", value_name = "FILES")]
     pub precedent_changed_files: Option<String>,
+
+    /// Optional validation command recorded as Precedent validation evidence after each codex exec
+    #[arg(long = "precedent-validation-command", value_name = "COMMAND")]
+    pub precedent_validation_command: Option<String>,
+
+    /// Timeout for --precedent-validation-command in milliseconds
+    #[arg(
+        long = "precedent-validation-timeout-ms",
+        default_value_t = DEFAULT_PRECEDENT_VALIDATION_TIMEOUT_MS
+    )]
+    pub precedent_validation_timeout_ms: u64,
 
     /// Precedent CLI entrypoint
     #[arg(
@@ -224,6 +236,7 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
             !args.stop_phrase.is_empty() && result.final_message.contains(&args.stop_phrase);
 
         if let Some(session_id) = turn.session_id.as_deref() {
+            run_and_record_precedent_validation(&cwd, &args, session_id);
             record_precedent_outcome(
                 &cwd,
                 &args,
@@ -273,6 +286,9 @@ fn validate_worker_loop_args(args: &WorkerLoopArgs) -> Result<()> {
         && max_iterations == 0
     {
         bail!("Invalid --max-iterations value: 0");
+    }
+    if args.precedent_validation_command.is_some() && args.precedent_validation_timeout_ms == 0 {
+        bail!("Invalid --precedent-validation-timeout-ms value: 0");
     }
     Ok(())
 }
@@ -532,6 +548,96 @@ fn record_precedent_outcome(
     }
 }
 
+fn run_and_record_precedent_validation(cwd: &Path, args: &WorkerLoopArgs, session_id: &str) {
+    let Some(command) = args.precedent_validation_command.as_deref() else {
+        return;
+    };
+    if command.trim().is_empty() {
+        return;
+    }
+
+    match run_precedent_validation_command(cwd, command, args.precedent_validation_timeout_ms) {
+        Ok(result) => {
+            if let Err(error) = record_precedent_validation(cwd, args, session_id, result) {
+                eprintln!("[precedent {session_id}] validation unavailable: {error}");
+            }
+        }
+        Err(error) => {
+            eprintln!("[precedent {session_id}] validation command unavailable: {error}");
+        }
+    }
+}
+
+struct PrecedentValidationResult {
+    command: String,
+    exit_code: i32,
+    duration_ms: u128,
+    stdout: String,
+    stderr: String,
+}
+
+fn run_precedent_validation_command(
+    cwd: &Path,
+    command: &str,
+    timeout_ms: u64,
+) -> Result<PrecedentValidationResult> {
+    let started = Instant::now();
+    let mut cmd = shell_command(command);
+    cmd.current_dir(cwd);
+    let output = output_with_timeout(cmd, None, Duration::from_millis(timeout_ms))?;
+    Ok(PrecedentValidationResult {
+        command: command.to_string(),
+        exit_code: output.status.code().unwrap_or(1),
+        duration_ms: started.elapsed().as_millis(),
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+    })
+}
+
+fn record_precedent_validation(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    result: PrecedentValidationResult,
+) -> Result<()> {
+    let state_dir = args
+        .precedent_state_dir
+        .as_ref()
+        .context("precedent state dir is not configured")?;
+    let mut cmd = precedent_command(cwd, &args.precedent_bin);
+    cmd.arg("hook");
+    cmd.arg("--state-dir");
+    cmd.arg(state_dir);
+    cmd.arg("--json");
+    let payload = json!({
+        "schema_version": "precedent.v1",
+        "hook": "validation.after_run",
+        "sessionId": session_id,
+        "command": result.command,
+        "exitCode": result.exit_code,
+        "durationMs": result.duration_ms,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+    });
+    let stdin =
+        serde_json::to_string(&payload).context("failed to serialize Precedent validation")?;
+    let output = output_with_timeout(
+        cmd,
+        Some(&stdin),
+        Duration::from_millis(DEFAULT_PRECEDENT_TIMEOUT_MS),
+    )
+    .context("validation hook command failed")?;
+    if !output.status.success() {
+        bail!(
+            "validation hook exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    Ok(())
+}
+
 fn try_record_precedent_outcome(
     cwd: &Path,
     args: &WorkerLoopArgs,
@@ -618,6 +724,24 @@ fn precedent_changed_files(args: &WorkerLoopArgs) -> Vec<String> {
         .collect()
 }
 
+fn shell_command(command: &str) -> Command {
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = Command::new("cmd");
+        cmd.arg("/C");
+        cmd.arg(command);
+        cmd
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c");
+        cmd.arg(command);
+        cmd
+    }
+}
+
 fn output_with_timeout(
     mut command: Command,
     stdin: Option<&str>,
@@ -686,8 +810,8 @@ fn unique_temp_file_path(prefix: &str, extension: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::{
-        WorkerLoopArgs, precedent_session_id, prompt_with_precedent_context, resolve_loop_prompt,
-        validate_worker_loop_args, worker_loop,
+        DEFAULT_PRECEDENT_VALIDATION_TIMEOUT_MS, WorkerLoopArgs, precedent_session_id,
+        prompt_with_precedent_context, resolve_loop_prompt, validate_worker_loop_args, worker_loop,
     };
     use std::env;
     use std::fs;
@@ -711,6 +835,8 @@ mod tests {
             precedent_state_dir: None,
             precedent_scope: None,
             precedent_changed_files: None,
+            precedent_validation_command: None,
+            precedent_validation_timeout_ms: DEFAULT_PRECEDENT_VALIDATION_TIMEOUT_MS,
             precedent_bin: PathBuf::from("precedent/bin/precedent.mjs"),
             codex_bin: PathBuf::from("codex"),
         }
@@ -725,6 +851,19 @@ mod tests {
             error
                 .to_string()
                 .contains("Invalid --interval-seconds value: 0")
+        );
+    }
+
+    #[test]
+    fn validate_worker_loop_args_rejects_zero_precedent_validation_timeout() {
+        let mut args = base_args();
+        args.precedent_validation_command = Some("cargo test".to_string());
+        args.precedent_validation_timeout_ms = 0;
+        let error = validate_worker_loop_args(&args).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Invalid --precedent-validation-timeout-ms value: 0")
         );
     }
 
@@ -987,6 +1126,80 @@ exit 2
         assert!(hook.contains(r#""success":false"#));
         assert!(hook.contains(r#""status":"codex_exec_failed""#));
         assert!(hook.contains("codex exploded"));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_records_precedent_validation_before_outcome() {
+        let dir = temp_test_dir("precedent-worker-validation");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let hooks_capture = dir.join("hooks.jsonl");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            r#"#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s' 'LOOP_DONE from fake codex' > "$out"
+"#,
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":""}}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  cat >> '{}'
+  printf '\n' >> '{}'
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                hooks_capture.display(),
+                hooks_capture.display()
+            ),
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.once = true;
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_validation_command =
+            Some("printf validate-out; printf validate-err >&2; exit 7".to_string());
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let hooks = fs::read_to_string(hooks_capture).unwrap();
+        let lines: Vec<&str> = hooks.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains(r#""hook":"validation.after_run""#));
+        assert!(
+            lines[0]
+                .contains(r#""command":"printf validate-out; printf validate-err >&2; exit 7""#)
+        );
+        assert!(lines[0].contains(r#""exitCode":7"#));
+        assert!(lines[0].contains(r#""stdout":"validate-out""#));
+        assert!(lines[0].contains(r#""stderr":"validate-err""#));
+        assert!(lines[1].contains(r#""hook":"outcome.after_task""#));
+        assert!(lines[1].contains(r#""success":true"#));
 
         let _ = fs::remove_dir_all(dir);
     }
