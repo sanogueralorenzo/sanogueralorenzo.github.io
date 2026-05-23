@@ -1600,6 +1600,16 @@ function validateGraph(graph, options = {}) {
   }
 
   for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Capability") {
+      continue;
+    }
+    const ownershipDiagnostic = validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
+    if (ownershipDiagnostic) {
+      diagnostics.push(ownershipDiagnostic);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
     if (graphNode.kind !== "Context") {
       continue;
     }
@@ -1876,6 +1886,30 @@ function validateGraphCapability(graphNode, graphSpan) {
     family_is_nonempty: familyIsNonempty,
     grants_is_array: grantsIsArray,
     approval_policy_is_valid: approvalPolicyIsValid,
+  });
+}
+
+function validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
+  const ownerGoalId = parentNodeId(graphNode.id, ":capability:");
+  const ownerGoal = ownerGoalId ? nodesById.get(ownerGoalId) : null;
+  if (ownerGoal?.kind !== "Goal") {
+    return null;
+  }
+  const authorizationEdges = (outgoingEdgesByNode.get(graphNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "authorizes");
+  const ownerGoalAuthorizationEdges = authorizationEdges.filter((graphEdge) => graphEdge.to === ownerGoalId);
+  const wrongGoalAuthorizationEdges = authorizationEdges.filter((graphEdge) => {
+    return graphEdge.to !== ownerGoalId && nodesById.get(graphEdge.to)?.kind === "Goal";
+  });
+  if (ownerGoalAuthorizationEdges.length === 1 && wrongGoalAuthorizationEdges.length === 0) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID", `capability '${graphNode.label}' must authorize its owning goal exactly once.`, graphNode.span ?? fallbackSpan, {
+    capability: graphNode.label,
+    capability_id: graphNode.id,
+    owner_goal_id: ownerGoalId,
+    authorizes_edges: authorizationEdges.length,
+    owner_goal_authorizes_edges: ownerGoalAuthorizationEdges.length,
+    wrong_goal_authorizes_edges: wrongGoalAuthorizationEdges.length,
   });
 }
 

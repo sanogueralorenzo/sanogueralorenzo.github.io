@@ -2139,6 +2139,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(5) },
       ],
       edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
@@ -2174,6 +2175,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:context:repo", kind: "informs" },
         { from: "goal:demo", to: "goal:demo:context:web", kind: "informs" },
         { from: "goal:demo", to: "goal:demo:context:documents", kind: "authorizes" },
+        { from: "goal:demo:capability:0", to: "goal:demo", kind: "authorizes" },
         { from: "goal:demo:capability:0", to: "goal:demo:context:authorized", kind: "authorizes" },
         { from: "goal:demo:context:documents", to: "goal:demo", kind: "informs" },
         { from: "goal:demo:context:authorized", to: "goal:demo", kind: "informs" },
@@ -2187,6 +2189,41 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].target_id, "goal:demo:context:documents");
     assert.equal(diagnostics[1].authorizes_edges, 1);
     assert.equal(diagnostics[1].capability_authorizes_edges, 0);
+  });
+
+  it("validates graph capability ownership authorization diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "goal:demo:capability:missing", kind: "Capability", label: "missing", span: testSpan(3) },
+        { id: "goal:demo:capability:wrong", kind: "Capability", label: "wrong", span: testSpan(4) },
+        { id: "goal:demo:capability:duplicate", kind: "Capability", label: "duplicate", span: testSpan(5) },
+        { id: "goal:demo:capability:valid", kind: "Capability", label: "valid", span: testSpan(6) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(7) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(8) },
+      ],
+      edges: [
+        { from: "goal:demo:capability:wrong", to: "goal:other", kind: "authorizes" },
+        { from: "goal:demo:capability:duplicate", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:duplicate", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:valid", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:valid", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].capability_id, "goal:demo:capability:missing");
+    assert.equal(diagnostics[0].authorizes_edges, 0);
+    assert.equal(diagnostics[0].owner_goal_authorizes_edges, 0);
+    assert.equal(diagnostics[1].capability_id, "goal:demo:capability:wrong");
+    assert.equal(diagnostics[1].authorizes_edges, 1);
+    assert.equal(diagnostics[1].owner_goal_authorizes_edges, 0);
+    assert.equal(diagnostics[1].wrong_goal_authorizes_edges, 1);
+    assert.equal(diagnostics[2].capability_id, "goal:demo:capability:duplicate");
+    assert.equal(diagnostics[2].authorizes_edges, 2);
+    assert.equal(diagnostics[2].owner_goal_authorizes_edges, 2);
   });
 
   it("validates graph context informs diagnostics", () => {
@@ -2230,6 +2267,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(6) },
       ],
       edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
@@ -2249,6 +2287,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(6) },
       ],
       edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
@@ -2392,6 +2431,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(11) },
       ],
       edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
@@ -2567,6 +2607,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(10), data: { policyKind: "retry" } },
       ],
       edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
