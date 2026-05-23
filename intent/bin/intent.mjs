@@ -1282,6 +1282,25 @@ function validateGraph(graph) {
   }
 
   for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Effect") {
+      continue;
+    }
+    const ownerStepId = parentNodeId(graphNode.id, ":effect:");
+    const ownerStep = ownerStepId ? nodesById.get(ownerStepId) : null;
+    const requestEdges = (incomingEdgesByNode.get(graphNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "requests");
+    const ownerStepRequestEdges = requestEdges.filter((graphEdge) => graphEdge.from === ownerStepId && ownerStep?.kind === "Step");
+    if (ownerStepRequestEdges.length !== 1 || requestEdges.length !== ownerStepRequestEdges.length) {
+      diagnostics.push(error("INTENT_GRAPH_EFFECT_REQUEST_INVALID", `effect '${graphNode.label}' must have exactly one incoming requests edge from its owning step.`, graphNode.span ?? fallbackSpan, {
+        effect: graphNode.label,
+        effect_id: graphNode.id,
+        owner_step_id: ownerStepId,
+        request_edges: requestEdges.length,
+        owner_step_request_edges: ownerStepRequestEdges.length,
+      }));
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
     if (!requiresCapabilityAuthorization(graphNode)) {
       continue;
     }

@@ -1106,10 +1106,12 @@ describe("intent static model CLI", () => {
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
         { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(3) },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
         { id: "goal:demo:verify:0", kind: "Check", label: "shell(\"npm test\")", span: testSpan(4), data: { effect: { family: "shell", action: "run" } } },
       ],
       edges: [
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
       ],
     });
@@ -1122,6 +1124,43 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].code, "INTENT_GRAPH_AUTHORIZATION_INVALID");
     assert.equal(diagnostics[1].target_id, "goal:demo:verify:0");
     assert.equal(diagnostics[1].authorizes_edges, 0);
+  });
+
+  it("validates graph effect request diagnostics", () => {
+    const missingDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
+      ],
+      edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+      ],
+    });
+    const wrongSourceDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "requests" },
+        { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+      ],
+    });
+
+    assert.equal(missingDiagnostics.length, 1);
+    assert.equal(missingDiagnostics[0].code, "INTENT_GRAPH_EFFECT_REQUEST_INVALID");
+    assert.equal(missingDiagnostics[0].request_edges, 0);
+    assert.equal(missingDiagnostics[0].owner_step_request_edges, 0);
+    assert.equal(wrongSourceDiagnostics.length, 1);
+    assert.equal(wrongSourceDiagnostics[0].code, "INTENT_GRAPH_EFFECT_REQUEST_INVALID");
+    assert.equal(wrongSourceDiagnostics[0].request_edges, 1);
+    assert.equal(wrongSourceDiagnostics[0].owner_step_request_edges, 0);
   });
 
   it("validates graph step attachment diagnostics", () => {
@@ -1139,6 +1178,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(9), data: { approvalRequired: true } },
       ],
       edges: [
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
       ],
     });
@@ -1236,6 +1276,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints" },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires" },
