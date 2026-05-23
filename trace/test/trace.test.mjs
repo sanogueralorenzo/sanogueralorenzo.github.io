@@ -502,6 +502,8 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(coveredPayload.skipped, 1);
     assert.deepEqual(coveredPayload.missingMemories, []);
     assert.deepEqual(coveredPayload.unsafeFiles, []);
+    assert.deepEqual(coveredPayload.invalidMemories, []);
+    assert.deepEqual(coveredPayload.redactionFindings, []);
     assert.deepEqual(coveredPayload.commits.map((commit) => commit.status), ["covered", "skipped"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
@@ -526,6 +528,36 @@ test("ci rejects unsafe raw transcript files in the project tree", async () => {
     const payload = JSON.parse(result.stdout);
     assert.equal(payload.ok, false);
     assert.ok(payload.unsafeFiles.includes(".trace/sessions/leak.jsonl"));
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("ci rejects malformed or unredacted committed memories", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "unsafe-memory.txt"), "unsafe\n");
+    await git(repo, ["add", "unsafe-memory.txt"]);
+    await git(repo, ["commit", "-m", "Add unsafe memory target"]);
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["capture", "--event", "prompt", "--message", "unsafe memory ci"]);
+    await runTrace(repo, ["record", "--validation", "node --test"]);
+
+    const sha = (await git(repo, ["rev-parse", "HEAD"])).stdout.trim();
+    const memoryPath = join(repo, ".trace/commits", sha.slice(0, 2), `${sha}.md`);
+    await writeFile(memoryPath, `${await readFile(memoryPath, "utf8")}\ntoken=visible-secret\n`);
+    await git(repo, ["add", ".trace"]);
+    await git(repo, ["commit", "-m", "Commit unsafe Trace memory"]);
+
+    const result = await runTraceAllowFailure(repo, ["ci", "HEAD~1"]);
+    assert.equal(result.exitCode, 1);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.ok, false);
+    assert.deepEqual(payload.missingMemories, []);
+    assert.ok(payload.redactionFindings.some((finding) => finding.rule === "secret-assignment"));
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

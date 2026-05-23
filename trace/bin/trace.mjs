@@ -415,7 +415,12 @@ async function buildCoverageReport(root, range) {
 
   const traceFiles = (await git(["ls-files", "-co", "--exclude-standard", "--", TRACE_DIR], { cwd: root })).split("\n").filter(Boolean);
   const unsafeFiles = traceFiles.filter(isUnsafeTracePath);
-  const ok = missingMemories.length === 0 && unsafeFiles.length === 0;
+  const memoryAudit = await auditMemoryFiles(root);
+  const redaction = await redactionAudit(root);
+  const ok = missingMemories.length === 0
+    && unsafeFiles.length === 0
+    && memoryAudit.invalidMemories.length === 0
+    && redaction.findings.length === 0;
   const memoryTotal = coveredMemories.length + missingMemories.length;
   return {
     ok,
@@ -429,6 +434,8 @@ async function buildCoverageReport(root, range) {
     coveredMemories,
     missingMemories,
     unsafeFiles,
+    invalidMemories: memoryAudit.invalidMemories,
+    redactionFindings: redaction.findings,
   };
 }
 
