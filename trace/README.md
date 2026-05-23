@@ -50,6 +50,8 @@ The current CLI is intentionally small and local-first:
 
 ```shell
 ./trace/install.sh
+./trace/install.sh --update
+./trace/install.sh --uninstall
 trace init
 trace enable
 trace agent add codex
@@ -105,6 +107,8 @@ printf '{"session_id":"abc","agent":"codex","prompt":"why this task exists"}' \
 ```
 
 The hook accepts JSON or plain text on stdin and records it into the local raw session store. Specific agent adapters can later translate Claude, Codex, Gemini, or other hook payloads into the same event shape without changing the memory format.
+
+`trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, and `--uninstall` removes it.
 
 `trace agent add codex`, `trace agent add claude-code`, and `trace agent add generic` create small local adapter specs under `.trace/agents/`. The specs document the command an agent integration should call:
 
