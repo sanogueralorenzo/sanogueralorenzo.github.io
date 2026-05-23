@@ -25,6 +25,8 @@ The replacement evidence is complete only when the replacement `packageVersion` 
 
 Both audit files include `retention.policy: jury.package_release_retention.v1`. The policy requires maintainers to promote temporary `jury-package-dry-run` and `jury-package-release-evidence` CI artifacts into the release record or incident archive before the 90-day artifact expiry.
 
+Both audit files also include `retention.provenance` for the retained CI artifacts. Provenance records the GitHub Actions source, `jury-npm-publish.yml` workflow, run id, source revision, source job, `retentionDays: 90`, and uploaded file list for `jury-package-dry-run` and `jury-package-release-evidence`.
+
 Retain the failed and replacement evidence until at least 180 days after replacement downstream verification passes. The replacement audit depends on the failed `packageVersion`, failed `tarballName`, failed downstream gate, rollback audit, replacement npm metadata, replacement downstream gate, and failed-version deprecation result.
 
 ## Validation

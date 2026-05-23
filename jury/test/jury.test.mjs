@@ -583,6 +583,8 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("jury-package-dry-run"));
   assert.ok(readme.includes("retention-days: 90"));
   assert.ok(readme.includes("at least 180 days after replacement downstream verification passes"));
+  assert.ok(readme.includes("retained artifact provenance"));
+  assert.ok(readme.includes("source revision"));
   assert.ok(readme.includes("NODE_AUTH_TOKEN"));
   assert.ok(readme.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(readme.includes("dry_run_reviewer"));
@@ -774,6 +776,9 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.ok(readme.includes("npm --prefix jury run fixtures:package-release:check"));
   assert.ok(readme.includes("downstream verification passes"));
   assert.ok(readme.includes("jury.package_release_retention.v1"));
+  assert.ok(readme.includes("retention.provenance"));
+  assert.ok(readme.includes("source revision"));
+  assert.ok(readme.includes("retentionDays: 90"));
   assert.ok(readme.includes("90-day artifact expiry"));
   assert.ok(readme.includes("180 days after replacement downstream verification passes"));
   for (const target of linkedTargets) {
@@ -789,6 +794,21 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.equal(replacementAudit.retention.storage, "release record or incident archive");
   assert.equal(rollbackAudit.retention.retainUntil, "180 days after replacement downstream verification passes");
   assert.equal(replacementAudit.retention.retainUntil, "180 days after replacement downstream verification passes");
+  assert.equal(rollbackAudit.retention.provenance.source, "github-actions");
+  assert.equal(replacementAudit.retention.provenance.source, "github-actions");
+  assert.equal(rollbackAudit.retention.provenance.workflow, "jury-npm-publish.yml");
+  assert.equal(replacementAudit.retention.provenance.workflow, "jury-npm-publish.yml");
+  assert.equal(rollbackAudit.retention.provenance.runId, replacementAudit.retention.provenance.runId);
+  assert.equal(rollbackAudit.retention.provenance.sourceRevision, replacementAudit.retention.provenance.sourceRevision);
+  const rollbackProvenance = new Map(rollbackAudit.retention.provenance.artifacts.map((artifact) => [artifact.name, artifact]));
+  const replacementProvenance = new Map(replacementAudit.retention.provenance.artifacts.map((artifact) => [artifact.name, artifact]));
+  assert.equal(rollbackProvenance.get("jury-package-dry-run").sourceJob, "dry-run-publication");
+  assert.equal(rollbackProvenance.get("jury-package-dry-run").retentionDays, 90);
+  assert.ok(rollbackProvenance.get("jury-package-dry-run").files.includes("jury-pack-dry-run-record.json"));
+  assert.equal(replacementProvenance.get("jury-package-release-evidence").sourceJob, "package-release-fixtures");
+  assert.equal(replacementProvenance.get("jury-package-release-evidence").retentionDays, 90);
+  assert.ok(replacementProvenance.get("jury-package-release-evidence").files.includes("downstream-failure-gate.json"));
+  assert.ok(replacementProvenance.get("jury-package-release-evidence").files.includes("replacement-patch-audit.json"));
   assert.ok(rollbackAudit.retention.artifacts.includes("jury-package-dry-run"));
   assert.ok(rollbackAudit.retention.artifacts.includes("jury-package-release-evidence"));
   assert.ok(rollbackAudit.retention.artifacts.includes("downstream-failure-gate.json"));
@@ -869,6 +889,31 @@ test("package release evidence fixtures cover rollback and replacement audits", 
     assert.equal(invalidStorageCheck.exitCode, 1);
     assert.match(invalidStorageCheck.stderr, /replacement-patch-audit\.json\.retention\.storage must equal release record or incident archive/);
     assert.match(invalidStorageCheck.stderr, /replacement retention storage must be release record or incident archive/);
+
+    await rm(copiedFixtureDir, { recursive: true, force: true });
+    await cp(ciPackageReleaseFixturesDir, copiedFixtureDir, { recursive: true });
+    const invalidProvenanceAuditPath = join(copiedFixtureDir, "replacement-patch-audit.json");
+    const invalidProvenanceAudit = JSON.parse(await readFile(invalidProvenanceAuditPath, "utf8"));
+    const evidenceArtifact = invalidProvenanceAudit.retention.provenance.artifacts.find((artifact) => artifact.name === "jury-package-release-evidence");
+    evidenceArtifact.files = evidenceArtifact.files.filter((file) => file !== "replacement-downstream-gate.json");
+    await writeFile(invalidProvenanceAuditPath, `${JSON.stringify(invalidProvenanceAudit, null, 2)}\n`);
+
+    const invalidProvenanceCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(copiedFixtureDir)}`);
+    assert.equal(invalidProvenanceCheck.exitCode, 1);
+    assert.match(invalidProvenanceCheck.stderr, /replacement retention provenance jury-package-release-evidence must include replacement-downstream-gate\.json/);
+
+    await rm(copiedFixtureDir, { recursive: true, force: true });
+    await cp(ciPackageReleaseFixturesDir, copiedFixtureDir, { recursive: true });
+    const mismatchedProvenanceAuditPath = join(copiedFixtureDir, "replacement-patch-audit.json");
+    const mismatchedProvenanceAudit = JSON.parse(await readFile(mismatchedProvenanceAuditPath, "utf8"));
+    mismatchedProvenanceAudit.retention.provenance.runId = "different-release-run";
+    mismatchedProvenanceAudit.retention.provenance.sourceRevision = "different-release-revision";
+    await writeFile(mismatchedProvenanceAuditPath, `${JSON.stringify(mismatchedProvenanceAudit, null, 2)}\n`);
+
+    const mismatchedProvenanceCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(copiedFixtureDir)}`);
+    assert.equal(mismatchedProvenanceCheck.exitCode, 1);
+    assert.match(mismatchedProvenanceCheck.stderr, /rollback and replacement retention provenance runId must match/);
+    assert.match(mismatchedProvenanceCheck.stderr, /rollback and replacement retention provenance sourceRevision must match/);
   } finally {
     await rm(invalidDir, { recursive: true, force: true });
   }
@@ -1371,6 +1416,12 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("Release Evidence Retention Policy"));
   assert.ok(publicationNotes.includes("release record or incident archive"));
   assert.ok(publicationNotes.includes("180 days after replacement downstream verification passes"));
+  assert.ok(publicationNotes.includes("artifact provenance"));
+  assert.ok(publicationNotes.includes("github-actions"));
+  assert.ok(publicationNotes.includes("jury-npm-publish.yml"));
+  assert.ok(publicationNotes.includes("source revision"));
+  assert.ok(publicationNotes.includes("run id"));
+  assert.ok(publicationNotes.includes("retentionDays: 90"));
   assert.ok(publicationNotes.includes("dry-run-publication"));
   assert.ok(publicationNotes.includes("package-release-fixtures"));
   assert.ok(publicationNotes.includes("before any publication dry run"));
@@ -2281,10 +2332,17 @@ test("review bundle schema references the stable record schemas", async () => {
   assert.deepEqual(packageReleaseEvidenceSchema.required, ["schema_version", "audit_type", "package", "failed", "retention"]);
   assert.deepEqual(packageReleaseEvidenceSchema.properties.audit_type.enum, ["failed-publication-rollback", "replacement-patch-supersedence"]);
   assert.deepEqual(packageReleaseEvidenceSchema.properties.failed.required, ["packageVersion", "tarballName", "dryRunRecord", "npmView"]);
-  assert.deepEqual(packageReleaseEvidenceSchema.properties.retention.required, ["policy", "storage", "retainUntil", "artifacts"]);
+  assert.deepEqual(packageReleaseEvidenceSchema.properties.retention.required, ["policy", "storage", "retainUntil", "artifacts", "provenance"]);
   assert.equal(packageReleaseEvidenceSchema.properties.retention.properties.policy.const, "jury.package_release_retention.v1");
   assert.equal(packageReleaseEvidenceSchema.properties.retention.properties.storage.const, "release record or incident archive");
   assert.equal(packageReleaseEvidenceSchema.properties.retention.properties.artifacts.minItems, 1);
+  const retentionProvenance = packageReleaseEvidenceSchema.properties.retention.properties.provenance;
+  assert.deepEqual(retentionProvenance.required, ["source", "workflow", "runId", "sourceRevision", "artifacts"]);
+  assert.equal(retentionProvenance.properties.source.const, "github-actions");
+  assert.equal(retentionProvenance.properties.workflow.const, "jury-npm-publish.yml");
+  assert.deepEqual(retentionProvenance.properties.artifacts.items.required, ["name", "sourceJob", "retentionDays", "files"]);
+  assert.deepEqual(retentionProvenance.properties.artifacts.items.properties.name.enum, ["jury-package-dry-run", "jury-package-release-evidence"]);
+  assert.equal(retentionProvenance.properties.artifacts.items.properties.retentionDays.const, 90);
   assert.deepEqual(packageReleaseEvidenceSchema.properties.deprecation.required, ["attempted", "allowed", "command", "result"]);
   assert.deepEqual(packageReleaseEvidenceSchema.properties.replacement.required, ["packageVersion", "npmView", "distTarball", "downstreamGate"]);
   assert.equal(packageReleaseEvidenceSchema.properties.checks.minItems, 1);
@@ -2392,6 +2450,8 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("replacement downstream verification pass"));
   assert.ok(checklist.includes("failed-version deprecation result"));
   assert.ok(checklist.includes("Promote failed and replacement release evidence"));
+  assert.ok(checklist.includes("Record retained artifact provenance"));
+  assert.ok(checklist.includes("workflow run and source revision"));
   assert.ok(checklist.includes("180 days after replacement downstream verification passes"));
   assert.ok(checklist.includes("package publication rollback evidence"));
   assert.ok(checklist.includes("fixtures:package-release:check"));
@@ -2502,6 +2562,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /dry-run publication artifact handoff/);
   assert.match(handoff, /dry-run artifact retention expectations/);
   assert.match(handoff, /package release evidence retention policy for failed and replacement release artifacts/);
+  assert.match(handoff, /package release artifact provenance checks for retained failed and replacement evidence/);
+  assert.match(handoff, /retentionDays: 90/);
+  assert.match(handoff, /source revision/);
   assert.match(handoff, /90 days/);
   assert.match(handoff, /180 days after replacement downstream verification passes/);
   assert.match(handoff, /post-publication package metadata comparison guidance/);
@@ -2528,7 +2591,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /package release artifact provenance checks for retained failed and replacement evidence/);
+  assert.match(handoff, /retained package release evidence manifest export for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

@@ -35,11 +35,15 @@ npm --prefix jury run package:manifest:check
 npm --prefix jury run fixtures:package-release:check
 ```
 
-The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, package release artifact provenance checks for retained failed and replacement evidence, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
-Package release evidence retention now defines temporary CI artifact retention and long-term release record expectations for failed and replacement releases. `jury-package-dry-run` and `jury-package-release-evidence` stay available as CI artifacts for 90 days, while failed/replacement evidence must be promoted to the release record or incident archive until at least 180 days after replacement downstream verification passes.
+Package release artifact provenance checks now require retained failed and replacement evidence to record the GitHub Actions source, `jury-npm-publish.yml` workflow, run id, source revision, source jobs, `retentionDays: 90`, and uploaded file list for `jury-package-dry-run` and `jury-package-release-evidence`.
+
+## Retention Policy
+
+Package release evidence retention defines temporary CI artifact retention and long-term release record expectations for failed and replacement releases. `jury-package-dry-run` and `jury-package-release-evidence` stay available as CI artifacts for 90 days, while failed/replacement evidence must be promoted to the release record or incident archive until at least 180 days after replacement downstream verification passes.
 
 ## Replay Troubleshooting
 
@@ -63,4 +67,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add package release artifact provenance checks for retained failed and replacement evidence.
+Add retained package release evidence manifest export for failed and replacement release archives.

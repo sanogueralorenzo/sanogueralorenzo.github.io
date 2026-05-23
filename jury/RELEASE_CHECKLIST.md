@@ -27,6 +27,8 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] If downstream verification fails after publication, keep retained dry-run artifacts, mark the version failed, and ship a later patch version instead of republishing the same version.
 - [ ] For replacement patches after failed publication, record the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, replacement downstream verification pass, and failed-version deprecation result when available.
 - [ ] Promote failed and replacement release evidence from temporary CI artifacts into the release record or incident archive before the 90-day artifact expiry.
+- [ ] Record retained artifact provenance for `jury-package-dry-run` and `jury-package-release-evidence`: source workflow, run id, source revision, source job, `retentionDays`, and uploaded file list.
+- [ ] Confirm retained failed and replacement evidence comes from the same `jury-npm-publish.yml` workflow run and source revision before closing the release.
 - [ ] Retain promoted failed and replacement release evidence until at least 180 days after replacement downstream verification passes.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when the dry-run artifact is stale or mismatched.
 - [ ] Store the npm publish token as `secrets.NPM_TOKEN` with scope limited to publishing `@sanogueralorenzo/jury`.

@@ -138,6 +138,14 @@ function validateSchemaObject(schemaNode, value, path, errors) {
     errors.push(`${path} must be a boolean`);
   }
 
+  if (type === "number" && typeof value !== "number") {
+    errors.push(`${path} must be a number`);
+  }
+
+  if (type === "integer" && (!Number.isInteger(value))) {
+    errors.push(`${path} must be an integer`);
+  }
+
   if (schemaNode.const !== undefined && value !== schemaNode.const) {
     errors.push(`${path} must equal ${schemaNode.const}`);
   }
@@ -212,6 +220,7 @@ function relationshipErrors() {
   if (rollback.retention?.storage !== "release record or incident archive") {
     errors.push("rollback retention storage must be release record or incident archive");
   }
+  errors.push(...retentionProvenanceErrors(rollback, "rollback"));
   if (replacement.failed.packageVersion !== failedRecord.packageVersion) {
     errors.push("replacement audit failed packageVersion must match dry-run record");
   }
@@ -257,6 +266,75 @@ function relationshipErrors() {
   }
   if (replacement.retention?.storage !== "release record or incident archive") {
     errors.push("replacement retention storage must be release record or incident archive");
+  }
+  errors.push(...retentionProvenanceErrors(replacement, "replacement"));
+  if (rollback.retention?.provenance?.runId !== replacement.retention?.provenance?.runId) {
+    errors.push("rollback and replacement retention provenance runId must match");
+  }
+  if (rollback.retention?.provenance?.sourceRevision !== replacement.retention?.provenance?.sourceRevision) {
+    errors.push("rollback and replacement retention provenance sourceRevision must match");
+  }
+
+  return errors;
+}
+
+function retentionProvenanceErrors(audit, label) {
+  const errors = [];
+  const provenance = audit.retention?.provenance;
+  const artifactMap = new Map((provenance?.artifacts ?? []).map((artifact) => [artifact.name, artifact]));
+
+  if (provenance?.source !== "github-actions") {
+    errors.push(`${label} retention provenance source must be github-actions`);
+  }
+  if (provenance?.workflow !== "jury-npm-publish.yml") {
+    errors.push(`${label} retention provenance workflow must be jury-npm-publish.yml`);
+  }
+  if (!provenance?.runId) {
+    errors.push(`${label} retention provenance runId is required`);
+  }
+  if (!provenance?.sourceRevision) {
+    errors.push(`${label} retention provenance sourceRevision is required`);
+  }
+
+  for (const [artifactName, sourceJob, requiredFiles] of [
+    ["jury-package-dry-run", "dry-run-publication", ["jury-pack-dry-run.json", "jury-pack-dry-run-record.json"]],
+    ["jury-package-release-evidence", "package-release-fixtures", [
+      "README.md",
+      "jury-pack-dry-run-record.json",
+      "failed-npm-view.json",
+      "downstream-failure-gate.json",
+      "rollback-audit.json",
+      "replacement-npm-view.json",
+      "replacement-downstream-gate.json",
+      "replacement-patch-audit.json",
+    ]],
+  ]) {
+    const artifact = artifactMap.get(artifactName);
+    if (!artifact) {
+      errors.push(`${label} retention provenance must include ${artifactName}`);
+      continue;
+    }
+    if (artifact.sourceJob !== sourceJob) {
+      errors.push(`${label} retention provenance ${artifactName} sourceJob must be ${sourceJob}`);
+    }
+    if (artifact.retentionDays !== 90) {
+      errors.push(`${label} retention provenance ${artifactName} retentionDays must be 90`);
+    }
+    for (const file of requiredFiles) {
+      if (!artifact.files?.includes(file)) {
+        errors.push(`${label} retention provenance ${artifactName} must include ${file}`);
+      }
+    }
+  }
+
+  const provenanceFiles = new Set([...artifactMap.values()].flatMap((artifact) => artifact.files ?? []));
+  for (const retained of audit.retention?.artifacts ?? []) {
+    if (retained === "GITHUB_STEP_SUMMARY" || artifactMap.has(retained)) {
+      continue;
+    }
+    if (!provenanceFiles.has(retained)) {
+      errors.push(`${label} retained artifact ${retained} must be listed in retention provenance files`);
+    }
   }
 
   return errors;

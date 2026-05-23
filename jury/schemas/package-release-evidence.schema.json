@@ -24,7 +24,7 @@
     },
     "retention": {
       "type": "object",
-      "required": ["policy", "storage", "retainUntil", "artifacts"],
+      "required": ["policy", "storage", "retainUntil", "artifacts", "provenance"],
       "properties": {
         "policy": { "const": "jury.package_release_retention.v1" },
         "storage": { "const": "release record or incident archive" },
@@ -33,6 +33,38 @@
           "type": "array",
           "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
+        },
+        "provenance": {
+          "type": "object",
+          "required": ["source", "workflow", "runId", "sourceRevision", "artifacts"],
+          "properties": {
+            "source": { "const": "github-actions" },
+            "workflow": { "const": "jury-npm-publish.yml" },
+            "runId": { "type": "string", "minLength": 1 },
+            "sourceRevision": { "type": "string", "minLength": 1 },
+            "artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["name", "sourceJob", "retentionDays", "files"],
+                "properties": {
+                  "name": {
+                    "enum": ["jury-package-dry-run", "jury-package-release-evidence"]
+                  },
+                  "sourceJob": { "type": "string", "minLength": 1 },
+                  "retentionDays": { "const": 90 },
+                  "files": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "type": "string", "minLength": 1 }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

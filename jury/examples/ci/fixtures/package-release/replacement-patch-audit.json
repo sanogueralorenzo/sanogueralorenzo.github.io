@@ -24,7 +24,39 @@
       "replacement-downstream-gate.json",
       "replacement-patch-audit.json",
       "GITHUB_STEP_SUMMARY"
-    ]
+    ],
+    "provenance": {
+      "source": "github-actions",
+      "workflow": "jury-npm-publish.yml",
+      "runId": "example-release-run-1001",
+      "sourceRevision": "example-release-revision",
+      "artifacts": [
+        {
+          "name": "jury-package-dry-run",
+          "sourceJob": "dry-run-publication",
+          "retentionDays": 90,
+          "files": [
+            "jury-pack-dry-run.json",
+            "jury-pack-dry-run-record.json"
+          ]
+        },
+        {
+          "name": "jury-package-release-evidence",
+          "sourceJob": "package-release-fixtures",
+          "retentionDays": 90,
+          "files": [
+            "README.md",
+            "jury-pack-dry-run-record.json",
+            "failed-npm-view.json",
+            "downstream-failure-gate.json",
+            "rollback-audit.json",
+            "replacement-npm-view.json",
+            "replacement-downstream-gate.json",
+            "replacement-patch-audit.json"
+          ]
+        }
+      ]
+    }
   },
   "replacement": {
     "packageVersion": "0.1.1",
