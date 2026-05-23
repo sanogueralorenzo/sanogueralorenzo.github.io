@@ -51,6 +51,10 @@ Type declarations are line-based in the first prototype. The optional
 definition is preserved as raw text and is not parsed into record fields,
 aliases, enum cases, or generic parameters yet.
 
+Goal signature params are goal inputs. The parser preserves their source order,
+names, types, and spans so the checker can emit graph input nodes and data
+dependency edges.
+
 ## Goal Blocks
 
 ```ebnf
@@ -84,7 +88,7 @@ Step declarations are signatures only for the first milestone. Step bodies,
 effect bodies, retries, timeouts, and execution statements are out of scope.
 Step input names are local to the step signature; the checker binds inputs by
 matching their type against goal inputs and previous step outputs in source
-order.
+order. Each step param becomes a step input port in the checked graph.
 
 ## Expressions
 
@@ -167,6 +171,15 @@ The parser emits names and type reference strings; the checker owns binding.
   are `INTENT_TYPE_UNRESOLVED`.
 - Step inputs that cannot bind to a goal input or earlier step output with the
   same normalized type are `INTENT_STEP_INPUT_UNRESOLVED`.
+- Goal params become `input` graph nodes with goal scope.
+- Step params become `input` graph nodes with step scope.
+- A bound step input creates a `data` edge from the matching goal input or
+  earlier step output to that step input node.
+- Each step input node creates a `requires` edge to its owning step.
+- Every goal emits one `completion` graph node.
+- Required `verify` checks create `verifies` edges to the completion node,
+  applicable `invariant` rules create `guards` edges, and the last step in
+  source order creates a `produces` edge.
 
 ## Whitespace And Comments
 

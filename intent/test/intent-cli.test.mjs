@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 const CLI = new URL("../bin/intent.mjs", import.meta.url).pathname;
 const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import.meta.url).pathname;
+const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.intent", import.meta.url).pathname;
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
@@ -38,10 +39,13 @@ describe("intent static model CLI", () => {
 
   it("accepts valid fixtures", () => {
     const codeChange = runJson(["check", VALID_CODE_CHANGE]);
+    const dependencyGraph = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const research = runJson(["check", VALID_RESEARCH]);
 
     assert.equal(codeChange.ok, true);
     assert.deepEqual(codeChange.diagnostics, []);
+    assert.equal(dependencyGraph.ok, true);
+    assert.deepEqual(dependencyGraph.diagnostics, []);
     assert.equal(research.ok, true);
     assert.deepEqual(research.diagnostics, []);
   });
@@ -133,5 +137,20 @@ describe("intent static model CLI", () => {
     assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => grant.value === "npm test")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "plans"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "gates"), true);
+  });
+
+  it("emits explicit data dependencies and completion gates", () => {
+    const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
+    const kinds = new Set(graph.nodes.map((node) => node.kind));
+
+    assert.equal(graph.ok, true);
+    assert.equal(kinds.has("Input"), true);
+    assert.equal(kinds.has("Completion"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "GoalRequest"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Finding"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Patch"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "verifies" && edge.to.endsWith(":completion")), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.to.endsWith(":completion")), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "produces" && edge.to.endsWith(":completion")), true);
   });
 });

@@ -133,6 +133,18 @@ plan in source order.
 - If no prior value has the required type, the checker emits
   `INTENT_STEP_INPUT_UNRESOLVED`.
 
+Every successful binding is also emitted as graph data dependency:
+
+- Each goal input becomes an `input` graph node with `scope: "goal"`.
+- Each step input becomes an `input` graph node with `scope: "step"` and the
+  owning step id.
+- A step input bound to a goal input creates a `data` edge from the goal input
+  node to the step input node.
+- A step input bound to an earlier step output creates a `data` edge from the
+  producing step node to the step input node.
+- A step input node creates a `requires` edge to its owning step, so execution
+  waits for the bound value before the step can run.
+
 ## Effect Call Arguments
 
 The parser extracts simple effect calls from expression text so the checker can
@@ -260,8 +272,17 @@ node id. It is an intermediate contract for a local runtime, not a public API.
       "id": "goal.ship_checkout_fix",
       "kind": "goal",
       "name": "ship_checkout_fix",
-      "inputs": [{ "name": "ticket", "type": "TicketRef" }],
       "output": { "type": "PullRequest" },
+      "source_id": "ast.4",
+      "span": "loc.4"
+    },
+    {
+      "id": "input.goal.ship_checkout_fix.ticket",
+      "kind": "input",
+      "scope": "goal",
+      "owner": "goal.ship_checkout_fix",
+      "name": "ticket",
+      "type": "TicketRef",
       "source_id": "ast.4",
       "span": "loc.4"
     },
@@ -275,12 +296,40 @@ node id. It is an intermediate contract for a local runtime, not a public API.
       "span": "loc.7"
     },
     {
+      "id": "step.prepare_patch",
+      "kind": "step",
+      "name": "prepare_patch",
+      "output": { "type": "GitDiff" },
+      "effects": ["FileRead"],
+      "source_id": "ast.12",
+      "span": "loc.12"
+    },
+    {
+      "id": "input.step.prepare_patch.ticket",
+      "kind": "input",
+      "scope": "step",
+      "owner": "step.prepare_patch",
+      "name": "ticket",
+      "type": "TicketRef",
+      "source_id": "ast.12",
+      "span": "loc.12"
+    },
+    {
       "id": "step.run_tests",
       "kind": "step",
       "name": "run_tests",
-      "inputs": [{ "name": "patch", "type": "GitDiff" }],
       "output": { "type": "ShellExecResult" },
       "effects": ["ShellExec"],
+      "source_id": "ast.15",
+      "span": "loc.15"
+    },
+    {
+      "id": "input.step.run_tests.patch",
+      "kind": "input",
+      "scope": "step",
+      "owner": "step.run_tests",
+      "name": "patch",
+      "type": "GitDiff",
       "source_id": "ast.15",
       "span": "loc.15"
     },
@@ -291,11 +340,34 @@ node id. It is an intermediate contract for a local runtime, not a public API.
       "predicate": "run_tests.exit_code == 0",
       "source_id": "ast.19",
       "span": "loc.19"
+    },
+    {
+      "id": "completion.ship_checkout_fix",
+      "kind": "completion",
+      "owner": "goal.ship_checkout_fix",
+      "output": { "type": "PullRequest" },
+      "source_id": "ast.4",
+      "span": "loc.4"
     }
   ],
   "edges": [
     {
-      "from": "goal.ship_checkout_fix",
+      "from": "input.goal.ship_checkout_fix.ticket",
+      "to": "input.step.prepare_patch.ticket",
+      "kind": "data"
+    },
+    {
+      "from": "input.step.prepare_patch.ticket",
+      "to": "step.prepare_patch",
+      "kind": "requires"
+    },
+    {
+      "from": "step.prepare_patch",
+      "to": "input.step.run_tests.patch",
+      "kind": "data"
+    },
+    {
+      "from": "input.step.run_tests.patch",
       "to": "step.run_tests",
       "kind": "requires"
     },
@@ -309,17 +381,47 @@ node id. It is an intermediate contract for a local runtime, not a public API.
       "from": "step.run_tests",
       "to": "check.tests_pass",
       "kind": "verifies"
+    },
+    {
+      "from": "check.tests_pass",
+      "to": "completion.ship_checkout_fix",
+      "kind": "verifies"
+    },
+    {
+      "from": "step.run_tests",
+      "to": "completion.ship_checkout_fix",
+      "kind": "produces"
+    },
+    {
+      "from": "goal.ship_checkout_fix",
+      "to": "completion.ship_checkout_fix",
+      "kind": "completes"
     }
   ],
   "diagnostics": []
 }
 ```
 
-Required node kinds are `goal`, `context`, `capability`, `memory`, `step`,
-`effect`, `check`, `invariant`, `approval`, `checkpoint`, and `completion`.
+Required node kinds are `goal`, `input`, `context`, `capability`, `memory`,
+`step`, `effect`, `check`, `invariant`, `approval`, `checkpoint`, and
+`completion`.
 
-Required edge kinds are `requires`, `produces`, `authorizes`, `verifies`,
-`guards`, `approves`, `checkpoints`, and `completes`.
+Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
+`verifies`, `guards`, `gates`, `approves`, `checkpoints`, and `completes`.
+
+Input nodes make data dependencies explicit. Goal inputs are external values
+available at goal start. Step inputs are required value ports for one step. A
+step input must have exactly one incoming `data` edge from either a goal input
+node or an earlier producing step. If multiple prior values have the same type,
+the checker selects the nearest prior value in source order and emits the chosen
+edge deterministically.
+
+Each goal has exactly one `completion` node. The goal creates a `completes` edge
+to the completion node. Required checks create `verifies` edges to completion.
+Invariants that apply to the goal create `guards` edges to completion. The last
+executable step in the plan creates a `produces` edge to completion. Completion
+is reachable only when all incoming completion edges have succeeded or remained
+unviolated.
 
 The runtime must treat the graph as authoritative: it may execute only graph
 nodes, may invoke only authorized effects, must preserve guard and approval

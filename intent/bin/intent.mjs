@@ -572,8 +572,20 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
     nodes.push(node(goalId, "Goal", goal.name, goal.span, {
       title: goal.title,
+      parameters: goal.parameters,
       outputType: goal.outputType,
     }));
+
+    const producersByType = new Map();
+    for (const parameter of goal.parameters) {
+      const inputId = `${goalId}:input:${parameter.name}`;
+      nodes.push(node(inputId, "Input", parameter.name, goal.span, {
+        scope: "goal",
+        type: parameter.type,
+      }));
+      edges.push(edge(inputId, goalId, "supplies"));
+      addProducer(producersByType, parameter.type, inputId);
+    }
 
     for (const [index, context] of goal.context.entries()) {
       const id = `${goalId}:context:${index}`;
@@ -601,9 +613,11 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     }
 
     let previousStepId = null;
+    let lastStepId = null;
     for (const [index, step] of goal.steps.entries()) {
       const id = `${goalId}:step:${step.name || index}`;
       nodes.push(node(id, "Step", step.name, step.span, {
+        inputs: step.parameters,
         outputType: step.outputType,
         effects: step.effects.map((effect) => effect.name),
       }));
@@ -612,6 +626,27 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         edges.push(edge(previousStepId, id, "precedes"));
       }
       previousStepId = id;
+      lastStepId = id;
+
+      for (const parameter of step.parameters) {
+        const stepInputId = `${id}:input:${parameter.name}`;
+        nodes.push(node(stepInputId, "Input", parameter.name, step.span, {
+          scope: "step",
+          type: parameter.type,
+        }));
+        edges.push(edge(stepInputId, id, "requires", {
+          parameter: parameter.name,
+          type: normalizeTypeRef(parameter.type),
+        }));
+
+        const producerId = latestProducer(producersByType, parameter.type);
+        if (producerId) {
+          edges.push(edge(producerId, stepInputId, "data", {
+            parameter: parameter.name,
+            type: normalizeTypeRef(parameter.type),
+          }));
+        }
+      }
 
       for (const [effectIndex, effectUse] of step.effects.entries()) {
         const effectId = `${id}:effect:${effectIndex}`;
@@ -628,12 +663,26 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           }
         }
       }
+
+      addProducer(producersByType, step.outputType, id);
+    }
+
+    const completionId = `${goalId}:completion`;
+    nodes.push(node(completionId, "Completion", goal.name, goal.span, {
+      outputType: goal.outputType,
+    }));
+    edges.push(edge(goalId, completionId, "completes"));
+    if (lastStepId) {
+      edges.push(edge(lastStepId, completionId, "produces", {
+        type: normalizeTypeRef(goal.steps.at(-1)?.outputType),
+      }));
     }
 
     for (const [index, check] of goal.verify.entries()) {
       const id = `${goalId}:verify:${index}`;
       nodes.push(node(id, "Check", check.value, check.span));
       edges.push(edge(id, goalId, "gates"));
+      edges.push(edge(id, completionId, "verifies"));
     }
 
     for (const [index, invariant] of goal.invariants.entries()) {
@@ -642,6 +691,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         assertion: invariant.kind,
       }));
       edges.push(edge(id, goalId, "constrains"));
+      edges.push(edge(id, completionId, "guards"));
     }
   }
 
@@ -722,6 +772,21 @@ function parseCallArgs(text) {
 
 function normalizeTypeRef(typeRef) {
   return typeRef ? typeRef.replace(/\s+/g, "") : null;
+}
+
+function addProducer(producersByType, typeRef, nodeId) {
+  const normalized = normalizeTypeRef(typeRef);
+  if (!normalized) {
+    return;
+  }
+  const producers = producersByType.get(normalized) ?? [];
+  producers.push(nodeId);
+  producersByType.set(normalized, producers);
+}
+
+function latestProducer(producersByType, typeRef) {
+  const producers = producersByType.get(normalizeTypeRef(typeRef));
+  return producers?.at(-1) ?? null;
 }
 
 function collectBlock(lines, startIndex, file) {
@@ -812,8 +877,8 @@ function node(id, kind, label, nodeSpan, data = {}) {
   };
 }
 
-function edge(from, to, kind) {
-  return { from, to, kind };
+function edge(from, to, kind, data = undefined) {
+  return data ? { from, to, kind, data } : { from, to, kind };
 }
 
 function parseError(file, lineNumber, raw, message) {
