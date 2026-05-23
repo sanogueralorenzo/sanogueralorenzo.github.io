@@ -1166,6 +1166,7 @@ function validateGraph(graph) {
   const outgoing = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
   const incomingDataCounts = new Map();
   const incomingCompletionEdges = new Map();
+  const guardTargetsByInvariant = new Map();
 
   for (const graphEdge of graph.edges) {
     const missing = ["from", "to"].filter((endpoint) => !nodesById.has(graphEdge[endpoint]));
@@ -1183,6 +1184,11 @@ function validateGraph(graph) {
       const completionEdges = incomingCompletionEdges.get(graphEdge.to) ?? [];
       completionEdges.push(graphEdge);
       incomingCompletionEdges.set(graphEdge.to, completionEdges);
+    }
+    if (graphEdge.kind === "guards" && nodesById.get(graphEdge.from)?.kind === "Invariant") {
+      const guardTargets = guardTargetsByInvariant.get(graphEdge.from) ?? new Set();
+      guardTargets.add(graphEdge.to);
+      guardTargetsByInvariant.set(graphEdge.from, guardTargets);
     }
     if (graphEdge.kind === "data") {
       const sourceNode = nodesById.get(graphEdge.from);
@@ -1225,6 +1231,25 @@ function validateGraph(graph) {
         verifies_edges: verifyingEdges.length,
         guards_edges: guardingEdges.length,
         expected_guard_edges: expectedGuardEdges,
+      }));
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Invariant") {
+      continue;
+    }
+    const goalId = invariantGoalId(graphNode.id);
+    if (!goalId) {
+      continue;
+    }
+    const guardedTargets = guardTargetsByInvariant.get(graphNode.id) ?? new Set();
+    const missingGuardTargets = invariantGuardTargetIds(graph.nodes, goalId).filter((targetId) => !guardedTargets.has(targetId));
+    if (missingGuardTargets.length > 0) {
+      diagnostics.push(error("INTENT_GRAPH_GUARD_INVALID", `invariant '${graphNode.label}' must guard completion and step-scoped effect, checkpoint, and requirement nodes.`, graphNode.span ?? fallbackSpan, {
+        invariant: graphNode.label,
+        invariant_id: graphNode.id,
+        missing_guard_targets: missingGuardTargets,
       }));
     }
   }
@@ -1275,6 +1300,29 @@ function validateGraph(graph) {
   }
 
   return diagnostics;
+}
+
+function invariantGoalId(invariantId) {
+  const marker = ":invariant:";
+  const markerIndex = invariantId.indexOf(marker);
+  return markerIndex === -1 ? null : invariantId.slice(0, markerIndex);
+}
+
+function invariantGuardTargetIds(nodes, goalId) {
+  const completionId = `${goalId}:completion`;
+  return nodes
+    .filter((candidate) => {
+      if (candidate.id === completionId) {
+        return true;
+      }
+      if (!candidate.id.startsWith(`${goalId}:step:`)) {
+        return false;
+      }
+      return candidate.kind === "Effect"
+        || candidate.kind === "Checkpoint"
+        || (candidate.kind === "Check" && candidate.data?.scope === "step");
+    })
+    .map((candidate) => candidate.id);
 }
 
 function edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan) {

@@ -1157,6 +1157,37 @@ describe("intent static model CLI", () => {
     assert.equal(missingVerifyAndGuardDiagnostics[0].expected_guard_edges, 1);
   });
 
+  it("validates graph invariant guard diagnostics", () => {
+    const diagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4) },
+        { id: "goal:demo:invariant:0", kind: "Invariant", label: "deny secret write", span: testSpan(5) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(6) },
+        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(7) },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(8), data: { scope: "step" } },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
+      ],
+    });
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_GUARD_INVALID");
+    assert.equal(diagnostics[0].invariant_id, "goal:demo:invariant:0");
+    assert.deepEqual(diagnostics[0].missing_guard_targets, [
+      "goal:demo:step:patch:effect:0",
+      "goal:demo:step:patch:checkpoint:0",
+      "goal:demo:step:patch:requirement:0",
+    ]);
+  });
+
   it("validates CLI outputs against versioned schemas", () => {
     const astSchema = readJson(AST_SCHEMA);
     const checkSchema = readJson(CHECK_SCHEMA);
