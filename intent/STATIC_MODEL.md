@@ -117,7 +117,8 @@ Rules:
 - Goal header parameters and step header parameters keep `span` on the
   parameter object itself.
 - Goal and step output type tokens keep `outputTypeSpan` alongside
-  `outputType`; it is `null` when no output type is declared.
+  `outputType`; it is required in AST and graph payloads and is `null` when no
+  output type is declared.
 - Goal, Step, and Completion graph node data carry the same
   `outputTypeSpan` so diagnostics can point at the exact declared output type
   instead of the wider node span.
@@ -572,7 +573,8 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_COMPLETION_INVALID`, and missing step attachment edges remain
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
-  and `end` positions with positive integer `line` and `column` values.
+  and `end` positions with positive integer `line` and `column` values plus
+  zero-based UTF-8 byte `offset` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
   depend on source locations.
 - Runtime trust metadata is part of graph validation. `Context` and `Effect`

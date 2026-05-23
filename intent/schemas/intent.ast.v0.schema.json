@@ -70,7 +70,7 @@
     },
     "position": {
       "type": "object",
-      "required": ["line", "column"],
+      "required": ["line", "column", "offset"],
       "additionalProperties": false,
       "properties": {
         "line": {
@@ -162,6 +162,7 @@
         "title",
         "parameters",
         "outputType",
+        "outputTypeSpan",
         "context",
         "capabilities",
         "memory",
@@ -528,7 +529,7 @@
     },
     "step": {
       "type": "object",
-      "required": ["kind", "name", "parameters", "outputType", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses", "span"],
+      "required": ["kind", "name", "parameters", "outputType", "outputTypeSpan", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {

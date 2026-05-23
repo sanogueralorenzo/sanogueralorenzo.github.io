@@ -329,7 +329,8 @@ Validation expectations:
   `INTENT_GRAPH_COMPLETION_INVALID`, and missing step attachment edges remain
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
-  and `end` positions with positive integer `line` and `column` values.
+  and `end` positions with positive integer `line` and `column` values plus
+  zero-based UTF-8 byte `offset` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
   depend on source locations.
 - Runtime trust metadata is part of graph validation. `Context` and `Effect`

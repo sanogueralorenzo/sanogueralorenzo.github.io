@@ -163,7 +163,9 @@ function isPosition(value) {
     && Number.isInteger(value.line)
     && value.line >= 1
     && Number.isInteger(value.column)
-    && value.column >= 1;
+    && value.column >= 1
+    && Number.isInteger(value.offset)
+    && value.offset >= 0;
 }
 
 function graphSourceFile(graph) {
@@ -4118,6 +4120,9 @@ function span(file, startLine, startColumn, endLine = startLine, endColumn = sta
   if (lineOffsets) {
     start.offset = offsetFor(lineOffsets, startLine, startColumn);
     end.offset = offsetFor(lineOffsets, endLine, endColumn);
+  } else {
+    start.offset = Math.max(startColumn - 1, 0);
+    end.offset = Math.max(endColumn - 1, start.offset);
   }
   return {
     file: normalizedFile,
@@ -4127,17 +4132,27 @@ function span(file, startLine, startColumn, endLine = startLine, endColumn = sta
 }
 
 function computeLineOffsets(source) {
-  const offsets = [0];
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === "\n") {
-      offsets.push(index + 1);
-    }
+  const starts = [0];
+  const lines = [];
+  let lineStartIndex = 0;
+  let nextLineStartOffset = 0;
+  const newlinePattern = /\r\n|\n|\r/g;
+  for (const match of source.matchAll(newlinePattern)) {
+    const line = source.slice(lineStartIndex, match.index);
+    const segment = source.slice(lineStartIndex, match.index + match[0].length);
+    lines.push(line);
+    nextLineStartOffset += Buffer.byteLength(segment, "utf8");
+    starts.push(nextLineStartOffset);
+    lineStartIndex = match.index + match[0].length;
   }
-  return offsets;
+  lines.push(source.slice(lineStartIndex));
+  return { starts, lines };
 }
 
-function offsetFor(lineOffsets, line, column) {
-  return (lineOffsets[line - 1] ?? 0) + column - 1;
+function offsetFor(lineOffsetData, line, column) {
+  const lineText = lineOffsetData.lines[line - 1] ?? "";
+  const prefix = lineText.slice(0, Math.max(column - 1, 0));
+  return (lineOffsetData.starts[line - 1] ?? 0) + Buffer.byteLength(prefix, "utf8");
 }
 
 function lastColumn(lines) {

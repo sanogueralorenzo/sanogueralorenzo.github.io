@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { validateGraph } from "../bin/intent.mjs";
 
@@ -485,6 +487,39 @@ describe("intent static model CLI", () => {
     assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[0].access, "read");
     assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[1].access, "cite");
     assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[1].key, "decisions");
+  });
+
+  it("emits UTF-8 byte offsets in parsed source spans", () => {
+    const dir = mkdtempSync(join(tmpdir(), "intent-utf8-"));
+    const file = join(dir, "utf8.intent");
+    const sourceLines = [
+      "package fixtures.utf8_offsets",
+      "type Cafe = caf\\u00e9",
+      "goal utf8_offsets() -> Cafe {",
+      "  context repo(\"./\")",
+      "  plan {",
+      "    step emit -> Cafe",
+      "  }",
+      "  verify {",
+      "    require no_policy_violations",
+      "  }",
+      "}",
+    ];
+    const source = sourceLines.join("\n").replace("\\u00e9", "\u00e9");
+    writeFileSync(file, source, "utf8");
+
+    try {
+      const ast = runJson(["parse", file]);
+      const expectedGoalOffset = Buffer.byteLength(`${sourceLines[0]}\n${sourceLines[1].replace("\\u00e9", "\u00e9")}\n`, "utf8");
+      const goalCodeUnitOffset = source.indexOf("goal utf8_offsets");
+      const contextCodeUnitOffset = source.indexOf("repo(\"./\")") + "repo(".length;
+
+      assert.equal(ast.goals[0].span.start.offset, expectedGoalOffset);
+      assert.equal(ast.goals[0].context[0].argSpans._0.start.offset, Buffer.byteLength(source.slice(0, contextCodeUnitOffset), "utf8"));
+      assert(ast.goals[0].span.start.offset > goalCodeUnitOffset);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("accepts valid fixtures", () => {
@@ -3876,12 +3911,61 @@ describe("intent static model CLI", () => {
     assert(trustErrors.includes("$defs.trust.argument length must be >= 1"));
   });
 
-  it("requires graph output type spans in the schema", () => {
+  it("requires source offsets in the schemas", () => {
+    const astSchema = readJson(AST_SCHEMA);
+    const checkSchema = readJson(CHECK_SCHEMA);
     const graphSchema = readJson(GRAPH_SCHEMA);
+    const astErrors = [];
+    const checkErrors = [];
+    const graphErrors = [];
+
+    validateAgainst(astSchema.$defs.position, { line: 1, column: 1 }, astSchema, "$defs.position", astErrors);
+    validateAgainst(checkSchema.$defs.position, { line: 1, column: 1 }, checkSchema, "$defs.position", checkErrors);
+    validateAgainst(graphSchema.$defs.position, { line: 1, column: 1 }, graphSchema, "$defs.position", graphErrors);
+
+    assert(astErrors.includes("$defs.position.offset is required"));
+    assert(checkErrors.includes("$defs.position.offset is required"));
+    assert(graphErrors.includes("$defs.position.offset is required"));
+  });
+
+  it("requires output type spans in AST and graph schemas", () => {
+    const astSchema = readJson(AST_SCHEMA);
+    const graphSchema = readJson(GRAPH_SCHEMA);
+    const astGoalErrors = [];
+    const astStepErrors = [];
     const goalErrors = [];
     const stepErrors = [];
     const completionErrors = [];
 
+    validateAgainst(astSchema.$defs.goal, {
+      kind: "Goal",
+      name: "demo",
+      title: null,
+      parameters: [],
+      outputType: null,
+      context: [],
+      capabilities: [],
+      memory: [],
+      steps: [],
+      verify: [],
+      invariants: [],
+      rawBlocks: [],
+      span: testSpan(1),
+    }, astSchema, "$defs.goal", astGoalErrors);
+    validateAgainst(astSchema.$defs.step, {
+      kind: "Step",
+      name: "patch",
+      parameters: [],
+      outputType: null,
+      effects: [],
+      requirements: [],
+      checkpoints: [],
+      approvals: [],
+      timeouts: [],
+      retries: [],
+      memoryAccesses: [],
+      span: testSpan(2),
+    }, astSchema, "$defs.step", astStepErrors);
     validateAgainst(graphSchema.$defs.goal_node, {
       id: "goal:demo",
       kind: "Goal",
@@ -3904,6 +3988,8 @@ describe("intent static model CLI", () => {
       data: { outputType: null },
     }, graphSchema, "$defs.completion_node", completionErrors);
 
+    assert(astGoalErrors.includes("$defs.goal.outputTypeSpan is required"));
+    assert(astStepErrors.includes("$defs.step.outputTypeSpan is required"));
     assert(goalErrors.includes("$defs.goal_node.data.outputTypeSpan is required"));
     assert(stepErrors.includes("$defs.step_node.data.outputTypeSpan is required"));
     assert(completionErrors.includes("$defs.completion_node.data.outputTypeSpan is required"));

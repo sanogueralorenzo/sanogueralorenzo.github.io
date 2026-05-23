@@ -52,7 +52,7 @@
     },
     "position": {
       "type": "object",
-      "required": ["line", "column"],
+      "required": ["line", "column", "offset"],
       "additionalProperties": false,
       "properties": {
         "line": {
