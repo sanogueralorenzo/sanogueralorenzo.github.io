@@ -128,6 +128,62 @@ test("warrant can bind to an already delivered context receipt", async () => {
   }
 });
 
+test("warrant can bind to a delivered turn receipt", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "conversation.before_turn",
+      sessionId: "turn-bound-session",
+      eventId: "turn-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{ role: "user", content: "Add webhook handler." }],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "turn-bound-session",
+      eventId: "turn-1:context.after_inject",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      turnId: beforeTurn.turnId,
+      contextBlockHash: beforeTurn.contextBlockHash,
+      inserted: true,
+    });
+
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "turn-bound-session",
+      "--event-id",
+      "turn-1-warrant",
+      "--delivery-id",
+      beforeTurn.deliveryReceipt.deliveryId,
+      "--turn-id",
+      beforeTurn.turnId,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    assert.equal(warrant.turnId, beforeTurn.turnId);
+    assert.equal(warrant.turnReceipt.turnId, beforeTurn.turnId);
+    assert.equal(warrant.turnReceipt.deliveryId, beforeTurn.deliveryReceipt.deliveryId);
+    assert.equal(warrant.deliveryAck.status, "accepted");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("warrant rejects unacknowledged delivery receipts", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
 

@@ -288,6 +288,58 @@ test("report surfaces unknown delivery receipt wiring", async () => {
   }
 });
 
+test("report surfaces unknown and unacknowledged turn wiring", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const turn = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "conversation.before_turn",
+      sessionId: "turn-wire-session",
+      eventId: "turn-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{ role: "user", content: "Add webhook handler." }],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "turn-wire-session",
+      eventId: "validation-1",
+      deliveryId: turn.deliveryReceipt.deliveryId,
+      turnId: turn.turnId,
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "turn-wire-session",
+      eventId: "diff-1",
+      turnId: "turn_missing",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const runtimeCheck = payload.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(report.runtimeWiringHealth.unknownTurnIds, 1);
+    assert.equal(report.runtimeWiringHealth.details.unknownTurnIds[0].turnId, "turn_missing");
+    assert.equal(report.runtimeWiringHealth.unackedTurnUses, 1);
+    assert.equal(report.runtimeWiringHealth.details.unackedTurnUses[0].turnId, turn.turnId);
+    assert.equal(result.exitCode, 1);
+    assert.equal(runtimeCheck.ok, false);
+    assert.equal(runtimeCheck.unknownTurnIds, 1);
+    assert.equal(runtimeCheck.unackedTurnUses, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("strict check fails session hooks without stable event ids", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

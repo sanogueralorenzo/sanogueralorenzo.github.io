@@ -1157,9 +1157,14 @@ test("conversation before-turn observes messages and returns one ackable context
     assert.equal(turn.deliveryReceipt.sessionId, "composite");
     assert.equal(turn.deliveryReceipt.eventId, "turn-1");
     assert.equal(turn.deliveryReceipt.contextBlockHash, turn.contextBlockHash);
+    assert.match(turn.turnId, /^turn_[a-f0-9]+$/u);
+    assert.equal(turn.turnReceipt.turnId, turn.turnId);
+    assert.equal(turn.turnReceipt.deliveryId, turn.deliveryReceipt.deliveryId);
+    assert.equal(turn.deliveryReceipt.turnId, turn.turnId);
     assert.deepEqual(turn.deliveryReceipt.injectedPrecedentIds, ["prec_webhook_replay_boundary"]);
     assert.deepEqual(turn.attributedPrecedents, ["prec_webhook_replay_boundary"]);
     assert.equal(retry.deliveryReceipt.deliveryId, turn.deliveryReceipt.deliveryId);
+    assert.equal(retry.turnId, turn.turnId);
 
     const sessionEvents = await readJsonLines(join(stateDir, "sessions/composite.jsonl"));
     assert.equal(sessionEvents.length, 1);
@@ -1169,6 +1174,7 @@ test("conversation before-turn observes messages and returns one ackable context
     const resumed = await runPrecedent(["resume", "--state-dir", stateDir, "--session", "composite", "--json"]);
     assert.equal(resumed.source, "pending_delivery");
     assert.equal(resumed.pendingDelivery.deliveryId, turn.deliveryReceipt.deliveryId);
+    assert.equal(resumed.pendingDelivery.turnId, turn.turnId);
     assert.equal(resumed.contextBlock, turn.contextBlock);
 
     const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
@@ -1177,13 +1183,64 @@ test("conversation before-turn observes messages and returns one ackable context
       sessionId: "composite",
       eventId: "turn-1:context.after_inject",
       deliveryId: turn.deliveryReceipt.deliveryId,
+      turnId: turn.turnId,
       contextBlockHash: turn.contextBlockHash,
       inserted: true,
     });
     assert.equal(ack.contextInjectionAck.status, "accepted");
+    assert.equal(ack.contextInjectionAck.turnId, turn.turnId);
 
     const strict = await runPrecedent(["check", "--state-dir", stateDir, "--strict", "--json"]);
     assert.equal(strict.ok, true);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("context after-inject rejects mismatched turn ids", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const traceOut = join(stateDir, "webhook-replay-trace.json");
+    await runPrecedent([
+      "replay",
+      "--state-dir",
+      stateDir,
+      "--case",
+      "precedent/examples/replay/webhook-case.json",
+      "--trace-out",
+      traceOut,
+      "--json",
+    ]);
+    await runPrecedent(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
+
+    const turn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.before_turn",
+      sessionId: "turn-mismatch",
+      eventId: "turn-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{ role: "user", content: "Add webhook handler." }],
+    });
+
+    const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "turn-mismatch",
+      eventId: "turn-1:context.after_inject",
+      deliveryId: turn.deliveryReceipt.deliveryId,
+      turnId: "turn_wrong",
+      contextBlockHash: turn.contextBlockHash,
+      inserted: true,
+    });
+
+    assert.equal(ack.contextInjectionAck.status, "turn_mismatch");
+    assert.equal(ack.contextInjectionAck.expectedTurnId, turn.turnId);
+    assert.equal(ack.contextInjectionAck.ackTurnId, "turn_wrong");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

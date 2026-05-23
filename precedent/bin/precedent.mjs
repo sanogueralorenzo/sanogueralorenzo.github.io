@@ -594,6 +594,7 @@ async function issueWarrant() {
   const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
   const explicitDeliveryId = stringOrNull(args["delivery-id"]);
+  const explicitTurnId = stringOrNull(args["turn-id"]);
   let payload = null;
 
   await withStateLock(stateDir, async () => {
@@ -618,6 +619,8 @@ async function issueWarrant() {
     let candidateHints = [];
     let deliveryReceipt = null;
     let deliveryAck = null;
+    let turnId = explicitTurnId;
+    let turnReceipt = null;
 
     if (explicitDeliveryId) {
       deliveryReceipt = await findDeliveryReceipt(stateDir, explicitDeliveryId);
@@ -631,6 +634,7 @@ async function issueWarrant() {
       if (deliveryAck?.status !== "accepted") {
         fail(`warrant --delivery-id is not accepted by context.after_inject: ${deliveryAck?.status ?? "missing_ack"}`);
       }
+      turnId = turnId ?? deliveryAck.turnId ?? deliveryReceipt.turnId ?? null;
       matches = precedentsForDeliveryReceipt(precedents, deliveryReceipt);
     } else {
       const replayAuditSelected = await suppressReplayAuditInjections({
@@ -665,6 +669,19 @@ async function issueWarrant() {
         issuedAt,
       });
     }
+    if (turnId) {
+      turnReceipt = await findTurnReceipt(stateDir, turnId, sessionId);
+      if (!turnReceipt) {
+        fail(`warrant --turn-id references unknown turn: ${turnId}`);
+      }
+      if (explicitDeliveryId && turnReceipt.deliveryId && turnReceipt.deliveryId !== explicitDeliveryId) {
+        fail(`warrant --turn-id delivery mismatch: ${turnReceipt.deliveryId} !== ${explicitDeliveryId}`);
+      }
+      const turnAck = turnReceipt.deliveryId ? await findContextInjectionAck(stateDir, turnReceipt.deliveryId, sessionId) : null;
+      if (turnReceipt.deliveryId && turnAck?.status !== "accepted") {
+        fail(`warrant --turn-id is not accepted by context.after_inject: ${turnAck?.status ?? "missing_ack"}`);
+      }
+    }
     const warrant = warrantForContext({
       sessionId,
       eventId,
@@ -675,6 +692,8 @@ async function issueWarrant() {
       candidateHints,
       deliveryReceipt,
       deliveryAck,
+      turnId,
+      turnReceipt,
       turnDirectives,
     });
     const sessionEvent = await appendSessionEvent(stateDir, {
@@ -690,6 +709,8 @@ async function issueWarrant() {
       warrant,
       deliveryReceipt,
       deliveryAck,
+      turnId,
+      turnReceipt,
       turnDirectives,
     });
 
@@ -1323,6 +1344,7 @@ async function latestPendingContextDelivery(stateDir, sessionId) {
     }
 
     const contextBlockText = event.contextBlock ?? event.contextPayload?.contextBlock ?? "";
+    const turnReceipt = eventTurnReceipt(event);
     return {
       deliveryId: receipt.deliveryId,
       eventId: receipt.eventId ?? event.eventId ?? null,
@@ -1330,6 +1352,8 @@ async function latestPendingContextDelivery(stateDir, sessionId) {
       contextBlock: contextBlockText,
       contextBlockHash: receipt.contextBlockHash ?? contextBlockHash(contextBlockText),
       deliveryReceipt: receipt,
+      turnId: turnReceipt?.turnId ?? null,
+      turnReceipt,
       ackStatus: ack?.status ?? "missing_ack",
     };
   }
@@ -2100,6 +2124,7 @@ async function contextAfterInjectEventHook(event) {
   const sessionId = requireString(event.sessionId, "event.sessionId");
   const eventId = hookEventId(event);
   const deliveryId = requireString(event.deliveryId, "event.deliveryId");
+  const ackTurnId = stringOrNull(event.turnId);
   const inserted = hookBoolean(event.inserted, "event.inserted", true);
   const receivedHash = stringOrNull(event.contextBlockHash);
   let injectionAck = null;
@@ -2108,10 +2133,13 @@ async function contextAfterInjectEventHook(event) {
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const receipt = await findDeliveryReceipt(stateDir, deliveryId);
+    const turnReceipt = receipt ? await findTurnReceiptForDelivery(stateDir, deliveryId, sessionId) : null;
     injectionAck = contextInjectionAckFor({
       deliveryId,
       receipt,
+      turnReceipt,
       sessionId,
+      turnId: ackTurnId,
       inserted,
       contextBlockHash: receivedHash,
       reason: stringOrNull(event.reason),
@@ -2123,6 +2151,7 @@ async function contextAfterInjectEventHook(event) {
       sessionId,
       ...eventIdField(eventId),
       deliveryId,
+      turnId: injectionAck.turnId ?? ackTurnId,
       inserted,
       contextBlockHash: receivedHash,
       reason: stringOrNull(event.reason),
@@ -2137,6 +2166,7 @@ async function contextAfterInjectEventHook(event) {
         sessionId,
         ...eventIdField(eventId),
         deliveryId,
+        turnId: injectionAck.turnId ?? ackTurnId,
         contextInjectionAck: injectionAck,
       });
     } else {
@@ -2152,6 +2182,7 @@ async function contextAfterInjectEventHook(event) {
     deduped: sessionEvent.deduped,
     sessionEventPath: sessionEvent.path,
     deliveryId,
+    turnId: injectionAck.turnId ?? ackTurnId,
     contextInjectionAck: injectionAck,
   });
 }
@@ -2206,6 +2237,7 @@ async function validationAfterRunEventHook(event) {
       failureSignals,
       deliveryId: stringOrNull(event.deliveryId),
       warrantId: stringOrNull(event.warrantId),
+      turnId: stringOrNull(event.turnId),
       warrantResult,
       stdout: typeof event.stdout === "string" ? event.stdout : "",
       stderr: typeof event.stderr === "string" ? event.stderr : "",
@@ -2231,6 +2263,7 @@ async function validationAfterRunEventHook(event) {
         promotionTrials,
         deliveryId: stringOrNull(event.deliveryId),
         warrantId: stringOrNull(event.warrantId),
+        turnId: stringOrNull(event.turnId),
         warrantResult,
       });
     }
@@ -2519,6 +2552,16 @@ async function conversationBeforeTurnEventHook(event) {
       contextBlock,
       issuedAt: observedAt,
     });
+    const turnReceipt = turnReceiptFor({
+      sessionId,
+      eventId,
+      deliveryReceipt,
+      contextBlockHash: contextHash,
+      issuedAt: observedAt,
+    });
+    if (deliveryReceipt && turnReceipt) {
+      deliveryReceipt.turnId = turnReceipt.turnId;
+    }
     const injections = matches.map(formatInjection);
     const observation = {
       messages,
@@ -2566,6 +2609,8 @@ async function conversationBeforeTurnEventHook(event) {
       contextBlock,
       contextBlockHash: contextHash,
       deliveryReceipt,
+      turnId: turnReceipt?.turnId ?? null,
+      turnReceipt,
       attributedPrecedents: deliveryReceipt?.injectedPrecedentIds ?? matches.map((match) => match.id),
     };
     const hookEvent = {
@@ -2607,6 +2652,8 @@ async function conversationBeforeTurnEventHook(event) {
       contextBlock,
       contextBlockHash: contextHash,
       deliveryReceipt,
+      turnId: turnReceipt?.turnId ?? null,
+      turnReceipt,
       contextPayload: {
         ...payload,
         recorded: true,
@@ -2682,6 +2729,7 @@ async function diffAfterEditEventHook(event) {
       breadthSignals,
       deliveryId: stringOrNull(event.deliveryId),
       warrantId: stringOrNull(event.warrantId),
+      turnId: stringOrNull(event.turnId),
       warrantResult,
       guardResult,
       repairPrompt,
@@ -2701,6 +2749,7 @@ async function diffAfterEditEventHook(event) {
         repairPrompt,
         deliveryId: stringOrNull(event.deliveryId),
         warrantId: stringOrNull(event.warrantId),
+        turnId: stringOrNull(event.turnId),
         warrantResult,
       });
     }
@@ -2764,6 +2813,7 @@ async function finalizeBeforeResponseEventHook(event) {
       ...eventIdField(eventId),
       deliveryId: stringOrNull(event.deliveryId),
       warrantId: warrant?.warrantId ?? stringOrNull(event.warrantId),
+      turnId: stringOrNull(event.turnId),
       finalization,
       contextBlock,
     });
@@ -2777,6 +2827,7 @@ async function finalizeBeforeResponseEventHook(event) {
         ...eventIdField(eventId),
         deliveryId: stringOrNull(event.deliveryId),
         warrantId: warrant?.warrantId ?? stringOrNull(event.warrantId),
+        turnId: stringOrNull(event.turnId),
         finalization,
         contextBlock,
       });
@@ -2892,6 +2943,7 @@ async function outcomeAfterTaskEventHook(event) {
       attributedPrecedents: activePrecedentIds,
       deliveryId: stringOrNull(event.deliveryId),
       warrantId: stringOrNull(event.warrantId),
+      turnId: stringOrNull(event.turnId),
       warrantStatus,
       finalizationCompliance,
       precedent: event.precedent ?? null,
@@ -2917,6 +2969,7 @@ async function outcomeAfterTaskEventHook(event) {
         attributedPrecedents: activePrecedentIds,
         deliveryId: stringOrNull(event.deliveryId),
         warrantId: stringOrNull(event.warrantId),
+        turnId: stringOrNull(event.turnId),
         warrantStatus,
         finalizationCompliance: sessionEvent.event.finalizationCompliance,
       });
@@ -3465,6 +3518,8 @@ function buildManifest(runtime, stateDir) {
     "$EVENT_ID",
     "--delivery-id",
     "$DELIVERY_ID",
+    "--turn-id",
+    "$TURN_ID",
     "--task-file",
     "$TASK_FILE",
     "--scope",
@@ -3536,8 +3591,8 @@ function buildManifest(runtime, stateDir) {
       },
       "context.after_inject": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "contextBlockHash", "inserted", "reason"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "contextInjectionAck"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "contextBlockHash", "inserted", "reason"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "turnId", "contextInjectionAck"],
         timeoutMs,
         failurePolicy,
       },
@@ -3552,21 +3607,21 @@ function buildManifest(runtime, stateDir) {
       "conversation.before_turn": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message", "limit", "threshold", "allowRepeat", "includeStale"],
-        output: ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "attributedPrecedents"],
+        output: ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "turnId", "turnReceipt", "attributedPrecedents"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
       },
       "validation.after_run": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
         output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "warrantResult", "promotionTrials", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
       "diff.after_edit": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
         output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "diff", "guardResult", "warrantResult", "repairPrompt", "contextBlock"],
         timeoutMs,
         failurePolicy,
@@ -3580,7 +3635,7 @@ function buildManifest(runtime, stateDir) {
       },
       "finalize.before_response": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "attributedPrecedents"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "attributedPrecedents"],
         output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "decision", "nextAction", "finalization", "contextBlock"],
         injectFrom: "contextBlock",
         timeoutMs,
@@ -3588,7 +3643,7 @@ function buildManifest(runtime, stateDir) {
       },
       "outcome.after_task": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "outcome"],
         timeoutMs,
         failurePolicy,
@@ -3636,7 +3691,7 @@ function buildManifest(runtime, stateDir) {
       "warrant.issue": {
         command: warrantCommand,
         stdin: [],
-        output: ["schema_version", "ok", "warrantId", "sessionId", "eventId", "allowed", "requiredEvidence", "forbidden", "sources", "status", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "ok", "warrantId", "sessionId", "eventId", "allowed", "requiredEvidence", "forbidden", "sources", "status", "turnId", "turnReceipt", "recorded", "deduped", "sessionEventPath"],
         timeoutMs,
         failurePolicy,
       },
@@ -3723,7 +3778,7 @@ async function attachRuntime() {
     stateDirArg,
     "--json",
   ];
-  const conversationBeforeTurnOutput = ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "attributedPrecedents"];
+  const conversationBeforeTurnOutput = ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "turnId", "turnReceipt", "attributedPrecedents"];
   const warrantCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -3736,6 +3791,8 @@ async function attachRuntime() {
     "$EVENT_ID",
     "--delivery-id",
     "$DELIVERY_ID",
+    "--turn-id",
+    "$TURN_ID",
     ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
     ...(scope ? ["--scope", scope] : []),
     ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
@@ -3936,13 +3993,14 @@ async function attachRuntime() {
       },
       afterInject: {
         command: hookCommand,
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "contextInjectionAck"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "turnId", "contextInjectionAck"],
         stdin: {
           schema_version: SCHEMA_VERSION,
           hook: "context.after_inject",
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          turnId: "$TURN_ID",
           contextBlockHash: "$CONTEXT_BLOCK_HASH",
           inserted: "$INSERTED",
           reason: "$REASON",
@@ -3985,7 +4043,7 @@ async function attachRuntime() {
       warrant: {
         command: warrantCommand,
         eventId: "$EVENT_ID",
-        output: ["schema_version", "ok", "warrantId", "allowed", "requiredEvidence", "forbidden", "sources", "status", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "ok", "warrantId", "allowed", "requiredEvidence", "forbidden", "sources", "status", "turnId", "turnReceipt", "recorded", "deduped", "sessionEventPath"],
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -3998,6 +4056,7 @@ async function attachRuntime() {
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          turnId: "$TURN_ID",
           warrantId: "$WARRANT_ID",
           command: "$COMMAND",
           exitCode: "$EXIT_CODE",
@@ -4017,6 +4076,7 @@ async function attachRuntime() {
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          turnId: "$TURN_ID",
           warrantId: "$WARRANT_ID",
           changedFiles: "$CHANGED_FILES",
           linesAdded: "$LINES_ADDED",
@@ -4050,6 +4110,7 @@ async function attachRuntime() {
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          turnId: "$TURN_ID",
           warrantId: "$WARRANT_ID",
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
@@ -4066,6 +4127,7 @@ async function attachRuntime() {
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          turnId: "$TURN_ID",
           warrantId: "$WARRANT_ID",
           success: "$SUCCESS",
           status: "$STATUS",
@@ -6110,11 +6172,29 @@ function deliveryReceiptFor({ sessionId, eventId, injections, contextBlock = "",
   };
 }
 
+function turnReceiptFor({ sessionId, eventId, deliveryReceipt, contextBlockHash: blockHash, issuedAt }) {
+  if (!sessionId || !eventId) {
+    return null;
+  }
+
+  const deliveryId = deliveryReceipt?.deliveryId ?? null;
+  const contextHash = blockHash ?? deliveryReceipt?.contextBlockHash ?? contextBlockHash("");
+  return {
+    turnId: `turn_${stableHash({ sessionId, eventId, deliveryId, contextBlockHash: contextHash }).slice(0, 20)}`,
+    sessionId,
+    eventId,
+    deliveryId,
+    contextBlockHash: contextHash,
+    issuedAt,
+    expiresAfterHook: "outcome.after_task",
+  };
+}
+
 function contextBlockHash(contextBlock) {
   return sha256Text(typeof contextBlock === "string" ? contextBlock : "");
 }
 
-function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt, deliveryAck, turnDirectives }) {
+function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt, deliveryAck, turnId, turnReceipt, turnDirectives }) {
   const directives = turnDirectives ?? emptyTurnDirectives();
   const allowed = {
     paths: warrantAllowedPaths(matches, context, directives),
@@ -6172,6 +6252,8 @@ function warrantForContext({ sessionId, eventId, issuedAt, task, context, matche
     sources,
     deliveryReceipt,
     deliveryAck: deliveryAck ?? null,
+    turnId: turnId ?? null,
+    turnReceipt: turnReceipt ?? null,
     status: "issued",
   }).value;
 }
@@ -6882,6 +6964,11 @@ async function candidateArtifactHealth(stateDir, candidates) {
 
 async function runtimeWiringHealthSummary(stateDir, events) {
   const sessionEntries = await runtimeSessionEntries(stateDir);
+  const knownTurnReceipts = new Map(sessionEntries
+    .flatMap((entry) => entry.events)
+    .map(eventTurnReceipt)
+    .filter((receipt) => receipt?.turnId)
+    .map((receipt) => [receipt.turnId, receipt]));
   const knownDeliveryIds = new Set(sessionEntries
     .flatMap((entry) => entry.events)
     .map((event) => event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null)
@@ -6899,6 +6986,9 @@ async function runtimeWiringHealthSummary(stateDir, events) {
   const mismatchedInjectionAcks = [];
   const rejectedInjectionAcks = [];
   const crossSessionInjectionAcks = [];
+  const unknownTurnIds = [];
+  const crossSessionTurnRefs = [];
+  const unackedTurnUses = [];
 
   for (const entry of sessionEntries) {
     const hookEvents = entry.events.filter((event) => typeof event.hook === "string");
@@ -6909,6 +6999,7 @@ async function runtimeWiringHealthSummary(stateDir, events) {
       .map((event) => event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null)
       .filter((receipt) => receipt?.deliveryId && receipt.contextBlockHash);
     const ackEvents = hookEvents.filter((event) => event.hook === "context.after_inject" && event.contextInjectionAck);
+    const acceptedDeliveryIds = acceptedContextDeliveryIds(hookEvents);
 
     for (const event of hookEvents) {
       if (!event.eventId) {
@@ -6933,6 +7024,35 @@ async function runtimeWiringHealthSummary(stateDir, events) {
           expectedSessionId: event.contextInjectionAck.expectedSessionId ?? null,
           ackSessionId: event.contextInjectionAck.ackSessionId ?? event.contextInjectionAck.sessionId ?? event.sessionId ?? null,
         });
+      }
+
+      if (nonEmptyString(event.turnId) && event.hook !== "conversation.before_turn") {
+        const turnReceipt = knownTurnReceipts.get(event.turnId);
+        if (!turnReceipt) {
+          unknownTurnIds.push({
+            sessionId: entry.sessionId,
+            hook: event.hook,
+            turnId: event.turnId,
+          });
+        } else if (turnReceipt.sessionId !== event.sessionId) {
+          crossSessionTurnRefs.push({
+            sessionId: entry.sessionId,
+            hook: event.hook,
+            turnId: event.turnId,
+            expectedSessionId: turnReceipt.sessionId,
+          });
+        } else if (
+          event.hook !== "context.after_inject"
+          && turnReceipt.deliveryId
+          && !acceptedDeliveryIds.has(turnReceipt.deliveryId)
+        ) {
+          unackedTurnUses.push({
+            sessionId: entry.sessionId,
+            hook: event.hook,
+            turnId: event.turnId,
+            deliveryId: turnReceipt.deliveryId,
+          });
+        }
       }
     }
 
@@ -6988,6 +7108,9 @@ async function runtimeWiringHealthSummary(stateDir, events) {
     mismatchedInjectionAcks: mismatchedInjectionAcks.length,
     rejectedInjectionAcks: rejectedInjectionAcks.length,
     crossSessionInjectionAcks: crossSessionInjectionAcks.length,
+    unknownTurnIds: unknownTurnIds.length,
+    crossSessionTurnRefs: crossSessionTurnRefs.length,
+    unackedTurnUses: unackedTurnUses.length,
     needsAttention: uniqueStrings(fallbackAttachments).length
       + missingEventIds.length
       + uniqueStrings(unclosedInjectedSessions).length
@@ -6996,7 +7119,10 @@ async function runtimeWiringHealthSummary(stateDir, events) {
       + unackedDeliveries.length
       + mismatchedInjectionAcks.length
       + rejectedInjectionAcks.length
-      + crossSessionInjectionAcks.length,
+      + crossSessionInjectionAcks.length
+      + unknownTurnIds.length
+      + crossSessionTurnRefs.length
+      + unackedTurnUses.length,
     details: {
       fallbackAttachments: uniqueStrings(fallbackAttachments),
       missingEventIds: missingEventIds.slice(0, 20),
@@ -7007,6 +7133,9 @@ async function runtimeWiringHealthSummary(stateDir, events) {
       mismatchedInjectionAcks: mismatchedInjectionAcks.slice(0, 20),
       rejectedInjectionAcks: rejectedInjectionAcks.slice(0, 20),
       crossSessionInjectionAcks: crossSessionInjectionAcks.slice(0, 20),
+      unknownTurnIds: unknownTurnIds.slice(0, 20),
+      crossSessionTurnRefs: crossSessionTurnRefs.slice(0, 20),
+      unackedTurnUses: unackedTurnUses.slice(0, 20),
     },
   };
 }
@@ -7138,6 +7267,53 @@ async function findDeliveryReceipt(stateDir, deliveryId) {
   return null;
 }
 
+async function findTurnReceipt(stateDir, turnId, sessionId = null) {
+  if (!nonEmptyString(turnId)) {
+    return null;
+  }
+
+  for (const entry of await runtimeSessionEntries(stateDir)) {
+    for (const event of entry.events) {
+      const receipt = eventTurnReceipt(event);
+      if (
+        receipt?.turnId === turnId
+        && (!nonEmptyString(sessionId) || receipt.sessionId === sessionId)
+      ) {
+        return receipt;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function findTurnReceiptForDelivery(stateDir, deliveryId, sessionId = null) {
+  if (!nonEmptyString(deliveryId)) {
+    return null;
+  }
+
+  for (const entry of await runtimeSessionEntries(stateDir)) {
+    for (const event of entry.events) {
+      const receipt = eventTurnReceipt(event);
+      if (
+        receipt?.deliveryId === deliveryId
+        && (!nonEmptyString(sessionId) || receipt.sessionId === sessionId)
+      ) {
+        return receipt;
+      }
+    }
+  }
+
+  return null;
+}
+
+function eventTurnReceipt(event) {
+  return event?.turnReceipt
+    ?? event?.contextPayload?.turnReceipt
+    ?? event?.conversationBeforeTurnPayload?.turnReceipt
+    ?? null;
+}
+
 async function findContextInjectionAck(stateDir, deliveryId, sessionId = null) {
   if (!nonEmptyString(deliveryId)) {
     return null;
@@ -7203,18 +7379,21 @@ function precedentsForDeliveryReceipt(precedents, receipt) {
   return matches;
 }
 
-function contextInjectionAckFor({ deliveryId, receipt, sessionId, inserted, contextBlockHash: receivedHash, reason }) {
+function contextInjectionAckFor({ deliveryId, receipt, turnReceipt, sessionId, turnId: ackTurnId, inserted, contextBlockHash: receivedHash, reason }) {
   const expectedHash = receipt?.contextBlockHash ?? null;
   const expectedSessionId = receipt?.sessionId ?? null;
+  const turnId = turnReceipt?.turnId ?? receipt?.turnId ?? null;
   const status = !receipt
     ? "missing_delivery"
     : expectedSessionId !== sessionId
       ? "session_mismatch"
-      : inserted !== true
-        ? "rejected"
-        : receivedHash !== expectedHash
-          ? "mismatch"
-          : "accepted";
+      : ackTurnId && turnId !== ackTurnId
+        ? "turn_mismatch"
+        : inserted !== true
+          ? "rejected"
+          : receivedHash !== expectedHash
+            ? "mismatch"
+            : "accepted";
 
   return {
     deliveryId,
@@ -7223,6 +7402,9 @@ function contextInjectionAckFor({ deliveryId, receipt, sessionId, inserted, cont
     sessionId,
     ackSessionId: sessionId,
     expectedSessionId,
+    turnId,
+    ackTurnId: ackTurnId ?? null,
+    expectedTurnId: turnId,
     inserted,
     expectedContextBlockHash: expectedHash,
     contextBlockHash: receivedHash,
@@ -10807,7 +10989,10 @@ async function checkRuntimeWiring(checks, stateDir, strict) {
     + health.unackedDeliveries
     + health.mismatchedInjectionAcks
     + health.rejectedInjectionAcks
-    + health.crossSessionInjectionAcks;
+    + health.crossSessionInjectionAcks
+    + health.unknownTurnIds
+    + health.crossSessionTurnRefs
+    + health.unackedTurnUses;
 
   checks.push({
     ok: !strict || strictFailures === 0,

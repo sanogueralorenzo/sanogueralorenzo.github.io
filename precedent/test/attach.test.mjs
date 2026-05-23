@@ -99,7 +99,10 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       stateDir,
     ]);
     assert.ok(first.adapter.warrant.command.includes("--delivery-id"));
+    assert.ok(first.adapter.warrant.command.includes("--turn-id"));
     assert.ok(first.adapter.warrant.output.includes("warrantId"));
+    assert.ok(first.adapter.warrant.output.includes("turnId"));
+    assert.ok(first.adapter.warrant.output.includes("turnReceipt"));
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.equal(first.adapter.beforeTurn.eventId, "$EVENT_ID");
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
@@ -110,9 +113,11 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterInject.stdin.hook, "context.after_inject");
     assert.equal(first.adapter.afterInject.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterInject.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterInject.stdin.turnId, "$TURN_ID");
     assert.equal(first.adapter.afterInject.stdin.contextBlockHash, "$CONTEXT_BLOCK_HASH");
     assert.equal(first.adapter.afterInject.stdin.inserted, "$INSERTED");
     assert.ok(first.adapter.afterInject.output.includes("contextInjectionAck"));
+    assert.ok(first.adapter.afterInject.output.includes("turnId"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
     assert.deepEqual(first.adapter.conversationBeforeTurn.stdin.hook, "conversation.before_turn");
     assert.equal(first.adapter.conversationBeforeTurn.stdin.eventId, "$EVENT_ID");
@@ -122,6 +127,8 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.ok(first.adapter.conversationBeforeTurn.output.includes("beforeTurn"));
     assert.ok(first.adapter.conversationBeforeTurn.output.includes("contextBlocks"));
     assert.ok(first.adapter.conversationBeforeTurn.output.includes("deliveryReceipt"));
+    assert.ok(first.adapter.conversationBeforeTurn.output.includes("turnId"));
+    assert.ok(first.adapter.conversationBeforeTurn.output.includes("turnReceipt"));
     assert.ok(first.adapter.conversationBeforeTurn.output.includes("attributedPrecedents"));
     assert.deepEqual(first.adapter.conversationObserve.stdin.hook, "conversation.observe");
     assert.equal(first.adapter.conversationObserve.stdin.eventId, "$EVENT_ID");
@@ -156,12 +163,14 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
     assert.equal(first.adapter.afterValidation.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterValidation.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterValidation.stdin.turnId, "$TURN_ID");
     assert.equal(first.adapter.afterValidation.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.afterValidation.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
     assert.ok(first.adapter.afterValidation.output.includes("promotionTrials"));
     assert.deepEqual(first.adapter.afterDiff.stdin.hook, "diff.after_edit");
     assert.equal(first.adapter.afterDiff.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterDiff.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterDiff.stdin.turnId, "$TURN_ID");
     assert.equal(first.adapter.afterDiff.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.afterDiff.stdin.diffSummary, "$DIFF_SUMMARY");
     assert.equal(first.adapter.afterDiff.stdin.unifiedDiff, "$UNIFIED_DIFF");
@@ -172,6 +181,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterOutcome.stdin.sessionId, first.sessionId);
     assert.equal(first.adapter.afterOutcome.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterOutcome.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterOutcome.stdin.turnId, "$TURN_ID");
     assert.equal(first.adapter.afterOutcome.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.afterOutcome.stdin.task, "add webhook handler");
     assert.equal(first.adapter.afterOutcome.stdin.scope, "feature:webhooks");
@@ -193,6 +203,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.beforeResponse.stdin.hook, "finalize.before_response");
     assert.equal(first.adapter.beforeResponse.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.beforeResponse.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.beforeResponse.stdin.turnId, "$TURN_ID");
     assert.equal(first.adapter.beforeResponse.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.beforeResponse.injectFrom, "contextBlock");
     assert.ok(first.adapter.beforeResponse.output.includes("decision"));

@@ -31,24 +31,24 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.equal(manifest.hooks["context.before_turn"].injectFrom, "contextBlock");
   assert.equal(manifest.hooks["context.before_turn"].failurePolicy, "fail_open");
   assert.deepEqual(manifest.hooks["context.before_turn"].output, ["schema_version", "contextBlock", "contextBlockHash", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"]);
-  assert.deepEqual(manifest.hooks["context.after_inject"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "contextBlockHash", "inserted", "reason"]);
-  assert.deepEqual(manifest.hooks["context.after_inject"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "contextInjectionAck"]);
+  assert.deepEqual(manifest.hooks["context.after_inject"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "contextBlockHash", "inserted", "reason"]);
+  assert.deepEqual(manifest.hooks["context.after_inject"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "turnId", "contextInjectionAck"]);
   assert.deepEqual(manifest.hooks["conversation.observe"].stdin, ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"]);
   assert.deepEqual(manifest.hooks["conversation.observe"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "assumptionResolutionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"]);
   assert.equal(manifest.hooks["conversation.observe"].injectFrom, "contextBlock");
   assert.deepEqual(manifest.hooks["conversation.before_turn"].stdin, ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message", "limit", "threshold", "allowRepeat", "includeStale"]);
-  assert.deepEqual(manifest.hooks["conversation.before_turn"].output, ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "attributedPrecedents"]);
+  assert.deepEqual(manifest.hooks["conversation.before_turn"].output, ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "turnId", "turnReceipt", "attributedPrecedents"]);
   assert.equal(manifest.hooks["conversation.before_turn"].injectFrom, "contextBlock");
   assert.deepEqual(manifest.hooks["review.after_feedback"].stdin, ["schema_version", "hook", "sessionId", "eventId", "comments", "changedFiles", "reviewer"]);
   assert.equal(manifest.hooks["review.after_feedback"].failurePolicy, "fail_open");
-  assert.deepEqual(manifest.hooks["validation.after_run"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"]);
+  assert.deepEqual(manifest.hooks["validation.after_run"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"]);
   assert.deepEqual(manifest.hooks["validation.after_run"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "warrantResult", "promotionTrials", "contextBlock"]);
-  assert.deepEqual(manifest.hooks["diff.after_edit"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"]);
+  assert.deepEqual(manifest.hooks["diff.after_edit"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"]);
   assert.deepEqual(manifest.hooks["diff.after_edit"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "diff", "guardResult", "warrantResult", "repairPrompt", "contextBlock"]);
-  assert.deepEqual(manifest.hooks["outcome.after_task"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"]);
+  assert.deepEqual(manifest.hooks["outcome.after_task"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"]);
   assert.deepEqual(manifest.hooks["orchestration.after_idle"].stdin, ["schema_version", "hook", "sessionId", "eventId", "limit", "dryRun"]);
   assert.deepEqual(manifest.hooks["orchestration.after_idle"].output, ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "idle"]);
-  assert.deepEqual(manifest.hooks["finalize.before_response"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "attributedPrecedents"]);
+  assert.deepEqual(manifest.hooks["finalize.before_response"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "turnId", "warrantId", "attributedPrecedents"]);
   assert.deepEqual(manifest.hooks["finalize.before_response"].output, ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "decision", "nextAction", "finalization", "contextBlock"]);
   assert.equal(manifest.hooks["finalize.before_response"].injectFrom, "contextBlock");
   assert.deepEqual(manifest.hooks["repair.before_retry"].stdin, ["schema_version", "hook", "sessionId", "eventId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"]);
@@ -131,6 +131,8 @@ test("manifest emits a generic runtime hook contract", async () => {
     "$EVENT_ID",
     "--delivery-id",
     "$DELIVERY_ID",
+    "--turn-id",
+    "$TURN_ID",
     "--task-file",
     "$TASK_FILE",
     "--scope",
@@ -184,6 +186,8 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.ok(manifest.actions["session.resume"].output.includes("pendingDelivery"));
   assert.ok(manifest.actions["session.resume"].output.includes("recommendedAction"));
   assert.ok(manifest.actions["warrant.issue"].output.includes("warrantId"));
+  assert.ok(manifest.actions["warrant.issue"].output.includes("turnId"));
+  assert.ok(manifest.actions["warrant.issue"].output.includes("turnReceipt"));
   assert.deepEqual(manifest.actions["promotion.trial"].output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
   assert.ok(manifest.actions["promotion.pending"].output.includes("queue"));
   assert.ok(manifest.actions["next_action.claim"].output.includes("claim"));
