@@ -48,7 +48,10 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `TypeRef`: named, generic, record, list, map, optional, or union type use.
 
 The prototype may parse unsupported nodes into `UnknownDecl` or `UnknownExpr`
-only when it also emits a blocking diagnostic.
+only when it also emits a blocking diagnostic. Unsupported raw statements in a
+goal body, outside known blocks such as `context`, `capability`, `memory`,
+`plan`, `verify`, and `invariant`, emit `INTENT_UNSUPPORTED_SYNTAX` at the raw
+statement span.
 
 ## Type Declarations And Built-ins
 
@@ -311,6 +314,8 @@ blocking diagnostics.
 - Reject duplicate type names in the file, duplicate goal names in the file,
   duplicate goal input names in a goal, duplicate step names in a goal, and
   duplicate step input names in a step.
+- Reject unsupported parsed raw goal statements with
+  `INTENT_UNSUPPORTED_SYNTAX` at the statement span.
 - Duplicate goal and step parameter diagnostics should use the duplicate
   parameter span, not the enclosing goal or step span.
 - Resolve every type reference against built-ins and file-local type
