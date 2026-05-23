@@ -517,6 +517,7 @@ function checkIntent(ast) {
       diagnostics.push(error("INTENT_VERIFY_MISSING", `goal '${goal.name}' uses effects but has no verify block with require statements.`, goal.span));
     }
 
+    validateUnsupportedSyntax(goal, diagnostics);
     validateMemory(goal, diagnostics);
     validateContextSources(goal, diagnostics);
 
@@ -616,6 +617,18 @@ function validateContextSources(goal, diagnostics) {
         allowed: denial.allowed,
       }));
     }
+  }
+}
+
+function validateUnsupportedSyntax(goal, diagnostics) {
+  for (const item of goal.rawBlocks) {
+    if (item.kind !== "RawGoalStatement") {
+      continue;
+    }
+    diagnostics.push(error("INTENT_UNSUPPORTED_SYNTAX", `unsupported goal statement '${item.value}'.`, item.span, {
+      syntax: item.value,
+      goal: goal.name,
+    }));
   }
 }
 

@@ -47,6 +47,7 @@ const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_st
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_GOAL_NAME = new URL("../fixtures/invalid_duplicate_goal_name.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_TYPE_NAME = new URL("../fixtures/invalid_duplicate_type_name.intent", import.meta.url).pathname;
+const INVALID_UNSUPPORTED_GOAL_STATEMENT = new URL("../fixtures/invalid_unsupported_goal_statement.intent", import.meta.url).pathname;
 
 function runJson(args) {
   const output = execFileSync("node", [CLI, ...args], { encoding: "utf8" });
@@ -536,6 +537,19 @@ describe("intent static model CLI", () => {
     assert.equal(duplicateTypePayload.diagnostics[0].name, "Finding");
     assert.equal(duplicateTypePayload.diagnostics[0].span.start.line, 7);
     assert.equal(duplicateTypePayload.diagnostics[0].previous_span.start.line, 3);
+  });
+
+  it("rejects unsupported goal statements", () => {
+    const result = run(["check", INVALID_UNSUPPORTED_GOAL_STATEMENT]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_UNSUPPORTED_SYNTAX");
+    assert.equal(payload.diagnostics[0].syntax, "delegate reviewer");
+    assert.equal(payload.diagnostics[0].goal, "reject_unsupported_goal_statement");
+    assert.equal(payload.diagnostics[0].span.start.line, 18);
+    assert.equal(payload.diagnostics[0].span.start.column, 3);
   });
 
   it("rejects step inputs that are not produced yet", () => {
