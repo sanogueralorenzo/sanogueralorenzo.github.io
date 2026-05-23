@@ -80,10 +80,14 @@ deny_stmt        = "deny", s, raw_expr, line_end ;
 `context` is a single-line declaration in this milestone. The `context <call>`
 form preserves the parsed call as structured source data: source name, ordered
 arguments, argument kinds, original expression text, and checker-owned trust
-zone/source. Context declarations that describe repo, doc, or file resources
-are treated as trusted local sources by the first checker prototype. Context
-declarations that describe web resources or browser/page state are treated as
-untrusted external sources unless a later policy explicitly upgrades them.
+zone/source. Context declarations that describe repo resources are treated as
+trusted local sources by the first checker prototype and are not
+capability-enforced yet. Structured `context web(...)` declarations are treated
+as untrusted external sources and must be covered by an in-scope
+`web read domain` capability. Structured `context documents(...)` declarations
+are treated as trusted local sources and must be covered by an in-scope
+`file read path` capability. If no matching capability covers a structured web
+or documents context source, the checker emits `INTENT_CONTEXT_UNDECLARED`.
 `capability` bodies are parsed as statement lists whose items are preserved as
 raw spanned lines. `memory` bodies are parsed as statement lists, and every
 `retain ... until ...` line is additionally parsed into structured
@@ -272,8 +276,18 @@ The parser emits names and type reference strings; the checker owns binding.
   earlier step output to that step input node.
 - Context calls preserve source name, args, argKinds, expression, and
   trust zone/source for checker and graph output.
-- Repo, doc, and file context values are trusted local source values.
-- Web context values are untrusted external source values.
+- Repo context values are trusted local source values and are not
+  capability-enforced yet.
+- Structured `context web(...)` values are untrusted external source values.
+  They use the first positional argument or a named `url` or `domain` argument,
+  and bind to in-scope `web read domain: "..."` capability grants. URL hosts
+  are compared against exact or wildcard granted domains; if no grant covers
+  the host, the checker emits `INTENT_CONTEXT_UNDECLARED`.
+- Structured `context documents(...)` values are trusted local source values.
+  They use the first positional argument or a named `path` argument, and bind to
+  in-scope `file read path: "..."` capability grants. Paths use the same
+  normalization and matching rules as file read effects; if no grant covers the
+  path, the checker emits `INTENT_CONTEXT_UNDECLARED`.
 - Web/http read effects use the first positional argument or a named `url` or
   `domain` argument, and bind to in-scope `read domain: "..."` capability
   grants. URL hosts are compared against exact or wildcard granted domains; if

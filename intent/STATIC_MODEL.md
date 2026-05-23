@@ -12,7 +12,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `ImportDecl`: imported package or symbol path.
 - `GoalDecl`: root executable unit, inputs, output, clauses, and body blocks.
 - `ContextDecl`: named source of truth with structured call data, resource
-  expression, freshness policy, access mode, and trust zone/source.
+  expression, freshness policy, access mode, trust zone/source, and optional
+  capability coverage.
 - `CapabilityDecl`: named permission grant with family, action, constraints,
   and optional approval requirement.
 - `MemoryDecl`: scoped state or retained evidence with one or more retention
@@ -289,20 +290,27 @@ blocking diagnostics.
 - Resolve every type reference against built-ins and file-local type
   declarations.
 - Bind step inputs against goal inputs and earlier step outputs in source order.
-- Assign first-prototype trust zones to source values. Repo, doc, and file
-  contexts are trusted local sources; web contexts are untrusted external
-  sources; literals and checker-approved policy outputs are trusted.
+- Assign first-prototype trust zones to source values. Repo contexts are
+  trusted local sources and are not capability-enforced yet; structured
+  `context documents(...)` sources are trusted local sources that require
+  `file read path` capability coverage; structured `context web(...)` sources
+  are untrusted external sources that require `web read domain` capability
+  coverage; literals and checker-approved policy outputs are trusted.
 - Type check expressions, inputs, outputs, context values, state values, step
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
   capability.
-- Check simple capability constraints for file paths, shell commands, web/http
-  read domains, and git push branches or remotes.
+- Check simple capability constraints for file paths, shell commands, context
+  source file paths, context source web domains, web/http read domains, and git
+  push branches or remotes.
 - Normalize and compare constrained resources such as paths, commands, domains,
   branches, secret names, and approval targets.
 - Require verification gates for every goal and ensure they are pure assertions
   except for supported verification effects.
 - Bind verification shell requirements to declared shell run capability grants.
+- Bind structured web and documents context sources to declared read capability
+  grants, and emit `INTENT_CONTEXT_UNDECLARED` when no in-scope grant covers
+  the requested source.
 - Emit `INTENT_VERIFY_IMPURE` for side-effect calls inside goal-level `verify`
   requirements, including file writes, git pushes, web or HTTP reads, deploys,
   and ticket updates.
@@ -396,8 +404,9 @@ Rules:
 - Literal string, number, and boolean values are normalized for checking while
   retaining raw token spans.
 - Nested calls may be parsed as argument values, but the first capability
-  milestone only checks literal file path, shell command, web/http read URL or
-  domain, and git push branch or remote arguments.
+  milestone only checks literal file path, shell command, structured context web
+  URL or domain, structured context documents path, web/http read URL or domain,
+  and git push branch or remote arguments.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -408,7 +417,7 @@ Context declarations preserve their source call as structured data:
 
 ```intent
 context repo(path: "./")
-context doc("intent/STATIC_MODEL.md")
+context documents(path: "intent/STATIC_MODEL.md")
 context web(url: "https://docs.example.com/guide")
 ```
 
@@ -432,10 +441,22 @@ Rules:
 - `args` retain positional and named argument values in source order.
 - `argKinds` retain each argument kind before checker normalization.
 - `expression` is the original context call text.
-- Repo, doc, and file contexts are trusted local source values in the first
-  checker prototype.
-- Web contexts and browser/page state are untrusted external source values in
-  the first checker prototype.
+- Repo contexts are trusted local source values in the first checker prototype
+  and are not capability-enforced yet.
+- Structured `context documents(...)` declarations are trusted local source
+  values. They use the first positional argument or a named `path` argument and
+  must be covered by an in-scope `file read path: "..."` capability grant.
+- Structured `context web(...)` declarations are untrusted external source
+  values. They use the first positional argument or a named `url` or `domain`
+  argument and must be covered by an in-scope `web read domain: "..."`
+  capability grant.
+- If no matching capability covers a structured `web(...)` or
+  `documents(...)` context source, the checker emits
+  `INTENT_CONTEXT_UNDECLARED`.
+- A successful context source binding creates an `authorizes` edge from the
+  matching `Capability` node to the `Context` node.
+- Browser/page state is untrusted external source data in the first checker
+  prototype.
 - Graph `Context` nodes carry the same source name, args, argKinds,
   expression, and trust zone/source data as their originating `ContextDecl`.
 
@@ -616,6 +637,10 @@ Trust zones:
 Rules:
 
 - Web context declarations produce untrusted values by default.
+- Documents context declarations produce trusted local values after matching
+  `file read path` capability coverage.
+- Repo context declarations produce trusted local values and are not
+  capability-enforced yet.
 - Trust propagates through step input binding and graph `data` edges.
 - A value derived from any untrusted input remains untrusted unless a future
   policy or verifier explicitly upgrades it.
@@ -632,6 +657,25 @@ The first constraint checker supports only direct string-literal matches for
 file paths, shell commands, web/http read domains, and git push branches or
 remotes. A capability authorizes an effect call when the effect family matches
 and every constrained argument is covered by the capability.
+
+Context source constraints:
+
+- Structured `context documents(...)` sources use the first positional argument
+  or a named `path` argument.
+- A documents context source is valid only when an in-scope capability grants
+  `file read path: "..."`.
+- Structured `context web(...)` sources use the first positional argument or a
+  named `url` or `domain` argument.
+- A web context source is valid only when an in-scope capability grants
+  `web read domain: "..."`.
+- Documents context paths use the same normalization and matching rules as file
+  path constraints.
+- Web context URL and domain arguments use the same normalization and matching
+  rules as web/http read constraints.
+- If no matching grant covers the normalized path, URL host, or domain
+  argument, the checker emits `INTENT_CONTEXT_UNDECLARED`.
+- A successful context source binding creates an `authorizes` edge from the
+  matching `Capability` node to the `Context` node.
 
 File path constraints:
 

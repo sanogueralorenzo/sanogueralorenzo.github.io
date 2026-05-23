@@ -24,6 +24,7 @@ const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_b
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
 const INVALID_WEB_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_web_read_outside_capability.intent", import.meta.url).pathname;
+const INVALID_CONTEXT_SOURCE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_context_source_outside_capability.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
 const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_impure_file_write.intent", import.meta.url).pathname;
@@ -254,6 +255,19 @@ describe("intent static model CLI", () => {
     assert.deepEqual(payload.diagnostics[0].allowed, ["example.com"]);
   });
 
+  it("rejects context sources outside declared read capabilities", () => {
+    const result = run(["check", INVALID_CONTEXT_SOURCE_OUTSIDE_CAPABILITY]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CONTEXT_UNDECLARED");
+    assert.equal(payload.diagnostics[0].source, "web");
+    assert.equal(payload.diagnostics[0].argument, "domain");
+    assert.equal(payload.diagnostics[0].value, "outside.example.org");
+    assert.deepEqual(payload.diagnostics[0].allowed, ["example.com"]);
+  });
+
   it("rejects git pushes outside declared branch grants", () => {
     const result = run(["check", INVALID_GIT_PUSH_BRANCH_MISMATCH]);
     const payload = JSON.parse(result.stdout);
@@ -384,6 +398,9 @@ describe("intent static model CLI", () => {
     assert.equal(webContext.data.trust.source, "external_context");
     assert.equal(documentsContext.data.trust.zone, "trusted");
     assert.equal(graph.edges.some((edge) => edge.kind === "informs" && edge.from === webContext.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === webContext.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === documentsContext.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === repoContext.id), false);
   });
 
   it("emits explicit data dependencies and completion gates", () => {

@@ -508,6 +508,7 @@ function checkIntent(ast) {
     }
 
     validateMemory(goal, diagnostics);
+    validateContextSources(goal, diagnostics);
 
     validateGoalTypes(goal, declaredTypes, diagnostics);
     validateStepBindings(goal, diagnostics);
@@ -554,6 +555,36 @@ function checkIntent(ast) {
   }
 
   return diagnostics;
+}
+
+function validateContextSources(goal, diagnostics) {
+  for (const context of goal.context) {
+    const access = contextAccess(context);
+    if (!access) {
+      continue;
+    }
+
+    const denial = !isEffectAuthorized(access, goal.capabilities)
+      ? {
+          message: `context '${context.expression}' is not authorized by goal capabilities.`,
+          argument: effectArgument(access)?.key ?? "source",
+          value: effectArgument(access)?.value ?? context.expression,
+          allowed: [],
+        }
+      : getCapabilityDenial(access, goal.capabilities);
+
+    if (denial) {
+      diagnostics.push(error("INTENT_CONTEXT_UNDECLARED", `context '${context.expression}' must be covered by a matching read capability.`, context.span, {
+        context: context.expression,
+        source: context.source,
+        family: access.family,
+        action: access.action,
+        argument: denial.argument,
+        value: denial.value,
+        allowed: denial.allowed,
+      }));
+    }
+  }
 }
 
 function validateMemory(goal, diagnostics) {
@@ -733,6 +764,14 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         trust: context.trust,
       }));
       edges.push(edge(id, goalId, "informs"));
+      const access = contextAccess(context);
+      if (access) {
+        for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
+          if (isFamilyMatch(access.family, capability.family) && !getCapabilityDenial(access, [capability])) {
+            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, id, "authorizes"));
+          }
+        }
+      }
     }
 
     for (const [index, capability] of goal.capabilities.entries()) {
@@ -1300,6 +1339,61 @@ function contextTrust(source) {
     return { zone: "untrusted", source: "external_context" };
   }
   return { zone: "unknown", source: "context" };
+}
+
+function contextAccess(context) {
+  if (["web", "http", "browser"].includes(context.source)) {
+    const url = context.args.url ?? context.args.urls ?? context.args._0;
+    const args = {
+      ...context.args,
+    };
+    const argKinds = {
+      ...context.argKinds,
+    };
+    if (url) {
+      args.url ??= url;
+      argKinds.url ??= context.argKinds.url ?? context.argKinds.urls ?? context.argKinds._0;
+    }
+    const domain = context.args.domain ?? context.args.domains ?? (url ? domainFromUrl(url) : null);
+    if (domain) {
+      args.domain ??= domain;
+      argKinds.domain ??= context.argKinds.domain ?? context.argKinds.domains ?? (url ? context.argKinds._0 : undefined);
+    }
+    return {
+      kind: "ContextAccess",
+      name: context.expression,
+      family: "web",
+      action: "read",
+      args,
+      argKinds,
+      expression: context.expression,
+      span: context.span,
+    };
+  }
+  if (["documents", "doc", "file"].includes(context.source)) {
+    const pathValue = context.args.path ?? context.args.paths ?? context.args._0;
+    const args = {
+      ...context.args,
+    };
+    const argKinds = {
+      ...context.argKinds,
+    };
+    if (pathValue) {
+      args.path ??= pathValue;
+      argKinds.path ??= context.argKinds.path ?? context.argKinds.paths ?? context.argKinds._0;
+    }
+    return {
+      kind: "ContextAccess",
+      name: context.expression,
+      family: "file",
+      action: "read",
+      args,
+      argKinds,
+      expression: context.expression,
+      span: context.span,
+    };
+  }
+  return null;
 }
 
 function effectFamily(name) {
