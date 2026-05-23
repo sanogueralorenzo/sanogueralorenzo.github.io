@@ -61,6 +61,8 @@ test("report and explain attribute task outcomes to injected precedent", async (
     assert.equal(health.injectionCount, 2);
     assert.equal(health.successCount, 1);
     assert.equal(health.failureCount, 1);
+    assert.equal(health.counterexampleCount, 1);
+    assert.ok(health.lastCounterexampleAt);
     assert.equal(health.suppressionCount, 0);
     assert.ok(health.lastOutcomeAt);
 
@@ -74,6 +76,9 @@ test("report and explain attribute task outcomes to injected precedent", async (
     ]);
     assert.equal(explained.outcomes.successCount, 1);
     assert.equal(explained.outcomes.failureCount, 1);
+    assert.equal(explained.counterexamples.length, 1);
+    assert.equal(explained.counterexamples[0].type, "attributed_failure");
+    assert.equal(explained.counterexamples[0].reason, "failure");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

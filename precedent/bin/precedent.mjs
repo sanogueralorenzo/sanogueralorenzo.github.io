@@ -335,7 +335,7 @@ async function exportContext() {
     });
     const contextBlock = formatInjectionBlock(selected.matches);
     const suppressedInjections = [
-      ...lifecycleSelected.suppressed.map(formatSuppressedInjection),
+      ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
     const exportEvent = {
@@ -483,6 +483,7 @@ async function explainPrecedent() {
       matching: matchingExplanation(promoted),
       injections: injectionEventsForPrecedent(events, id),
       outcomes: outcomeSummaryForPrecedent(events, id),
+      counterexamples: counterexamplesForPrecedent(events, id),
       record: promoted,
     });
     return;
@@ -759,7 +760,7 @@ async function contextBeforeTurnEventHook(event) {
     });
     matches = selected.matches;
     suppressed = [
-      ...lifecycleSelected.suppressed.map(formatSuppressedInjection),
+      ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
     contextBlock = formatInjectionBlock(matches);
@@ -1893,12 +1894,16 @@ function formatInjection(match) {
   };
 }
 
-function formatSuppressedInjection(match) {
-  return {
+function formatSuppressedInjection(match, events = null) {
+  const formatted = {
     id: match.id,
     score: match.score,
     reason: match.suppressionReason ?? "already_injected_in_session",
   };
+  if (events && ["stale_repair_efficacy", "retired_repair_efficacy"].includes(formatted.reason)) {
+    formatted.counterexampleCount = counterexamplesForPrecedent(events, match.id).length;
+  }
+  return formatted;
 }
 
 function suppressLifecycleInjections({ events, matches, includeStale }) {
@@ -2078,8 +2083,10 @@ function outcomeSummaryForPrecedent(events, id) {
   const lastRepairFailed = repairStillFailing.at(-1);
   const lastRepair = repairReceipts.at(-1);
   const lifecycle = lifecycleForPrecedent(events, id);
+  const counterexamples = counterexamplesForPrecedent(events, id);
   const lastSuccess = successes.at(-1);
   const lastFailure = failures.at(-1);
+  const lastCounterexample = counterexamples.at(-1);
 
   return {
     status: lifecycle.status,
@@ -2094,6 +2101,7 @@ function outcomeSummaryForPrecedent(events, id) {
     repairFailedCount: repairStillFailing.length,
     repairStillFailingCount: repairStillFailing.length,
     repairStillFailingSinceLastClearOrSuccessCount: recentRepairFailures.length,
+    counterexampleCount: counterexamples.length,
     failureRate: rate(failures.length, outcomes.length),
     guardWarningRate: rate(guardWarnings.length, guardChecks.length),
     repairSuccessRate: rate(repairCleared.length, repairReceipts.length),
@@ -2104,8 +2112,82 @@ function outcomeSummaryForPrecedent(events, id) {
     lastRepairAt: lastRepair?.receivedAt ?? lastRepair?.observedAt ?? null,
     lastRepairClearedAt: lastRepairCleared?.receivedAt ?? lastRepairCleared?.observedAt ?? null,
     lastRepairFailedAt: lastRepairFailed?.receivedAt ?? lastRepairFailed?.observedAt ?? null,
+    lastCounterexampleAt: lastCounterexample?.timestamp ?? null,
     retireReasons: lifecycle.retireReasons,
   };
+}
+
+function counterexamplesForPrecedent(events, id) {
+  const repairRelatedSessionIds = new Set(
+    events
+      .filter((event) =>
+        event.hook === "repair.after_retry"
+        && Array.isArray(event.attributedPrecedents)
+        && event.attributedPrecedents.includes(id)
+        && event.repairReceipt)
+      .flatMap((event) => [event.repairReceipt.repairSessionId, event.repairReceipt.retrySessionId])
+      .filter(Boolean),
+  );
+  const outcomeCounterexamples = events
+    .filter((event) =>
+      event.hook === "outcome.after_task"
+      && event.success === false
+      && Array.isArray(event.attributedPrecedents)
+      && event.attributedPrecedents.includes(id))
+    .map((event) => ({
+      type: "attributed_failure",
+      sessionId: event.sessionId ?? null,
+      timestamp: event.receivedAt ?? event.observedAt ?? null,
+      reason: event.status ?? "failed_outcome",
+      changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : [],
+      command: null,
+      repairId: null,
+    }));
+  const guardCounterexamples = guardChecksForPrecedent(events, id)
+    .filter((check) => check.status === "warn" && !repairRelatedSessionIds.has(check.sessionId))
+    .map((check) => ({
+      type: "guard_warning",
+      sessionId: check.sessionId ?? null,
+      timestamp: check.observedAt ?? null,
+      reason: check.guardId ?? "guard_warning",
+      changedFiles: guardEvidenceFiles(check.evidence),
+      command: check.evidence?.command ?? null,
+      repairId: null,
+    }));
+  const repairCounterexamples = events
+    .filter((event) =>
+      event.hook === "repair.after_retry"
+      && Array.isArray(event.attributedPrecedents)
+      && event.attributedPrecedents.includes(id)
+      && event.repairReceipt
+      && (event.repairReceipt.repairResolved !== true || event.repairReceipt.cleared === false))
+    .map((event) => ({
+      type: event.repairReceipt.repairResolved === true ? "repair_still_failing" : "repair_unresolved",
+      sessionId: event.sessionId ?? event.repairReceipt.retrySessionId ?? null,
+      timestamp: event.receivedAt ?? event.observedAt ?? null,
+      reason: event.repairReceipt.repairResolved === true
+        ? "still_failing"
+        : event.suppressedRepairs?.[0]?.reason ?? "unresolved",
+      changedFiles: [],
+      command: null,
+      repairId: event.repairReceipt.id ?? null,
+    }));
+
+  return [
+    ...outcomeCounterexamples,
+    ...guardCounterexamples,
+    ...repairCounterexamples,
+  ]
+    .filter((item) => item.timestamp)
+    .sort((left, right) => eventTime({ observedAt: left.timestamp }) - eventTime({ observedAt: right.timestamp }))
+    .slice(-10);
+}
+
+function guardEvidenceFiles(evidence) {
+  if (!Array.isArray(evidence)) {
+    return [];
+  }
+  return evidence.filter((item) => typeof item === "string" && item.includes("/"));
 }
 
 function lifecycleForPrecedent(events, id) {

@@ -224,6 +224,13 @@ test("repair.after_retry stays unresolved without retry evidence", async () => {
     assert.equal(report.repairHealth.attempts, 1);
     assert.equal(report.repairHealth.unresolved, 1);
     assert.equal(health.repairAttemptCount, 0);
+    assert.equal(health.counterexampleCount, 1);
+
+    const explained = await runJson(["explain", "--state-dir", stateDir, "--id", "prec_webhook_replay_boundary", "--json"]);
+    assert.equal(explained.counterexamples.length, 1);
+    assert.equal(explained.counterexamples[0].type, "repair_unresolved");
+    assert.equal(explained.counterexamples[0].reason, "missing_retry_evidence");
+    assert.equal(explained.counterexamples[0].repairId, repair.repairId);
 
     const check = await runProcess(["check", "--state-dir", stateDir, "--json"]);
     const payload = JSON.parse(check.stdout);
@@ -278,6 +285,8 @@ test("repair efficacy suppresses after two still-failing receipts and resets aft
     health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
     assert.equal(health.status, "stale");
     assert.equal(report.repairHealth.staleByRepair, 1);
+    assert.equal(health.counterexampleCount, 2);
+    assert.ok(health.lastCounterexampleAt);
     assert.equal(health.repairStillFailingCount, 2);
     assert.equal(health.repairStillFailingSinceLastClearOrSuccessCount, 2);
     assert.ok(health.retireReasons.some((reason) => reason.includes("repair failure")));
@@ -295,9 +304,12 @@ test("repair efficacy suppresses after two still-failing receipts and resets aft
     context = await contextForWebhook(stateDir);
     assert.equal(context.injections.length, 0);
     assert.equal(context.suppressedInjections[0].reason, "stale_repair_efficacy");
+    assert.equal(context.suppressedInjections[0].counterexampleCount, 3);
 
     const explained = await runJson(["explain", "--state-dir", stateDir, "--id", "prec_webhook_replay_boundary", "--json"]);
     assert.equal(explained.outcomes.repairStillFailingSinceLastClearOrSuccessCount, 2);
+    assert.equal(explained.counterexamples.filter((item) => item.type === "repair_still_failing").length, 2);
+    assert.equal(explained.counterexamples.filter((item) => item.type === "guard_warning").length, 1);
 
     await runJson(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",
