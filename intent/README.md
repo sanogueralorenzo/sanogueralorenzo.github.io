@@ -155,6 +155,11 @@ Validation expectations:
   must be an array. Malformed capability policy data emits
   `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
   runtime authorization and approval enforcement must not infer missing policy.
+- Graph `Approval` nodes are runtime approval gates. They must carry valid step
+  gate data: `data.approval` must be non-empty and `data.ownerStep` must be
+  non-empty. Malformed approval gate data emits `INTENT_GRAPH_APPROVAL_INVALID`
+  and makes the graph non-executable because runtimes must not infer approval
+  identity or step ownership.
 - Graph `Policy` nodes are runtime execution-policy inputs. They must carry
   valid step execution data: `data.policyKind` must be either `timeout` or
   `retry`, `data.policy` must be non-empty, and `data.ownerStep` must be

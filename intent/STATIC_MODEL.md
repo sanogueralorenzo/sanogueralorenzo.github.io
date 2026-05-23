@@ -386,6 +386,11 @@ Next graph envelope validation milestone:
   non-empty `data.ownerStep`. Malformed step execution policy data emits
   `INTENT_GRAPH_POLICY_INVALID` and makes the graph non-executable because
   runtimes must not infer timeout or retry behavior.
+- Runtime approval gate metadata is part of graph validation. `Approval` nodes
+  must carry non-empty `data.approval` and non-empty `data.ownerStep`.
+  Malformed step approval gate data emits `INTENT_GRAPH_APPROVAL_INVALID` and
+  makes the graph non-executable because runtimes must not infer approval
+  identity or step ownership.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.
@@ -751,6 +756,9 @@ Rules:
 - The owning `Step` node data lists approval summaries in source order.
 - The graph builder creates an `approves` edge from each approval `Approval`
   node to the owning `Step`, so the step cannot run until approval is granted.
+- Runtime graph validation requires every `Approval` node to carry non-empty
+  `data.approval` and non-empty `data.ownerStep`; malformed approval gate data
+  emits `INTENT_GRAPH_APPROVAL_INVALID` and makes the graph non-executable.
 - Step approval gates do not create `verifies` edges to the goal `Completion`
   node and do not replace capability policy approval requirements.
 - Approval gate labels must be non-empty after trimming.
@@ -1197,6 +1205,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_DIAGNOSTIC_INVALID`
 - `INTENT_GRAPH_TRUST_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
+- `INTENT_GRAPH_APPROVAL_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
 - `INTENT_GRAPH_POLICY_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
@@ -1655,7 +1664,8 @@ blank after trimming, whose node or edge kind is outside the supported sets
 above, whose edge endpoint does not resolve inside the same payload, whose
 `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
 nodes omit valid runtime retention lifecycle data, whose `Policy` nodes omit
-valid runtime step execution policy data, or whose required
+valid runtime step execution policy data, whose `Approval` nodes omit valid
+runtime step gate data, or whose required
 execution, data, authorization, approval, guard, verification, completion, and
 step-attachment relationships fail graph validation. Blank envelope provenance
 emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge
@@ -1725,7 +1735,10 @@ authorized by a capability whose approval policy is `required`, a step
 `Approval` node also has an outgoing `approves` edge to that approval-required
 `Effect` node. Approval labels must be non-empty after trimming; a graph with an
 empty approval label is non-executable because the checker must emit
-`INTENT_APPROVAL_INVALID`.
+`INTENT_APPROVAL_INVALID`. Runtime graph validation also requires each
+`Approval` node to carry non-empty `data.approval` and non-empty
+`data.ownerStep`; malformed approval node payloads emit
+`INTENT_GRAPH_APPROVAL_INVALID` and are non-executable.
 
 Step policy nodes are `Policy` nodes scoped to one owning step. The owning step
 node lists timeout summaries in `data.timeouts` and retry summaries in
