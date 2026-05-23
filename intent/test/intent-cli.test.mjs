@@ -22,6 +22,7 @@ const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.int
 const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
 const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph.intent", import.meta.url).pathname;
 const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.intent", import.meta.url).pathname;
+const INVALID_GOAL_MISSING = new URL("../fixtures/invalid_goal_missing.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
@@ -256,6 +257,17 @@ describe("intent static model CLI", () => {
     assert.equal(result.status, 1);
     assert.equal(payload.ok, false);
     assert.equal(payload.diagnostics[0].code, "INTENT_VERIFY_MISSING");
+  });
+
+  it("rejects source files without goals", () => {
+    const result = run(["check", INVALID_GOAL_MISSING]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_GOAL_MISSING");
+    assert.equal(payload.diagnostics[0].span.start.line, 1);
+    assert.equal(payload.diagnostics[0].span.start.column, 1);
   });
 
   it("rejects effects without matching capabilities", () => {
