@@ -233,6 +233,7 @@ async function initState() {
       join(stateDir, "precedents.jsonl"),
       join(stateDir, "candidates.jsonl"),
       join(stateDir, "events.jsonl"),
+      join(stateDir, "next_actions.jsonl"),
       join(stateDir, "replays"),
       join(stateDir, "sessions"),
       join(stateDir, "traces"),
@@ -2229,16 +2230,18 @@ async function orchestrationAfterIdleEventHook(event) {
         leaseMs: Number(event.leaseMs ?? PROMOTION_TRIAL_LEASE_MS),
         maxAttempts: Number(event.maxAttempts ?? PROMOTION_TRIAL_MAX_ATTEMPTS),
       });
+      const finalization = await runIdleFinalization({
+        stateDir,
+        sessionId,
+        eventId: eventId ? `${eventId}:finalize.before_response` : null,
+        warrantId: event.warrantId,
+        idleEventId: eventId,
+      });
       idle = {
         status: promotion.ok ? "drained" : "failed",
         reason: promotion.ok ? null : "promotion_failed",
         promotion,
-        finalization: await runIdleFinalization({
-          stateDir,
-          sessionId,
-          eventId: eventId ? `${eventId}:finalize.before_response` : null,
-          warrantId: event.warrantId,
-        }),
+        finalization,
       };
 
       await withStateLock(stateDir, async () => {
@@ -4002,6 +4005,7 @@ async function reportState() {
   const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
   const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
   const events = await readJsonLines(join(stateDir, "events.jsonl"));
+  const nextActions = await readJsonLines(join(stateDir, "next_actions.jsonl"));
   const replays = await readReplayCount(join(stateDir, "replays"));
   const replayAudit = await replayAuditEntries(precedents, stateDir);
   const runtimeWiringHealth = await runtimeWiringHealthSummary(stateDir, events);
@@ -4026,6 +4030,7 @@ async function reportState() {
     replayAudit,
     candidateHintQueue: candidateHintQueue(candidates, precedents, stateDir),
     promotionTrialQueue: promotionTrialQueue(events),
+    nextActionQueue: nextActionQueue(nextActions),
     repairHealth: repairHealthSummary(events, precedents),
     runtimeWiringHealth,
     warrantHealth,
@@ -4103,6 +4108,33 @@ function promotionTrialQueue(events, options = {}) {
     completed: items.filter((item) => item.status === "completed").length,
     failed: items.filter((item) => item.status === "failed").length,
     items,
+  };
+}
+
+function nextActionQueue(nextActions) {
+  const latestById = new Map();
+  for (const item of nextActions) {
+    if (typeof item.id === "string" && item.id.length > 0) {
+      latestById.set(item.id, item);
+    }
+  }
+
+  const items = [...latestById.values()];
+  const count = (status) => items.filter((item) => item.status === status).length;
+  return {
+    total: items.length,
+    ready: count("ready"),
+    blocked: count("blocked"),
+    completed: count("completed"),
+    items: items.map((item) => ({
+      id: item.id,
+      status: item.status,
+      actionType: item.actionType ?? null,
+      sessionId: item.sessionId ?? null,
+      reason: item.reason ?? null,
+      commands: Array.isArray(item.commands) ? item.commands : [],
+      finalizationEventId: item.finalizationEventId ?? null,
+    })),
   };
 }
 
@@ -4341,6 +4373,7 @@ async function checkState() {
   await checkJsonLinesFile(checks, join(stateDir, "precedents.jsonl"), "precedents");
   await checkJsonLinesFile(checks, join(stateDir, "events.jsonl"), "events");
   await checkJsonLinesFile(checks, join(stateDir, "candidates.jsonl"), "candidates");
+  await checkJsonLinesFile(checks, join(stateDir, "next_actions.jsonl"), "next_actions");
   await checkJsonFilesInDir(checks, join(stateDir, "traces"), "trace", (value, file) => {
     assertCheck(value?.schema_version === SCHEMA_VERSION, checks, "trace_schema", file, "trace.schema_version is invalid");
   });
@@ -6912,12 +6945,13 @@ function idleSummary(idle) {
         decision: finalization.decision ?? null,
         recorded: finalization.recorded ?? false,
         deduped: finalization.deduped ?? false,
+        queuedAction: finalization.queuedAction ?? null,
       }
       : null,
   };
 }
 
-async function runIdleFinalization({ stateDir, sessionId, eventId, warrantId }) {
+async function runIdleFinalization({ stateDir, sessionId, eventId, warrantId, idleEventId }) {
   let result = null;
 
   await withStateLock(stateDir, async () => {
@@ -6937,6 +6971,13 @@ async function runIdleFinalization({ stateDir, sessionId, eventId, warrantId }) 
         nextAction: plan.finalization?.nextAction ?? null,
         finalization: plan.finalization ?? null,
         contextBlock: plan.contextBlock ?? "",
+        queuedAction: await queueFinalizationNextAction({
+          stateDir,
+          sessionId,
+          idleEventId,
+          finalizationEventId: plan.finalizationEventId ?? null,
+          finalization: plan.finalization,
+        }),
         recorded: false,
         deduped: false,
         sessionEventPath: null,
@@ -6983,6 +7024,13 @@ async function runIdleFinalization({ stateDir, sessionId, eventId, warrantId }) 
       nextAction: plan.finalization.nextAction,
       finalization: plan.finalization,
       contextBlock: plan.contextBlock,
+      queuedAction: await queueFinalizationNextAction({
+        stateDir,
+        sessionId,
+        idleEventId,
+        finalizationEventId: sessionEvent.event.eventId ?? eventId,
+        finalization: plan.finalization,
+      }),
       recorded: !sessionEvent.deduped,
       deduped: sessionEvent.deduped,
       sessionEventPath: sessionEvent.path,
@@ -6996,9 +7044,68 @@ async function runIdleFinalization({ stateDir, sessionId, eventId, warrantId }) 
     nextAction: null,
     finalization: null,
     contextBlock: "",
+    queuedAction: null,
     recorded: false,
     deduped: false,
     sessionEventPath: null,
+  };
+}
+
+async function queueFinalizationNextAction({ stateDir, sessionId, idleEventId, finalizationEventId, finalization }) {
+  const nextAction = finalization?.nextAction ?? null;
+  if (finalization?.status !== "blocked" || !nextAction?.type) {
+    return null;
+  }
+
+  const actionType = String(nextAction.type);
+  const commands = uniqueStrings(Array.isArray(nextAction.commands) ? nextAction.commands : []);
+  const commandSafety = commands.map((command) => ({
+    command,
+    ...replayCommandSafety(command),
+  }));
+  const unsafe = commandSafety.find((item) => !item.safe) ?? null;
+  const unsupported = !["run_validation", "repair_retry"].includes(actionType);
+  const status = unsupported || unsafe ? "blocked" : "ready";
+  const reason = unsupported
+    ? "unsupported_next_action"
+    : unsafe?.reason ?? (actionType === "run_validation" ? "awaiting_validation_execution" : "awaiting_repair_retry");
+  const id = `next_${stableHash({
+    sessionId,
+    finalizationEventId,
+    actionType,
+    commands,
+    nextAction,
+  }).slice(0, 16)}`;
+  const existing = (await readJsonLines(join(stateDir, "next_actions.jsonl")))
+    .find((item) => item.id === id);
+  if (existing) {
+    return {
+      ...existing,
+      deduped: true,
+    };
+  }
+
+  const receipt = {
+    schema_version: "precedent.next_action.v1",
+    type: "next_action_queued",
+    id,
+    status,
+    reason,
+    actionType,
+    sessionId,
+    idleEventId: idleEventId ?? null,
+    finalizationEventId: finalizationEventId ?? null,
+    decision: finalization.decision ?? null,
+    commands,
+    commandSafety,
+    nextAction,
+    createdAt: new Date().toISOString(),
+  };
+  await appendJsonLine(join(stateDir, "next_actions.jsonl"), receipt);
+
+  return {
+    ...receipt,
+    deduped: false,
   };
 }
 
@@ -7020,6 +7127,7 @@ async function idleFinalizationPlan({ stateDir, sessionEvents, explicitWarrantId
         needed: false,
         pending: true,
         reason: "blocked_finalization_pending",
+        finalizationEventId: latestFinalization.eventId ?? null,
         finalization: latestFinalization.finalization,
         contextBlock: latestFinalization.contextBlock ?? formatFinalizeContextBlock(latestFinalization.finalization),
       };
@@ -8905,6 +9013,7 @@ async function ensureState(stateDir) {
   await ensureFile(join(stateDir, "precedents.jsonl"));
   await ensureFile(join(stateDir, "candidates.jsonl"));
   await ensureFile(join(stateDir, "events.jsonl"));
+  await ensureFile(join(stateDir, "next_actions.jsonl"));
 }
 
 async function readStoredTraces(tracesDir) {

@@ -163,12 +163,21 @@ test("orchestration.after_idle finalizes unfinished sessions", async () => {
     });
     assert.match(idle.idle.finalization.contextBlock, /Required command: pnpm test:webhooks/u);
     assert.equal(idle.idle.finalization.recorded, true);
+    assert.equal(idle.idle.finalization.queuedAction.status, "ready");
+    assert.equal(idle.idle.finalization.queuedAction.actionType, "run_validation");
+    assert.deepEqual(idle.idle.finalization.queuedAction.commands, ["pnpm test:webhooks"]);
     assert.equal(repeated.deduped, true);
     assert.equal(repeated.idle.finalization.recorded, true);
+    assert.equal(repeated.idle.finalization.queuedAction.deduped, false);
 
     const sessionEvents = await readJsonLines(join(stateDir, "sessions/unfinished.jsonl"));
     assert.equal(sessionEvents.filter((event) => event.eventId === "idle-finalize:finalize.before_response").length, 1);
     assert.equal(sessionEvents.filter((event) => event.hook === "finalize.before_response").length, 1);
+    const nextActions = await readJsonLines(join(stateDir, "next_actions.jsonl"));
+    assert.equal(nextActions.length, 1);
+    assert.equal(nextActions[0].status, "ready");
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.nextActionQueue.ready, 1);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -214,10 +223,14 @@ test("orchestration.after_idle re-surfaces blocked finalization without duplicat
     assert.equal(idle.idle.finalization.status, "blocked");
     assert.equal(idle.idle.finalization.reason, "blocked_finalization_pending");
     assert.deepEqual(idle.idle.finalization.nextAction, blocked.nextAction);
+    assert.equal(idle.idle.finalization.queuedAction.status, "ready");
+    assert.equal(idle.idle.finalization.queuedAction.deduped, false);
     assert.equal(idle.idle.finalization.recorded, false);
 
     const sessionEvents = await readJsonLines(join(stateDir, "sessions/blocked-finalization.jsonl"));
     assert.equal(sessionEvents.filter((event) => event.hook === "finalize.before_response").length, 1);
+    const nextActions = await readJsonLines(join(stateDir, "next_actions.jsonl"));
+    assert.equal(nextActions.length, 1);
 
     await hook(stateDir, {
       schema_version: "precedent.v1",
