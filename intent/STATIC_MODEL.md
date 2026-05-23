@@ -302,8 +302,8 @@ blocking diagnostics.
   capability.
 - Check simple capability constraints for file paths, shell commands, context
   source file paths, context source web domains, web/http read domains, and git
-  push branches or remotes, secret read names, ticket update ids, and deploy
-  targets.
+  commit messages, git push branches or remotes, secret read names, ticket
+  update ids, and deploy targets.
 - Treat effects covered by a capability with `approval required` as requiring a
   step-local `approval ...` gate, and emit `INTENT_APPROVAL_MISSING` when the
   owning step has no approval gate.
@@ -316,8 +316,8 @@ blocking diagnostics.
   grants, and emit `INTENT_CONTEXT_UNDECLARED` when no in-scope grant covers
   the requested source.
 - Emit `INTENT_VERIFY_IMPURE` for side-effect calls inside goal-level `verify`
-  requirements, including file writes, git pushes, web or HTTP reads, deploys,
-  and ticket updates.
+  requirements, including file writes, git commits, git pushes, web or HTTP
+  reads, deploys, and ticket updates.
 - Parse step-body `require ...` lines as step requirements, separate from
   goal-level verification requirements.
 - Parse step-body `approval ...` lines as step approval gates owned by their
@@ -413,8 +413,8 @@ Rules:
 - Nested calls may be parsed as argument values, but the first capability
   milestone only checks literal file path, shell command, structured context web
   URL or domain, structured context documents path, web/http read URL or domain,
-  git push branch or remote arguments, secret read names, ticket update ids, and
-  deploy targets.
+  git commit messages, git push branch or remote arguments, secret read names,
+  ticket update ids, and deploy targets.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -667,10 +667,10 @@ Rules:
 ## Capability Constraints
 
 The first constraint checker supports only direct string-literal matches for
-file paths, shell commands, web/http read domains, git push branches or
-remotes, secret read names, ticket update ids, and deploy targets. A capability
-authorizes an effect call when the effect family matches and every constrained
-argument is covered by the capability.
+file paths, shell commands, web/http read domains, git commit messages, git push
+branches or remotes, secret read names, ticket update ids, and deploy targets. A
+capability authorizes an effect call when the effect family matches and every
+constrained argument is covered by the capability.
 
 Context source constraints:
 
@@ -729,6 +729,22 @@ Web/http read constraints:
   `docs.example.com` and `api.docs.example.com`, but not `example.com`.
 - If no exact or wildcard domain grant covers the normalized URL host or domain
   argument, the checker emits `INTENT_CAPABILITY_DENIED`.
+
+Git commit constraints:
+
+- Git commit effects use a named `message` argument as the constrained
+  resource.
+- `GitCommit(message: "...")` and `git.commit(message: "...")` are valid only
+  when an in-scope capability grants `git commit message: "..."`, written in
+  source as `capability git { commit message: "..." }`.
+- Commit messages are normalized by trimming leading and trailing ASCII
+  whitespace before comparison. Matching is exact after normalization;
+  wildcards, templates, environment expansion, and generated messages are
+  unsupported.
+- If no git commit grant covers the normalized message, the checker emits
+  `INTENT_CAPABILITY_DENIED`.
+- A successful git commit binding creates an `authorizes` edge from the
+  matching `Capability` node to the `GitCommit` `Effect` node.
 
 Secret read constraints:
 
@@ -843,9 +859,9 @@ as `shell("...")` or `shell(command: "...")`; it remains subject to
 verification shell binding and capability checks.
 
 Any side-effecting operation inside a goal-level `verify` requirement is
-impure. Calls such as `FileWrite`, `GitPush`, `web.read`, `http.get`, deploy
-operations, or ticket updates emit `INTENT_VERIFY_IMPURE` at the impure call
-span and make graph output non-executable.
+impure. Calls such as `FileWrite`, `GitCommit`, `GitPush`, `web.read`,
+`http.get`, deploy operations, or ticket updates emit `INTENT_VERIFY_IMPURE` at
+the impure call span and make graph output non-executable.
 
 ## Diagnostics
 
@@ -1300,6 +1316,12 @@ node lists timeout summaries in `data.timeouts` and retry summaries in
 `data.retries`. Each timeout policy has one outgoing `timeouts` edge to that
 owning step, and each retry policy has one outgoing `retries` edge to that
 owning step.
+
+Git commits are represented as `Effect` nodes the same way as other effect
+requests. The node data records family `git`, action `commit`, the normalized
+`message` argument, and the original expression. When covered, graph output
+creates an `authorizes` edge from the matching `Capability` node to the
+`GitCommit` `Effect` node.
 
 Secret reads are represented as `Effect` nodes the same way as other effect
 requests. The node data records family `secret`, action `read`, the normalized

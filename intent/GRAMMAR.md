@@ -206,6 +206,8 @@ file.write("intent/STATIC_MODEL.md")
 shell.exec(command: "npm test")
 web.read(url: "https://docs.example.com/guide")
 http.get("https://api.example.com/status")
+GitCommit(message: "ship fix")
+git.commit(message: "ship fix")
 git.push(branch: "main")
 git.push(remote: "origin")
 TicketUpdate(id: "CODE-123")
@@ -220,14 +222,22 @@ opaque predicate text.
 Goal-level `verify` requirements are pure assertions by default. A `verify`
 requirement may include only predicate logic and supported verification effects,
 currently `shell("...")` and `shell(command: "...")`. Side-effect calls inside
-`verify`, including file writes, git pushes, web or HTTP reads, deploys, and
-ticket updates, are invalid and emit `INTENT_VERIFY_IMPURE`.
+`verify`, including file writes, git commits, git pushes, web or HTTP reads,
+deploys, and ticket updates, are invalid and emit `INTENT_VERIFY_IMPURE`.
 
 Shell command arguments are trust-sensitive in the first checker prototype. A
 shell command argument must be either a string literal or a value already marked
 trusted by the checker. Nonliteral shell command expressions that are not
 trusted produce `INTENT_TRUST_FLOW_UNSAFE` rather than being treated as an
 opaque command string.
+
+Git commit effects use a named `message` constrained argument. The checker
+binds `GitCommit(message: "...")` and `git.commit(message: "...")` to in-scope
+`commit message: "..."` capability grants. Commit messages are normalized
+before comparison; if no grant covers the normalized argument, the checker emits
+`INTENT_CAPABILITY_DENIED`. The graph builder emits git commits as `Effect`
+nodes with family `git`, action `commit`, and an `authorizes` edge from the
+matching `Capability` node when covered.
 
 Git push effects use a named `branch` or `remote` constrained argument. The
 checker binds `git.push(branch: "...")` to in-scope `push branch: "..."`
@@ -329,6 +339,11 @@ The parser emits names and type reference strings; the checker owns binding.
   `domain` argument, and bind to in-scope `read domain: "..."` capability
   grants. URL hosts are compared against exact or wildcard granted domains; if
   no grant covers the host, the checker emits `INTENT_CAPABILITY_DENIED`.
+- Git commit effects bind `GitCommit(message: "...")` and
+  `git.commit(message: "...")` to in-scope
+  `capability git { commit message: "..." }` grants. Commit messages are
+  normalized before comparison; if no grant covers the normalized message, the
+  checker emits `INTENT_CAPABILITY_DENIED`.
 - Git push effects use a named `branch` or `remote` argument, and bind to
   in-scope `push branch: "..."` or `push remote: "..."` capability grants.
   Simple branch and remote names are normalized before comparison; if no grant
@@ -358,7 +373,7 @@ The parser emits names and type reference strings; the checker owns binding.
   normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.
 - Goal-level `verify` requirements are pure assertions except for supported
   verification effects. Side-effect calls such as `FileWrite`, `GitPush`, web
-  reads, deploys, or ticket updates inside `verify` emit
+  reads, git commits, deploys, or ticket updates inside `verify` emit
   `INTENT_VERIFY_IMPURE`.
 - Step-body `require ...` lines become step requirement checks. They are
   emitted as graph `Check` nodes with `requires` edges into the owning step and
