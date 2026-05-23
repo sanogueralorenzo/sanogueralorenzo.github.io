@@ -93,6 +93,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent observe`: ingests an agent trace, PR diff, validation log, or review thread.
 - `precedent compile`: turns repeated failure modes into candidate artifacts.
 - `precedent inject`: returns the relevant precedent for the current task context.
+- `precedent context`: exports stable agent-ready precedent context.
 - `precedent hook`: reads a passive hook event and returns an insertable context block.
 - `precedent replay`: reruns a baseline agent task with and without injected precedent.
 - `precedent explain`: audits why a precedent was promoted or rejected.
@@ -114,6 +115,7 @@ This repository includes a small dependency-free prototype:
 node precedent/bin/precedent.mjs init
 node precedent/bin/precedent.mjs observe --trace precedent/examples/webhook-trace.json
 node precedent/bin/precedent.mjs inject --task "add another webhook handler" --scope feature:webhooks
+node precedent/bin/precedent.mjs context --task "add another webhook handler" --scope feature:webhooks
 echo '{"schema_version":"precedent.v1","hook":"context.before_turn","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"]}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
@@ -130,6 +132,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 
 - `observe` is the passive hook ingesting an agent trace.
 - `inject` is the before-turn hook returning relevant precedent.
+- `context` is the preferred runtime-facing export: it returns `schema_version: "precedent.context.v1"`, an insertable `contextBlock`, injection metadata, suppression metadata, and the source inputs used for ranking.
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
 - Every injection includes `matchReasons`, so a runtime can show why Precedent injected memory instead of treating it as opaque prompt context.
@@ -137,7 +140,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `explain` returns the promotion reason, source trace or session, replay delta, evidence, matching scope and paths, and recent injection history for one precedent id.
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
-- `manifest` emits the hook command, stdin fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
+- `manifest` emits the argv commands, fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
@@ -154,13 +157,12 @@ Example runtime manifest:
 
 ```json
 {
-  "schema_version": "precedent.v1",
+  "schema_version": "precedent.manifest.v1",
   "runtime": "generic",
   "stateDir": ".precedent",
   "hooks": {
     "context.before_turn": {
-      "command": ["node", "precedent/bin/precedent.mjs", "hook", "--state-dir", ".precedent", "--json"],
-      "stdin": ["schema_version", "hook", "sessionId", "task", "scope", "changedFiles", "limit", "threshold", "allowRepeat"],
+      "command": ["node", "precedent/bin/precedent.mjs", "context", "--state-dir", ".precedent", "--task-file", "$TASK_FILE", "--scope", "$SCOPE", "--changed-files", "$CHANGED_FILES", "--session", "$SESSION_ID", "--format", "json"],
       "injectFrom": "contextBlock",
       "timeoutMs": 1500,
       "failurePolicy": "fail_open"

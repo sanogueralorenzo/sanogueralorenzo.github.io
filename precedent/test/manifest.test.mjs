@@ -11,17 +11,26 @@ const cliPath = resolve(repoRoot, "precedent/bin/precedent.mjs");
 test("manifest emits a generic runtime hook contract", async () => {
   const manifest = await runJson(["manifest", "--json"]);
 
-  assert.equal(manifest.schema_version, "precedent.v1");
+  assert.equal(manifest.schema_version, "precedent.manifest.v1");
   assert.equal(manifest.runtime, "generic");
   assert.equal(manifest.hooks["context.before_turn"].injectFrom, "contextBlock");
   assert.equal(manifest.hooks["context.before_turn"].failurePolicy, "fail_open");
   assert.deepEqual(manifest.hooks["context.before_turn"].command, [
     "node",
     "precedent/bin/precedent.mjs",
-    "hook",
+    "context",
     "--state-dir",
     ".precedent",
-    "--json",
+    "--task-file",
+    "$TASK_FILE",
+    "--scope",
+    "$SCOPE",
+    "--changed-files",
+    "$CHANGED_FILES",
+    "--session",
+    "$SESSION_ID",
+    "--format",
+    "json",
   ]);
 });
 
@@ -37,6 +46,7 @@ test("manifest reflects state dir and codex runtime", async () => {
 
   assert.equal(manifest.runtime, "codex");
   assert.equal(manifest.stateDir, "/tmp/precedent-manifest");
+  assert.equal(manifest.hooks["context.before_turn"].command[4], "/tmp/precedent-manifest");
   assert.deepEqual(manifest.hooks["validation.after_run"].command, [
     "node",
     "precedent/bin/precedent.mjs",

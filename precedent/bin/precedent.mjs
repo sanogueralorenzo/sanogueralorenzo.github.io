@@ -43,6 +43,11 @@ async function main() {
     return;
   }
 
+  if (command === "context") {
+    await exportContext();
+    return;
+  }
+
   if (command === "compile") {
     await compilePrecedents();
     return;
@@ -223,6 +228,95 @@ async function injectPrecedent() {
       sourceTrace: match.source_trace,
     })),
   });
+}
+
+async function exportContext() {
+  const stateDir = statePath();
+  await ensureState(stateDir);
+
+  const task = args.task ?? (args["task-file"] ? await readFile(resolve(args["task-file"]), "utf8") : null);
+  if (!task) {
+    fail("context requires --task <text> or --task-file <path>");
+  }
+
+  const context = {
+    task,
+    scope: args.scope ?? "",
+    changedFiles: parseListArg(args["changed-files"]),
+  };
+  const limit = Number(args.limit ?? 2);
+  const threshold = Number(args.threshold ?? 4);
+  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+  const rankedMatches = rankPrecedents(precedents, context)
+    .filter((precedent) => precedent.score >= threshold)
+    .slice(0, limit);
+  const selected = await suppressRepeatedSessionInjections({
+    stateDir,
+    sessionId: args.session ?? null,
+    matches: rankedMatches,
+    allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
+  });
+  const contextBlock = formatInjectionBlock(selected.matches);
+  const exportEvent = {
+    type: "context_export",
+    observedAt: new Date().toISOString(),
+    sessionId: args.session ?? null,
+    task,
+    scope: context.scope || null,
+    changedFiles: context.changedFiles,
+    threshold,
+    injections: selected.matches.map((match) => match.id),
+    injectionMatches: selected.matches.map((match) => ({
+      id: match.id,
+      score: match.score,
+      reasons: match.matchReasons ?? [],
+    })),
+    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+  };
+  const payload = {
+    schema_version: "precedent.context.v1",
+    contextBlock,
+    injections: selected.matches.map(formatInjection),
+    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+    source: {
+      command: "context",
+      task,
+      taskFile: args["task-file"] ?? null,
+      scope: context.scope || null,
+      changedFiles: context.changedFiles,
+      sessionId: args.session ?? null,
+      limit,
+      threshold,
+    },
+  };
+
+  await appendJsonLine(join(stateDir, "events.jsonl"), exportEvent);
+  if (args.session) {
+    await appendSessionEvent(stateDir, {
+      type: "context_export",
+      receivedAt: exportEvent.observedAt,
+      hook: "context.export",
+      sessionId: args.session,
+      task,
+      scope: context.scope || null,
+      changedFiles: context.changedFiles,
+      contextBlock,
+      injections: exportEvent.injections,
+      injectionMatches: exportEvent.injectionMatches,
+      suppressedInjections: exportEvent.suppressedInjections,
+    });
+  }
+
+  if (args.format === "markdown") {
+    process.stdout.write(contextBlock ? `${contextBlock}\n` : "");
+    return;
+  }
+
+  if (args.format && args.format !== "json") {
+    fail(`unsupported context format: ${args.format}`);
+  }
+
+  print(payload);
 }
 
 async function compilePrecedents() {
@@ -737,38 +831,53 @@ async function printManifest() {
   }
 
   const stateDir = args["state-dir"] ?? DEFAULT_STATE_DIR;
-  const baseCommand = ["node", "precedent/bin/precedent.mjs", "hook", "--state-dir", stateDir, "--json"];
+  const hookCommand = ["node", "precedent/bin/precedent.mjs", "hook", "--state-dir", stateDir, "--json"];
 
   print({
-    schema_version: SCHEMA_VERSION,
+    schema_version: "precedent.manifest.v1",
     runtime,
     stateDir,
     requiredEnv: [],
     hooks: {
       "context.before_turn": {
-        command: baseCommand,
-        stdin: ["schema_version", "hook", "sessionId", "task", "scope", "changedFiles", "limit", "threshold", "allowRepeat"],
-        output: ["ok", "hook", "sessionId", "contextBlock", "injections", "suppressedInjections"],
+        command: [
+          "node",
+          "precedent/bin/precedent.mjs",
+          "context",
+          "--state-dir",
+          stateDir,
+          "--task-file",
+          "$TASK_FILE",
+          "--scope",
+          "$SCOPE",
+          "--changed-files",
+          "$CHANGED_FILES",
+          "--session",
+          "$SESSION_ID",
+          "--format",
+          "json",
+        ],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "source"],
         injectFrom: "contextBlock",
         timeoutMs: 1500,
         failurePolicy: "fail_open",
       },
       "validation.after_run": {
-        command: baseCommand,
+        command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "validation"],
         timeoutMs: 1500,
         failurePolicy: "fail_open",
       },
       "diff.after_edit": {
-        command: baseCommand,
+        command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff"],
         timeoutMs: 1500,
         failurePolicy: "fail_open",
       },
       "outcome.after_task": {
-        command: baseCommand,
+        command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "success", "status", "retries", "tokenEstimate", "notes", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "outcome"],
         timeoutMs: 1500,
@@ -996,7 +1105,7 @@ async function suppressRepeatedSessionInjections({ stateDir, sessionId, matches,
   const priorEvents = await readSessionEvents(stateDir, sessionId);
   const priorInjectedIds = new Set(
     priorEvents
-      .filter((event) => event.hook === "context.before_turn")
+      .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export")
       .flatMap((event) => Array.isArray(event.injections) ? event.injections : []),
   );
   const selected = [];
@@ -1824,6 +1933,7 @@ Usage:
   precedent init [--state-dir .precedent]
   precedent observe --trace trace.json [--state-dir .precedent]
   precedent observe --session session-id [--state-dir .precedent]
+  precedent context --task "add webhook handler" [--scope feature:webhooks] [--format json|markdown]
   precedent compile [--state-dir .precedent]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
@@ -1837,6 +1947,7 @@ Usage:
 Commands:
   init      Create local Precedent state.
   observe   Ingest one agent trace or recorded hook session.
+  context   Export stable agent-ready precedent context.
   compile   Mine observed raw traces into candidate precedent artifacts.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   inject    Return relevant precedent for the current task.
