@@ -459,7 +459,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["inputs", "outputType", "effects"],
+              "required": ["inputs", "outputType", "effects", "requirements"],
               "additionalProperties": false,
               "properties": {
                 "inputs": {
@@ -472,6 +472,12 @@
                   "type": ["string", "null"]
                 },
                 "effects": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "requirements": {
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -575,6 +581,15 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
+                "scope": {
+                  "enum": ["goal", "step"]
+                },
+                "ownerStep": {
+                  "type": "string"
+                },
+                "assertion": {
+                  "enum": ["Require"]
+                },
                 "requirement": {
                   "type": "string"
                 },
@@ -679,6 +694,9 @@
             },
             "type": {
               "type": ["string", "null"]
+            },
+            "requirement": {
+              "type": "string"
             }
           }
         }

@@ -20,8 +20,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `MemoryRetention`: structured `retain ... until ...` rule with retained
   subject, until condition, raw text, and source span.
 - `PlanBlock`: ordered list of executable steps.
-- `StepDecl`: typed inputs, output, declared effects, timeout, retry policy,
-  checks, and body expression.
+- `StepDecl`: typed inputs, output, step-local requirements, declared effects,
+  timeout, retry policy, checks, and body expression.
 - `VerifyBlock`: required or advisory completion checks.
 - `InvariantBlock`: always-on rules evaluated across effects and checkpoints.
 - `EffectDecl`: reusable typed effect signature.
@@ -294,6 +294,8 @@ blocking diagnostics.
 - Require verification gates for every goal and ensure they are pure unless
   they declare a verification effect.
 - Bind verification shell requirements to declared shell run capability grants.
+- Parse step-body `require ...` lines as step requirements, separate from
+  goal-level verification requirements.
 - Enforce invariant placement and attach invariants to the graph as guards.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
@@ -305,6 +307,8 @@ blocking diagnostics.
   `retain ... until ...` retention rule.
 - Build dependency edges from step inputs, produced values, checks, approvals,
   checkpoints, and completion gates.
+- Emit step requirements as `Check` nodes with `requires` edges into the owning
+  step and `gates` edges to the owning goal.
 - Reject execution cycles unless a future bounded-loop form declares progress.
 
 ## Step Input Binding
@@ -367,6 +371,34 @@ Rules:
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
+
+## Step Requirements
+
+Step bodies may contain `require ...` lines that declare preconditions or
+required checks for only that step:
+
+```intent
+plan {
+  step run_tests(patch: GitDiff) -> TestReport {
+    require patch.applies
+    require shell("npm test").exit_code == 0
+  }
+}
+```
+
+Rules:
+
+- Step-body requirements are parsed into the owning `StepDecl` as step
+  requirements, not into the goal `VerifyBlock`.
+- Each step requirement emits one graph `Check` node whose span is the
+  `require ...` line.
+- The graph builder creates a `requires` edge from the step requirement `Check`
+  node into the owning `Step`, so the step cannot run until the check succeeds.
+- The graph builder creates a `gates` edge from the step requirement `Check`
+  node to the owning `Goal`, so the requirement is scoped to that goal.
+- Step requirement checks do not create `verifies` edges to the goal
+  `Completion` node. Goal-level `verify` requirements remain the only checks
+  that verify completion.
 
 ## Memory Retention
 
@@ -702,6 +734,18 @@ node id. It is an intermediate contract for a local runtime.
       }
     },
     {
+      "id": "goal:ship_checkout_fix:step:run_tests:requirement:0",
+      "kind": "Check",
+      "label": "shell(\"npm test\").exit_code == 0",
+      "span": "loc.17",
+      "data": {
+        "scope": "step",
+        "ownerStep": "run_tests",
+        "assertion": "Require",
+        "requirement": "shell(\"npm test\").exit_code == 0"
+      }
+    },
+    {
       "id": "goal:ship_checkout_fix:verify:0",
       "kind": "Check",
       "label": "run_tests.exit_code == 0",
@@ -757,6 +801,16 @@ node id. It is an intermediate contract for a local runtime.
       "kind": "authorizes"
     },
     {
+      "from": "goal:ship_checkout_fix:step:run_tests:requirement:0",
+      "to": "goal:ship_checkout_fix",
+      "kind": "gates"
+    },
+    {
+      "from": "goal:ship_checkout_fix:step:run_tests:requirement:0",
+      "to": "goal:ship_checkout_fix:step:run_tests",
+      "kind": "requires"
+    },
+    {
       "from": "goal:ship_checkout_fix:verify:0",
       "to": "goal:ship_checkout_fix",
       "kind": "gates"
@@ -801,6 +855,11 @@ Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
 lacks retention lifecycle data is non-executable because the checker must emit
 `INTENT_MEMORY_UNSCOPED`.
+
+Step requirement nodes are `Check` nodes scoped to one owning step. They create
+`requires` edges into that step and `gates` edges to the owning goal. They are
+not completion checks and must not create `verifies` edges to the goal
+`Completion` node.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.

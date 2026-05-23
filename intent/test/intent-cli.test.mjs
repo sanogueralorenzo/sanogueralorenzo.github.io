@@ -12,6 +12,7 @@ const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.inten
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
 const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.intent", import.meta.url).pathname;
 const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent", import.meta.url).pathname;
+const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
@@ -157,6 +158,7 @@ describe("intent static model CLI", () => {
     const research = runJson(["check", VALID_RESEARCH]);
     const webReadWildcard = runJson(["check", VALID_WEB_READ_WILDCARD]);
     const gitPushBranch = runJson(["check", VALID_GIT_PUSH_BRANCH]);
+    const stepRequirements = runJson(["check", VALID_STEP_REQUIREMENTS]);
     const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
 
     assert.equal(codeChange.ok, true);
@@ -169,6 +171,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(webReadWildcard.diagnostics, []);
     assert.equal(gitPushBranch.ok, true);
     assert.deepEqual(gitPushBranch.diagnostics, []);
+    assert.equal(stepRequirements.ok, true);
+    assert.deepEqual(stepRequirements.diagnostics, []);
     assert.equal(trustFlow.ok, true);
     assert.deepEqual(trustFlow.diagnostics, []);
   });
@@ -339,6 +343,18 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.kind === "verifies" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "produces" && edge.to.endsWith(":completion")), true);
+  });
+
+  it("emits step requirement checks as preconditions without completion verification edges", () => {
+    const graph = runJson(["graph", VALID_STEP_REQUIREMENTS]);
+    const stepRequirement = graph.nodes.find((node) => node.kind === "Check" && node.data.scope === "step");
+
+    assert.equal(graph.ok, true);
+    assert.equal(stepRequirement.data.ownerStep, "patch_code");
+    assert.equal(stepRequirement.data.requirement, "input.summary != \"\"");
+    assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "requires" && edge.to.endsWith(":step:patch_code")), true);
+    assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "gates" && edge.to === "goal:apply_guarded_code_change"), true);
+    assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "verifies"), false);
   });
 
   it("validates CLI outputs against versioned schemas", () => {

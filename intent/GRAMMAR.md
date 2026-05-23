@@ -12,7 +12,7 @@ The parser must accept:
 - Top-level type declarations.
 - Goal declarations.
 - `context`, `capability`, `memory`, `plan`, `verify`, and `invariant` blocks.
-- Step declarations inside `plan`.
+- Step declarations inside `plan`, including step-local requirements.
 - `require` and `deny` statements.
 - Effect call arguments in simple call expressions.
 - Line comments.
@@ -94,18 +94,28 @@ declared lifecycle.
 
 ```ebnf
 step_decl  = "step", s, identifier, [ params ], ws, "->", ws, type_ref,
-             line_end ;
+             ( line_end | ws, step_body ) ;
+step_body  = "{", ws, { step_item, ws }, "}" ;
+step_item  = step_require_stmt ;
+step_require_stmt = "require", s, raw_expr, line_end ;
 params     = "(", ws, [ param, { ws, ",", ws, param } ], ws, ")" ;
 param      = identifier, ws, ":", ws, type_ref ;
 type_ref   = identifier, { ws, type_suffix } ;
 type_suffix = "<", ws, type_ref, { ws, ",", ws, type_ref }, ws, ">" ;
 ```
 
-Step declarations are signatures only for the first milestone. Step bodies,
-effect bodies, retries, timeouts, and execution statements are out of scope.
-Step input names are local to the step signature; the checker binds inputs by
-matching their type against goal inputs and previous step outputs in source
-order. Each step param becomes a step input port in the checked graph.
+Step declarations may be signatures only or may include a body containing
+step-local `require ...` lines. Effect bodies, retries, timeouts, and execution
+statements are out of scope. Step input names are local to the step signature;
+the checker binds inputs by matching their type against goal inputs and
+previous step outputs in source order. Each step param becomes a step input port
+in the checked graph.
+
+`require ...` lines inside a step body are parsed as step requirements. They are
+not goal-level `verify` checks and do not create completion verification gates.
+The graph builder emits each step requirement as a `Check` node, creates a
+`requires` edge from that `Check` node into the owning `Step`, and creates a
+`gates` edge from that `Check` node to the owning `Goal`.
 
 ## Expressions
 
@@ -229,6 +239,10 @@ The parser emits names and type reference strings; the checker owns binding.
 - Verify `shell("command")` and `shell(command: "command")` requirements bind
   to in-scope shell run capability grants. If no declared grant covers the
   normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.
+- Step-body `require ...` lines become step requirement checks. They are
+  emitted as graph `Check` nodes with `requires` edges into the owning step and
+  `gates` edges to the owning goal, distinct from goal-level `verify`
+  requirements.
 - Memory blocks must contain at least one parsed `retain ... until ...`
   retention rule. Missing retention is `INTENT_MEMORY_UNSCOPED`.
 - Parsed retention rules are emitted as checker data and graph `Memory` node

@@ -699,6 +699,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         inputs: step.parameters,
         outputType: step.outputType,
         effects: step.effects.map((effect) => effect.name),
+        requirements: step.requirements.map((requirement) => requirement.value),
       }));
       edges.push(edge(goalId, id, "plans"));
       if (previousStepId) {
@@ -706,6 +707,20 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       }
       previousStepId = id;
       lastStepId = id;
+
+      for (const [requirementIndex, requirement] of step.requirements.entries()) {
+        const requirementId = `${id}:requirement:${requirementIndex}`;
+        nodes.push(node(requirementId, "Check", requirement.value, requirement.span, {
+          scope: "step",
+          ownerStep: step.name,
+          assertion: requirement.kind,
+          requirement: requirement.value,
+        }));
+        edges.push(edge(requirementId, goalId, "gates"));
+        edges.push(edge(requirementId, id, "requires", {
+          requirement: requirement.value,
+        }));
+      }
 
       for (const parameter of step.parameters) {
         const stepInputId = `${id}:input:${parameter.name}`;
