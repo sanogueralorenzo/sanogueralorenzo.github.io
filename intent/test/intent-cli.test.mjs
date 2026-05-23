@@ -106,6 +106,9 @@ function validateTestGraph(graph) {
 
 function defaultGraphNodeData(kind, data) {
   const normalizedData = isPlainObject(data) ? data : {};
+  if (kind === "Type") {
+    return { definition: null, ...normalizedData };
+  }
   if (kind === "Context") {
     return {
       source: "repo",
@@ -1386,7 +1389,7 @@ describe("intent static model CLI", () => {
         { id: "node:missing-payload", kind: "Type", span: testSpan(3) },
         { id: "node:bad-span", kind: "Type", label: "bad span", span: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } }, data: {} },
         { id: "   ", kind: "Type", label: "blank", span: testSpan(5), data: {} },
-        { id: "node:a", kind: "Type", label: "a", span: testSpan(6), data: {} },
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(6), data: { definition: null } },
       ],
       edges: [
         "bad",
@@ -1594,6 +1597,25 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].retention_rules_nonempty, false);
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_MEMORY_INVALID");
     assert.deepEqual(diagnostics[2].invalid_retention_indexes, [0]);
+  });
+
+  it("validates graph type declaration diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "type:blank-definition", kind: "Type", label: "BlankDefinition", span: testSpan(1), data: { definition: "" } },
+        { id: "type:bad-definition", kind: "Type", label: "BadDefinition", span: testSpan(2), data: { definition: { field: "String" } } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPE_INVALID");
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_TYPE_INVALID");
+    assert.equal(diagnostics[0].type_id, "type:blank-definition");
+    assert.equal(diagnostics[0].definition_is_valid, false);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_TYPE_INVALID");
+    assert.equal(diagnostics[1].type_id, "type:bad-definition");
+    assert.equal(diagnostics[1].definition_is_valid, false);
   });
 
   it("validates graph goal typed contract diagnostics", () => {

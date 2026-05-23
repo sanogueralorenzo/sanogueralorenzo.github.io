@@ -1332,6 +1332,10 @@ function validateGraph(graph, options = {}) {
       }));
       continue;
     }
+    const typeDiagnostic = validateGraphType(graphNode, graphSpan);
+    if (typeDiagnostic) {
+      diagnostics.push(typeDiagnostic);
+    }
     const goalDiagnostic = validateGraphGoal(graphNode, graphSpan);
     if (goalDiagnostic) {
       diagnostics.push(goalDiagnostic);
@@ -1722,6 +1726,22 @@ function isDiagnosticRecord(value) {
     && typeof value.message === "string"
     && value.message.trim() !== ""
     && isSpan(value.span);
+}
+
+function validateGraphType(graphNode, graphSpan) {
+  if (graphNode.kind !== "Type") {
+    return null;
+  }
+  const definitionIsValid = graphNode.data.definition === null
+    || (typeof graphNode.data.definition === "string" && graphNode.data.definition.trim() !== "");
+  if (definitionIsValid) {
+    return null;
+  }
+  return error("INTENT_GRAPH_TYPE_INVALID", `type '${graphNode.label}' must carry valid declaration data.`, graphNode.span ?? graphSpan, {
+    type: graphNode.label,
+    type_id: graphNode.id,
+    definition_is_valid: definitionIsValid,
+  });
 }
 
 function validateGraphGoal(graphNode, graphSpan) {
