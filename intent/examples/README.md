@@ -1,20 +1,16 @@
 # Intent Examples
 
 These examples make Intent concrete as an agent-first typed workflow language. Each
-workflow declares typed inputs, bounded context, allowed capabilities, resumable
+goal declares typed inputs, bounded context, allowed capabilities, resumable
 steps, visible effects, verification gates, and human approval points.
 
 ## Code Change
 
-Use this workflow when an agent must make a small repository change with tests and
+Use this goal when an agent must make a small repository change with tests and
 traceable file writes.
 
 ```intent
-workflow CodeChange {
-  input ticket: TicketRef
-  input repo: GitRepo
-  input request: ChangeRequest
-
+goal code_change(ticket: TicketRef, repo: GitRepo, request: ChangeRequest) -> Completion {
   context {
     source repository(repo, scope: request.allowed_paths)
     source ticket_system(ticket)
@@ -64,14 +60,11 @@ passed.
 
 ## Research Synthesis
 
-Use this workflow when an agent must combine source material into a cited answer
+Use this goal when an agent must combine source material into a cited answer
 without turning uncertain claims into facts.
 
 ```intent
-workflow ResearchSynthesis {
-  input question: ResearchQuestion
-  input source_policy: SourcePolicy
-
+goal research_synthesis(question: ResearchQuestion, source_policy: SourcePolicy) -> ResearchReport {
   context {
     source web(domains: source_policy.allowed_domains)
     source documents(paths: source_policy.local_paths)
@@ -115,20 +108,16 @@ workflow ResearchSynthesis {
 }
 ```
 
-The workflow treats citations, conflicts, and confidence as typed outputs instead
+The goal treats citations, conflicts, and confidence as typed outputs instead
 of prose conventions, so the final answer keeps provenance attached to each claim.
 
 ## Incident Response
 
-Use this workflow when an agent must triage a production incident while keeping
+Use this goal when an agent must triage a production incident while keeping
 destructive operations gated.
 
 ```intent
-workflow IncidentResponse {
-  input incident: IncidentRef
-  input service: ServiceRef
-  input severity: Severity
-
+goal incident_response(incident: IncidentRef, service: ServiceRef, severity: Severity) -> IncidentOutcome {
   context {
     source pager(incident)
     source logs(service, window: 2h)
@@ -191,14 +180,11 @@ typed effect that cannot run without explicit human approval.
 
 ## Deployment Approval
 
-Use this workflow when an agent must prepare a release decision from checks,
+Use this goal when an agent must prepare a release decision from checks,
 change summaries, and risk signals.
 
 ```intent
-workflow DeploymentApproval {
-  input release: ReleaseCandidate
-  input environment: Environment
-
+goal deployment_approval(release: ReleaseCandidate, environment: Environment) -> DeploymentResult {
   context {
     source git.release_diff(release)
     source ci.pipeline(release)

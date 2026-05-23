@@ -1,8 +1,19 @@
 # Intent
 
-Intent is a sketch for an agent-first programming language.
+Intent is a draft agent-first typed workflow language.
 
 Most programming languages are built around instructions: compute this value, call this function, mutate this state. Intent starts from a different premise: agents need a language for goals, context, permissions, memory, uncertainty, verification, and accountable side effects.
+
+## Repository Map
+
+- [SPEC.md](SPEC.md): the current language contract and runtime model.
+- [ROADMAP.md](ROADMAP.md): the path from written design to parser, checker, runtime, and developer tools.
+- [examples/README.md](examples/README.md): concrete Intent goals for code changes, research, incident response, and deployment approval.
+- [workstreams/language-design.md](workstreams/language-design.md): syntax, declarations, goals, type forms, uncertainty, effects, and packages.
+- [workstreams/tools-and-effects.md](workstreams/tools-and-effects.md): capabilities, effect signatures, adapters, denials, approvals, and rollback contracts.
+- [workstreams/trust-security.md](workstreams/trust-security.md): trust zones, principals, secrets, approvals, audit logs, policy checks, and failure modes.
+- [workstreams/memory-provenance.md](workstreams/memory-provenance.md): scoped memory, retention, erasure, evidence, checkpoints, and provenance graphs.
+- [workstreams/verification-runtime.md](workstreams/verification-runtime.md): execution graph semantics, step lifecycle, checks, invariants, retries, cancellation, and completion.
 
 The core idea is simple:
 
@@ -60,7 +71,7 @@ Those behaviors are usually hidden inside prompts, frameworks, logs, or orchestr
 9. Failure is recoverable by default.
 10. Every result has provenance.
 
-## What The Future Version Might Look Like
+## Runtime Shape
 
 Intent programs could compile into execution graphs that agent runtimes can inspect before running. A runtime would be able to answer:
 
