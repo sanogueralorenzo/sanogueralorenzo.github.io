@@ -113,6 +113,7 @@ test("check fails for promoted precedent without replay receipt", async () => {
     assert.equal(result.exitCode, 1);
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("replay.id is required")));
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("replay.path is required")));
+    assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("artifact_sha256 is required")));
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -181,6 +182,7 @@ test("check validates promoted precedent replay receipts", async () => {
     const payload = JSON.parse(result.stdout);
 
     assert.equal(result.exitCode, 1);
+    assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.ok === false && check.message.includes("artifact hash")));
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.ok === false && check.message.includes("baseline failure count")));
   } finally {
     await rm(stateDir, { force: true, recursive: true });

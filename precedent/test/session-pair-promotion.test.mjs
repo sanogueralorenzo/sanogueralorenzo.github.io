@@ -34,6 +34,7 @@ test("compile promotes analogous failed and successful ordinary sessions", async
     assert.equal(precedents[0].replay.rerun_failures, 0);
     assert.equal(precedents[0].replay.baseline_exit_code, 1);
     assert.equal(precedents[0].replay.rerun_exit_code, 0);
+    assert.match(precedents[0].replay.artifact_sha256, /^[a-f0-9]{64}$/u);
     assert.ok(precedents[0].guards.some((guard) => guard.type === "required_validation_command"));
     assert.ok(precedents[0].guards.some((guard) => guard.type === "changed_files_within_paths"));
 

@@ -587,9 +587,11 @@ async function replayCase() {
       promotion,
       improved,
     };
-    trace = buildReplayTrace(replayCase, replay, replayPath);
+    const replayContent = `${JSON.stringify(replay, null, 2)}\n`;
+    const artifactSha256 = sha256Text(replayContent);
+    trace = buildReplayTrace(replayCase, replay, replayPath, artifactSha256);
 
-    await writeFileAtomic(replayPath, `${JSON.stringify(replay, null, 2)}\n`);
+    await writeFileAtomic(replayPath, replayContent);
 
     if (args["trace-out"]) {
       tracePath = resolve(args["trace-out"]);
@@ -1907,6 +1909,7 @@ function replayReceiptFromTrace(trace) {
   return {
     id: requireString(trace.replay?.id, "trace.replay.id"),
     path: requireString(trace.replay?.path, "trace.replay.path"),
+    artifact_sha256: requireString(trace.replay?.artifact_sha256, "trace.replay.artifact_sha256"),
     baseline_failures: promotion.baseline_failures,
     rerun_failures: promotion.rerun_failures,
     baseline_exit_code: promotion.baseline_exit_code ?? trace.replay?.baseline?.exitCode ?? null,
@@ -3335,24 +3338,28 @@ async function promoteSessionPairs(stateDir, { successSessionId = null, requireF
     const replayId = `session-pair-${safeFileName(failedTrace.id)}-${safeFileName(successTrace.id)}`;
     const replayDir = join(stateDir, "replays", replayId);
     const replayPath = join(replayDir, "replay.json");
-    const precedent = precedentFromSessionPair(failedTrace, successTrace, replayPath, replayId);
+    const promotion = sessionPairPromotion(failedTrace, successTrace);
+    const replayArtifact = sessionPairReplay({
+      id: replayId,
+      replayPath,
+      failedTrace,
+      successTrace,
+      promotion,
+    });
+    const replayContent = `${JSON.stringify(replayArtifact, null, 2)}\n`;
+    const artifactSha256 = sha256Text(replayContent);
+    const precedent = precedentFromSessionPair(failedTrace, successTrace, replayPath, replayId, artifactSha256);
     const assessment = assessPromotionCandidate(precedent);
     if (!assessment.ok) {
       continue;
     }
 
     await mkdir(replayDir, { recursive: true });
-    await writeFileAtomic(replayPath, `${JSON.stringify(sessionPairReplay({
-      id: replayId,
-      replayPath,
-      failedTrace,
-      successTrace,
-      promotion: precedent.promotion,
-    }), null, 2)}\n`);
-    const promotion = await upsertPromotedPrecedent(stateDir, precedent, new Date().toISOString());
+    await writeFileAtomic(replayPath, replayContent);
+    const promotedPrecedent = await upsertPromotedPrecedent(stateDir, precedent, new Date().toISOString());
     promoted.push({
-      id: promotion.precedent.id,
-      action: promotion.action,
+      id: promotedPrecedent.precedent.id,
+      action: promotedPrecedent.action,
       failedTrace: failedTrace.id,
       successTrace: successTrace.id,
       replayId,
@@ -3444,7 +3451,7 @@ function tracesHavePathOverlap(failedTrace, successTrace) {
     .some((prefix) => failedPrefixes.has(prefix));
 }
 
-function precedentFromSessionPair(failedTrace, successTrace, replayPath, replayId) {
+function precedentFromSessionPair(failedTrace, successTrace, replayPath, replayId, artifactSha256) {
   const failureTypes = classifyFailures(failedTrace.failures);
   const scope = failedTrace.scope || successTrace.scope || "repo";
   const id = `prec_${safeFileName(scope)}_${failureTypes.join("_") || "session_pair"}`;
@@ -3454,6 +3461,7 @@ function precedentFromSessionPair(failedTrace, successTrace, replayPath, replayI
   ]);
   const successfulValidation = successfulValidationForTrace(successTrace);
   const injection = sessionPairInjection(failureTypes, scope, successfulValidation?.command);
+  const promotion = sessionPairPromotion(failedTrace, successTrace);
 
   return {
     id,
@@ -3474,13 +3482,20 @@ function precedentFromSessionPair(failedTrace, successTrace, replayPath, replayI
       rerun_failures: 0,
       baseline_exit_code: failedValidationExitCode(failedTrace),
       rerun_exit_code: successfulValidation?.exitCode ?? 0,
+      artifact_sha256: artifactSha256,
     },
-    promotion: {
-      baseline_failures: 1,
-      rerun_failures: 0,
-      baseline_exit_code: failedValidationExitCode(failedTrace),
-      rerun_exit_code: successfulValidation?.exitCode ?? 0,
-    },
+    promotion,
+  };
+}
+
+function sessionPairPromotion(failedTrace, successTrace) {
+  const successfulValidation = successfulValidationForTrace(successTrace);
+
+  return {
+    baseline_failures: 1,
+    rerun_failures: 0,
+    baseline_exit_code: failedValidationExitCode(failedTrace),
+    rerun_exit_code: successfulValidation?.exitCode ?? 0,
   };
 }
 
@@ -3751,6 +3766,9 @@ function assessPromotionCandidate(precedent) {
   if (!Number.isFinite(replay.rerun_exit_code)) {
     reasons.push("precedent.replay.rerun_exit_code must be a number");
   }
+  if (!/^[a-f0-9]{64}$/u.test(replay.artifact_sha256 ?? "")) {
+    reasons.push("precedent.replay.artifact_sha256 must be a sha256 hex digest");
+  }
 
   return {
     ok: reasons.length === 0,
@@ -3949,7 +3967,7 @@ function shellQuoteCommand(commandArgs) {
     .join(" ");
 }
 
-function buildReplayTrace(replayCase, replay, replayPath) {
+function buildReplayTrace(replayCase, replay, replayPath, artifactSha256) {
   if (!replayCase.precedent) {
     fail("case.precedent is required to emit a promotion-ready trace");
   }
@@ -3973,6 +3991,7 @@ function buildReplayTrace(replayCase, replay, replayPath) {
       verified: true,
       id: replay.id,
       path: replayPath,
+      artifact_sha256: artifactSha256,
       baseline: {
         command: replay.baseline.command,
         exitCode: replay.baseline.exitCode,
@@ -4227,6 +4246,10 @@ function positiveInteger(value, name) {
 
 function stableHash(value) {
   return createHash("sha256").update(JSON.stringify(sortObject(value))).digest("hex");
+}
+
+function sha256Text(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 async function ensureState(stateDir) {
@@ -4596,6 +4619,7 @@ async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {
   assertCheck(replay.rerun_failures === precedent.promotion?.rerun_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay rerun failure count does not match promotion`);
   assertCheck(Number.isFinite(replay.baseline_exit_code), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay baseline exit code is required`);
   assertCheck(Number.isFinite(replay.rerun_exit_code), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay rerun exit code is required`);
+  assertCheck(/^[a-f0-9]{64}$/u.test(replay.artifact_sha256 ?? ""), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay artifact_sha256 is required`);
 
   if (!nonEmptyString(replay.path)) {
     return;
@@ -4613,8 +4637,10 @@ async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {
   }
 
   try {
-    const artifact = parseJson(await readFile(replayPath, "utf8"), replayPath);
+    const rawArtifact = await readFile(replayPath, "utf8");
+    const artifact = parseJson(rawArtifact, replayPath);
     assertCheck(artifact.id === replay.id, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay id does not match receipt`);
+    assertCheck(sha256Text(rawArtifact) === replay.artifact_sha256, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay artifact hash does not match receipt`);
     assertCheck(artifact.promotion?.baseline_failures === precedent.promotion?.baseline_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} baseline failure count does not match replay`);
     assertCheck(artifact.promotion?.rerun_failures === precedent.promotion?.rerun_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} rerun failure count does not match replay`);
     assertCheck(artifact.baseline?.exitCode === replay.baseline_exit_code, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} baseline exit code does not match replay`);

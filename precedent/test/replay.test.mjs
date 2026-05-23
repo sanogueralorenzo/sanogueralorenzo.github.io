@@ -63,6 +63,7 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     assert.equal(observed.promoted.replay.rerun_failures, 0);
     assert.equal(observed.promoted.replay.baseline_exit_code, 1);
     assert.equal(observed.promoted.replay.rerun_exit_code, 0);
+    assert.match(observed.promoted.replay.artifact_sha256, /^[a-f0-9]{64}$/u);
     assert.equal(observed.observed.promotionAction, "created");
 
     const observedAgain = await runPrecedent([
@@ -222,6 +223,7 @@ test("replay can promote a ledger candidate without a handcrafted case file", as
 
     assert.equal(replay.replay.candidateId, "cand_webhook_replacement");
     assert.equal(replay.replay.improved, true);
+    assert.match(replay.trace.replay.artifact_sha256, /^[a-f0-9]{64}$/u);
     assert.equal(replay.trace.replay.baseline.exitCode, 1);
     assert.equal(replay.trace.replay.rerun.exitCode, 0);
     assert.equal(replay.trace.precedent.id, "cand_webhook_replacement");
@@ -241,6 +243,7 @@ test("replay can promote a ledger candidate without a handcrafted case file", as
     assert.equal(observed.promoted.replay.id, "candidate-cand_webhook_replacement");
     assert.equal(observed.promoted.replay.baseline_exit_code, 1);
     assert.equal(observed.promoted.replay.rerun_exit_code, 0);
+    assert.match(observed.promoted.replay.artifact_sha256, /^[a-f0-9]{64}$/u);
 
     const injected = await runPrecedent([
       "context",

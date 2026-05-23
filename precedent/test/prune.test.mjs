@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -88,6 +89,17 @@ async function seedPruneState(stateDir) {
     id: "new-session",
     receivedAt: "2026-02-01T00:00:00.000Z",
   })}\n`);
+  const keepReplay = `${JSON.stringify({
+    id: "keep-replay",
+    completedAt: "2026-02-01T00:00:00.000Z",
+    baseline: { exitCode: 1 },
+    rerun: { exitCode: 0 },
+    promotion: {
+      baseline_failures: 1,
+      rerun_failures: 0,
+    },
+    improved: true,
+  })}\n`;
   await appendFile(join(stateDir, "precedents.jsonl"), `${JSON.stringify({
     id: "prec_keep",
     promotion_status: "promoted",
@@ -99,6 +111,7 @@ async function seedPruneState(stateDir) {
       rerun_failures: 0,
       baseline_exit_code: 1,
       rerun_exit_code: 0,
+      artifact_sha256: createHash("sha256").update(keepReplay).digest("hex"),
     },
     promotion: {
       baseline_failures: 1,
@@ -108,17 +121,7 @@ async function seedPruneState(stateDir) {
     },
   })}\n`);
   await mkdir(join(stateDir, "replays/keep-replay"), { recursive: true });
-  await writeFile(join(stateDir, "replays/keep-replay/replay.json"), JSON.stringify({
-    id: "keep-replay",
-    completedAt: "2026-02-01T00:00:00.000Z",
-    baseline: { exitCode: 1 },
-    rerun: { exitCode: 0 },
-    promotion: {
-      baseline_failures: 1,
-      rerun_failures: 0,
-    },
-    improved: true,
-  }));
+  await writeFile(join(stateDir, "replays/keep-replay/replay.json"), keepReplay);
   await mkdir(join(stateDir, "replays/old-replay"), { recursive: true });
   await writeFile(join(stateDir, "replays/old-replay/replay.json"), JSON.stringify({
     id: "old-replay",
