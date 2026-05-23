@@ -1649,6 +1649,46 @@ describe("intent static model CLI", () => {
     ]);
   });
 
+  it("validates graph gate and verify edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(2) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(4) },
+        { id: "goal:demo:context:0", kind: "Context", label: "repo", span: testSpan(5) },
+      ],
+      edges: [
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+        { from: "goal:demo:step:patch", to: "goal:demo", kind: "gates" },
+        { from: "goal:demo:verify:0", to: "goal:demo:context:0", kind: "gates" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "verifies" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "verifies" },
+      ],
+    });
+    const gateDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_GATE_INVALID");
+    const verifyDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_VERIFY_INVALID");
+
+    assert.equal(gateDiagnostics.length, 2);
+    assert.equal(gateDiagnostics[0].from_kind, "Step");
+    assert.equal(gateDiagnostics[0].to_kind, "Goal");
+    assert.equal(gateDiagnostics[1].from_kind, "Check");
+    assert.equal(gateDiagnostics[1].to_kind, "Context");
+    assert.deepEqual(gateDiagnostics[1].supported_roles, [
+      { from_kind: "Check", to_kind: "Goal" },
+    ]);
+    assert.equal(verifyDiagnostics.length, 2);
+    assert.equal(verifyDiagnostics[0].from_kind, "Goal");
+    assert.equal(verifyDiagnostics[0].to_kind, "Completion");
+    assert.equal(verifyDiagnostics[1].from_kind, "Check");
+    assert.equal(verifyDiagnostics[1].to_kind, "Goal");
+    assert.deepEqual(verifyDiagnostics[1].supported_roles, [
+      { from_kind: "Check", to_kind: "Completion" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",

@@ -2193,7 +2193,7 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (graphEdge.kind !== "declares" && graphEdge.kind !== "authorizes" && graphEdge.kind !== "requests") {
+  if (!["declares", "authorizes", "requests", "gates", "verifies"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
@@ -2203,6 +2203,12 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
   }
   if (graphEdge.kind === "requests") {
     return validateGraphRequestsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "gates") {
+    return validateGraphGatesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "verifies") {
+    return validateGraphVerifiesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
   const isTypeAvailability = sourceNode?.kind === "Type" && targetNode?.kind === "Goal";
   const isMemoryOwnership = sourceNode?.kind === "Goal" && targetNode?.kind === "Memory";
@@ -2218,6 +2224,38 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
     supported_roles: [
       { from_kind: "Type", to_kind: "Goal" },
       { from_kind: "Goal", to_kind: "Memory" },
+    ],
+  });
+}
+
+function validateGraphGatesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Check" && targetNode?.kind === "Goal") {
+    return null;
+  }
+  return error("INTENT_GRAPH_GATE_INVALID", `gates edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Check node to a Goal node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Check", to_kind: "Goal" },
+    ],
+  });
+}
+
+function validateGraphVerifiesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Check" && targetNode?.kind === "Completion") {
+    return null;
+  }
+  return error("INTENT_GRAPH_VERIFY_INVALID", `verifies edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Check node to a Completion node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Check", to_kind: "Completion" },
     ],
   });
 }
