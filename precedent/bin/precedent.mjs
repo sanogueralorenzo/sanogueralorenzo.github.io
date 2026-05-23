@@ -142,9 +142,11 @@ async function observeTrace() {
     fail("observe requires --trace <path> or --session <id>");
   }
 
-  const trace = args.session
+  const rawTrace = args.session
     ? await traceFromSession(stateDir, args.session)
     : parseJson(await readFile(resolve(args.trace), "utf8"), args.trace);
+  const redaction = redactSecretsDeep(rawTrace);
+  const trace = redaction.value;
   assertSchemaVersion(trace, "trace");
   const traceId = requireString(trace.id, "trace.id");
   const observedAt = new Date().toISOString();
@@ -182,6 +184,7 @@ async function observeTrace() {
     promotionStatus: promoted ? "promoted" : trace.precedent ? "rejected" : "none",
     promotionAction,
     promotionReasons: rejected?.reasons ?? [],
+    redactions: redaction.counts,
   };
 
   await writeFile(join(stateDir, "traces", `${safeFileName(traceId)}.json`), JSON.stringify(trace, null, 2));
@@ -313,7 +316,8 @@ async function replayCase() {
   await ensureState(stateDir);
 
   const resolvedCasePath = resolve(casePath);
-  const replayCase = parseJson(await readFile(resolvedCasePath, "utf8"), casePath);
+  const rawReplayCase = parseJson(await readFile(resolvedCasePath, "utf8"), casePath);
+  const replayCase = redactSecretsDeep(rawReplayCase).value;
   assertSchemaVersion(replayCase, "case");
   const replayId = requireString(replayCase.id, "case.id");
   const replayDir = join(stateDir, "replays", safeFileName(replayId));
@@ -324,13 +328,15 @@ async function replayCase() {
 
   const baseline = await runReplayCommand({
     label: "baseline",
-    command: requireString(replayCase.baseline?.command, "case.baseline.command"),
+    command: requireString(rawReplayCase.baseline?.command, "case.baseline.command"),
+    storedCommand: requireString(replayCase.baseline?.command, "case.baseline.command"),
     cwd,
     outputDir: replayDir,
   });
   const rerun = await runReplayCommand({
     label: "rerun",
-    command: requireString(replayCase.rerun?.command, "case.rerun.command"),
+    command: requireString(rawReplayCase.rerun?.command, "case.rerun.command"),
+    storedCommand: requireString(replayCase.rerun?.command, "case.rerun.command"),
     cwd,
     outputDir: replayDir,
   });
@@ -402,7 +408,7 @@ async function runHook() {
 }
 
 async function eventHook() {
-  const event = await readHookEvent();
+  const event = redactSecretsDeep(await readHookEvent()).value;
   assertSchemaVersion(event, "event");
   const hook = requireString(event.hook, "event.hook");
 
@@ -692,7 +698,7 @@ async function runValidationCommand() {
   const startedAt = Date.now();
   const result = await spawnPassthrough(runCommandArgs);
   const durationMs = Date.now() - startedAt;
-  const commandText = shellQuoteCommand(runCommandArgs);
+  const commandText = redactSecrets(shellQuoteCommand(runCommandArgs)).value;
   const failureSignals = validationFailureSignals({
     stderr: result.stderr,
   }, result.exitCode);
@@ -956,7 +962,7 @@ function formatInjectionBlock(matches) {
   const lines = ["Precedent:"];
 
   for (const match of matches) {
-    lines.push(`- ${match.injection}`);
+    lines.push(`- ${redactSecrets(match.injection).value}`);
   }
 
   return lines.join("\n");
@@ -969,7 +975,7 @@ function formatInjection(match) {
     matchReasons: match.matchReasons ?? [],
     scope: match.scope,
     artifact: match.artifact,
-    injection: match.injection,
+    injection: redactSecrets(match.injection).value,
     sourceTrace: match.source_trace,
   };
 }
@@ -1101,7 +1107,7 @@ async function appendSessionEvent(stateDir, rawEvent) {
   const sessionId = requireString(rawEvent.sessionId, "event.sessionId");
   const sessionFile = join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`);
   const artifactDir = join(stateDir, "sessions", `${safeFileName(sessionId)}-artifacts`);
-  const event = { ...rawEvent };
+  const event = redactSecretsDeep(rawEvent).value;
 
   if (typeof event.stdout === "string" && event.stdout.length > 0) {
     await mkdir(artifactDir, { recursive: true });
@@ -1359,18 +1365,20 @@ function sortObject(value) {
   return value;
 }
 
-async function runReplayCommand({ label, command, cwd, outputDir }) {
+async function runReplayCommand({ label, command, storedCommand, cwd, outputDir }) {
   const startedAt = Date.now();
   const result = await spawnShell(command, cwd);
   const durationMs = Date.now() - startedAt;
   const stdoutPath = join(outputDir, `${label}.stdout.txt`);
   const stderrPath = join(outputDir, `${label}.stderr.txt`);
+  const stdout = redactSecrets(result.stdout).value;
+  const stderr = redactSecrets(result.stderr).value;
 
-  await writeFile(stdoutPath, result.stdout);
-  await writeFile(stderrPath, result.stderr);
+  await writeFile(stdoutPath, stdout);
+  await writeFile(stderrPath, stderr);
 
   return {
-    command,
+    command: storedCommand,
     cwd,
     exitCode: result.exitCode,
     durationMs,
@@ -1665,12 +1673,89 @@ async function ensureFile(path) {
 
 async function appendJsonLine(path, value) {
   await ensureFile(path);
-  await appendFile(path, `${JSON.stringify(value)}\n`);
+  await appendFile(path, `${JSON.stringify(redactSecretsDeep(value).value)}\n`);
 }
 
 async function writeJsonLines(path, values) {
   await ensureFile(path);
-  await writeFile(path, values.map((value) => JSON.stringify(value)).join("\n") + (values.length > 0 ? "\n" : ""));
+  await writeFile(path, values.map((value) => JSON.stringify(redactSecretsDeep(value).value)).join("\n") + (values.length > 0 ? "\n" : ""));
+}
+
+const SECRET_PATTERNS = [
+  {
+    type: "bearer_token",
+    pattern: /\bBearer\s+([A-Za-z0-9._~+/-]{10,}=*)/gu,
+    replace: () => "Bearer [REDACTED:bearer_token]",
+  },
+  {
+    type: "openai_key",
+    pattern: /\bsk-(?:live|test|proj)?-?[A-Za-z0-9_-]{10,}\b/gu,
+    replace: () => "[REDACTED:openai_key]",
+  },
+  {
+    type: "github_token",
+    pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b/gu,
+    replace: () => "[REDACTED:github_token]",
+  },
+  {
+    type: "slack_token",
+    pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/gu,
+    replace: () => "[REDACTED:slack_token]",
+  },
+  {
+    type: "connection_string_password",
+    pattern: /\b((?:postgres|postgresql|mysql|redis):\/\/[^:\s/]+:)([^@\s]+)(@)/giu,
+    replace: (_match, prefix, _password, suffix) => `${prefix}[REDACTED:connection_string_password]${suffix}`,
+  },
+  {
+    type: "credential",
+    pattern: /\b(api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|password|passwd|secret)\b(\s*[:=]\s*)(["']?)([^\s"',}&]{8,})(["']?)/giu,
+    replace: (_match, name, separator, openQuote, _secret, closeQuote) => `${name}${separator}${openQuote}[REDACTED:credential]${closeQuote}`,
+  },
+];
+
+function redactSecretsDeep(value, counts = {}) {
+  if (typeof value === "string") {
+    return redactSecrets(value, counts);
+  }
+
+  if (Array.isArray(value)) {
+    return {
+      value: value.map((item) => redactSecretsDeep(item, counts).value),
+      counts,
+    };
+  }
+
+  if (value && typeof value === "object") {
+    const redacted = {};
+
+    for (const [key, item] of Object.entries(value)) {
+      redacted[key] = redactSecretsDeep(item, counts).value;
+    }
+
+    return {
+      value: redacted,
+      counts,
+    };
+  }
+
+  return { value, counts };
+}
+
+function redactSecrets(value, counts = {}) {
+  let redacted = value;
+
+  for (const secretPattern of SECRET_PATTERNS) {
+    redacted = redacted.replace(secretPattern.pattern, (...match) => {
+      counts[secretPattern.type] = (counts[secretPattern.type] ?? 0) + 1;
+      return secretPattern.replace(...match);
+    });
+  }
+
+  return {
+    value: redacted,
+    counts,
+  };
 }
 
 async function readJsonLines(path) {

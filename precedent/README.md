@@ -148,6 +148,8 @@ Promotion is idempotent. Re-observing the same promoted precedent updates the ex
 
 All JSON inputs use an explicit v1 schema marker. `observe`, `hook`, and `replay` reject missing or unknown schema versions with an exact field error.
 
+Security behavior is intentionally small and deterministic: before Precedent writes hook events, sessions, traces, replay artifacts, ledgers, or context injections, it redacts common secrets with typed markers such as `[REDACTED:bearer_token]`, `[REDACTED:openai_key]`, `[REDACTED:github_token]`, `[REDACTED:slack_token]`, `[REDACTED:connection_string_password]`, and `[REDACTED:credential]`. `run` still streams the wrapped command's stdout/stderr unchanged to the caller and preserves the exact exit code, but the stored command output is redacted.
+
 Example runtime manifest:
 
 ```json
