@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanogueralorenzo.github.io/intent/schemas/intent.ast.v0.schema.json",
+  "title": "Intent AST v0",
+  "type": "object",
+  "required": ["schema_version", "source", "package", "types", "goals", "span"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "intent.ast.v0"
+    },
+    "source": {
+      "type": "string"
+    },
+    "package": {
+      "$ref": "#/$defs/package"
+    },
+    "types": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/type"
+      }
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/goal"
+      }
+    },
+    "span": {
+      "$ref": "#/$defs/span"
+    }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": ["file", "start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/position"
+        },
+        "end": {
+          "$ref": "#/$defs/position"
+        }
+      }
+    },
+    "position": {
+      "type": "object",
+      "required": ["line", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "required": ["kind", "name", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Package"
+        },
+        "name": {
+          "type": "string"
+        },
+        "implicit": {
+          "type": "boolean"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "type": {
+      "type": "object",
+      "required": ["kind", "name", "definition", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Type"
+        },
+        "name": {
+          "type": "string"
+        },
+        "definition": {
+          "type": ["string", "null"]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "goal": {
+      "type": "object",
+      "required": [
+        "kind",
+        "name",
+        "title",
+        "parameters",
+        "outputType",
+        "context",
+        "capabilities",
+        "memory",
+        "steps",
+        "verify",
+        "invariants",
+        "rawBlocks",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Goal"
+        },
+        "name": {
+          "type": "string"
+        },
+        "title": {
+          "type": ["string", "null"]
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "outputType": {
+          "type": ["string", "null"]
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statement"
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          }
+        },
+        "memory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "verify": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statement"
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statement"
+          }
+        },
+        "rawBlocks": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/block"
+              },
+              {
+                "$ref": "#/$defs/statement"
+              }
+            ]
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "statement": {
+      "type": "object",
+      "required": ["kind", "value", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "required": ["kind", "name", "header", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Block"
+        },
+        "name": {
+          "type": "string"
+        },
+        "header": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["kind", "family", "action", "name", "constraints", "grants", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Capability"
+        },
+        "family": {
+          "type": "string"
+        },
+        "action": {
+          "type": ["string", "null"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/grant"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "grant": {
+      "type": "object",
+      "required": ["action", "key", "value", "raw"],
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "raw": {
+          "type": "string"
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "required": ["kind", "scope", "name", "retention", "statements", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Memory"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "retention": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["kind", "name", "parameters", "outputType", "effects", "requirements", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Step"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "outputType": {
+          "type": ["string", "null"]
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/effect_use"
+          }
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statement"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "effect_use": {
+      "type": "object",
+      "required": ["kind", "name", "family", "action", "args", "expression", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "EffectUse"
+        },
+        "name": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "action": {
+          "type": ["string", "null"]
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "expression": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    }
+  }
+}

@@ -83,8 +83,185 @@ Rules:
 - Lines and columns are one-based for users.
 - Offsets are zero-based UTF-8 byte offsets for tools.
 - Spans include leading keywords and exclude trailing unrelated whitespace.
-- Generated graph nodes keep `source_id` and `span` from the AST node that
-  caused them.
+- Generated graph nodes keep `span` from the AST node that caused them.
+
+## JSON Output Contracts
+
+The CLI output contract is stdout JSON plus a process exit code. Every success
+payload has a `schema_version` string. Schema versions are append-only
+contracts: incompatible field, type, requiredness, or semantic changes require
+a new version string and a new schema file.
+
+Canonical schema files for this milestone:
+
+- `intent/schemas/intent.ast.v0.schema.json`
+- `intent/schemas/intent.check.v0.schema.json`
+- `intent/schemas/intent.graph.v0.schema.json`
+
+The parser, checker, and graph builder may add optional fields only when the
+schema allows them and existing consumers can ignore them safely.
+
+### Parse Output: `intent.ast.v0`
+
+Command:
+
+```shell
+node intent/bin/intent.mjs parse <file.intent>
+```
+
+Success exits `0` and emits the parsed source model:
+
+```json
+{
+  "schema_version": "intent.ast.v0",
+  "source": "intent/fixtures/valid_code_change.intent",
+  "package": {
+    "kind": "Package",
+    "name": "fixtures.code_change",
+    "span": {
+      "file": "intent/fixtures/valid_code_change.intent",
+      "start": { "line": 1, "column": 1, "offset": 0 },
+      "end": { "line": 1, "column": 29, "offset": 28 }
+    }
+  },
+  "types": [],
+  "goals": [],
+  "span": {
+    "file": "intent/fixtures/valid_code_change.intent",
+    "start": { "line": 1, "column": 1, "offset": 0 },
+    "end": { "line": 1, "column": 1, "offset": 0 }
+  }
+}
+```
+
+Required top-level fields are `schema_version`, `source`, `package`, `types`,
+`goals`, and `span`. Parsed declarations preserve source order. Every parsed
+node that maps to source text must carry a `span`.
+
+Parse failures exit non-zero and emit the diagnostic envelope described by
+`intent.check.v0` with `ok: false` and at least one `INTENT_PARSE_ERROR`
+diagnostic.
+
+### Check Output: `intent.check.v0`
+
+Command:
+
+```shell
+node intent/bin/intent.mjs check <file.intent>
+```
+
+The checker always emits a diagnostic envelope:
+
+```json
+{
+  "schema_version": "intent.check.v0",
+  "ok": false,
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "INTENT_VERIFY_MISSING",
+      "message": "goal 'ship_checkout_fix' uses effects but has no verify block with require statements.",
+      "span": {
+        "file": "intent/examples/demo.intent",
+        "start": { "line": 4, "column": 1, "offset": 64 },
+        "end": { "line": 22, "column": 1, "offset": 420 }
+      }
+    }
+  ]
+}
+```
+
+Required top-level fields are `schema_version`, `ok`, and `diagnostics`.
+`ok: true` requires an empty diagnostics array. Any error diagnostic requires
+`ok: false` and exit code `1`. Usage errors, unknown commands, and unreadable
+source files exit `2` and are reported on stderr.
+
+### Graph Output: `intent.graph.v0`
+
+Command:
+
+```shell
+node intent/bin/intent.mjs graph <file.intent>
+```
+
+Graph output is an execution graph envelope. This abbreviated example omits
+most nodes and edges:
+
+```json
+{
+  "schema_version": "intent.graph.v0",
+  "ast_schema_version": "intent.ast.v0",
+  "source": "intent/examples/demo.intent",
+  "package": "examples.demo",
+  "ok": true,
+  "diagnostics": [],
+  "nodes": [
+    {
+      "id": "goal:ship_checkout_fix",
+      "kind": "Goal",
+      "label": "ship_checkout_fix",
+      "span": {
+        "file": "intent/examples/demo.intent",
+        "start": { "line": 4, "column": 1, "offset": 64 },
+        "end": { "line": 22, "column": 1, "offset": 420 }
+      },
+      "data": {
+        "title": null,
+        "parameters": [],
+        "outputType": "PullRequest"
+      }
+    },
+    {
+      "id": "goal:ship_checkout_fix:completion",
+      "kind": "Completion",
+      "label": "ship_checkout_fix",
+      "span": {
+        "file": "intent/examples/demo.intent",
+        "start": { "line": 4, "column": 1, "offset": 64 },
+        "end": { "line": 22, "column": 1, "offset": 420 }
+      },
+      "data": {
+        "outputType": "PullRequest"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "goal:ship_checkout_fix",
+      "to": "goal:ship_checkout_fix:completion",
+      "kind": "completes"
+    }
+  ]
+}
+```
+
+Required top-level fields are `schema_version`, `ast_schema_version`, `source`,
+`package`, `ok`, `diagnostics`, `nodes`, and `edges`. Node ids are stable within
+one graph payload. Edge endpoints must refer to node ids emitted in the same
+payload. The graph command may emit `ok: false` with diagnostics for inspection,
+but runtimes must treat that graph as non-executable.
+
+## Contract Validation
+
+Validation should cover both fixtures and output schemas:
+
+```shell
+node intent/bin/intent.mjs parse intent/fixtures/valid_code_change.intent
+node intent/bin/intent.mjs check intent/fixtures/valid_code_change.intent
+node intent/bin/intent.mjs graph intent/fixtures/valid_code_change.intent
+node --test intent/test/*.test.mjs
+```
+
+Expected validation behavior:
+
+- Valid fixtures parse, check with `ok: true`, and emit graph output with
+  `ok: true`.
+- Invalid fixtures fail `check` with exit code `1`, `ok: false`, stable
+  diagnostic codes, and source spans.
+- Parse, check, and graph stdout must validate against their matching schema
+  files when schema validation is enabled.
+- A graph payload is executable only when it validates against
+  `intent.graph.v0.schema.json` and has `ok: true`.
 
 ## Checker Responsibilities
 
@@ -252,162 +429,190 @@ Initial diagnostic families:
 - `INTENT_MEMORY_UNSCOPED`
 - `INTENT_GRAPH_CYCLE`
 
-Errors block graph emission. Warnings and notes may be emitted with a checked
-graph when runtime behavior remains unambiguous.
+Errors make graph output non-executable by setting `ok: false`. Warnings and
+notes may be emitted with a checked graph when runtime behavior remains
+unambiguous.
 
 ## Execution Graph Shape
 
 The first prototype emits JSON with deterministic ordering by source order, then
-node id. It is an intermediate contract for a local runtime, not a public API.
+node id. It is an intermediate contract for a local runtime.
 
 ```json
 {
-  "version": 1,
-  "source": {
-    "root": "intent/examples/demo.intent",
-    "package": "examples.demo"
-  },
+  "schema_version": "intent.graph.v0",
+  "ast_schema_version": "intent.ast.v0",
+  "source": "intent/examples/demo.intent",
+  "package": "examples.demo",
+  "ok": true,
+  "diagnostics": [],
   "nodes": [
     {
-      "id": "goal.ship_checkout_fix",
-      "kind": "goal",
-      "name": "ship_checkout_fix",
-      "output": { "type": "PullRequest" },
-      "source_id": "ast.4",
-      "span": "loc.4"
+      "id": "goal:ship_checkout_fix",
+      "kind": "Goal",
+      "label": "ship_checkout_fix",
+      "span": "loc.4",
+      "data": {
+        "title": null,
+        "parameters": [{ "name": "ticket", "type": "TicketRef" }],
+        "outputType": "PullRequest"
+      }
     },
     {
-      "id": "input.goal.ship_checkout_fix.ticket",
-      "kind": "input",
-      "scope": "goal",
-      "owner": "goal.ship_checkout_fix",
-      "name": "ticket",
-      "type": "TicketRef",
-      "source_id": "ast.4",
-      "span": "loc.4"
+      "id": "goal:ship_checkout_fix:input:ticket",
+      "kind": "Input",
+      "label": "ticket",
+      "span": "loc.4",
+      "data": {
+        "scope": "goal",
+        "type": "TicketRef"
+      }
     },
     {
-      "id": "capability.tests",
-      "kind": "capability",
-      "family": "shell",
-      "action": "exec",
-      "constraints": { "commands": ["npm test"] },
-      "source_id": "ast.7",
-      "span": "loc.7"
+      "id": "goal:ship_checkout_fix:capability:0",
+      "kind": "Capability",
+      "label": "tests",
+      "span": "loc.7",
+      "data": {
+        "family": "shell",
+        "action": null,
+        "grants": [{ "action": "run", "key": "command", "value": "npm test" }]
+      }
     },
     {
-      "id": "step.prepare_patch",
-      "kind": "step",
-      "name": "prepare_patch",
-      "output": { "type": "GitDiff" },
-      "effects": ["FileRead"],
-      "source_id": "ast.12",
-      "span": "loc.12"
+      "id": "goal:ship_checkout_fix:step:prepare_patch",
+      "kind": "Step",
+      "label": "prepare_patch",
+      "span": "loc.12",
+      "data": {
+        "inputs": [{ "name": "ticket", "type": "TicketRef" }],
+        "outputType": "GitDiff",
+        "effects": ["FileRead"]
+      }
     },
     {
-      "id": "input.step.prepare_patch.ticket",
-      "kind": "input",
-      "scope": "step",
-      "owner": "step.prepare_patch",
-      "name": "ticket",
-      "type": "TicketRef",
-      "source_id": "ast.12",
-      "span": "loc.12"
+      "id": "goal:ship_checkout_fix:step:prepare_patch:input:ticket",
+      "kind": "Input",
+      "label": "ticket",
+      "span": "loc.12",
+      "data": {
+        "scope": "step",
+        "type": "TicketRef"
+      }
     },
     {
-      "id": "step.run_tests",
-      "kind": "step",
-      "name": "run_tests",
-      "output": { "type": "ShellExecResult" },
-      "effects": ["ShellExec"],
-      "source_id": "ast.15",
-      "span": "loc.15"
+      "id": "goal:ship_checkout_fix:step:run_tests",
+      "kind": "Step",
+      "label": "run_tests",
+      "span": "loc.15",
+      "data": {
+        "inputs": [{ "name": "patch", "type": "GitDiff" }],
+        "outputType": "ShellExecResult",
+        "effects": ["ShellExec"]
+      }
     },
     {
-      "id": "input.step.run_tests.patch",
-      "kind": "input",
-      "scope": "step",
-      "owner": "step.run_tests",
-      "name": "patch",
-      "type": "GitDiff",
-      "source_id": "ast.15",
-      "span": "loc.15"
+      "id": "goal:ship_checkout_fix:step:run_tests:effect:0",
+      "kind": "Effect",
+      "label": "ShellExec",
+      "span": "loc.16",
+      "data": {
+        "family": "shell",
+        "action": "run",
+        "args": { "command": "npm test" },
+        "expression": "ShellExec(command: \"npm test\")"
+      }
     },
     {
-      "id": "check.tests_pass",
-      "kind": "check",
-      "mode": "required",
-      "predicate": "run_tests.exit_code == 0",
-      "source_id": "ast.19",
-      "span": "loc.19"
+      "id": "goal:ship_checkout_fix:step:run_tests:input:patch",
+      "kind": "Input",
+      "label": "patch",
+      "span": "loc.15",
+      "data": {
+        "scope": "step",
+        "type": "GitDiff"
+      }
     },
     {
-      "id": "completion.ship_checkout_fix",
-      "kind": "completion",
-      "owner": "goal.ship_checkout_fix",
-      "output": { "type": "PullRequest" },
-      "source_id": "ast.4",
-      "span": "loc.4"
+      "id": "goal:ship_checkout_fix:verify:0",
+      "kind": "Check",
+      "label": "run_tests.exit_code == 0",
+      "span": "loc.19",
+      "data": {}
+    },
+    {
+      "id": "goal:ship_checkout_fix:completion",
+      "kind": "Completion",
+      "label": "ship_checkout_fix",
+      "span": "loc.4",
+      "data": {
+        "outputType": "PullRequest"
+      }
     }
   ],
   "edges": [
     {
-      "from": "input.goal.ship_checkout_fix.ticket",
-      "to": "input.step.prepare_patch.ticket",
-      "kind": "data"
+      "from": "goal:ship_checkout_fix:input:ticket",
+      "to": "goal:ship_checkout_fix:step:prepare_patch:input:ticket",
+      "kind": "data",
+      "data": { "parameter": "ticket", "type": "TicketRef" }
     },
     {
-      "from": "input.step.prepare_patch.ticket",
-      "to": "step.prepare_patch",
-      "kind": "requires"
+      "from": "goal:ship_checkout_fix:step:prepare_patch:input:ticket",
+      "to": "goal:ship_checkout_fix:step:prepare_patch",
+      "kind": "requires",
+      "data": { "parameter": "ticket", "type": "TicketRef" }
     },
     {
-      "from": "step.prepare_patch",
-      "to": "input.step.run_tests.patch",
-      "kind": "data"
+      "from": "goal:ship_checkout_fix:step:prepare_patch",
+      "to": "goal:ship_checkout_fix:step:run_tests:input:patch",
+      "kind": "data",
+      "data": { "parameter": "patch", "type": "GitDiff" }
     },
     {
-      "from": "input.step.run_tests.patch",
-      "to": "step.run_tests",
-      "kind": "requires"
+      "from": "goal:ship_checkout_fix:step:run_tests:input:patch",
+      "to": "goal:ship_checkout_fix:step:run_tests",
+      "kind": "requires",
+      "data": { "parameter": "patch", "type": "GitDiff" }
     },
     {
-      "from": "capability.tests",
-      "to": "step.run_tests",
-      "kind": "authorizes",
-      "effect": "ShellExec"
+      "from": "goal:ship_checkout_fix:capability:0",
+      "to": "goal:ship_checkout_fix:step:run_tests:effect:0",
+      "kind": "authorizes"
     },
     {
-      "from": "step.run_tests",
-      "to": "check.tests_pass",
+      "from": "goal:ship_checkout_fix:verify:0",
+      "to": "goal:ship_checkout_fix",
+      "kind": "gates"
+    },
+    {
+      "from": "goal:ship_checkout_fix:verify:0",
+      "to": "goal:ship_checkout_fix:completion",
       "kind": "verifies"
     },
     {
-      "from": "check.tests_pass",
-      "to": "completion.ship_checkout_fix",
-      "kind": "verifies"
+      "from": "goal:ship_checkout_fix:step:run_tests",
+      "to": "goal:ship_checkout_fix:completion",
+      "kind": "produces",
+      "data": { "type": "ShellExecResult" }
     },
     {
-      "from": "step.run_tests",
-      "to": "completion.ship_checkout_fix",
-      "kind": "produces"
-    },
-    {
-      "from": "goal.ship_checkout_fix",
-      "to": "completion.ship_checkout_fix",
+      "from": "goal:ship_checkout_fix",
+      "to": "goal:ship_checkout_fix:completion",
       "kind": "completes"
     }
-  ],
-  "diagnostics": []
+  ]
 }
 ```
 
-Required node kinds are `goal`, `input`, `context`, `capability`, `memory`,
-`step`, `effect`, `check`, `invariant`, `approval`, `checkpoint`, and
-`completion`.
+Required node kinds are `Goal`, `Input`, `Context`, `Capability`, `Memory`,
+`Step`, `Effect`, `Check`, `Invariant`, `Approval`, `Checkpoint`, and
+`Completion`.
 
 Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
-`verifies`, `guards`, `gates`, `approves`, `checkpoints`, and `completes`.
+`verifies`, `guards`, `gates`, `approves`, `checkpoints`, `completes`,
+`plans`, `precedes`, `requests`, `supplies`, `informs`, `declares`, and
+`constrains`.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
@@ -416,7 +621,7 @@ node or an earlier producing step. If multiple prior values have the same type,
 the checker selects the nearest prior value in source order and emits the chosen
 edge deterministically.
 
-Each goal has exactly one `completion` node. The goal creates a `completes` edge
+Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.
 Invariants that apply to the goal create `guards` edges to completion. The last
 executable step in the plan creates a `produces` edge to completion. Completion

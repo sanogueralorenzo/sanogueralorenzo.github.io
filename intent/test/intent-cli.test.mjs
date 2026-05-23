@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 const CLI = new URL("../bin/intent.mjs", import.meta.url).pathname;
+const AST_SCHEMA = new URL("../schemas/intent.ast.v0.schema.json", import.meta.url).pathname;
+const CHECK_SCHEMA = new URL("../schemas/intent.check.v0.schema.json", import.meta.url).pathname;
+const GRAPH_SCHEMA = new URL("../schemas/intent.graph.v0.schema.json", import.meta.url).pathname;
 const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import.meta.url).pathname;
 const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.intent", import.meta.url).pathname;
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
@@ -21,6 +25,106 @@ function runJson(args) {
 
 function run(args) {
   return spawnSync("node", [CLI, ...args], { encoding: "utf8" });
+}
+
+function readJson(file) {
+  return JSON.parse(readFileSync(file, "utf8"));
+}
+
+function validateSchema(schema, value) {
+  const errors = [];
+  validateAgainst(schema, value, schema, "$", errors);
+  return errors;
+}
+
+function validateAgainst(schema, value, root, path, errors) {
+  if (schema.$ref) {
+    validateAgainst(resolveRef(root, schema.$ref), value, root, path, errors);
+    return;
+  }
+  if (schema.allOf) {
+    for (const item of schema.allOf) {
+      validateAgainst(item, value, root, path, errors);
+    }
+  }
+  if (schema.oneOf) {
+    const matches = schema.oneOf.filter((item) => validateSubschema(item, value, root));
+    if (matches.length !== 1) {
+      errors.push(`${path} must match exactly one schema, matched ${matches.length}`);
+    }
+    return;
+  }
+  if (schema.const !== undefined && value !== schema.const) {
+    errors.push(`${path} must equal ${JSON.stringify(schema.const)}`);
+  }
+  if (schema.enum && !schema.enum.includes(value)) {
+    errors.push(`${path} must be one of ${schema.enum.join(", ")}`);
+  }
+  if (schema.type && !matchesType(schema.type, value)) {
+    errors.push(`${path} must be ${JSON.stringify(schema.type)}`);
+    return;
+  }
+  if (typeof value === "number" && schema.minimum !== undefined && value < schema.minimum) {
+    errors.push(`${path} must be >= ${schema.minimum}`);
+  }
+  if (schema.required && isPlainObject(value)) {
+    for (const key of schema.required) {
+      if (!(key in value)) {
+        errors.push(`${path}.${key} is required`);
+      }
+    }
+  }
+  if (schema.properties && isPlainObject(value)) {
+    for (const [key, propertySchema] of Object.entries(schema.properties)) {
+      if (key in value) {
+        validateAgainst(propertySchema, value[key], root, `${path}.${key}`, errors);
+      }
+    }
+  }
+  if (schema.additionalProperties === false && isPlainObject(value)) {
+    const allowed = new Set(Object.keys(schema.properties ?? {}));
+    for (const key of Object.keys(value)) {
+      if (!allowed.has(key)) {
+        errors.push(`${path}.${key} is not allowed`);
+      }
+    }
+  } else if (isPlainObject(schema.additionalProperties) && isPlainObject(value)) {
+    const known = new Set(Object.keys(schema.properties ?? {}));
+    for (const key of Object.keys(value)) {
+      if (!known.has(key)) {
+        validateAgainst(schema.additionalProperties, value[key], root, `${path}.${key}`, errors);
+      }
+    }
+  }
+  if (schema.items && Array.isArray(value)) {
+    value.forEach((item, index) => validateAgainst(schema.items, item, root, `${path}[${index}]`, errors));
+  }
+}
+
+function validateSubschema(schema, value, root) {
+  const errors = [];
+  validateAgainst(schema, value, root, "$", errors);
+  return errors.length === 0;
+}
+
+function resolveRef(root, ref) {
+  assert.equal(ref.startsWith("#/"), true, `unsupported ref ${ref}`);
+  return ref.slice(2).split("/").reduce((node, part) => node[part], root);
+}
+
+function matchesType(type, value) {
+  const types = Array.isArray(type) ? type : [type];
+  return types.some((candidate) => {
+    if (candidate === "array") return Array.isArray(value);
+    if (candidate === "object") return isPlainObject(value);
+    if (candidate === "integer") return Number.isInteger(value);
+    if (candidate === "null") return value === null;
+    return typeof value === candidate;
+  });
+}
+
+function isPlainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 describe("intent static model CLI", () => {
@@ -152,5 +256,20 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.kind === "verifies" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "produces" && edge.to.endsWith(":completion")), true);
+  });
+
+  it("validates CLI outputs against versioned schemas", () => {
+    const astSchema = readJson(AST_SCHEMA);
+    const checkSchema = readJson(CHECK_SCHEMA);
+    const graphSchema = readJson(GRAPH_SCHEMA);
+    const ast = runJson(["parse", VALID_DEPENDENCY_GRAPH]);
+    const validCheck = runJson(["check", VALID_DEPENDENCY_GRAPH]);
+    const invalidCheck = JSON.parse(run(["check", INVALID_UNRESOLVED_TYPE]).stdout);
+    const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
+
+    assert.deepEqual(validateSchema(astSchema, ast), []);
+    assert.deepEqual(validateSchema(checkSchema, validCheck), []);
+    assert.deepEqual(validateSchema(checkSchema, invalidCheck), []);
+    assert.deepEqual(validateSchema(graphSchema, graph), []);
   });
 });

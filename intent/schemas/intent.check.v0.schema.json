@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanogueralorenzo.github.io/intent/schemas/intent.check.v0.schema.json",
+  "title": "Intent Check v0",
+  "type": "object",
+  "required": ["schema_version", "ok", "diagnostics"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "intent.check.v0"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": ["file", "start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/position"
+        },
+        "end": {
+          "$ref": "#/$defs/position"
+        }
+      }
+    },
+    "position": {
+      "type": "object",
+      "required": ["line", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["severity", "code", "message", "span"],
+      "properties": {
+        "severity": {
+          "enum": ["error"]
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "previous_span": {
+          "$ref": "#/$defs/span"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "step": {
+          "type": "string"
+        },
+        "parameter": {
+          "type": "string"
+        },
+        "effect": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "action": {
+          "type": ["string", "null"]
+        },
+        "required_family": {
+          "type": "string"
+        },
+        "declared_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "argument": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "allowed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

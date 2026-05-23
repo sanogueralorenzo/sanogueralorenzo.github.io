@@ -1,0 +1,578 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanogueralorenzo.github.io/intent/schemas/intent.graph.v0.schema.json",
+  "title": "Intent Graph v0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "ast_schema_version",
+    "source",
+    "package",
+    "ok",
+    "diagnostics",
+    "nodes",
+    "edges"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "intent.graph.v0"
+    },
+    "ast_schema_version": {
+      "const": "intent.ast.v0"
+    },
+    "source": {
+      "type": "string"
+    },
+    "package": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": ["file", "start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/position"
+        },
+        "end": {
+          "$ref": "#/$defs/position"
+        }
+      }
+    },
+    "position": {
+      "type": "object",
+      "required": ["line", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "grant": {
+      "type": "object",
+      "required": ["action", "key", "value", "raw"],
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "raw": {
+          "type": "string"
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["severity", "code", "message", "span"],
+      "properties": {
+        "severity": {
+          "enum": ["error"]
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      },
+      "additionalProperties": true
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/type_node"
+        },
+        {
+          "$ref": "#/$defs/goal_node"
+        },
+        {
+          "$ref": "#/$defs/input_node"
+        },
+        {
+          "$ref": "#/$defs/context_node"
+        },
+        {
+          "$ref": "#/$defs/capability_node"
+        },
+        {
+          "$ref": "#/$defs/memory_node"
+        },
+        {
+          "$ref": "#/$defs/step_node"
+        },
+        {
+          "$ref": "#/$defs/effect_node"
+        },
+        {
+          "$ref": "#/$defs/completion_node"
+        },
+        {
+          "$ref": "#/$defs/check_node"
+        },
+        {
+          "$ref": "#/$defs/invariant_node"
+        }
+      ]
+    },
+    "base_node": {
+      "type": "object",
+      "required": ["id", "kind", "label", "span", "data"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "data": {
+          "type": "object"
+        }
+      }
+    },
+    "type_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Type"
+            },
+            "data": {
+              "type": "object",
+              "required": ["definition"],
+              "additionalProperties": false,
+              "properties": {
+                "definition": {
+                  "type": ["string", "null"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "goal_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Goal"
+            },
+            "data": {
+              "type": "object",
+              "required": ["title", "parameters", "outputType"],
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "type": ["string", "null"]
+                },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/parameter"
+                  }
+                },
+                "outputType": {
+                  "type": ["string", "null"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "input_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Input"
+            },
+            "data": {
+              "type": "object",
+              "required": ["scope", "type"],
+              "additionalProperties": false,
+              "properties": {
+                "scope": {
+                  "enum": ["goal", "step"]
+                },
+                "type": {
+                  "type": ["string", "null"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "context_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Context"
+            },
+            "data": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "capability_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Capability"
+            },
+            "data": {
+              "type": "object",
+              "required": ["family", "action", "grants"],
+              "additionalProperties": false,
+              "properties": {
+                "family": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": ["string", "null"]
+                },
+                "grants": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/grant"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "memory_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Memory"
+            },
+            "data": {
+              "type": "object",
+              "required": ["scope", "retention"],
+              "additionalProperties": false,
+              "properties": {
+                "scope": {
+                  "type": "string"
+                },
+                "retention": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "step_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Step"
+            },
+            "data": {
+              "type": "object",
+              "required": ["inputs", "outputType", "effects"],
+              "additionalProperties": false,
+              "properties": {
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/parameter"
+                  }
+                },
+                "outputType": {
+                  "type": ["string", "null"]
+                },
+                "effects": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "effect_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Effect"
+            },
+            "data": {
+              "type": "object",
+              "required": ["family", "action", "args", "expression"],
+              "additionalProperties": false,
+              "properties": {
+                "family": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": ["string", "null"]
+                },
+                "args": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "expression": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "completion_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Completion"
+            },
+            "data": {
+              "type": "object",
+              "required": ["outputType"],
+              "additionalProperties": false,
+              "properties": {
+                "outputType": {
+                  "type": ["string", "null"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "check_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Check"
+            },
+            "data": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "invariant_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Invariant"
+            },
+            "data": {
+              "type": "object",
+              "required": ["assertion"],
+              "additionalProperties": false,
+              "properties": {
+                "assertion": {
+                  "enum": ["Require", "Deny"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "authorizes",
+            "completes",
+            "constrains",
+            "data",
+            "declares",
+            "gates",
+            "guards",
+            "informs",
+            "plans",
+            "precedes",
+            "produces",
+            "requests",
+            "requires",
+            "supplies",
+            "verifies"
+          ]
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "parameter": {
+              "type": "string"
+            },
+            "type": {
+              "type": ["string", "null"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

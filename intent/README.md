@@ -53,7 +53,51 @@ node intent/bin/intent.mjs graph intent/fixtures/valid_code_change.intent
 node --test intent/test/*.test.mjs
 ```
 
-The first implementation parses package and goal blocks, preserves source spans, checks for missing verification and undeclared effects, and emits a machine-readable execution graph.
+The first implementation parses package and goal blocks, preserves source spans,
+checks for missing verification and undeclared effects, and emits versioned JSON
+contracts for downstream tools.
+
+## JSON Output Contracts
+
+Every successful command writes formatted JSON to stdout and includes a stable
+`schema_version` field:
+
+- `parse`: emits `intent.ast.v0`, the parsed source model with package, type,
+  goal, block, step, effect, and span data.
+- `check`: emits `intent.check.v0`, a diagnostic envelope with `ok` and
+  `diagnostics`.
+- `graph`: emits `intent.graph.v0`, an execution graph envelope with
+  `ast_schema_version`, `ok`, `diagnostics`, `nodes`, and `edges`.
+
+The schema files for the contract milestone are expected at these paths:
+
+- `intent/schemas/intent.ast.v0.schema.json`
+- `intent/schemas/intent.check.v0.schema.json`
+- `intent/schemas/intent.graph.v0.schema.json`
+
+Schema names and `schema_version` values must move together. A breaking payload
+change requires a new schema version and a new schema file instead of silently
+changing an existing contract.
+
+Validation expectations:
+
+- Valid fixtures must parse, check with `ok: true`, and emit graph JSON with
+  `ok: true`.
+- Invalid fixtures must exit non-zero for `check`, emit `ok: false`, and include
+  stable diagnostic codes and spans.
+- Graph JSON with `ok: false` is for tooling/debug output only and must not be
+  treated as executable by a runtime.
+- CLI output should validate against the matching schema file when schema
+  validation is wired into tests or CI.
+
+Useful contract checks:
+
+```shell
+node intent/bin/intent.mjs parse intent/fixtures/valid_code_change.intent
+node intent/bin/intent.mjs check intent/fixtures/valid_code_change.intent
+node intent/bin/intent.mjs graph intent/fixtures/valid_code_change.intent
+node --test intent/test/*.test.mjs
+```
 
 ## Why It Exists
 
