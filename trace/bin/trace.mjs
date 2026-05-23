@@ -86,6 +86,11 @@ async function main() {
     return;
   }
 
+  if (command === "run") {
+    await runTraceCommand(subcommand, rawArgs);
+    return;
+  }
+
   if (command === "session") {
     await runSessionCommand(subcommand, rawArgs);
     return;
@@ -179,6 +184,10 @@ function parseArgs(values) {
 
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
+
+    if (value === "--") {
+      break;
+    }
 
     if (!value.startsWith("--")) {
       continue;
@@ -801,6 +810,40 @@ async function captureEvent() {
     source: args.source ?? "manual",
   });
   print({ ok: true, session: event.session_id, event: event.event });
+}
+
+async function runTraceCommand(subcommandValue, values) {
+  const commandArgs = traceRunArgs(subcommandValue, values);
+  if (commandArgs.length === 0) {
+    fail("trace run requires a command after --");
+  }
+
+  const root = await repoRoot();
+  await ensureTrace(root);
+  const result = await runStreaming(commandArgs[0], commandArgs.slice(1), { cwd: root });
+  const eventName = args.event ?? (result.exitCode === 0 ? "validation" : "risk");
+  if (!TRACE_EVENTS.includes(eventName)) {
+    fail(`unsupported run event ${eventName}: expected ${TRACE_EVENTS.join(", ")}`);
+  }
+
+  const commandLine = commandArgs.map(shellQuote).join(" ");
+  const status = result.exitCode === 0 ? "passed" : `failed exit ${result.exitCode}`;
+  await appendEvent(root, {
+    sessionId: args.session,
+    event: eventName,
+    role: "tool",
+    source: args.source ?? "trace-run",
+    message: `${eventName} ${status}: ${commandLine}`,
+  });
+  process.exitCode = result.exitCode;
+}
+
+function traceRunArgs(subcommandValue, values) {
+  const separator = values.indexOf("--");
+  if (separator >= 0) {
+    return values.slice(separator + 1);
+  }
+  return [subcommandValue, ...positionalValues(values)].filter(Boolean);
 }
 
 async function runSessionCommand(action, values) {
@@ -2281,6 +2324,20 @@ async function run(commandName, commandArgs, options = {}) {
   });
 }
 
+async function runStreaming(commandName, commandArgs, options = {}) {
+  return new Promise((resolveRun) => {
+    const child = spawn(commandName, commandArgs, {
+      cwd: options.cwd ?? process.cwd(),
+      env: options.env ?? process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    child.stdout.on("data", (chunk) => process.stdout.write(chunk));
+    child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+    child.on("error", (error) => fail(`failed to run ${commandName}: ${error.message}`));
+    child.on("close", (exitCode) => resolveRun({ exitCode: exitCode ?? 1 }));
+  });
+}
+
 async function readStdin() {
   const chunks = [];
   for await (const chunk of process.stdin) {
@@ -2327,6 +2384,7 @@ Usage:
   trace init
   trace enable
   trace capture --event prompt --role user --message "why this change exists"
+  trace run [--event validation|tool|risk] [--session id] -- <command> [args...]
   trace session list
   trace session current
   trace session show <session> [--limit 20]

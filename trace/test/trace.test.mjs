@@ -151,6 +151,41 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
   }
 });
 
+test("run captures command results as validation and risk events", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "run.txt"), "run\n");
+    await git(repo, ["add", "run.txt"]);
+    await git(repo, ["commit", "-m", "Add run file"]);
+    await runTrace(repo, ["init"]);
+
+    const passed = await runTrace(repo, ["run", "--", "node", "-e", "console.log('validation ok')"]);
+    assert.match(passed.stdout, /validation ok/);
+
+    const failed = await runTraceAllowFailure(repo, ["run", "--", "node", "-e", "process.exit(7)"]);
+    assert.equal(failed.exitCode, 7);
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
+    const session = await readFile(join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`), "utf8");
+    const events = session.trim().split("\n").map((line) => JSON.parse(line));
+    assert.deepEqual(events.map((event) => event.event), ["validation", "risk"]);
+    assert.deepEqual(events.map((event) => event.source), ["trace-run", "trace-run"]);
+    assert.match(events[0].message, /validation passed: 'node' '-e'/);
+    assert.match(events[1].message, /risk failed exit 7: 'node' '-e'/);
+
+    await runTrace(repo, ["record"]);
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.match(memory, /validation passed: 'node' '-e'/);
+    assert.match(memory, /risk failed exit 7: 'node' '-e'/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("branch summary derives branch context from committed memories", async () => {
   const repo = await tempRepo();
 

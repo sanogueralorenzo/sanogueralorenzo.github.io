@@ -58,6 +58,7 @@ trace agent add codex
 trace agent add claude-code
 trace agent add gemini
 trace capture --event prompt --role user --message "why this change exists"
+trace run -- npm test
 trace session list
 trace session show <session>
 trace record --validation "npm test"
@@ -101,6 +102,7 @@ node trace/bin/trace.mjs agent add codex
 node trace/bin/trace.mjs agent add claude-code
 node trace/bin/trace.mjs agent add gemini
 node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
+node trace/bin/trace.mjs run -- npm test
 node trace/bin/trace.mjs session list
 node trace/bin/trace.mjs session show <session>
 node trace/bin/trace.mjs record --validation "npm test"
@@ -142,6 +144,8 @@ This keeps the project tree focused on reviewable memories while raw checkpoint 
 Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace review` shows the pending memory review queue with intent, summary, decisions, validation, and risks before those files are committed. `trace check` fails when Trace memory files are uncommitted, use an unsupported schema, point at a commit that is not reachable, are stored at the wrong commit-derived path, are missing checkpoint/session metadata, or are missing required sections, which makes that handoff explicit instead of silently pretending the memory is already durable.
 
 `trace record` and the post-commit hook distill raw session events into compact commit memory. When a commit already has `Trace-Checkpoint` or `Trace-Session` trailers, `trace record` reuses those identities so manual recording stays aligned with hook-created commits. Repeated events are deduplicated, long entries are truncated, and noisy sections are capped with an explicit omitted-events line so committed memory stays reviewable while the full checkpoint remains available on the Trace ref.
+
+`trace run -- <command>` executes a local validation or tool command, streams its output, records the command result into the current raw session, and exits with the same code. Successful commands become `validation` events by default; failed commands become `risk` events. Use `--event tool` when the command is tool activity rather than validation.
 
 `trace session list`, `trace session current`, and `trace session show <session>` inspect the local raw lifecycle store in the git common directory. This gives agents a way to debug capture coverage and event shape without writing transcripts into the project tree.
 
