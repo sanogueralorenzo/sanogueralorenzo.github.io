@@ -1444,6 +1444,51 @@ test("agent hook expands structured lifecycle memory fields", async () => {
   }
 });
 
+test("record extracts labeled memory signals from agent responses", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "signals.txt"), "signals\n");
+    await git(repo, ["add", "signals.txt"]);
+    await git(repo, ["commit", "-m", "Add signal extraction target"]);
+    await runTrace(repo, ["init"]);
+
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "generic"], JSON.stringify({
+      session_id: "signal-session",
+      event: "response",
+      message: [
+        "Implemented signal extraction.",
+        "Intent: preserve labeled agent memory",
+        "Decision:",
+        "- Promote labeled response lines into durable memory",
+        "Validation: npm --prefix trace test",
+        "Risk - Keep extraction line-based and predictable",
+      ].join("\n"),
+    }));
+
+    const sessionCheck = JSON.parse((await runTrace(repo, ["session", "check", "signal-session", "--strict", "--json"])).stdout);
+    assert.equal(sessionCheck.ok, true);
+    assert.equal(sessionCheck.checks.find((check) => check.name === "intent").ok, true);
+    assert.equal(sessionCheck.checks.find((check) => check.name === "decisions").ok, true);
+    assert.equal(sessionCheck.checks.find((check) => check.name === "validation").ok, true);
+
+    await runTrace(repo, ["record", "--session", "signal-session", "--check-session", "--strict"]);
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.match(memory, /## Intent\n\npreserve labeled agent memory/);
+    assert.match(memory, /## Decisions\n\n- Promote labeled response lines into durable memory/);
+    assert.match(memory, /## Validation\n\n- npm --prefix trace test/);
+    assert.match(memory, /## Risks\n\n- Keep extraction line-based and predictable/);
+
+    const strictMemoryCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--strict-memory"])).stdout);
+    assert.equal(strictMemoryCi.ok, true);
+    assert.equal(strictMemoryCi.memoryQuality.ok, true);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("agent command validates names and reports malformed configs", async () => {
   const repo = await tempRepo();
 

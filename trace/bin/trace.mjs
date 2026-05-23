@@ -1481,12 +1481,25 @@ async function sessionSummary(root, file) {
 
 async function sessionRecap(root, sessionId, events, limit) {
   const commitMemoryEvents = events.filter(includeInCommitMemory);
-  const prompts = commitMemoryEvents.filter((event) => event.role === "user" || event.event === "prompt").map(eventMessage);
+  const extracted = extractedMemorySignals(commitMemoryEvents);
+  const prompts = [
+    ...commitMemoryEvents.filter((event) => event.role === "user" || event.event === "prompt").map(eventMessage),
+    ...extracted.prompts,
+  ];
   const responses = commitMemoryEvents.filter((event) => event.event === "response" || event.role === "assistant").map(eventMessage);
   const tools = commitMemoryEvents.filter((event) => event.event === "tool").map(eventMessage);
-  const decisions = commitMemoryEvents.filter((event) => event.event === "decision").map(eventMessage);
-  const validation = commitMemoryEvents.filter((event) => event.event === "validation").map(eventMessage);
-  const risks = commitMemoryEvents.filter((event) => event.event === "risk").map(eventMessage);
+  const decisions = [
+    ...commitMemoryEvents.filter((event) => event.event === "decision").map(eventMessage),
+    ...extracted.decisions,
+  ];
+  const validation = [
+    ...commitMemoryEvents.filter((event) => event.event === "validation").map(eventMessage),
+    ...extracted.validation,
+  ];
+  const risks = [
+    ...commitMemoryEvents.filter((event) => event.event === "risk").map(eventMessage),
+    ...extracted.risks,
+  ];
   const notes = commitMemoryEvents.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map(eventMessage);
 
   return {
@@ -1536,7 +1549,7 @@ async function sessionCheck(root, sessionId, events, options = {}) {
       ok: recap.sections.decisions.length > 0,
       message: recap.sections.decisions.length > 0
         ? "session has decision context"
-        : "session has no decision event",
+        : "session has no decision signal",
     },
     {
       name: "validation",
@@ -1544,7 +1557,7 @@ async function sessionCheck(root, sessionId, events, options = {}) {
       ok: recap.sections.validation.length > 0,
       message: recap.sections.validation.length > 0
         ? "session has validation context"
-        : "session has no validation event",
+        : "session has no validation signal",
     },
   ];
 
@@ -1563,6 +1576,70 @@ async function sessionCheck(root, sessionId, events, options = {}) {
 
 function eventMessage(event) {
   return event.message ?? "";
+}
+
+function extractedMemorySignals(events) {
+  const signals = {
+    prompts: [],
+    decisions: [],
+    validation: [],
+    risks: [],
+  };
+
+  for (const event of events) {
+    if (["decision", "validation", "risk"].includes(event.event)) {
+      continue;
+    }
+    for (const item of extractMemorySignalItems(eventMessage(event))) {
+      signals[item.key].push(item.value);
+    }
+  }
+
+  return signals;
+}
+
+function extractMemorySignalItems(message) {
+  const items = [];
+  let active = null;
+
+  for (const rawLine of String(message ?? "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) {
+      active = null;
+      continue;
+    }
+
+    const bullet = line.replace(/^[-*]\s+/, "").trim();
+    const labeled = bullet.match(/^(intent|goal|task|decision|decisions|validation|validations|validated|test|tests|risk|risks)\s*[:\-]\s*(.*)$/iu);
+    if (labeled) {
+      active = signalKeyForLabel(labeled[1]);
+      const value = labeled[2].trim();
+      if (value) {
+        items.push({ key: active, value });
+      }
+      continue;
+    }
+
+    if (active && /^[-*]\s+/.test(line)) {
+      items.push({ key: active, value: bullet });
+    }
+  }
+
+  return items.filter((item) => item.value);
+}
+
+function signalKeyForLabel(label) {
+  const normalized = label.toLowerCase();
+  if (["intent", "goal", "task"].includes(normalized)) {
+    return "prompts";
+  }
+  if (normalized.startsWith("decision")) {
+    return "decisions";
+  }
+  if (["validation", "validations", "validated", "test", "tests"].includes(normalized)) {
+    return "validation";
+  }
+  return "risks";
 }
 
 function eventCounts(events) {
@@ -2809,12 +2886,25 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
   const files = (await git(["show", "--name-only", "--format=", sha], { cwd: root })).split("\n").filter(Boolean);
   const events = sessionId ? await readSessionEvents(root, sessionId).catch(() => []) : [];
   const memoryEvents = events.filter(includeInCommitMemory);
-  const prompts = memoryEvents.filter((event) => event.role === "user" || event.event === "prompt").map((event) => event.message).filter(Boolean);
-  const decisions = memoryEvents.filter((event) => event.event === "decision").map((event) => event.message).filter(Boolean);
+  const extracted = extractedMemorySignals(memoryEvents);
+  const prompts = [
+    ...memoryEvents.filter((event) => event.role === "user" || event.event === "prompt").map((event) => event.message).filter(Boolean),
+    ...extracted.prompts,
+  ];
+  const decisions = [
+    ...memoryEvents.filter((event) => event.event === "decision").map((event) => event.message).filter(Boolean),
+    ...extracted.decisions,
+  ];
   const responses = memoryEvents.filter((event) => event.event === "response" || event.role === "assistant").map((event) => event.message).filter(Boolean);
   const tools = memoryEvents.filter((event) => event.event === "tool").map((event) => event.message).filter(Boolean);
-  const validations = memoryEvents.filter((event) => event.event === "validation").map((event) => event.message).filter(Boolean);
-  const risks = memoryEvents.filter((event) => event.event === "risk").map((event) => event.message).filter(Boolean);
+  const validations = [
+    ...memoryEvents.filter((event) => event.event === "validation").map((event) => event.message).filter(Boolean),
+    ...extracted.validation,
+  ];
+  const risks = [
+    ...memoryEvents.filter((event) => event.event === "risk").map((event) => event.message).filter(Boolean),
+    ...extracted.risks,
+  ];
   const notes = memoryEvents.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
   const summaryEvents = [...responses, ...tools, ...notes].slice(-3);
   const intent = await conciseMemoryText(root, overrides.intent ?? prompts.at(-1) ?? subject);
