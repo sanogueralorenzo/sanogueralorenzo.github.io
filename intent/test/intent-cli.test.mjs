@@ -660,7 +660,20 @@ describe("intent static model CLI", () => {
     assert.equal(graph.ok, true);
     assert.equal(kinds.has("Input"), true);
     assert.equal(kinds.has("Completion"), true);
-    assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "GoalRequest"), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "data"
+        && edge.data.type === "GoalRequest"
+        && edge.data.sourceSpan.start.line === 19
+        && edge.data.sourceSpan.start.column === 30
+        && edge.data.targetSpan.start.line === 37
+        && edge.data.targetSpan.start.column === 22;
+    }), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "requires"
+        && edge.data.type === "GoalRequest"
+        && edge.data.targetSpan.start.line === 37
+        && edge.data.targetSpan.start.column === 22;
+    }), true);
     assert.equal(graph.nodes.some((node) => {
       return node.kind === "Goal"
         && node.data.outputType === "VerifiedPatch"
@@ -694,8 +707,22 @@ describe("intent static model CLI", () => {
         && node.data.outputTypeSpan.start.line === 19
         && node.data.outputTypeSpan.start.column === 55;
     }), true);
-    assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Finding"), true);
-    assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Patch"), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "data"
+        && edge.data.type === "Finding"
+        && edge.data.sourceSpan.start.line === 37
+        && edge.data.sourceSpan.start.column === 45
+        && edge.data.targetSpan.start.line === 38
+        && edge.data.targetSpan.start.column === 17;
+    }), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "data"
+        && edge.data.type === "Patch"
+        && edge.data.sourceSpan.start.line === 38
+        && edge.data.sourceSpan.start.column === 36
+        && edge.data.targetSpan.start.line === 41
+        && edge.data.targetSpan.start.column === 19;
+    }), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "verifies" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "produces" && edge.to.endsWith(":completion")), true);

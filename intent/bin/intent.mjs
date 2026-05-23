@@ -864,7 +864,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         type: parameter.type,
       }));
       edges.push(edge(inputId, goalId, "supplies"));
-      addProducer(producersByType, parameter.type, inputId);
+      addProducer(producersByType, parameter.type, inputId, parameter.span);
     }
 
     for (const [index, context] of goal.context.entries()) {
@@ -957,13 +957,16 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         edges.push(edge(stepInputId, id, "requires", {
           parameter: parameter.name,
           type: normalizeTypeRef(parameter.type),
+          targetSpan: parameter.span,
         }));
 
-        const producerId = latestProducer(producersByType, parameter.type);
-        if (producerId) {
-          edges.push(edge(producerId, stepInputId, "data", {
+        const producer = latestProducer(producersByType, parameter.type);
+        if (producer) {
+          edges.push(edge(producer.id, stepInputId, "data", {
             parameter: parameter.name,
             type: normalizeTypeRef(parameter.type),
+            sourceSpan: producer.span,
+            targetSpan: parameter.span,
           }));
         }
       }
@@ -1054,7 +1057,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         }
       }
 
-      addProducer(producersByType, step.outputType, id);
+      addProducer(producersByType, step.outputType, id, step.outputTypeSpan ?? step.span);
     }
 
     const completionId = `${goalId}:completion`;
@@ -1251,13 +1254,16 @@ function normalizeTypeRef(typeRef) {
   return typeRef ? typeRef.replace(/\s+/g, "") : null;
 }
 
-function addProducer(producersByType, typeRef, nodeId) {
+function addProducer(producersByType, typeRef, nodeId, producerSpan) {
   const normalized = normalizeTypeRef(typeRef);
   if (!normalized) {
     return;
   }
   const producers = producersByType.get(normalized) ?? [];
-  producers.push(nodeId);
+  producers.push({
+    id: nodeId,
+    span: producerSpan,
+  });
   producersByType.set(normalized, producers);
 }
 
