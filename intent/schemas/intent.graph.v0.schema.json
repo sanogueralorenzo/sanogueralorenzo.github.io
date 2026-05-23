@@ -378,7 +378,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["source", "args", "argKinds", "expression", "trust"],
+              "required": ["source", "args", "argKinds", "argSpans", "expression", "trust"],
               "additionalProperties": false,
               "properties": {
                 "source": {
@@ -394,6 +394,12 @@
                   "type": "object",
                   "additionalProperties": {
                     "enum": ["string", "identifier"]
+                  }
+                },
+                "argSpans": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/span"
                   }
                 },
                 "expression": {
@@ -639,7 +645,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["family", "action", "args", "argKinds", "trust", "expression", "approvalRequired"],
+              "required": ["family", "action", "args", "argKinds", "argSpans", "trust", "expression", "approvalRequired"],
               "additionalProperties": false,
               "properties": {
                 "family": {
@@ -658,6 +664,12 @@
                   "type": "object",
                   "additionalProperties": {
                     "enum": ["string", "identifier"]
+                  }
+                },
+                "argSpans": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/span"
                   }
                 },
                 "trust": {
@@ -733,7 +745,7 @@
                 },
                 "effect": {
                   "type": "object",
-                  "required": ["family", "action", "args", "argKinds", "trust"],
+                  "required": ["family", "action", "args", "argKinds", "argSpans", "trust"],
                   "additionalProperties": false,
                   "properties": {
                     "family": {
@@ -752,6 +764,12 @@
                       "type": "object",
                       "additionalProperties": {
                         "enum": ["string", "identifier"]
+                      }
+                    },
+                    "argSpans": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "$ref": "#/$defs/span"
                       }
                     },
                     "trust": {

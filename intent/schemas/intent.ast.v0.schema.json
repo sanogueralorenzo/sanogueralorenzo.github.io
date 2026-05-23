@@ -230,7 +230,7 @@
     },
     "context_source": {
       "type": "object",
-      "required": ["kind", "value", "source", "args", "argKinds", "expression", "trust", "span"],
+      "required": ["kind", "value", "source", "args", "argKinds", "argSpans", "expression", "trust", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -252,6 +252,12 @@
           "type": "object",
           "additionalProperties": {
             "enum": ["string", "identifier"]
+          }
+        },
+        "argSpans": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/span"
           }
         },
         "expression": {
@@ -502,7 +508,7 @@
     },
     "effect_use": {
       "type": "object",
-      "required": ["kind", "name", "family", "action", "args", "argKinds", "expression", "span"],
+      "required": ["kind", "name", "family", "action", "args", "argKinds", "argSpans", "expression", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -527,6 +533,12 @@
           "type": "object",
           "additionalProperties": {
             "enum": ["string", "identifier"]
+          }
+        },
+        "argSpans": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/span"
           }
         },
         "expression": {
