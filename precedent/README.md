@@ -92,6 +92,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent init`: creates `.precedent/`.
 - `precedent observe`: ingests an agent trace, PR diff, validation log, or review thread.
 - `precedent compile`: turns repeated failure modes into candidate artifacts.
+- `precedent compile --promote-session-pairs`: promotes a precedent from analogous failed and successful ordinary sessions.
 - `precedent inject`: returns the relevant precedent for the current task context.
 - `precedent context`: exports stable agent-ready precedent context.
 - `precedent hook`: reads a passive hook event and returns an insertable context block.
@@ -133,6 +134,7 @@ node precedent/bin/precedent.mjs attach --runtime codex --session demo --task "a
 node precedent/bin/precedent.mjs check --strict --json
 node precedent/bin/precedent.mjs prune --dry-run --json
 node precedent/bin/precedent.mjs observe --session demo
+node precedent/bin/precedent.mjs compile --promote-session-pairs
 node precedent/bin/precedent.mjs report
 ```
 
@@ -156,6 +158,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
 - `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
+- `compile --promote-session-pairs` scans ordinary session hook histories for a failed session followed by an analogous successful session, then generates a promoted precedent with evidence, replay-style failure delta, injection text, and advisory guards. This path does not require a handcrafted `precedent` object in the source events.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
 - `report` also attributes session outcomes back to injected precedents, so each precedent has use, success, failure, and suppression counts.

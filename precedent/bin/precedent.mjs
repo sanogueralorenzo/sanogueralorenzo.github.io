@@ -143,7 +143,7 @@ function parseArgs(rawArgs) {
       fail("empty flag is not valid");
     }
 
-    if (key === "json" || key === "help" || key === "dry-run" || key === "strict") {
+    if (key === "json" || key === "help" || key === "dry-run" || key === "strict" || key === "promote-session-pairs") {
       parsed[key] = true;
       continue;
     }
@@ -408,6 +408,7 @@ async function compilePrecedents() {
   const stateDir = statePath();
   let traces = [];
   let candidates = [];
+  let promoted = [];
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
@@ -425,12 +426,17 @@ async function compilePrecedents() {
       candidates: candidates.length,
       candidateIds: candidates.map((candidate) => candidate.id),
     });
+
+    if (args["promote-session-pairs"]) {
+      promoted = await promoteSessionPairs(stateDir);
+    }
   });
 
   print({
     ok: true,
     traces: traces.length,
     candidates,
+    promoted,
   });
 }
 
@@ -1899,9 +1905,28 @@ async function traceFromSession(stateDir, sessionId) {
       path: sessionFile,
       eventCount: events.length,
       hooks: uniqueStrings(events.map((event) => event.hook).filter(Boolean)),
+      events: events.map(sessionTraceEvent),
     },
     ...(lastOutcome.precedent ? { precedent: lastOutcome.precedent } : {}),
     ...(lastOutcome.replay ? { replay: lastOutcome.replay } : {}),
+  };
+}
+
+function sessionTraceEvent(event) {
+  return {
+    hook: event.hook ?? null,
+    receivedAt: event.receivedAt ?? null,
+    task: event.task ?? null,
+    scope: event.scope ?? null,
+    changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : [],
+    command: event.command ?? null,
+    exitCode: Number.isFinite(event.exitCode) ? event.exitCode : null,
+    success: typeof event.success === "boolean" ? event.success : null,
+    status: event.status ?? null,
+    failureSignals: Array.isArray(event.failureSignals) ? event.failureSignals : [],
+    guardResult: event.guardResult ?? null,
+    stdoutSummary: event.stdoutSummary ?? null,
+    stderrSummary: event.stderrSummary ?? null,
   };
 }
 
@@ -1941,6 +1966,195 @@ async function createSessionLearningSnapshot(stateDir, sessionId) {
     promotionStatus: snapshot.promotionStatus,
     replayRequired: snapshot.replayRequired,
   };
+}
+
+async function promoteSessionPairs(stateDir) {
+  const traces = await sessionTraces(stateDir);
+  const failed = traces.filter((trace) => traceOutcomeFailed(trace) && trace.failures.length > 0);
+  const succeeded = traces.filter((trace) => traceOutcomeSucceeded(trace));
+  const promoted = [];
+
+  for (const failedTrace of failed) {
+    const successTrace = succeeded.find((trace) => tracesAreAnalogous(failedTrace, trace));
+    if (!successTrace) {
+      continue;
+    }
+
+    const precedent = precedentFromSessionPair(failedTrace, successTrace);
+    const assessment = assessPromotionCandidate(precedent);
+    if (!assessment.ok) {
+      continue;
+    }
+
+    const promotion = await upsertPromotedPrecedent(stateDir, precedent, new Date().toISOString());
+    promoted.push({
+      id: promotion.precedent.id,
+      action: promotion.action,
+      failedTrace: failedTrace.id,
+      successTrace: successTrace.id,
+    });
+  }
+
+  if (promoted.length > 0) {
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "session_pair_promotion_completed",
+      observedAt: new Date().toISOString(),
+      promoted,
+    });
+  }
+
+  return promoted;
+}
+
+async function sessionTraces(stateDir) {
+  const traces = [];
+
+  for (const sessionFile of await jsonFiles(join(stateDir, "sessions"), ".jsonl")) {
+    const sessionId = sessionFile
+      .slice(join(stateDir, "sessions").length + 1)
+      .replace(/\.jsonl$/u, "");
+    const trace = await traceFromSession(stateDir, sessionId);
+    traces.push(trace);
+    if (trace.failures.length > 0) {
+      await writeFileAtomic(join(stateDir, "traces", `${safeFileName(trace.id)}.json`), `${JSON.stringify(trace, null, 2)}\n`);
+    }
+  }
+
+  return traces;
+}
+
+function traceOutcomeFailed(trace) {
+  return trace.outcome === "failure" || trace.outcome === "failed" || trace.outcome === "error" || trace.failures.length > 0;
+}
+
+function traceOutcomeSucceeded(trace) {
+  return trace.outcome === "success" || trace.outcome === "passed" || trace.outcome === "done";
+}
+
+function tracesAreAnalogous(failedTrace, successTrace) {
+  if (failedTrace.scope && successTrace.scope && failedTrace.scope !== successTrace.scope) {
+    return false;
+  }
+
+  const failedTask = String(failedTrace.task ?? "").toLowerCase();
+  const successTask = String(successTrace.task ?? "").toLowerCase();
+  const failedWords = new Set(failedTask.split(/[^a-z0-9_:-]+/u).filter((word) => word.length >= 4));
+  const overlap = successTask
+    .split(/[^a-z0-9_:-]+/u)
+    .filter((word) => failedWords.has(word)).length;
+
+  return overlap > 0 || failedTrace.scope === successTrace.scope;
+}
+
+function precedentFromSessionPair(failedTrace, successTrace) {
+  const failureTypes = classifyFailures(failedTrace.failures);
+  const scope = failedTrace.scope || successTrace.scope || "repo";
+  const id = `prec_${safeFileName(scope)}_${failureTypes.join("_") || "session_pair"}`;
+  const paths = uniqueStrings([
+    ...pathsForScope(scope),
+    ...commonPathPrefixes(successTrace.changedFiles),
+  ]);
+  const successfulValidation = successfulValidationForTrace(successTrace);
+  const injection = sessionPairInjection(failureTypes, scope, successfulValidation?.command);
+
+  return {
+    id,
+    scope,
+    trigger: triggerForTrace(failedTrace),
+    lesson: lessonForFailureTypes(failureTypes, scope),
+    artifact: "skill",
+    paths,
+    source_trace: failedTrace.id,
+    source_traces: [failedTrace.id, successTrace.id],
+    evidence: sessionPairEvidence(failedTrace, successTrace),
+    injection,
+    guards: guardsForSessionPair(failureTypes, paths, successfulValidation?.command),
+    promotion: {
+      baseline_failures: 1,
+      rerun_failures: 0,
+      baseline_exit_code: failedValidationExitCode(failedTrace),
+      rerun_exit_code: successfulValidation?.exitCode ?? 0,
+    },
+  };
+}
+
+function successfulValidationForTrace(trace) {
+  const validations = Array.isArray(trace.session?.events)
+    ? trace.session.events.filter((event) => event.hook === "validation.after_run")
+    : [];
+
+  return validations.find((event) => event.exitCode === 0) ?? null;
+}
+
+function failedValidationExitCode(trace) {
+  const validations = Array.isArray(trace.session?.events)
+    ? trace.session.events.filter((event) => event.hook === "validation.after_run")
+    : [];
+  const failed = validations.find((event) => event.exitCode !== 0);
+
+  return failed?.exitCode ?? 1;
+}
+
+function sessionPairEvidence(failedTrace, successTrace) {
+  const failedValidation = failedValidationEvidence(failedTrace);
+  const successValidation = successfulValidationForTrace(successTrace);
+
+  return uniqueStrings([
+    ...(failedValidation ? [`failed validation: ${failedValidation.command} exited ${failedValidation.exitCode}`] : []),
+    ...(successValidation ? [`successful validation: ${successValidation.command} exited ${successValidation.exitCode}`] : []),
+    `failed changed files: ${(failedTrace.changedFiles ?? []).join(", ")}`,
+    `successful changed files: ${(successTrace.changedFiles ?? []).join(", ")}`,
+    `outcome delta: ${failedTrace.outcome} to ${successTrace.outcome}`,
+    ...failedTrace.failures.map((failure) => `failure: ${failure}`),
+  ]);
+}
+
+function failedValidationEvidence(trace) {
+  const validations = Array.isArray(trace.session?.events)
+    ? trace.session.events.filter((event) => event.hook === "validation.after_run")
+    : [];
+
+  return validations.find((event) => event.exitCode !== 0) ?? null;
+}
+
+function sessionPairInjection(failureTypes, scope, successfulCommand) {
+  const base = injectionForFailureTypes(failureTypes, scope);
+
+  if (successfulCommand && !base.includes(successfulCommand)) {
+    return `${base} Use the validation command that passed in the paired session: ${successfulCommand}.`;
+  }
+
+  return base;
+}
+
+function guardsForSessionPair(failureTypes, paths, successfulCommand) {
+  const guards = [];
+
+  if (failureTypes.includes("wrong_repo_slice") && paths.length > 0) {
+    guards.push({
+      id: "guard_session_pair_paths",
+      type: "changed_files_within_paths",
+      paths,
+      message: `Keep edits inside ${paths.join(", ")}.`,
+    });
+  }
+
+  if (failureTypes.includes("wrong_test_command") && successfulCommand) {
+    guards.push({
+      id: "guard_session_pair_validation",
+      type: "required_validation_command",
+      command: successfulCommand,
+      message: `Run ${successfulCommand}.`,
+    });
+  }
+
+  return guards;
+}
+
+function commonPathPrefixes(files) {
+  return uniqueStrings((files ?? [])
+    .map((file) => file.split("/").slice(0, 2).join("/"))
+    .filter((path) => path.includes("/")));
 }
 
 function formatGuardFailureForTrace(guard) {
@@ -2055,6 +2269,7 @@ async function upsertPromotedPrecedent(stateDir, candidate, observedAt) {
     source_trace: candidate.source_trace ?? existing?.source_trace,
     source_traces: uniqueStrings([
       ...(Array.isArray(existing?.source_traces) ? existing.source_traces : []),
+      ...(Array.isArray(candidate.source_traces) ? candidate.source_traces : []),
       existing?.source_trace,
       candidate.source_trace,
     ]),
@@ -3123,7 +3338,7 @@ Usage:
   precedent observe --trace trace.json [--state-dir .precedent]
   precedent observe --session session-id [--state-dir .precedent]
   precedent context --task "add webhook handler" [--scope feature:webhooks] [--format json|markdown]
-  precedent compile [--state-dir .precedent]
+  precedent compile [--state-dir .precedent] [--promote-session-pairs]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
@@ -3140,7 +3355,7 @@ Commands:
   init      Create local Precedent state.
   observe   Ingest one agent trace or recorded hook session.
   context   Export stable agent-ready precedent context.
-  compile   Mine observed raw traces into candidate precedent artifacts.
+  compile   Mine observed raw traces into candidates, optionally promoting analogous session pairs.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
