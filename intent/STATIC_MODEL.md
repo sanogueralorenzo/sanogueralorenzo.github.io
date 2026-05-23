@@ -15,7 +15,7 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
   expression, freshness policy, access mode, trust zone/source, and optional
   capability coverage.
 - `CapabilityDecl`: named permission grant with family, action, constraints,
-  and optional approval requirement.
+  and optional approval policy.
 - `MemoryDecl`: scoped state or retained evidence with one or more retention
   lifecycle rules.
 - `MemoryRetention`: structured `retain ... until ...` rule with retained
@@ -303,6 +303,9 @@ blocking diagnostics.
 - Check simple capability constraints for file paths, shell commands, context
   source file paths, context source web domains, web/http read domains, and git
   push branches or remotes.
+- Treat effects covered by a capability with `approval required` as requiring a
+  step-local `approval ...` gate, and emit `INTENT_APPROVAL_MISSING` when the
+  owning step has no approval gate.
 - Normalize and compare constrained resources such as paths, commands, domains,
   branches, secret names, and approval targets.
 - Require verification gates for every goal and ensure they are pure assertions
@@ -339,6 +342,9 @@ blocking diagnostics.
 - Emit step approval gates as `Approval` nodes, list them on the owning `Step`
   node data, and connect each one with an `approves` edge from that `Approval`
   node to the owning `Step`.
+- For approval-required effects, also connect a step `Approval` node to each
+  matching `Effect` node with an `approves` edge and record the approval policy
+  on the authorizing `Capability` node.
 - Emit step checkpoints as `Checkpoint` nodes, list them on the owning `Step`
   node data, and connect each one with a `checkpoints` edge from that `Step`.
 - Emit step timeout and retry policies as `Policy` nodes, list them on the
@@ -513,6 +519,11 @@ Rules:
   node to the owning `Step`, so the step cannot run until approval is granted.
 - Step approval gates do not create `verifies` edges to the goal `Completion`
   node and do not replace capability policy approval requirements.
+- When a capability authorizing an effect contains `approval required`, the
+  effect's owning step must contain at least one step-local `approval ...` gate.
+  The graph builder also creates an `approves` edge from a step `Approval` node
+  to each approval-required `Effect` node in that step. If the owning step has
+  no approval gate, the checker emits `INTENT_APPROVAL_MISSING`.
 
 ## Step Checkpoints
 
@@ -738,6 +749,20 @@ When no in-scope capability covers a constrained resource, the checker emits
 `INTENT_CAPABILITY_DENIED` at the effect call span with the denied argument,
 denied value, and allowed grants.
 
+Capability approval requirements:
+
+- A capability body may contain `approval required`.
+- A capability with `approval required` still authorizes only matching effects;
+  the approval policy applies after the normal capability constraint match.
+- Any effect authorized by that capability is approval-required in its owning
+  step.
+- The owning step must declare at least one step-local `approval ...` gate.
+- If no step-local approval gate is present, the checker emits
+  `INTENT_APPROVAL_MISSING` at the effect call span.
+- Graph output records the approval policy on the authorizing `Capability` node
+  and creates `approves` edges from step `Approval` nodes to matching
+  approval-required `Effect` nodes.
+
 ## Verification Shell Binding
 
 Verification requirements may call shell checks as completion gates:
@@ -814,6 +839,7 @@ Initial diagnostic families:
 - `INTENT_STEP_INPUT_UNRESOLVED`
 - `INTENT_EFFECT_UNDECLARED`
 - `INTENT_CAPABILITY_DENIED`
+- `INTENT_APPROVAL_MISSING`
 - `INTENT_VERIFY_MISSING`
 - `INTENT_VERIFY_IMPURE`
 - `INTENT_VERIFY_UNDECLARED`
@@ -884,7 +910,8 @@ node id. It is an intermediate contract for a local runtime.
       "data": {
         "family": "shell",
         "action": null,
-        "grants": [{ "action": "run", "key": "command", "value": "npm test" }]
+        "grants": [{ "action": "run", "key": "command", "value": "npm test" }],
+        "approvalPolicy": "required"
       }
     },
     {
@@ -1102,6 +1129,11 @@ node id. It is an intermediate contract for a local runtime.
       "kind": "approves"
     },
     {
+      "from": "goal:ship_checkout_fix:step:run_tests:approval:0",
+      "to": "goal:ship_checkout_fix:step:run_tests:effect:0",
+      "kind": "approves"
+    },
+    {
       "from": "goal:ship_checkout_fix:step:run_tests",
       "to": "goal:ship_checkout_fix:step:run_tests:checkpoint:0",
       "kind": "checkpoints"
@@ -1197,6 +1229,10 @@ Context nodes carry the same structured source call data as `ContextDecl`:
 context nodes use trusted local trust metadata. Web context nodes and
 browser/page state use untrusted external trust metadata.
 
+Capability nodes carry normalized grants and any approval policy parsed from
+the capability block. A body line of `approval required` is represented as
+`data.approvalPolicy: "required"` on the `Capability` node.
+
 Step requirement nodes are `Check` nodes scoped to one owning step. They create
 `requires` edges into that step and `gates` edges to the owning goal. They are
 not completion checks and must not create `verifies` edges to the goal
@@ -1208,7 +1244,10 @@ checkpoint has one incoming `checkpoints` edge from that owning step.
 
 Step approval nodes are `Approval` nodes scoped to one owning step. The owning
 step node lists them in its `data.approvals` array, and each approval has one
-outgoing `approves` edge to that owning step.
+outgoing `approves` edge to that owning step. When an effect in that step is
+authorized by a capability whose approval policy is `required`, a step
+`Approval` node also has an outgoing `approves` edge to that approval-required
+`Effect` node.
 
 Step policy nodes are `Policy` nodes scoped to one owning step. The owning step
 node lists timeout summaries in `data.timeouts` and retry summaries in

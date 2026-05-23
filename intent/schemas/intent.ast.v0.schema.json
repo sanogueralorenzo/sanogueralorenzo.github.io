@@ -296,7 +296,7 @@
     },
     "capability": {
       "type": "object",
-      "required": ["kind", "family", "action", "name", "constraints", "grants", "span"],
+      "required": ["kind", "family", "action", "name", "constraints", "grants", "approvalRequired", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -322,6 +322,9 @@
           "items": {
             "$ref": "#/$defs/grant"
           }
+        },
+        "approvalRequired": {
+          "type": "boolean"
         },
         "span": {
           "$ref": "#/$defs/span"

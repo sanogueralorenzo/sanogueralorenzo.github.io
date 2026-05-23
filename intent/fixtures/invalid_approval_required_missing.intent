@@ -1,0 +1,39 @@
+package fixtures.invalid_approval_required_missing
+
+type Patch = {
+  files: List<Path>
+}
+
+type GitRef = {
+  name: String
+}
+
+goal "push without required approval" {
+  context repo("./")
+
+  capability git {
+    push branch: "main"
+    approval required
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step prepare_release -> Patch
+    step push_release(input: Patch) -> GitRef {
+      effect GitPush(branch: "main")
+    }
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

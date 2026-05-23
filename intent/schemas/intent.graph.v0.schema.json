@@ -417,7 +417,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["family", "action", "grants"],
+              "required": ["family", "action", "grants", "approvalPolicy"],
               "additionalProperties": false,
               "properties": {
                 "family": {
@@ -431,6 +431,9 @@
                   "items": {
                     "$ref": "#/$defs/grant"
                   }
+                },
+                "approvalPolicy": {
+                  "enum": ["none", "required"]
                 }
               }
             }
@@ -630,7 +633,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["family", "action", "args", "argKinds", "trust", "expression"],
+              "required": ["family", "action", "args", "argKinds", "trust", "expression", "approvalRequired"],
               "additionalProperties": false,
               "properties": {
                 "family": {
@@ -656,6 +659,9 @@
                 },
                 "expression": {
                   "type": "string"
+                },
+                "approvalRequired": {
+                  "type": "boolean"
                 }
               }
             }

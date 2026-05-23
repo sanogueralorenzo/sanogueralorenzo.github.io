@@ -60,7 +60,11 @@ dependency edges.
 
 ```ebnf
 context_block    = "context", s, call_expr, line_end ;
-capability_block = "capability", s, identifier, ws, block ;
+capability_block = "capability", s, identifier, ws, "{", ws,
+                   { capability_stmt, ws }, "}" ;
+capability_stmt  = capability_approval_stmt | raw_capability_stmt ;
+capability_approval_stmt = "approval", s, "required", line_end ;
+raw_capability_stmt = raw_text_until_terminator, line_end ;
 memory_block     = "memory", s, identifier, ws, "{", ws,
                    { memory_stmt, ws }, "}" ;
 memory_stmt      = retain_stmt | raw_memory_stmt ;
@@ -89,7 +93,9 @@ are treated as trusted local sources and must be covered by an in-scope
 `file read path` capability. If no matching capability covers a structured web
 or documents context source, the checker emits `INTENT_CONTEXT_UNDECLARED`.
 `capability` bodies are parsed as statement lists whose items are preserved as
-raw spanned lines. `memory` bodies are parsed as statement lists, and every
+raw spanned lines. A capability body may contain `approval required`; the
+checker treats effects authorized by that capability as requiring a step-local
+`approval ...` gate. `memory` bodies are parsed as statement lists, and every
 `retain ... until ...` line is additionally parsed into structured
 `retentionRules` data with a retained subject span and an until-condition span.
 `verify` accepts only `require`; `invariant` accepts only `deny`.
@@ -146,7 +152,11 @@ The graph builder emits each step requirement as a `Check` node, creates a
 are not capability declarations or goal-level verification checks. The graph
 builder emits each step approval gate as an `Approval` node, lists it on the
 owning step node data, and creates an `approves` edge from that `Approval` node
-to the owning `Step`.
+to the owning `Step`. When an effect in the same step is authorized by a
+capability with `approval required`, the checker also creates an `approves`
+edge from a step `Approval` node to that approval-required `Effect` node. If no
+step-local approval gate is present, the checker emits
+`INTENT_APPROVAL_MISSING`.
 
 `checkpoint ...` lines inside a step body are parsed as step checkpoint
 statements. They are not memory retention declarations and do not become
@@ -299,6 +309,11 @@ The parser emits names and type reference strings; the checker owns binding.
 - Shell command arguments must be literal or trusted before execution.
 - Nonliteral shell command arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.
+- Capability blocks may contain `approval required`. Any effect authorized by
+  that capability requires a step-local `approval ...` gate; missing approval is
+  `INTENT_APPROVAL_MISSING`. Graph output records the policy on the
+  `Capability` node and connects the step `Approval` node to each matching
+  approval-required `Effect` node with an `approves` edge.
 - Verify `shell("command")` and `shell(command: "command")` requirements bind
   to in-scope shell run capability grants. If no declared grant covers the
   normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.

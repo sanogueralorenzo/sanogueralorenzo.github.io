@@ -33,6 +33,7 @@ goal "apply approval gated change" {
 
   capability git {
     push branch: "main"
+    approval required
   }
 
   memory session {

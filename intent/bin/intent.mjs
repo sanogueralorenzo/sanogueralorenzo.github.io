@@ -260,13 +260,15 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
   if (normalized === "capability") {
     if (header !== "capability" && header.startsWith("capability ")) {
       const name = header.slice("capability ".length).trim();
+      const lines = meaningfulLines(body);
       const capability = {
         kind: "Capability",
         family: capabilityFamily(name),
         action: null,
         name,
-        constraints: meaningfulLines(body).map((line) => line.text),
-        grants: meaningfulLines(body).map((line) => parseCapabilityGrant(line.text)).filter(Boolean),
+        constraints: lines.map((line) => line.text),
+        grants: lines.map((line) => parseCapabilityGrant(line.text)).filter(Boolean),
+        approvalRequired: hasApprovalRequired(lines),
         span: span(file, startLine, 1, endLine, 1),
       };
       goal.capabilities.push(capability);
@@ -412,6 +414,7 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
     name: normalized,
     constraints: [normalized],
     grants: [parseCapabilityGrant(normalized)].filter(Boolean),
+    approvalRequired: /\bapproval\s*:\s*required\b|\bapproval\s+required\b/.test(normalized),
     span: lineSpan(file, lineNumber, raw),
   };
 }
@@ -513,6 +516,7 @@ function checkIntent(ast) {
     validateGoalTypes(goal, declaredTypes, diagnostics);
     validateStepBindings(goal, diagnostics);
     validateVerifyRequirements(goal, diagnostics);
+    validateApprovalRequirements(goal, diagnostics);
 
     const capabilities = goal.capabilities.map((capability) => capability.family);
     for (const step of goal.steps) {
@@ -555,6 +559,24 @@ function checkIntent(ast) {
   }
 
   return diagnostics;
+}
+
+function validateApprovalRequirements(goal, diagnostics) {
+  for (const step of goal.steps) {
+    for (const effect of step.effects) {
+      const approvalCapability = approvalRequiredCapability(effect, goal.capabilities);
+      if (!approvalCapability || step.approvals.length > 0) {
+        continue;
+      }
+      diagnostics.push(error("INTENT_APPROVAL_MISSING", `effect '${effect.name}' requires a step approval gate.`, effect.span, {
+        effect: effect.name,
+        family: effect.family,
+        action: effect.action,
+        capability: approvalCapability.name,
+        step: step.name,
+      }));
+    }
+  }
 }
 
 function validateContextSources(goal, diagnostics) {
@@ -780,6 +802,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         family: capability.family,
         action: capability.action,
         grants: capability.grants,
+        approvalPolicy: capability.approvalRequired ? "required" : "none",
       }));
       edges.push(edge(id, goalId, "authorizes"));
     }
@@ -815,6 +838,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       }
       previousStepId = id;
       lastStepId = id;
+      const stepApprovalIds = [];
 
       for (const [requirementIndex, requirement] of step.requirements.entries()) {
         const requirementId = `${id}:requirement:${requirementIndex}`;
@@ -861,6 +885,10 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         edges.push(edge(approvalId, id, "approves", {
           approval: approval.value,
         }));
+        stepApprovalIds.push({
+          id: approvalId,
+          approval: approval.value,
+        });
       }
 
       for (const [timeoutIndex, timeout] of step.timeouts.entries()) {
@@ -906,6 +934,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
       for (const [effectIndex, effectUse] of step.effects.entries()) {
         const effectId = `${id}:effect:${effectIndex}`;
+        const approvalRequired = Boolean(approvalRequiredCapability(effectUse, goal.capabilities));
         nodes.push(node(effectId, "Effect", effectUse.name, effectUse.span, {
           family: effectUse.family,
           action: effectUse.action,
@@ -913,8 +942,16 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           argKinds: effectUse.argKinds,
           trust: effectTrust(effectUse),
           expression: effectUse.expression,
+          approvalRequired,
         }));
         edges.push(edge(id, effectId, "requests"));
+        if (approvalRequired) {
+          for (const approval of stepApprovalIds) {
+            edges.push(edge(approval.id, effectId, "approves", {
+              approval: approval.approval,
+            }));
+          }
+        }
         guardTargetIds.push(effectId);
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
           if (isFamilyMatch(effectUse.family, capability.family) && !getCapabilityDenial(effectUse, [capability])) {
@@ -1047,6 +1084,10 @@ function parseCapabilityGrant(text) {
   }
 
   return null;
+}
+
+function hasApprovalRequired(lines) {
+  return lines.some((line) => /^approval\s+required$/.test(line.text) || /^approval\s*:\s*required$/.test(line.text));
 }
 
 function parseCallArgs(text) {
@@ -1423,6 +1464,14 @@ function effectAction(name) {
 
 function isEffectAuthorized(effect, capabilities) {
   return capabilities.some((capability) => isFamilyMatch(effect.family, capability.family));
+}
+
+function approvalRequiredCapability(effect, capabilities) {
+  return capabilities.find((capability) => {
+    return capability.approvalRequired
+      && isFamilyMatch(effect.family, capability.family)
+      && !getCapabilityDenial(effect, [capability]);
+  }) ?? null;
 }
 
 function isFamilyMatch(effectName, capabilityName) {

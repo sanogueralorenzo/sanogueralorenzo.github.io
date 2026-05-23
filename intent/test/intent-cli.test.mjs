@@ -21,6 +21,7 @@ const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.int
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
+const INVALID_APPROVAL_REQUIRED_MISSING = new URL("../fixtures/invalid_approval_required_missing.intent", import.meta.url).pathname;
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
 const INVALID_WEB_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_web_read_outside_capability.intent", import.meta.url).pathname;
@@ -280,6 +281,19 @@ describe("intent static model CLI", () => {
     assert.deepEqual(payload.diagnostics[0].allowed, ["main"]);
   });
 
+  it("rejects approval-required effects without a step approval gate", () => {
+    const result = run(["check", INVALID_APPROVAL_REQUIRED_MISSING]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_APPROVAL_MISSING");
+    assert.equal(payload.diagnostics[0].effect, "GitPush");
+    assert.equal(payload.diagnostics[0].capability, "git");
+    assert.equal(payload.diagnostics[0].step, "push_release");
+    assert.equal(payload.diagnostics.length, 1);
+  });
+
   it("rejects nonliteral shell commands as unsafe trust flow", () => {
     const result = run(["check", INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT]);
     const payload = JSON.parse(result.stdout);
@@ -466,7 +480,10 @@ describe("intent static model CLI", () => {
     assert.equal(approval.data.scope, "step");
     assert.equal(approval.data.approval, "maintainer approves main push");
     assert.equal(publishStep.data.approvals.includes("maintainer approves main push"), true);
+    assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.family === "git" && node.data.approvalPolicy === "required"), true);
+    assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.label === "GitPush" && node.data.approvalRequired), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "approves" && edge.from === approval.id && edge.to === publishStep.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "approves" && edge.from === approval.id && edge.to.includes(":effect:")), true);
     assert.equal(graph.edges.some((edge) => edge.from === approval.id && edge.kind === "verifies"), false);
   });
 
@@ -498,6 +515,7 @@ describe("intent static model CLI", () => {
     const validCheck = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const invalidCheck = JSON.parse(run(["check", INVALID_UNRESOLVED_TYPE]).stdout);
     const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
+    const approvalGraph = runJson(["graph", VALID_STEP_APPROVAL_GRAPH]);
     const policyGraph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
     const contextGraph = runJson(["graph", VALID_CONTEXT_TRUST_GRAPH]);
 
@@ -505,6 +523,7 @@ describe("intent static model CLI", () => {
     assert.deepEqual(validateSchema(checkSchema, validCheck), []);
     assert.deepEqual(validateSchema(checkSchema, invalidCheck), []);
     assert.deepEqual(validateSchema(graphSchema, graph), []);
+    assert.deepEqual(validateSchema(graphSchema, approvalGraph), []);
     assert.deepEqual(validateSchema(graphSchema, policyGraph), []);
     assert.deepEqual(validateSchema(graphSchema, contextGraph), []);
   });

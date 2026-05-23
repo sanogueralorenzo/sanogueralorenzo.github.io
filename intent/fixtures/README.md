@@ -22,6 +22,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_missing_verification.intent`: declares mutating effects but omits the required verification gate.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
 - `invalid_git_push_branch_mismatch.intent`: declares git push access for `main` but calls `GitPush(branch: "release")`.
+- `invalid_approval_required_missing.intent`: declares git push access for `main` with approval required but calls `GitPush(branch: "main")` without a step approval gate.
 - `invalid_file_write_outside_capability.intent`: calls `FileWrite` for a path outside the declared write grant.
 - `invalid_shell_exec_outside_capability.intent`: calls `ShellExec` with a command outside the declared shell grant.
 - `invalid_web_read_outside_capability.intent`: calls `WebRead` for a URL outside the declared web domain grant.
