@@ -1129,6 +1129,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
 
     const listed = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
     assert.equal(listed.ok, true);
+    assert.equal(listed.schema_version, "trace.checkpoint_list.v1");
     assert.equal(listed.ref, "refs/trace/checkpoints");
     assert.equal(listed.checkpoints.length, 1);
     assert.equal(listed.checkpoints[0].checkpoint_id, record.checkpoint);
@@ -1137,6 +1138,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
 
     const verified = JSON.parse((await runTrace(repo, ["checkpoint", "verify"])).stdout);
     assert.equal(verified.ok, true);
+    assert.equal(verified.schema_version, "trace.checkpoint_verify.v1");
     assert.equal(verified.checked, 1);
     assert.deepEqual(verified.errors, []);
 
@@ -1179,6 +1181,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     assert.equal(tamperedVerify.exitCode, 1);
     const tamperedPayload = JSON.parse(tamperedVerify.stdout);
     assert.equal(tamperedPayload.ok, false);
+    assert.equal(tamperedPayload.schema_version, "trace.checkpoint_verify.v1");
     assert.ok(tamperedPayload.errors.some((entry) => entry.error === "checkpoint integrity mismatch"));
 
     await git(repo, ["update-ref", "refs/trace/checkpoints", checkpointHead]);
@@ -1203,6 +1206,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     const bundlePath = join(repo, "trace-checkpoints.json");
     const exported = JSON.parse((await runTrace(repo, ["checkpoint", "export", "--output", bundlePath])).stdout);
     assert.equal(exported.ok, true);
+    assert.equal(exported.schema_version, "trace.checkpoint_export.v1");
     assert.equal(exported.checkpoints, 2);
     const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
     assert.equal(bundle.schema_version, "trace.checkpoint_bundle.v1");
@@ -1214,6 +1218,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
 
     const importPreview = JSON.parse((await runTrace(repo, ["checkpoint", "import", bundlePath, "--dry-run"])).stdout);
     assert.equal(importPreview.ok, true);
+    assert.equal(importPreview.schema_version, "trace.checkpoint_import.v1");
     assert.equal(importPreview.dryRun, true);
     assert.equal(importPreview.imported, 2);
     assert.equal(importPreview.retained, 2);
@@ -1222,6 +1227,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
 
     const imported = JSON.parse((await runTrace(repo, ["checkpoint", "import", bundlePath])).stdout);
     assert.equal(imported.ok, true);
+    assert.equal(imported.schema_version, "trace.checkpoint_import.v1");
     assert.equal(imported.dryRun, false);
     assert.equal(imported.imported, 2);
     const restored = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
@@ -1275,6 +1281,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
 
     const cleanupPreview = JSON.parse((await runTrace(repo, ["checkpoint", "cleanup", "--sessions-before-days", "0", "--keep", "1", "--dry-run"])).stdout);
     assert.equal(cleanupPreview.ok, true);
+    assert.equal(cleanupPreview.schema_version, "trace.checkpoint_cleanup.v1");
     assert.equal(cleanupPreview.dryRun, true);
     assert.ok(cleanupPreview.removed.some((entry) => entry.endsWith(`${sessionId}.jsonl`)));
     assert.deepEqual(cleanupPreview.checkpoints.removed, ["checkpoints/checkpoint-a.json"]);
@@ -1285,6 +1292,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
 
     const cleanup = JSON.parse((await runTrace(repo, ["checkpoint", "cleanup", "--sessions-before-days", "0", "--keep", "1"])).stdout);
     assert.equal(cleanup.ok, true);
+    assert.equal(cleanup.schema_version, "trace.checkpoint_cleanup.v1");
     assert.equal(cleanup.dryRun, false);
     assert.equal(cleanup.sessionsBeforeDays, 0);
     assert.ok(cleanup.removed.some((entry) => entry.endsWith(`${sessionId}.jsonl`)));

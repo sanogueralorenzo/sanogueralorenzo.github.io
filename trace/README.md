@@ -295,13 +295,13 @@ This keeps the first version agent-agnostic while making the hook contract expli
 
 Checkpoint commands keep the raw side of Trace explicit:
 
-- `trace checkpoint list` shows checkpoint payloads stored on `refs/trace/checkpoints`; add `--limit` to inspect only the newest local checkpoint summaries.
+- `trace checkpoint list` shows checkpoint payloads stored on `refs/trace/checkpoints` as schema-stable JSON; add `--limit` to inspect only the newest local checkpoint summaries.
 - `trace checkpoint show <checkpoint>` inspects one local checkpoint payload without copying raw data into the project tree; add `--json` when an agent needs the full structured payload.
 - `trace checkpoint status <remote>` compares the local checkpoint ref with a remote ref and returns schema-stable JSON with the exact push/fetch commands needed to sync it.
-- `trace checkpoint verify` checks checkpoint payload shape, commit reachability, and stored SHA-256 integrity metadata.
+- `trace checkpoint verify` checks checkpoint payload shape, commit reachability, and stored SHA-256 integrity metadata with schema-stable JSON output.
 - `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref and return a schema-stable before/after status for automation.
-- `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service; add `--dry-run` to validate and preview an import without rewriting `refs/trace/checkpoints`.
-- `trace checkpoint cleanup --sessions-before-days 14 --keep 100` prunes old local raw session JSONL files from the git common directory and rewrites the checkpoint ref to retain only the newest checkpoint payloads when `--keep` is provided; add `--dry-run` to preview the exact removals without deleting sessions or rewriting the ref.
+- `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service and return schema-stable JSON write/import results; add `--dry-run` to validate and preview an import without rewriting `refs/trace/checkpoints`.
+- `trace checkpoint cleanup --sessions-before-days 14 --keep 100` prunes old local raw session JSONL files from the git common directory and rewrites the checkpoint ref to retain only the newest checkpoint payloads when `--keep` is provided; add `--dry-run` to preview the exact removals without deleting sessions or rewriting the ref. Cleanup results are schema-stable JSON for automation.
 
 Redaction is local and configurable. Built-in rules scrub common token/password shapes, environment-style secret names such as `OPENAI_API_KEY` and `GITHUB_TOKEN`, authorization headers, and high-entropy strings. Custom rules live in `.trace/config.json`:
 

@@ -788,6 +788,7 @@ async function listCheckpoints() {
   const limited = limit == null ? sorted : sorted.slice(0, limit);
   print({
     ok: true,
+    schema_version: "trace.checkpoint_list.v1",
     ref: CHECKPOINT_REF,
     total: checkpoints.length,
     limit,
@@ -801,6 +802,7 @@ async function verifyCheckpoints() {
   const ok = audit.errors.length === 0;
   print({
     ok,
+    schema_version: "trace.checkpoint_verify.v1",
     ref: audit.ref,
     present: audit.present,
     checked: audit.checked,
@@ -1019,7 +1021,7 @@ async function exportCheckpointBundle(values) {
   const checkpoints = await readCheckpointPayloads(root);
   const errors = checkpoints.filter((checkpoint) => checkpoint.error).map(({ path, error }) => ({ path, error }));
   if (errors.length > 0) {
-    print({ ok: false, ref: CHECKPOINT_REF, errors });
+    print({ ok: false, schema_version: "trace.checkpoint_export.v1", ref: CHECKPOINT_REF, errors });
     process.exitCode = 1;
     return;
   }
@@ -1041,7 +1043,7 @@ async function exportCheckpointBundle(values) {
   const outputPath = resolve(process.cwd(), output);
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, content);
-  print({ ok: true, path: outputPath, ref: CHECKPOINT_REF, checkpoints: bundle.checkpoints.length });
+  print({ ok: true, schema_version: "trace.checkpoint_export.v1", path: outputPath, ref: CHECKPOINT_REF, checkpoints: bundle.checkpoints.length });
 }
 
 async function importCheckpointBundle(values) {
@@ -1070,7 +1072,7 @@ async function importCheckpointBundle(values) {
   if (!dryRun) {
     await writeCheckpointTree(root, Array.from(merged.values()), `Trace checkpoint import ${imported.length}`);
   }
-  print({ ok: true, dryRun, path: inputPath, ref: CHECKPOINT_REF, imported: imported.length, retained: merged.size });
+  print({ ok: true, schema_version: "trace.checkpoint_import.v1", dryRun, path: inputPath, ref: CHECKPOINT_REF, imported: imported.length, retained: merged.size });
 }
 
 function checkpointBundleEntries(bundle) {
@@ -1131,7 +1133,7 @@ async function cleanupCheckpoints() {
   const checkpoints = checkpointKeep == null
     ? { keep: null, retained: null, removed: [], dryRun }
     : await cleanupCheckpointRef(root, checkpointKeep, { dryRun });
-  print({ ok: true, dryRun, sessionsBeforeDays: days, removed, checkpoints });
+  print({ ok: true, schema_version: "trace.checkpoint_cleanup.v1", dryRun, sessionsBeforeDays: days, removed, checkpoints });
 }
 
 async function readCheckpointPayloads(root) {
