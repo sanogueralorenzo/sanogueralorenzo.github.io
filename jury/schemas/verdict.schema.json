@@ -14,6 +14,7 @@
     "evidence_ids": { "type": "array", "items": { "type": "string" } },
     "objection_ids": { "type": "array", "items": { "type": "string" } },
     "waiver_ids": { "type": "array", "items": { "type": "string" } },
+    "check_ids": { "type": "array", "items": { "type": "string" } },
     "decided_by": { "type": "string", "minLength": 1 },
     "decided_at": { "type": "string", "minLength": 1 }
   },

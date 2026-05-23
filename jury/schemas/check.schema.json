@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jury Check",
+  "type": "object",
+  "required": ["schema_version", "id", "claim_id", "type", "required", "status", "assigned_to", "summary", "evidence_ids", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": { "const": "jury.check.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "claim_id": { "type": "string", "minLength": 1 },
+    "type": { "enum": ["critic", "verifier", "policy", "human_approval"] },
+    "required": { "type": "boolean" },
+    "status": { "enum": ["pending", "passed", "failed", "waived", "not_applicable"] },
+    "assigned_to": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "evidence_ids": { "type": "array", "items": { "type": "string" } },
+    "resolution": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "minLength": 1 },
+    "updated_at": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}

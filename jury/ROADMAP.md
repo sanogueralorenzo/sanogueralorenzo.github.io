@@ -43,11 +43,15 @@ Proposed commands:
 ```shell
 jury init
 jury claim create --summary "checkout fix is ready" --impact high
+jury claim transition --claim claim_checkout_ready --status screening
+jury claim transition --claim claim_checkout_ready --status in_review
 jury status --claim claim_checkout_ready
+jury check add --claim claim_checkout_ready --type verifier --summary "test command must pass"
 jury evidence add --claim claim_checkout_ready --type command --command "npm test" --exit-code 0
 jury critic run --claim claim_checkout_ready --role tests
 jury critic run --claim claim_checkout_ready --role security
 jury critic run --claim claim_checkout_ready --role scope --changed-files src/checkout/applyCoupon.ts
+jury check update --id check_claim_checkout_ready_verifier_test_command_must_pass --status passed --resolution "npm test passed"
 jury objection add --claim claim_checkout_ready --severity high --summary "missing regression test"
 jury objection resolve --id obj_missing_regression_test --resolution "added test"
 jury judge --claim claim_checkout_ready --format json

@@ -9,6 +9,18 @@ const DEFAULT_STATE_DIR = ".jury";
 const VERDICT_SCHEMA_VERSION = "jury.verdict.v1";
 const VALID_DECISIONS = new Set(["accept", "reject", "retry", "human_decision"]);
 const BLOCKING_SEVERITIES = new Set(["medium", "high", "critical"]);
+const CLAIM_STATUSES = ["draft", "submitted", "screening", "in_review", "revision_required", "ready_for_judgment", "decided", "archived"];
+const CHECK_STATUSES = ["pending", "passed", "failed", "waived", "not_applicable"];
+const ALLOWED_CLAIM_TRANSITIONS = new Map([
+  ["draft", ["submitted"]],
+  ["submitted", ["screening"]],
+  ["screening", ["in_review"]],
+  ["in_review", ["revision_required", "ready_for_judgment"]],
+  ["revision_required", ["in_review"]],
+  ["ready_for_judgment", ["decided"]],
+  ["decided", ["archived"]],
+  ["archived", []],
+]);
 const SCHEMA_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "schemas");
 const command = process.argv[2] ?? "help";
 const subcommand = process.argv[3]?.startsWith("--") ? null : process.argv[3] ?? null;
@@ -34,8 +46,23 @@ async function main() {
     return;
   }
 
+  if (command === "claim" && subcommand === "transition") {
+    await transitionClaim();
+    return;
+  }
+
   if (command === "evidence" && subcommand === "add") {
     await addEvidence();
+    return;
+  }
+
+  if (command === "check" && subcommand === "add") {
+    await addReviewCheck();
+    return;
+  }
+
+  if (command === "check" && subcommand === "update") {
+    await updateReviewCheck();
     return;
   }
 
@@ -146,6 +173,31 @@ async function createClaim() {
   print(claim);
 }
 
+async function transitionClaim() {
+  const dir = stateDir();
+  await ensureState(dir);
+  const claimId = requireArg("claim");
+  const status = requireArg("status");
+  const current = await requireClaim(dir, claimId);
+  const allowed = ALLOWED_CLAIM_TRANSITIONS.get(current.status) ?? [];
+
+  if (!allowed.includes(status)) {
+    fail(`invalid claim transition: ${current.status} -> ${status}`);
+  }
+
+  const claim = sortRecord({
+    ...current,
+    version: current.version + 1,
+    status,
+    transition_reason: args.reason ?? null,
+    updated_at: now(),
+  });
+
+  validateClaim(claim);
+  await appendJsonl(fileFor(dir, "claims"), claim);
+  print(claim);
+}
+
 async function addEvidence() {
   const dir = stateDir();
   await ensureState(dir);
@@ -178,6 +230,56 @@ async function addEvidence() {
   validateEvidence(evidence);
   await appendJsonl(fileFor(dir, "evidence"), evidence);
   print(evidence);
+}
+
+async function addReviewCheck() {
+  const dir = stateDir();
+  await ensureState(dir);
+  const claimId = requireArg("claim");
+  await requireClaim(dir, claimId);
+  const type = requireArg("type");
+  const existing = await readJsonl(fileFor(dir, "checks"));
+  const check = sortRecord({
+    schema_version: "jury.check.v1",
+    id: args.id ?? uniqueId("check", `${claimId}_${type}_${args.summary ?? "required"}`, existing),
+    claim_id: claimId,
+    type,
+    required: parseBoolean(args.required ?? "true", "check.required"),
+    status: args.status ?? "pending",
+    assigned_to: args["assigned-to"] ?? `${type}:local`,
+    summary: args.summary ?? `${type} check`,
+    evidence_ids: parseList(args.evidence ?? ""),
+    resolution: null,
+    created_at: now(),
+    updated_at: now(),
+  });
+
+  validateCheck(check);
+  await appendJsonl(fileFor(dir, "checks"), check);
+  print(check);
+}
+
+async function updateReviewCheck() {
+  const dir = stateDir();
+  await ensureState(dir);
+  const id = requireArg("id");
+  const current = latestById(await readJsonl(fileFor(dir, "checks"))).get(id);
+
+  if (!current) {
+    fail(`unknown check: ${id}`);
+  }
+
+  const check = sortRecord({
+    ...current,
+    status: args.status ?? current.status,
+    evidence_ids: args.evidence ? parseList(args.evidence) : current.evidence_ids,
+    resolution: args.resolution ?? current.resolution,
+    updated_at: now(),
+  });
+
+  validateCheck(check);
+  await appendJsonl(fileFor(dir, "checks"), check);
+  print(check);
 }
 
 async function addObjection() {
@@ -299,6 +401,7 @@ async function judgeClaim() {
     evidence_ids: review.evidence.map((item) => item.id).sort(),
     objection_ids: review.objections.map((item) => item.id).sort(),
     waiver_ids: review.waivers.map((item) => item.id).sort(),
+    check_ids: review.checks.map((item) => item.id).sort(),
     decided_by: args["decided-by"] ?? "judge:local",
     decided_at: now(),
   });
@@ -334,7 +437,7 @@ async function checkState() {
   await ensureState(dir);
   const checks = [];
 
-  for (const name of ["claims", "evidence", "objections", "waivers", "verdicts"]) {
+  for (const name of ["claims", "checks", "evidence", "objections", "waivers", "verdicts"]) {
     try {
       const records = await withValidationErrors(() => readJsonl(fileFor(dir, name)));
       for (const record of records) {
@@ -554,6 +657,20 @@ async function demoCodeChange() {
     stderr: "",
     collected_at: now(),
   }, validateEvidence);
+  await createRecord(fileFor(dir, "checks"), {
+    schema_version: "jury.check.v1",
+    id: "check_tests_required",
+    claim_id: claim.id,
+    type: "verifier",
+    required: true,
+    status: "passed",
+    assigned_to: "verifier:demo",
+    summary: "test command must pass",
+    evidence_ids: ["ev_npm_test"],
+    resolution: "npm test passed",
+    created_at: now(),
+    updated_at: now(),
+  }, validateCheck);
   const objection = await createRecord(fileFor(dir, "objections"), {
     schema_version: "jury.objection.v1",
     id: "obj_missing_regression_test",
@@ -586,6 +703,7 @@ async function demoCodeChange() {
     evidence_ids: review.evidence.map((item) => item.id).sort(),
     objection_ids: review.objections.map((item) => item.id).sort(),
     waiver_ids: [],
+    check_ids: review.checks.map((item) => item.id).sort(),
     decided_by: "judge:demo",
     decided_at: now(),
   }, validateVerdict);
@@ -596,11 +714,13 @@ async function demoCodeChange() {
 async function reviewForClaim(dir, claimId) {
   const claim = await requireClaim(dir, claimId);
   const evidence = latestById(await readJsonl(fileFor(dir, "evidence")));
+  const checks = latestById(await readJsonl(fileFor(dir, "checks")));
   const objections = latestById(await readJsonl(fileFor(dir, "objections")));
   const waivers = latestById(await readJsonl(fileFor(dir, "waivers")));
 
   return {
     claim,
+    checks: Array.from(checks.values()).filter((item) => item.claim_id === claimId).sort(byId),
     evidence: Array.from(evidence.values()).filter((item) => item.claim_id === claimId).sort(byId),
     objections: Array.from(objections.values()).filter((item) => item.claim_id === claimId).sort(byId),
     waivers: Array.from(waivers.values()).filter((item) => item.claim_id === claimId).sort(byId),
@@ -610,32 +730,45 @@ async function reviewForClaim(dir, claimId) {
 function decide(review, requireHumanApproval) {
   const openBlocking = review.objections.filter((item) => item.status === "open" && BLOCKING_SEVERITIES.has(item.severity));
   const failedEvidence = review.evidence.filter((item) => item.status === "failed");
+  const requiredChecks = review.checks.filter((item) => item.required);
+  const failedChecks = requiredChecks.filter((item) => item.status === "failed");
+  const pendingChecks = requiredChecks.filter((item) => item.status === "pending");
+  const humanChecks = pendingChecks.filter((item) => item.type === "human_approval");
 
-  if (requireHumanApproval) {
+  if (requireHumanApproval || humanChecks.length > 0) {
     return {
       decision: "human_decision",
       reason: "Human approval is required before this claim can be accepted.",
-      next_actions: ["Record an explicit approval or waiver."],
+      next_actions: humanChecks.length > 0
+        ? humanChecks.map((item) => `Complete ${item.id}: ${item.summary}`)
+        : ["Record an explicit approval or waiver."],
     };
   }
 
-  if (failedEvidence.length > 0 || openBlocking.some((item) => item.severity === "critical")) {
+  if (failedEvidence.length > 0 || failedChecks.length > 0 || openBlocking.some((item) => item.severity === "critical")) {
     return {
       decision: "reject",
       reason: failedEvidence.length > 0
         ? "Required evidence failed."
+        : failedChecks.length > 0
+          ? "A required check failed."
         : "A critical objection is still open.",
       next_actions: [],
     };
   }
 
-  if (review.evidence.length === 0 || openBlocking.length > 0) {
+  if (review.evidence.length === 0 || pendingChecks.length > 0 || openBlocking.length > 0) {
     return {
       decision: "retry",
       reason: review.evidence.length === 0
         ? "The claim has no evidence yet."
+        : pendingChecks.length > 0
+          ? "Required checks must complete before acceptance."
         : "Blocking objections must be resolved before acceptance.",
-      next_actions: openBlocking.map((item) => `Resolve ${item.id}: ${item.summary}`),
+      next_actions: [
+        ...pendingChecks.map((item) => `Complete ${item.id}: ${item.summary}`),
+        ...openBlocking.map((item) => `Resolve ${item.id}: ${item.summary}`),
+      ],
     };
   }
 
@@ -648,6 +781,7 @@ function decide(review, requireHumanApproval) {
 
 function validateRecord(name, record) {
   if (name === "claims") validateClaim(record);
+  if (name === "checks") validateCheck(record);
   if (name === "evidence") validateEvidence(record);
   if (name === "objections") validateObjection(record);
   if (name === "waivers") validateWaiver(record);
@@ -662,7 +796,27 @@ function validateClaim(record) {
   requireString(record.claimant, "claim.claimant");
   requireArray(record.scope, "claim.scope");
   requireEnum(record.impact, ["low", "medium", "high", "critical"], "claim.impact");
-  requireEnum(record.status, ["draft", "submitted", "screening", "in_review", "revision_required", "ready_for_judgment", "decided", "archived"], "claim.status");
+  requireEnum(record.status, CLAIM_STATUSES, "claim.status");
+}
+
+function validateCheck(record) {
+  requireString(record.schema_version, "check.schema_version");
+  requireString(record.id, "check.id");
+  requireString(record.claim_id, "check.claim_id");
+  requireEnum(record.type, ["critic", "verifier", "policy", "human_approval"], "check.type");
+
+  if (typeof record.required !== "boolean") {
+    fail("check.required must be a boolean");
+  }
+
+  requireEnum(record.status, CHECK_STATUSES, "check.status");
+  requireString(record.assigned_to, "check.assigned_to");
+  requireString(record.summary, "check.summary");
+  requireArray(record.evidence_ids, "check.evidence_ids");
+
+  if (["passed", "failed", "waived", "not_applicable"].includes(record.status) && !record.resolution) {
+    fail("check.resolution is required when check is no longer pending");
+  }
 }
 
 function validateEvidence(record) {
@@ -714,6 +868,9 @@ function validateVerdict(record) {
   requireArray(record.evidence_ids, "verdict.evidence_ids");
   requireArray(record.objection_ids, "verdict.objection_ids");
   requireArray(record.waiver_ids, "verdict.waiver_ids");
+  if (record.check_ids !== undefined) {
+    requireArray(record.check_ids, "verdict.check_ids");
+  }
   requireString(record.decided_by, "verdict.decided_by");
   requireString(record.decided_at, "verdict.decided_at");
 }
@@ -785,7 +942,7 @@ function stateDir() {
 }
 
 function stateFiles(dir) {
-  return ["claims", "evidence", "objections", "waivers", "verdicts"].map((name) => fileFor(dir, name));
+  return ["claims", "checks", "evidence", "objections", "waivers", "verdicts"].map((name) => fileFor(dir, name));
 }
 
 function schemaDir() {
@@ -819,6 +976,12 @@ function slug(value) {
 function parseList(value) {
   if (!value) return [];
   return value.split(",").map((item) => item.trim()).filter(Boolean).sort();
+}
+
+function parseBoolean(value, field) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  fail(`${field} must be true or false`);
 }
 
 function statusFromExitCode(value) {
@@ -897,6 +1060,9 @@ function printHelp() {
 Commands:
   jury init
   jury claim create --summary <text> [--impact high] [--scope path,path]
+  jury claim transition --claim <id> --status screening
+  jury check add --claim <id> --type verifier --summary <text>
+  jury check update --id <id> --status passed --resolution <text>
   jury evidence add --claim <id> --type command --command "npm test" --exit-code 0
   jury critic run --claim <id> --role tests
   jury objection add --claim <id> --summary <text> [--severity high]

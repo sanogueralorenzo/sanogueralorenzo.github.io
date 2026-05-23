@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, appendFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -202,6 +202,89 @@ test("gate explains exact missing fields and unresolved objections when state is
       severity: "medium",
       summary: "The claim has no explicit scope.",
     }]);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("claim transitions are explicit, validated, and append-only", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    const claim = await runJson(["claim", "create", "--state-dir", stateDir, "--summary", "checkout fix is ready"]);
+    const screening = await runJson(["claim", "transition", "--state-dir", stateDir, "--claim", claim.id, "--status", "screening", "--reason", "review accepted"]);
+    const inReview = await runJson(["claim", "transition", "--state-dir", stateDir, "--claim", claim.id, "--status", "in_review"]);
+
+    assert.equal(screening.version, 2);
+    assert.equal(inReview.version, 3);
+    assert.equal(inReview.status, "in_review");
+
+    const invalid = await runProcess(["claim", "transition", "--state-dir", stateDir, "--claim", claim.id, "--status", "archived", "--json"]);
+    assert.equal(invalid.exitCode, 1);
+    assert.match(invalid.stderr, /invalid claim transition: in_review -> archived/);
+
+    const lines = (await readFile(join(stateDir, "claims.jsonl"), "utf8")).trim().split("\n");
+    assert.equal(lines.length, 3);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("durable check records influence verdicts and remain append-only", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    const claim = await runJson(["claim", "create", "--state-dir", stateDir, "--summary", "checkout fix is ready", "--scope", "src/checkout"]);
+    await runJson(["evidence", "add", "--state-dir", stateDir, "--claim", claim.id, "--type", "command", "--command", "npm test", "--exit-code", "0"]);
+    const check = await runJson(["check", "add", "--state-dir", stateDir, "--claim", claim.id, "--type", "verifier", "--summary", "regression tests pass"]);
+
+    const retry = await runJson(["judge", "--state-dir", stateDir, "--claim", claim.id]);
+    assert.equal(retry.decision, "retry");
+    assert.deepEqual(retry.check_ids, [check.id]);
+    assert.ok(retry.next_actions.some((action) => action.includes(check.id)));
+
+    await runJson(["check", "update", "--state-dir", stateDir, "--id", check.id, "--status", "passed", "--resolution", "npm test passed"]);
+    const accept = await runJson(["judge", "--state-dir", stateDir, "--claim", claim.id, "--out", join(stateDir, "verdict.json")]);
+    assert.equal(accept.decision, "accept");
+    assert.deepEqual(accept.check_ids, [check.id]);
+
+    const gate = await runJson(["gate", "--state-dir", stateDir, "--claim", claim.id, "--verdict", join(stateDir, "verdict.json")]);
+    assert.equal(gate.ok, true);
+    assert.deepEqual(gate.unresolved_objections, []);
+
+    const lines = (await readFile(join(stateDir, "checks.jsonl"), "utf8")).trim().split("\n");
+    assert.equal(lines.length, 2);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("check rejects malformed durable check records", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    await appendFile(join(stateDir, "checks.jsonl"), `${JSON.stringify({
+      schema_version: "jury.check.v1",
+      id: "check_bad",
+      claim_id: "claim_bad",
+      type: "verifier",
+      required: true,
+      status: "passed",
+      assigned_to: "verifier:local",
+      summary: "bad check",
+      evidence_ids: [],
+      created_at: "2026-05-23T00:00:00.000Z",
+      updated_at: "2026-05-23T00:00:00.000Z",
+    })}\n`);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.ok(payload.checks.some((check) => check.name === "checks" && check.ok === false && check.message.includes("check.resolution")));
   } finally {
     await rm(stateDir, { recursive: true, force: true });
   }
