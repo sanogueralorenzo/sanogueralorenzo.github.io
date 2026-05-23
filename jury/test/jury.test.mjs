@@ -676,6 +676,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/quickstart",
     "MIGRATION.md",
     "TROUBLESHOOTING.md",
+    "MAINTAINER_HANDOFF.md",
     "examples/ci/fixtures/quickstart/verdict.json",
     "examples/ci/fixtures/quickstart/review-bundle.json",
     "examples/ci/fixtures/quickstart/gate.json",
@@ -704,6 +705,44 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.equal(bundle.claim_id, "claim_ci_change");
   assert.equal(gate.ok, true);
   assert.equal(gate.decision, "accept");
+});
+
+test("maintainer handoff references current adoption artifacts and validation commands", async () => {
+  const handoffPath = join(repoRoot, "jury/MAINTAINER_HANDOFF.md");
+  const handoff = await readFile(handoffPath, "utf8");
+  const readme = await readFile(join(repoRoot, "jury/README.md"), "utf8");
+  const checklist = await readFile(join(repoRoot, "jury/RELEASE_CHECKLIST.md"), "utf8");
+  const linkedTargets = [...handoff.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map((match) => match[1]);
+
+  for (const requiredLink of [
+    "QUICKSTART.md",
+    "examples/ci/jury-review-gate.yml",
+    "examples/ci/fixtures/quickstart",
+    "MIGRATION.md",
+    "RELEASE_CHECKLIST.md",
+    "TROUBLESHOOTING.md",
+  ]) {
+    assert.ok(linkedTargets.includes(requiredLink), `MAINTAINER_HANDOFF.md should link ${requiredLink}`);
+  }
+
+  for (const target of linkedTargets) {
+    await stat(join(dirname(handoffPath), target));
+  }
+
+  const commands = extractShellBlock(handoff, "Validation");
+  assert.deepEqual(commands, [
+    "npm --prefix jury test",
+    "npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json",
+  ]);
+
+  for (const artifact of ["verdict.json", "gate.json", "review-bundle.json"]) {
+    assert.ok(handoff.includes(artifact), `MAINTAINER_HANDOFF.md should mention ${artifact}`);
+  }
+
+  assert.match(handoff, /schema validation for imported `review-bundle\.json` files/);
+  assert.match(handoff, /without mutating `\.jury\/`/);
+  assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
+  assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
 
 function tempState() {
