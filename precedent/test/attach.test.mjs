@@ -49,6 +49,8 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.schema_version, "precedent.adapter.v1");
     assert.equal(first.runtime, "codex");
     assert.equal(first.sessionId, second.sessionId);
+    assert.equal(first.identity.source, "task_hash_fallback");
+    assert.equal(first.identity.fallback, true);
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
@@ -86,6 +88,41 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "--json",
     ]);
     assert.deepEqual(first.adapter.promotionTrial.output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach derives runtime-safe session ids from thread ids", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    const sharedArgs = [
+      "attach",
+      "--state-dir",
+      stateDir,
+      "--runtime",
+      "codex",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ];
+    const firstThread = await runJson([...sharedArgs, "--thread-id", "thread-a"]);
+    const sameThread = await runJson([...sharedArgs, "--thread-id", "thread-a"]);
+    const secondThread = await runJson([...sharedArgs, "--thread-id", "thread-b"]);
+    const explicitSession = await runJson([...sharedArgs, "--thread-id", "thread-a", "--session", "manual-session"]);
+
+    assert.equal(firstThread.identity.source, "thread_id");
+    assert.equal(firstThread.identity.threadId, "thread-a");
+    assert.equal(firstThread.identity.fallback, false);
+    assert.equal(firstThread.sessionId, sameThread.sessionId);
+    assert.notEqual(firstThread.sessionId, secondThread.sessionId);
+    assert.equal(explicitSession.sessionId, "manual-session");
+    assert.equal(explicitSession.identity.source, "explicit_session");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -144,6 +181,44 @@ test("attach contract drives injection and outcome attribution", async () => {
     const health = report.precedentHealth.find((entry) => entry.id === "prec_webhook_replay_boundary");
     assert.equal(health.injectionCount, 1);
     assert.equal(health.successCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run thread ids isolate repeated injection suppression", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const sharedArgs = [
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node -e \"process.exit(0)\" # pnpm test:webhooks",
+      "--json",
+    ];
+    const firstThread = await runJson([...sharedArgs, "--thread-id", "thread-a"]);
+    const repeatedThread = await runJson([...sharedArgs, "--thread-id", "thread-a"]);
+    const secondThread = await runJson([...sharedArgs, "--thread-id", "thread-b"]);
+
+    assert.equal(firstThread.identity.source, "thread_id");
+    assert.equal(firstThread.beforeTurn.injections.length, 1);
+    assert.equal(repeatedThread.beforeTurn.injections.length, 0);
+    assert.equal(repeatedThread.beforeTurn.suppressedInjections.length, 1);
+    assert.equal(secondThread.beforeTurn.injections.length, 1);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((entry) => entry.id === "prec_webhook_replay_boundary");
+    assert.equal(health.injectionCount, 2);
+    assert.equal(health.successCount, 2);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

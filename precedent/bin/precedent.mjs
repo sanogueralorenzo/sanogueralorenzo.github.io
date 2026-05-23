@@ -1564,6 +1564,7 @@ function buildManifest(runtime, stateDir) {
       enabledHooks: runtimeConfig.enabledHooks,
     },
     requiredEnv: [],
+    identity: runtimeIdentityContract(),
     hooks: {
       "context.before_turn": {
         command: [
@@ -1656,13 +1657,13 @@ async function attachRuntime() {
   const taskSource = await readAttachTaskSource();
   const scope = args.scope ?? "";
   const changedFiles = parseListArg(args["changed-files"]);
-  const sessionId = safeFileName(args.session ?? stableSessionId({
+  const sessionIdentity = runtimeSessionIdentity({
     runtime,
-    task: taskSource.task,
-    taskFile: taskSource.taskFile,
+    taskSource,
     scope,
     changedFiles,
-  }));
+  });
+  const sessionId = sessionIdentity.sessionId;
   const beforeTurnCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -1710,6 +1711,7 @@ async function attachRuntime() {
     runtime,
     stateDir: stateDirArg,
     sessionId,
+    identity: sessionIdentity,
     task: taskSource.task,
     taskFile: taskSource.taskFile,
     scope: scope || null,
@@ -1837,13 +1839,13 @@ async function attachRunSession() {
   const taskSource = await readAttachTaskSource();
   const scope = args.scope ?? "";
   const changedFiles = parseListArg(args["changed-files"]);
-  const sessionId = safeFileName(args.session ?? stableSessionId({
+  const sessionIdentity = runtimeSessionIdentity({
     runtime,
-    task: taskSource.task,
-    taskFile: taskSource.taskFile,
+    taskSource,
     scope,
     changedFiles,
-  }));
+  });
+  const sessionId = sessionIdentity.sessionId;
   const validationCommand = requireString(args["validation-command"], "attach-run --validation-command");
 
   const beforeTurn = await runPrecedentChildJson([
@@ -1906,6 +1908,7 @@ async function attachRunSession() {
     runtime,
     stateDir: stateDirArg,
     sessionId,
+    identity: sessionIdentity,
     task: taskSource.task,
     taskFile: taskSource.taskFile,
     scope: scope || null,
@@ -1974,6 +1977,54 @@ async function readAttachTaskSource() {
   }
 
   fail("attach requires --task <text> or --task-file <path>");
+}
+
+function runtimeSessionIdentity({ runtime, taskSource, scope, changedFiles }) {
+  if (args.session) {
+    return {
+      sessionId: safeFileName(args.session),
+      source: "explicit_session",
+      threadId: args["thread-id"] ?? null,
+      fallback: false,
+    };
+  }
+
+  if (args["thread-id"]) {
+    return {
+      sessionId: safeFileName(stableSessionId({
+        runtime,
+        cwd: process.cwd(),
+        threadId: args["thread-id"],
+      })),
+      source: "thread_id",
+      threadId: args["thread-id"],
+      fallback: false,
+    };
+  }
+
+  return {
+    sessionId: safeFileName(stableSessionId({
+      runtime,
+      task: taskSource.task,
+      taskFile: taskSource.taskFile,
+      scope,
+      changedFiles,
+    })),
+    source: "task_hash_fallback",
+    threadId: null,
+    fallback: true,
+  };
+}
+
+function runtimeIdentityContract() {
+  return {
+    inputs: {
+      session: "$SESSION_ID",
+      threadId: "$THREAD_ID",
+    },
+    precedence: ["session", "threadId", "task_hash_fallback"],
+    recommendation: "Pass a stable runtime conversation id as --thread-id; task-hash fallback is only for demos.",
+  };
 }
 
 function stableSessionId(input) {
@@ -5631,8 +5682,8 @@ Usage:
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
-  precedent attach [--runtime generic|codex] [--session session-id] --task "text"
-  precedent attach-run --task "text" --validation-command "cmd" [--session session-id]
+  precedent attach [--runtime generic|codex] [--session session-id|--thread-id thread-id] --task "text"
+  precedent attach-run --task "text" --validation-command "cmd" [--session session-id|--thread-id thread-id]
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]

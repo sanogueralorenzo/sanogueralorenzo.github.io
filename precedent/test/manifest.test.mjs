@@ -13,6 +13,11 @@ test("manifest emits a generic runtime hook contract", async () => {
 
   assert.equal(manifest.schema_version, "precedent.manifest.v1");
   assert.equal(manifest.runtime, "generic");
+  assert.deepEqual(manifest.identity.inputs, {
+    session: "$SESSION_ID",
+    threadId: "$THREAD_ID",
+  });
+  assert.deepEqual(manifest.identity.precedence, ["session", "threadId", "task_hash_fallback"]);
   assert.equal(manifest.hooks["context.before_turn"].injectFrom, "contextBlock");
   assert.equal(manifest.hooks["context.before_turn"].failurePolicy, "fail_open");
   assert.deepEqual(manifest.hooks["context.before_turn"].output, ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source"]);

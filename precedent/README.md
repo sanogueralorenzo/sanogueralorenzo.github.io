@@ -132,8 +132,8 @@ node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs manifest --runtime generic
-node precedent/bin/precedent.mjs attach --runtime codex --session demo --task "add another webhook handler" --scope feature:webhooks
-node precedent/bin/precedent.mjs attach-run --session demo --task "add another webhook handler" --scope feature:webhooks --validation-command "pnpm test:webhooks"
+node precedent/bin/precedent.mjs attach --runtime codex --thread-id codex-thread-123 --task "add another webhook handler" --scope feature:webhooks
+node precedent/bin/precedent.mjs attach-run --thread-id codex-thread-123 --task "add another webhook handler" --scope feature:webhooks --validation-command "pnpm test:webhooks"
 node precedent/bin/precedent.mjs check --strict --json
 node precedent/bin/precedent.mjs prune --dry-run --json
 node precedent/bin/precedent.mjs observe --session demo
@@ -151,11 +151,12 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
 - Every injection includes `matchReasons`, so a runtime can show why Precedent injected memory instead of treating it as opaque prompt context.
 - Session hooks suppress a precedent after it has already been injected once in the same session; pass `"allowRepeat": true` only when a runtime intentionally wants repeated context.
+- Runtime adapters should pass a stable conversation id through `--thread-id`; explicit `--session` still wins, and task-derived session ids are only a demo fallback because identical tasks in separate conversations would otherwise collide.
 - `explain` returns the promotion reason, source trace or session, replay delta, evidence, matching scope and paths, and recent injection history for one precedent id.
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, fail-open policy, and promotion-trial action a runtime needs to wire Precedent in.
-- `attach` emits a session-scoped adapter contract with a before-turn command, after-validation hook command, after-diff hook command, after-outcome hook command, promotion-trial command, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
+- `attach` emits a session-scoped adapter contract with a before-turn command, after-validation hook command, after-diff hook command, after-outcome hook command, promotion-trial command, runtime identity metadata, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
 - `attach-run` is the minimal headless host shim: it runs before-turn context, executes one validation command, records validation and outcome hooks, and carries injected precedent ids into attribution automatically.
 - `review.after_feedback` records review comments as high-signal session evidence, so missed contracts can become candidates and later promoted precedents without handcrafted traces.
 - `diff.after_edit` and `validation.after_run` evaluate advisory guards only for precedents already injected into the same session. v1 supports `changed_files_within_paths` and `required_validation_command`; warnings are returned as `guardResult` plus a compact `Precedent guard:` context block and never block the underlying hook.
