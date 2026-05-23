@@ -1813,6 +1813,90 @@ describe("intent static model CLI", () => {
     ]);
   });
 
+  it("validates graph step attachment edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch:input:0", kind: "Input", label: "input", span: testSpan(3), data: { scope: "step" } },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(4), data: { scope: "step" } },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(5), data: { scope: "goal" } },
+        { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(6) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(7) },
+        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(8) },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(9), data: { policyKind: "timeout" } },
+        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(10), data: { policyKind: "retry" } },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch:input:0", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "input", type: "Finding", targetSpan: testSpan(2) } },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "input.ready" } },
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch", kind: "approves", data: { approval: "maintainer" } },
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch:effect:0", kind: "approves", data: { approval: "maintainer" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints", data: { checkpoint: "before" } },
+        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts", data: { policy: "5m" } },
+        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries", data: { policy: "max 2" } },
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "goal", type: "Finding", targetSpan: testSpan(2) } },
+        { from: "goal:demo:verify:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "ok" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch", kind: "approves", data: { approval: "maintainer" } },
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch:checkpoint:0", kind: "approves", data: { approval: "maintainer" } },
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints", data: { checkpoint: "before" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "checkpoints", data: { checkpoint: "before" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:timeout:0", kind: "timeouts", data: { policy: "5m" } },
+        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch:effect:0", kind: "timeouts", data: { policy: "5m" } },
+        { from: "goal:demo:step:patch:checkpoint:0", to: "goal:demo:step:patch", kind: "retries", data: { policy: "max 2" } },
+        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch:checkpoint:0", kind: "retries", data: { policy: "max 2" } },
+      ],
+    });
+    const requireDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_REQUIRE_INVALID");
+    const approveDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_APPROVE_INVALID");
+    const checkpointDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CHECKPOINT_EDGE_INVALID");
+    const policyDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_POLICY_EDGE_INVALID");
+
+    assert.equal(requireDiagnostics.length, 2);
+    assert.equal(requireDiagnostics[0].from_kind, "Goal");
+    assert.equal(requireDiagnostics[0].to_kind, "Step");
+    assert.equal(requireDiagnostics[1].from_kind, "Check");
+    assert.equal(requireDiagnostics[1].from_scope, "goal");
+    assert.deepEqual(requireDiagnostics[1].supported_roles, [
+      { from_kind: "Input", to_kind: "Step" },
+      { from_kind: "Check", from_scope: "step", to_kind: "Step" },
+    ]);
+    assert.equal(approveDiagnostics.length, 2);
+    assert.equal(approveDiagnostics[0].from_kind, "Step");
+    assert.equal(approveDiagnostics[0].to_kind, "Step");
+    assert.equal(approveDiagnostics[1].from_kind, "Approval");
+    assert.equal(approveDiagnostics[1].to_kind, "Checkpoint");
+    assert.deepEqual(approveDiagnostics[1].supported_roles, [
+      { from_kind: "Approval", to_kind: "Step" },
+      { from_kind: "Approval", to_kind: "Effect" },
+    ]);
+    assert.equal(checkpointDiagnostics.length, 2);
+    assert.equal(checkpointDiagnostics[0].from_kind, "Approval");
+    assert.equal(checkpointDiagnostics[0].to_kind, "Checkpoint");
+    assert.equal(checkpointDiagnostics[1].from_kind, "Step");
+    assert.equal(checkpointDiagnostics[1].to_kind, "Effect");
+    assert.deepEqual(checkpointDiagnostics[1].supported_roles, [
+      { from_kind: "Step", to_kind: "Checkpoint" },
+    ]);
+    assert.equal(policyDiagnostics.length, 4);
+    assert.equal(policyDiagnostics[0].edge, "timeouts");
+    assert.equal(policyDiagnostics[0].from_kind, "Step");
+    assert.equal(policyDiagnostics[0].to_kind, "Policy");
+    assert.equal(policyDiagnostics[1].edge, "timeouts");
+    assert.equal(policyDiagnostics[1].from_kind, "Policy");
+    assert.equal(policyDiagnostics[1].to_kind, "Effect");
+    assert.equal(policyDiagnostics[2].edge, "retries");
+    assert.equal(policyDiagnostics[2].from_kind, "Checkpoint");
+    assert.equal(policyDiagnostics[2].to_kind, "Step");
+    assert.equal(policyDiagnostics[3].edge, "retries");
+    assert.equal(policyDiagnostics[3].from_kind, "Policy");
+    assert.equal(policyDiagnostics[3].to_kind, "Checkpoint");
+    assert.deepEqual(policyDiagnostics[3].supported_roles, [
+      { from_kind: "Policy", to_kind: "Step" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",

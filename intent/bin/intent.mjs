@@ -2193,11 +2193,23 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces", "constrains", "guards"].includes(graphEdge.kind)) {
+  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces", "constrains", "guards", "requires", "approves", "checkpoints", "timeouts", "retries"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
   const targetNode = nodesById.get(graphEdge.to);
+  if (graphEdge.kind === "requires") {
+    return validateGraphRequiresEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "approves") {
+    return validateGraphApprovesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "checkpoints") {
+    return validateGraphCheckpointsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "timeouts" || graphEdge.kind === "retries") {
+    return validateGraphPolicyEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
   if (graphEdge.kind === "constrains") {
     return validateGraphConstrainsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
@@ -2239,6 +2251,76 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
     supported_roles: [
       { from_kind: "Type", to_kind: "Goal" },
       { from_kind: "Goal", to_kind: "Memory" },
+    ],
+  });
+}
+
+function validateGraphRequiresEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  const isStepInput = sourceNode?.kind === "Input" && targetNode?.kind === "Step";
+  const isStepRequirement = sourceNode?.kind === "Check" && sourceNode.data?.scope === "step" && targetNode?.kind === "Step";
+  if (isStepInput || isStepRequirement) {
+    return null;
+  }
+  return error("INTENT_GRAPH_REQUIRE_INVALID", `requires edge '${graphEdge.from}' to '${graphEdge.to}' must connect a step Input or step-scoped Check node to a Step node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    from_scope: sourceNode?.data?.scope ?? null,
+    supported_roles: [
+      { from_kind: "Input", to_kind: "Step" },
+      { from_kind: "Check", from_scope: "step", to_kind: "Step" },
+    ],
+  });
+}
+
+function validateGraphApprovesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  const isSupportedTarget = targetNode?.kind === "Step" || targetNode?.kind === "Effect";
+  if (sourceNode?.kind === "Approval" && isSupportedTarget) {
+    return null;
+  }
+  return error("INTENT_GRAPH_APPROVE_INVALID", `approves edge '${graphEdge.from}' to '${graphEdge.to}' must connect an Approval node to a Step or Effect node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Approval", to_kind: "Step" },
+      { from_kind: "Approval", to_kind: "Effect" },
+    ],
+  });
+}
+
+function validateGraphCheckpointsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Step" && targetNode?.kind === "Checkpoint") {
+    return null;
+  }
+  return error("INTENT_GRAPH_CHECKPOINT_EDGE_INVALID", `checkpoints edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Step node to a Checkpoint node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Step", to_kind: "Checkpoint" },
+    ],
+  });
+}
+
+function validateGraphPolicyEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Policy" && targetNode?.kind === "Step") {
+    return null;
+  }
+  return error("INTENT_GRAPH_POLICY_EDGE_INVALID", `${graphEdge.kind} edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Policy node to a Step node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Policy", to_kind: "Step" },
     ],
   });
 }
