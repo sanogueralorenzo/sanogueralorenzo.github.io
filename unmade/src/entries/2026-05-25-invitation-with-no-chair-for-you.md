@@ -5,7 +5,7 @@ excerpt: A rejected invitation to a gathering where attendance would have requir
 date: 2026-05-25T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
+category: Unheld
 status: rejected invitation
 visual: invitation
 mark: "RSVP"

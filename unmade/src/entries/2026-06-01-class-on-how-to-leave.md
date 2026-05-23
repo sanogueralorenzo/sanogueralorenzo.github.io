@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Class on How to Leave
-excerpt: An unchosen class about exits, resignations, endings, migrations, and the discipline of not staying too long.
+excerpt: An unheld class about exits, resignations, endings, migrations, and the discipline of not staying too long.
 date: 2026-06-01T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
-status: unchosen class
+category: Unheld
+status: unheld class
 visual: classroom
 mark: "L"
 trace: A registration page, one open seat, and a prerequisite nobody could prove.

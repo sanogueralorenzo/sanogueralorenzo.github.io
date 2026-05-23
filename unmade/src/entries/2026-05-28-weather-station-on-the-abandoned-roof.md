@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Weather Station on the Abandoned Roof
-excerpt: An unrecorded station that would have kept local weather for one roof and nobody else.
+excerpt: An unbuilt station that would have kept local weather for one roof and nobody else.
 date: 2026-05-28T09:40:00-07:00
 tags:
   - unmade
-category: Unrecorded
-status: unrecorded weather station
+category: Unbuilt
+status: unbuilt weather station
 visual: weather-station
 mark: "↟"
 trace: Rust marks, a missing anemometer, and seven days of blank readings.

@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Evening Ritual With Two Lamps
-excerpt: An unlived ritual for ending the day by turning off one lamp and refusing the other.
+excerpt: An unheld ritual for ending the day by turning off one lamp and refusing the other.
 date: 2026-05-29T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
-status: unlived evening ritual
+category: Unheld
+status: unheld evening ritual
 visual: lamp
 mark: "2"
 trace: A reading chair, two switches, and a rule about not checking messages.

@@ -5,7 +5,7 @@ excerpt: A missing field record from a pier that was fenced off before the recor
 date: 2026-05-23T09:40:00-07:00
 tags:
   - unmade
-category: Unrecorded
+category: Unsent
 status: lost field record
 visual: signal
 mark: "≈"

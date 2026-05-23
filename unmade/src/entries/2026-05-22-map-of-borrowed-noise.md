@@ -5,7 +5,7 @@ excerpt: A field recording atlas of sounds that belonged to nobody and disappear
 date: 2026-05-22T09:40:00-07:00
 tags:
   - unmade
-category: Unrecorded
+category: Unsent
 status: missing signal
 visual: map
 mark: "⌁"

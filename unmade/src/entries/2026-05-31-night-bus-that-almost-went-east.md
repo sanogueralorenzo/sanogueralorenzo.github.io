@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Night Bus That Almost Went East
-excerpt: An unchosen bus route whose empty seats seemed to offer a life with fewer witnesses.
+excerpt: An unheld bus route whose empty seats seemed to offer a life with fewer witnesses.
 date: 2026-05-31T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
-status: unchosen night bus
+category: Unheld
+status: unheld night bus
 visual: bus
 mark: "N8"
 trace: A timetable, exact change, and fogged windows at the terminal.

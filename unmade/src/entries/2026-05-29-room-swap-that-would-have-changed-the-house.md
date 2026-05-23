@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Room Swap That Would Have Changed the House
-excerpt: An unchosen exchange of rooms that would have rearranged more than furniture.
+excerpt: An unheld exchange of rooms that would have rearranged more than furniture.
 date: 2026-05-29T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
-status: unchosen room swap
+category: Unheld
+status: unheld room swap
 visual: floorplan
 mark: "↔"
 trace: A taped floor plan, two bed measurements, and a window argument.

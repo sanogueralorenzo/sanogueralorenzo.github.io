@@ -5,7 +5,7 @@ excerpt: A missing transcript reconstructed around the exact second the signal f
 date: 2026-05-25T09:40:00-07:00
 tags:
   - unmade
-category: Unrecorded
+category: Unsent
 status: missing transcript
 visual: transcript
 mark: "—"

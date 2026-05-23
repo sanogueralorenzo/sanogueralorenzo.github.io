@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Apartment Above the Closed Pharmacy
-excerpt: An unlived apartment over a shuttered shop, with green tile downstairs and a staircase that smelled like dust.
+excerpt: An unheld apartment over a shuttered shop, with green tile downstairs and a staircase that smelled like dust.
 date: 2026-05-31T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
-status: unlived apartment above a closed shop
+category: Unheld
+status: unheld apartment above a closed shop
 visual: apartment
 mark: "2F"
 trace: A narrow stair, a broken neon cross, and rent lowered twice.

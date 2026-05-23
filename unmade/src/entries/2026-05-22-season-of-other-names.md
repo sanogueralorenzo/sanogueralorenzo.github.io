@@ -5,7 +5,7 @@ excerpt: A private calendar for the version of life that would have required a d
 date: 2026-05-22T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
+category: Unheld
 status: private calendar
 visual: calendar
 mark: "X"
@@ -24,6 +24,6 @@ The calendar did not fail. It stayed soft, which is what some futures do when th
 
 ## Name Weather
 
-The artifact is filed under Unlived because it does not describe a fantasy. It describes an administrative possibility: the person who might have emerged if paperwork, place, and habit had aligned differently.
+The artifact is filed under Unheld because it does not describe a fantasy. It describes an administrative possibility: the person who might have emerged if paperwork, place, and habit had aligned differently.
 
 A smaller, meaner question remains: whether identity is chosen once, or rehearsed privately until one rehearsal becomes public.

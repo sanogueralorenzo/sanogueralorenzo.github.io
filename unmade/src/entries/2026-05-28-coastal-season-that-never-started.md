@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Coastal Season That Never Started
-excerpt: An unlived season by the water, planned in enough detail to almost become a climate.
+excerpt: An unheld season by the water, planned in enough detail to almost become a climate.
 date: 2026-05-28T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
-status: unlived coastal season
+category: Unheld
+status: unheld coastal season
 visual: coast
 mark: "≈"
 trace: Tide tables, a borrowed sweater, and a rental saved under an old browser tab.

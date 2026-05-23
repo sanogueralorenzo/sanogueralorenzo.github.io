@@ -5,7 +5,7 @@ excerpt: A life organized around the second ticket, the one that was bought and 
 date: 2026-05-22T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
+category: Unheld
 status: alternate route
 visual: ticket
 mark: "II"

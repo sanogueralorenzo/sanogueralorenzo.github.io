@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Neighborhood That Would Have Known You
-excerpt: An unlived neighborhood assembled from shop windows, bus routes, and the version of you its streets would have trained.
+excerpt: An unheld neighborhood assembled from shop windows, bus routes, and the version of you its streets would have trained.
 date: 2026-05-26T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
-status: unlived neighborhood
+category: Unheld
+status: unheld neighborhood
 visual: block
 mark: "↘"
 trace: Three corner stores, a library branch, and a walking route never made automatic.
@@ -20,10 +20,10 @@ The neighborhood had enough friction to change a person gently: a longer walk fo
 
 The library would have become the first anchor. Then the corner store with the narrow fruit display. Then the block avoided in rain. Locality would not have arrived as belonging, but as repetition.
 
-It remained unlived, but not empty. It kept the shape of a person who would have become local there.
+It remained unheld, but not empty. It kept the shape of a person who would have become local there.
 
 ## Block Association
 
-The neighborhood is filed as Unlived because it did not remain abstract. It had errands, weather, shortcuts, and the beginnings of loyalty.
+The neighborhood is filed as Unheld because it did not remain abstract. It had errands, weather, shortcuts, and the beginnings of loyalty.
 
 The harder question sits here: whether place changes identity through meaning, or simply through the routes it convinces a body to repeat.

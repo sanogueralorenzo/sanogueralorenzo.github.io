@@ -5,7 +5,7 @@ excerpt: An alternate identity assembled from a name that almost stayed, with it
 date: 2026-05-23T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
+category: Unheld
 status: alternate identity
 visual: mask
 mark: "N"

@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Sensor Log From the Empty Bed
-excerpt: An unrecorded sleep log from a bed that kept detecting a body after the room had been cleared.
+excerpt: An unsent sleep log from a bed that kept detecting a body after the room had been cleared.
 date: 2026-05-27T09:40:00-07:00
 tags:
   - unmade
-category: Unrecorded
-status: unrecorded sensor log
+category: Unsent
+status: unsent sensor log
 visual: sensor
 mark: "Hz"
 trace: Pressure anomalies, false heartbeats, and one deleted export.
@@ -24,6 +24,6 @@ No export was saved. The evidence remained inside the device, indistinguishable 
 
 ## Bedside Log
 
-The log is Unrecorded because its evidence existed only inside a proprietary summary, then vanished behind an update. The haunting, if it was one, depended on a terms-of-service agreement.
+The log is Unsent because its evidence existed only inside a proprietary summary, then vanished behind an update. The haunting, if it was one, depended on a terms-of-service agreement.
 
 What still bothers the record is this: whether deletion returned the bed to ordinary emptiness, or only removed the one language in which its emptiness had begun to speak.

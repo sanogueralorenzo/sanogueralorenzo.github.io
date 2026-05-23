@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Committee Seat by the Window
-excerpt: An unchosen appointment that would have traded a private life for minutes, motions, and polite influence.
+excerpt: An unheld appointment that would have traded a private life for minutes, motions, and polite influence.
 date: 2026-05-30T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
-status: unchosen committee seat
+category: Unheld
+status: unheld committee seat
 visual: seat
 mark: "C"
 trace: A nomination email, meeting schedule, and a chair facing bad afternoon light.
@@ -24,4 +24,4 @@ The window seat looked harmless on the room diagram. It had bad acoustics, a vie
 
 The appointment was never accepted. The refusal note is missing, but the draft agenda remains, with one line circled: public comment limited to three minutes. Someone had already imagined the discomfort of sitting there and lending their name to procedure.
 
-The unlived role is not glamorous. It is a small civic life in which showing up might have mattered, or might only have made compromise look broader than it was.
+The unheld role is not glamorous. It is a small civic life in which showing up might have mattered, or might only have made compromise look broader than it was.

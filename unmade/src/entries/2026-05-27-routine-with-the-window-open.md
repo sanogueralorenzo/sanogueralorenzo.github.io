@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Routine With the Window Open
-excerpt: An unlived morning routine built around air, slow light, and a version of attention that never became habitual.
+excerpt: An unheld morning routine built around air, slow light, and a version of attention that never became habitual.
 date: 2026-05-27T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
-status: unlived routine
+category: Unheld
+status: unheld routine
 visual: routine
 mark: "06"
 trace: A wake time, three quiet tasks, and a cup left unnamed.
@@ -24,6 +24,6 @@ It never became real, but it stayed near the edge of possibility, waiting for a 
 
 ## Morning Adjustment
 
-The routine is Unlived because it is a complete life in miniature. It contains a philosophy of attention, a relationship to weather, and a refusal to let the day be assigned by notification.
+The routine is Unheld because it is a complete life in miniature. It contains a philosophy of attention, a relationship to weather, and a refusal to let the day be assigned by notification.
 
 The routine argues for smaller evidence. A life may turn because a cup moved six inches and stayed there.

@@ -5,8 +5,8 @@ excerpt: A crossing not taken because the bridge made the other side feel too mu
 date: 2026-05-28T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
-status: unchosen border crossing
+category: Unheld
+status: unheld border crossing
 visual: bridge
 mark: "⇄"
 trace: Passport notes, a bridge toll, and a weather report folded into the map.

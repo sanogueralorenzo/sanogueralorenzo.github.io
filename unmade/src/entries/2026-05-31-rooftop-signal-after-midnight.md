@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Rooftop Signal After Midnight
-excerpt: An unrecorded signal flashed from a roof where nobody admitted they were waiting for an answer.
+excerpt: An unsent signal flashed from a roof where nobody admitted they were waiting for an answer.
 date: 2026-05-31T09:40:00-07:00
 tags:
   - unmade
-category: Unrecorded
-status: unrecorded rooftop signal
+category: Unsent
+status: unsent rooftop signal
 visual: rooftop
 mark: "•"
 trace: Three flashes, a dead radio, and a skyline with no witnesses.

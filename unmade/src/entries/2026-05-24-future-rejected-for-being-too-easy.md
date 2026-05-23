@@ -5,7 +5,7 @@ excerpt: A life that offered comfort without transformation, declined because no
 date: 2026-05-24T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
+category: Unheld
 status: declined future
 visual: key
 mark: "Y"

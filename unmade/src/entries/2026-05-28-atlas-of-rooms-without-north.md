@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Atlas of Rooms Without North
-excerpt: An unfinished atlas of interiors organized by memory instead of direction.
+excerpt: An unbuilt atlas of interiors organized by memory instead of direction.
 date: 2026-05-28T09:30:00-07:00
 tags:
   - unmade
-category: Unfinished
-status: unfinished atlas
+category: Unbuilt
+status: unbuilt atlas
 visual: atlas
 mark: "N?"
 trace: Eleven floor plans, no compass marks, and a legend for emotional distance.

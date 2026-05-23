@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Official Role of the Unasked Witness
-excerpt: An unlived public role for the person present at every decision but never called to speak.
+excerpt: An unheld public role for the person present at every decision but never called to speak.
 date: 2026-05-30T09:50:00-07:00
 tags:
   - unmade
-category: Unlived
-status: unlived official role
+category: Unheld
+status: unheld official role
 visual: badge
 mark: "W"
 trace: A blank badge, oath language, and a chair behind the table.
@@ -16,7 +16,7 @@ permalink: /unmade/official-role-of-the-unasked-witness/
 
 The role would have been ceremonial and dangerous. The witness would not vote, advise, object, or approve. They would only confirm that everyone knew what they were doing.
 
-It remained unlived because institutions prefer witnesses who can be converted into paperwork.
+It remained unheld because institutions prefer witnesses who can be converted into paperwork.
 
 ## Job Description
 
@@ -24,4 +24,4 @@ The role had a badge, a chair against the wall, and no authority to interrupt. T
 
 It sounds useless until you imagine the room without them. Some lies are easier when nobody has to watch themselves lie. The unasked witness was meant to make that ease slightly more expensive.
 
-The role remained unlived because institutions prefer accountability with forms attached. A person sitting quietly in the corner is harder to process.
+The role remained unheld because institutions prefer accountability with forms attached. A person sitting quietly in the corner is harder to process.

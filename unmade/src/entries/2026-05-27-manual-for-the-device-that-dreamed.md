@@ -1,12 +1,12 @@
 ---
 layout: case.njk
 title: Manual for the Device That Dreamed
-excerpt: An unfinished manual for a household object that began producing images no one had requested.
+excerpt: An unbuilt manual for a household object that began producing images no one had requested.
 date: 2026-05-27T09:30:00-07:00
 tags:
   - unmade
-category: Unfinished
-status: unfinished manual
+category: Unbuilt
+status: unbuilt manual
 visual: manual
 mark: "?"
 trace: Safety warnings, three troubleshooting steps, and a blank warranty page.
@@ -24,6 +24,6 @@ It stopped at the liability section. The manufacturer could explain a malfunctio
 
 ## Sleep Mode
 
-The manual is Unfinished because instruction failed exactly where instruction was needed most. It could tell users how to reset the device, but not how to interpret intimacy produced by hardware.
+The manual is Unbuilt because instruction failed exactly where instruction was needed most. It could tell users how to reset the device, but not how to interpret intimacy produced by hardware.
 
 The last page leaves this open: whether an unexplained image belongs to the machine, the owner, the manufacturer, or the person who feels accused by seeing it.

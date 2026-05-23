@@ -5,8 +5,8 @@ excerpt: A login screen rejected because it recognized people by patterns they d
 date: 2026-05-27T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
-status: unchosen interface
+category: Unheld
+status: unheld interface
 visual: interface
 mark: "ID"
 trace: Three empty fields, no submit button, and a cursor that waited too politely.
@@ -24,6 +24,6 @@ It was rejected because recognition without naming felt both generous and invasi
 
 ## Login Without Names
 
-The interface is Unchosen because the better user experience made the ethical problem harder to see. It removed the rude parts of identification while preserving identification itself.
+The interface is Unheld because the better user experience made the ethical problem harder to see. It removed the rude parts of identification while preserving identification itself.
 
 The trick is not anonymity. The trick is whether a system can avoid names while still learning the shape of a person too well.

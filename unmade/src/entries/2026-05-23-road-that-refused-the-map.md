@@ -5,7 +5,7 @@ excerpt: A route planned around the roads that looked minor enough to still belo
 date: 2026-05-23T09:20:00-07:00
 tags:
   - unmade
-category: Unchosen
+category: Unheld
 status: abandoned route
 visual: route
 mark: "↯"
