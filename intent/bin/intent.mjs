@@ -1630,6 +1630,16 @@ function validateGraph(graph, options = {}) {
   }
 
   for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Type") {
+      continue;
+    }
+    const declareDiagnostic = validateGraphTypeDeclarations(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
+    if (declareDiagnostic) {
+      diagnostics.push(declareDiagnostic);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
     if (graphNode.kind !== "Completion") {
       continue;
     }
@@ -1808,6 +1818,40 @@ function validateGraphType(graphNode, graphSpan) {
     type: graphNode.label,
     type_id: graphNode.id,
     definition_is_valid: definitionIsValid,
+  });
+}
+
+function validateGraphTypeDeclarations(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
+  const goalIds = [...nodesById.values()]
+    .filter((candidate) => candidate.kind === "Goal")
+    .map((candidate) => candidate.id);
+  if (goalIds.length === 0) {
+    return null;
+  }
+  const goalIdSet = new Set(goalIds);
+  const declareEdges = (outgoingEdgesByNode.get(graphNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "declares");
+  const declaredGoalCounts = new Map();
+  const invalidTargetIds = [];
+  for (const graphEdge of declareEdges) {
+    if (!goalIdSet.has(graphEdge.to)) {
+      invalidTargetIds.push(graphEdge.to);
+      continue;
+    }
+    declaredGoalCounts.set(graphEdge.to, (declaredGoalCounts.get(graphEdge.to) ?? 0) + 1);
+  }
+  const missingGoalIds = goalIds.filter((goalId) => !declaredGoalCounts.has(goalId));
+  const duplicateGoalIds = goalIds.filter((goalId) => (declaredGoalCounts.get(goalId) ?? 0) > 1);
+  if (missingGoalIds.length === 0 && duplicateGoalIds.length === 0 && invalidTargetIds.length === 0) {
+    return null;
+  }
+  return error("INTENT_GRAPH_TYPE_DECLARE_INVALID", `type '${graphNode.label}' must declare availability to every goal exactly once.`, graphNode.span ?? fallbackSpan, {
+    type: graphNode.label,
+    type_id: graphNode.id,
+    goal_count: goalIds.length,
+    declares_edges: declareEdges.length,
+    missing_goal_ids: missingGoalIds,
+    duplicate_goal_ids: duplicateGoalIds,
+    invalid_target_ids: invalidTargetIds,
   });
 }
 

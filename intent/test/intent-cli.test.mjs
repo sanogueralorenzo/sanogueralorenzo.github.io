@@ -1689,6 +1689,46 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].definition_is_valid, false);
   });
 
+  it("validates graph type availability declaration diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "type:missing", kind: "Type", label: "Missing", span: testSpan(3) },
+        { id: "type:partial", kind: "Type", label: "Partial", span: testSpan(4) },
+        { id: "type:duplicate", kind: "Type", label: "Duplicate", span: testSpan(5) },
+        { id: "type:wrong", kind: "Type", label: "Wrong", span: testSpan(6) },
+        { id: "type:valid", kind: "Type", label: "Valid", span: testSpan(7) },
+        { id: "goal:demo:memory:0", kind: "Memory", label: "memory", span: testSpan(8) },
+      ],
+      edges: [
+        { from: "type:partial", to: "goal:demo", kind: "declares" },
+        { from: "type:duplicate", to: "goal:demo", kind: "declares" },
+        { from: "type:duplicate", to: "goal:demo", kind: "declares" },
+        { from: "type:duplicate", to: "goal:other", kind: "declares" },
+        { from: "type:wrong", to: "goal:demo", kind: "declares" },
+        { from: "type:wrong", to: "goal:other", kind: "declares" },
+        { from: "type:wrong", to: "goal:demo:memory:0", kind: "declares" },
+        { from: "type:valid", to: "goal:demo", kind: "declares" },
+        { from: "type:valid", to: "goal:other", kind: "declares" },
+        { from: "goal:demo", to: "goal:demo:memory:0", kind: "declares" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPE_DECLARE_INVALID");
+
+    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics[0].type_id, "type:missing");
+    assert.deepEqual(diagnostics[0].missing_goal_ids, ["goal:demo", "goal:other"]);
+    assert.equal(diagnostics[0].declares_edges, 0);
+    assert.equal(diagnostics[1].type_id, "type:partial");
+    assert.deepEqual(diagnostics[1].missing_goal_ids, ["goal:other"]);
+    assert.equal(diagnostics[2].type_id, "type:duplicate");
+    assert.deepEqual(diagnostics[2].duplicate_goal_ids, ["goal:demo"]);
+    assert.equal(diagnostics[2].declares_edges, 3);
+    assert.equal(diagnostics[3].type_id, "type:wrong");
+    assert.deepEqual(diagnostics[3].invalid_target_ids, ["goal:demo:memory:0"]);
+  });
+
   it("validates graph goal typed contract diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
