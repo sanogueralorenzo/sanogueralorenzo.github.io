@@ -389,6 +389,15 @@ Next graph envelope validation milestone:
   Malformed effect adapter data emits `INTENT_GRAPH_EFFECT_INVALID` and makes
   the graph non-executable because runtimes must not infer an adapter, action,
   argument provenance, or approval requirement.
+- Runtime check metadata is part of graph validation. `Check` nodes are
+  verification gates and must carry non-empty `data.requirement`. Optional
+  `data.scope` must be either `goal` or `step`. Step-scoped checks must also
+  carry non-empty `data.ownerStep` and `data.assertion`. When present,
+  `data.effect` must carry non-empty `family` and `action` strings, object
+  `args`, `argKinds`, and `argSpans` maps, and valid source spans for every
+  `argSpans` value. Malformed check payload data emits
+  `INTENT_GRAPH_CHECK_INVALID` and makes the graph non-executable; malformed
+  trust metadata inside `data.effect` remains `INTENT_GRAPH_TRUST_INVALID`.
 - Runtime memory metadata is part of graph validation. `Memory` nodes must carry
   raw `data.retention` as an array and structured `data.retentionRules` as a
   non-empty array. Every structured retention rule must include non-empty `raw`,
@@ -759,6 +768,11 @@ Rules:
 - Step requirement checks do not create `verifies` edges to the goal
   `Completion` node. Goal-level `verify` requirements remain the only checks
   that verify completion.
+- Graph validation requires every `Check` node to carry a non-empty
+  `data.requirement`. Step-scoped requirements also require
+  `data.scope: "step"`, non-empty `data.ownerStep`, and non-empty
+  `data.assertion`; malformed check payloads emit `INTENT_GRAPH_CHECK_INVALID`
+  and make graph output non-executable.
 
 ## Step Approvals
 
@@ -1237,6 +1251,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_TRUST_INVALID`
 - `INTENT_GRAPH_CONTEXT_INVALID`
 - `INTENT_GRAPH_EFFECT_INVALID`
+- `INTENT_GRAPH_CHECK_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
 - `INTENT_GRAPH_APPROVAL_INVALID`
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
@@ -1489,13 +1504,16 @@ node id. It is an intermediate contract for a local runtime.
       "label": "shell(\"npm test\").exit_code == 0",
       "span": "loc.19",
       "data": {
+        "scope": "goal",
+        "requirement": "shell(\"npm test\").exit_code == 0",
         "effect": {
           "family": "shell",
           "action": "run",
           "args": { "command": "npm test" },
           "argKinds": { "_0": "string" },
           "argSpans": { "_0": "loc.19" },
-          "expression": "shell(\"npm test\")"
+          "expression": "shell(\"npm test\")",
+          "trust": { "zone": "trusted", "source": "verification_shell" }
         }
       }
     },
@@ -1764,7 +1782,15 @@ policy.
 Step requirement nodes are `Check` nodes scoped to one owning step. They create
 `requires` edges into that step and `gates` edges to the owning goal. They are
 not completion checks and must not create `verifies` edges to the goal
-`Completion` node.
+`Completion` node. Check graph data must carry non-empty `data.requirement`.
+When `data.scope` is present it must be either `goal` or `step`; step-scoped
+checks must carry non-empty `data.ownerStep` and `data.assertion`.
+Verification-effect checks must also carry valid nested `data.effect` adapter
+data: non-empty `family` and `action`, object `args`, `argKinds`, and
+`argSpans`, and valid source spans for every `argSpans` value. Malformed check
+records emit `INTENT_GRAPH_CHECK_INVALID` and make graph output
+non-executable. Malformed trust metadata inside `data.effect` remains
+`INTENT_GRAPH_TRUST_INVALID`.
 
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
@@ -1840,8 +1866,13 @@ one incoming `requests` edge from its owning `Step`, or when any incoming
 emits `INTENT_GRAPH_EFFECT_INVALID` when an `Effect` node lacks executable
 adapter metadata: non-empty `data.family` and `data.action`, object
 `data.args`, `data.argKinds`, and `data.argSpans`, valid source-span values in
-`data.argSpans`, or boolean `data.approvalRequired`. Graph validation
-emits `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
+`data.argSpans`, or boolean `data.approvalRequired`. Graph validation emits
+`INTENT_GRAPH_CHECK_INVALID` when a `Check` node lacks non-empty
+`data.requirement`, uses a `data.scope` outside `goal` or `step`, lacks
+step-scoped `data.ownerStep` or `data.assertion`, or carries malformed nested
+`data.effect` adapter metadata. Malformed check effect trust metadata emits
+`INTENT_GRAPH_TRUST_INVALID`. Graph validation emits
+`INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
 `guards` edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped
 `Check` node in the same goal. Completion is reachable only when all incoming
 completion edges have succeeded or remained unviolated.

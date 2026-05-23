@@ -165,6 +165,15 @@ Validation expectations:
   emits `INTENT_GRAPH_EFFECT_INVALID` and makes the graph non-executable
   because runtimes must not infer an adapter, action, argument provenance, or
   approval requirement.
+- Graph `Check` nodes are runtime verification gates, not executable steps.
+  They must carry a non-empty `data.requirement`; optional `data.scope` must be
+  either `goal` or `step`. Step-scoped checks must also carry non-empty
+  `data.ownerStep` and `data.assertion`. When a check carries `data.effect`,
+  that nested effect must include non-empty `family` and `action` strings,
+  object `args`, `argKinds`, and `argSpans` maps, and valid source spans for
+  every `argSpans` value. Malformed check payload data emits
+  `INTENT_GRAPH_CHECK_INVALID` and makes the graph non-executable; malformed
+  check effect trust metadata remains `INTENT_GRAPH_TRUST_INVALID`.
 - Graph `Capability` nodes are runtime policy inputs. They must carry valid
   approval-policy data: `data.family` must be non-empty,
   `data.approvalPolicy` must be either `none` or `required`, and `data.grants`
