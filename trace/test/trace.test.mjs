@@ -145,6 +145,8 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(recall.stdout, /Checkpoint: `[0-9a-f]+`/);
     assert.match(recall.stdout, /Session: `[A-Za-z0-9-]+`/);
     assert.match(recall.stdout, /Use committed Markdown for reviewable memory/);
+    assert.match(recall.stdout, /### Tool Activity\n\n- git commit wrote app.txt/);
+    assert.match(recall.stdout, /### Files\n\n- `app.txt`/);
     assert.match(recall.stdout, /node --test/);
 
     const recallJson = JSON.parse((await runTrace(repo, ["recall", "reviewable", "--limit", "1", "--json"])).stdout);
@@ -157,6 +159,9 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(recallJson.results[0].checkpoint, /^[0-9a-f]+$/);
     assert.match(recallJson.results[0].session, /^[A-Za-z0-9-]+$/);
     assert.match(recallJson.results[0].decisions, /Use committed Markdown/);
+    assert.match(recallJson.results[0].responses, /created a minimal text fixture/);
+    assert.match(recallJson.results[0].tools, /git commit wrote app.txt/);
+    assert.match(recallJson.results[0].files, /app.txt/);
     assert.match(recallJson.results[0].validation, /node --test/);
     assert.match(recallJson.results[0].handoff, /Preserve the decision/);
 

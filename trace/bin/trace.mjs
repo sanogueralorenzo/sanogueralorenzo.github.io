@@ -2470,6 +2470,9 @@ async function recallMemories(query) {
         intent: entry.intent,
         summary: entry.summary,
         decisions: entry.decisions,
+        responses: entry.responses,
+        tools: entry.tools,
+        files: entry.files,
         validation: entry.validation,
         risks: entry.risks,
         handoff: entry.handoff,
@@ -2510,6 +2513,9 @@ async function recallMemories(query) {
     appendRecallSection(lines, "Intent", entry.intent);
     appendRecallSection(lines, "Summary", entry.summary);
     appendRecallSection(lines, "Decisions", entry.decisions);
+    appendRecallSection(lines, "Responses", entry.responses);
+    appendRecallSection(lines, "Tool Activity", entry.tools);
+    appendRecallSection(lines, "Files", entry.files);
     appendRecallSection(lines, "Validation", entry.validation);
     appendRecallSection(lines, "Risks", entry.risks);
     appendRecallSection(lines, "Handoff", entry.handoff);
