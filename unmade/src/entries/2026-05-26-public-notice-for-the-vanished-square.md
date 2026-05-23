@@ -10,11 +10,20 @@ status: unsent public notice
 visual: notice
 mark: "§"
 trace: Municipal language, three posting dates, and no department signature.
-question: Who is responsible for announcing a place has stopped belonging to people?
+materials: Draft notice, faded map insert, staple holes, fountain maintenance record, and three unused posting stickers.
+provenance: Recovered from a municipal packet with the signature line left blank and the distribution list removed.
+question: Who is responsible for announcing that a public place has stopped belonging to the public?
 permalink: /unmade/public-notice-for-the-vanished-square/
 ---
 
-The notice warned residents that the square would remain physically accessible but socially unavailable until further review.
+The notice warned residents that the square would remain physically accessible but socially unavailable until further review. It named no danger. It cited no ordinance. It described the loss of civic meaning as if it were a temporary surface repair.
 
-No one posted it. The benches stayed, the paving stayed, the fountain stayed dry, and everybody understood without instruction that the center had moved elsewhere.
+The benches stayed, the paving stayed, the fountain stayed dry. People still crossed the square, but no one lingered. The notice was unnecessary in the way some official documents are unnecessary: it only admitted what everyone had already learned with their bodies.
 
+No one posted it. The center had moved elsewhere without filing paperwork.
+
+## Case Notes
+
+The notice is classed as Unsent because its failure is civic rather than private. It was drafted for a public that had already adjusted to absence.
+
+The unresolved question is whether institutions owe a formal announcement when a place dies socially but remains physically maintained.

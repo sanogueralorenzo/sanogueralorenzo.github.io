@@ -4,7 +4,7 @@
 
 Unmade is being moved into a standalone Eleventy site that lives entirely in `/unmade`.
 
-The standalone skeleton is in place with its own package files, Eleventy config, source folder, layouts, styles, archive page, reusable case-page template, image asset path, and migrated entries. Four migrated quality passes have expanded twenty-four original entries across the archive with richer artifact details, provenance, longer case stories, sharper unresolved questions, and generated imagery.
+The standalone skeleton is in place with its own package files, Eleventy config, source folder, layouts, styles, archive page, reusable case-page template, image asset path, and migrated entries. Five migrated quality passes have expanded thirty original entries across the archive with richer artifact details, provenance, longer case stories, sharper unresolved questions, and generated imagery.
 
 ## Expansion Loop
 
@@ -21,4 +21,4 @@ Each batch should improve existing entries in place, add or wire at least one ge
 
 ## Next Expansion Focus
 
-Upgrade the next six migrated entries from the fifth batch with deeper artifact evidence, more developed case notes, and at least one new generated image tied to a specific case page. Do not create new entries until the migrated archive has received a stronger quality pass.
+Upgrade the next six migrated entries from the sixth batch with deeper artifact evidence, more developed case notes, and at least one new generated image tied to a specific case page. Do not create new entries until the migrated archive has received a stronger quality pass.
