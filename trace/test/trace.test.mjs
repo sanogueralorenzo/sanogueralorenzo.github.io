@@ -70,6 +70,15 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(summary.stdout, /Trace Summary/);
     assert.match(summary.stdout, /remember why app text exists/);
 
+    const summaryJson = JSON.parse((await runTrace(repo, ["summary", "HEAD", "--json"])).stdout);
+    assert.equal(summaryJson.schema_version, "trace.summary.v1");
+    assert.equal(summaryJson.kind, "range");
+    assert.deepEqual(summaryJson.intent, ["remember why app text exists"]);
+    assert.deepEqual(summaryJson.decisions, ["Use committed Markdown for reviewable memory"]);
+    assert.deepEqual(summaryJson.files, ["app.txt"]);
+    assert.deepEqual(summaryJson.validation, ["node --test"]);
+    assert.equal(summaryJson.commits[0].commit.length, 40);
+
     const releaseNotes = await runTrace(repo, ["release-notes", "HEAD"]);
     assert.match(releaseNotes.stdout, /Trace Release Notes/);
     assert.match(releaseNotes.stdout, /## Highlights\n\n- created a minimal text fixture/);
@@ -154,6 +163,12 @@ test("branch summary derives branch context from committed memories", async () =
     assert.match(summary.stdout, /summarize this feature branch/);
     assert.match(summary.stdout, /Derive branch text from commit memories/);
     assert.match(summary.stdout, /branch\.txt/);
+
+    const summaryJson = JSON.parse((await runTrace(repo, ["branch-summary", "feature/trace-memory", "--base", "main", "--json"])).stdout);
+    assert.equal(summaryJson.kind, "branch");
+    assert.equal(summaryJson.branch, "feature/trace-memory");
+    assert.equal(summaryJson.base, "main");
+    assert.deepEqual(summaryJson.files, ["branch.txt"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

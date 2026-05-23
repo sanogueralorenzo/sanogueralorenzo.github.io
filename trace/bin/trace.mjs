@@ -1498,6 +1498,11 @@ async function memoriesForRange(root, range) {
 }
 
 function writeSummaryDocument(range, memories, options = {}) {
+  if (args.json) {
+    print(summaryPayload(range, memories, options));
+    return;
+  }
+
   const title = options.releaseNotes ? "Trace Release Notes" : options.prBody ? "Trace PR Summary" : "Trace Summary";
   const summaryTitle = options.branchSummary ? "Trace Branch Summary" : title;
   const lines = [`# ${summaryTitle}`, ""];
@@ -1552,6 +1557,59 @@ function writeSummaryDocument(range, memories, options = {}) {
   }
 
   process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+function summaryPayload(range, memories, options = {}) {
+  const records = memories.map(memoryRecord);
+  return {
+    ok: true,
+    schema_version: "trace.summary.v1",
+    kind: options.releaseNotes ? "release" : options.prBody ? "pr" : options.branchSummary ? "branch" : "range",
+    range,
+    branch: options.branch ?? null,
+    base: options.base ?? null,
+    memories: records.length,
+    intent: records.map((record) => record.intent).filter(Boolean),
+    highlights: records.flatMap((record) => record.summary.length > 0 ? record.summary : [record.intent].filter(Boolean)),
+    decisions: records.flatMap((record) => record.decisions),
+    files: uniqueValues(records.flatMap((record) => record.files)),
+    validation: records.flatMap((record) => record.validation),
+    risks: records.flatMap((record) => record.risks),
+    commits: records.map((record) => ({
+      commit: record.commit,
+      intent: record.intent,
+      memory: record.memory,
+    })),
+  };
+}
+
+function memoryRecord(memory) {
+  const commit = memory.match(/^Commit: `([^`]+)`/m)?.[1] ?? "unknown";
+  return {
+    commit,
+    memory: `${TRACE_DIR}/commits/${commit.slice(0, 2)}/${commit}.md`,
+    intent: firstLine(section(memory, "Intent") ?? ""),
+    summary: sectionItems(memory, "Summary", ["Not recorded."]),
+    decisions: sectionItems(memory, "Decisions", ["Not recorded."]),
+    files: sectionItems(memory, "Files", ["No files reported by git."]).map((file) => file.replace(/^`|`$/g, "")),
+    validation: sectionItems(memory, "Validation", ["Not recorded."]),
+    risks: sectionItems(memory, "Risks", ["No known open risks recorded."]),
+  };
+}
+
+function sectionItems(memory, name, ignored = []) {
+  const value = section(memory, name);
+  if (!value) {
+    return [];
+  }
+  return value.split("\n")
+    .map((line) => line.trim().replace(/^- /, "").trim())
+    .filter(Boolean)
+    .filter((line) => !ignored.includes(line));
+}
+
+function uniqueValues(values) {
+  return Array.from(new Set(values.filter(Boolean))).sort();
 }
 
 async function hookPrepareCommitMsg(values) {
@@ -2122,10 +2180,10 @@ Usage:
   trace index
   trace search [--field decisions|files|validation|risks] <query>
   trace recall [query] [--files path[,path]] [--limit 5]
-  trace summary [range]
-  trace branch-summary [branch] [--base main]
-  trace pr-body [range]
-  trace release-notes [range]
+  trace summary [range] [--json]
+  trace branch-summary [branch] [--base main] [--json]
+  trace pr-body [range] [--json]
+  trace release-notes [range] [--json]
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
   trace doctor
   trace check
