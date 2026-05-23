@@ -986,9 +986,21 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
     const sessionFile = join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`);
     assert.match(await readFile(sessionFile, "utf8"), /checkpoint ref controls/);
+    const refBeforeCleanup = (await git(repo, ["rev-parse", "--verify", "refs/trace/checkpoints"])).stdout.trim();
+
+    const cleanupPreview = JSON.parse((await runTrace(repo, ["checkpoint", "cleanup", "--sessions-before-days", "0", "--keep", "1", "--dry-run"])).stdout);
+    assert.equal(cleanupPreview.ok, true);
+    assert.equal(cleanupPreview.dryRun, true);
+    assert.ok(cleanupPreview.removed.some((entry) => entry.endsWith(`${sessionId}.jsonl`)));
+    assert.deepEqual(cleanupPreview.checkpoints.removed, ["checkpoints/checkpoint-a.json"]);
+    assert.equal(cleanupPreview.checkpoints.retained, 1);
+    assert.equal(await readFile(sessionFile, "utf8").then((content) => /checkpoint ref controls/.test(content)), true);
+    const refAfterPreview = (await git(repo, ["rev-parse", "--verify", "refs/trace/checkpoints"])).stdout.trim();
+    assert.equal(refAfterPreview, refBeforeCleanup);
 
     const cleanup = JSON.parse((await runTrace(repo, ["checkpoint", "cleanup", "--sessions-before-days", "0", "--keep", "1"])).stdout);
     assert.equal(cleanup.ok, true);
+    assert.equal(cleanup.dryRun, false);
     assert.equal(cleanup.sessionsBeforeDays, 0);
     assert.ok(cleanup.removed.some((entry) => entry.endsWith(`${sessionId}.jsonl`)));
     assert.deepEqual(cleanup.checkpoints.removed, ["checkpoints/checkpoint-a.json"]);

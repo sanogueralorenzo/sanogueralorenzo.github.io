@@ -1000,6 +1000,7 @@ function checkpointBundleEntries(bundle) {
 
 async function cleanupCheckpoints() {
   const root = await repoRoot();
+  const dryRun = Boolean(args["dry-run"]);
   const days = Number.parseInt(args["sessions-before-days"] ?? args.days ?? "14", 10);
   if (!Number.isInteger(days) || days < 0) {
     fail("--sessions-before-days must be a non-negative integer");
@@ -1020,16 +1021,18 @@ async function cleanupCheckpoints() {
       const file = join(sessionsDir, entry.name);
       const fileStat = await stat(file);
       if (fileStat.mtimeMs <= cutoff) {
-        await rm(file);
+        if (!dryRun) {
+          await rm(file);
+        }
         removed.push(relativePath(root, file));
       }
     }
   }
 
   const checkpoints = checkpointKeep == null
-    ? { keep: null, retained: null, removed: [] }
-    : await cleanupCheckpointRef(root, checkpointKeep);
-  print({ ok: true, sessionsBeforeDays: days, removed, checkpoints });
+    ? { keep: null, retained: null, removed: [], dryRun }
+    : await cleanupCheckpointRef(root, checkpointKeep, { dryRun });
+  print({ ok: true, dryRun, sessionsBeforeDays: days, removed, checkpoints });
 }
 
 async function readCheckpointPayloads(root) {
@@ -1053,10 +1056,10 @@ async function readCheckpointPayloads(root) {
   return checkpoints;
 }
 
-async function cleanupCheckpointRef(root, keep) {
+async function cleanupCheckpointRef(root, keep, options = {}) {
   const checkpoints = await readCheckpointPayloads(root);
   if (checkpoints.length <= keep) {
-    return { keep, retained: checkpoints.length, removed: [] };
+    return { keep, retained: checkpoints.length, removed: [], dryRun: Boolean(options.dryRun) };
   }
 
   const sorted = checkpoints
@@ -1069,11 +1072,11 @@ async function cleanupCheckpointRef(root, keep) {
     .map(({ path }) => path)
     .sort();
 
-  if (removed.length > 0) {
+  if (removed.length > 0 && !options.dryRun) {
     await writeCheckpointTree(root, retained, `Trace checkpoint cleanup keep ${keep}`);
   }
 
-  return { keep, retained: retained.length, removed };
+  return { keep, retained: retained.length, removed, dryRun: Boolean(options.dryRun) };
 }
 
 async function writeCheckpointTree(root, checkpoints, message) {
@@ -3512,7 +3515,7 @@ Usage:
   trace checkpoint fetch [remote] [--dry-run]
   trace checkpoint export [--output trace-checkpoints.json]
   trace checkpoint import <trace-checkpoints.json>
-  trace checkpoint cleanup [--sessions-before-days 14] [--keep 100]
+  trace checkpoint cleanup [--sessions-before-days 14] [--keep 100] [--dry-run]
   trace redact add <label> <regex>
   trace redact list
   trace redact audit
