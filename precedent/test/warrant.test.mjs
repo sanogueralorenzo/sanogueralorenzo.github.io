@@ -107,6 +107,12 @@ test("finalize.before_response gates missing validation and repairs", async () =
 
     assert.equal(missing.schema_version, "precedent.finalize.v1");
     assert.equal(missing.decision, "validate");
+    assert.deepEqual(missing.nextAction, {
+      type: "run_validation",
+      commands: ["pnpm test:webhooks"],
+      followUpHook: "validation.after_run",
+      refinalize: true,
+    });
     assert.equal(missing.finalization.missingEvidence[0].command, "pnpm test:webhooks");
     assert.match(missing.contextBlock, /Required command: pnpm test:webhooks/u);
     assert.equal(retried.deduped, true);
@@ -130,6 +136,11 @@ test("finalize.before_response gates missing validation and repairs", async () =
     });
 
     assert.equal(repair.decision, "repair");
+    assert.deepEqual(repair.nextAction, {
+      type: "repair_retry",
+      followUpHook: "repair.before_retry",
+      refinalize: true,
+    });
     assert.ok(repair.finalization.violations.some((item) => item.type === "path_escape"));
     assert.match(repair.contextBlock, /Repair the turn before the final response/u);
   } finally {
@@ -162,6 +173,7 @@ test("finalize.before_response allows satisfied warrant responses", async () => 
     });
 
     assert.equal(ready.decision, "ready");
+    assert.deepEqual(ready.nextAction, { type: "respond" });
     assert.equal(ready.contextBlock, "");
     assert.deepEqual(ready.finalization.missingEvidence, []);
     assert.deepEqual(ready.finalization.violations, []);

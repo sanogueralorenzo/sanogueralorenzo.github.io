@@ -133,6 +133,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.beforeResponse.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.beforeResponse.injectFrom, "contextBlock");
     assert.ok(first.adapter.beforeResponse.output.includes("decision"));
+    assert.ok(first.adapter.beforeResponse.output.includes("nextAction"));
     assert.deepEqual(first.adapter.promotionTrial.command, [
       "node",
       "precedent/bin/precedent.mjs",
@@ -329,7 +330,11 @@ test("attach-run executes an ordinary session with automatic attribution", async
     assert.equal(run.sessionId, "demo-run");
     assert.deepEqual(run.attributedPrecedents, ["prec_webhook_replay_boundary"]);
     assert.equal(run.beforeTurn.injections.length, 1);
+    assert.equal(run.warrant.sources.precedentIds[0], "prec_webhook_replay_boundary");
+    assert.equal(run.warrant.requiredEvidence[0].command, "pnpm test:webhooks");
     assert.equal(run.validation.validation.exitCode, 0);
+    assert.equal(run.finalization.decision, "ready");
+    assert.equal(run.finalization.nextAction.type, "respond");
     assert.equal(run.outcome.outcome.success, true);
     assert.equal(run.learning.status, "no_signal");
 
@@ -371,24 +376,69 @@ test("attach-run retries are idempotent with an event prefix", async () => {
 
     assert.equal(first.eventPrefix, "delivery-1");
     assert.equal(first.beforeTurn.recorded, true);
+    assert.equal(first.warrant.recorded, true);
     assert.equal(first.validation.recorded, true);
+    assert.equal(first.finalization.recorded, true);
     assert.equal(first.outcome.recorded, true);
     assert.equal(retry.beforeTurn.recorded, false);
     assert.equal(retry.beforeTurn.deduped, true);
+    assert.equal(retry.warrant.recorded, false);
+    assert.equal(retry.warrant.deduped, true);
     assert.equal(retry.validation.recorded, false);
     assert.equal(retry.validation.deduped, true);
+    assert.equal(retry.finalization.recorded, false);
+    assert.equal(retry.finalization.deduped, true);
     assert.equal(retry.outcome.recorded, false);
     assert.equal(retry.outcome.deduped, true);
 
     const sessionEvents = await readJsonLines(join(stateDir, "sessions/demo-run.jsonl"));
     assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:context.before_turn").length, 1);
+    assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:warrant.issue").length, 1);
     assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:validation.after_run").length, 1);
+    assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:finalize.before_response").length, 1);
     assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:outcome.after_task").length, 1);
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     const health = report.precedentHealth.find((entry) => entry.id === "prec_webhook_replay_boundary");
     assert.equal(health.injectionCount, 1);
     assert.equal(health.successCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run blocks successful outcome until warrant validation is satisfied", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const run = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "missing-required-validation",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--json",
+    ]);
+
+    assert.equal(run.validation.validation.exitCode, 0);
+    assert.equal(run.finalization.decision, "validate");
+    assert.deepEqual(run.finalization.nextAction, {
+      type: "run_validation",
+      commands: ["pnpm test:webhooks"],
+      followUpHook: "validation.after_run",
+      refinalize: true,
+    });
+    assert.equal(run.outcome.outcome.success, false);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
