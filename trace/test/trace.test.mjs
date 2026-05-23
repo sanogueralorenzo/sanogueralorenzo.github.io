@@ -88,6 +88,14 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(handoffSearch.field, "handoff");
     assert.equal(handoffSearch.matches, 1);
     assert.match(handoffSearch.results[0].snippet, /Preserve the decision/);
+    const checkpointSearch = JSON.parse((await runTrace(repo, ["search", "--field", "checkpoint", "--json", payload.checkpoint])).stdout);
+    assert.equal(checkpointSearch.field, "checkpoint");
+    assert.equal(checkpointSearch.matches, 1);
+    assert.equal(checkpointSearch.results[0].checkpoint, payload.checkpoint);
+    const sessionSearch = JSON.parse((await runTrace(repo, ["search", "--field", "session", "--json", payload.session])).stdout);
+    assert.equal(sessionSearch.field, "session");
+    assert.equal(sessionSearch.matches, 1);
+    assert.equal(sessionSearch.results[0].session, payload.session);
     const riskSearch = await runTrace(repo, ["search", "--field", "risks", "reviewable"]);
     assert.equal(riskSearch.stdout, "");
 
@@ -110,6 +118,16 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(recallJson.results[0].decisions, /Use committed Markdown/);
     assert.match(recallJson.results[0].validation, /node --test/);
     assert.match(recallJson.results[0].handoff, /Preserve the decision/);
+
+    const checkpointRecall = JSON.parse((await runTrace(repo, ["recall", "--checkpoint", payload.checkpoint, "--json"])).stdout);
+    assert.equal(checkpointRecall.checkpoint, payload.checkpoint);
+    assert.equal(checkpointRecall.matches, 1);
+    assert.equal(checkpointRecall.results[0].score, 10);
+    assert.equal(checkpointRecall.results[0].file, payload.memory);
+
+    const sessionRecall = await runTrace(repo, ["recall", "--session", payload.session, "--limit", "1"]);
+    assert.match(sessionRecall.stdout, new RegExp(`Session Filter: \`${payload.session}\``));
+    assert.match(sessionRecall.stdout, /remember why app text exists/);
 
     const fileRecall = await runTrace(repo, ["recall", "--files", "app.txt"]);
     assert.match(fileRecall.stdout, /Files: `app.txt`/);

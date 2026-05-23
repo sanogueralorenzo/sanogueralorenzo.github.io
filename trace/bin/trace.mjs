@@ -2019,23 +2019,28 @@ async function searchMemories(query) {
 async function recallMemories(query) {
   const root = await repoRoot();
   const explicitFiles = splitList(args.files ?? args.file);
-  const changedFiles = query.trim() || explicitFiles.length > 0 ? [] : await changedFilesForRecall(root);
+  const checkpoint = String(args.checkpoint ?? "").trim();
+  const session = String(args.session ?? "").trim();
+  const hasIdentityFilter = checkpoint || session;
+  const changedFiles = query.trim() || explicitFiles.length > 0 || hasIdentityFilter ? [] : await changedFilesForRecall(root);
   const files = explicitFiles.length > 0 ? explicitFiles : changedFiles;
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const limit = parsePositiveInteger(args.limit ?? "5", "--limit");
 
-  if (terms.length === 0 && files.length === 0) {
-    fail("recall query, --files, or local file changes are required");
+  if (terms.length === 0 && files.length === 0 && !hasIdentityFilter) {
+    fail("recall query, --files, --checkpoint, --session, or local file changes are required");
   }
 
   const index = await loadSearchIndex(root);
-  const matches = rankRecallEntries(index.entries, terms, files).slice(0, limit);
+  const matches = rankRecallEntries(index.entries, terms, files, { checkpoint, session }).slice(0, limit);
   if (args.json) {
     print({
       ok: true,
       schema_version: "trace.recall.v1",
       query: query.trim(),
       files,
+      checkpoint: checkpoint || null,
+      session: session || null,
       matches: matches.length,
       results: matches.map(({ score, entry }) => ({
         score,
@@ -2062,6 +2067,12 @@ async function recallMemories(query) {
   }
   if (files.length > 0) {
     lines.push(`Files: ${files.map((file) => `\`${file}\``).join(", ")}`);
+  }
+  if (checkpoint) {
+    lines.push(`Checkpoint Filter: \`${checkpoint}\``);
+  }
+  if (session) {
+    lines.push(`Session Filter: \`${session}\``);
   }
   lines.push(`Matches: ${matches.length}`, "");
 
@@ -2093,13 +2104,28 @@ async function changedFilesForRecall(root) {
   return output.split("\n").map((file) => file.trim()).filter(Boolean);
 }
 
-function rankRecallEntries(entries, terms, files) {
+function rankRecallEntries(entries, terms, files, filters = {}) {
   const normalizedFiles = files.map((file) => file.toLowerCase());
+  const checkpoint = String(filters.checkpoint ?? "").toLowerCase();
+  const session = String(filters.session ?? "").toLowerCase();
   const matches = [];
 
   for (const entry of entries) {
+    if (checkpoint && String(entry.checkpoint ?? "").toLowerCase() !== checkpoint) {
+      continue;
+    }
+    if (session && String(entry.session ?? "").toLowerCase() !== session) {
+      continue;
+    }
+
     const searchable = `${entry.text}\n${entry.files}\n${entry.file}`.toLowerCase();
     let score = 0;
+    if (checkpoint) {
+      score += 10;
+    }
+    if (session) {
+      score += 10;
+    }
 
     for (const term of terms) {
       if (searchable.includes(term)) {
@@ -3127,8 +3153,8 @@ Usage:
   trace review [--all] [--json]
   trace log [--limit 20] [--json]
   trace index
-  trace search [--field decisions|files|validation|risks|handoff] [--limit 20] [--json] <query>
-  trace recall [query] [--files path[,path]] [--limit 5] [--json]
+  trace search [--field decisions|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
+  trace recall [query] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
   trace summary [range] [--json]
   trace branch-summary [branch] [--base main] [--json]
   trace pr-body [range] [--json]
@@ -3358,6 +3384,10 @@ function normalizeSearchField(value) {
     activity: "tools",
     file: "files",
     files: "files",
+    checkpoint: "checkpoint",
+    checkpoints: "checkpoint",
+    session: "session",
+    sessions: "session",
     validation: "validation",
     risk: "risks",
     risks: "risks",
