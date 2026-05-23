@@ -1459,6 +1459,11 @@ function validateGraph(graph, options = {}) {
       }));
       continue;
     }
+    const semanticPayloadDiagnostic = validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan);
+    if (semanticPayloadDiagnostic) {
+      diagnostics.push(semanticPayloadDiagnostic);
+      continue;
+    }
     outgoing.get(graphEdge.from).push(graphEdge.to);
     outgoingEdgesByNode.get(graphEdge.from).push(graphEdge);
     incomingEdgesByNode.get(graphEdge.to).push(graphEdge);
@@ -1960,6 +1965,31 @@ function isGraphParameterRecord(value) {
 
 function isNonemptyStringArray(value) {
   return Array.isArray(value) && value.every((item) => typeof item === "string" && item.trim() !== "");
+}
+
+function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
+  if (graphEdge.kind !== "data") {
+    return null;
+  }
+  const payload = isPlainObject(graphEdge.data) ? graphEdge.data : {};
+  const parameterIsNonempty = typeof payload.parameter === "string" && payload.parameter.trim() !== "";
+  const typeIsNonempty = typeof payload.type === "string" && payload.type.trim() !== "";
+  const sourceSpanIsValid = isSpan(payload.sourceSpan);
+  const targetSpanIsValid = isSpan(payload.targetSpan);
+  if (parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid) {
+    return null;
+  }
+  return error("INTENT_GRAPH_EDGE_PAYLOAD_INVALID", `data edge '${graphEdge.from}' to '${graphEdge.to}' must carry valid typed binding data.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    parameter: typeof payload.parameter === "string" ? payload.parameter : null,
+    type: typeof payload.type === "string" ? payload.type : null,
+    parameter_is_nonempty: parameterIsNonempty,
+    type_is_nonempty: typeIsNonempty,
+    source_span_is_valid: sourceSpanIsValid,
+    target_span_is_valid: targetSpanIsValid,
+  });
 }
 
 function validateGraphPolicy(graphNode, graphSpan) {
