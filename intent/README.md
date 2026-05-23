@@ -105,6 +105,9 @@ Validation expectations:
   objects with string `from`, `to`, and `kind`. Malformed node or edge records
   emit stable graph shape diagnostics before endpoint, kind, or semantic
   validation.
+- Executable graph edge records may carry `data`; when present it must be an
+  object. Edge `data.sourceSpan` and `data.targetSpan` payloads must be valid
+  spans before runtime dependency or provenance logic can use them.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
