@@ -30,6 +30,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Record retained artifact provenance for `jury-package-dry-run` and `jury-package-release-evidence`: source workflow, run id, source revision, source job, `retentionDays`, and uploaded file list.
 - [ ] Confirm retained failed and replacement evidence comes from the same `jury-npm-publish.yml` workflow run and source revision before closing the release.
 - [ ] Export `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json`.
+- [ ] Confirm the retained archive manifest validates against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json).
 - [ ] Verify `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest retained-package-release-evidence-manifest.json`.
 - [ ] Retain promoted failed and replacement release evidence until at least 180 days after replacement downstream verification passes.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when the dry-run artifact is stale or mismatched.
@@ -91,6 +92,7 @@ Expected fixture files:
 - [examples/ci/fixtures/package-release/replacement-npm-view.json](examples/ci/fixtures/package-release/replacement-npm-view.json)
 - [examples/ci/fixtures/package-release/replacement-downstream-gate.json](examples/ci/fixtures/package-release/replacement-downstream-gate.json)
 - [examples/ci/fixtures/package-release/replacement-patch-audit.json](examples/ci/fixtures/package-release/replacement-patch-audit.json)
+- [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json)
 - [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json)
 - [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs)
 

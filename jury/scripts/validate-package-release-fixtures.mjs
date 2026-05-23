@@ -6,8 +6,10 @@ import { fileURLToPath } from "node:url";
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const args = parseArgs(process.argv.slice(2));
 const fixtureDir = args.fixtureDir ?? join(packageRoot, "examples/ci/fixtures/package-release");
-const schemaPath = join(packageRoot, "schemas/package-release-evidence.schema.json");
-const schema = await readJson(schemaPath);
+const evidenceSchemaPath = join(packageRoot, "schemas/package-release-evidence.schema.json");
+const archiveManifestSchemaPath = join(packageRoot, "schemas/package-release-archive-manifest.schema.json");
+const evidenceSchema = await readJson(evidenceSchemaPath);
+const archiveManifestSchema = await readJson(archiveManifestSchemaPath);
 const rollback = await readFixture("rollback-audit.json");
 const replacement = await readFixture("replacement-patch-audit.json");
 const failedRecord = await readFixture("jury-pack-dry-run-record.json");
@@ -15,13 +17,19 @@ const failedNpmView = await readFixture("failed-npm-view.json");
 const failedGate = await readFixture("downstream-failure-gate.json");
 const replacementNpmView = await readFixture("replacement-npm-view.json");
 const replacementGate = await readFixture("replacement-downstream-gate.json");
+const archiveManifest = tryBuildArchiveManifest();
 const errors = [
-  ...schemaErrors(schema, rollback, "rollback-audit.json"),
-  ...schemaErrors(schema, replacement, "replacement-patch-audit.json"),
+  ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", rollback, "rollback-audit.json"),
+  ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", replacement, "replacement-patch-audit.json"),
+  ...archiveManifest.errors,
   ...relationshipErrors(),
 ];
 if (args.verifyManifest) {
-  errors.push(...manifestVerificationErrors(await readJson(args.verifyManifest), args.verifyManifest));
+  const manifest = await readJson(args.verifyManifest);
+  errors.push(
+    ...schemaDocumentErrors(archiveManifestSchema, "jury.package_release_archive_manifest.v1", manifest, args.verifyManifest),
+    ...(archiveManifest.value ? manifestVerificationErrors(manifest, archiveManifest.value, args.verifyManifest) : []),
+  );
 }
 
 if (errors.length > 0) {
@@ -30,12 +38,13 @@ if (errors.length > 0) {
 }
 
 if (args.manifestOut) {
-  await writeFile(args.manifestOut, `${JSON.stringify(buildArchiveManifest(), null, 2)}\n`);
+  await writeFile(args.manifestOut, `${JSON.stringify(archiveManifest.value, null, 2)}\n`);
 }
 
 process.stdout.write(`${JSON.stringify({
   ok: true,
   schema: "schemas/package-release-evidence.schema.json",
+  archiveManifestSchema: "schemas/package-release-archive-manifest.schema.json",
   manifestOut: args.manifestOut ?? null,
   verifiedManifest: args.verifyManifest ?? null,
   fixtures: [
@@ -91,17 +100,19 @@ function parseArgs(argv) {
   return parsed;
 }
 
-function schemaErrors(schemaDocument, audit, label) {
+function schemaDocumentErrors(schemaDocument, expectedSchemaVersion, value, label) {
   const errors = [];
-  if (schemaDocument.properties?.schema_version?.const !== "jury.package_release_evidence.v1") {
-    errors.push("schema must define jury.package_release_evidence.v1");
+  if (schemaDocument.properties?.schema_version?.const !== expectedSchemaVersion) {
+    errors.push(`schema must define ${expectedSchemaVersion}`);
   }
-  validateSchemaObject(schemaDocument, audit, label, errors);
+  validateSchemaObject(schemaDocument, value, label, errors);
   return errors;
 }
 
 function validateSchemaObject(schemaNode, value, path, errors) {
-  const type = schemaNode.type ?? ((schemaNode.required || schemaNode.properties || schemaNode.allOf || schemaNode.additionalProperties !== undefined) ? "object" : null);
+  const type = schemaNode.type
+    ?? ((schemaNode.contains || schemaNode.items) ? "array" : null)
+    ?? ((schemaNode.required || schemaNode.properties || schemaNode.allOf || schemaNode.additionalProperties !== undefined) ? "object" : null);
 
   if (type === "object") {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -142,8 +153,16 @@ function validateSchemaObject(schemaNode, value, path, errors) {
     if (schemaNode.minItems !== undefined && value.length < schemaNode.minItems) {
       errors.push(`${path} must contain at least ${schemaNode.minItems} item`);
     }
-    for (const [index, item] of value.entries()) {
-      validateSchemaObject(schemaNode.items, item, `${path}[${index}]`, errors);
+    if (schemaNode.items) {
+      for (const [index, item] of value.entries()) {
+        validateSchemaObject(schemaNode.items, item, `${path}[${index}]`, errors);
+      }
+    }
+    if (schemaNode.contains && !value.some((item) => schemaMatches(schemaNode.contains, item))) {
+      errors.push(`${path} must contain an item matching required archive evidence`);
+    }
+    for (const clause of schemaNode.allOf ?? []) {
+      validateSchemaObject(clause, value, path, errors);
     }
     return;
   }
@@ -180,6 +199,12 @@ function validateSchemaObject(schemaNode, value, path, errors) {
   if (schemaNode.enum && !schemaNode.enum.includes(value)) {
     errors.push(`${path} must be one of ${schemaNode.enum.join(", ")}`);
   }
+}
+
+function schemaMatches(schemaNode, value) {
+  const errors = [];
+  validateSchemaObject(schemaNode, value, "value", errors);
+  return errors.length === 0;
 }
 
 function matchesIfClause(clause, value) {
@@ -415,8 +440,27 @@ function buildArchiveManifest() {
   };
 }
 
-function manifestVerificationErrors(manifest, manifestPath) {
-  const expected = buildArchiveManifest();
+function tryBuildArchiveManifest() {
+  try {
+    const value = buildArchiveManifest();
+    return {
+      value,
+      errors: schemaDocumentErrors(
+        archiveManifestSchema,
+        "jury.package_release_archive_manifest.v1",
+        value,
+        "retained package release archive manifest",
+      ),
+    };
+  } catch (error) {
+    return {
+      value: null,
+      errors: [`retained package release archive manifest could not be built: ${error.message}`],
+    };
+  }
+}
+
+function manifestVerificationErrors(manifest, expected, manifestPath) {
   const errors = [];
   if (stableStringify(manifest) !== stableStringify(expected)) {
     errors.push(`${manifestPath} does not match retained package release evidence`);

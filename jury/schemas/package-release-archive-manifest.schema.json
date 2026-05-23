@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jury Package Release Archive Manifest",
+  "type": "object",
+  "required": ["schema_version", "package", "failed", "replacement", "retention", "provenance"],
+  "properties": {
+    "schema_version": { "const": "jury.package_release_archive_manifest.v1" },
+    "package": { "type": "string", "minLength": 1 },
+    "failed": {
+      "type": "object",
+      "required": ["packageVersion", "tarballName", "dryRunRecord", "npmView", "downstreamGate", "rollbackAudit", "deprecation"],
+      "properties": {
+        "packageVersion": { "type": "string", "minLength": 1 },
+        "tarballName": { "type": "string", "pattern": "\\.tgz$" },
+        "dryRunRecord": { "type": "string", "minLength": 1 },
+        "npmView": { "type": "string", "minLength": 1 },
+        "downstreamGate": { "type": "string", "minLength": 1 },
+        "rollbackAudit": { "const": "rollback-audit.json" },
+        "deprecation": {
+          "type": "object",
+          "required": ["attempted", "allowed", "command", "result"],
+          "properties": {
+            "attempted": { "type": "boolean" },
+            "allowed": { "type": "boolean" },
+            "command": { "type": "string", "minLength": 1 },
+            "result": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "replacement": {
+      "type": "object",
+      "required": ["packageVersion", "npmView", "distTarball", "downstreamGate", "replacementAudit"],
+      "properties": {
+        "packageVersion": { "type": "string", "minLength": 1 },
+        "npmView": { "type": "string", "minLength": 1 },
+        "distTarball": { "type": "string", "minLength": 1 },
+        "downstreamGate": { "type": "string", "minLength": 1 },
+        "replacementAudit": { "const": "replacement-patch-audit.json" }
+      },
+      "additionalProperties": false
+    },
+    "retention": {
+      "type": "object",
+      "required": ["policy", "storage", "retainUntil", "artifacts"],
+      "properties": {
+        "policy": { "const": "jury.package_release_retention.v1" },
+        "storage": { "const": "release record or incident archive" },
+        "retainUntil": { "type": "string", "minLength": 1 },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "allOf": [
+            { "contains": { "const": "jury-package-dry-run" } },
+            { "contains": { "const": "jury-package-release-evidence" } },
+            { "contains": { "const": "rollback-audit.json" } },
+            { "contains": { "const": "replacement-patch-audit.json" } }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source", "workflow", "runId", "sourceRevision", "artifacts"],
+      "properties": {
+        "source": { "const": "github-actions" },
+        "workflow": { "const": "jury-npm-publish.yml" },
+        "runId": { "type": "string", "minLength": 1 },
+        "sourceRevision": { "type": "string", "minLength": 1 },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "const": "jury-package-dry-run" }
+                }
+              }
+            },
+            {
+              "contains": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "const": "jury-package-release-evidence" }
+                }
+              }
+            }
+          ],
+          "items": {
+            "type": "object",
+            "required": ["name", "sourceJob", "retentionDays", "files"],
+            "properties": {
+              "name": {
+                "enum": ["jury-package-dry-run", "jury-package-release-evidence"]
+              },
+              "sourceJob": { "type": "string", "minLength": 1 },
+              "retentionDays": { "const": 90 },
+              "files": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "minLength": 1 }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
