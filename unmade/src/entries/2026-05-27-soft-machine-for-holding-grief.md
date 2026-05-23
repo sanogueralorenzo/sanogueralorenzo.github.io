@@ -9,8 +9,8 @@ category: Unbuilt
 status: soft machine
 visual: soft-machine
 mark: "~"
-image: /unmade/assets/images/soft-machine-for-holding-grief.png
-imageAlt: A soft weighted grief machine with fabric samples and pressure notes.
+image: /unmade/assets/images/topic-unbuilt.png
+imageAlt: Professional indie study for soft machines and unbuilt care objects.
 trace: Fabric samples, heat limits, and a pressure pattern named after rain.
 materials: Weighted cotton, low-heat thread, pressure bladder, linen samples, and a care card with no troubleshooting section.
 provenance: Developed from fabric tests and body notes after several rejected versions tried to behave too much like therapy.

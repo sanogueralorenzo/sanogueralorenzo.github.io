@@ -9,8 +9,8 @@ category: Unfinished
 status: unfinished score
 visual: score
 mark: "♩"
-image: /unmade/assets/images/score-for-window-left-open.png
-imageAlt: An unfinished musical score beside an open window with rain marks and streetlight.
+image: /unmade/assets/images/topic-unfinished.png
+imageAlt: Professional indie study for unfinished manuscripts and scores.
 trace: Two staves, a rain marking, and no final bar.
 materials: Staff paper, rain-warped corner, soft pencil, window latch rubbing, and a metronome note marked do not use.
 provenance: Found on a music stand facing an open window, with the final page clipped under the first page instead of after it.

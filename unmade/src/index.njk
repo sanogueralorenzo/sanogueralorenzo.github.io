@@ -17,14 +17,25 @@ permalink: /unmade/
       <p>Unsent messages, unbuilt projects, unfinished films, abandoned maps, unrealized inventions, alternate lives, lost plans, and private ideas that never found a surface.</p>
     </div>
     <figure class="hero-image">
-      <img src="/unmade/assets/images/archive-table.png" alt="Archive table with fragments from things that almost existed">
+      <img src="/unmade/assets/images/topic-contact-sheet.png" alt="Professional image grid representing the six Unmade archive topics">
     </figure>
   </section>
 
-  <section class="section-nav" aria-label="Archive sections">
-    {% set sections = ["Unsent", "Unbuilt", "Unchosen", "Unfinished", "Unrecorded", "Unlived"] %}
-    {% for section in sections %}
-      <a href="#{{ section | lower }}">{{ section }}</a>
+  <section class="topic-grid" aria-label="Archive topics">
+    {% set topics = [
+      { label: "Unsent", summary: "Notes, voice memos, postcards, and messages that never reached anyone." },
+      { label: "Unbuilt", summary: "Tools, machines, rooms, and systems that stayed in sketch form." },
+      { label: "Unchosen", summary: "Routes, invitations, offices, and futures left on the other side of a decision." },
+      { label: "Unfinished", summary: "Films, scores, guidebooks, manuals, and catalogs abandoned mid-shape." },
+      { label: "Unrecorded", summary: "Signals, dinners, ceremonies, and field logs that escaped proof." },
+      { label: "Unlived", summary: "Addresses, routines, seasons, and identities that remained possible." }
+    ] %}
+    {% for topic in topics %}
+      <a class="topic-card" href="#{{ topic.label | lower }}">
+        <img src="/unmade/assets/images/topic-{{ topic.label | lower }}.png" alt="{{ topic.label }} visual study">
+        <span>{{ topic.label }}</span>
+        <p>{{ topic.summary }}</p>
+      </a>
     {% endfor %}
   </section>
 

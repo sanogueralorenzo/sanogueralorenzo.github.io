@@ -16,11 +16,7 @@ layout: base.njk
 
     <section class="artifact-panel" aria-label="Artifact details">
       <div class="artifact-visual artifact-{{ visual }}">
-        {% if image %}
-          <img src="{{ image }}" alt="{{ imageAlt or title }}">
-        {% else %}
-          <span>{{ mark }}</span>
-        {% endif %}
+        <img src="{{ image or ('/unmade/assets/images/topic-' ~ (category | lower) ~ '.png') }}" alt="{{ imageAlt or category ~ ' visual study' }}">
       </div>
 
       <dl class="case-notes">

@@ -9,8 +9,8 @@ category: Unrecorded
 status: impossible photograph
 visual: photo
 mark: "∞"
-image: /unmade/assets/images/room-from-outside-time.png
-imageAlt: An impossible room image layered with traces from multiple years at once.
+image: /unmade/assets/images/topic-unrecorded.png
+imageAlt: Professional indie study for unrecorded artifacts and missing proof.
 trace: A shot list, exposure notes, and no possible camera position.
 materials: Exposure notes, wall measurements, moving labels, dust-shadow sketches, and a key photographed in six positions.
 provenance: Reconstructed from a shot list written for a camera that could not exist.

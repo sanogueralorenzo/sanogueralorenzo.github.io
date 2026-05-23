@@ -64,7 +64,7 @@ a {
 
 .topbar,
 .hero,
-.section-nav,
+.topic-grid,
 .intro,
 .entry-stream,
 .case-file {
@@ -82,9 +82,9 @@ a {
 
 .wordmark,
 .home-link,
-.section-nav a,
 .kicker,
 .open-label,
+.topic-card span,
 .case-notes dt {
   font-family: var(--mono);
   font-size: 0.72rem;
@@ -110,13 +110,12 @@ a {
 }
 
 .home-link,
-.section-nav a,
 .open-label {
   color: var(--muted);
 }
 
 .home-link:hover,
-.section-nav a:hover,
+.topic-card:hover span,
 .entry-card a:hover .open-label {
   color: var(--text);
 }
@@ -194,19 +193,40 @@ a {
   filter: saturate(0.86) contrast(1.04);
 }
 
-.section-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
   margin-top: 24px;
 }
 
-.section-nav a {
-  min-height: 34px;
-  padding: 8px 11px;
+.topic-card {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+  padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(251, 250, 246, 0.58);
+  border-radius: 8px;
+  background: rgba(251, 250, 246, 0.64);
+}
+
+.topic-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  object-fit: cover;
+  filter: saturate(0.82) contrast(1.02);
+}
+
+.topic-card span {
+  color: var(--blue);
+}
+
+.topic-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .intro {
@@ -446,6 +466,10 @@ a {
 
   .hero-image {
     margin-top: 34px;
+  }
+
+  .topic-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .intro {

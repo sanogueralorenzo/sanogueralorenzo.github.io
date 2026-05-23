@@ -9,8 +9,8 @@ category: Unbuilt
 status: bench diagram
 visual: machine
 mark: "03"
-image: /unmade/assets/images/clock-for-forgotten-rooms.png
-imageAlt: Brass timing device and sketches for a clock that measures neglected rooms.
+image: /unmade/assets/images/topic-unbuilt.png
+imageAlt: Professional indie study for unbuilt inventions and prototype sketches.
 trace: Brass gear sketches, a motion sensor note, and a silent alarm.
 materials: Brass gears, dust paper, motion sensor wiring, felt feet, and a silent alarm bell with no striker.
 provenance: Assembled from a bench diagram, an object-shadow tracing, and a parts envelope labeled for rooms that stay closed.

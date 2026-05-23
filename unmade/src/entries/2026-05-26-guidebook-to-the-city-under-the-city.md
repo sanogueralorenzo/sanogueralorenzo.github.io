@@ -9,8 +9,8 @@ category: Unfinished
 status: unfinished guidebook
 visual: guidebook
 mark: "G"
-image: /unmade/assets/images/city-under-city-guidebook.png
-imageAlt: An unfinished guidebook with stairwell maps and hidden routes beneath a city.
+image: /unmade/assets/images/topic-unfinished.png
+imageAlt: Professional indie study for unfinished guidebooks and working drafts.
 trace: Six chapter titles, two stairwell maps, and a missing index.
 materials: Stairwell maps, torn transit tickets, basement route marks, flashlight notes, and an index stopped at the letter D.
 provenance: Found in a folder of field walks, with several routes deliberately cut from the final draft.
