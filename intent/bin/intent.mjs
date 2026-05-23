@@ -1736,7 +1736,20 @@ function getInvariantViolation(effect, invariants) {
     if (invariant.kind !== "Deny") {
       continue;
     }
-    if (invariant.value.trim() !== "production_deploy") {
+    const rule = invariant.value.trim();
+    if (rule === "secret_write") {
+      const pathArgument = effectArguments(effect).find((argument) => argument.key === "path");
+      if (effect.family === "file" && effect.action === "write" && pathArgument && isSecretPath(pathArgument.value)) {
+        return {
+          message: `invariant '${invariant.value}' denies effect '${effect.name}' path '${pathArgument.value}'.`,
+          invariant,
+          argument: "path",
+          value: pathArgument.value,
+        };
+      }
+      continue;
+    }
+    if (rule !== "production_deploy") {
       continue;
     }
     const target = effectArguments(effect).find((argument) => argument.key === "target");
@@ -1750,6 +1763,11 @@ function getInvariantViolation(effect, invariants) {
     }
   }
   return null;
+}
+
+function isSecretPath(value) {
+  const basename = path.posix.basename(normalizePathLike(value)).toLowerCase();
+  return basename === ".env" || /\b(secret|token|credential|key|password)s?\b/.test(basename);
 }
 
 function effectTrust(effect) {
