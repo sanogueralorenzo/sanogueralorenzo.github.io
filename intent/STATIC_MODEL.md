@@ -498,7 +498,8 @@ Next graph envelope validation milestone:
   The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
   `targetSpan` values, and those values must match the source `Step` output
-  type/span and any declared target `Completion` output type/span. `requires`
+  type/span and the target `Completion` output type/span when declared, or the
+  target `Completion` span when no output type is declared. `requires`
   is valid only as `Input` to `Step` for step inputs or step-scoped `Check` to `Step` for
   step requirements. Step-input `requires` edges must match the source input
   name, type, owning step, and span; step-requirement `requires` edges must
@@ -644,24 +645,27 @@ Next graph envelope validation milestone:
   carry `title` as `null` or a non-empty string, `parameters` as an array of
   valid parameter records with non-empty `name` and `type` strings and valid
   spans, `outputType` as `null` or a non-empty string, and `outputTypeSpan` as
-  `null` or a valid span. Malformed Goal node payloads emit
-  `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
-  runtimes must not infer goal titles, inputs, output types, or provenance.
+  `null` only when `outputType` is `null` or a valid span when `outputType` is
+  non-empty. Malformed Goal node payloads emit `INTENT_GRAPH_GOAL_INVALID` and
+  make graph output non-executable because runtimes must not infer goal titles,
+  inputs, output types, or provenance.
 - Runtime Step node metadata is part of graph validation. `Step` node data must
   carry arrays for `inputs`, `effects`, `requirements`, `checkpoints`,
   `approvals`, `timeouts`, `retries`, and `memoryAccesses`. Each input must be
   a valid parameter record with non-empty `name` and `type` strings and a valid
   `span`, and every memory access target must be non-empty. `outputType` may be
-  `null` or a non-empty string, and `outputTypeSpan` may be `null` or a valid
-  span. Malformed Step node payloads emit `INTENT_GRAPH_STEP_INVALID` and make
-  graph output non-executable because runtimes must not infer executable inputs,
-  side effects, gates, checkpoints, approvals, timeouts, retries, memory
-  accesses, or output types.
+  `null` or a non-empty string; `outputTypeSpan` must be `null` when
+  `outputType` is `null` and a valid span when `outputType` is non-empty.
+  Malformed Step node payloads emit `INTENT_GRAPH_STEP_INVALID` and make graph
+  output non-executable because runtimes must not infer executable inputs, side
+  effects, gates, checkpoints, approvals, timeouts, retries, memory accesses, or
+  output types.
 - Runtime Completion node metadata is part of graph validation. `Completion`
   node data must carry `outputType` as `null` or a non-empty string and
-  `outputTypeSpan` as `null` or a valid span. Malformed Completion node
-  payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make graph output
-  non-executable. This runtime payload contract is separate from the existing
+  `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when
+  `outputType` is non-empty. Malformed Completion node payloads emit
+  `INTENT_GRAPH_COMPLETION_INVALID` and make graph output non-executable. This
+  runtime payload contract is separate from the existing
   completion-edge contract, which still requires `completes`, `produces`,
   `verifies`, and invariant `guards` edges.
 - Runtime Invariant node metadata is the next Phase 2 static-model milestone.
@@ -900,12 +904,14 @@ blocking diagnostics.
   `data.requirements`, `data.checkpoints`, `data.approvals`, `data.timeouts`,
   and `data.retries` arrays. Each `data.inputs` entry must be a valid parameter
   record with non-empty `name` and `type` strings and a valid `span`.
-  `data.outputType` may be `null` or a non-empty string, and
-  `data.outputTypeSpan` may be `null` or a valid span.
+  `data.outputType` may be `null` or a non-empty string; `data.outputTypeSpan`
+  must be `null` when `data.outputType` is `null` and a valid span when
+  `data.outputType` is non-empty.
 - Emit every `Goal` node with `data.title` as `null` or a non-empty string,
   `data.parameters` as an array of valid parameter records with non-empty
   `name` and `type` strings and valid spans, `data.outputType` as `null` or a
-  non-empty string, and `data.outputTypeSpan` as `null` or a valid span.
+  non-empty string, and `data.outputTypeSpan` as `null` when `data.outputType`
+  is `null` or a valid span when `data.outputType` is non-empty.
 - Emit every goal-scoped `Input` node with exactly one outgoing `supplies` edge
   to its owning `Goal`.
 - Emit every `Type` node with exactly one outgoing `declares` edge to each
@@ -913,7 +919,8 @@ blocking diagnostics.
 - Emit every goal-owned `Memory` node with exactly one incoming `declares` edge
   from its owning `Goal`.
 - Emit every `Completion` node with `data.outputType` as `null` or a non-empty
-  string and `data.outputTypeSpan` as `null` or a valid span.
+  string and `data.outputTypeSpan` as `null` when `data.outputType` is `null`
+  or a valid span when `data.outputType` is non-empty.
 - Emit each invariant statement as an `Invariant` node with `data.assertion` set
   to `Require` or `Deny`, non-empty `data.invariant`, exactly one role-valid
   `constrains` edge to the owning goal, and role-valid `guards` edges to
@@ -967,8 +974,9 @@ Every successful binding is also emitted as graph data dependency:
 - The final executable step creates a `produces` edge to the goal completion
   node. Its edge `data` must include non-empty `type`, `sourceSpan` for the
   final step output, and `targetSpan` for the goal output. These values must
-  match the source step output type/span and any declared target completion
-  output type/span.
+  match the source step output type/span and the target completion output
+  type/span when declared, or the target completion span when no output type is
+  declared.
 - Graph data-edge role validation emits `INTENT_GRAPH_DATA_ROLE_INVALID` when
   a `data` edge does not connect either a goal-scoped `Input` node or `Step`
   producer to a step-scoped `Input` consumer. Role-valid data edge semantic
@@ -2323,7 +2331,8 @@ or step requirement name/type/span and owning step.
 Graph `produces` edge payloads that connect the final executable step to
 completion must include non-empty `type`, valid `sourceSpan` for the final step
 output, and valid `targetSpan` for the goal output, and those values must match
-the producing `Step` and any declared target `Completion` output contract.
+the producing `Step` and target `Completion` output contract when declared, or
+the target completion span when no output type is declared.
 Graph step attachment edge payloads must include non-empty `data.approval` on
 step-scoped `Approval` to `Step` `approves` edges and `Approval` to `Effect`
 `approves` edges, non-empty `data.policy` on step-scoped `Policy` to `Step`
@@ -2439,17 +2448,18 @@ Graph validation emits `INTENT_GRAPH_GOAL_INVALID` when a `Goal` node omits
 neither `null` nor a non-empty string, when any goal parameter is not a valid
 parameter record with non-empty `name` and `type` strings and a valid `span`,
 when `outputType` is neither `null` nor a non-empty string, or when
-`outputTypeSpan` is neither `null` nor a valid span.
+`outputTypeSpan` is not `null` for a null `outputType` or a valid span for a
+non-empty `outputType`.
 Graph validation emits `INTENT_GRAPH_STEP_INVALID` when a `Step` node omits
 array data for `inputs`, `effects`, `requirements`, `checkpoints`, `approvals`,
 `timeouts`, or `retries`, when any step input is not a valid parameter record
 with non-empty `name` and `type` strings and a valid `span`, when `outputType`
-is neither `null` nor a non-empty string, or when `outputTypeSpan` is neither
-`null` nor a valid span.
+is neither `null` nor a non-empty string, or when `outputTypeSpan` is not
+`null` for a null `outputType` or a valid span for a non-empty `outputType`.
 Graph validation emits `INTENT_GRAPH_COMPLETION_INVALID` when a `Completion`
 node omits `outputType` or `outputTypeSpan` data, when `outputType` is neither
-`null` nor a non-empty string, or when `outputTypeSpan` is neither `null` nor a
-valid span.
+`null` nor a non-empty string, or when `outputTypeSpan` is not `null` for a
+null `outputType` or a valid span for a non-empty `outputType`.
 Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
 multiple `Step` nodes does not have exactly one linear role-valid `precedes`
 chain across those steps, or when the `Step` producing `Completion` is not the
@@ -2623,18 +2633,20 @@ Goal nodes carry the runtime graph contract for requested work. Their data must
 include `title`, `parameters`, `outputType`, and `outputTypeSpan`. `title` may
 be `null` or a non-empty string. `parameters` must be an array, and each entry
 must be a valid parameter record with non-empty `name` and `type` strings and a
-valid `span`. `outputType` may be `null` or a non-empty string, and
-`outputTypeSpan` may be `null` or a valid span. Malformed Goal node payloads
-emit `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
-runtimes must not infer goal titles, inputs, output types, or provenance.
+valid `span`. `outputType` may be `null` or a non-empty string; `outputTypeSpan`
+must be `null` when `outputType` is `null` and a valid span when `outputType`
+is non-empty. Malformed Goal node payloads emit `INTENT_GRAPH_GOAL_INVALID` and
+make graph output non-executable because runtimes must not infer goal titles,
+inputs, output types, or provenance.
 
 Step nodes carry the runtime graph contract for executable work. Their data
 must include arrays for `inputs`, `effects`, `requirements`, `checkpoints`,
 `approvals`, `timeouts`, and `retries`, even when a list is empty. Each input
 entry must be a valid parameter record with non-empty `name` and `type` strings
-and a valid `span`. `outputType` may be `null` or a non-empty string, and
-`outputTypeSpan` may be `null` or a valid span. Malformed Step node payloads
-emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
+and a valid `span`. `outputType` may be `null` or a non-empty string;
+`outputTypeSpan` must be `null` when `outputType` is `null` and a valid span
+when `outputType` is non-empty. Malformed Step node payloads emit
+`INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
 runtimes must not infer executable inputs, side effects, gates, checkpoints,
 approvals, timeouts, retries, or output types.
 
@@ -2745,8 +2757,9 @@ preserving invariant-specific coverage diagnostics. The last executable step in
 the plan creates a `produces` edge to completion. That edge must carry
 non-empty `data.type`, `data.sourceSpan` for the final step output, and
 `data.targetSpan` for the goal output. Those values must match the source
-`Step` output type/span and any declared target `Completion` output type/span,
-or graph validation emits `INTENT_GRAPH_TYPED_EDGE_INVALID`. Malformed `produces` edge
+`Step` output type/span and target `Completion` output type/span when declared,
+or the target completion span when no output type is declared. Mismatches emit
+`INTENT_GRAPH_TYPED_EDGE_INVALID`. Malformed `produces` edge
 payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
 non-executable.
 `completes` is valid only as `Goal` to `Completion`; unsupported endpoint roles
@@ -2758,8 +2771,8 @@ These generic completion delivery role diagnostics are separate from
 preventing ambiguous completion replay while preserving completion-specific
 diagnostics.
 Completion node data also carries `outputType` as `null` or a
-non-empty string and `outputTypeSpan` as `null` or a valid span; malformed
-Completion payload data emits
+non-empty string and `outputTypeSpan` as `null` when `outputType` is `null` or
+a valid span when `outputType` is non-empty; malformed Completion payload data emits
 `INTENT_GRAPH_COMPLETION_INVALID` and makes graph output non-executable. This
 node payload contract is separate from the completion-edge contract. Graph
 validation emits

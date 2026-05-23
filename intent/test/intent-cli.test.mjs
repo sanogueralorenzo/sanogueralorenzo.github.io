@@ -2442,11 +2442,13 @@ describe("intent static model CLI", () => {
         { id: "goal:bad-title", kind: "Goal", label: "bad title", span: testSpan(1), data: { title: "" } },
         { id: "goal:bad-parameters", kind: "Goal", label: "bad parameters", span: testSpan(2), data: { parameters: [{ name: "", type: "Finding", span: testSpan(2) }] } },
         { id: "goal:bad-output", kind: "Goal", label: "bad output", span: testSpan(3), data: { outputType: "", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
+        { id: "goal:missing-output-span", kind: "Goal", label: "missing output span", span: testSpan(4), data: { outputType: "Report", outputTypeSpan: null } },
+        { id: "goal:unexpected-output-span", kind: "Goal", label: "unexpected output span", span: testSpan(5), data: { outputType: null, outputTypeSpan: testSpan(5) } },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_GOAL_INVALID");
 
-    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics.length, 5);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_GOAL_INVALID");
     assert.equal(diagnostics[0].goal_id, "goal:bad-title");
     assert.equal(diagnostics[0].title_is_valid, false);
@@ -2455,6 +2457,12 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_GOAL_INVALID");
     assert.equal(diagnostics[2].output_type_is_valid, false);
     assert.equal(diagnostics[2].output_type_span_is_valid, false);
+    assert.equal(diagnostics[3].goal_id, "goal:missing-output-span");
+    assert.equal(diagnostics[3].output_type_is_valid, true);
+    assert.equal(diagnostics[3].output_type_span_is_valid, false);
+    assert.equal(diagnostics[4].goal_id, "goal:unexpected-output-span");
+    assert.equal(diagnostics[4].output_type_is_valid, true);
+    assert.equal(diagnostics[4].output_type_span_is_valid, false);
   });
 
   it("validates graph step policy diagnostics", () => {
@@ -2651,27 +2659,35 @@ describe("intent static model CLI", () => {
       nodes: [
         { id: "step:bad-inputs", kind: "Step", label: "bad inputs", span: testSpan(1), data: { inputs: [{ name: "", type: "Finding", span: testSpan(1) }] } },
         { id: "step:bad-output", kind: "Step", label: "bad output", span: testSpan(2), data: { outputType: "", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
-        { id: "step:bad-lists", kind: "Step", label: "bad lists", span: testSpan(3), data: { effects: ["write", ""], requirements: null, checkpoints: ["before"], approvals: [" "], timeouts: ["5m"], retries: ["max 2"] } },
-        { id: "step:bad-memory", kind: "Step", label: "bad memory", span: testSpan(4), data: { memoryAccesses: ["session.evidence", ""] } },
+        { id: "step:missing-output-span", kind: "Step", label: "missing output span", span: testSpan(3), data: { outputType: "Report", outputTypeSpan: null } },
+        { id: "step:unexpected-output-span", kind: "Step", label: "unexpected output span", span: testSpan(4), data: { outputType: null, outputTypeSpan: testSpan(4) } },
+        { id: "step:bad-lists", kind: "Step", label: "bad lists", span: testSpan(5), data: { effects: ["write", ""], requirements: null, checkpoints: ["before"], approvals: [" "], timeouts: ["5m"], retries: ["max 2"] } },
+        { id: "step:bad-memory", kind: "Step", label: "bad memory", span: testSpan(6), data: { memoryAccesses: ["session.evidence", ""] } },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_STEP_INVALID");
 
-    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics.length, 6);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_STEP_INVALID");
     assert.equal(diagnostics[0].step_id, "step:bad-inputs");
     assert.deepEqual(diagnostics[0].invalid_input_indexes, [0]);
     assert.equal(diagnostics[1].code, "INTENT_GRAPH_STEP_INVALID");
     assert.equal(diagnostics[1].output_type_is_valid, false);
     assert.equal(diagnostics[1].output_type_span_is_valid, false);
-    assert.equal(diagnostics[2].code, "INTENT_GRAPH_STEP_INVALID");
-    assert.equal(diagnostics[2].effects_are_valid, false);
-    assert.equal(diagnostics[2].requirements_are_valid, false);
-    assert.equal(diagnostics[2].approvals_are_valid, false);
-    assert.equal(diagnostics[2].checkpoints_are_valid, true);
-    assert.equal(diagnostics[3].code, "INTENT_GRAPH_STEP_INVALID");
-    assert.equal(diagnostics[3].step_id, "step:bad-memory");
-    assert.equal(diagnostics[3].memory_accesses_are_valid, false);
+    assert.equal(diagnostics[2].step_id, "step:missing-output-span");
+    assert.equal(diagnostics[2].output_type_is_valid, true);
+    assert.equal(diagnostics[2].output_type_span_is_valid, false);
+    assert.equal(diagnostics[3].step_id, "step:unexpected-output-span");
+    assert.equal(diagnostics[3].output_type_is_valid, true);
+    assert.equal(diagnostics[3].output_type_span_is_valid, false);
+    assert.equal(diagnostics[4].code, "INTENT_GRAPH_STEP_INVALID");
+    assert.equal(diagnostics[4].effects_are_valid, false);
+    assert.equal(diagnostics[4].requirements_are_valid, false);
+    assert.equal(diagnostics[4].approvals_are_valid, false);
+    assert.equal(diagnostics[4].checkpoints_are_valid, true);
+    assert.equal(diagnostics[5].code, "INTENT_GRAPH_STEP_INVALID");
+    assert.equal(diagnostics[5].step_id, "step:bad-memory");
+    assert.equal(diagnostics[5].memory_accesses_are_valid, false);
   });
 
   it("validates graph step input binding diagnostics", () => {
@@ -3511,19 +3527,27 @@ describe("intent static model CLI", () => {
       nodes: [
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(1), data: { outputType: "", outputTypeSpan: null } },
         { id: "goal:other:completion", kind: "Completion", label: "other", span: testSpan(2), data: { outputType: "Report", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
+        { id: "goal:missing-span:completion", kind: "Completion", label: "missing span", span: testSpan(3), data: { outputType: "Report", outputTypeSpan: null } },
+        { id: "goal:unexpected-span:completion", kind: "Completion", label: "unexpected span", span: testSpan(4), data: { outputType: null, outputTypeSpan: testSpan(4) } },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_COMPLETION_INVALID" && "output_type_is_valid" in diagnostic);
 
-    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics.length, 4);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(diagnostics[0].completion_id, "goal:demo:completion");
     assert.equal(diagnostics[0].output_type_is_valid, false);
-    assert.equal(diagnostics[0].output_type_span_is_valid, true);
+    assert.equal(diagnostics[0].output_type_span_is_valid, false);
     assert.equal(diagnostics[1].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(diagnostics[1].completion_id, "goal:other:completion");
     assert.equal(diagnostics[1].output_type_is_valid, true);
     assert.equal(diagnostics[1].output_type_span_is_valid, false);
+    assert.equal(diagnostics[2].completion_id, "goal:missing-span:completion");
+    assert.equal(diagnostics[2].output_type_is_valid, true);
+    assert.equal(diagnostics[2].output_type_span_is_valid, false);
+    assert.equal(diagnostics[3].completion_id, "goal:unexpected-span:completion");
+    assert.equal(diagnostics[3].output_type_is_valid, true);
+    assert.equal(diagnostics[3].output_type_span_is_valid, false);
   });
 
   it("validates graph typed edge contract diagnostics", () => {
@@ -3535,6 +3559,7 @@ describe("intent static model CLI", () => {
         { id: "goal:other:completion", kind: "Completion", label: "other", span: testSpan(7), data: { outputType: "Other" } },
         { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: testSpan(2), data: { scope: "goal", type: "Ticket" } },
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(3), data: { outputType: "Patch" } },
+        { id: "goal:demo:step:fallback", kind: "Step", label: "fallback", span: testSpan(8), data: { outputType: "Fallback", outputTypeSpan: null } },
         { id: "goal:demo:step:patch:input:ticket", kind: "Input", label: "ticket", span: testSpan(4), data: { scope: "step", type: "Ticket" } },
         { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "ready", span: testSpan(5), data: { scope: "step", ownerStep: "patch", assertion: "Require", requirement: "ticket.ready" } },
         { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
@@ -3547,13 +3572,14 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:patch:input:ticket", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "ticket_id", type: "Issue", targetSpan: testSpan(5) } },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "ticket.closed" } },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: testSpan(2), targetSpan: testSpan(4) } },
+        { from: "goal:demo:step:fallback", to: "goal:demo:completion", kind: "produces", data: { type: "Fallback", sourceSpan: testSpan(8), targetSpan: testSpan(4) } },
         { from: "goal:demo:verify:0", to: "goal:other", kind: "gates", data: { requirement: "closed", scope: "step", sourceSpan: testSpan(1), targetSpan: testSpan(6) } },
         { from: "goal:demo:verify:0", to: "goal:other:completion", kind: "verifies", data: { requirement: "closed", scope: "step", sourceSpan: testSpan(1), targetSpan: testSpan(6) } },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPED_EDGE_INVALID");
 
-    assert.equal(diagnostics.length, 7);
+    assert.equal(diagnostics.length, 8);
     assert.equal(diagnostics[0].edge, "supplies");
     assert.deepEqual(diagnostics[0].checks.map((check) => [check.name, check.ok]), [
       ["owner_goal_matches_target", false],
@@ -3591,16 +3617,23 @@ describe("intent static model CLI", () => {
       ["source_span_matches_source", false],
       ["target_span_matches_target", true],
     ]);
-    assert.equal(diagnostics[5].edge, "gates");
+    assert.equal(diagnostics[5].edge, "produces");
     assert.deepEqual(diagnostics[5].checks.map((check) => [check.name, check.ok]), [
+      ["type_matches_source", true],
+      ["type_matches_target", false],
+      ["source_span_matches_source", false],
+      ["target_span_matches_target", true],
+    ]);
+    assert.equal(diagnostics[6].edge, "gates");
+    assert.deepEqual(diagnostics[6].checks.map((check) => [check.name, check.ok]), [
       ["owner_goal_matches_target", false],
       ["requirement_matches_source", false],
       ["scope_matches_source", false],
       ["source_span_matches_source", false],
       ["target_span_matches_target", true],
     ]);
-    assert.equal(diagnostics[6].edge, "verifies");
-    assert.deepEqual(diagnostics[6].checks.map((check) => [check.name, check.ok]), [
+    assert.equal(diagnostics[7].edge, "verifies");
+    assert.deepEqual(diagnostics[7].checks.map((check) => [check.name, check.ok]), [
       ["owner_completion_matches_target", false],
       ["requirement_matches_source", false],
       ["scope_matches_source", false],
@@ -3776,6 +3809,39 @@ describe("intent static model CLI", () => {
     assert(diagnosticErrors.includes("$defs.diagnostic.message length must be >= 1"));
     assert(trustErrors.includes("$defs.trust.source length must be >= 1"));
     assert(trustErrors.includes("$defs.trust.argument length must be >= 1"));
+  });
+
+  it("requires graph output type spans in the schema", () => {
+    const graphSchema = readJson(GRAPH_SCHEMA);
+    const goalErrors = [];
+    const stepErrors = [];
+    const completionErrors = [];
+
+    validateAgainst(graphSchema.$defs.goal_node, {
+      id: "goal:demo",
+      kind: "Goal",
+      label: "demo",
+      span: testSpan(1),
+      data: { title: null, parameters: [], outputType: null },
+    }, graphSchema, "$defs.goal_node", goalErrors);
+    validateAgainst(graphSchema.$defs.step_node, {
+      id: "goal:demo:step:patch",
+      kind: "Step",
+      label: "patch",
+      span: testSpan(2),
+      data: { inputs: [], outputType: null, effects: [], requirements: [], checkpoints: [], approvals: [], timeouts: [], retries: [], memoryAccesses: [] },
+    }, graphSchema, "$defs.step_node", stepErrors);
+    validateAgainst(graphSchema.$defs.completion_node, {
+      id: "goal:demo:completion",
+      kind: "Completion",
+      label: "demo",
+      span: testSpan(3),
+      data: { outputType: null },
+    }, graphSchema, "$defs.completion_node", completionErrors);
+
+    assert(goalErrors.includes("$defs.goal_node.data.outputTypeSpan is required"));
+    assert(stepErrors.includes("$defs.step_node.data.outputTypeSpan is required"));
+    assert(completionErrors.includes("$defs.completion_node.data.outputTypeSpan is required"));
   });
 
   it("rejects empty structural AST and check strings in schemas", () => {

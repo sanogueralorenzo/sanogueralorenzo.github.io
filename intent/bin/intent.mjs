@@ -2102,9 +2102,7 @@ function validateGraphGoal(graphNode, graphSpan) {
     : [];
   const outputTypeIsValid = graphNode.data.outputType === null
     || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
-  const outputTypeSpanIsValid = graphNode.data.outputTypeSpan === undefined
-    || graphNode.data.outputTypeSpan === null
-    || isSpan(graphNode.data.outputTypeSpan);
+  const outputTypeSpanIsValid = isGraphOutputTypeSpanValid(graphNode.data.outputType, graphNode.data.outputTypeSpan);
   if (titleIsValid && parametersIsArray && invalidParameterIndexes.length === 0 && outputTypeIsValid && outputTypeSpanIsValid) {
     return null;
   }
@@ -2125,7 +2123,7 @@ function validateGraphCompletion(graphNode, graphSpan) {
   }
   const outputTypeIsValid = graphNode.data.outputType === null
     || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
-  const outputTypeSpanIsValid = graphNode.data.outputTypeSpan === null || isSpan(graphNode.data.outputTypeSpan);
+  const outputTypeSpanIsValid = isGraphOutputTypeSpanValid(graphNode.data.outputType, graphNode.data.outputTypeSpan);
   if (outputTypeIsValid && outputTypeSpanIsValid) {
     return null;
   }
@@ -2360,8 +2358,8 @@ function producesEdgeChecks(graphEdge, sourceNode, targetNode) {
   return [
     typedCheck("type_matches_source", payloadType !== null && payloadType === stepOutputType, graphEdge.data?.type, sourceNode.data?.outputType),
     typedCheck("type_matches_target", completionOutputType === null || payloadType === completionOutputType, graphEdge.data?.type, targetNode.data?.outputType),
-    typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceNode.data?.outputTypeSpan ?? sourceNode.span), graphEdge.data?.sourceSpan, sourceNode.data?.outputTypeSpan ?? sourceNode.span),
-    typedCheck("target_span_matches_target", spansEqual(graphEdge.data?.targetSpan, targetNode.data?.outputTypeSpan ?? targetNode.span), graphEdge.data?.targetSpan, targetNode.data?.outputTypeSpan ?? targetNode.span),
+    typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceNode.data?.outputTypeSpan), graphEdge.data?.sourceSpan, sourceNode.data?.outputTypeSpan),
+    typedCheck("target_span_matches_target", spansEqual(graphEdge.data?.targetSpan, completionOutputSpan(targetNode)), graphEdge.data?.targetSpan, completionOutputSpan(targetNode)),
   ];
 }
 
@@ -2486,6 +2484,13 @@ function graphCheckScope(sourceNode) {
   return sourceNode?.data?.scope === "step" ? "step" : "goal";
 }
 
+function completionOutputSpan(targetNode) {
+  if (targetNode?.data?.outputType === null) {
+    return targetNode.span;
+  }
+  return targetNode?.data?.outputTypeSpan;
+}
+
 function graphProducerType(sourceNode) {
   return normalizeTypeRefOrNull(graphProducerTypeLabel(sourceNode));
 }
@@ -2505,7 +2510,7 @@ function graphProducerSpan(sourceNode) {
     return sourceNode.span;
   }
   if (sourceNode?.kind === "Step") {
-    return sourceNode.data?.outputTypeSpan ?? sourceNode.span;
+    return sourceNode.data?.outputTypeSpan;
   }
   return null;
 }
@@ -2566,9 +2571,7 @@ function validateGraphStep(graphNode, graphSpan) {
     : [];
   const outputTypeIsValid = graphNode.data.outputType === null
     || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
-  const outputTypeSpanIsValid = graphNode.data.outputTypeSpan === undefined
-    || graphNode.data.outputTypeSpan === null
-    || isSpan(graphNode.data.outputTypeSpan);
+  const outputTypeSpanIsValid = isGraphOutputTypeSpanValid(graphNode.data.outputType, graphNode.data.outputTypeSpan);
   const effectsAreValid = isNonemptyStringArray(graphNode.data.effects);
   const requirementsAreValid = isNonemptyStringArray(graphNode.data.requirements);
   const checkpointsAreValid = isNonemptyStringArray(graphNode.data.checkpoints);
@@ -2606,6 +2609,13 @@ function validateGraphStep(graphNode, graphSpan) {
     retries_are_valid: retriesAreValid,
     memory_accesses_are_valid: memoryAccessesAreValid,
   });
+}
+
+function isGraphOutputTypeSpanValid(outputType, outputTypeSpan) {
+  if (outputType === null) {
+    return outputTypeSpan === null;
+  }
+  return typeof outputType === "string" && outputType.trim() !== "" && isSpan(outputTypeSpan);
 }
 
 function isGraphParameterRecord(value) {

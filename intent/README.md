@@ -255,7 +255,8 @@ Validation expectations:
   The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
   `targetSpan` values, and those values must match the source `Step` output
-  type/span and any declared target `Completion` output type/span. `requires`
+  type/span and the target `Completion` output type/span when declared, or the
+  target `Completion` span when no output type is declared. `requires`
   is valid only as `Input` to `Step` for step inputs or step-scoped `Check` to
   `Step` for step requirements. Step-input `requires` edges must match the source input
   name, type, owning step, and span; step-requirement `requires` edges must
@@ -387,9 +388,10 @@ Validation expectations:
   carry `title` as `null` or a non-empty string, `parameters` as an array of
   valid parameter records with non-empty `name` and `type` strings and valid
   spans, `outputType` as `null` or a non-empty string, and `outputTypeSpan` as
-  `null` or a valid span. Malformed Goal node payloads emit
-  `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
-  runtimes must not infer goal titles, inputs, output types, or provenance.
+  `null` only when `outputType` is `null` or a valid span when `outputType` is
+  non-empty. Malformed Goal node payloads emit `INTENT_GRAPH_GOAL_INVALID` and
+  make graph output non-executable because runtimes must not infer goal titles,
+  inputs, output types, or provenance.
 - Graph `Input` nodes are runtime data ports. Goal inputs and step inputs must
   carry `data.scope` as either `goal` or `step` and a non-empty `data.type`.
   Goal-scoped input nodes must supply their owning goal through exactly one
@@ -404,16 +406,18 @@ Validation expectations:
   `requirements`, `checkpoints`, `approvals`, `timeouts`, `retries`, and
   `memoryAccesses`. Each input must be a valid parameter record with non-empty
   `name` and `type` strings and a valid `span`; every memory access target must
-  be non-empty. `outputType` may be `null` or a non-empty string, and
-  `outputTypeSpan` may be `null` or a valid span. Malformed Step node payloads
-  emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable
-  because runtimes must not infer executable inputs, side effects, gates,
-  checkpoints, approvals, timeouts, retries, memory accesses, or output types.
+  be non-empty. `outputType` may be `null` or a non-empty string;
+  `outputTypeSpan` must be `null` when `outputType` is `null` and a valid span
+  when `outputType` is non-empty. Malformed Step node payloads emit
+  `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
+  runtimes must not infer executable inputs, side effects, gates, checkpoints,
+  approvals, timeouts, retries, memory accesses, or output types.
 - Graph `Completion` nodes carry runtime completion metadata. Completion node
-  data must carry `outputType` as `null` or a non-empty string
-  and `outputTypeSpan` as `null` or a valid span. Malformed Completion node
-  payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make graph output
-  non-executable. This runtime payload contract is separate from the existing
+  data must carry `outputType` as `null` or a non-empty string and
+  `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when
+  `outputType` is non-empty. Malformed Completion node payloads emit
+  `INTENT_GRAPH_COMPLETION_INVALID` and make graph output non-executable. This
+  runtime payload contract is separate from the existing
   completion-edge contract, which still requires `completes`, `produces`,
   `verifies`, and invariant `guards` edges.
 - Graph `Invariant` nodes are the next Phase 2 static-model milestone.

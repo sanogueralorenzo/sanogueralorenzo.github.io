@@ -348,7 +348,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["title", "parameters", "outputType"],
+              "required": ["title", "parameters", "outputType", "outputTypeSpan"],
               "additionalProperties": false,
               "properties": {
                 "title": {
@@ -628,7 +628,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"],
+              "required": ["inputs", "outputType", "outputTypeSpan", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"],
               "additionalProperties": false,
               "properties": {
                 "inputs": {
@@ -770,7 +770,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["outputType"],
+              "required": ["outputType", "outputTypeSpan"],
               "additionalProperties": false,
               "properties": {
                 "outputType": {
