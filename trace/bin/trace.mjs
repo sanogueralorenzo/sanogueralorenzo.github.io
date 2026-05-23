@@ -1592,6 +1592,7 @@ async function memoryReviewEntry(root, file, status) {
     decisions: section(content, "Decisions") ?? "Not recorded.",
     validation: section(content, "Validation") ?? "Not recorded.",
     risks: section(content, "Risks") ?? "No known open risks recorded.",
+    handoff: section(content, "Handoff") ?? "Not recorded.",
   };
 }
 
@@ -1707,6 +1708,7 @@ async function recallMemories(query) {
         decisions: entry.decisions,
         validation: entry.validation,
         risks: entry.risks,
+        handoff: entry.handoff,
       })),
     });
     return;
@@ -1735,6 +1737,7 @@ async function recallMemories(query) {
     appendRecallSection(lines, "Decisions", entry.decisions);
     appendRecallSection(lines, "Validation", entry.validation);
     appendRecallSection(lines, "Risks", entry.risks);
+    appendRecallSection(lines, "Handoff", entry.handoff);
     lines.push("");
   }
 
@@ -1832,6 +1835,7 @@ async function buildSearchIndex(root, files = null) {
       files: section(content, "Files") ?? "",
       validation: section(content, "Validation") ?? "",
       risks: section(content, "Risks") ?? "",
+      handoff: section(content, "Handoff") ?? "",
     };
     entries.push({
       ...entry,
@@ -1845,6 +1849,7 @@ async function buildSearchIndex(root, files = null) {
         entry.files,
         entry.validation,
         entry.risks,
+        entry.handoff,
       ].filter(Boolean).join("\n"),
     });
   }
@@ -2011,6 +2016,7 @@ function memoryRecord(memory) {
     files: sectionItems(memory, "Files", ["No files reported by git."]).map((file) => file.replace(/^`|`$/g, "")),
     validation: sectionItems(memory, "Validation", ["Not recorded."]),
     risks: sectionItems(memory, "Risks", ["No known open risks recorded."]),
+    handoff: sectionItems(memory, "Handoff", ["Not recorded."]),
   };
 }
 
@@ -2142,6 +2148,13 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
   const toolLines = await formatMemoryList(root, tools, "Not recorded.");
   const validation = await formatMemoryList(root, [overrides.validation, ...validations].filter(Boolean), "Not recorded.");
   const risk = await formatMemoryList(root, [overrides.risk, ...risks].filter(Boolean), "No known open risks recorded.");
+  const handoff = await formatMemoryList(root, handoffItems({
+    decisions,
+    validations: [overrides.validation, ...validations].filter(Boolean),
+    risks: [overrides.risk, ...risks].filter(Boolean),
+    files,
+    subject,
+  }), "Review this memory and the commit diff before changing related code.");
   const fileLines = formatFileList(files);
   const rawCheckpoint = {
     schema_version: "trace.checkpoint.v1",
@@ -2193,6 +2206,10 @@ ${validation}
 ## Risks
 
 ${risk}
+
+## Handoff
+
+${handoff}
 `;
 
   return { markdown, rawCheckpoint };
@@ -2387,7 +2404,7 @@ async function auditMemoryFiles(root) {
         reason: `expected ${relativePath(root, expected)}`,
       });
     }
-    for (const sectionName of ["Intent", "Summary", "Decisions", "Files", "Validation", "Risks"]) {
+    for (const sectionName of ["Intent", "Summary", "Decisions", "Files", "Validation", "Risks", "Handoff"]) {
       if (section(content, sectionName) == null) {
         invalidMemories.push({ file: relative, reason: `missing ${sectionName} section` });
       }
@@ -2874,6 +2891,31 @@ async function formatMemoryList(root, values, fallback = "Not recorded.") {
   }
 
   return lines.join("\n");
+}
+
+function handoffItems({ decisions, validations, risks, files, subject }) {
+  const items = [];
+  const latestDecision = compactMemoryItems(decisions).slice(0, MEMORY_SECTION_LIMIT).at(-1);
+  const latestValidation = compactMemoryItems(validations).slice(0, MEMORY_SECTION_LIMIT).at(-1);
+  const latestRisk = compactMemoryItems(risks).slice(0, MEMORY_SECTION_LIMIT).at(-1);
+
+  if (latestDecision) {
+    items.push(`Preserve the decision: ${latestDecision}`);
+  }
+  if (latestValidation) {
+    items.push(`Last known validation: ${latestValidation}`);
+  }
+  if (latestRisk) {
+    items.push(`Watch the open risk: ${latestRisk}`);
+  }
+  if (files.length > 0) {
+    items.push(`Relevant files: ${files.join(", ")}`);
+  }
+  if (items.length === 0) {
+    items.push(`Start from commit intent: ${subject}`);
+  }
+
+  return items;
 }
 
 async function conciseMemoryText(root, value) {

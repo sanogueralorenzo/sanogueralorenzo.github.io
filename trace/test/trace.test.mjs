@@ -36,6 +36,9 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(show.stdout, /## Responses\n\n- created a minimal text fixture/);
     assert.match(show.stdout, /## Tool Activity\n\n- git commit wrote app.txt/);
     assert.match(show.stdout, /node --test/);
+    assert.match(show.stdout, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
+    assert.match(show.stdout, /- Last known validation: node --test/);
+    assert.match(show.stdout, /- Relevant files: app.txt/);
 
     const search = await runTrace(repo, ["search", "reviewable"]);
     assert.match(search.stdout, /\.trace\/commits\//);
@@ -77,6 +80,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(recallJson.results[0].score, 3);
     assert.match(recallJson.results[0].decisions, /Use committed Markdown/);
     assert.match(recallJson.results[0].validation, /node --test/);
+    assert.match(recallJson.results[0].handoff, /Preserve the decision/);
 
     const fileRecall = await runTrace(repo, ["recall", "--files", "app.txt"]);
     assert.match(fileRecall.stdout, /Files: `app.txt`/);
@@ -249,10 +253,11 @@ test("record distills noisy raw sessions into compact memories", async () => {
     await runTrace(repo, ["record"]);
 
     const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
-    assert.equal((memory.match(/Keep the durable memory short/g) ?? []).length, 1);
+    assert.equal((sectionText(memory, "Decisions").match(/Keep the durable memory short/g) ?? []).length, 1);
     assert.match(memory, /long response detail .*\.{3}/);
     assert.match(memory, /2 more events omitted from this compact memory/);
     assert.doesNotMatch(memory, /risk seven/);
+    assert.match(memory, /## Handoff\n\n- Preserve the decision: Keep the durable memory short/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -359,6 +364,7 @@ test("check rejects malformed committed memory files", async () => {
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Created field"));
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Summary section"));
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Risks section"));
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Handoff section"));
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -414,6 +420,10 @@ missing commit memory
 ## Risks
 
 - No known open risks recorded.
+
+## Handoff
+
+- Review this memory and the commit diff before changing related code.
 `);
 
     const checked = await runTraceAllowFailure(repo, ["check"]);
@@ -1260,6 +1270,11 @@ async function gitWithEnv(cwd, args, env) {
   const result = await run(cwd, ["git", ...args], { ...fixedEnv, ...env });
   assert.equal(result.exitCode, 0, `git ${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return result;
+}
+
+function sectionText(markdown, name) {
+  const match = markdown.match(new RegExp(`^## ${name}\\n\\n([\\s\\S]*?)(?=\\n## |\\n?$)`, "m"));
+  return match?.[1] ?? "";
 }
 
 async function run(cwd, command, env = process.env, input = null) {
