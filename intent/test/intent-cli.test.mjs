@@ -84,6 +84,35 @@ function assertGraphEdgesResolve(graph) {
   }
 }
 
+function assertGraphAcyclic(graph) {
+  const outgoing = new Map(graph.nodes.map((node) => [node.id, []]));
+  for (const edge of graph.edges) {
+    outgoing.get(edge.from)?.push(edge.to);
+  }
+
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (nodeId, stack) => {
+    if (visiting.has(nodeId)) {
+      assert.fail(`graph cycle detected: ${[...stack, nodeId].join(" -> ")}`);
+    }
+    if (visited.has(nodeId)) {
+      return;
+    }
+
+    visiting.add(nodeId);
+    for (const target of outgoing.get(nodeId) ?? []) {
+      visit(target, [...stack, nodeId]);
+    }
+    visiting.delete(nodeId);
+    visited.add(nodeId);
+  };
+
+  for (const node of graph.nodes) {
+    visit(node.id, []);
+  }
+}
+
 function validateAgainst(schema, value, root, path, errors) {
   if (schema.$ref) {
     validateAgainst(resolveRef(root, schema.$ref), value, root, path, errors);
@@ -957,6 +986,31 @@ describe("intent static model CLI", () => {
 
     for (const fixture of validFixtures) {
       assertGraphEdgesResolve(runJson(["graph", fixture]));
+    }
+  });
+
+  it("emits acyclic execution graphs", () => {
+    const validFixtures = [
+      VALID_CODE_CHANGE,
+      VALID_CHECKPOINT_GRAPH,
+      VALID_CONTEXT_TRUST_GRAPH,
+      VALID_DEPLOY_TARGET,
+      VALID_DEPENDENCY_GRAPH,
+      VALID_GIT_COMMIT_MESSAGE,
+      VALID_GIT_PUSH_BRANCH,
+      VALID_INVARIANT_GUARD_GRAPH,
+      VALID_RESEARCH,
+      VALID_SECRET_READ,
+      VALID_STEP_APPROVAL_GRAPH,
+      VALID_STEP_POLICY_GRAPH,
+      VALID_STEP_REQUIREMENTS,
+      VALID_TICKET_UPDATE,
+      VALID_TRUST_FLOW_SHELL_LITERAL,
+      VALID_WEB_READ_WILDCARD,
+    ];
+
+    for (const fixture of validFixtures) {
+      assertGraphAcyclic(runJson(["graph", fixture]));
     }
   });
 
