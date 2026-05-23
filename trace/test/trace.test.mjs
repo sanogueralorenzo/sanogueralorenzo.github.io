@@ -1628,6 +1628,14 @@ test("session start creates and switches current lifecycle sessions", async () =
     assert.equal(currentAfterDecision.check.ok, true);
     assert.equal(currentAfterDecision.check.commitMemoryEvents, 1);
 
+    const strictCurrent = await runTraceAllowFailure(repo, ["session", "current", "--strict"]);
+    assert.equal(strictCurrent.exitCode, 1);
+    const strictCurrentPayload = JSON.parse(strictCurrent.stdout);
+    assert.equal(strictCurrentPayload.ok, false);
+    assert.equal(strictCurrentPayload.current, "task-auth-retry");
+    assert.equal(strictCurrentPayload.check.strict, true);
+    assert.equal(strictCurrentPayload.check.checks.find((check) => check.name === "intent").ok, false);
+
     const shown = JSON.parse((await runTrace(repo, ["session", "show", "task-auth-retry"])).stdout);
     assert.equal(shown.schema_version, "trace.session_detail.v1");
     assert.equal(shown.events.length, 2);

@@ -1463,13 +1463,17 @@ async function showCurrentSession() {
   const file = await sessionPath(root, current);
   try {
     const events = await readSessionEvents(root, current);
+    const check = await sessionCheck(root, current, events, { strict: args.strict });
     print({
-      ok: true,
+      ok: !args.strict || check.ok,
       schema_version: "trace.session_current.v1",
       current,
       summary: await sessionSummary(root, file),
-      check: await sessionCheck(root, current, events),
+      check,
     });
+    if (args.strict && !check.ok) {
+      process.exitCode = 1;
+    }
   } catch (error) {
     print({ ok: false, schema_version: "trace.session_current.v1", current, summary: null, check: null, error: error.message });
     process.exitCode = 1;
@@ -4060,7 +4064,7 @@ Usage:
   trace session start [session-id]
   trace session end [session-id]
   trace session list
-  trace session current
+  trace session current [--strict]
   trace session show <session> [--limit 20]
   trace session recap [session] [--field agents|lifecycle|intent|responses|tools|decisions|validation|risks|handoff|notes] [--limit 5] [--json] [--output FILE]
   trace session check [session] [--strict] [--json]
