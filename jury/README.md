@@ -6,9 +6,9 @@ It treats every important agent outcome as a claim that must survive challenge b
 
 ## Main Goal
 
-Jury's goal is to become the reusable decision boundary for agentic work: given an `Intent` goal, relevant `Precedent` memory, current evidence, and known risks, it produces a durable verdict that says whether the claim should be accepted, rejected, retried, or escalated to a human.
+Jury's goal is to become the reusable decision boundary for agentic work: given a claim, current evidence, required checks, known risks, and review objections, it produces a durable verdict that says whether the claim should be accepted, rejected, retried, or escalated to a human.
 
-It should keep going beyond a single review by making every verdict useful to the next run. Accepted verdicts become evidence of what good completion looked like. Rejected and retried verdicts become structured failure data that Precedent can learn from. Human-decision verdicts become explicit approval boundaries that future Intent goals can declare up front.
+It should keep going beyond a single review by making every verdict useful to the next run. Accepted verdicts become evidence of what good completion looked like. Rejected and retried verdicts become structured failure data. Human-decision verdicts make approval boundaries explicit instead of burying them in chat history.
 
 The long-term target is a shared review protocol that can sit behind code changes, research reports, deployments, incident response, autonomous tool use, and multi-agent workflows without being tied to one runtime.
 
@@ -23,20 +23,6 @@ Most agent systems have a weak completion boundary:
 - A risky action proceeds because no one asked the right objection.
 
 Jury turns completion into a verdict. Before a high-impact action proceeds, the system gathers claims, objections, evidence, reproductions, unresolved risks, and explicit waivers into one auditable record.
-
-## How It Fits With Intent And Precedent
-
-Jury is designed to work beside the other agent-first systems in this repository:
-
-- `Intent` defines the goal, permissions, invariants, verification requirements, and approval boundaries.
-- `Precedent` injects relevant lessons from prior agent runs so repeated mistakes are challenged earlier.
-- `Jury` decides whether the current claim has survived enough adversarial review to be accepted.
-
-Together, they form a loop:
-
-1. Intent states what the agent is allowed and required to do.
-2. Precedent reminds the agent what this repository has already learned.
-3. Jury challenges the final claim before the system treats it as true.
 
 ## Review Roles
 
@@ -137,8 +123,8 @@ claim "checkout fix is ready" {
 ```jury
 claim "deploy billing service" {
   proposer agent("release")
-  context intent_goal("deploy billing hotfix")
-  context precedent(scope: "service:billing")
+  context change_request("deploy billing hotfix")
+  context service("billing")
 
   require verifier("smoke_tests")
   require verifier("rollback_plan")
@@ -172,6 +158,7 @@ The first prototype should focus on code-change review because it has concrete e
 - Can verdicts become training data for better future critics?
 - What is the right threshold for requiring human approval?
 - How should Jury represent disagreement when two reviewers make defensible but incompatible claims?
+- Which verdict fields should remain stable enough for other systems to integrate later?
 
 ## Long-Term Vision
 
@@ -186,4 +173,4 @@ Instead of asking whether an agent sounds confident, a system can ask:
 - Who accepted those risks?
 - Can another agent or human audit the verdict later?
 
-If Intent is the contract and Precedent is the memory, Jury is the accountable decision boundary.
+The first version should stand on its own: a small, strict verdict system for claims, objections, evidence, waivers, and decisions. Future integrations can plug into that boundary after the core review model proves useful by itself.
