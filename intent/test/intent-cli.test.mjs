@@ -1689,6 +1689,35 @@ describe("intent static model CLI", () => {
     ]);
   });
 
+  it("validates graph plan edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
+        { id: "goal:demo:context:0", kind: "Context", label: "repo", span: testSpan(4) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
+        { from: "goal:demo:step:patch", to: "goal:demo", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "plans" },
+        { from: "goal:demo:context:0", to: "goal:demo:step:patch", kind: "plans" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_PLAN_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].from_kind, "Step");
+    assert.equal(diagnostics[0].to_kind, "Goal");
+    assert.equal(diagnostics[1].from_kind, "Goal");
+    assert.equal(diagnostics[1].to_kind, "Completion");
+    assert.equal(diagnostics[2].from_kind, "Context");
+    assert.equal(diagnostics[2].to_kind, "Step");
+    assert.deepEqual(diagnostics[2].supported_roles, [
+      { from_kind: "Goal", to_kind: "Step" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -2529,10 +2558,11 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
       ],
       edges: [
-        { from: "goal:demo:step:patch", to: "goal:demo:step:patch", kind: "plans" },
+        { from: "goal:other", to: "goal:demo:step:patch", kind: "plans" },
       ],
     });
 

@@ -2193,7 +2193,7 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (!["declares", "authorizes", "requests", "gates", "verifies"].includes(graphEdge.kind)) {
+  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
@@ -2210,6 +2210,9 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
   if (graphEdge.kind === "verifies") {
     return validateGraphVerifiesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
+  if (graphEdge.kind === "plans") {
+    return validateGraphPlansEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
   const isTypeAvailability = sourceNode?.kind === "Type" && targetNode?.kind === "Goal";
   const isMemoryOwnership = sourceNode?.kind === "Goal" && targetNode?.kind === "Memory";
   if (isTypeAvailability || isMemoryOwnership) {
@@ -2224,6 +2227,22 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
     supported_roles: [
       { from_kind: "Type", to_kind: "Goal" },
       { from_kind: "Goal", to_kind: "Memory" },
+    ],
+  });
+}
+
+function validateGraphPlansEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Goal" && targetNode?.kind === "Step") {
+    return null;
+  }
+  return error("INTENT_GRAPH_PLAN_INVALID", `plans edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Goal node to a Step node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Goal", to_kind: "Step" },
     ],
   });
 }
