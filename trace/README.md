@@ -55,6 +55,8 @@ The current CLI is intentionally small and local-first:
 trace init
 trace enable
 trace agent add codex
+trace agent add claude-code
+trace agent add gemini
 trace capture --event prompt --role user --message "why this change exists"
 trace record --validation "npm test"
 trace show HEAD
@@ -62,6 +64,7 @@ trace log
 trace search "auth retry"
 trace summary main..HEAD
 trace pr-body main..HEAD
+trace release-notes v1.0.0..HEAD
 trace checkpoint list
 trace checkpoint verify
 trace checkpoint push origin --dry-run
@@ -78,6 +81,8 @@ From a checkout, the same commands can be run without installing:
 node trace/bin/trace.mjs init
 node trace/bin/trace.mjs enable
 node trace/bin/trace.mjs agent add codex
+node trace/bin/trace.mjs agent add claude-code
+node trace/bin/trace.mjs agent add gemini
 node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
 node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
@@ -85,6 +90,7 @@ node trace/bin/trace.mjs log
 node trace/bin/trace.mjs search "auth retry"
 node trace/bin/trace.mjs summary main..HEAD
 node trace/bin/trace.mjs pr-body main..HEAD
+node trace/bin/trace.mjs release-notes v1.0.0..HEAD
 node trace/bin/trace.mjs checkpoint list
 node trace/bin/trace.mjs checkpoint verify
 node trace/bin/trace.mjs checkpoint push origin --dry-run
@@ -103,21 +109,29 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace ci <range>` is the CI gate for that model. It fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
 
-Agent integrations can start with the generic hook endpoint:
+`trace summary <range>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. PR and release text are generated views, not the canonical memory store.
+
+Agent integrations can use first-class adapters or the generic hook endpoint:
 
 ```shell
 printf '{"session_id":"abc","agent":"codex","prompt":"why this task exists"}' \
-  | trace hook agent prompt
+  | trace hook agent --adapter codex
+
+printf '{"hook_event_name":"UserPromptSubmit","prompt":"why this task exists"}' \
+  | trace hook agent --adapter claude-code
+
+printf '{"kind":"model_response","content":"implemented the requested change"}' \
+  | trace hook agent --adapter gemini
 ```
 
-The hook accepts JSON or plain text on stdin and records it into the local raw session store. Specific agent adapters can later translate Claude, Codex, Gemini, or other hook payloads into the same event shape without changing the memory format.
+The hook accepts JSON or plain text on stdin and records it into the local raw session store. The Codex, Claude Code, Gemini, and generic adapters normalize provider payloads into Trace lifecycle events: prompt, response, tool, decision, validation, risk, and note. Tool payloads are compacted into one-line activity entries, while full raw session data stays in the git common directory.
 
 `trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, and `--uninstall` removes it.
 
 `trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create small local adapter specs under `.trace/agents/`. The specs document the command an agent integration should call:
 
 ```shell
-trace hook agent --source codex
+trace hook agent --adapter codex
 ```
 
 This keeps the first version agent-agnostic while making the hook contract explicit and reviewable.

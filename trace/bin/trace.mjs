@@ -15,6 +15,7 @@ const HOOK_START = "# trace:start";
 const HOOK_END = "# trace:end";
 const AGENT_CONFIG_VERSION = "trace.agent.v1";
 const SUPPORTED_AGENTS = new Set(["codex", "claude-code", "gemini", "generic"]);
+const TRACE_EVENTS = ["prompt", "response", "tool", "decision", "validation", "risk", "note"];
 const command = process.argv[2] ?? "help";
 const subcommand = process.argv[3]?.startsWith("--") ? null : process.argv[3] ?? null;
 const rawArgs = process.argv.slice(subcommand ? 4 : 3);
@@ -105,6 +106,11 @@ async function main() {
 
   if (command === "pr-body" || command === "pr") {
     await summarizeRange(subcommand ?? args.range ?? defaultSummaryRange(), { prBody: true });
+    return;
+  }
+
+  if (command === "release-notes" || command === "release") {
+    await summarizeRange(subcommand ?? args.range ?? defaultSummaryRange(), { releaseNotes: true });
     return;
   }
 
@@ -545,9 +551,11 @@ function agentConfig(name) {
   return {
     schema_version: AGENT_CONFIG_VERSION,
     agent: name,
-    command: `trace hook agent --source ${name}`,
-    events: ["prompt", "decision", "validation", "risk", "note"],
+    adapter: name,
+    command: `trace hook agent --adapter ${name}`,
+    events: TRACE_EVENTS,
     stdin: "json-or-text",
+    output: "trace.event.v1 JSONL in git common dir",
   };
 }
 
@@ -573,6 +581,7 @@ async function listAgentConfigs(root) {
       const config = JSON.parse(await readFile(file, "utf8"));
       agents.push({
         agent: config.agent ?? entry.name.replace(/\.json$/, ""),
+        adapter: config.adapter ?? null,
         config: configPath,
         command: config.command ?? null,
         valid: config.schema_version === AGENT_CONFIG_VERSION,
@@ -599,6 +608,7 @@ async function appendEvent(root, input) {
     event: input.event,
     role: input.role,
     source: input.source ?? "manual",
+    adapter: input.adapter ?? null,
     message: await redact(root, input.message),
     created_at: now(),
   };
@@ -693,10 +703,28 @@ async function summarizeRange(range, options = {}) {
     }
   }
 
-  const title = options.prBody ? "Trace PR Summary" : "Trace Summary";
+  const title = options.releaseNotes ? "Trace Release Notes" : options.prBody ? "Trace PR Summary" : "Trace Summary";
   const lines = [`# ${title}`, "", `Range: \`${range}\``];
   if (memories.length === 0) {
     lines.push("", "No Trace memories found for this range.", "");
+  } else if (options.releaseNotes) {
+    lines.push("", "## Highlights", "");
+    appendReleaseHighlights(lines, memories);
+
+    lines.push("", "## Decisions", "");
+    appendMergedSection(lines, memories, "Decisions");
+
+    lines.push("", "## Changed Files", "");
+    appendMergedSection(lines, memories, "Files");
+
+    lines.push("", "## Validation", "");
+    appendMergedSection(lines, memories, "Validation");
+
+    lines.push("", "## Risks", "");
+    appendMergedSection(lines, memories, "Risks");
+
+    lines.push("", "## Commits", "");
+    appendCommitList(lines, memories);
   } else {
     lines.push("", "## Intent", "");
     for (const memory of memories) {
@@ -714,11 +742,7 @@ async function summarizeRange(range, options = {}) {
     appendMergedSection(lines, memories, "Risks");
 
     lines.push("", "## Commits", "");
-    for (const memory of memories) {
-      const sha = memory.match(/^Commit: `([^`]+)`/m)?.[1] ?? "unknown";
-      const intent = memory.match(/^## Intent\n\n([\s\S]*?)\n\n## /m)?.[1]?.trim() ?? "No intent recorded.";
-      lines.push(`- \`${sha.slice(0, 12)}\` ${firstLine(intent)}`);
-    }
+    appendCommitList(lines, memories);
     lines.push("", "## Review Notes", "", "Use `trace show <commit>` for the full memory attached to each commit.");
   }
 
@@ -764,19 +788,21 @@ async function hookAgent(values) {
   await ensureTrace(root);
   const raw = await readStdin();
   const payload = parseOptionalJson(raw);
-  const eventName = args.event ?? firstPositional(values) ?? payload?.event ?? payload?.hook ?? "agent";
-  const message = args.message ?? payloadMessage(payload) ?? raw;
+  const adapter = normalizeAdapterName(args.adapter ?? args.source ?? payload?.adapter ?? payload?.agent ?? payload?.source);
+  const eventName = normalizeAgentEvent(adapter, args.event ?? firstPositional(values), payload);
+  const message = args.message ?? agentPayloadMessage(adapter, eventName, payload) ?? raw;
   const role = args.role ?? payload?.role ?? inferRole(eventName);
-  const source = args.source ?? payload?.agent ?? payload?.source ?? "agent-hook";
+  const source = args.source ?? payload?.agent ?? payload?.source ?? adapter;
   const sessionId = args.session ?? payload?.session_id ?? payload?.sessionId;
   const event = await appendEvent(root, {
     sessionId,
     event: eventName,
     role,
     source,
+    adapter,
     message,
   });
-  print({ ok: true, session: event.session_id, event: event.event, source: event.source });
+  print({ ok: true, session: event.session_id, event: event.event, source: event.source, adapter: event.adapter });
 }
 
 async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
@@ -785,14 +811,19 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
   const events = sessionId ? await readSessionEvents(root, sessionId).catch(() => []) : [];
   const prompts = events.filter((event) => event.role === "user" || event.event === "prompt").map((event) => event.message).filter(Boolean);
   const decisions = events.filter((event) => event.event === "decision").map((event) => event.message).filter(Boolean);
+  const responses = events.filter((event) => event.event === "response" || event.role === "assistant").map((event) => event.message).filter(Boolean);
+  const tools = events.filter((event) => event.event === "tool").map((event) => event.message).filter(Boolean);
   const validations = events.filter((event) => event.event === "validation").map((event) => event.message).filter(Boolean);
   const risks = events.filter((event) => event.event === "risk").map((event) => event.message).filter(Boolean);
-  const notes = events.filter((event) => !["prompt", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
+  const notes = events.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
   const intent = await redact(root, overrides.intent ?? prompts.at(-1) ?? subject);
   const validation = await redact(root, overrides.validation ?? validations.at(-1) ?? "Not recorded.");
   const risk = await redact(root, overrides.risk ?? risks.at(-1) ?? "No known open risks recorded.");
-  const summary = notes.length > 0 ? (await Promise.all(notes.slice(-3).map(async (note) => `- ${await redact(root, note)}`))).join("\n") : `- ${await redact(root, subject)}`;
+  const summaryEvents = [...responses, ...tools, ...notes].slice(-3);
+  const summary = summaryEvents.length > 0 ? (await Promise.all(summaryEvents.map(async (note) => `- ${await redact(root, note)}`))).join("\n") : `- ${await redact(root, subject)}`;
   const decisionLines = decisions.length > 0 ? (await Promise.all(decisions.map(async (decision) => `- ${await redact(root, decision)}`))).join("\n") : "- Not recorded.";
+  const responseLines = responses.length > 0 ? (await Promise.all(responses.map(async (response) => `- ${await redact(root, response)}`))).join("\n") : "- Not recorded.";
+  const toolLines = tools.length > 0 ? (await Promise.all(tools.map(async (tool) => `- ${await redact(root, tool)}`))).join("\n") : "- Not recorded.";
   const fileLines = files.length > 0 ? files.map((file) => `- \`${file}\``).join("\n") : "- No files reported by git.";
   const rawCheckpoint = {
     schema_version: "trace.checkpoint.v1",
@@ -824,6 +855,14 @@ ${summary}
 ## Decisions
 
 ${decisionLines}
+
+## Responses
+
+${responseLines}
+
+## Tool Activity
+
+${toolLines}
 
 ## Files
 
@@ -1132,9 +1171,9 @@ Usage:
   trace init
   trace enable
   trace capture --event prompt --role user --message "why this change exists"
-  trace agent add <codex|claude-code|generic>
+  trace agent add <codex|claude-code|gemini|generic>
   trace agent list
-  trace agent remove <codex|claude-code|generic>
+  trace agent remove <codex|claude-code|gemini|generic>
   trace checkpoint list
   trace checkpoint verify
   trace checkpoint push [remote] [--dry-run]
@@ -1150,7 +1189,8 @@ Usage:
   trace search <query>
   trace summary [range]
   trace pr-body [range]
-  trace hook agent <event>
+  trace release-notes [range]
+  trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
   trace check
   trace status
   trace disable
@@ -1222,6 +1262,25 @@ function appendMergedSection(lines, memories, name) {
   }
 }
 
+function appendReleaseHighlights(lines, memories) {
+  for (const memory of memories) {
+    const summary = section(memory, "Summary");
+    const intent = section(memory, "Intent") ?? "No intent recorded.";
+    const value = summary && summary !== "- Not recorded." ? summary : intent;
+    for (const line of value.split("\n").map((entry) => entry.trim()).filter(Boolean).slice(0, 3)) {
+      lines.push(line.startsWith("- ") ? line : `- ${line}`);
+    }
+  }
+}
+
+function appendCommitList(lines, memories) {
+  for (const memory of memories) {
+    const sha = memory.match(/^Commit: `([^`]+)`/m)?.[1] ?? "unknown";
+    const intent = section(memory, "Intent") ?? "No intent recorded.";
+    lines.push(`- \`${sha.slice(0, 12)}\` ${firstLine(intent)}`);
+  }
+}
+
 function snippet(content, term) {
   const index = content.toLowerCase().indexOf(term.toLowerCase());
   if (index < 0) {
@@ -1246,6 +1305,83 @@ function validateRegex(pattern) {
   }
 }
 
+function normalizeAdapterName(value) {
+  const adapter = String(value ?? "generic").toLowerCase();
+  return SUPPORTED_AGENTS.has(adapter) ? adapter : "generic";
+}
+
+function normalizeAgentEvent(adapter, explicitEvent, payload) {
+  const candidate = explicitEvent
+    ?? payload?.event
+    ?? payload?.hook
+    ?? payload?.type
+    ?? payload?.kind
+    ?? payload?.hook_event_name
+    ?? payload?.hookEventName
+    ?? "note";
+  const normalized = String(candidate).toLowerCase().replaceAll("_", "-");
+
+  if (adapter === "claude-code") {
+    if (normalized === "userpromptsubmit" || normalized.includes("prompt")) {
+      return "prompt";
+    }
+    if (normalized === "pretooluse" || normalized === "posttooluse" || normalized.includes("tool")) {
+      return "tool";
+    }
+    if (normalized === "stop" || normalized === "subagentstop" || normalized.includes("assistant")) {
+      return "response";
+    }
+  }
+
+  if (adapter === "codex") {
+    if (normalized.includes("user") || normalized.includes("prompt") || normalized.includes("input")) {
+      return "prompt";
+    }
+    if (normalized.includes("assistant") || normalized.includes("response") || normalized.includes("output") || normalized.includes("completion")) {
+      return "response";
+    }
+    if (normalized.includes("tool") || normalized.includes("function")) {
+      return "tool";
+    }
+  }
+
+  if (adapter === "gemini") {
+    if (normalized.includes("user") || normalized.includes("prompt")) {
+      return "prompt";
+    }
+    if (normalized.includes("model") || normalized.includes("assistant") || normalized.includes("response") || normalized.includes("output")) {
+      return "response";
+    }
+    if (normalized.includes("tool") || normalized.includes("function")) {
+      return "tool";
+    }
+  }
+
+  return canonicalEventName(normalized);
+}
+
+function canonicalEventName(value) {
+  if (value.includes("prompt") || value.includes("user")) {
+    return "prompt";
+  }
+  if (value.includes("response") || value.includes("assistant") || value.includes("completion")) {
+    return "response";
+  }
+  if (value.includes("tool") || value.includes("function")) {
+    return "tool";
+  }
+  if (value.includes("decision")) {
+    return "decision";
+  }
+  if (value.includes("validation") || value.includes("test") || value.includes("check")) {
+    return "validation";
+  }
+  if (value.includes("risk") || value.includes("warning") || value.includes("error")) {
+    return "risk";
+  }
+  return TRACE_EVENTS.includes(value) ? value : "note";
+}
+
 function parseOptionalJson(raw) {
   const trimmed = raw.trim();
   if (!trimmed.startsWith("{")) {
@@ -1259,18 +1395,54 @@ function parseOptionalJson(raw) {
   }
 }
 
+function agentPayloadMessage(adapter, eventName, payload) {
+  if (!payload) {
+    return null;
+  }
+
+  if (eventName === "tool") {
+    return toolPayloadMessage(adapter, payload);
+  }
+
+  return payloadMessage(payload);
+}
+
+function toolPayloadMessage(adapter, payload) {
+  const toolName = payload.tool_name ?? payload.toolName ?? payload.name ?? payload.function_name ?? payload.functionName ?? "tool";
+  const input = payload.tool_input ?? payload.toolInput ?? payload.input ?? payload.arguments ?? payload.args ?? null;
+  const output = payload.tool_response ?? payload.toolResponse ?? payload.result ?? payload.output ?? payload.response ?? null;
+  const parts = [`${adapter} tool ${toolName}`];
+
+  if (input != null) {
+    parts.push(`input=${stringifyCompact(input)}`);
+  }
+
+  if (output != null) {
+    parts.push(`output=${stringifyCompact(output)}`);
+  }
+
+  return parts.join(" ");
+}
+
 function payloadMessage(payload) {
   if (!payload) {
     return null;
   }
 
-  for (const key of ["message", "prompt", "text", "summary", "response"]) {
+  for (const key of ["message", "prompt", "text", "summary", "response", "content", "output", "completion"]) {
     if (typeof payload[key] === "string" && payload[key].trim()) {
       return payload[key];
     }
   }
 
   return JSON.stringify(payload);
+}
+
+function stringifyCompact(value) {
+  if (typeof value === "string") {
+    return value.replace(/\s+/g, " ").trim();
+  }
+  return JSON.stringify(value);
 }
 
 function inferRole(eventName) {
