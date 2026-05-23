@@ -741,7 +741,15 @@ describe("intent static model CLI", () => {
     }), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "verifies" && edge.to.endsWith(":completion")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.to.endsWith(":completion")), true);
-    assert.equal(graph.edges.some((edge) => edge.kind === "produces" && edge.to.endsWith(":completion")), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "produces"
+        && edge.to.endsWith(":completion")
+        && edge.data.type === "VerifiedPatch"
+        && edge.data.sourceSpan.start.line === 41
+        && edge.data.sourceSpan.start.column === 36
+        && edge.data.targetSpan.start.line === 19
+        && edge.data.targetSpan.start.column === 55;
+    }), true);
   });
 
   it("emits step requirement checks as preconditions without completion verification edges", () => {

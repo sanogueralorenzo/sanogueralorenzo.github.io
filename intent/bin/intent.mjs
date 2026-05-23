@@ -1083,8 +1083,11 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     }));
     edges.push(edge(goalId, completionId, "completes"));
     if (lastStepId) {
+      const finalStep = goal.steps.at(-1);
       edges.push(edge(lastStepId, completionId, "produces", {
-        type: normalizeTypeRef(goal.steps.at(-1)?.outputType),
+        type: normalizeTypeRef(finalStep?.outputType),
+        sourceSpan: finalStep?.outputTypeSpan ?? finalStep?.span,
+        targetSpan: goal.outputTypeSpan ?? goal.span,
       }));
     }
 
