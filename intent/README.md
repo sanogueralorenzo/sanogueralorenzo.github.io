@@ -333,6 +333,14 @@ Validation expectations:
   `goal_complete`, `goal.completed`, or a bounded duration such as `30d`.
   Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
   the graph non-executable because runtime retention cannot be inferred.
+- Runtime memory ownership edge contracts are the next Phase 2 static-model
+  milestone. Every graph `Memory` node owned by a goal must have exactly one
+  incoming `declares` edge from its owning `Goal`. Missing, duplicate, or
+  wrong-Goal memory ownership `declares` edges emit
+  `INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make graph output non-executable;
+  malformed `Memory` node retention lifecycle data remains
+  `INTENT_GRAPH_MEMORY_INVALID`. This makes memory ownership explicit for
+  runtime recovery and provenance instead of relying only on id strings.
 - A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,
   cycles, missing authorization or approval edges, or invalid completion gates is
   malformed and must be rejected before execution.

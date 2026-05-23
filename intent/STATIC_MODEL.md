@@ -537,6 +537,14 @@ Next graph envelope validation milestone:
   `goal_complete`, `goal.completed`, or a bounded duration such as `30d`.
   Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
   the graph non-executable because runtimes must not infer retention policy.
+- Runtime memory ownership edge contracts are the next Phase 2 static-model
+  milestone. Every graph `Memory` node owned by a goal must have exactly one
+  incoming `declares` edge from its owning `Goal`. Missing, duplicate, or
+  wrong-Goal memory ownership `declares` edges emit
+  `INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make graph output non-executable;
+  malformed `Memory` node retention lifecycle data remains
+  `INTENT_GRAPH_MEMORY_INVALID`. This makes memory ownership explicit for
+  runtime recovery and provenance instead of relying only on id strings.
 - Runtime step policy metadata is part of graph validation. `Policy` nodes must
   carry `data.policyKind` as `timeout` or `retry`, non-empty `data.policy`, and
   non-empty `data.ownerStep`. Malformed step execution policy data emits
@@ -716,6 +724,8 @@ blocking diagnostics.
   non-empty string, and `data.outputTypeSpan` as `null` or a valid span.
 - Emit every goal-scoped `Input` node with exactly one outgoing `supplies` edge
   to its owning `Goal`.
+- Emit every goal-owned `Memory` node with exactly one incoming `declares` edge
+  from its owning `Goal`.
 - Emit every `Completion` node with `data.outputType` as `null` or a non-empty
   string and `data.outputTypeSpan` as `null` or a valid span.
 - Emit each invariant statement as an `Invariant` node with `data.assertion` set
@@ -1480,6 +1490,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_APPROVAL_INVALID`
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
+- `INTENT_GRAPH_MEMORY_DECLARE_INVALID`
 - `INTENT_GRAPH_POLICY_INVALID`
 - `INTENT_GRAPH_TYPE_INVALID`
 - `INTENT_GRAPH_GOAL_INVALID`
@@ -1992,6 +2003,9 @@ still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
+Graph validation emits `INTENT_GRAPH_MEMORY_DECLARE_INVALID` when a `Memory`
+node lacks exactly one incoming `declares` edge from its owning `Goal`, or when
+any incoming memory ownership `declares` edge is not from that owning `Goal`.
 Graph validation emits `INTENT_GRAPH_TYPE_INVALID` when a `Type` node omits
 `definition` data, or when `definition` is neither `null` nor a non-empty
 string representing the declared structural or alias body.
@@ -2040,9 +2054,10 @@ above, whose edge endpoint does not resolve inside the same payload, whose
 external `Context` source nodes lack required Capability authorization edges,
 whose `Capability` nodes omit valid runtime approval-policy data or valid
 ownership `authorizes` edges to their owning `Goal`, whose `Memory` nodes omit
-valid runtime retention lifecycle data, whose `Policy` nodes omit
-valid runtime step execution policy data, whose `Approval` nodes omit valid
-runtime step gate data, or whose required
+valid runtime retention lifecycle data or valid ownership `declares` edges from
+their owning `Goal`, whose `Policy` nodes omit valid runtime step execution
+policy data, whose `Approval` nodes omit valid runtime step gate data, or whose
+required
 execution, data, authorization, approval, guard, verification, completion, and
 step-attachment relationships fail graph validation. Blank envelope provenance
 emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge
@@ -2060,7 +2075,14 @@ and every retention rule to include non-empty `raw`, `subject.raw`, and
 `INTENT_GRAPH_MEMORY_INVALID` and is non-executable. Source checking still emits
 `INTENT_MEMORY_UNSCOPED` for memory blocks with no parsed retention rules and
 `INTENT_MEMORY_RETENTION_INVALID` for unsupported lifecycle targets before graph
-execution is considered.
+execution is considered. Each goal-owned `Memory` node must also have exactly
+one incoming `declares` edge from its owning `Goal`. Missing, duplicate, or
+wrong-Goal memory ownership `declares` edges emit
+`INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make the graph non-executable. This
+ownership contract is separate from memory payload validation:
+`INTENT_GRAPH_MEMORY_INVALID` remains the diagnostic for malformed retention
+lifecycle data. The `declares` edge makes memory ownership explicit for runtime
+recovery and provenance instead of relying only on id strings.
 
 Context nodes carry the same structured source call data as `ContextDecl`:
 `source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Runtime
