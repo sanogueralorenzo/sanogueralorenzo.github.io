@@ -168,6 +168,9 @@ describe("intent static model CLI", () => {
     assert.equal(ast.goals[0].context[0].source, "repo");
     assert.equal(ast.goals[0].context[0].args._0, "./");
     assert.equal(ast.goals[0].context[0].trust.zone, "trusted");
+    assert.equal(ast.goals[0].capabilities[0].grants[0].raw, "read path: \"./src/**\"");
+    assert.equal(ast.goals[0].capabilities[0].grants[0].span.file, VALID_CODE_CHANGE);
+    assert.equal(ast.goals[0].capabilities[0].grants[0].span.start.line, 20);
     assert.equal(ast.goals[0].span.file, VALID_CODE_CHANGE);
     assert.equal(ast.goals[0].span.start.line, 15);
   });
@@ -473,7 +476,9 @@ describe("intent static model CLI", () => {
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.trust.zone === "trusted"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Memory" && node.data.retentionRules[0].subject.raw === "summaries"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Check" && node.data.effect?.args.command === "npm test"), true);
-    assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => grant.value === "npm test")), true);
+    assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => {
+      return grant.value === "npm test" && grant.span?.start?.line === 27;
+    })), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "plans"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "gates"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to.includes(":verify:")), true);

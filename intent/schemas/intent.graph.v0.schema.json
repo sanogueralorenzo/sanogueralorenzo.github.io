@@ -100,7 +100,7 @@
     },
     "grant": {
       "type": "object",
-      "required": ["action", "key", "value", "raw"],
+      "required": ["action", "key", "value", "raw", "span"],
       "additionalProperties": false,
       "properties": {
         "action": {
@@ -114,6 +114,9 @@
         },
         "raw": {
           "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
         }
       }
     },

@@ -268,7 +268,7 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
         action: null,
         name,
         constraints: lines.map((line) => line.text),
-        grants: lines.map((line) => parseCapabilityGrant(line.text)).filter(Boolean),
+        grants: lines.map((line) => parseCapabilityGrant(line.text, lineSpan(file, line.lineNumber, line.raw))).filter(Boolean),
         approvalRequired: hasApprovalRequired(lines),
         span: span(file, startLine, 1, endLine, 1),
       };
@@ -414,7 +414,7 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
     action,
     name: normalized,
     constraints: [normalized],
-    grants: [parseCapabilityGrant(normalized)].filter(Boolean),
+    grants: [parseCapabilityGrant(normalized, lineSpan(file, lineNumber, raw))].filter(Boolean),
     approvalRequired: /\bapproval\s*:\s*required\b|\bapproval\s+required\b/.test(normalized),
     span: lineSpan(file, lineNumber, raw),
   };
@@ -1054,7 +1054,7 @@ function extractTypeNames(typeRef) {
   return [...typeRef.matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)].map((match) => match[0]);
 }
 
-function parseCapabilityGrant(text) {
+function parseCapabilityGrant(text, grantSpan) {
   const trimmed = text.trim();
   const match = trimmed.match(/^([a-z][a-z0-9_]*)\s+([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"$/);
   if (match) {
@@ -1063,6 +1063,7 @@ function parseCapabilityGrant(text) {
       key: match[2],
       value: match[3],
       raw: trimmed,
+      span: grantSpan,
     };
   }
 
@@ -1088,6 +1089,7 @@ function parseCapabilityGrant(text) {
         key,
         value,
         raw: trimmed,
+        span: grantSpan,
       };
     }
   }
