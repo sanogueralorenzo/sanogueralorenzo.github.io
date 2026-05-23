@@ -85,4 +85,4 @@ Regenerate the checked-in key-policy fixtures with `npm --prefix jury run fixtur
 
 [jury-package-manifest-check.yml](jury-package-manifest-check.yml) is a reusable workflow for release jobs. It runs `npm --prefix "$JURY_PACKAGE_DIR" run package:manifest:check` before publication, so CI rejects tarballs that omit `release.json`, `CI_ADOPTION.md`, supported workflow files, or the required package files in [../../PUBLISHING.md](../../PUBLISHING.md).
 
-[jury-npm-publish.yml](jury-npm-publish.yml) shows a release workflow where `dry-run-publication` has `needs: package-manifest`, uploads `jury-package-dry-run`, and `publish` downloads and verifies that artifact before the `NODE_AUTH_TOKEN` publish step runs `npm publish --provenance --access public`.
+[jury-npm-publish.yml](jury-npm-publish.yml) shows a release workflow where `dry-run-publication` has `needs: package-manifest`, uploads `jury-package-dry-run`, and `publish` downloads and verifies that artifact before the `NODE_AUTH_TOKEN` publish step runs `npm publish --provenance --access public`. The verification step writes the checked `packageVersion` and `tarballName` to `GITHUB_STEP_SUMMARY`.

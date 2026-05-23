@@ -450,6 +450,7 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.includes("jury-package-dry-run"));
   assert.ok(workflow.includes("jury-pack-dry-run.json"));
   assert.ok(workflow.includes("jury-pack-dry-run-record.json"));
+  assert.ok(workflow.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(workflow.includes("needs: package-manifest"));
   assert.ok(workflow.includes("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}"));
   assert.ok(workflow.indexOf("dry-run-publication:") < workflow.indexOf("publish:"));
@@ -461,7 +462,7 @@ test("release workflow requires package manifest before npm publication", async 
     'node -e \'const fs=require("node:fs"); const [pack]=JSON.parse(fs.readFileSync("jury-pack-dry-run.json","utf8")); fs.writeFileSync("jury-pack-dry-run-record.json", JSON.stringify({ packageVersion: pack.version, tarballName: pack.filename }, null, 2) + "\\n");\'',
   ]);
   assert.deepEqual(verifyCommands, [
-    'node -e \'const fs=require("node:fs"); const pkg=JSON.parse(fs.readFileSync("jury/package.json","utf8")); const record=JSON.parse(fs.readFileSync("jury-pack-dry-run-record.json","utf8")); const expectedTarball=`sanogueralorenzo-jury-${pkg.version}.tgz`; if (record.packageVersion !== pkg.version) throw new Error(`packageVersion ${record.packageVersion} did not match ${pkg.version}`); if (record.tarballName !== expectedTarball) throw new Error(`tarballName ${record.tarballName} did not match ${expectedTarball}`);\'',
+    'node -e \'const fs=require("node:fs"); const pkg=JSON.parse(fs.readFileSync("jury/package.json","utf8")); const record=JSON.parse(fs.readFileSync("jury-pack-dry-run-record.json","utf8")); const expectedTarball=`sanogueralorenzo-jury-${pkg.version}.tgz`; if (record.packageVersion !== pkg.version) throw new Error(`packageVersion ${record.packageVersion} did not match ${pkg.version}`); if (record.tarballName !== expectedTarball) throw new Error(`tarballName ${record.tarballName} did not match ${expectedTarball}`); if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Jury package dry-run\\n\\n- packageVersion: ${record.packageVersion}\\n- tarballName: ${record.tarballName}\\n`);\'',
   ]);
   assert.deepEqual(publishCommands, [
     'test -n "$NODE_AUTH_TOKEN"',
@@ -480,8 +481,13 @@ test("release workflow requires package manifest before npm publication", async 
       tarballName: "sanogueralorenzo-jury-0.1.0.tgz",
     });
 
-    const verify = await runShell(verifyCommands.join("\n"), checkout);
+    const summaryPath = join(checkout, "github-step-summary.md");
+    const verify = await runShell(verifyCommands.join("\n"), checkout, { ...fixedEnv, GITHUB_STEP_SUMMARY: summaryPath });
     assert.equal(verify.exitCode, 0, `${verifyCommands.join("\n")}\nstdout:\n${verify.stdout}\nstderr:\n${verify.stderr}`);
+    const summary = await readFile(summaryPath, "utf8");
+    assert.ok(summary.includes("### Jury package dry-run"));
+    assert.ok(summary.includes("- packageVersion: 0.1.0"));
+    assert.ok(summary.includes("- tarballName: sanogueralorenzo-jury-0.1.0.tgz"));
   } finally {
     await rm(checkout, { recursive: true, force: true });
   }
@@ -512,6 +518,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("dry-run-publication"));
   assert.ok(readme.includes("jury-package-dry-run"));
   assert.ok(readme.includes("NODE_AUTH_TOKEN"));
+  assert.ok(readme.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(readme.includes("npm publish --provenance --access public"));
 });
 
@@ -1114,6 +1121,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("jury-pack-dry-run-record.json"));
   assert.ok(publicationNotes.includes("jury-package-dry-run"));
   assert.ok(publicationNotes.includes("dry-run-publication"));
+  assert.ok(publicationNotes.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(publicationNotes.includes("packageVersion"));
   assert.ok(publicationNotes.includes("tarballName"));
   assert.ok(publicationNotes.includes("sanogueralorenzo-jury-0.1.0.tgz"));
@@ -2008,6 +2016,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("jury-pack-dry-run.json"));
   assert.ok(checklist.includes("jury-pack-dry-run-record.json"));
   assert.ok(checklist.includes("jury-package-dry-run"));
+  assert.ok(checklist.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(checklist.includes("packageVersion"));
   assert.ok(checklist.includes("tarballName"));
   assert.ok(checklist.includes("sanogueralorenzo-jury-0.1.0.tgz"));
@@ -2107,6 +2116,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package publication notes/);
   assert.match(handoff, /dry-run release publication checklist guidance/);
   assert.match(handoff, /dry-run publication artifact handoff/);
+  assert.match(handoff, /dry-run publication summary output/);
   assert.match(handoff, /stale dry-run artifact troubleshooting/);
   assert.match(handoff, /npm token and provenance release checklist guidance/);
   assert.match(handoff, /CI adoption metadata contract/);
@@ -2115,7 +2125,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /CI summary output for the verified dry-run publication record/);
+  assert.match(handoff, /release audit note that records who reviewed the dry-run package summary before publication/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
