@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
-import { mkdtemp, rm, readFile, writeFile, appendFile, cp, stat } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile, appendFile, cp, stat, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -296,6 +296,77 @@ test("signed producer workflow signs a live review bundle with an external key",
   }
 });
 
+test("signed artifact handoff workflow verifies a downloaded producer artifact", { skip: skipNestedCiAdoptionTests }, async () => {
+  const checkout = await copyJuryCheckout();
+  const secretDir = await tempState();
+
+  try {
+    const workflow = await readFile(join(checkout, "jury/examples/ci/jury-signed-artifact-handoff.yml"), "utf8");
+    const writeKeyCommands = extractWorkflowRunBlock(workflow, "Write Jury signing key");
+    const producerCommands = extractWorkflowRunBlock(workflow, "Build signed Jury artifact");
+    const commands = extractWorkflowRunBlock(workflow, "Verify downloaded Jury artifact");
+    const artifactDir = join(checkout, "jury-review-artifact");
+    const privateKeyPath = join(secretDir, "ci-private.pem");
+    const pair = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    const env = {
+      ...fixedEnv,
+      JURY_BUNDLE_PATH: "jury-review-artifact/review-bundle.signed.json",
+      JURY_KEY_POLICY_PATH: "jury/examples/ci/fixtures/key-policy/jury-key-policy.json",
+      JURY_STATE_DIR: ".jury-downstream",
+      JURY_VERDICT_OUT: "downstream-verdict.json",
+      JURY_GATE_OUT: "downstream-gate.json",
+      JURY_CLAIM_ID: "claim_ci_change",
+      JURY_CI_PRIVATE_KEY: pair.privateKey,
+      JURY_PRIVATE_KEY_PATH: privateKeyPath,
+      JURY_ATTESTATION_KEY_ID: "ci-fixture",
+    };
+
+    assert.ok(workflow.includes("needs: produce-signed-review"));
+    assert.ok(workflow.includes("actions/download-artifact@v4"));
+    assert.ok(workflow.includes("name: jury-signed-review"));
+    assert.ok(workflow.includes("path: jury-review-artifact"));
+    assert.ok(workflow.includes("--key-policy \"$JURY_KEY_POLICY_PATH\""));
+    assert.ok(workflow.includes("--require-attestation true"));
+    assert.ok(!workflow.includes("bundle preflight --bundle review-bundle.signed.json --key-policy"));
+
+    await writeFile(join(checkout, "jury/examples/ci/fixtures/key-policy/ci-public.pem"), pair.publicKey);
+
+    for (const command of writeKeyCommands) {
+      const result = await runShell(command, checkout, env);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    for (const command of producerCommands) {
+      const result = await runShell(command, checkout, env);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    await mkdir(artifactDir, { recursive: true });
+    await cp(join(checkout, "review-bundle.signed.json"), join(artifactDir, "review-bundle.signed.json"));
+
+    for (const command of commands) {
+      const result = await runShell(command, checkout, env);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    const importedVerdict = JSON.parse(await readFile(join(checkout, "downstream-verdict.json"), "utf8"));
+    const gate = JSON.parse(await readFile(join(checkout, "downstream-gate.json"), "utf8"));
+    assert.equal(importedVerdict.decision, "accept");
+    assert.equal(gate.ok, true);
+    assert.equal(gate.decision, "accept");
+  } finally {
+    await rm(secretDir, { recursive: true, force: true });
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
 test("trusted bundle workflow verifies and imports the signed key-policy fixture", { skip: skipNestedCiAdoptionTests }, async () => {
   const checkout = await copyJuryCheckout();
 
@@ -340,7 +411,9 @@ test("CI example README points to the copyable workflow and portable artifacts",
 
   assert.ok(readme.includes("jury-review-gate.yml"));
   assert.ok(readme.includes("jury-signed-review-gate.yml"));
+  assert.ok(readme.includes("jury-signed-artifact-handoff.yml"));
   assert.ok(readme.includes("jury-trusted-bundle-verify.yml"));
+  assert.ok(readme.includes("actions/download-artifact@v4"));
   assert.ok(readme.includes("secrets.JURY_CI_PRIVATE_KEY"));
   assert.ok(readme.includes("review-bundle.json"));
   assert.ok(readme.includes("review-bundle.signed.json"));
@@ -1529,6 +1602,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "QUICKSTART.md",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/jury-signed-review-gate.yml",
+    "examples/ci/jury-signed-artifact-handoff.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
     "MIGRATION.md",
@@ -1588,6 +1662,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "QUICKSTART.md",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/jury-signed-review-gate.yml",
+    "examples/ci/jury-signed-artifact-handoff.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
     "examples/ci/fixtures/key-policy",
@@ -1631,7 +1706,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
-  assert.match(handoff, /downloads signed producer artifacts/);
+  assert.match(handoff, /downloads the signed producer artifact/);
+  assert.match(handoff, /no longer trusts the producer metadata/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

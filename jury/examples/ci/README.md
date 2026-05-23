@@ -2,7 +2,7 @@
 
 Jury can run as a local, dependency-free CI gate. The state directory is disposable, while the emitted `verdict.json` can be uploaded as a build artifact.
 
-Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer.
+Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) when a second job should download and verify the signed artifact. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer.
 
 ```yaml
 name: Jury review gate
@@ -58,6 +58,10 @@ The gate exits non-zero unless the verdict is `accept`. When `--claim` is presen
 Use [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job should emit `review-bundle.signed.json` from the live CI state. Configure `JURY_CI_PRIVATE_KEY` as a repository or organization secret containing a PEM RSA private key. Optionally set `JURY_ATTESTATION_KEY_ID` as a repository variable so the downstream `jury-key-policy.json` can select the matching public key.
 
 The workflow writes the key to `$RUNNER_TEMP`, signs with `--attest-private-key`, runs `bundle preflight --require-attestation true`, removes the key in an `always()` cleanup step, and uploads only the signed bundle, verdict, gate output, and append-only state.
+
+## Artifact Handoff Workflow
+
+[jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) keeps producer and consumer jobs in one copyable workflow. The producer uploads `review-bundle.signed.json`; the downstream job uses `actions/download-artifact@v4`, verifies the downloaded bundle with `jury-key-policy.json`, imports the trusted state, and gates the imported verdict.
 
 ## Trusted Producer Handoff
 

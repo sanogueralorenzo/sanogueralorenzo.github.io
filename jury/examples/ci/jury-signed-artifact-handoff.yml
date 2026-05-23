@@ -1,0 +1,93 @@
+name: Jury signed artifact handoff
+
+on:
+  pull_request:
+
+jobs:
+  produce-signed-review:
+    runs-on: ubuntu-latest
+    env:
+      JURY_ATTESTATION_KEY_ID: ${{ vars.JURY_ATTESTATION_KEY_ID || 'ci-fixture' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run Jury tests
+        run: npm --prefix jury test
+      - name: Write Jury signing key
+        env:
+          JURY_CI_PRIVATE_KEY: ${{ secrets.JURY_CI_PRIVATE_KEY }}
+          JURY_PRIVATE_KEY_PATH: ${{ runner.temp }}/jury-ci-private.pem
+        run: |
+          test -n "$JURY_CI_PRIVATE_KEY"
+          printf '%s\n' "$JURY_CI_PRIVATE_KEY" > "$JURY_PRIVATE_KEY_PATH"
+          chmod 600 "$JURY_PRIVATE_KEY_PATH"
+      - name: Build signed Jury artifact
+        env:
+          JURY_PRIVATE_KEY_PATH: ${{ runner.temp }}/jury-ci-private.pem
+        run: |
+          node jury/bin/jury.mjs init --state-dir .jury
+          node jury/bin/jury.mjs claim create --state-dir .jury --id claim_ci_change --summary "pull request is ready" --scope jury --impact high
+          node jury/bin/jury.mjs claim transition --state-dir .jury --claim claim_ci_change --status screening
+          node jury/bin/jury.mjs claim transition --state-dir .jury --claim claim_ci_change --status in_review
+          node jury/bin/jury.mjs check add --state-dir .jury --id check_ci_tests --claim claim_ci_change --type verifier --summary "Jury tests must pass"
+          node jury/bin/jury.mjs evidence add --state-dir .jury --id ev_ci_tests --claim claim_ci_change --type command --command "npm --prefix jury test" --exit-code 0
+          node jury/bin/jury.mjs critic run --state-dir .jury --claim claim_ci_change --role tests
+          node jury/bin/jury.mjs critic run --state-dir .jury --claim claim_ci_change --role security
+          node jury/bin/jury.mjs critic run --state-dir .jury --claim claim_ci_change --role scope --changed-files jury/bin/jury.mjs,jury/test/jury.test.mjs
+          node jury/bin/jury.mjs check update --state-dir .jury --id check_ci_tests --status passed --evidence ev_ci_tests --resolution "Jury tests passed"
+          node jury/bin/jury.mjs judge --state-dir .jury --claim claim_ci_change --out verdict.json
+          node jury/bin/jury.mjs gate --state-dir .jury --claim claim_ci_change --verdict verdict.json --json > gate.json
+          node jury/bin/jury.mjs bundle export --state-dir .jury --claim claim_ci_change --out review-bundle.signed.json --attest-private-key "$JURY_PRIVATE_KEY_PATH" --attestation-key-id "$JURY_ATTESTATION_KEY_ID"
+          node jury/bin/jury.mjs bundle preflight --bundle review-bundle.signed.json --require-attestation true
+          node jury/bin/jury.mjs check --state-dir .jury --strict
+      - name: Remove Jury signing key
+        if: always()
+        env:
+          JURY_PRIVATE_KEY_PATH: ${{ runner.temp }}/jury-ci-private.pem
+        run: rm -f "$JURY_PRIVATE_KEY_PATH"
+      - name: Upload signed Jury artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jury-signed-review
+          path: |
+            verdict.json
+            review-bundle.signed.json
+            gate.json
+            .jury/*.jsonl
+
+  verify-signed-review:
+    runs-on: ubuntu-latest
+    needs: produce-signed-review
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download signed Jury artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: jury-signed-review
+          path: jury-review-artifact
+      - name: Verify downloaded Jury artifact
+        env:
+          JURY_BUNDLE_PATH: jury-review-artifact/review-bundle.signed.json
+          JURY_KEY_POLICY_PATH: jury/examples/ci/fixtures/key-policy/jury-key-policy.json
+          JURY_STATE_DIR: .jury-downstream
+          JURY_VERDICT_OUT: downstream-verdict.json
+          JURY_GATE_OUT: downstream-gate.json
+          JURY_CLAIM_ID: claim_ci_change
+        run: |
+          node jury/bin/jury.mjs bundle preflight --bundle "$JURY_BUNDLE_PATH" --key-policy "$JURY_KEY_POLICY_PATH"
+          node jury/bin/jury.mjs bundle import --state-dir "$JURY_STATE_DIR" --bundle "$JURY_BUNDLE_PATH" --key-policy "$JURY_KEY_POLICY_PATH" --verdict-out "$JURY_VERDICT_OUT"
+          node jury/bin/jury.mjs gate --state-dir "$JURY_STATE_DIR" --claim "$JURY_CLAIM_ID" --verdict "$JURY_VERDICT_OUT" --json > "$JURY_GATE_OUT"
+          node jury/bin/jury.mjs check --state-dir "$JURY_STATE_DIR" --strict
+      - name: Upload downstream Jury verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: jury-downstream-verification
+          path: |
+            downstream-verdict.json
+            downstream-gate.json
+            .jury-downstream/*.jsonl
