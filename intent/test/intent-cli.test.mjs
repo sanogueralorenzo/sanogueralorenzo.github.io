@@ -176,6 +176,14 @@ describe("intent static model CLI", () => {
     assert.equal(ast.goals[0].capabilities[0].grants[0].span.start.line, 20);
     assert.equal(ast.goals[0].span.file, VALID_CODE_CHANGE);
     assert.equal(ast.goals[0].span.start.line, 15);
+
+    const dependencyAst = runJson(["parse", VALID_DEPENDENCY_GRAPH]);
+    assert.equal(dependencyAst.goals[0].parameters[0].name, "request");
+    assert.equal(dependencyAst.goals[0].parameters[0].span.start.line, 19);
+    assert.equal(dependencyAst.goals[0].parameters[0].span.start.column, 30);
+    assert.equal(dependencyAst.goals[0].steps[0].parameters[0].name, "input");
+    assert.equal(dependencyAst.goals[0].steps[0].parameters[0].span.start.line, 37);
+    assert.equal(dependencyAst.goals[0].steps[0].parameters[0].span.start.column, 22);
   });
 
   it("accepts valid fixtures", () => {
@@ -551,6 +559,20 @@ describe("intent static model CLI", () => {
     assert.equal(kinds.has("Input"), true);
     assert.equal(kinds.has("Completion"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "GoalRequest"), true);
+    assert.equal(graph.nodes.some((node) => {
+      return node.kind === "Input"
+        && node.data.scope === "goal"
+        && node.label === "request"
+        && node.span.start.line === 19
+        && node.span.start.column === 30;
+    }), true);
+    assert.equal(graph.nodes.some((node) => {
+      return node.kind === "Input"
+        && node.data.scope === "step"
+        && node.label === "input"
+        && node.span.start.line === 37
+        && node.span.start.column === 22;
+    }), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Finding"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Patch"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "verifies" && edge.to.endsWith(":completion")), true);

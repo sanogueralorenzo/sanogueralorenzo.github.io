@@ -194,7 +194,7 @@ function parseGoal(header, bodyLines, file, startLine, endLine) {
     kind: "Goal",
     name: named ? named[1] : slugify(quoted[1]),
     title: named ? null : quoted[1],
-    parameters: named ? parseParameters(named[2], file, startLine) : [],
+    parameters: named ? parseParameters(named[2], file, startLine, header) : [],
     outputType: named && named[3] ? named[3].trim() : null,
     context: [],
     capabilities: [],
@@ -390,7 +390,7 @@ function parseStep(header, body, file, startLine, endLine) {
   return {
     kind: "Step",
     name: match[1],
-    parameters: parseParameters(match[2] ?? "", file, startLine),
+    parameters: parseParameters(match[2] ?? "", file, startLine, header),
     outputType: match[3] ? match[3].trim() : null,
     effects,
     requirements,
@@ -648,8 +648,9 @@ function validateGoalTypes(goal, declaredTypes, diagnostics) {
   const seenParameters = new Map();
   for (const parameter of goal.parameters) {
     if (seenParameters.has(parameter.name)) {
-      diagnostics.push(error("INTENT_NAME_DUPLICATE", `parameter '${parameter.name}' is already declared in goal '${goal.name}'.`, goal.span, {
+      diagnostics.push(error("INTENT_NAME_DUPLICATE", `parameter '${parameter.name}' is already declared in goal '${goal.name}'.`, parameter.span, {
         name: parameter.name,
+        previous_span: seenParameters.get(parameter.name).span,
       }));
     }
     seenParameters.set(parameter.name, parameter);
@@ -668,14 +669,15 @@ function validateGoalTypes(goal, declaredTypes, diagnostics) {
       stepNames.set(step.name, step);
     }
 
-    const parameterNames = new Set();
+    const parameterNames = new Map();
     for (const parameter of step.parameters) {
       if (parameterNames.has(parameter.name)) {
-        diagnostics.push(error("INTENT_NAME_DUPLICATE", `parameter '${parameter.name}' is already declared in step '${step.name}'.`, step.span, {
+        diagnostics.push(error("INTENT_NAME_DUPLICATE", `parameter '${parameter.name}' is already declared in step '${step.name}'.`, parameter.span, {
           name: parameter.name,
+          previous_span: parameterNames.get(parameter.name).span,
         }));
       }
-      parameterNames.add(parameter.name);
+      parameterNames.set(parameter.name, parameter);
       validateTypeRef(parameter.type, step.span, declaredTypes, diagnostics);
     }
     validateTypeRef(step.outputType, step.span, declaredTypes, diagnostics);
@@ -837,7 +839,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     const producersByType = new Map();
     for (const parameter of goal.parameters) {
       const inputId = `${goalId}:input:${parameter.name}`;
-      nodes.push(node(inputId, "Input", parameter.name, goal.span, {
+      nodes.push(node(inputId, "Input", parameter.name, parameter.span, {
         scope: "goal",
         type: parameter.type,
       }));
@@ -926,7 +928,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
       for (const parameter of step.parameters) {
         const stepInputId = `${id}:input:${parameter.name}`;
-        nodes.push(node(stepInputId, "Input", parameter.name, step.span, {
+        nodes.push(node(stepInputId, "Input", parameter.name, parameter.span, {
           scope: "step",
           type: parameter.type,
         }));
@@ -1093,19 +1095,24 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
   };
 }
 
-function parseParameters(text, file, lineNumber) {
+function parseParameters(text, file, lineNumber, rawLine = text) {
   if (!text.trim()) {
     return [];
   }
+  let searchColumn = 0;
   return text.split(",").map((part) => {
     const trimmed = part.trim();
     const match = trimmed.match(/^([a-z][a-z0-9_]*)(?:\s*:\s*([A-Za-z][A-Za-z0-9_<>, ]*))?$/);
     if (!match) {
       throw parseError(file, lineNumber, text, `invalid parameter '${trimmed}'`);
     }
+    const rawIndex = rawLine.indexOf(trimmed, searchColumn);
+    const startColumn = rawIndex >= 0 ? rawIndex + 1 : 1;
+    searchColumn = rawIndex >= 0 ? rawIndex + trimmed.length : searchColumn;
     return {
       name: match[1],
       type: match[2]?.trim() ?? null,
+      span: span(file, lineNumber, startColumn, lineNumber, startColumn + trimmed.length),
     };
   });
 }
