@@ -1884,6 +1884,17 @@ async function attachRuntime() {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "runtime_attach",
+      observedAt: new Date().toISOString(),
+      runtime,
+      sessionId,
+      identity: sessionIdentity,
+      task: taskSource.task,
+      taskFile: taskSource.taskFile,
+      scope: scope || null,
+      changedFiles,
+    });
   });
 
   print({
@@ -2278,6 +2289,7 @@ async function reportState() {
   const events = await readJsonLines(join(stateDir, "events.jsonl"));
   const replays = await readReplayCount(join(stateDir, "replays"));
   const replayAudit = await replayAuditEntries(precedents, stateDir);
+  const runtimeWiringHealth = await runtimeWiringHealthSummary(stateDir, events);
 
   const artifactCounts = {};
   for (const precedent of precedents) {
@@ -2296,6 +2308,7 @@ async function reportState() {
     replayAudit,
     candidateHintQueue: candidateHintQueue(candidates, precedents, stateDir),
     repairHealth: repairHealthSummary(events, precedents),
+    runtimeWiringHealth,
     precedentHealth: precedents.map((precedent) => ({
       id: precedent.id,
       ...outcomeSummaryForPrecedent(events, precedent.id),
@@ -2468,6 +2481,7 @@ async function checkState() {
   await checkReplayArtifacts(checks, join(stateDir, "replays"));
   await checkPromotedPrecedents(checks, stateDir);
   await checkRepairReceipts(checks, stateDir);
+  await checkRuntimeWiring(checks, stateDir, args.strict === true);
   await checkNoRawSecrets(checks, stateDir);
   await checkManifestBuilds(checks);
   if (args.strict) {
@@ -3357,6 +3371,77 @@ function repairHealthSummary(events, precedents) {
     staleByRepair: lifecycles.filter((lifecycle) => isRepairLifecycle(lifecycle, "stale")).length,
     retiredByRepair: lifecycles.filter((lifecycle) => isRepairLifecycle(lifecycle, "retired")).length,
   };
+}
+
+async function runtimeWiringHealthSummary(stateDir, events) {
+  const sessionEntries = await runtimeSessionEntries(stateDir);
+  const fallbackAttachments = events
+    .filter((event) => event.type === "runtime_attach" && event.identity?.fallback === true)
+    .map((event) => event.sessionId)
+    .filter(Boolean);
+  const missingEventIds = [];
+  const unclosedInjectedSessions = [];
+  const unattributedOutcomesAfterInjections = [];
+
+  for (const entry of sessionEntries) {
+    const hookEvents = entry.events.filter((event) => typeof event.hook === "string");
+    const injectedEvents = hookEvents.filter((event) => Array.isArray(event.injections) && event.injections.length > 0);
+    const outcomeEvents = hookEvents.filter((event) => event.hook === "outcome.after_task");
+
+    for (const event of hookEvents) {
+      if (!event.eventId) {
+        missingEventIds.push({
+          sessionId: entry.sessionId,
+          hook: event.hook,
+        });
+      }
+    }
+
+    if (injectedEvents.length > 0 && outcomeEvents.length === 0) {
+      unclosedInjectedSessions.push(entry.sessionId);
+    }
+
+    if (injectedEvents.length > 0 && outcomeEvents.some((event) =>
+      !Array.isArray(event.attributedPrecedents) || event.attributedPrecedents.length === 0
+    )) {
+      unattributedOutcomesAfterInjections.push(entry.sessionId);
+    }
+  }
+
+  return {
+    sessions: sessionEntries.length,
+    fallbackAttachments: uniqueStrings(fallbackAttachments).length,
+    missingEventIds: missingEventIds.length,
+    unclosedInjectedSessions: uniqueStrings(unclosedInjectedSessions).length,
+    unattributedOutcomesAfterInjections: uniqueStrings(unattributedOutcomesAfterInjections).length,
+    needsAttention: uniqueStrings(fallbackAttachments).length
+      + missingEventIds.length
+      + uniqueStrings(unclosedInjectedSessions).length
+      + uniqueStrings(unattributedOutcomesAfterInjections).length,
+    details: {
+      fallbackAttachments: uniqueStrings(fallbackAttachments),
+      missingEventIds: missingEventIds.slice(0, 20),
+      unclosedInjectedSessions: uniqueStrings(unclosedInjectedSessions).slice(0, 20),
+      unattributedOutcomesAfterInjections: uniqueStrings(unattributedOutcomesAfterInjections).slice(0, 20),
+    },
+  };
+}
+
+async function runtimeSessionEntries(stateDir) {
+  const entries = [];
+
+  for (const sessionFile of await jsonFiles(join(stateDir, "sessions"), ".jsonl")) {
+    const sessionId = sessionFile
+      .slice(join(stateDir, "sessions").length + 1)
+      .replace(/\.jsonl$/u, "");
+    entries.push({
+      sessionId,
+      file: sessionFile,
+      events: await readJsonLines(sessionFile),
+    });
+  }
+
+  return entries;
 }
 
 function eventTime(event) {
@@ -5478,6 +5563,23 @@ async function checkRepairReceipts(checks, stateDir) {
         : missingRetryEvidence.length > 0
           ? "resolved repair receipt lacks retry evidence"
           : undefined,
+  });
+}
+
+async function checkRuntimeWiring(checks, stateDir, strict) {
+  const events = await readJsonLines(join(stateDir, "events.jsonl"));
+  const health = await runtimeWiringHealthSummary(stateDir, events);
+  const fallbackSessions = health.details.fallbackAttachments;
+
+  checks.push({
+    ok: !strict || fallbackSessions.length === 0,
+    name: "runtime_wiring",
+    file: join(stateDir, "events.jsonl"),
+    strict,
+    ...health,
+    message: strict && fallbackSessions.length > 0
+      ? "runtime attach used task_hash_fallback identity; pass --session or --thread-id"
+      : undefined,
   });
 }
 

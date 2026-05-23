@@ -199,6 +199,64 @@ test("check fails for raw secret-like values in state", async () => {
   }
 });
 
+test("strict check fails runtime attach fallback identity", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await runJson([
+      "attach",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const runtimeCheck = payload.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(result.exitCode, 1);
+    assert.equal(runtimeCheck.ok, false);
+    assert.equal(runtimeCheck.fallbackAttachments, 1);
+    assert.match(runtimeCheck.message, /task_hash_fallback/u);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("strict check accepts stable runtime identity", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await runJson([
+      "attach",
+      "--state-dir",
+      stateDir,
+      "--thread-id",
+      "codex-thread-1",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+
+    const payload = await runJson(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const runtimeCheck = payload.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(payload.ok, true);
+    assert.equal(runtimeCheck.ok, true);
+    assert.equal(runtimeCheck.fallbackAttachments, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("check validates nested replay artifacts", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

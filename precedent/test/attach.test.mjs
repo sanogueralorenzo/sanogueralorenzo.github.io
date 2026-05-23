@@ -120,6 +120,11 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "--json",
     ]);
     assert.deepEqual(first.adapter.promotionTrial.output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.runtimeWiringHealth.fallbackAttachments, 1);
+    assert.equal(report.runtimeWiringHealth.needsAttention, 1);
+    assert.deepEqual(report.runtimeWiringHealth.details.fallbackAttachments, [first.sessionId]);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
