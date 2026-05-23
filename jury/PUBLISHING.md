@@ -126,6 +126,14 @@ npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-
 
 The exported `jury.package_release_archive_manifest.v1` manifest combines the failed publication identity, replacement patch identity, retention requirements, and artifact provenance into one file that can travel with the release record or incident archive.
 
+Before closing the release archive, verify the retained manifest against the archived evidence:
+
+```shell
+npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest retained-package-release-evidence-manifest.json
+```
+
+The verification fails if the manifest no longer matches the retained rollback audit, replacement audit, dry-run record, registry metadata, downstream gates, retention policy, or artifact provenance.
+
 Keep the promoted evidence until at least 180 days after replacement downstream verification passes. Do not delete the failed-version evidence when the replacement publishes; the replacement audit depends on the failed `packageVersion`, failed `tarballName`, deprecation evidence, downstream failure gate, source revision, and workflow run id to prove supersedence.
 
 ## npm Credentials and Provenance

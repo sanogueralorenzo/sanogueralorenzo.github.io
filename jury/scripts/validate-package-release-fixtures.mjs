@@ -20,6 +20,9 @@ const errors = [
   ...schemaErrors(schema, replacement, "replacement-patch-audit.json"),
   ...relationshipErrors(),
 ];
+if (args.verifyManifest) {
+  errors.push(...manifestVerificationErrors(await readJson(args.verifyManifest), args.verifyManifest));
+}
 
 if (errors.length > 0) {
   process.stderr.write(`${errors.join("\n")}\n`);
@@ -34,6 +37,7 @@ process.stdout.write(`${JSON.stringify({
   ok: true,
   schema: "schemas/package-release-evidence.schema.json",
   manifestOut: args.manifestOut ?? null,
+  verifiedManifest: args.verifyManifest ?? null,
   fixtures: [
     "rollback-audit.json",
     "replacement-patch-audit.json",
@@ -49,7 +53,7 @@ async function readJson(path) {
 }
 
 function parseArgs(argv) {
-  const parsed = { fixtureDir: null, manifestOut: null };
+  const parsed = { fixtureDir: null, manifestOut: null, verifyManifest: null };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -68,6 +72,15 @@ function parseArgs(argv) {
         fail("missing value for --manifest-out");
       }
       parsed.manifestOut = value;
+      index += 1;
+      continue;
+    }
+    if (arg === "--verify-manifest") {
+      const value = argv[index + 1];
+      if (!value) {
+        fail("missing value for --verify-manifest");
+      }
+      parsed.verifyManifest = value;
       index += 1;
       continue;
     }
@@ -400,6 +413,46 @@ function buildArchiveManifest() {
       artifacts: [...provenanceArtifacts.values()],
     },
   };
+}
+
+function manifestVerificationErrors(manifest, manifestPath) {
+  const expected = buildArchiveManifest();
+  const errors = [];
+  if (stableStringify(manifest) !== stableStringify(expected)) {
+    errors.push(`${manifestPath} does not match retained package release evidence`);
+  }
+  if (manifest.schema_version !== "jury.package_release_archive_manifest.v1") {
+    errors.push(`${manifestPath}.schema_version must equal jury.package_release_archive_manifest.v1`);
+  }
+  if (manifest.failed?.packageVersion !== failedRecord.packageVersion) {
+    errors.push(`${manifestPath}.failed.packageVersion must match failed dry-run record`);
+  }
+  if (manifest.failed?.tarballName !== failedRecord.tarballName) {
+    errors.push(`${manifestPath}.failed.tarballName must match failed dry-run record`);
+  }
+  if (manifest.replacement?.packageVersion !== replacement.replacement.packageVersion) {
+    errors.push(`${manifestPath}.replacement.packageVersion must match replacement audit`);
+  }
+  if (manifest.retention?.retainUntil !== rollback.retention.retainUntil) {
+    errors.push(`${manifestPath}.retention.retainUntil must match retained evidence policy`);
+  }
+  if (manifest.provenance?.runId !== rollback.retention.provenance.runId) {
+    errors.push(`${manifestPath}.provenance.runId must match retained evidence provenance`);
+  }
+  if (manifest.provenance?.sourceRevision !== rollback.retention.provenance.sourceRevision) {
+    errors.push(`${manifestPath}.provenance.sourceRevision must match retained evidence provenance`);
+  }
+  return errors;
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function fail(message) {

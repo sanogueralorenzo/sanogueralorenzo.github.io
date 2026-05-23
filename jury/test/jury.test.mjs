@@ -586,6 +586,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("retained artifact provenance"));
   assert.ok(readme.includes("source revision"));
   assert.ok(readme.includes("--manifest-out retained-package-release-evidence-manifest.json"));
+  assert.ok(readme.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
   assert.ok(readme.includes("NODE_AUTH_TOKEN"));
   assert.ok(readme.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(readme.includes("dry_run_reviewer"));
@@ -781,6 +782,7 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.ok(readme.includes("source revision"));
   assert.ok(readme.includes("retentionDays: 90"));
   assert.ok(readme.includes("--manifest-out retained-package-release-evidence-manifest.json"));
+  assert.ok(readme.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
   assert.ok(readme.includes("jury.package_release_archive_manifest.v1"));
   assert.ok(readme.includes("90-day artifact expiry"));
   assert.ok(readme.includes("180 days after replacement downstream verification passes"));
@@ -864,6 +866,9 @@ test("package release evidence fixtures cover rollback and replacement audits", 
     const manifestCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(ciPackageReleaseFixturesDir)} --manifest-out ${shellQuote(manifestPath)}`);
     assert.equal(manifestCheck.exitCode, 0, manifestCheck.stderr);
     assert.equal(JSON.parse(manifestCheck.stdout.slice(manifestCheck.stdout.indexOf("{"))).manifestOut, manifestPath);
+    const verifiedManifestCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(ciPackageReleaseFixturesDir)} --verify-manifest ${shellQuote(manifestPath)}`);
+    assert.equal(verifiedManifestCheck.exitCode, 0, verifiedManifestCheck.stderr);
+    assert.equal(JSON.parse(verifiedManifestCheck.stdout.slice(verifiedManifestCheck.stdout.indexOf("{"))).verifiedManifest, manifestPath);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
     assert.equal(manifest.schema_version, "jury.package_release_archive_manifest.v1");
@@ -887,6 +892,13 @@ test("package release evidence fixtures cover rollback and replacement audits", 
     assert.equal(manifest.provenance.runId, rollbackAudit.retention.provenance.runId);
     assert.equal(manifest.provenance.sourceRevision, rollbackAudit.retention.provenance.sourceRevision);
     assert.deepEqual(manifest.provenance.artifacts.map((artifact) => artifact.name), ["jury-package-dry-run", "jury-package-release-evidence"]);
+
+    manifest.provenance.runId = "different-release-run";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const invalidManifestCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(ciPackageReleaseFixturesDir)} --verify-manifest ${shellQuote(manifestPath)}`);
+    assert.equal(invalidManifestCheck.exitCode, 1);
+    assert.match(invalidManifestCheck.stderr, /retained-package-release-evidence-manifest\.json does not match retained package release evidence/);
+    assert.match(invalidManifestCheck.stderr, /retained-package-release-evidence-manifest\.json\.provenance\.runId must match retained evidence provenance/);
   } finally {
     await rm(manifestDir, { recursive: true, force: true });
   }
@@ -1460,6 +1472,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("run id"));
   assert.ok(publicationNotes.includes("retentionDays: 90"));
   assert.ok(publicationNotes.includes("--manifest-out retained-package-release-evidence-manifest.json"));
+  assert.ok(publicationNotes.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
   assert.ok(publicationNotes.includes("jury.package_release_archive_manifest.v1"));
   assert.ok(publicationNotes.includes("dry-run-publication"));
   assert.ok(publicationNotes.includes("package-release-fixtures"));
@@ -2493,6 +2506,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("workflow run and source revision"));
   assert.ok(checklist.includes("retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("--manifest-out retained-package-release-evidence-manifest.json"));
+  assert.ok(checklist.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("180 days after replacement downstream verification passes"));
   assert.ok(checklist.includes("package publication rollback evidence"));
   assert.ok(checklist.includes("fixtures:package-release:check"));
@@ -2607,6 +2621,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /Retained package release evidence manifest export is available/);
   assert.match(handoff, /jury\.package_release_archive_manifest\.v1/);
   assert.match(handoff, /--manifest-out retained-package-release-evidence-manifest\.json/);
+  assert.match(handoff, /--verify-manifest retained-package-release-evidence-manifest\.json/);
   assert.match(handoff, /retentionDays: 90/);
   assert.match(handoff, /source revision/);
   assert.match(handoff, /90 days/);
@@ -2635,7 +2650,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest verification for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest schema for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

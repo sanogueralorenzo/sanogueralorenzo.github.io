@@ -36,6 +36,7 @@ Run the fixture check after changing these files:
 ```shell
 npm --prefix jury run fixtures:package-release:check
 npm --prefix jury run fixtures:package-release:check -- --manifest-out retained-package-release-evidence-manifest.json
+npm --prefix jury run fixtures:package-release:check -- --verify-manifest retained-package-release-evidence-manifest.json
 ```
 
-The command validates `rollback-audit.json` and `replacement-patch-audit.json` against [../../../../schemas/package-release-evidence.schema.json](../../../../schemas/package-release-evidence.schema.json), then checks the fixture relationships that prove the replacement patch supersedes the failed publication. `--manifest-out` writes a `jury.package_release_archive_manifest.v1` file for the retained release archive, combining failed publication evidence, replacement patch evidence, retention requirements, and artifact provenance into one handoff manifest.
+The command validates `rollback-audit.json` and `replacement-patch-audit.json` against [../../../../schemas/package-release-evidence.schema.json](../../../../schemas/package-release-evidence.schema.json), then checks the fixture relationships that prove the replacement patch supersedes the failed publication. `--manifest-out` writes a `jury.package_release_archive_manifest.v1` file for the retained release archive, combining failed publication evidence, replacement patch evidence, retention requirements, and artifact provenance into one handoff manifest. `--verify-manifest` compares an archived manifest with the current retained evidence before maintainers close the failed release record.
