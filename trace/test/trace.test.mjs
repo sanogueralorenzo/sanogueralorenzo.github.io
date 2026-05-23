@@ -35,6 +35,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
 
     const dryRun = JSON.parse((await runTrace(repo, ["record", "--dry-run", "--check-session", "--validation", "node --test"])).stdout);
     assert.equal(dryRun.ok, true);
+    assert.equal(dryRun.schema_version, "trace.record_result.v1");
     assert.equal(dryRun.dryRun, true);
     assert.match(dryRun.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
     assert.equal(dryRun.sessionCheck.ok, true);
@@ -53,6 +54,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const payload = JSON.parse(record.stdout);
 
     assert.equal(payload.ok, true);
+    assert.equal(payload.schema_version, "trace.record_result.v1");
     assert.match(payload.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
     assert.equal(payload.sessionCheck.ok, true);
     assert.equal(payload.memoryPreview.schema_version, "trace.record_memory_preview.v1");

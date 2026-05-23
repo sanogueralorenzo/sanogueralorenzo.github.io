@@ -2238,6 +2238,7 @@ async function recordMemory() {
   if (args["dry-run"]) {
     const output = {
       ok: true,
+      schema_version: "trace.record_result.v1",
       dryRun: true,
       commit: sha,
       memory: relativePath(root, memoryPath),
@@ -2258,6 +2259,7 @@ async function recordMemory() {
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
   const output = {
     ok: true,
+    schema_version: "trace.record_result.v1",
     commit: sha,
     memory: relativePath(root, memoryPath),
     checkpoint: checkpointId,
