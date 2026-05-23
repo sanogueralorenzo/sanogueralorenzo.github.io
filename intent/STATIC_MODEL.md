@@ -378,7 +378,7 @@ Next graph envelope validation milestone:
   raw `data.retention` as an array and structured `data.retentionRules` as a
   non-empty array. Every structured retention rule must include non-empty `raw`,
   `subject.raw`, and `until.raw` strings, and `until.raw` must be one of
-  `goal_complete`, `goal.completed`, `manual_review`, `ttl`, or `session_end`.
+  `goal_complete`, `goal.completed`, or a bounded duration such as `30d`.
   Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
   the graph non-executable because runtimes must not infer retention policy.
 - A malformed graph envelope, including an envelope with unsupported versions
@@ -882,7 +882,8 @@ Rules:
 - A memory block with no parsed retention entries emits
   `INTENT_MEMORY_UNSCOPED`.
 - Supported runtime lifecycle targets are `goal_complete`, `goal.completed`,
-  `manual_review`, `ttl`, and `session_end`.
+  or bounded durations written as positive integers with `s`, `m`, `h`, or `d`
+  units, such as `30d`.
 - A malformed `retain` line or unsupported lifecycle target emits
   `INTENT_MEMORY_RETENTION_INVALID`.
 - Retention entries are checker-owned lifecycle data, not opaque comments.
@@ -1657,7 +1658,7 @@ parsed from `retain ... until ...` lines. Runtime validation requires
 `data.retention` to be an array, `data.retentionRules` to be a non-empty array,
 and every retention rule to include non-empty `raw`, `subject.raw`, and
 `until.raw` strings. The supported graph lifecycle values are `goal_complete`,
-`goal.completed`, `manual_review`, `ttl`, and `session_end`. A graph with a
+`goal.completed`, or bounded durations such as `30d`. A graph with a
 `Memory` node that omits or malforms those lifecycle fields emits
 `INTENT_GRAPH_MEMORY_INVALID` and is non-executable. Source checking still emits
 `INTENT_MEMORY_UNSCOPED` for memory blocks with no parsed retention rules and

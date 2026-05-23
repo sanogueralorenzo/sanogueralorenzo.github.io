@@ -159,7 +159,7 @@ Validation expectations:
   `data.retention` as an array and structured `data.retentionRules` as a
   non-empty array. Each retention rule must include non-empty `raw`,
   `subject.raw`, and `until.raw` strings, and `until.raw` must be one of
-  `goal_complete`, `goal.completed`, `manual_review`, `ttl`, or `session_end`.
+  `goal_complete`, `goal.completed`, or a bounded duration such as `30d`.
   Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
   the graph non-executable because runtime retention cannot be inferred.
 - A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,

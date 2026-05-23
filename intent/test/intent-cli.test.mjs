@@ -112,6 +112,14 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Capability") {
     return { family: "synthetic", action: null, grants: [], approvalPolicy: "none", ...normalizedData };
   }
+  if (kind === "Memory") {
+    return {
+      scope: "session",
+      retention: ["retain evidence until goal_complete"],
+      retentionRules: [{ raw: "retain evidence until goal_complete", subject: { raw: "evidence" }, until: { raw: "goal_complete" } }],
+      ...normalizedData,
+    };
+  }
   if (kind === "Check" && isPlainObject(normalizedData.effect)) {
     return {
       ...normalizedData,
@@ -1492,6 +1500,37 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_CAPABILITY_INVALID");
     assert.equal(diagnostics[2].family, "   ");
     assert.equal(diagnostics[2].family_is_nonempty, false);
+  });
+
+  it("validates graph memory retention diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "memory:missing-retention", kind: "Memory", label: "missing retention", span: testSpan(1), data: { retention: null } },
+        { id: "memory:empty-rules", kind: "Memory", label: "empty rules", span: testSpan(2), data: { retentionRules: [] } },
+        {
+          id: "memory:bad-rule",
+          kind: "Memory",
+          label: "bad rule",
+          span: testSpan(3),
+          data: { retentionRules: [{ raw: "retain evidence until forever", subject: { raw: "evidence" }, until: { raw: "forever" } }] },
+        },
+      ],
+      edges: [],
+    });
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_MEMORY_INVALID");
+    assert.equal(diagnostics[0].memory_id, "memory:missing-retention");
+    assert.equal(diagnostics[0].retention_is_array, false);
+    assert.equal(diagnostics[0].retention_rules_is_array, true);
+    assert.equal(diagnostics[0].retention_rules_nonempty, true);
+    assert.deepEqual(diagnostics[0].invalid_retention_indexes, []);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_MEMORY_INVALID");
+    assert.equal(diagnostics[1].retention_is_array, true);
+    assert.equal(diagnostics[1].retention_rules_nonempty, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_MEMORY_INVALID");
+    assert.deepEqual(diagnostics[2].invalid_retention_indexes, [0]);
   });
 
   it("validates graph step input binding diagnostics", () => {

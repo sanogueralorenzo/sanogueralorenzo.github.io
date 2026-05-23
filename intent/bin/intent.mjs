@@ -1334,6 +1334,10 @@ function validateGraph(graph, options = {}) {
     if (capabilityDiagnostic) {
       diagnostics.push(capabilityDiagnostic);
     }
+    const memoryDiagnostic = validateGraphMemory(graphNode, graphSpan);
+    if (memoryDiagnostic) {
+      diagnostics.push(memoryDiagnostic);
+    }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
       diagnostics.push(trustDiagnostic);
@@ -1701,6 +1705,45 @@ function validateGraphCapability(graphNode, graphSpan) {
     grants_is_array: grantsIsArray,
     approval_policy_is_valid: approvalPolicyIsValid,
   });
+}
+
+function validateGraphMemory(graphNode, graphSpan) {
+  if (graphNode.kind !== "Memory") {
+    return null;
+  }
+  const retentionIsArray = Array.isArray(graphNode.data.retention);
+  const retentionRulesIsArray = Array.isArray(graphNode.data.retentionRules);
+  const retentionRulesNonempty = retentionRulesIsArray && graphNode.data.retentionRules.length > 0;
+  const invalidRetentionIndexes = retentionRulesIsArray
+    ? graphNode.data.retentionRules
+        .map((retentionRule, retentionIndex) => isGraphRetentionRuleRecord(retentionRule) ? null : retentionIndex)
+        .filter((retentionIndex) => retentionIndex !== null)
+    : [];
+  if (retentionIsArray && retentionRulesNonempty && invalidRetentionIndexes.length === 0) {
+    return null;
+  }
+  return error("INTENT_GRAPH_MEMORY_INVALID", `memory '${graphNode.label}' must carry valid retention lifecycle data.`, graphNode.span ?? graphSpan, {
+    memory: graphNode.label,
+    memory_id: graphNode.id,
+    scope: typeof graphNode.data.scope === "string" ? graphNode.data.scope : null,
+    retention_is_array: retentionIsArray,
+    retention_rules_is_array: retentionRulesIsArray,
+    retention_rules_nonempty: retentionRulesNonempty,
+    invalid_retention_indexes: invalidRetentionIndexes,
+  });
+}
+
+function isGraphRetentionRuleRecord(value) {
+  return isPlainObject(value)
+    && typeof value.raw === "string"
+    && value.raw.trim() !== ""
+    && isPlainObject(value.subject)
+    && typeof value.subject.raw === "string"
+    && value.subject.raw.trim() !== ""
+    && isPlainObject(value.until)
+    && typeof value.until.raw === "string"
+    && value.until.raw.trim() !== ""
+    && isSupportedRetentionUntil(value.until.raw);
 }
 
 function validateGraphNodeTrust(graphNode, graphSpan) {
