@@ -64,3 +64,5 @@ Copy [fixtures/key-policy](fixtures/key-policy) into the downstream job workspac
 ```
 
 In production, keep the private signing key only in the producing job. The downstream job needs the signed bundle, `jury-key-policy.json`, and the public key referenced by the policy.
+
+Regenerate the checked-in key-policy fixtures with `npm --prefix jury run fixtures:key-policy`; CI can enforce drift with `npm --prefix jury run fixtures:key-policy:check`.

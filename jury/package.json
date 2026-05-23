@@ -9,6 +9,8 @@
   "scripts": {
     "check": "node bin/jury.mjs check --strict",
     "demo": "node bin/jury.mjs demo code-change",
+    "fixtures:key-policy": "node scripts/generate-key-policy-fixtures.mjs",
+    "fixtures:key-policy:check": "node scripts/generate-key-policy-fixtures.mjs --check",
     "test": "node --test test/*.test.mjs"
   }
 }

@@ -19,3 +19,15 @@ node jury/bin/jury.mjs bundle import --state-dir .jury-key-policy-imported --bun
 ```
 
 The private signing key is not included. These fixtures are for downstream verification and policy wiring.
+
+Regenerate the signed fixture artifacts:
+
+```shell
+npm --prefix jury run fixtures:key-policy
+```
+
+Check fixture drift without writing files:
+
+```shell
+npm --prefix jury run fixtures:key-policy:check
+```

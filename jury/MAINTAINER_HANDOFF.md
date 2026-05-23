@@ -41,4 +41,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add fixture generation automation so signed key-policy examples can be regenerated without manually creating temporary keys.
+Add a reusable workflow snippet that runs `fixtures:key-policy:check` in CI.

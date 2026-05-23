@@ -261,6 +261,8 @@ test("key policy CI fixtures verify and import a signed review bundle", async ()
     assert.match(publicKey, /BEGIN PUBLIC KEY/);
     assert.ok(readme.includes("bundle preflight --bundle"));
     assert.ok(readme.includes("bundle import --state-dir"));
+    assert.ok(readme.includes("fixtures:key-policy"));
+    assert.ok(readme.includes("fixtures:key-policy:check"));
 
     const preflight = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", policyPath]);
     const preflightPayload = JSON.parse(preflight.stdout);
@@ -289,6 +291,16 @@ test("key policy CI fixtures verify and import a signed review bundle", async ()
     assert.equal(copiedPreflight.exitCode, 0, copiedPreflight.stderr);
     assert.equal(JSON.parse(copiedPreflight.stdout).key_policy.considered_keys[0].status, "verified");
     assert.equal(copiedImport.exitCode, 0, copiedImport.stderr);
+
+    const driftCheck = await runShell("npm --prefix jury run fixtures:key-policy:check", repoRoot, {
+      ...fixedEnv,
+      GITHUB_REPOSITORY: "owner/repo",
+      GITHUB_SHA: "abc123",
+      GITHUB_WORKFLOW: "CI",
+      GITHUB_RUN_ID: "1",
+    });
+    assert.equal(driftCheck.exitCode, 0, driftCheck.stderr);
+    assert.match(driftCheck.stdout, /key-policy fixtures are in sync/);
   } finally {
     await rm(stateDir, { recursive: true, force: true });
     await rm(downstreamDir, { recursive: true, force: true });
@@ -1445,7 +1457,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /revoked_at/);
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
-  assert.match(handoff, /fixture generation automation/);
+  assert.match(handoff, /fixtures:key-policy:check/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

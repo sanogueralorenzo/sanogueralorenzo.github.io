@@ -134,6 +134,6 @@
     "type": "rsa-sha256",
     "key_id": "ci-fixture",
     "signed_at": "2026-05-23T00:00:00.000Z",
-    "signature": "ijA/ZCvGPWwQgPhSYygAIlAn+WsVlKVEnBFbOc4WEn2TjymULsiiwnvUBz18E/RNelqJ99nSz/nhsuGpbcpVRk1WkESPhASLE+GqDRpwlkMJM7twF8VWNGE8fvSC+A1XwwyXO9LHft8hqmCwAXsqCPOOkIKLrDg7EPCVJ52RCYTpxvn2t+FvdRi2gYttvJ/Ad9L/MlZRfNCuD79pWTpZzPXRC8EU+JcFV0ZCdxTv6VhsW83msjUElDH0n7m2rGby9d+9R8EcE5YX3kbh9PqAbQyVUrORIFxM83Znh51UqOYM/G2Y2X0zHYHSO7bZt/GmupITLoev5Sw3dakCInFocQ=="
+    "signature": "ZnzkW63eyqrfQtwyUlbLGXoVBKmBqHbCBFoCezcunnTOmX6vILGyMzN8srj5ZMet2VTpwHWgJUs5kpBMhgPKcwWTVi9Zu1BDR4JHuoYjWuws6kuYHx9a6qHFNibDjBr8y4TmCgYMdWkTKqU3QXjKWpSY6u/KtoDN9gENNGPLjcE="
   }
 }
