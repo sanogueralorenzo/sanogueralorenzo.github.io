@@ -47,6 +47,54 @@
       "expected": "- Apple\n- Milk"
     },
     {
+      "name": "clean model output converts spoken digit sequence with commas",
+      "input": "the code is one, two, three",
+      "bulletMode": false,
+      "expected": "The code is 123"
+    },
+    {
+      "name": "clean model output converts spoken digit sequence without commas",
+      "input": "call one two three four five",
+      "bulletMode": false,
+      "expected": "Call 12345"
+    },
+    {
+      "name": "clean model output converts spoken cardinal number",
+      "input": "set it to three hundred twenty one",
+      "bulletMode": false,
+      "expected": "Set it to 321"
+    },
+    {
+      "name": "clean model output converts cardinal number with and",
+      "input": "set it to one hundred and five",
+      "bulletMode": false,
+      "expected": "Set it to 105"
+    },
+    {
+      "name": "clean model output converts two-word cardinal number",
+      "input": "set it to twenty one",
+      "bulletMode": false,
+      "expected": "Set it to 21"
+    },
+    {
+      "name": "clean model output does not convert single number word in prose",
+      "input": "one more thing",
+      "bulletMode": false,
+      "expected": "One more thing"
+    },
+    {
+      "name": "clean model output does not convert ambiguous mixed spoken number phrase",
+      "input": "the code is one twenty three",
+      "bulletMode": false,
+      "expected": "The code is one twenty three"
+    },
+    {
+      "name": "clean model output does not convert trailing digit after cardinal phrase",
+      "input": "the code is twenty one five",
+      "bulletMode": false,
+      "expected": "The code is twenty one five"
+    },
+    {
       "name": "clean model output returns empty for blank input",
       "input": "   ",
       "bulletMode": false,

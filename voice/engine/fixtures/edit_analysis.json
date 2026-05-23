@@ -17,6 +17,27 @@
       "expectedStrictEditCommand": true
     },
     {
+      "name": "undo command is delete all intent",
+      "instruction": "undo",
+      "expectedNormalizedInstruction": "undo",
+      "expectedIntent": "DELETE_ALL",
+      "expectedStrictEditCommand": true
+    },
+    {
+      "name": "fix command is strict replace intent",
+      "instruction": "fix milk to oat milk",
+      "expectedNormalizedInstruction": "fix milk to oat milk",
+      "expectedIntent": "REPLACE",
+      "expectedStrictEditCommand": true
+    },
+    {
+      "name": "polite remove command is strict general edit",
+      "instruction": "please remove milk",
+      "expectedNormalizedInstruction": "remove milk",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": true
+    },
+    {
       "name": "replace correction prefers final replacement",
       "instruction": "replace milk with oat milk no, make it almond milk",
       "expectedNormalizedInstruction": "replace milk with almond milk",
@@ -41,6 +62,13 @@
       "name": "general rewrite request is not strict",
       "instruction": "make this professional",
       "expectedNormalizedInstruction": "make this professional",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
+    },
+    {
+      "name": "loose scratch that is not strict",
+      "instruction": "scratch that",
+      "expectedNormalizedInstruction": "scratch that",
       "expectedIntent": "GENERAL",
       "expectedStrictEditCommand": false
     }

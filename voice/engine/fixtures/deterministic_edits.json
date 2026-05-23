@@ -18,6 +18,36 @@
       }
     },
     {
+      "name": "clear all remove all variant",
+      "sourceText": "Buy milk and eggs",
+      "instruction": "remove all",
+      "expected": {
+        "output": "",
+        "applied": true,
+        "intent": "DELETE_ALL",
+        "scope": "ALL",
+        "commandKind": "CLEAR_ALL",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "clear all start over variant",
+      "sourceText": "Buy milk and eggs",
+      "instruction": "start over",
+      "expected": {
+        "output": "",
+        "applied": true,
+        "intent": "DELETE_ALL",
+        "scope": "ALL",
+        "commandKind": "CLEAR_ALL",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
       "name": "no op keeps source",
       "sourceText": "Buy milk",
       "instruction": "never mind",
@@ -28,6 +58,96 @@
         "scope": "ALL",
         "commandKind": "NO_OP",
         "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "no op cancel variant keeps source",
+      "sourceText": "Please buy milk and eggs.",
+      "instruction": "cancel",
+      "expected": {
+        "output": "Please buy milk and eggs.",
+        "applied": false,
+        "intent": "GENERAL",
+        "scope": "ALL",
+        "commandKind": "NO_OP",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "no op ignore that variant keeps source",
+      "sourceText": "Please buy milk and eggs.",
+      "instruction": "ignore that",
+      "expected": {
+        "output": "Please buy milk and eggs.",
+        "applied": false,
+        "intent": "GENERAL",
+        "scope": "ALL",
+        "commandKind": "NO_OP",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "delete term removes target",
+      "sourceText": "buy milk next week",
+      "instruction": "delete milk",
+      "expected": {
+        "output": "buy next week",
+        "applied": true,
+        "intent": "GENERAL",
+        "scope": "ALL",
+        "commandKind": "DELETE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "delete term removes quoted phrase",
+      "sourceText": "buy milk next week",
+      "instruction": "take out \"next week\"",
+      "expected": {
+        "output": "buy milk",
+        "applied": true,
+        "intent": "GENERAL",
+        "scope": "ALL",
+        "commandKind": "DELETE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "delete term undo target variant",
+      "sourceText": "buy milk next week",
+      "instruction": "undo milk",
+      "expected": {
+        "output": "buy next week",
+        "applied": true,
+        "intent": "GENERAL",
+        "scope": "ALL",
+        "commandKind": "DELETE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "delete term supports multiple targets",
+      "sourceText": "buy apple eggs milk bread",
+      "instruction": "remove eggs and milk",
+      "expected": {
+        "output": "buy apple bread",
+        "applied": true,
+        "intent": "GENERAL",
+        "scope": "ALL",
+        "commandKind": "DELETE_TERM",
+        "matchedCount": 2,
         "ruleConfidence": "HIGH",
         "noMatchDetected": false
       }
@@ -48,6 +168,111 @@
       }
     },
     {
+      "name": "delete last target",
+      "sourceText": "milk bread milk eggs milk",
+      "instruction": "delete last milk",
+      "expected": {
+        "output": "milk bread milk eggs",
+        "applied": true,
+        "intent": "GENERAL",
+        "scope": "LAST",
+        "commandKind": "DELETE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace change verb variant",
+      "sourceText": "buy milk and bread",
+      "instruction": "change milk to oat milk",
+      "expected": {
+        "output": "buy oat milk and bread",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "ALL",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace swap verb variant",
+      "sourceText": "buy milk and bread",
+      "instruction": "swap milk for oat milk",
+      "expected": {
+        "output": "buy oat milk and bread",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "ALL",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace use instead variant",
+      "sourceText": "buy milk and bread",
+      "instruction": "use oat milk instead of milk",
+      "expected": {
+        "output": "buy oat milk and bread",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "ALL",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace polite natural language form",
+      "sourceText": "Hey guys. This is Mario speaking.",
+      "instruction": "can you replace the word guys with the word girls?",
+      "expected": {
+        "output": "Hey girls. This is Mario speaking.",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "ALL",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace capitalized target capitalizes replacement",
+      "sourceText": "Hey Mia, can you review this?",
+      "instruction": "replace Mia with john",
+      "expected": {
+        "output": "Hey John, can you review this?",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "ALL",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace first target",
+      "sourceText": "milk bread milk eggs milk",
+      "instruction": "replace first milk with oat",
+      "expected": {
+        "output": "oat bread milk eggs milk",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "FIRST",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
       "name": "replace last target",
       "sourceText": "milk bread milk eggs milk",
       "instruction": "replace last milk with oat",
@@ -57,6 +282,21 @@
         "intent": "REPLACE",
         "scope": "LAST",
         "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "update number replaces last number token",
+      "sourceText": "Meeting moved from 5:00 PM to 6:00 PM tomorrow.",
+      "instruction": "update number to 6:30",
+      "expected": {
+        "output": "Meeting moved from 5:00 PM to 6:30 tomorrow.",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "LAST",
+        "commandKind": "UPDATE_NUMBER",
         "matchedCount": 1,
         "ruleConfidence": "HIGH",
         "noMatchDetected": false
@@ -98,6 +338,21 @@
       "name": "ambiguous pronoun target returns null",
       "sourceText": "Buy milk",
       "instruction": "delete it"
+    },
+    {
+      "name": "ambiguous replacement pronoun target returns null",
+      "sourceText": "Buy milk",
+      "instruction": "change that to bread"
+    },
+    {
+      "name": "delete all only command rejects target",
+      "sourceText": "Buy milk and eggs",
+      "instruction": "start over milk"
+    },
+    {
+      "name": "long delete instruction fails command gate",
+      "sourceText": "Please buy milk and eggs.",
+      "instruction": "please delete the word milk from the message and then rewrite the rest politely"
     }
   ]
 }
