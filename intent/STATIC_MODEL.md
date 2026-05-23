@@ -387,6 +387,9 @@ blocking diagnostics.
   looks like a secret, for example `.env`, `secret`, `token`, `credential`,
   `key`, or `password`, with `INTENT_INVARIANT_VIOLATION` at the invariant line
   span.
+- Enforce `deny unrelated_file_write` by rejecting file write effects whose path
+  is outside declared `repo(...)` context roots, with
+  `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
 - Emit `INTENT_TRUST_FLOW_UNSAFE` for nonliteral shell command arguments that
@@ -733,6 +736,9 @@ Rules:
   looks like a secret, for example `.env`, `secret`, `token`, `credential`,
   `key`, or `password`, with `INTENT_INVARIANT_VIOLATION` at the invariant line
   span.
+- Enforce `deny unrelated_file_write` by rejecting file write effects whose path
+  is outside declared `repo(...)` context roots, with
+  `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - Invariant guards do not replace capability, checkpoint, step requirement, or
   verification edges. They make always-on rules visible wherever side effects,
   recovery boundaries, and step-local checks can affect execution.

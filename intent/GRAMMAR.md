@@ -124,9 +124,11 @@ node and creates `guards` edges from that node to the goal completion node and
 to every effect, step checkpoint, and step requirement check in the same goal.
 This keeps always-on rules visible across side effects and recovery boundaries.
 The enforced invariant rules are `deny production_deploy`, which rejects
-`Deploy` effects targeting `production`, and `deny secret_write`, which rejects
+`Deploy` effects targeting `production`; `deny secret_write`, which rejects
 file write effects whose path or name looks like a secret, for example `.env`,
-`secret`, `token`, `credential`, `key`, or `password`. Both emit
+`secret`, `token`, `credential`, `key`, or `password`; and
+`deny unrelated_file_write`, which rejects file write effects whose path is
+outside declared `repo(...)` context roots. Each emits
 `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 
 Every `memory` block must include at least one `retain ... until ...` retention
@@ -421,6 +423,9 @@ The parser emits names and type reference strings; the checker owns binding.
   looks like a secret, for example `.env`, `secret`, `token`, `credential`,
   `key`, or `password`, with `INTENT_INVARIANT_VIOLATION` at the invariant line
   span.
+- Enforce `deny unrelated_file_write` by rejecting file write effects whose path
+  is outside declared `repo(...)` context roots, with
+  `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - Step-body `require ...` lines become step requirement checks. They are
   emitted as graph `Check` nodes with `requires` edges into the owning step and
   `gates` edges to the owning goal, distinct from goal-level `verify`
