@@ -1,0 +1,29 @@
+package fixtures.invalid_missing_verification
+
+goal "patch without verification" {
+  context repo("./")
+
+  capability file {
+    read path: "./src/**"
+    write path: "./src/**"
+  }
+
+  capability shell {
+    run command: "npm test"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_request -> Finding
+    step patch_code(input: Finding) -> Patch
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

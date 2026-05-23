@@ -11,10 +11,11 @@ This roadmap turns the language concept into an implementable project.
 
 ## Phase 2: Static Model
 
-- Implement a parser for packages, goals, contexts, capabilities, memory, plans, verification, and invariants.
-- Build an abstract syntax tree that preserves source locations.
-- Add a checker that rejects undeclared effects, missing verification gates, unsafe trust flows, and unscoped memory.
-- Emit a machine-readable execution graph.
+- Implement a parser for packages, goals, contexts, capabilities, memory, plans, verification, and invariants. Initial CLI: `node intent/bin/intent.mjs parse <file.intent>`.
+- Build an abstract syntax tree that preserves source locations. Initial schema: `intent.ast.v0`.
+- Add a checker that rejects undeclared effects, missing verification gates, unsafe trust flows, and unscoped memory. Initial CLI: `node intent/bin/intent.mjs check <file.intent>`.
+- Emit a machine-readable execution graph. Initial schema: `intent.graph.v0`, via `node intent/bin/intent.mjs graph <file.intent>`.
+- Keep fixtures under `fixtures/` and tests under `test/`.
 
 ## Phase 3: Local Runtime
 
@@ -51,4 +52,3 @@ This roadmap turns the language concept into an implementable project.
 - Arbitrary plugin execution without capability declarations.
 - Silent compatibility with prompt-only agents.
 - Hidden global memory.
-

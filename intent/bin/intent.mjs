@@ -1,0 +1,716 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+
+const VERSION = "intent.static.v0";
+const sourceLineOffsets = new Map();
+
+function usage() {
+  return [
+    "Usage: node intent/bin/intent.mjs <parse|check|graph> <file.intent> [--json]",
+    "",
+    "Commands:",
+    "  parse   Parse Intent source and emit AST JSON.",
+    "  check   Run static checks and emit diagnostics.",
+    "  graph   Emit a machine-readable execution graph.",
+  ].join("\n");
+}
+
+function main(argv) {
+  const [command, file] = argv;
+  if (!command || command === "--help" || command === "-h") {
+    console.log(usage());
+    return 0;
+  }
+  if (!["parse", "check", "graph"].includes(command)) {
+    console.error(`intent: unknown command '${command}'`);
+    console.error(usage());
+    return 2;
+  }
+  if (!file) {
+    console.error("intent: missing source file");
+    console.error(usage());
+    return 2;
+  }
+
+  let source;
+  try {
+    source = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    console.error(`intent: failed to read ${file}: ${error.message}`);
+    return 2;
+  }
+
+  try {
+    const ast = parseIntent(source, file);
+    if (command === "parse") {
+      printJson(ast);
+      return 0;
+    }
+
+    const diagnostics = checkIntent(ast);
+    if (command === "check") {
+      printJson({
+        schema_version: "intent.check.v0",
+        ok: diagnostics.length === 0,
+        diagnostics,
+      });
+      return diagnostics.length === 0 ? 0 : 1;
+    }
+
+    const graph = buildGraph(ast, diagnostics);
+    printJson(graph);
+    return diagnostics.length === 0 ? 0 : 1;
+  } catch (error) {
+    const diagnostic = error.diagnostic ?? {
+      code: "INTENT_PARSE_ERROR",
+      severity: "error",
+      message: error.message,
+      span: span(file, 1, 1),
+    };
+    printJson({
+      schema_version: "intent.check.v0",
+      ok: false,
+      diagnostics: [diagnostic],
+    });
+    return 1;
+  }
+}
+
+function printJson(value) {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function parseIntent(source, file) {
+  const lines = source.split(/\r?\n/);
+  sourceLineOffsets.set(path.normalize(file), computeLineOffsets(source));
+  const root = {
+    schema_version: "intent.ast.v0",
+    source: path.normalize(file),
+    package: null,
+    goals: [],
+    span: span(file, 1, 1, lines.length, lastColumn(lines)),
+  };
+
+  let index = 0;
+  while (index < lines.length) {
+    const raw = lines[index];
+    const line = stripComment(raw).trim();
+    const lineNumber = index + 1;
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    const packageMatch = line.match(/^package\s+([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)$/);
+    if (packageMatch) {
+      root.package = {
+        kind: "Package",
+        name: packageMatch[1],
+        span: lineSpan(file, lineNumber, raw),
+      };
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("goal ")) {
+      const parsed = collectBlock(lines, index, file);
+      root.goals.push(parseGoal(parsed.header, parsed.body, file, parsed.startLine, parsed.endLine));
+      index = parsed.nextIndex;
+      continue;
+    }
+
+    throw parseError(file, lineNumber, raw, `unexpected top-level statement '${line}'`);
+  }
+
+  if (!root.package) {
+    root.package = {
+      kind: "Package",
+      name: "main",
+      implicit: true,
+      span: span(file, 1, 1),
+    };
+  }
+
+  return root;
+}
+
+function parseGoal(header, bodyLines, file, startLine, endLine) {
+  const named = header.match(/^goal\s+([a-z][a-z0-9_]*)\s*\(([^)]*)\)\s*(?:->\s*([A-Za-z][A-Za-z0-9_<>, ]*))?$/);
+  const quoted = header.match(/^goal\s+"([^"]+)"$/);
+  if (!named && !quoted) {
+    throw parseError(file, startLine, header, `invalid goal declaration '${header}'`);
+  }
+
+  const goal = {
+    kind: "Goal",
+    name: named ? named[1] : slugify(quoted[1]),
+    title: named ? null : quoted[1],
+    parameters: named ? parseParameters(named[2], file, startLine) : [],
+    outputType: named && named[3] ? named[3].trim() : null,
+    context: [],
+    capabilities: [],
+    memory: [],
+    steps: [],
+    verify: [],
+    invariants: [],
+    rawBlocks: [],
+    span: span(file, startLine, 1, endLine, 1),
+  };
+
+  let index = 0;
+  while (index < bodyLines.length) {
+    const entry = bodyLines[index];
+    const line = stripComment(entry.text).trim();
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    const blockName = firstWord(line);
+    if (["context", "capabilities", "capability", "memory", "plan", "verify", "invariant", "invariants"].includes(blockName) && line.includes("{")) {
+      const block = collectInlineBlock(bodyLines, index, file);
+      parseGoalBlock(goal, blockName, line.replace(/\s*\{\s*$/, ""), block.body, file, block.startLine, block.endLine);
+      index = block.nextIndex;
+      continue;
+    }
+
+    if (line.startsWith("context ")) {
+      goal.context.push(statementNode("ContextSource", line.slice("context ".length), file, entry.lineNumber, entry.text));
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("capability ")) {
+      goal.capabilities.push(parseCapabilityLine(line, file, entry.lineNumber, entry.text));
+      index += 1;
+      continue;
+    }
+
+    goal.rawBlocks.push(statementNode("RawGoalStatement", line, file, entry.lineNumber, entry.text));
+    index += 1;
+  }
+
+  return goal;
+}
+
+function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine) {
+  const normalized = blockName === "capabilities" ? "capability" : blockName === "invariants" ? "invariant" : blockName;
+  goal.rawBlocks.push({
+    kind: "Block",
+    name: normalized,
+    header,
+    span: span(file, startLine, 1, endLine, 1),
+  });
+
+  if (normalized === "context") {
+    for (const line of meaningfulLines(body)) {
+      goal.context.push(statementNode("ContextSource", line.text, file, line.lineNumber, line.raw));
+    }
+    return;
+  }
+
+  if (normalized === "capability") {
+    if (header !== "capability" && header.startsWith("capability ")) {
+      const name = header.slice("capability ".length).trim();
+      const capability = {
+        kind: "Capability",
+        family: capabilityFamily(name),
+        action: null,
+        name,
+        constraints: meaningfulLines(body).map((line) => line.text),
+        span: span(file, startLine, 1, endLine, 1),
+      };
+      goal.capabilities.push(capability);
+      return;
+    }
+    for (const line of meaningfulLines(body)) {
+      goal.capabilities.push(parseCapabilityLine(line.text, file, line.lineNumber, line.raw));
+    }
+    return;
+  }
+
+  if (normalized === "memory") {
+    const headerParts = header.split(/\s+/);
+    goal.memory.push({
+      kind: "Memory",
+      scope: headerParts[1] ?? "unspecified",
+      name: headerParts[2] ?? null,
+      retention: meaningfulLines(body).filter((line) => line.text.startsWith("retain ")).map((line) => line.text),
+      statements: meaningfulLines(body).map((line) => line.text),
+      span: span(file, startLine, 1, endLine, 1),
+    });
+    return;
+  }
+
+  if (normalized === "plan") {
+    goal.steps.push(...parsePlan(body, file));
+    return;
+  }
+
+  if (normalized === "verify") {
+    for (const line of meaningfulLines(body)) {
+      if (line.text.startsWith("require ")) {
+        goal.verify.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
+      }
+    }
+    return;
+  }
+
+  if (normalized === "invariant") {
+    for (const line of meaningfulLines(body)) {
+      if (line.text.startsWith("require ")) {
+        goal.invariants.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
+      } else if (line.text.startsWith("deny ")) {
+        goal.invariants.push(statementNode("Deny", line.text.slice("deny ".length), file, line.lineNumber, line.raw));
+      }
+    }
+  }
+}
+
+function parsePlan(body, file) {
+  const steps = [];
+  let index = 0;
+  while (index < body.length) {
+    const entry = body[index];
+    const line = stripComment(entry.text).trim();
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("step ") && line.includes("{")) {
+      const block = collectInlineBlock(body, index, file);
+      steps.push(parseStep(line.replace(/\s*\{\s*$/, ""), block.body, file, block.startLine, block.endLine));
+      index = block.nextIndex;
+      continue;
+    }
+
+    if (line.startsWith("step ")) {
+      steps.push(parseStep(line, [], file, entry.lineNumber, entry.lineNumber));
+      index += 1;
+      continue;
+    }
+
+    index += 1;
+  }
+  return steps;
+}
+
+function parseStep(header, body, file, startLine, endLine) {
+  const match = header.match(/^step\s+([A-Za-z][A-Za-z0-9_]*)\s*(?:\(([^)]*)\))?\s*(?:->\s*([A-Za-z][A-Za-z0-9_<>, ]*))?/);
+  if (!match) {
+    throw parseError(file, startLine, header, `invalid step declaration '${header}'`);
+  }
+  const effects = [];
+  const requirements = [];
+  if (match[3]) {
+    const effectOutput = match[3].trim().match(/^Effect<\s*([A-Za-z][A-Za-z0-9_.]*)/);
+    if (effectOutput) {
+      effects.push(parseEffectUse(effectOutput[1], file, startLine, header));
+    }
+  }
+  for (const line of meaningfulLines(body)) {
+    if (line.text.startsWith("effect ")) {
+      effects.push(parseEffectUse(line.text.slice("effect ".length), file, line.lineNumber, line.raw));
+    }
+    if (line.text.startsWith("require ")) {
+      requirements.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
+    }
+  }
+  return {
+    kind: "Step",
+    name: match[1],
+    parameters: parseParameters(match[2] ?? "", file, startLine),
+    outputType: match[3] ? match[3].trim() : null,
+    effects,
+    requirements,
+    span: span(file, startLine, 1, endLine, 1),
+  };
+}
+
+function parseCapabilityLine(text, file, lineNumber, raw) {
+  const normalized = text.replace(/^capability\s+/, "").trim();
+  const dotted = normalized.match(/^([a-z][a-z0-9_]*)(?:\.([a-z][a-z0-9_]*))?/);
+  const bare = normalized.match(/^([a-z][a-z0-9_]*)\s*\(/);
+  const family = dotted?.[1] ?? bare?.[1] ?? firstWord(normalized);
+  const action = dotted?.[2] ?? null;
+  return {
+    kind: "Capability",
+    family,
+    action,
+    name: normalized,
+    constraints: [normalized],
+    span: lineSpan(file, lineNumber, raw),
+  };
+}
+
+function parseEffectUse(text, file, lineNumber, raw) {
+  const name = text.match(/^([A-Za-z][A-Za-z0-9_.]*)/)?.[1] ?? text;
+  return {
+    kind: "EffectUse",
+    name,
+    family: effectFamily(name),
+    expression: text,
+    span: lineSpan(file, lineNumber, raw),
+  };
+}
+
+function checkIntent(ast) {
+  const diagnostics = [];
+  if (ast.goals.length === 0) {
+    diagnostics.push(error("INTENT_GOAL_MISSING", "Intent source must declare at least one goal.", ast.span));
+  }
+
+  for (const goal of ast.goals) {
+    const hasEffects = goal.steps.some((step) => step.effects.length > 0) || goal.capabilities.some((capability) => {
+      return capability.constraints.some((constraint) => /\b(write|run|push|deploy|commit|update)\b/.test(constraint))
+        || ["shell", "git", "deploy", "ticket"].includes(capability.family);
+    });
+    if (hasEffects && goal.verify.length === 0) {
+      diagnostics.push(error("INTENT_VERIFY_MISSING", `goal '${goal.name}' uses effects but has no verify block with require statements.`, goal.span));
+    }
+
+    for (const memory of goal.memory) {
+      if (memory.scope !== "session" && memory.retention.length === 0) {
+        diagnostics.push(error("INTENT_MEMORY_UNSCOPED", `memory '${memory.name ?? memory.scope}' must declare retention.`, memory.span));
+      }
+    }
+
+    const capabilities = goal.capabilities.map((capability) => capability.family);
+    for (const step of goal.steps) {
+      for (const effect of step.effects) {
+        if (!isEffectAuthorized(effect, goal.capabilities)) {
+          diagnostics.push(error("INTENT_EFFECT_UNDECLARED", `effect '${effect.name}' is not authorized by goal capabilities.`, effect.span, {
+            effect: effect.name,
+            required_family: effect.family,
+            declared_capabilities: capabilities,
+          }));
+        }
+      }
+    }
+  }
+
+  return diagnostics;
+}
+
+function buildGraph(ast, diagnostics = checkIntent(ast)) {
+  const nodes = [];
+  const edges = [];
+
+  for (const goal of ast.goals) {
+    const goalId = `goal:${goal.name}`;
+    nodes.push(node(goalId, "Goal", goal.name, goal.span, {
+      title: goal.title,
+      outputType: goal.outputType,
+    }));
+
+    for (const [index, context] of goal.context.entries()) {
+      const id = `${goalId}:context:${index}`;
+      nodes.push(node(id, "Context", context.value, context.span));
+      edges.push(edge(id, goalId, "informs"));
+    }
+
+    for (const [index, capability] of goal.capabilities.entries()) {
+      const id = `${goalId}:capability:${index}`;
+      nodes.push(node(id, "Capability", capability.name, capability.span, {
+        family: capability.family,
+        action: capability.action,
+      }));
+      edges.push(edge(id, goalId, "authorizes"));
+    }
+
+    for (const [index, memory] of goal.memory.entries()) {
+      const id = `${goalId}:memory:${index}`;
+      nodes.push(node(id, "Memory", memory.name ?? memory.scope, memory.span, {
+        scope: memory.scope,
+        retention: memory.retention,
+      }));
+      edges.push(edge(goalId, id, "declares"));
+    }
+
+    let previousStepId = null;
+    for (const [index, step] of goal.steps.entries()) {
+      const id = `${goalId}:step:${step.name || index}`;
+      nodes.push(node(id, "Step", step.name, step.span, {
+        outputType: step.outputType,
+        effects: step.effects.map((effect) => effect.name),
+      }));
+      edges.push(edge(goalId, id, "plans"));
+      if (previousStepId) {
+        edges.push(edge(previousStepId, id, "precedes"));
+      }
+      previousStepId = id;
+
+      for (const [effectIndex, effectUse] of step.effects.entries()) {
+        const effectId = `${id}:effect:${effectIndex}`;
+        nodes.push(node(effectId, "Effect", effectUse.name, effectUse.span, {
+          family: effectUse.family,
+          expression: effectUse.expression,
+        }));
+        edges.push(edge(id, effectId, "requests"));
+        for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
+          if (isFamilyMatch(effectUse.family, capability.family)) {
+            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, effectId, "authorizes"));
+          }
+        }
+      }
+    }
+
+    for (const [index, check] of goal.verify.entries()) {
+      const id = `${goalId}:verify:${index}`;
+      nodes.push(node(id, "Check", check.value, check.span));
+      edges.push(edge(id, goalId, "gates"));
+    }
+
+    for (const [index, invariant] of goal.invariants.entries()) {
+      const id = `${goalId}:invariant:${index}`;
+      nodes.push(node(id, "Invariant", invariant.value, invariant.span, {
+        assertion: invariant.kind,
+      }));
+      edges.push(edge(id, goalId, "constrains"));
+    }
+  }
+
+  return {
+    schema_version: "intent.graph.v0",
+    ast_schema_version: ast.schema_version,
+    source: ast.source,
+    package: ast.package?.name ?? "main",
+    ok: diagnostics.length === 0,
+    diagnostics,
+    nodes,
+    edges,
+  };
+}
+
+function parseParameters(text, file, lineNumber) {
+  if (!text.trim()) {
+    return [];
+  }
+  return text.split(",").map((part) => {
+    const trimmed = part.trim();
+    const match = trimmed.match(/^([a-z][a-z0-9_]*)(?:\s*:\s*([A-Za-z][A-Za-z0-9_<>, ]*))?$/);
+    if (!match) {
+      throw parseError(file, lineNumber, text, `invalid parameter '${trimmed}'`);
+    }
+    return {
+      name: match[1],
+      type: match[2]?.trim() ?? null,
+    };
+  });
+}
+
+function collectBlock(lines, startIndex, file) {
+  const startRaw = lines[startIndex];
+  const startLine = startIndex + 1;
+  const startText = stripComment(startRaw).trim();
+  const header = startText.replace(/\s*\{\s*$/, "").trim();
+  let depth = countChar(startRaw, "{") - countChar(startRaw, "}");
+  if (depth <= 0) {
+    throw parseError(file, startLine, startRaw, "expected block opening brace");
+  }
+  const body = [];
+  let index = startIndex + 1;
+  for (; index < lines.length; index += 1) {
+    const raw = lines[index];
+    depth += countChar(raw, "{") - countChar(raw, "}");
+    if (depth <= 0) {
+      return {
+        header,
+        body,
+        startLine,
+        endLine: index + 1,
+        nextIndex: index + 1,
+      };
+    }
+    body.push({
+      lineNumber: index + 1,
+      text: raw,
+    });
+  }
+  throw parseError(file, startLine, startRaw, "unterminated block");
+}
+
+function collectInlineBlock(entries, startIndex, file) {
+  const start = entries[startIndex];
+  let depth = countChar(start.text, "{") - countChar(start.text, "}");
+  const body = [];
+  let index = startIndex + 1;
+  for (; index < entries.length; index += 1) {
+    const entry = entries[index];
+    depth += countChar(entry.text, "{") - countChar(entry.text, "}");
+    if (depth <= 0) {
+      return {
+        body,
+        startLine: start.lineNumber,
+        endLine: entry.lineNumber,
+        nextIndex: index + 1,
+      };
+    }
+    body.push(entry);
+  }
+  throw parseError(file, start.lineNumber, start.text, "unterminated block");
+}
+
+function meaningfulLines(entries) {
+  return entries.map((entry) => ({
+    lineNumber: entry.lineNumber,
+    raw: entry.text,
+    text: stripComment(entry.text).trim(),
+  })).filter((entry) => entry.text && entry.text !== "}");
+}
+
+function statementNode(kind, value, file, lineNumber, raw) {
+  return {
+    kind,
+    value,
+    span: lineSpan(file, lineNumber, raw),
+  };
+}
+
+function error(code, message, nodeSpan, data = {}) {
+  return {
+    severity: "error",
+    code,
+    message,
+    span: nodeSpan,
+    ...data,
+  };
+}
+
+function node(id, kind, label, nodeSpan, data = {}) {
+  return {
+    id,
+    kind,
+    label,
+    span: nodeSpan,
+    data,
+  };
+}
+
+function edge(from, to, kind) {
+  return { from, to, kind };
+}
+
+function parseError(file, lineNumber, raw, message) {
+  const err = new Error(message);
+  err.diagnostic = error("INTENT_PARSE_ERROR", message, lineSpan(file, lineNumber, raw));
+  return err;
+}
+
+function lineSpan(file, lineNumber, raw) {
+  const first = raw.search(/\S/);
+  return span(file, lineNumber, first >= 0 ? first + 1 : 1, lineNumber, raw.length + 1);
+}
+
+function span(file, startLine, startColumn, endLine = startLine, endColumn = startColumn) {
+  const normalizedFile = path.normalize(file);
+  const lineOffsets = sourceLineOffsets.get(normalizedFile);
+  const start = { line: startLine, column: startColumn };
+  const end = { line: endLine, column: endColumn };
+  if (lineOffsets) {
+    start.offset = offsetFor(lineOffsets, startLine, startColumn);
+    end.offset = offsetFor(lineOffsets, endLine, endColumn);
+  }
+  return {
+    file: normalizedFile,
+    start,
+    end,
+  };
+}
+
+function computeLineOffsets(source) {
+  const offsets = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "\n") {
+      offsets.push(index + 1);
+    }
+  }
+  return offsets;
+}
+
+function offsetFor(lineOffsets, line, column) {
+  return (lineOffsets[line - 1] ?? 0) + column - 1;
+}
+
+function lastColumn(lines) {
+  const last = lines.at(-1) ?? "";
+  return last.length + 1;
+}
+
+function stripComment(line) {
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (char === "#" && !inString) {
+      return line.slice(0, index);
+    }
+  }
+  return line;
+}
+
+function countChar(text, char) {
+  return [...text].filter((candidate) => candidate === char).length;
+}
+
+function firstWord(text) {
+  return text.trim().split(/\s+/)[0] ?? "";
+}
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "goal";
+}
+
+function capabilityFamily(name) {
+  return name.split(/[.(\s]/)[0] || name;
+}
+
+function effectFamily(name) {
+  const normalized = name.replace(/^Effect\./, "");
+  if (/^(FileRead|ReadFile|fs\.read|file\.read)/.test(normalized)) return "file";
+  if (/^(FileWrite|WriteFile|fs\.write|file\.write)/.test(normalized)) return "file";
+  if (/^(ShellExec|shell\.exec|Command)/.test(normalized)) return "shell";
+  if (/^(Http|Web|web\.read|http\.request)/.test(normalized)) return "web";
+  if (/^(Git|git\.)/.test(normalized)) return "git";
+  if (/^(Deploy|deploy\.)/.test(normalized)) return "deploy";
+  if (/^(Ticket|ticket\.)/.test(normalized)) return "ticket";
+  return normalized.split(/[.(]/)[0].toLowerCase();
+}
+
+function isEffectAuthorized(effect, capabilities) {
+  return capabilities.some((capability) => isFamilyMatch(effect.family, capability.family));
+}
+
+function isFamilyMatch(effectName, capabilityName) {
+  if (effectName === capabilityName) return true;
+  if (effectName === "file" && capabilityName === "fs") return true;
+  if (effectName === "web" && capabilityName === "http") return true;
+  if (effectName === "http" && capabilityName === "web") return true;
+  return false;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  process.exitCode = main(process.argv.slice(2));
+}
+
+export {
+  VERSION,
+  buildGraph,
+  checkIntent,
+  parseIntent,
+};

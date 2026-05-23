@@ -7,7 +7,10 @@ Most programming languages are built around instructions: compute this value, ca
 ## Repository Map
 
 - [SPEC.md](SPEC.md): the current language contract and runtime model.
+- [GRAMMAR.md](GRAMMAR.md): the first parser milestone grammar.
+- [STATIC_MODEL.md](STATIC_MODEL.md): AST, source location, checker, diagnostic, and graph model notes.
 - [ROADMAP.md](ROADMAP.md): the path from written design to parser, checker, runtime, and developer tools.
+- [fixtures/README.md](fixtures/README.md): valid and invalid `.intent` files for the prototype parser and checker.
 - [examples/README.md](examples/README.md): concrete Intent goals for code changes, research, incident response, and deployment approval.
 - [workstreams/language-design.md](workstreams/language-design.md): syntax, declarations, goals, type forms, uncertainty, effects, and packages.
 - [workstreams/tools-and-effects.md](workstreams/tools-and-effects.md): capabilities, effect signatures, adapters, denials, approvals, and rollback contracts.
@@ -38,6 +41,19 @@ goal "ship checkout fix" {
   }
 }
 ```
+
+## Prototype CLI
+
+The Phase 2 static model starts as a dependency-free Node CLI:
+
+```shell
+node intent/bin/intent.mjs parse intent/fixtures/valid_code_change.intent
+node intent/bin/intent.mjs check intent/fixtures/valid_code_change.intent
+node intent/bin/intent.mjs graph intent/fixtures/valid_code_change.intent
+node --test intent/test/*.test.mjs
+```
+
+The first implementation parses package and goal blocks, preserves source spans, checks for missing verification and undeclared effects, and emits a machine-readable execution graph.
 
 ## Why It Exists
 

@@ -1,0 +1,35 @@
+package fixtures.research
+
+goal "answer research question" {
+  context web("https://example.com/**")
+  context documents("./docs/**")
+
+  capability web {
+    read domain: "example.com"
+  }
+
+  capability file {
+    read path: "./docs/**"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step collect_sources -> Evidence<SourceSet>
+    step extract_claims(input: Evidence<SourceSet>) -> Evidence<ClaimSet>
+    step synthesize_answer(input: Evidence<ClaimSet>) -> Verified<ResearchReport>
+  }
+
+  verify {
+    require all_outputs_cited
+    require no_policy_violations
+  }
+
+  invariant {
+    deny uncited_external_claim
+    deny untrusted_content_to_shell
+  }
+}
