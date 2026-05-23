@@ -40,6 +40,21 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(show.stdout, /- Last known validation: node --test/);
     assert.match(show.stdout, /- Relevant files: app.txt/);
 
+    const showJson = JSON.parse((await runTrace(repo, ["show", "HEAD", "--json"])).stdout);
+    assert.equal(showJson.schema_version, "trace.memory_detail.v1");
+    assert.equal(showJson.memory.commit, payload.commit);
+    assert.equal(showJson.memory.memory, payload.memory);
+    assert.equal(showJson.memory.intent, "remember why app text exists");
+    assert.deepEqual(showJson.memory.summary, ["created a minimal text fixture"]);
+    assert.deepEqual(showJson.memory.decisions, ["Use committed Markdown for reviewable memory"]);
+    assert.deepEqual(showJson.memory.responses, ["created a minimal text fixture"]);
+    assert.deepEqual(showJson.memory.tools, ["git commit wrote app.txt"]);
+    assert.deepEqual(showJson.memory.files, ["app.txt"]);
+    assert.deepEqual(showJson.memory.validation, ["node --test"]);
+    assert.match(showJson.memory.handoff[0], /Preserve the decision/);
+    assert.match(showJson.memory.checkpoint, /^[0-9a-f]+$/);
+    assert.match(showJson.memory.session, /^[A-Za-z0-9-]+$/);
+
     const search = await runTrace(repo, ["search", "reviewable"]);
     assert.match(search.stdout, /\.trace\/commits\//);
 

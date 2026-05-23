@@ -69,6 +69,7 @@ trace session list
 trace session show <session>
 trace record --validation "npm test"
 trace show HEAD
+trace show HEAD --json
 trace review
 trace log
 trace log --json --limit 20
@@ -119,6 +120,7 @@ node trace/bin/trace.mjs session list
 node trace/bin/trace.mjs session show <session>
 node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
+node trace/bin/trace.mjs show HEAD --json
 node trace/bin/trace.mjs review
 node trace/bin/trace.mjs log
 node trace/bin/trace.mjs log --json --limit 20

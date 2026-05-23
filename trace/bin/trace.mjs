@@ -1700,7 +1700,14 @@ async function showMemory(commitish) {
   if (!await exists(memoryPath)) {
     fail(`memory not found for commit ${sha}`);
   }
-  process.stdout.write(await readFile(memoryPath, "utf8"));
+  const content = await readFile(memoryPath, "utf8");
+  if (args.json) {
+    const { mtimeMs: _mtimeMs, ...memory } = memoryLogRecord(root, memoryPath, content, (await stat(memoryPath)).mtimeMs);
+    print({ ok: true, schema_version: "trace.memory_detail.v1", memory });
+    return;
+  }
+
+  process.stdout.write(content);
 }
 
 async function reviewMemories() {
@@ -2223,6 +2230,8 @@ function memoryRecord(memory) {
     intent: firstLine(section(memory, "Intent") ?? ""),
     summary: sectionItems(memory, "Summary", ["Not recorded."]),
     decisions: sectionItems(memory, "Decisions", ["Not recorded."]),
+    responses: sectionItems(memory, "Responses", ["Not recorded."]),
+    tools: sectionItems(memory, "Tool Activity", ["Not recorded."]),
     files: sectionItems(memory, "Files", ["No files reported by git."]).map((file) => file.replace(/^`|`$/g, "")),
     validation: sectionItems(memory, "Validation", ["Not recorded."]),
     risks: sectionItems(memory, "Risks", ["No known open risks recorded."]),
@@ -2959,7 +2968,7 @@ Usage:
   trace coverage [range]
   trace ci [range] [--agents] [--checkpoints]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
-  trace show [commit]
+  trace show [commit] [--json]
   trace review [--all] [--json]
   trace log [--limit 20] [--json]
   trace index
