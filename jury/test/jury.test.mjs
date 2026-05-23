@@ -547,7 +547,10 @@ test("release workflow requires package manifest before npm publication", async 
 
     const replayDir = join(checkout, "package-release-evidence");
     const replayManifestDir = join(checkout, "package-release-manifest");
-    await cp(join(checkout, "jury/examples/ci/fixtures/package-release"), replayDir, { recursive: true });
+    await mkdir(replayDir, { recursive: true });
+    for (const uploadPath of uploadPaths.filter((path) => path.startsWith("jury/examples/ci/fixtures/package-release/"))) {
+      await cp(join(checkout, uploadPath), join(replayDir, uploadPath.replace("jury/examples/ci/fixtures/package-release/", "")));
+    }
     await mkdir(replayManifestDir);
     await cp(join(checkout, "retained-package-release-evidence-manifest.json"), join(replayManifestDir, "retained-package-release-evidence-manifest.json"));
     const replayCheck = await runShell(replayCommand, checkout, {
@@ -1258,7 +1261,9 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("JURY_PACKAGE_RELEASE_EVIDENCE_DIR"));
   assert.ok(guide.includes("--fixture-dir <downloaded-artifact-dir>"));
   assert.ok(guide.includes("missing package release evidence files"));
+  assert.ok(guide.includes("archive drift remediation audit files"));
   assert.ok(guide.includes("replacement-patch-audit.json.checks is required"));
+  assert.ok(guide.includes("archive-drift-remediation-audit.json` with `jury-pack-dry-run-record.json"));
   assert.ok(guide.includes("dry-run-publication"));
   assert.ok(guide.includes("Retained Package Release Manifest Replay Failure"));
   assert.ok(guide.includes("retained package release manifest replay failed"));
@@ -3069,6 +3074,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /jury-package-release-archive-manifest/);
   assert.match(handoff, /JURY_PACKAGE_RELEASE_MANIFEST_PATH/);
   assert.match(handoff, /before `dry-run-publication`/);
+  assert.match(handoff, /Remediation Audit CI Handoff/);
+  assert.match(handoff, /uploads .*archive-drift-remediation-audit\.json.* inside the `jury-package-release-evidence` artifact/);
+  assert.match(handoff, /missing remediation audit records, failed-publication drift, replacement-patch drift, restored evidence, verification commands, and maintainer approval are checked before `dry-run-publication`/);
   assert.match(handoff, /Release Archive Fixture/);
   assert.match(handoff, /examples\/ci\/fixtures\/package-release\/retained-package-release-evidence-manifest\.json/);
   assert.match(handoff, /Keep it synchronized with `rollback-audit\.json`/);
@@ -3090,7 +3098,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI handoff for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record replay troubleshooting examples for missing approval and verification commands/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

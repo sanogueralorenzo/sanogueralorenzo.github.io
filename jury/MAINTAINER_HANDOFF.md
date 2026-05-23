@@ -48,6 +48,10 @@ Retained package release evidence manifest export is available through `npm --pr
 
 The npm publication example exports `retained-package-release-evidence-manifest.json`, uploads it as the `jury-package-release-archive-manifest` artifact, downloads it in `package-release-evidence-replay`, and verifies it with `--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"` before `dry-run-publication`.
 
+## Remediation Audit CI Handoff
+
+The same publication example uploads [examples/ci/fixtures/package-release/archive-drift-remediation-audit.json](examples/ci/fixtures/package-release/archive-drift-remediation-audit.json) inside the `jury-package-release-evidence` artifact. The `package-release-evidence-replay` job downloads that artifact and reruns `fixtures:package-release:check`, so missing remediation audit records, failed-publication drift, replacement-patch drift, restored evidence, verification commands, and maintainer approval are checked before `dry-run-publication`.
+
 ## Release Archive Fixture
 
 The package release fixture directory includes [examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json](examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json). Keep it synchronized with `rollback-audit.json`, `replacement-patch-audit.json`, the dry-run record, npm metadata, downstream gates, retention policy, and artifact provenance by regenerating it with `--manifest-out examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json` and verifying it with `--verify-manifest examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json`.
@@ -98,4 +102,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record CI handoff for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record replay troubleshooting examples for missing approval and verification commands.
