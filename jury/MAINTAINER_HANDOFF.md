@@ -182,6 +182,14 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 `bundle preflight --key-policy` and `bundle import --key-policy` load a `jury.key_policy.v1` manifest containing trusted producer metadata and RSA public keys. Use it when CI needs one reviewed file for expected producers, source or revision constraints, key ids, and public keys. Key entries support `valid_from`, `valid_until`, `revoked_at`, and `revoked_reason` so CI can retire expired or compromised producer keys. Policy verification output identifies matching producer entries and every key under those producers, including not-selected, usable, verified, revoked, blocked-by-revocation, outside-validity, read-error, and signature-mismatch statuses.
 
+## Goal Closure Evidence
+
+The retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics retention handoff schema failure troubleshooting CI replay enforcement failure troubleshooting remediation audit handoff schema failure troubleshooting CI workflow enforcement failure troubleshooting for failed and replacement release archives is now covered by the linked schemas, fixtures, CI workflow examples, troubleshooting commands, release checklist references, and validation commands above.
+
+## Subagent Audit Evidence
+
+Curie (`019e54fa-5822-71d2-8aa1-f849b85b4665`) completed a read-only audit on 2026-05-23. The audit found that completion needed persistent subagent audit evidence and that [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json) should require `jury-package-release-replay-summary-expiry-handoff.json` wherever the retained manifest already archives it. This handoff now records the subagent audit, and the archive manifest schema requires the expiry handoff in both `retention.artifacts` and `archiveEvidence`.
+
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics retention handoff schema failure troubleshooting CI replay enforcement failure troubleshooting remediation audit handoff schema failure troubleshooting CI workflow enforcement failure troubleshooting for failed and replacement release archives.
+Add an end-to-end code-change adoption fixture that proves the core `init`, `claim create`, `evidence add`, `critic run`, `judge`, and `gate` workflow produces a portable review bundle with actionable retry evidence before Jury v1 adoption expands beyond package release archives.

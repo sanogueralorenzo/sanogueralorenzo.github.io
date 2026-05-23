@@ -3725,6 +3725,7 @@ test("review bundle schema references the stable record schemas", async () => {
     "archive-drift-remediation-audit-handoff.json",
     "jury-package-release-replay-summary-diagnostics.json",
     "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    "jury-package-release-replay-summary-expiry-handoff.json",
   ]);
   const archiveProvenance = packageReleaseArchiveManifestSchema.properties.provenance;
   assert.deepEqual(archiveProvenance.required, ["source", "workflow", "runId", "sourceRevision", "artifacts"]);
@@ -3741,7 +3742,7 @@ test("review bundle schema references the stable record schemas", async () => {
     "jury-package-release-replay-summary",
   ]);
   assert.equal(archiveProvenance.properties.artifacts.items.properties.retentionDays.const, 90);
-  assert.equal(packageReleaseArchiveManifestSchema.properties.archiveEvidence.minItems, 12);
+  assert.equal(packageReleaseArchiveManifestSchema.properties.archiveEvidence.minItems, 13);
   assert.deepEqual(packageReleaseArchiveManifestSchema.properties.archiveEvidence.allOf.map((rule) => rule.contains.properties.path.const), [
     "jury-pack-dry-run-record.json",
     "failed-npm-view.json",
@@ -3755,6 +3756,7 @@ test("review bundle schema references the stable record schemas", async () => {
     "jury-package-release-replay-summary.md",
     "jury-package-release-replay-summary-diagnostics.json",
     "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    "jury-package-release-replay-summary-expiry-handoff.json",
   ]);
   assert.equal(packageReleaseArchiveManifestSchema.properties.archiveEvidence.items.properties.sha256.pattern, "^sha256:[a-f0-9]{64}$");
   assert.equal(packageReleaseRemediationAuditSchema.properties.schema_version.const, "jury.package_release_remediation_audit.v1");
@@ -4213,7 +4215,17 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
+  assert.match(handoff, /Goal Closure Evidence/);
+  assert.match(handoff, /linked schemas, fixtures, CI workflow examples, troubleshooting commands, release checklist references, and validation commands above/);
   assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics retention handoff schema failure troubleshooting CI replay enforcement failure troubleshooting remediation audit handoff schema failure troubleshooting CI workflow enforcement failure troubleshooting for failed and replacement release archives/);
+  assert.match(handoff, /Subagent Audit Evidence/);
+  assert.match(handoff, /Curie \(`019e54fa-5822-71d2-8aa1-f849b85b4665`\) completed a read-only audit on 2026-05-23/);
+  assert.match(handoff, /should require `jury-package-release-replay-summary-expiry-handoff\.json`/);
+  assert.match(handoff, /requires the expiry handoff in both `retention\.artifacts` and `archiveEvidence`/);
+  assert.match(handoff, /Next Hardening Step/);
+  assert.match(handoff, /end-to-end code-change adoption fixture/);
+  assert.match(handoff, /`init`, `claim create`, `evidence add`, `critic run`, `judge`, and `gate` workflow/);
+  assert.match(handoff, /actionable retry evidence/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

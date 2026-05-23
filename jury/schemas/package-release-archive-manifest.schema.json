@@ -62,7 +62,8 @@
             { "contains": { "const": "archive-drift-remediation-audit.json" } },
             { "contains": { "const": "archive-drift-remediation-audit-handoff.json" } },
             { "contains": { "const": "jury-package-release-replay-summary-diagnostics.json" } },
-            { "contains": { "const": "jury-package-release-replay-summary-diagnostics-retention-handoff.json" } }
+            { "contains": { "const": "jury-package-release-replay-summary-diagnostics-retention-handoff.json" } },
+            { "contains": { "const": "jury-package-release-replay-summary-expiry-handoff.json" } }
           ]
         }
       },
@@ -131,7 +132,7 @@
     },
     "archiveEvidence": {
       "type": "array",
-      "minItems": 12,
+      "minItems": 13,
       "allOf": [
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-pack-dry-run-record.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "failed-npm-view.json" } } } },
@@ -144,7 +145,8 @@
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "archive-drift-remediation-audit-handoff.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary.md" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary-diagnostics.json" } } } },
-        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary-diagnostics-retention-handoff.json" } } } }
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary-diagnostics-retention-handoff.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary-expiry-handoff.json" } } } }
       ],
       "items": {
         "type": "object",
