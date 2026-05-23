@@ -21,10 +21,14 @@ Expected engine contents:
 
 ## Rust Runtime
 
-The current engine implementation is a Rust crate that exposes deterministic pre/post processing through:
+The current engine implementation is a Rust crate that exposes deterministic processing through:
 
 - `preprocess(input)`
 - `postprocess(original_text, model_output, list_mode)`
+- `analyze_instruction(instruction_text)`
+- `try_apply_deterministic_edit(source_text, instruction_text)`
+- `looks_like_list(text)`
+- `post_replace_capitalization(source_text, instruction_text, edited_output)`
 - JNI bindings used by the Android app.
 
 Run the engine tests from the repository root:

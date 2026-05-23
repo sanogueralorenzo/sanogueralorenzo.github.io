@@ -25,5 +25,21 @@ internal object NativeVoiceEngine {
         modelOutput: String,
         listMode: Boolean
     ): String
-}
 
+    external fun nativeAnalyzeInstruction(input: String): String
+
+    external fun nativeIsStrictEditCommand(input: String): Boolean
+
+    external fun nativeTryApplyDeterministicEdit(
+        sourceText: String,
+        instructionText: String
+    ): String
+
+    external fun nativeLooksLikeList(input: String): Boolean
+
+    external fun nativePostReplaceCapitalization(
+        sourceText: String,
+        instructionText: String,
+        editedOutput: String
+    ): String
+}

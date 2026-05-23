@@ -53,7 +53,7 @@ val buildVoiceEngineHost by tasks.registering(Exec::class) {
     commandLine("cargo", "build", "--manifest-path", voiceEngineDir.resolve("Cargo.toml").absolutePath)
     inputs.dir(voiceEngineDir.resolve("src"))
     inputs.file(voiceEngineDir.resolve("Cargo.toml"))
-    outputs.dir(voiceEngineDir.resolve("target/debug"))
+    doNotTrackState("Cargo owns its incremental target directory.")
 }
 
 val buildVoiceEngineAndroid by tasks.registering(Exec::class) {
