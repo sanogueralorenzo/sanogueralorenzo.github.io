@@ -1,5 +1,17 @@
 package fixtures.code_change
 
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+type VerifiedPatch = {
+  patch: Patch
+}
+
 goal "apply code change" {
   context repo("./")
   context ticket("CODE-123")
@@ -24,7 +36,7 @@ goal "apply code change" {
   plan {
     step inspect_request -> Finding
     step patch_code(input: Finding) -> Patch
-    step verify_patch(input: Patch) -> Verified<Patch>
+    step verify_patch(input: Patch) -> VerifiedPatch
   }
 
   verify {

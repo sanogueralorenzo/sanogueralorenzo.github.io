@@ -9,6 +9,7 @@ semantics to later checker work.
 The parser must accept:
 
 - Package declarations.
+- Top-level type declarations.
 - Goal declarations.
 - `context`, `capability`, `memory`, `plan`, `verify`, and `invariant` blocks.
 - Step declarations inside `plan`.
@@ -23,21 +24,31 @@ them as opaque text.
 ## File Shape
 
 ```ebnf
-file          = spacing, package_decl, spacing, { goal_decl, spacing }, eof ;
-package_decl  = "package", s, package_name, line_end ;
+file           = spacing, package_decl, spacing, { top_level_decl, spacing },
+                 eof ;
+top_level_decl = type_decl | goal_decl ;
+package_decl   = "package", s, package_name, line_end ;
 
-goal_decl     = "goal", s, string, ws, block ;
-block         = "{", ws, { goal_item, ws }, "}" ;
-goal_item     = context_block
-              | capability_block
-              | memory_block
-              | plan_block
-              | verify_block
-              | invariant_block ;
+type_decl      = "type", s, type_name, [ ws, "=", ws, raw_type_def ],
+                 line_end ;
+
+goal_decl      = "goal", s, ( string | goal_signature ), ws, block ;
+goal_signature = identifier, [ params ], [ ws, "->", ws, type_ref ] ;
+block          = "{", ws, { goal_item, ws }, "}" ;
+goal_item      = context_block
+               | capability_block
+               | memory_block
+               | plan_block
+               | verify_block
+               | invariant_block ;
 ```
 
-Milestone files contain exactly one package declaration before any goals. More
-than one goal may appear in a file.
+Milestone files contain exactly one package declaration before any other
+declarations. More than one type or goal may appear in a file.
+
+Type declarations are line-based in the first prototype. The optional
+definition is preserved as raw text and is not parsed into record fields,
+aliases, enum cases, or generic parameters yet.
 
 ## Goal Blocks
 
@@ -70,6 +81,9 @@ type_suffix = "<", ws, type_ref, { ws, ",", ws, type_ref }, ws, ">" ;
 
 Step declarations are signatures only for the first milestone. Step bodies,
 effect bodies, retries, timeouts, and execution statements are out of scope.
+Step input names are local to the step signature; the checker binds inputs by
+matching their type against goal inputs and previous step outputs in source
+order.
 
 ## Expressions
 
@@ -79,6 +93,7 @@ later phases.
 ```ebnf
 call_expr = identifier_path, ws, "(", raw_until_matching_paren, ")" ;
 raw_expr  = raw_text_until_terminator ;
+raw_type_def = raw_text_until_terminator ;
 ```
 
 Raw expressions must still preserve source spans and balanced string/comment
@@ -91,6 +106,7 @@ package_name    = package_part, { ".", package_part } ;
 identifier_path = identifier, { ".", identifier } ;
 package_part    = lowercase, { lowercase | digit | "_" } ;
 identifier      = ( letter | "_" ), { letter | digit | "_" } ;
+type_name       = uppercase, { letter | digit | "_" } ;
 
 string          = '"', { string_char | escape }, '"' ;
 escape          = "\\", ( '"' | "\\" | "n" | "r" | "t" ) ;
@@ -108,8 +124,26 @@ identifiers in declaration positions:
 package goal context capability memory plan verify invariant step require deny
 ```
 
+Known built-in type names for checker binding are `String`, `Bool`, `Int`,
+`Float`, `Record`, `List`, `Map`, `Goal`, `Context`, `Capability`, `Effect`,
+`Step`, `Evidence`, `Assumption`, `Decision`, `Verified`, `Checkpoint`, and
+`Provenance`.
+
 String literals are double quoted only. Unterminated strings are syntax errors.
 Single quoted strings are not accepted.
+
+## Checker Binding Notes
+
+The parser emits names and type reference strings; the checker owns binding.
+
+- Duplicate type names in a file are `INTENT_NAME_DUPLICATE`.
+- Duplicate goal names in a file are `INTENT_NAME_DUPLICATE`.
+- Duplicate goal input names, step names, or step input names within their
+  scope are `INTENT_NAME_DUPLICATE`.
+- Type references that are neither built-ins nor file-local type declarations
+  are `INTENT_TYPE_UNRESOLVED`.
+- Step inputs that cannot bind to a goal input or earlier step output with the
+  same normalized type are `INTENT_STEP_INPUT_UNRESOLVED`.
 
 ## Whitespace And Comments
 

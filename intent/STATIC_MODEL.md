@@ -31,6 +31,39 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 The prototype may parse unsupported nodes into `UnknownDecl` or `UnknownExpr`
 only when it also emits a blocking diagnostic.
 
+## Type Declarations And Built-ins
+
+The first checker prototype supports file-local, top-level type declarations.
+A declaration introduces a type name and may retain a raw definition string, but
+the checker only binds the name in this milestone.
+
+```intent
+type ChangeRequest
+type Finding = { path: Path, message: String }
+type Patch = List<Path>
+```
+
+Rules:
+
+- Type names must begin with an uppercase ASCII letter.
+- Type declarations are visible to every goal in the same file.
+- Type definitions are retained for graph/debug output, but record fields,
+  aliases, enum cases, and generic parameters are not structurally checked yet.
+- Imports do not contribute types in the first prototype.
+
+Known built-in type names are:
+
+- Values: `String`, `Bool`, `Int`, `Float`, and `Record`.
+- Generic containers: `List` and `Map`.
+- Intent model types: `Goal`, `Context`, `Capability`, `Effect`, and `Step`.
+- Agent state types: `Evidence`, `Assumption`, `Decision`, `Verified`,
+  `Checkpoint`, and `Provenance`.
+
+Every uppercase type token in a goal input, goal output, step input, or step
+output must resolve to one of those built-ins or a file-local type declaration.
+Unresolved types emit `INTENT_TYPE_UNRESOLVED` on the declaration that used the
+type.
+
 ## Source Locations
 
 Source locations are required for every parsed node and diagnostic.
@@ -58,6 +91,12 @@ blocking diagnostics.
 
 - Bind package, imports, declarations, block-local names, step inputs, and goal
   state without implicit globals.
+- Reject duplicate type names in the file, duplicate goal names in the file,
+  duplicate goal input names in a goal, duplicate step names in a goal, and
+  duplicate step input names in a step.
+- Resolve every type reference against built-ins and file-local type
+  declarations.
+- Bind step inputs against goal inputs and earlier step outputs in source order.
 - Type check expressions, inputs, outputs, context values, state values, step
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
@@ -74,6 +113,22 @@ blocking diagnostics.
 - Build dependency edges from step inputs, produced values, checks, approvals,
   checkpoints, and completion gates.
 - Reject execution cycles unless a future bounded-loop form declares progress.
+
+## Step Input Binding
+
+Step inputs are bound by type in the first prototype. The checker walks each
+plan in source order.
+
+- The initial binding environment contains the goal inputs.
+- A step input resolves when its normalized type exactly matches a goal input
+  type or an earlier step output type.
+- A step output becomes available only after that step's inputs have been
+  checked.
+- Step input names are local labels and do not create cross-step references.
+- There are no implicit conversions, field projections, destructuring, or
+  forward references.
+- If no prior value has the required type, the checker emits
+  `INTENT_STEP_INPUT_UNRESOLVED`.
 
 ## Diagnostics
 
@@ -108,7 +163,9 @@ Initial diagnostic families:
 - `INTENT_UNSUPPORTED_SYNTAX`
 - `INTENT_NAME_UNRESOLVED`
 - `INTENT_NAME_DUPLICATE`
+- `INTENT_TYPE_UNRESOLVED`
 - `INTENT_TYPE_MISMATCH`
+- `INTENT_STEP_INPUT_UNRESOLVED`
 - `INTENT_EFFECT_UNDECLARED`
 - `INTENT_CAPABILITY_DENIED`
 - `INTENT_VERIFY_MISSING`

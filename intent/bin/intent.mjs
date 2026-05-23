@@ -5,6 +5,26 @@ import process from "node:process";
 
 const VERSION = "intent.static.v0";
 const sourceLineOffsets = new Map();
+const BUILTIN_TYPES = new Set([
+  "String",
+  "Bool",
+  "Int",
+  "Float",
+  "List",
+  "Map",
+  "Record",
+  "Goal",
+  "Context",
+  "Capability",
+  "Effect",
+  "Step",
+  "Evidence",
+  "Assumption",
+  "Decision",
+  "Verified",
+  "Checkpoint",
+  "Provenance",
+]);
 
 function usage() {
   return [
@@ -89,6 +109,7 @@ function parseIntent(source, file) {
     schema_version: "intent.ast.v0",
     source: path.normalize(file),
     package: null,
+    types: [],
     goals: [],
     span: span(file, 1, 1, lines.length, lastColumn(lines)),
   };
@@ -114,6 +135,18 @@ function parseIntent(source, file) {
       continue;
     }
 
+    if (line.startsWith("type ")) {
+      if (line.includes("{")) {
+        const parsed = collectBlock(lines, index, file);
+        root.types.push(parseTypeDecl(parsed.header, file, parsed.startLine, raw, parsed.body.map((entry) => entry.text).join("\n")));
+        index = parsed.nextIndex;
+        continue;
+      }
+      root.types.push(parseTypeDecl(line, file, lineNumber, raw));
+      index += 1;
+      continue;
+    }
+
     if (line.startsWith("goal ")) {
       const parsed = collectBlock(lines, index, file);
       root.goals.push(parseGoal(parsed.header, parsed.body, file, parsed.startLine, parsed.endLine));
@@ -134,6 +167,19 @@ function parseIntent(source, file) {
   }
 
   return root;
+}
+
+function parseTypeDecl(line, file, lineNumber, raw, body = null) {
+  const match = line.match(/^type\s+([A-Z][A-Za-z0-9_]*)(?:\s*=\s*(.*))?$/);
+  if (!match) {
+    throw parseError(file, lineNumber, raw, `invalid type declaration '${line}'`);
+  }
+  return {
+    kind: "Type",
+    name: match[1],
+    definition: body ?? match[2] ?? null,
+    span: lineSpan(file, lineNumber, raw),
+  };
 }
 
 function parseGoal(header, bodyLines, file, startLine, endLine) {
@@ -359,11 +405,33 @@ function parseEffectUse(text, file, lineNumber, raw) {
 
 function checkIntent(ast) {
   const diagnostics = [];
+  const declaredTypes = new Map();
+  for (const typeDecl of ast.types) {
+    if (declaredTypes.has(typeDecl.name)) {
+      diagnostics.push(error("INTENT_NAME_DUPLICATE", `type '${typeDecl.name}' is already declared.`, typeDecl.span, {
+        name: typeDecl.name,
+        previous_span: declaredTypes.get(typeDecl.name).span,
+      }));
+    } else {
+      declaredTypes.set(typeDecl.name, typeDecl);
+    }
+  }
+
   if (ast.goals.length === 0) {
     diagnostics.push(error("INTENT_GOAL_MISSING", "Intent source must declare at least one goal.", ast.span));
   }
 
+  const goalNames = new Map();
   for (const goal of ast.goals) {
+    if (goalNames.has(goal.name)) {
+      diagnostics.push(error("INTENT_NAME_DUPLICATE", `goal '${goal.name}' is already declared.`, goal.span, {
+        name: goal.name,
+        previous_span: goalNames.get(goal.name).span,
+      }));
+    } else {
+      goalNames.set(goal.name, goal);
+    }
+
     const hasEffects = goal.steps.some((step) => step.effects.length > 0) || goal.capabilities.some((capability) => {
       return capability.constraints.some((constraint) => /\b(write|run|push|deploy|commit|update)\b/.test(constraint))
         || ["shell", "git", "deploy", "ticket"].includes(capability.family);
@@ -377,6 +445,9 @@ function checkIntent(ast) {
         diagnostics.push(error("INTENT_MEMORY_UNSCOPED", `memory '${memory.name ?? memory.scope}' must declare retention.`, memory.span));
       }
     }
+
+    validateGoalTypes(goal, declaredTypes, diagnostics);
+    validateStepBindings(goal, diagnostics);
 
     const capabilities = goal.capabilities.map((capability) => capability.family);
     for (const step of goal.steps) {
@@ -395,12 +466,93 @@ function checkIntent(ast) {
   return diagnostics;
 }
 
+function validateGoalTypes(goal, declaredTypes, diagnostics) {
+  const seenParameters = new Map();
+  for (const parameter of goal.parameters) {
+    if (seenParameters.has(parameter.name)) {
+      diagnostics.push(error("INTENT_NAME_DUPLICATE", `parameter '${parameter.name}' is already declared in goal '${goal.name}'.`, goal.span, {
+        name: parameter.name,
+      }));
+    }
+    seenParameters.set(parameter.name, parameter);
+    validateTypeRef(parameter.type, goal.span, declaredTypes, diagnostics);
+  }
+  validateTypeRef(goal.outputType, goal.span, declaredTypes, diagnostics);
+
+  const stepNames = new Map();
+  for (const step of goal.steps) {
+    if (stepNames.has(step.name)) {
+      diagnostics.push(error("INTENT_NAME_DUPLICATE", `step '${step.name}' is already declared in goal '${goal.name}'.`, step.span, {
+        name: step.name,
+        previous_span: stepNames.get(step.name).span,
+      }));
+    } else {
+      stepNames.set(step.name, step);
+    }
+
+    const parameterNames = new Set();
+    for (const parameter of step.parameters) {
+      if (parameterNames.has(parameter.name)) {
+        diagnostics.push(error("INTENT_NAME_DUPLICATE", `parameter '${parameter.name}' is already declared in step '${step.name}'.`, step.span, {
+          name: parameter.name,
+        }));
+      }
+      parameterNames.add(parameter.name);
+      validateTypeRef(parameter.type, step.span, declaredTypes, diagnostics);
+    }
+    validateTypeRef(step.outputType, step.span, declaredTypes, diagnostics);
+  }
+}
+
+function validateTypeRef(typeRef, nodeSpan, declaredTypes, diagnostics) {
+  if (!typeRef) {
+    return;
+  }
+  for (const name of extractTypeNames(typeRef)) {
+    if (!BUILTIN_TYPES.has(name) && !declaredTypes.has(name)) {
+      diagnostics.push(error("INTENT_TYPE_UNRESOLVED", `type '${name}' is not declared.`, nodeSpan, {
+        type: name,
+      }));
+    }
+  }
+}
+
+function validateStepBindings(goal, diagnostics) {
+  const availableTypes = new Set(goal.parameters.map((parameter) => normalizeTypeRef(parameter.type)).filter(Boolean));
+  for (const step of goal.steps) {
+    for (const parameter of step.parameters) {
+      const parameterType = normalizeTypeRef(parameter.type);
+      if (parameterType && !availableTypes.has(parameterType)) {
+        diagnostics.push(error("INTENT_STEP_INPUT_UNRESOLVED", `step '${step.name}' input '${parameter.name}' requires '${parameterType}' before any prior step produces it.`, step.span, {
+          step: step.name,
+          parameter: parameter.name,
+          type: parameterType,
+        }));
+      }
+    }
+    const outputType = normalizeTypeRef(step.outputType);
+    if (outputType) {
+      availableTypes.add(outputType);
+    }
+  }
+}
+
 function buildGraph(ast, diagnostics = checkIntent(ast)) {
   const nodes = [];
   const edges = [];
 
   for (const goal of ast.goals) {
     const goalId = `goal:${goal.name}`;
+    for (const typeDecl of ast.types) {
+      const typeId = `type:${typeDecl.name}`;
+      if (!nodes.some((candidate) => candidate.id === typeId)) {
+        nodes.push(node(typeId, "Type", typeDecl.name, typeDecl.span, {
+          definition: typeDecl.definition,
+        }));
+      }
+      edges.push(edge(typeId, goalId, "declares"));
+    }
+
     nodes.push(node(goalId, "Goal", goal.name, goal.span, {
       title: goal.title,
       outputType: goal.outputType,
@@ -500,6 +652,14 @@ function parseParameters(text, file, lineNumber) {
       type: match[2]?.trim() ?? null,
     };
   });
+}
+
+function extractTypeNames(typeRef) {
+  return [...typeRef.matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)].map((match) => match[0]);
+}
+
+function normalizeTypeRef(typeRef) {
+  return typeRef ? typeRef.replace(/\s+/g, "") : null;
 }
 
 function collectBlock(lines, startIndex, file) {

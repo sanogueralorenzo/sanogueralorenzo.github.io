@@ -1,5 +1,26 @@
 package fixtures.research
 
+type Source = {
+  url: Url
+}
+
+type SourceSet = {
+  sources: List<Source>
+}
+
+type Claim = {
+  text: String
+}
+
+type ClaimSet = {
+  claims: List<Claim>
+}
+
+type ResearchReport = {
+  answer: String,
+  sources: SourceSet
+}
+
 goal "answer research question" {
   context web("https://example.com/**")
   context documents("./docs/**")
@@ -18,9 +39,9 @@ goal "answer research question" {
   }
 
   plan {
-    step collect_sources -> Evidence<SourceSet>
-    step extract_claims(input: Evidence<SourceSet>) -> Evidence<ClaimSet>
-    step synthesize_answer(input: Evidence<ClaimSet>) -> Verified<ResearchReport>
+    step collect_sources -> SourceSet
+    step extract_claims(input: SourceSet) -> ClaimSet
+    step synthesize_answer(input: ClaimSet) -> ResearchReport
   }
 
   verify {

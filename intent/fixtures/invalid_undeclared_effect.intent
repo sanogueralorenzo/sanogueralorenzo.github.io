@@ -1,5 +1,17 @@
 package fixtures.invalid_undeclared_effect
 
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+type GitRef = {
+  name: String
+}
+
 goal "push undeclared change" {
   context repo("./")
 
@@ -16,7 +28,9 @@ goal "push undeclared change" {
   plan {
     step inspect_request -> Finding
     step patch_code(input: Finding) -> Patch
-    step push_change(input: Patch) -> Effect<GitPush, GitRef>
+    step push_change(input: Patch) -> GitRef {
+      effect GitPush
+    }
   }
 
   verify {

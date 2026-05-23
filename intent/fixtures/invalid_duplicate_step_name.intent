@@ -1,4 +1,4 @@
-package fixtures.invalid_missing_verification
+package fixtures.invalid_duplicate_step_name
 
 type Finding = {
   summary: String
@@ -8,16 +8,11 @@ type Patch = {
   files: List<Path>
 }
 
-goal "patch without verification" {
+goal "repeat step name" {
   context repo("./")
 
   capability file {
     read path: "./src/**"
-    write path: "./src/**"
-  }
-
-  capability shell {
-    run command: "npm test"
   }
 
   memory session {
@@ -27,7 +22,11 @@ goal "patch without verification" {
 
   plan {
     step inspect_request -> Finding
-    step patch_code(input: Finding) -> Patch
+    step inspect_request(input: Finding) -> Patch
+  }
+
+  verify {
+    require no_policy_violations
   }
 
   invariant {
