@@ -554,6 +554,174 @@ test("attach-run hands repair finalization to repair prompt hook", async () => {
   }
 });
 
+test("attach-run records cleared repair retry receipts", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const failed = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "repair-cleared-source",
+      "--event-prefix",
+      "repair-cleared-source-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--diff-changed-files",
+      "features/billing/refunds.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--json",
+    ]);
+
+    const retryArgs = [
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "repair-cleared-retry",
+      "--event-prefix",
+      "repair-cleared-retry-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--repair-id",
+      failed.selfRepair.repairId,
+      "--repair-session-id",
+      "repair-cleared-source",
+      "--json",
+    ];
+    const retry = await runJson(retryArgs);
+    const repeated = await runJson(retryArgs);
+
+    assert.equal(retry.repairReceipt.status, "cleared");
+    assert.equal(retry.repairReceipt.receipt.recorded, true);
+    assert.equal(retry.repairReceipt.receipt.repairReceipt.cleared, true);
+    assert.equal(retry.repairReceipt.receipt.repairReceipt.repairSessionId, "repair-cleared-source");
+    assert.equal(repeated.repairReceipt.receipt.deduped, true);
+
+    const retryEvents = await readJsonLines(join(stateDir, "sessions/repair-cleared-retry.jsonl"));
+    assert.equal(retryEvents.filter((event) => event.eventId === "repair-cleared-retry-delivery:repair.after_retry").length, 1);
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.repairHealth.cleared, 1);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.repairClearedCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run records still-failing repair retry receipts", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const failed = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "repair-failing-source",
+      "--event-prefix",
+      "repair-failing-source-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--diff-changed-files",
+      "features/billing/refunds.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--json",
+    ]);
+
+    const retry = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "repair-failing-retry",
+      "--event-prefix",
+      "repair-failing-retry-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--diff-changed-files",
+      "features/billing/refunds.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--repair-id",
+      failed.selfRepair.repairId,
+      "--repair-session-id",
+      "repair-failing-source",
+      "--json",
+    ]);
+
+    assert.equal(retry.repairReceipt.status, "still_failing");
+    assert.equal(retry.repairReceipt.receipt.repairReceipt.cleared, false);
+    assert.equal(retry.repairReceipt.receipt.repairReceipt.failureSource.kind, "failed_outcome");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.repairHealth.stillFailing, 1);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.repairStillFailingCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run repair retry receipts fail open for unknown repairs", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const run = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "unknown-repair-retry",
+      "--event-prefix",
+      "unknown-repair-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--repair-id",
+      "repair_unknown",
+      "--repair-session-id",
+      "missing-source",
+      "--json",
+    ]);
+
+    assert.equal(run.repairReceipt.status, "unresolved");
+    assert.equal(run.repairReceipt.receipt.repairReceipt.repairResolved, false);
+    assert.equal(run.repairReceipt.suppressedRepairs[0].reason, "unknown_repair_id");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("attach-run failed validation creates a replay-gated learning candidate", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
 

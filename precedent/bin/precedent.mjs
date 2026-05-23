@@ -2849,6 +2849,16 @@ async function attachRunSession() {
   const eventPrefix = typeof args["event-prefix"] === "string" && args["event-prefix"].trim().length > 0
     ? args["event-prefix"].trim()
     : null;
+  const retryRepairId = typeof args["repair-id"] === "string" && args["repair-id"].trim().length > 0
+    ? args["repair-id"].trim()
+    : null;
+  const retryRepairSessionId = repairSessionArg();
+  if (retryRepairId && !retryRepairSessionId) {
+    fail("attach-run --repair-id requires --repair-session-id");
+  }
+  if (!retryRepairId && retryRepairSessionId) {
+    fail("attach-run --repair-session-id requires --repair-id");
+  }
 
   const beforeTurn = await runPrecedentChildJson([
     "context",
@@ -2956,6 +2966,14 @@ async function attachRunSession() {
     notes: args.notes ?? `attach-run validation exited ${validation.validation.exitCode}`,
     attributedPrecedents,
   });
+  const repairReceipt = await runAttachRepairReceipt({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:repair.after_retry` : null,
+    repairId: retryRepairId,
+    repairSessionId: retryRepairSessionId,
+    attributedPrecedents,
+  });
   const autoPromotion = args["auto-promote"] === true
     ? await runPrecedentChildJson([
       "promote-pending",
@@ -2986,6 +3004,7 @@ async function attachRunSession() {
     selfRepair,
     finalization,
     outcome,
+    repairReceipt,
     autoPromotion,
     learning: outcome.learning ?? null,
   });
@@ -3113,6 +3132,43 @@ function runAttachRepairHandoff({
     repair,
     repairId: repair.repairId,
     suppressedRepairs: repair.suppressedRepairs ?? [],
+  }));
+}
+
+function runAttachRepairReceipt({
+  stateDirArg,
+  sessionId,
+  eventId,
+  repairId,
+  repairSessionId,
+  attributedPrecedents,
+}) {
+  if (!repairId) {
+    return {
+      status: "not_requested",
+      receipt: null,
+    };
+  }
+
+  return runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "repair.after_retry",
+    sessionId,
+    ...eventIdField(eventId),
+    repairId,
+    repairSessionId,
+    attributedPrecedents,
+  }).then((receipt) => ({
+    status: receipt.repairReceipt?.status ?? "unresolved",
+    receipt,
+    repairId,
+    repairSessionId,
+    suppressedRepairs: receipt.suppressedRepairs ?? [],
   }));
 }
 
@@ -5859,6 +5915,13 @@ function eventIdField(eventId) {
   return eventId ? { eventId } : {};
 }
 
+function repairSessionArg() {
+  const value = args["repair-session-id"] ?? args["repair-session"];
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
 async function findSessionEventByEventId(stateDir, sessionId, eventId) {
   if (!sessionId || !eventId) {
     return null;
@@ -8490,7 +8553,7 @@ Usage:
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent attach [--runtime generic|codex] [--session session-id|--thread-id thread-id] --task "text"
-  precedent attach-run --task "text" --validation-command "cmd" [--diff-changed-files paths] [--session session-id|--thread-id thread-id] [--event-prefix id] [--auto-promote]
+  precedent attach-run --task "text" --validation-command "cmd" [--diff-changed-files paths] [--session session-id|--thread-id thread-id] [--event-prefix id] [--repair-id id --repair-session-id session-id] [--auto-promote]
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
@@ -8512,7 +8575,7 @@ Commands:
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   attach    Emit a zero-touch runtime adapter contract for one session.
-  attach-run Run before-turn, warrant, validation, optional diff, self-healing finalization, repair handoff, outcome, and optional queued promotion hooks.
+  attach-run Run before-turn, warrant, validation, optional diff, self-healing finalization, repair handoff/receipt, outcome, and optional queued promotion hooks.
   check     Validate local Precedent state for CI.
   prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.
