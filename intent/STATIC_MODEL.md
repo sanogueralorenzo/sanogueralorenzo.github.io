@@ -1487,6 +1487,10 @@ does not match the goal's `Invariant` nodes, and emits `INTENT_GRAPH_CYCLE` for
 cyclic graph edges. Graph validation emits `INTENT_GRAPH_GUARD_INVALID` when
 an `Invariant` node is missing its `guards` edge to `Completion` or to any
 `Effect`, `Checkpoint`, or step-scoped `Check` node in the same goal.
+Graph validation emits `INTENT_GRAPH_AUTHORIZATION_INVALID` when an `Effect`
+node or verification `Check` node with `data.effect` lacks an incoming
+`authorizes` edge from a `Capability`, or when its incoming `authorizes` edge is
+not from a `Capability`.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that

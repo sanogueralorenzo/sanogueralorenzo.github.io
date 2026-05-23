@@ -467,6 +467,10 @@ The parser emits names and type reference strings; the checker owns binding.
   `INTENT_GRAPH_EDGE_UNRESOLVED`; a step `Input` node without exactly one
   incoming `data` edge emits `INTENT_GRAPH_INPUT_UNBOUND`; a `data` edge with
   an invalid producer or consumer emits `INTENT_GRAPH_DATA_INVALID`; a
+  `Effect` node or verification `Check` node with `data.effect` that lacks an
+  incoming `authorizes` edge from a `Capability`, or whose incoming
+  `authorizes` edge is not from a `Capability`, emits
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`; a
   `Completion` node without the required incoming completion, verification, or
   guard coverage emits `INTENT_GRAPH_COMPLETION_INVALID`; cyclic graph edges emit
   `INTENT_GRAPH_CYCLE`; an `Invariant` node missing its `guards` edge to
