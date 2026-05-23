@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { validateGraph } from "../bin/intent.mjs";
 
 const CLI = new URL("../bin/intent.mjs", import.meta.url).pathname;
 const AST_SCHEMA = new URL("../schemas/intent.ast.v0.schema.json", import.meta.url).pathname;
@@ -68,6 +69,14 @@ function run(args) {
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
+}
+
+function testSpan(line) {
+  return {
+    file: "synthetic.intent",
+    start: { line, column: 1, offset: 0 },
+    end: { line, column: 1, offset: 0 },
+  };
 }
 
 function validateSchema(schema, value) {
@@ -1012,6 +1021,31 @@ describe("intent static model CLI", () => {
     for (const fixture of validFixtures) {
       assertGraphAcyclic(runJson(["graph", fixture]));
     }
+  });
+
+  it("validates graph endpoint and cycle diagnostics", () => {
+    const danglingDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [{ id: "node:a", span: testSpan(1) }],
+      edges: [{ from: "node:a", to: "node:missing", kind: "requests" }],
+    });
+    const cycleDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "node:a", span: testSpan(1) },
+        { id: "node:b", span: testSpan(2) },
+      ],
+      edges: [
+        { from: "node:a", to: "node:b", kind: "requests" },
+        { from: "node:b", to: "node:a", kind: "requires" },
+      ],
+    });
+
+    assert.equal(danglingDiagnostics[0].code, "INTENT_GRAPH_EDGE_UNRESOLVED");
+    assert.equal(danglingDiagnostics[0].to, "node:missing");
+    assert.deepEqual(danglingDiagnostics[0].missing_endpoints, ["to"]);
+    assert.equal(cycleDiagnostics[0].code, "INTENT_GRAPH_CYCLE");
+    assert.deepEqual(cycleDiagnostics[0].cycle, ["node:a", "node:b", "node:a"]);
   });
 
   it("validates CLI outputs against versioned schemas", () => {

@@ -1144,7 +1144,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     }
   }
 
-  return {
+  const graph = {
     schema_version: "intent.graph.v0",
     ast_schema_version: ast.schema_version,
     source: ast.source,
@@ -1154,6 +1154,67 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     nodes,
     edges,
   };
+  diagnostics.push(...validateGraph(graph));
+  graph.ok = diagnostics.length === 0;
+  return graph;
+}
+
+function validateGraph(graph) {
+  const diagnostics = [];
+  const nodesById = new Map(graph.nodes.map((candidate) => [candidate.id, candidate]));
+  const fallbackSpan = graph.nodes[0]?.span ?? span(graph.source ?? "graph", 1, 1);
+  const outgoing = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
+
+  for (const graphEdge of graph.edges) {
+    const missing = ["from", "to"].filter((endpoint) => !nodesById.has(graphEdge[endpoint]));
+    if (missing.length > 0) {
+      diagnostics.push(error("INTENT_GRAPH_EDGE_UNRESOLVED", `graph edge '${graphEdge.kind}' references missing endpoint '${missing.map((endpoint) => graphEdge[endpoint]).join(", ")}'.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+        edge: graphEdge.kind,
+        from: graphEdge.from,
+        to: graphEdge.to,
+        missing_endpoints: missing,
+      }));
+      continue;
+    }
+    outgoing.get(graphEdge.from).push(graphEdge.to);
+  }
+
+  const visiting = new Set();
+  const visited = new Set();
+  let cycleReported = false;
+  const visit = (nodeId, stack) => {
+    if (cycleReported) {
+      return;
+    }
+    if (visiting.has(nodeId)) {
+      const cycle = [...stack, nodeId];
+      diagnostics.push(error("INTENT_GRAPH_CYCLE", `graph contains execution cycle '${cycle.join(" -> ")}'.`, nodesById.get(nodeId)?.span ?? fallbackSpan, {
+        cycle,
+      }));
+      cycleReported = true;
+      return;
+    }
+    if (visited.has(nodeId)) {
+      return;
+    }
+
+    visiting.add(nodeId);
+    for (const target of outgoing.get(nodeId) ?? []) {
+      visit(target, [...stack, nodeId]);
+    }
+    visiting.delete(nodeId);
+    visited.add(nodeId);
+  };
+
+  for (const nodeId of nodesById.keys()) {
+    visit(nodeId, []);
+  }
+
+  return diagnostics;
+}
+
+function edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan) {
+  return nodesById.get(graphEdge.from)?.span ?? nodesById.get(graphEdge.to)?.span ?? fallbackSpan;
 }
 
 function parseParameters(text, file, lineNumber, rawLine = text) {
@@ -2006,4 +2067,5 @@ export {
   buildGraph,
   checkIntent,
   parseIntent,
+  validateGraph,
 };
