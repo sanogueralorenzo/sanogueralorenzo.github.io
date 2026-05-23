@@ -39,6 +39,10 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(dryRun.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
     assert.equal(dryRun.sessionCheck.ok, true);
     assert.match(dryRun.markdown, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
+    assert.equal(dryRun.memoryPreview.intent, "remember why app text exists");
+    assert.deepEqual(dryRun.memoryPreview.decisions, ["Use committed Markdown for reviewable memory"]);
+    assert.deepEqual(dryRun.memoryPreview.validation, ["node --test"]);
+    assert.match(dryRun.memoryPreview.handoff[0], /Preserve the decision/);
     const missingDryRunMemory = await runTraceAllowFailure(repo, ["show", "HEAD"]);
     assert.equal(missingDryRunMemory.exitCode, 1);
     const missingDryRunCheckpoint = await run(repo, ["git", "rev-parse", "--verify", "refs/trace/checkpoints"], fixedEnv);

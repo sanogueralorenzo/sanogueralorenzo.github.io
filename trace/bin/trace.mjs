@@ -2244,6 +2244,7 @@ async function recordMemory() {
       checkpoint: checkpointId,
       session: sessionId,
       markdown: memory.markdown,
+      memoryPreview: memoryRecord(memory.markdown),
     };
     if (sessionReport) {
       output.sessionCheck = sessionReport;
