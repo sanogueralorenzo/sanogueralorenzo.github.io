@@ -382,8 +382,15 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
-- Runtime Step node metadata is the next Phase 2 static-model milestone.
-  `Step` node data must carry arrays for `inputs`, `effects`, `requirements`,
+- Runtime Goal node metadata is the next Phase 2 static-model milestone.
+  `Goal` node data must carry `title` as `null` or a non-empty string,
+  `parameters` as an array of valid parameter records with non-empty `name` and
+  `type` strings and valid spans, `outputType` as `null` or a non-empty string,
+  and `outputTypeSpan` as `null` or a valid span. Malformed Goal node payloads
+  emit `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
+  runtimes must not infer goal titles, inputs, output types, or provenance.
+- Runtime Step node metadata is part of graph validation. `Step` node data must
+  carry arrays for `inputs`, `effects`, `requirements`,
   `checkpoints`, `approvals`, `timeouts`, and `retries`. Each input must be a
   valid parameter record with non-empty `name` and `type` strings and a valid
   `span`. `outputType` may be `null` or a non-empty string, and
@@ -583,6 +590,10 @@ blocking diagnostics.
   record with non-empty `name` and `type` strings and a valid `span`.
   `data.outputType` may be `null` or a non-empty string, and
   `data.outputTypeSpan` may be `null` or a valid span.
+- Emit every `Goal` node with `data.title` as `null` or a non-empty string,
+  `data.parameters` as an array of valid parameter records with non-empty
+  `name` and `type` strings and valid spans, `data.outputType` as `null` or a
+  non-empty string, and `data.outputTypeSpan` as `null` or a valid span.
 - Emit each invariant statement as an `Invariant` node with `guards` edges to
   completion and to every effect, checkpoint, and step requirement check in the
   same goal.
@@ -1281,6 +1292,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
 - `INTENT_GRAPH_POLICY_INVALID`
+- `INTENT_GRAPH_GOAL_INVALID`
 - `INTENT_GRAPH_STEP_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_NODE_KIND_INVALID`
@@ -1733,6 +1745,12 @@ not from a `Capability`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
+Graph validation emits `INTENT_GRAPH_GOAL_INVALID` when a `Goal` node omits
+`title`, `parameters`, `outputType`, or `outputTypeSpan` data, when `title` is
+neither `null` nor a non-empty string, when any goal parameter is not a valid
+parameter record with non-empty `name` and `type` strings and a valid `span`,
+when `outputType` is neither `null` nor a non-empty string, or when
+`outputTypeSpan` is neither `null` nor a valid span.
 Graph validation emits `INTENT_GRAPH_STEP_INVALID` when a `Step` node omits
 array data for `inputs`, `effects`, `requirements`, `checkpoints`, `approvals`,
 `timeouts`, or `retries`, when any step input is not a valid parameter record
@@ -1757,6 +1775,7 @@ validators must reject any graph with a missing or unsupported
 schema-level structural strings are empty, whose runtime structural strings are
 blank after trimming, whose node or edge kind is outside the supported sets
 above, whose edge endpoint does not resolve inside the same payload, whose
+`Goal` nodes omit valid runtime Goal node data, whose
 `Step` nodes omit valid runtime Step node data, whose
 `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
 nodes omit valid runtime retention lifecycle data, whose `Policy` nodes omit
@@ -1822,6 +1841,15 @@ Capability nodes are also runtime policy inputs. Graph validation requires
 emits `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable
 because runtime authorization and approval enforcement must not infer missing
 policy.
+
+Goal nodes carry the runtime graph contract for requested work. Their data must
+include `title`, `parameters`, `outputType`, and `outputTypeSpan`. `title` may
+be `null` or a non-empty string. `parameters` must be an array, and each entry
+must be a valid parameter record with non-empty `name` and `type` strings and a
+valid `span`. `outputType` may be `null` or a non-empty string, and
+`outputTypeSpan` may be `null` or a valid span. Malformed Goal node payloads
+emit `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
+runtimes must not infer goal titles, inputs, output types, or provenance.
 
 Step nodes carry the runtime graph contract for executable work. Their data
 must include arrays for `inputs`, `effects`, `requirements`, `checkpoints`,

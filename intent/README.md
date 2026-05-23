@@ -157,6 +157,13 @@ Validation expectations:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
+- Graph `Goal` nodes are the next Phase 2 static-model milestone. Goal node
+  data must carry `title` as `null` or a non-empty string, `parameters` as an
+  array of valid parameter records with non-empty `name` and `type` strings and
+  valid spans, `outputType` as `null` or a non-empty string, and
+  `outputTypeSpan` as `null` or a valid span. Malformed Goal node payloads emit
+  `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
+  runtimes must not infer goal titles, inputs, output types, or provenance.
 - Graph `Input` nodes are runtime data ports. Goal inputs and step inputs must
   carry `data.scope` as either `goal` or `step` and a non-empty `data.type`.
   Step input nodes must also be attached to their owning step through the
@@ -165,8 +172,7 @@ Validation expectations:
   step. Malformed input payloads emit `INTENT_GRAPH_INPUT_INVALID` and make the
   graph non-executable because runtimes must not infer missing type, scope, or
   step ownership.
-- Graph `Step` nodes are the next Phase 2 static-model milestone. Step node
-  data must carry arrays for `inputs`, `effects`, `requirements`,
+- Graph `Step` node data must carry arrays for `inputs`, `effects`, `requirements`,
   `checkpoints`, `approvals`, `timeouts`, and `retries`. Each input must be a
   valid parameter record with non-empty `name` and `type` strings and a valid
   `span`. `outputType` may be `null` or a non-empty string, and
