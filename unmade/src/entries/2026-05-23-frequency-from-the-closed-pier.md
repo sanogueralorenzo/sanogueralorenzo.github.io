@@ -10,11 +10,20 @@ status: lost field record
 visual: signal
 mark: "≈"
 trace: A blank audio file, wind notes, and the posted closure notice.
-question: Can a recording fail and still document the place?
+materials: Dead recorder battery, windscreen foam, closure notice photograph, and a waveform printout of near-silence.
+provenance: Filed with field notes from the shoreline and an access map annotated with fence gaps.
+question: Can a failed recording document the boundary between listening and trespass?
 permalink: /unmade/frequency-from-the-closed-pier/
 ---
 
-The microphone was meant to catch the wooden drag of tide under boards, cables tapping against metal, gulls made small by distance, and the particular hollow sound of weather moving through railings.
+The microphone was meant to catch the wooden drag of tide under boards, cables tapping against metal, gulls made small by distance, and the particular hollow sound of weather moving through railings. The pier had been chosen because it sounded unstable even in photographs.
 
-The file contains almost nothing. A fence, wind, and the small noise of deciding not to climb over.
+By the time the recorder arrived, the entrance was fenced and the posted notice had already begun fading. The file contains almost nothing: wind, chain-link vibration, the recorder shifting in one hand, and the small noise of deciding not to climb over.
 
+The missing sound is now inseparable from the refusal to trespass.
+
+## Case Notes
+
+The field record is not empty. It captures the ethics of access. The absent pier becomes audible through everything that prevented contact with it.
+
+The unresolved question is whether documentation requires reaching the intended subject, or whether the failed approach sometimes tells the truer story.

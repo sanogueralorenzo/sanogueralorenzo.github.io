@@ -10,11 +10,20 @@ status: partial screenplay
 visual: script
 mark: "INT"
 trace: Four pages, seven exits, no explanation.
-question: What if continuity is the thing being haunted?
+materials: Script pages, door-number sketches, blocking marks, and a continuity report with all entries left blank.
+provenance: Pulled from a draft folder beside location photos that do not match any described room.
+question: What if continuity is not broken by the haunting, but is the thing being haunted?
 permalink: /unmade/scene-with-the-wrong-door/
 ---
 
-The scene begins in a kitchen, but the first exit opens into a school hallway. Nobody comments. The second door opens into a hotel room. The third into the kitchen again, years later.
+The scene begins in a kitchen, but the first exit opens into a school hallway. Nobody comments. The second door opens into a hotel room. The third into the kitchen again, years later. Every exit is accepted with the exhausted politeness people reserve for family rules.
+
+The fragment has no monster and no explanation. Its fear comes from the characters refusing to be surprised. They know the house is impossible, but they have organized their manners around it.
 
 It remains unfinished because the rule was stronger than the story, and sometimes a rule is only interesting until it asks for consequences.
 
+## Case Notes
+
+The pages show a writer more committed to architecture than plot. The doors are numbered; the characters are not. The script knows where everyone exits but refuses to say what any exit costs.
+
+The unresolved question is whether the missing continuation would reveal the rule, or whether explanation would destroy the only thing the scene understands.

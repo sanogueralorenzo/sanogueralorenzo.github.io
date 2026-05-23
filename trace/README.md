@@ -147,7 +147,7 @@ This keeps the first version agent-agnostic while making the hook contract expli
 Checkpoint commands keep the raw side of Trace explicit:
 
 - `trace checkpoint list` shows checkpoint payloads stored on `refs/trace/checkpoints`.
-- `trace checkpoint verify` checks checkpoint payload shape and commit reachability.
+- `trace checkpoint verify` checks checkpoint payload shape, commit reachability, and stored SHA-256 integrity metadata.
 - `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref.
 - `trace checkpoint cleanup --sessions-before-days 14` prunes old local raw session JSONL files from the git common directory.
 
