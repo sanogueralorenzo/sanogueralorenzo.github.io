@@ -44,11 +44,29 @@ jobs:
             jury/examples/ci/fixtures/package-release/replacement-downstream-gate.json
             jury/examples/ci/fixtures/package-release/replacement-patch-audit.json
 
+  package-release-evidence-replay:
+    runs-on: ubuntu-latest
+    needs: package-release-fixtures
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Download Jury package release evidence audits
+        uses: actions/download-artifact@v4
+        with:
+          name: jury-package-release-evidence
+          path: package-release-evidence
+      - name: Replay Jury package release evidence audits
+        env:
+          JURY_PACKAGE_RELEASE_EVIDENCE_DIR: ../package-release-evidence
+        run: npm --prefix jury run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR"
+
   dry-run-publication:
     runs-on: ubuntu-latest
     needs:
       - package-manifest
-      - package-release-fixtures
+      - package-release-evidence-replay
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -73,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - package-manifest
-      - package-release-fixtures
+      - package-release-evidence-replay
       - dry-run-publication
     steps:
       - uses: actions/checkout@v4
