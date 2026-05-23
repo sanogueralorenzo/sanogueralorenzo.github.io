@@ -624,6 +624,45 @@ test("strict check fails successful outcomes that miss finalization", async () =
   }
 });
 
+test("strict check fails failed next actions", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await appendFile(join(stateDir, "next_actions.jsonl"), `${JSON.stringify({
+      schema_version: "precedent.next_action.v1",
+      type: "next_action_queued",
+      id: "next_failed",
+      status: "ready",
+      actionType: "run_validation",
+      sessionId: "failed-next-action",
+      commands: ["pnpm test:webhooks"],
+      createdAt: new Date().toISOString(),
+    })}\n`);
+    await appendFile(join(stateDir, "next_actions.jsonl"), `${JSON.stringify({
+      schema_version: "precedent.next_action.v1",
+      type: "next_action_failed",
+      id: "next_failed",
+      status: "failed",
+      runId: "next_run_failed",
+      failedAt: new Date().toISOString(),
+      reason: "runtime_failed",
+    })}\n`);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.ok(payload.checks.some((item) => (
+      item.name === "next_action"
+      && item.failed === 1
+      && item.failedIds.includes("next_failed")
+    )));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   await runJson(["init", "--state-dir", stateDir, "--json"]);
   const traceOut = join(stateDir, "trace.json");

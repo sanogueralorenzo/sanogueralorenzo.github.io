@@ -183,6 +183,80 @@ test("orchestration.after_idle finalizes unfinished sessions", async () => {
   }
 });
 
+test("next-action claim and completion receipts are leased and reported", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "claimable",
+      "--event-id",
+      "warrant-1",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "orchestration.after_idle",
+      sessionId: "claimable",
+      eventId: "idle-claimable",
+      warrantId: warrant.warrantId,
+    });
+
+    const claim = await runJson([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--claim",
+      "--claimed-by",
+      "runtime-host",
+      "--json",
+    ]);
+    const empty = await runJson(["next-action", "--state-dir", stateDir, "--claim", "--json"]);
+
+    assert.equal(claim.status, "claimed");
+    assert.equal(claim.action.status, "ready");
+    assert.equal(claim.action.actionType, "run_validation");
+    assert.equal(claim.claim.status, "running");
+    assert.equal(claim.claim.claimedBy, "runtime-host");
+    assert.match(claim.claim.runId, /^next_run_/u);
+    assert.equal(empty.status, "none");
+    assert.equal(empty.reason, "no_ready_actions");
+
+    const running = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(running.nextActionQueue.running, 1);
+
+    const completed = await runJson([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--complete",
+      "--id",
+      claim.action.id,
+      "--run-id",
+      claim.claim.runId,
+      "--json",
+    ]);
+    assert.equal(completed.status, "completed");
+    assert.equal(completed.receipt.runId, claim.claim.runId);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.nextActionQueue.completed, 1);
+    assert.equal(report.nextActionQueue.running, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("orchestration.after_idle re-surfaces blocked finalization without duplicating it", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
 

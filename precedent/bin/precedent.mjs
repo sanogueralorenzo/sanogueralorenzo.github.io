@@ -31,6 +31,8 @@ const RETIRE_SIGNAL_THRESHOLD = 4;
 const REPAIR_EFFICACY_SUPPRESSION_THRESHOLD = 2;
 const PROMOTION_TRIAL_LEASE_MS = 5 * 60 * 1000;
 const PROMOTION_TRIAL_MAX_ATTEMPTS = 2;
+const NEXT_ACTION_LEASE_MS = 5 * 60 * 1000;
+const NEXT_ACTION_MAX_ATTEMPTS = 2;
 const FINALIZATION_TRIGGER_HOOKS = new Set([
   "context.before_turn",
   "warrant.issue",
@@ -135,6 +137,11 @@ async function main() {
     return;
   }
 
+  if (command === "next-action") {
+    await nextActionCommand();
+    return;
+  }
+
   if (command === "hook") {
     await runHook();
     return;
@@ -199,7 +206,7 @@ function parseArgs(rawArgs) {
       fail("empty flag is not valid");
     }
 
-    if (key === "json" || key === "help" || key === "dry-run" || key === "strict" || key === "promote-session-pairs" || key === "include-stale" || key === "auto-promote") {
+    if (key === "json" || key === "help" || key === "dry-run" || key === "strict" || key === "promote-session-pairs" || key === "include-stale" || key === "auto-promote" || key === "claim" || key === "complete" || key === "fail") {
       parsed[key] = true;
       continue;
     }
@@ -888,6 +895,100 @@ async function promotePendingTrials() {
     leaseMs: Number(args["lease-ms"] ?? PROMOTION_TRIAL_LEASE_MS),
     maxAttempts: Number(args["max-attempts"] ?? PROMOTION_TRIAL_MAX_ATTEMPTS),
   }));
+}
+
+async function nextActionCommand() {
+  const stateDir = statePath();
+  const claim = args.claim === true;
+  const complete = args.complete === true;
+  const failAction = args.fail === true;
+  const modes = [claim, complete, failAction].filter(Boolean).length;
+
+  if (modes !== 1) {
+    fail("next-action requires exactly one of --claim, --complete, or --fail");
+  }
+
+  let payload = null;
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const file = join(stateDir, "next_actions.jsonl");
+    const records = await readJsonLines(file);
+    const now = new Date();
+    const maxAttempts = Number(args["max-attempts"] ?? NEXT_ACTION_MAX_ATTEMPTS);
+    const queue = nextActionQueue(records, { now, maxAttempts });
+
+    if (claim) {
+      const requestedId = stringOrNull(args.id);
+      const action = queue.items
+        .filter((item) => item.status === "ready")
+        .find((item) => !requestedId || item.id === requestedId) ?? null;
+      if (!action) {
+        payload = {
+          ok: true,
+          schema_version: "precedent.next_action_claim.v1",
+          status: "none",
+          reason: requestedId ? "requested_action_not_ready" : "no_ready_actions",
+          action: null,
+          queue,
+        };
+        return;
+      }
+
+      const claimedAt = now.toISOString();
+      const leaseExpiresAt = new Date(now.getTime() + Number(args["lease-ms"] ?? NEXT_ACTION_LEASE_MS)).toISOString();
+      const runId = `next_run_${stableHash({
+        actionId: action.id,
+        attempt: action.attempt,
+        claimedAt,
+        claimedBy: stringOrNull(args["claimed-by"]),
+      }).slice(0, 16)}`;
+      const receipt = {
+        schema_version: "precedent.next_action.v1",
+        type: "next_action_claimed",
+        id: action.id,
+        status: "running",
+        runId,
+        attempt: action.attempt,
+        claimedAt,
+        claimedBy: stringOrNull(args["claimed-by"]),
+        leaseExpiresAt,
+      };
+      await appendJsonLine(file, receipt);
+      payload = {
+        ok: true,
+        schema_version: "precedent.next_action_claim.v1",
+        status: "claimed",
+        action,
+        claim: receipt,
+      };
+      return;
+    }
+
+    const id = requireString(args.id, "next-action --id");
+    const action = queue.items.find((item) => item.id === id) ?? null;
+    const receipt = {
+      schema_version: "precedent.next_action.v1",
+      type: complete ? "next_action_completed" : "next_action_failed",
+      id,
+      status: complete ? "completed" : "failed",
+      runId: stringOrNull(args["run-id"]),
+      completedAt: complete ? now.toISOString() : null,
+      failedAt: failAction ? now.toISOString() : null,
+      reason: complete ? stringOrNull(args.reason) : (stringOrNull(args.reason) ?? "next_action_failed"),
+      actionType: action?.actionType ?? null,
+      sessionId: action?.sessionId ?? null,
+    };
+    await appendJsonLine(file, receipt);
+    payload = {
+      ok: true,
+      schema_version: complete ? "precedent.next_action_complete.v1" : "precedent.next_action_fail.v1",
+      status: receipt.status,
+      action,
+      receipt,
+    };
+  });
+
+  print(payload);
 }
 
 async function runPendingPromotionTrials({
@@ -2603,6 +2704,45 @@ function buildManifest(runtime, stateDir) {
     stateDir,
     "--json",
   ];
+  const nextActionClaimCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "next-action",
+    "--state-dir",
+    stateDir,
+    "--claim",
+    "--claimed-by",
+    "$CLAIMED_BY",
+    "--json",
+  ];
+  const nextActionCompleteCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "next-action",
+    "--state-dir",
+    stateDir,
+    "--complete",
+    "--id",
+    "$NEXT_ACTION_ID",
+    "--run-id",
+    "$RUN_ID",
+    "--json",
+  ];
+  const nextActionFailCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "next-action",
+    "--state-dir",
+    stateDir,
+    "--fail",
+    "--id",
+    "$NEXT_ACTION_ID",
+    "--run-id",
+    "$RUN_ID",
+    "--reason",
+    "$REASON",
+    "--json",
+  ];
   const preflightCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -2803,6 +2943,27 @@ function buildManifest(runtime, stateDir) {
         command: promotionPendingCommand,
         stdin: [],
         output: ["ok", "schema_version", "dryRun", "processed", "results", "queue"],
+        timeoutMs,
+        failurePolicy,
+      },
+      "next_action.claim": {
+        command: nextActionClaimCommand,
+        stdin: [],
+        output: ["ok", "schema_version", "status", "action", "claim", "queue"],
+        timeoutMs,
+        failurePolicy,
+      },
+      "next_action.complete": {
+        command: nextActionCompleteCommand,
+        stdin: [],
+        output: ["ok", "schema_version", "status", "action", "receipt"],
+        timeoutMs,
+        failurePolicy,
+      },
+      "next_action.fail": {
+        command: nextActionFailCommand,
+        stdin: [],
+        output: ["ok", "schema_version", "status", "action", "receipt"],
         timeoutMs,
         failurePolicy,
       },
@@ -4111,30 +4272,107 @@ function promotionTrialQueue(events, options = {}) {
   };
 }
 
-function nextActionQueue(nextActions) {
-  const latestById = new Map();
+function nextActionQueue(nextActions, options = {}) {
+  const nowMs = options.now instanceof Date ? options.now.getTime() : Date.now();
+  const maxAttempts = Number(options.maxAttempts ?? NEXT_ACTION_MAX_ATTEMPTS);
+  const byId = new Map();
   for (const item of nextActions) {
     if (typeof item.id === "string" && item.id.length > 0) {
-      latestById.set(item.id, item);
+      const list = byId.get(item.id) ?? [];
+      list.push(item);
+      byId.set(item.id, list);
     }
   }
 
-  const items = [...latestById.values()];
+  const items = [...byId.entries()]
+    .map(([id, records]) => nextActionState(id, records, nowMs, maxAttempts))
+    .filter(Boolean)
+    .sort((left, right) => left.id.localeCompare(right.id));
   const count = (status) => items.filter((item) => item.status === status).length;
   return {
     total: items.length,
     ready: count("ready"),
     blocked: count("blocked"),
+    running: count("running"),
     completed: count("completed"),
-    items: items.map((item) => ({
-      id: item.id,
-      status: item.status,
-      actionType: item.actionType ?? null,
-      sessionId: item.sessionId ?? null,
-      reason: item.reason ?? null,
-      commands: Array.isArray(item.commands) ? item.commands : [],
-      finalizationEventId: item.finalizationEventId ?? null,
-    })),
+    failed: count("failed"),
+    items,
+  };
+}
+
+function nextActionState(id, records, nowMs, maxAttempts) {
+  const queued = records.filter((item) => item.type === "next_action_queued").at(-1)
+    ?? records.find((item) => item.nextAction || item.actionType);
+  if (!queued) {
+    return null;
+  }
+
+  const claims = records.filter((item) => item.type === "next_action_claimed");
+  const terminals = records.filter((item) => item.type === "next_action_completed" || item.type === "next_action_failed");
+  const latestClaim = claims.at(-1) ?? null;
+  const latestTerminal = terminals.at(-1) ?? null;
+  const terminalAfterClaim = latestTerminal && (!latestClaim || eventTime(latestTerminal) >= eventTime(latestClaim));
+  const base = {
+    id,
+    actionType: queued.actionType ?? null,
+    sessionId: queued.sessionId ?? null,
+    reason: queued.reason ?? null,
+    commands: Array.isArray(queued.commands) ? queued.commands : [],
+    finalizationEventId: queued.finalizationEventId ?? null,
+    decision: queued.decision ?? null,
+    nextAction: queued.nextAction ?? null,
+    attempt: claims.length + 1,
+    runId: latestClaim?.runId ?? null,
+    leaseExpiresAt: latestClaim?.leaseExpiresAt ?? null,
+    claimedBy: latestClaim?.claimedBy ?? null,
+    error: null,
+  };
+
+  if (terminalAfterClaim) {
+    return {
+      ...base,
+      status: latestTerminal.status ?? (latestTerminal.type === "next_action_completed" ? "completed" : "failed"),
+      attempt: claims.length,
+      runId: latestTerminal.runId ?? latestClaim?.runId ?? null,
+      reason: latestTerminal.reason ?? base.reason,
+      completedAt: latestTerminal.completedAt ?? null,
+      failedAt: latestTerminal.failedAt ?? null,
+      error: latestTerminal.type === "next_action_failed" ? latestTerminal.reason ?? "next_action_failed" : null,
+    };
+  }
+
+  if (queued.status === "blocked") {
+    return {
+      ...base,
+      status: "blocked",
+      error: queued.reason ?? "blocked",
+    };
+  }
+
+  if (latestClaim) {
+    const leaseExpiresAtMs = Date.parse(latestClaim.leaseExpiresAt ?? "");
+    const leaseExpired = Number.isFinite(leaseExpiresAtMs) && leaseExpiresAtMs <= nowMs;
+    if (!leaseExpired) {
+      return {
+        ...base,
+        status: "running",
+        attempt: claims.length,
+      };
+    }
+
+    if (claims.length >= maxAttempts) {
+      return {
+        ...base,
+        status: "failed",
+        attempt: claims.length,
+        error: "next action lease expired after max attempts",
+      };
+    }
+  }
+
+  return {
+    ...base,
+    status: "ready",
   };
 }
 
@@ -4386,6 +4624,7 @@ async function checkState() {
   await checkRuntimeWiring(checks, stateDir, args.strict === true);
   await checkWarrants(checks, stateDir, args.strict === true);
   await checkFinalizations(checks, stateDir, args.strict === true);
+  await checkNextActions(checks, stateDir, args.strict === true);
   await checkNoRawSecrets(checks, stateDir);
   await checkManifestBuilds(checks);
   if (args.strict) {
@@ -5997,7 +6236,7 @@ async function runtimeSessionEntries(stateDir) {
 }
 
 function eventTime(event) {
-  const timestamp = Date.parse(event?.receivedAt ?? event?.observedAt ?? "");
+  const timestamp = Date.parse(event?.receivedAt ?? event?.observedAt ?? event?.claimedAt ?? event?.completedAt ?? event?.failedAt ?? event?.createdAt ?? "");
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
@@ -9487,6 +9726,28 @@ async function checkFinalizations(checks, stateDir, strict) {
   });
 }
 
+async function checkNextActions(checks, stateDir, strict) {
+  const queue = nextActionQueue(await readJsonLines(join(stateDir, "next_actions.jsonl")));
+  const failed = queue.items.filter((item) => item.status === "failed");
+
+  checks.push({
+    ok: !strict || failed.length === 0,
+    name: "next_action",
+    file: join(stateDir, "next_actions.jsonl"),
+    strict,
+    total: queue.total,
+    ready: queue.ready,
+    running: queue.running,
+    completed: queue.completed,
+    failed: queue.failed,
+    blocked: queue.blocked,
+    failedIds: failed.map((item) => item.id),
+    message: strict && failed.length > 0
+      ? "next actions failed or exceeded retry budget"
+      : undefined,
+  });
+}
+
 async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {
   const replay = precedent.replay ?? {};
   assertCheck(nonEmptyString(replay.id), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay.id is required`);
@@ -9996,6 +10257,7 @@ Usage:
   precedent replay --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
   precedent promotion-trial --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
   precedent promote-pending [--state-dir .precedent] [--dry-run]
+  precedent next-action --claim|--complete|--fail [--id next_action_id] [--run-id run_id]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
@@ -10021,6 +10283,7 @@ Commands:
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   promotion-trial Run a candidate replay and immediately observe the promotion decision.
   promote-pending Run queued promotion trial work orders emitted by validation hooks.
+  next-action Claim, complete, or fail a queued runtime next action.
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, including the before-response finalization gate.

@@ -75,6 +75,45 @@ test("manifest emits a generic runtime hook contract", async () => {
     ".precedent",
     "--json",
   ]);
+  assert.deepEqual(manifest.actions["next_action.claim"].command, [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "next-action",
+    "--state-dir",
+    ".precedent",
+    "--claim",
+    "--claimed-by",
+    "$CLAIMED_BY",
+    "--json",
+  ]);
+  assert.deepEqual(manifest.actions["next_action.complete"].command, [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "next-action",
+    "--state-dir",
+    ".precedent",
+    "--complete",
+    "--id",
+    "$NEXT_ACTION_ID",
+    "--run-id",
+    "$RUN_ID",
+    "--json",
+  ]);
+  assert.deepEqual(manifest.actions["next_action.fail"].command, [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "next-action",
+    "--state-dir",
+    ".precedent",
+    "--fail",
+    "--id",
+    "$NEXT_ACTION_ID",
+    "--run-id",
+    "$RUN_ID",
+    "--reason",
+    "$REASON",
+    "--json",
+  ]);
   assert.deepEqual(manifest.actions["warrant.issue"].command, [
     "node",
     "precedent/bin/precedent.mjs",
@@ -118,6 +157,8 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.ok(manifest.actions["warrant.issue"].output.includes("warrantId"));
   assert.deepEqual(manifest.actions["promotion.trial"].output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
   assert.ok(manifest.actions["promotion.pending"].output.includes("queue"));
+  assert.ok(manifest.actions["next_action.claim"].output.includes("claim"));
+  assert.ok(manifest.actions["next_action.complete"].output.includes("receipt"));
   assert.deepEqual(manifest.hooks["context.before_turn"].command, [
     "node",
     "precedent/bin/precedent.mjs",
