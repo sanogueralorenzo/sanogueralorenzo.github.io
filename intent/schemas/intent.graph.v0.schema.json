@@ -805,37 +805,37 @@
                 "effects": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/non_empty_string"
                   }
                 },
                 "requirements": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/non_empty_string"
                   }
                 },
                 "checkpoints": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/non_empty_string"
                   }
                 },
                 "approvals": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/non_empty_string"
                   }
                 },
                 "timeouts": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/non_empty_string"
                   }
                 },
                 "retries": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/non_empty_string"
                   }
                 },
                 "memoryAccesses": {

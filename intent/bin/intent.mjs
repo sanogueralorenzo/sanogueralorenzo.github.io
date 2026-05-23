@@ -2197,6 +2197,13 @@ function validateGraph(graph, options = {}) {
   }
 
   for (const graphNode of graphNodes) {
+    if (graphNode.kind !== "Step") {
+      continue;
+    }
+    diagnostics.push(...validateGraphStepMetadata(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode, fallbackSpan));
+  }
+
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Effect") {
       continue;
     }
@@ -3158,6 +3165,108 @@ function validateGraphStep(graphNode, graphSpan) {
     retries_are_valid: retriesAreValid,
     memory_accesses_are_valid: memoryAccessesAreValid,
   });
+}
+
+function validateGraphStepMetadata(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode, fallbackSpan) {
+  return stepMetadataSpecs(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode)
+    .map((spec) => validateGraphStepMetadataField(graphNode, spec, fallbackSpan))
+    .filter((diagnostic) => diagnostic !== null);
+}
+
+function validateGraphStepMetadataField(graphNode, spec, fallbackSpan) {
+  const declaredValues = graphNode.data?.[spec.field];
+  if (!isNonemptyStringArray(declaredValues) || (declaredValues.length === 0 && spec.ownedNodes.length === 0)) {
+    return null;
+  }
+  const ownedValues = spec.ownedNodes.map((ownedNode) => {
+    const value = spec.value(ownedNode);
+    return typeof value === "string" ? value : null;
+  });
+  if (stringArraysEqual(declaredValues, ownedValues)) {
+    return null;
+  }
+  return error("INTENT_GRAPH_STEP_METADATA_INVALID", `step '${graphNode.label}' ${spec.field} metadata must match owned child nodes in source order.`, graphNode.span ?? fallbackSpan, {
+    step: graphNode.label,
+    step_id: graphNode.id,
+    field: spec.field,
+    declared_values: declaredValues,
+    owned_values: ownedValues,
+    owned_node_ids: spec.ownedNodes.map((ownedNode) => ownedNode.id),
+    declared_count: declaredValues.length,
+    owned_count: spec.ownedNodes.length,
+    mismatched_indexes: mismatchedIndexes(declaredValues, ownedValues),
+  });
+}
+
+function stepMetadataSpecs(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode) {
+  return [
+    {
+      field: "effects",
+      ownedNodes: ownedOutgoingNodes(nodesById, outgoingEdgesByNode, graphNode.id, "requests", "Effect"),
+      value: (ownedNode) => ownedNode.label,
+    },
+    {
+      field: "requirements",
+      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "requires", "Check")
+        .filter((ownedNode) => ownedNode.data?.scope === "step"),
+      value: (ownedNode) => ownedNode.data?.requirement,
+    },
+    {
+      field: "checkpoints",
+      ownedNodes: ownedOutgoingNodes(nodesById, outgoingEdgesByNode, graphNode.id, "checkpoints", "Checkpoint"),
+      value: (ownedNode) => ownedNode.data?.checkpoint,
+    },
+    {
+      field: "approvals",
+      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "approves", "Approval"),
+      value: (ownedNode) => ownedNode.data?.approval,
+    },
+    {
+      field: "timeouts",
+      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "timeouts", "Policy")
+        .filter((ownedNode) => ownedNode.data?.policyKind === "timeout"),
+      value: (ownedNode) => ownedNode.data?.policy,
+    },
+    {
+      field: "retries",
+      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "retries", "Policy")
+        .filter((ownedNode) => ownedNode.data?.policyKind === "retry"),
+      value: (ownedNode) => ownedNode.data?.policy,
+    },
+  ];
+}
+
+function ownedOutgoingNodes(nodesById, outgoingEdgesByNode, stepId, edgeKind, nodeKind) {
+  return (outgoingEdgesByNode.get(stepId) ?? [])
+    .filter((graphEdge) => graphEdge.kind === edgeKind && nodesById.get(graphEdge.to)?.kind === nodeKind)
+    .map((graphEdge) => nodesById.get(graphEdge.to))
+    .sort(compareGraphNodesBySpan);
+}
+
+function ownedIncomingNodes(nodesById, incomingEdgesByNode, stepId, edgeKind, nodeKind) {
+  return (incomingEdgesByNode.get(stepId) ?? [])
+    .filter((graphEdge) => graphEdge.kind === edgeKind && nodesById.get(graphEdge.from)?.kind === nodeKind)
+    .map((graphEdge) => nodesById.get(graphEdge.from))
+    .sort(compareGraphNodesBySpan);
+}
+
+function compareGraphNodesBySpan(left, right) {
+  return spanStartOffset(left.span) - spanStartOffset(right.span);
+}
+
+function stringArraysEqual(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function mismatchedIndexes(left, right) {
+  const indexes = [];
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    if (left[index] !== right[index]) {
+      indexes.push(index);
+    }
+  }
+  return indexes;
 }
 
 function isGraphOutputTypeSpanValid(outputType, outputTypeSpan) {

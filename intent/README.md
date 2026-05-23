@@ -445,7 +445,10 @@ Validation expectations:
   when `outputType` is non-empty. Malformed Step node payloads emit
   `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
   runtimes must not infer executable inputs, side effects, gates, checkpoints,
-  approvals, timeouts, retries, memory accesses, or output types.
+  approvals, timeouts, retries, memory accesses, or output types. The Step
+  summary arrays for effects, requirements, checkpoints, approvals, timeouts,
+  and retries must exactly match owned child nodes in source order; mismatches
+  emit `INTENT_GRAPH_STEP_METADATA_INVALID`.
 - Graph `Completion` nodes carry runtime completion metadata. Completion node
   data must carry `outputType` as `null` or a non-empty string and
   `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when

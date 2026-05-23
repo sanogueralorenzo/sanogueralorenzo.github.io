@@ -178,6 +178,35 @@ function validateTestGraph(graph) {
   });
 }
 
+function spanSort(left, right) {
+  return (left.span?.start?.offset ?? left.span?.start?.line ?? 0) - (right.span?.start?.offset ?? right.span?.start?.line ?? 0);
+}
+
+function attachedStepValues(graph, step, field) {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const incoming = graph.edges.filter((edge) => edge.to === step.id);
+  const outgoing = graph.edges.filter((edge) => edge.from === step.id);
+  if (field === "effects") {
+    return outgoing.filter((edge) => edge.kind === "requests" && nodesById.get(edge.to)?.kind === "Effect")
+      .map((edge) => nodesById.get(edge.to)).sort(spanSort).map((node) => node.label);
+  }
+  if (field === "requirements") {
+    return incoming.filter((edge) => edge.kind === "requires" && nodesById.get(edge.from)?.kind === "Check" && nodesById.get(edge.from)?.data.scope === "step")
+      .map((edge) => nodesById.get(edge.from)).sort(spanSort).map((node) => node.data.requirement);
+  }
+  if (field === "checkpoints") {
+    return outgoing.filter((edge) => edge.kind === "checkpoints" && nodesById.get(edge.to)?.kind === "Checkpoint")
+      .map((edge) => nodesById.get(edge.to)).sort(spanSort).map((node) => node.data.checkpoint);
+  }
+  if (field === "approvals") {
+    return incoming.filter((edge) => edge.kind === "approves" && nodesById.get(edge.from)?.kind === "Approval")
+      .map((edge) => nodesById.get(edge.from)).sort(spanSort).map((node) => node.data.approval);
+  }
+  const policyKind = field === "timeouts" ? "timeout" : "retry";
+  return incoming.filter((edge) => edge.kind === field && nodesById.get(edge.from)?.kind === "Policy" && nodesById.get(edge.from)?.data.policyKind === policyKind)
+    .map((edge) => nodesById.get(edge.from)).sort(spanSort).map((node) => node.data.policy);
+}
+
 function defaultGraphNodeData(kind, data) {
   const normalizedData = isPlainObject(data) ? data : {};
   if (kind === "Type") {
@@ -1721,7 +1750,7 @@ describe("intent static model CLI", () => {
     assert.equal(graph.ok, true);
     assert.equal(checkpoint.data.scope, "step");
     assert.equal(checkpoint.data.checkpoint, "before patch");
-    assert.equal(patchStep.data.checkpoints.includes("before patch"), true);
+    assert.deepEqual(patchStep.data.checkpoints, ["before patch", "patch written"]);
     assert.equal(graph.edges.some((edge) => edge.kind === "checkpoints" && edge.from === patchStep.id && edge.to === checkpoint.id), true);
     assert.equal(graph.edges.some((edge) => edge.from === checkpoint.id && edge.kind === "verifies"), false);
     assert.equal(completion.data.checkpoint.required, true);
@@ -1761,7 +1790,7 @@ describe("intent static model CLI", () => {
     assert.equal(graph.ok, true);
     assert.equal(approval.data.scope, "step");
     assert.equal(approval.data.approval, "maintainer approves main push");
-    assert.equal(publishStep.data.approvals.includes("maintainer approves main push"), true);
+    assert.deepEqual(publishStep.data.approvals, ["maintainer approves main push"]);
     assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.family === "git" && node.data.approvalPolicy === "required"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.label === "GitPush" && node.data.approvalRequired), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "approves" && edge.from === approval.id && edge.to === publishStep.id), true);
@@ -1828,11 +1857,25 @@ describe("intent static model CLI", () => {
     assert.equal(retry.data.scope, "step");
     assert.equal(retry.data.ownerStep, "patch_code");
     assert.equal(retry.data.policy, "max 2");
-    assert.equal(patchStep.data.timeouts.includes("5m"), true);
-    assert.equal(patchStep.data.retries.includes("max 2"), true);
+    assert.deepEqual(patchStep.data.timeouts, ["5m"]);
+    assert.deepEqual(patchStep.data.retries, ["max 2"]);
     assert.equal(graph.edges.some((edge) => edge.kind === "timeouts" && edge.from === timeout.id && edge.to === patchStep.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "retries" && edge.from === retry.id && edge.to === patchStep.id), true);
     assert.equal(graph.edges.some((edge) => edge.from === timeout.id && edge.kind === "verifies"), false);
+  });
+
+  it("keeps step summary metadata aligned with owned child nodes", () => {
+    for (const fixture of [VALID_STEP_POLICY_GRAPH, VALID_STEP_APPROVAL_GRAPH, VALID_CHECKPOINT_GRAPH]) {
+      const graph = runJson(["graph", fixture]);
+      const steps = graph.nodes.filter((node) => node.kind === "Step");
+
+      assert.equal(graph.ok, true);
+      for (const step of steps) {
+        for (const field of ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries"]) {
+          assert.deepEqual(step.data[field], attachedStepValues(graph, step, field));
+        }
+      }
+    }
   });
 
   it("emits memory access provenance edges", () => {
@@ -2411,7 +2454,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2), data: { effects: ["FileWrite"], requirements: ["synthetic"], checkpoints: ["before patch"], timeouts: ["5m"], retries: ["5m"] } },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
         { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(4) },
         { id: "goal:demo:context:0", kind: "Context", label: "repo", span: testSpan(5) },
@@ -2481,7 +2524,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2), data: { effects: ["FileWrite"] } },
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
         { id: "goal:demo:context:0", kind: "Context", label: "repo", span: testSpan(4) },
       ],
@@ -2510,7 +2553,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2), data: { effects: ["FileWrite"], requirements: ["synthetic"], checkpoints: ["before patch"], timeouts: ["5m"], retries: ["5m"] } },
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
         { id: "goal:demo:context:0", kind: "Context", label: "repo", span: testSpan(4) },
       ],
@@ -2549,7 +2592,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2), data: { effects: ["FileWrite"] } },
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
         { id: "goal:demo:invariant:0", kind: "Invariant", label: "rule", span: testSpan(4) },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(5) },
@@ -2605,7 +2648,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2), data: { effects: ["FileWrite"], requirements: ["synthetic"], checkpoints: ["before patch"], timeouts: ["5m"], retries: ["5m"] } },
         { id: "goal:demo:step:patch:input:0", kind: "Input", label: "input", span: testSpan(3), data: { scope: "step" } },
         { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(4), data: { scope: "step" } },
         { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(5), data: { scope: "goal" } },
@@ -3301,6 +3344,44 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[5].code, "INTENT_GRAPH_STEP_INVALID");
     assert.equal(diagnostics[5].step_id, "step:bad-memory");
     assert.equal(diagnostics[5].memory_accesses_are_valid, false);
+  });
+
+  it("validates graph step metadata diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(1), data: {
+          effects: ["ShellRun"],
+          requirements: ["ticket.reviewed"],
+          checkpoints: ["after patch"],
+          approvals: ["lead approves"],
+          timeouts: ["10m"],
+          retries: ["max 1"],
+        } },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(2) },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "ready", span: testSpan(3), data: { scope: "step", ownerStep: "patch", requirement: "ticket.ready" } },
+        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(4), data: { checkpoint: "before patch" } },
+        { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(5), data: { approval: "maintainer approves" } },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(6), data: { policyKind: "timeout", policy: "5m" } },
+        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(7), data: { policyKind: "retry", policy: "max 2" } },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "ticket.ready" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints", data: { checkpoint: "before patch" } },
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch", kind: "approves", data: { approval: "maintainer approves" } },
+        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts", data: { policy: "5m" } },
+        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries", data: { policy: "max 2" } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_STEP_METADATA_INVALID");
+
+    assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.field), ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries"]);
+    assert.deepEqual(diagnostics[0].declared_values, ["ShellRun"]);
+    assert.deepEqual(diagnostics[0].owned_values, ["FileWrite"]);
+    assert.deepEqual(diagnostics[0].owned_node_ids, ["goal:demo:step:patch:effect:0"]);
+    assert.equal(diagnostics[0].declared_count, 1);
+    assert.equal(diagnostics[0].owned_count, 1);
+    assert.deepEqual(diagnostics[0].mismatched_indexes, [0]);
   });
 
   it("validates graph step input binding diagnostics", () => {
@@ -4151,7 +4232,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2), data: { effects: ["FileWrite"] } },
         { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
         { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(4), data: { scope: "step" } },
         { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(5) },
@@ -4553,7 +4634,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2), data: { effects: ["FileWrite"], requirements: ["synthetic"], checkpoints: ["before patch"], timeouts: ["5m"], retries: ["5m"] } },
         { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
         { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4) },

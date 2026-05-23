@@ -518,6 +518,9 @@ The parser emits names and type reference strings; the checker owns binding.
   policy syntax is `INTENT_POLICY_INVALID` at the policy line span. Valid
   policies are listed on the owning step node data and connected by `timeouts`
   or `retries` edges from each policy node to that step.
+- Step summary arrays for effects, requirements, checkpoints, approvals,
+  timeouts, and retries must exactly match owned child nodes in source order.
+  Mismatches emit `INTENT_GRAPH_STEP_METADATA_INVALID`.
 - Memory blocks must contain at least one parsed `retain ... until ...`
   retention rule. Missing retention is `INTENT_MEMORY_UNSCOPED`.
 - Retention `until` values must be `goal_complete`, `goal.completed`, or a
@@ -553,6 +556,8 @@ The parser emits names and type reference strings; the checker owns binding.
   `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; a `Step` node that lacks exactly one
   incoming `plans` edge from its owning `Goal`, or whose incoming `plans` edges
   are not from that owning `Goal`, emits `INTENT_GRAPH_STEP_PLAN_INVALID`; a
+  `Step` node whose summary arrays differ from owned child nodes emits
+  `INTENT_GRAPH_STEP_METADATA_INVALID`; a
   `Completion` node without the required incoming completion, verification, or
   guard coverage emits `INTENT_GRAPH_COMPLETION_INVALID`; cyclic graph edges emit
   `INTENT_GRAPH_CYCLE`; an `Invariant` node missing its `guards` edge to
