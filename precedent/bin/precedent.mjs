@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, appendFile, access, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, readFile, writeFile, appendFile, access, readdir, rm, stat, rename } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 
@@ -29,6 +29,8 @@ const DEFAULT_CONFIG = {
 let runtimeConfig = DEFAULT_CONFIG;
 let runtimeConfigPath = null;
 let runtimeConfigHash = stableHash(DEFAULT_CONFIG);
+let activeLockDir = null;
+let atomicWriteCounter = 0;
 
 const command = process.argv[2] ?? "help";
 const hookName = command === "hook" && process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : null;
@@ -152,8 +154,10 @@ function parseArgs(rawArgs) {
 async function initState() {
   const stateDir = statePath();
 
-  await ensureState(stateDir);
-  await writeDefaultConfig(stateDir);
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    await writeDefaultConfig(stateDir);
+  });
 
   print({
     ok: true,
@@ -172,7 +176,6 @@ async function initState() {
 
 async function observeTrace() {
   const stateDir = statePath();
-  await ensureState(stateDir);
 
   if (!args.trace && !args.session) {
     fail("observe requires --trace <path> or --session <id>");
@@ -190,23 +193,44 @@ async function observeTrace() {
   let rejected = null;
   let promotionAction = "none";
 
-  if (trace.precedent) {
-    const candidate = normalizePrecedent(precedentFromTrace(trace), traceId);
-    const assessment = assessPromotionCandidate(candidate);
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    if (trace.precedent) {
+      const candidate = normalizePrecedent(precedentFromTrace(trace), traceId);
+      const assessment = assessPromotionCandidate(candidate);
 
-    if (assessment.ok) {
-      const promotion = await upsertPromotedPrecedent(stateDir, candidate, observedAt);
+      if (assessment.ok) {
+        const promotion = await upsertPromotedPrecedent(stateDir, candidate, observedAt);
 
-      promoted = promotion.precedent;
-      promotionAction = promotion.action;
-    } else {
-      rejected = {
-        id: candidate.id,
-        reasons: assessment.reasons,
-      };
-      promotionAction = "rejected";
+        promoted = promotion.precedent;
+        promotionAction = promotion.action;
+      } else {
+        rejected = {
+          id: candidate.id,
+          reasons: assessment.reasons,
+        };
+        promotionAction = "rejected";
+      }
     }
-  }
+
+    const event = {
+      type: "trace_observed",
+      observedAt,
+      traceId,
+      precedentId: promoted?.id ?? rejected?.id ?? null,
+      task: trace.task ?? null,
+      outcome: trace.outcome ?? null,
+      scope: trace.scope ?? null,
+      failures: Array.isArray(trace.failures) ? trace.failures : [],
+      promotionStatus: promoted ? "promoted" : trace.precedent ? "rejected" : "none",
+      promotionAction,
+      promotionReasons: rejected?.reasons ?? [],
+      redactions: redaction.counts,
+    };
+
+    await writeFileAtomic(join(stateDir, "traces", `${safeFileName(traceId)}.json`), `${JSON.stringify(trace, null, 2)}\n`);
+    await appendJsonLine(join(stateDir, "events.jsonl"), event);
+  });
 
   const event = {
     type: "trace_observed",
@@ -222,9 +246,6 @@ async function observeTrace() {
     promotionReasons: rejected?.reasons ?? [],
     redactions: redaction.counts,
   };
-
-  await writeFile(join(stateDir, "traces", `${safeFileName(traceId)}.json`), JSON.stringify(trace, null, 2));
-  await appendJsonLine(join(stateDir, "events.jsonl"), event);
 
   print({
     ok: true,
@@ -277,69 +298,92 @@ async function exportContext() {
   };
   const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
-  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
-  const rankedMatches = rankPrecedents(precedents, context)
-    .filter((precedent) => precedent.score >= threshold)
-    .slice(0, limit);
-  const selected = await suppressRepeatedSessionInjections({
-    stateDir,
-    sessionId: args.session ?? null,
-    matches: rankedMatches,
-    allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
-  });
-  const contextBlock = formatInjectionBlock(selected.matches);
-  const exportEvent = {
-    type: "context_export",
-    observedAt: new Date().toISOString(),
-    sessionId: args.session ?? null,
-    task,
-    scope: context.scope || null,
-    changedFiles: context.changedFiles,
-    threshold,
-    injections: selected.matches.map((match) => match.id),
-    injectionMatches: selected.matches.map((match) => ({
-      id: match.id,
-      score: match.score,
-      reasons: match.matchReasons ?? [],
-    })),
-    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
-  };
-  const payload = {
-    schema_version: "precedent.context.v1",
-    contextBlock,
-    injections: selected.matches.map(formatInjection),
-    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
-    source: {
-      command: "context",
-      task,
-      taskFile: args["task-file"] ?? null,
-      scope: context.scope || null,
-      changedFiles: context.changedFiles,
+  let payload = null;
+  const locked = await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const rankedMatches = rankPrecedents(precedents, context)
+      .filter((precedent) => precedent.score >= threshold)
+      .slice(0, limit);
+    const selected = await suppressRepeatedSessionInjections({
+      stateDir,
       sessionId: args.session ?? null,
-      limit,
-      threshold,
-    },
-  };
-
-  await appendJsonLine(join(stateDir, "events.jsonl"), exportEvent);
-  if (args.session) {
-    await appendSessionEvent(stateDir, {
+      matches: rankedMatches,
+      allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
+    });
+    const contextBlock = formatInjectionBlock(selected.matches);
+    const exportEvent = {
       type: "context_export",
-      receivedAt: exportEvent.observedAt,
-      hook: "context.export",
-      sessionId: args.session,
+      observedAt: new Date().toISOString(),
+      sessionId: args.session ?? null,
       task,
       scope: context.scope || null,
       changedFiles: context.changedFiles,
+      threshold,
+      injections: selected.matches.map((match) => match.id),
+      injectionMatches: selected.matches.map((match) => ({
+        id: match.id,
+        score: match.score,
+        reasons: match.matchReasons ?? [],
+      })),
+      suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+    };
+    payload = {
+      schema_version: "precedent.context.v1",
       contextBlock,
-      injections: exportEvent.injections,
-      injectionMatches: exportEvent.injectionMatches,
-      suppressedInjections: exportEvent.suppressedInjections,
-    });
+      injections: selected.matches.map(formatInjection),
+      suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+      source: {
+        command: "context",
+        task,
+        taskFile: args["task-file"] ?? null,
+        scope: context.scope || null,
+        changedFiles: context.changedFiles,
+        sessionId: args.session ?? null,
+        limit,
+        threshold,
+      },
+    };
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), exportEvent);
+    if (args.session) {
+      await appendSessionEvent(stateDir, {
+        type: "context_export",
+        receivedAt: exportEvent.observedAt,
+        hook: "context.export",
+        sessionId: args.session,
+        task,
+        scope: context.scope || null,
+        changedFiles: context.changedFiles,
+        contextBlock,
+        injections: exportEvent.injections,
+        injectionMatches: exportEvent.injectionMatches,
+        suppressedInjections: exportEvent.suppressedInjections,
+      });
+    }
+  }, { failOpen: true });
+
+  if (locked?.lockTimeout) {
+    payload = {
+      schema_version: "precedent.context.v1",
+      contextBlock: "",
+      injections: [],
+      suppressedInjections: [{ reason: "lock_timeout" }],
+      source: {
+        command: "context",
+        task,
+        taskFile: args["task-file"] ?? null,
+        scope: context.scope || null,
+        changedFiles: context.changedFiles,
+        sessionId: args.session ?? null,
+        limit,
+        threshold,
+      },
+    };
   }
 
   if (args.format === "markdown") {
-    process.stdout.write(contextBlock ? `${contextBlock}\n` : "");
+    process.stdout.write(payload.contextBlock ? `${payload.contextBlock}\n` : "");
     return;
   }
 
@@ -352,20 +396,25 @@ async function exportContext() {
 
 async function compilePrecedents() {
   const stateDir = statePath();
-  await ensureState(stateDir);
+  let traces = [];
+  let candidates = [];
 
-  const traces = await readStoredTraces(join(stateDir, "traces"));
-  const candidates = traces
-    .flatMap((trace) => compileTraceCandidates(trace))
-    .sort((left, right) => left.id.localeCompare(right.id));
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
 
-  await writeJsonLines(join(stateDir, "candidates.jsonl"), candidates);
-  await appendJsonLine(join(stateDir, "events.jsonl"), {
-    type: "compile_completed",
-    observedAt: new Date().toISOString(),
-    traces: traces.length,
-    candidates: candidates.length,
-    candidateIds: candidates.map((candidate) => candidate.id),
+    traces = await readStoredTraces(join(stateDir, "traces"));
+    candidates = traces
+      .flatMap((trace) => compileTraceCandidates(trace))
+      .sort((left, right) => left.id.localeCompare(right.id));
+
+    await writeJsonLines(join(stateDir, "candidates.jsonl"), candidates);
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "compile_completed",
+      observedAt: new Date().toISOString(),
+      traces: traces.length,
+      candidates: candidates.length,
+      candidateIds: candidates.map((candidate) => candidate.id),
+    });
   });
 
   print({
@@ -439,8 +488,6 @@ async function replayCase() {
   }
 
   const stateDir = statePath();
-  await ensureState(stateDir);
-
   const resolvedCasePath = resolve(casePath);
   const rawReplayCase = parseJson(await readFile(resolvedCasePath, "utf8"), casePath);
   const replayCase = redactSecretsDeep(rawReplayCase).value;
@@ -449,65 +496,72 @@ async function replayCase() {
   const replayDir = join(stateDir, "replays", safeFileName(replayId));
   const startedAt = new Date().toISOString();
   const cwd = replayCase.cwd ? resolve(dirname(resolvedCasePath), replayCase.cwd) : process.cwd();
-
-  await mkdir(replayDir, { recursive: true });
-
-  const baseline = await runReplayCommand({
-    label: "baseline",
-    command: requireString(rawReplayCase.baseline?.command, "case.baseline.command"),
-    storedCommand: requireString(replayCase.baseline?.command, "case.baseline.command"),
-    cwd,
-    outputDir: replayDir,
-  });
-  const rerun = await runReplayCommand({
-    label: "rerun",
-    command: requireString(rawReplayCase.rerun?.command, "case.rerun.command"),
-    storedCommand: requireString(replayCase.rerun?.command, "case.rerun.command"),
-    cwd,
-    outputDir: replayDir,
-  });
-  const promotion = {
-    baseline_failures: baseline.exitCode === 0 ? 0 : 1,
-    rerun_failures: rerun.exitCode === 0 ? 0 : 1,
-    baseline_exit_code: baseline.exitCode,
-    rerun_exit_code: rerun.exitCode,
-  };
-  const improved = promotion.baseline_failures > promotion.rerun_failures;
-  const replay = {
-    id: replayId,
-    casePath: resolvedCasePath,
-    cwd,
-    startedAt,
-    completedAt: new Date().toISOString(),
-    task: replayCase.task ?? null,
-    scope: replayCase.scope ?? null,
-    changedFiles: Array.isArray(replayCase.changedFiles) ? replayCase.changedFiles : [],
-    baseline,
-    rerun,
-    promotion,
-    improved,
-  };
-  const replayPath = join(replayDir, "replay.json");
-  const trace = buildReplayTrace(replayCase, replay, replayPath);
-
-  await writeFile(replayPath, JSON.stringify(replay, null, 2));
-
+  let baseline = null;
+  let rerun = null;
+  let replay = null;
+  let trace = null;
   let tracePath = null;
-  if (args["trace-out"]) {
-    tracePath = resolve(args["trace-out"]);
-    await mkdir(dirname(tracePath), { recursive: true });
-    await writeFile(tracePath, JSON.stringify(trace, null, 2));
-  }
+  const replayPath = join(replayDir, "replay.json");
 
-  await appendJsonLine(join(stateDir, "events.jsonl"), {
-    type: "replay_completed",
-    observedAt: replay.completedAt,
-    replayId,
-    improved,
-    baselineExitCode: baseline.exitCode,
-    rerunExitCode: rerun.exitCode,
-    replayPath,
-    tracePath,
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    await mkdir(replayDir, { recursive: true });
+
+    baseline = await runReplayCommand({
+      label: "baseline",
+      command: requireString(rawReplayCase.baseline?.command, "case.baseline.command"),
+      storedCommand: requireString(replayCase.baseline?.command, "case.baseline.command"),
+      cwd,
+      outputDir: replayDir,
+    });
+    rerun = await runReplayCommand({
+      label: "rerun",
+      command: requireString(rawReplayCase.rerun?.command, "case.rerun.command"),
+      storedCommand: requireString(replayCase.rerun?.command, "case.rerun.command"),
+      cwd,
+      outputDir: replayDir,
+    });
+    const promotion = {
+      baseline_failures: baseline.exitCode === 0 ? 0 : 1,
+      rerun_failures: rerun.exitCode === 0 ? 0 : 1,
+      baseline_exit_code: baseline.exitCode,
+      rerun_exit_code: rerun.exitCode,
+    };
+    const improved = promotion.baseline_failures > promotion.rerun_failures;
+    replay = {
+      id: replayId,
+      casePath: resolvedCasePath,
+      cwd,
+      startedAt,
+      completedAt: new Date().toISOString(),
+      task: replayCase.task ?? null,
+      scope: replayCase.scope ?? null,
+      changedFiles: Array.isArray(replayCase.changedFiles) ? replayCase.changedFiles : [],
+      baseline,
+      rerun,
+      promotion,
+      improved,
+    };
+    trace = buildReplayTrace(replayCase, replay, replayPath);
+
+    await writeFileAtomic(replayPath, `${JSON.stringify(replay, null, 2)}\n`);
+
+    if (args["trace-out"]) {
+      tracePath = resolve(args["trace-out"]);
+      await mkdir(dirname(tracePath), { recursive: true });
+      await writeFileAtomic(tracePath, `${JSON.stringify(trace, null, 2)}\n`);
+    }
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "replay_completed",
+      observedAt: replay.completedAt,
+      replayId,
+      improved,
+      baselineExitCode: baseline.exitCode,
+      rerunExitCode: rerun.exitCode,
+      replayPath,
+      tracePath,
+    });
   });
 
   print({
@@ -577,8 +631,6 @@ async function beforeTurnHook() {
   }
 
   const stateDir = statePath();
-  await ensureState(stateDir);
-
   const context = {
     task,
     scope: args.scope ?? "",
@@ -586,27 +638,33 @@ async function beforeTurnHook() {
   };
   const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
-  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
-  const matches = rankPrecedents(precedents, context)
-    .filter((precedent) => precedent.score >= threshold)
-    .slice(0, limit);
-  const block = formatInjectionBlock(matches);
-  const event = {
-    type: "context_before_turn",
-    observedAt: new Date().toISOString(),
-    task,
-    scope: context.scope || null,
-    changedFiles: context.changedFiles,
-    threshold,
-    injectedIds: matches.map((match) => match.id),
-    injectionMatches: matches.map((match) => ({
-      id: match.id,
-      score: match.score,
-      reasons: match.matchReasons ?? [],
-    })),
-  };
+  let matches = [];
+  let block = "";
 
-  await appendJsonLine(join(stateDir, "events.jsonl"), event);
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    matches = rankPrecedents(precedents, context)
+      .filter((precedent) => precedent.score >= threshold)
+      .slice(0, limit);
+    block = formatInjectionBlock(matches);
+    const event = {
+      type: "context_before_turn",
+      observedAt: new Date().toISOString(),
+      task,
+      scope: context.scope || null,
+      changedFiles: context.changedFiles,
+      threshold,
+      injectedIds: matches.map((match) => match.id),
+      injectionMatches: matches.map((match) => ({
+        id: match.id,
+        score: match.score,
+        reasons: match.matchReasons ?? [],
+      })),
+    };
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), event);
+  });
 
   print({
     hook: "context.before_turn",
@@ -623,8 +681,6 @@ async function beforeTurnHook() {
 async function contextBeforeTurnEventHook(event) {
   const task = requireString(event.task, "event.task");
   const stateDir = statePath();
-  await ensureState(stateDir);
-
   const context = {
     task,
     scope: typeof event.scope === "string" ? event.scope : "",
@@ -632,86 +688,101 @@ async function contextBeforeTurnEventHook(event) {
   };
   const limit = Number(args.limit ?? event.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? event.threshold ?? 4);
-  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
-  const rankedMatches = rankPrecedents(precedents, context)
-    .filter((precedent) => precedent.score >= threshold)
-    .slice(0, limit);
-  const selected = await suppressRepeatedSessionInjections({
-    stateDir,
-    sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
-    matches: rankedMatches,
-    allowRepeat: event.allowRepeat === true,
-  });
-  const matches = selected.matches;
-  const contextBlock = formatInjectionBlock(matches);
+  let matches = [];
+  let suppressed = [];
+  let contextBlock = "";
+  let sessionEvent = null;
+  const locked = await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const rankedMatches = rankPrecedents(precedents, context)
+      .filter((precedent) => precedent.score >= threshold)
+      .slice(0, limit);
+    const selected = await suppressRepeatedSessionInjections({
+      stateDir,
+      sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
+      matches: rankedMatches,
+      allowRepeat: event.allowRepeat === true,
+    });
+    matches = selected.matches;
+    suppressed = selected.suppressed.map(formatSuppressedInjection);
+    contextBlock = formatInjectionBlock(matches);
 
-  const hookEvent = {
-    type: "hook_event",
-    receivedAt: new Date().toISOString(),
-    hook: event.hook,
-    sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
-    task,
-    scope: context.scope || null,
-    changedFiles: context.changedFiles,
-    threshold,
-    allowRepeat: event.allowRepeat === true,
-    injections: matches.map((match) => match.id),
-    injectionMatches: matches.map((match) => ({
-      id: match.id,
-      score: match.score,
-      reasons: match.matchReasons ?? [],
-    })),
-    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
-  };
-
-  await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
-  const sessionEvent = event.sessionId
-    ? await appendSessionEvent(stateDir, {
-      ...hookEvent,
+    const hookEvent = {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
       task,
-      contextBlock,
-    })
-    : null;
+      scope: context.scope || null,
+      changedFiles: context.changedFiles,
+      threshold,
+      allowRepeat: event.allowRepeat === true,
+      injections: matches.map((match) => match.id),
+      injectionMatches: matches.map((match) => ({
+        id: match.id,
+        score: match.score,
+        reasons: match.matchReasons ?? [],
+      })),
+      suppressedInjections: suppressed,
+    };
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
+    sessionEvent = event.sessionId
+      ? await appendSessionEvent(stateDir, {
+        ...hookEvent,
+        task,
+        contextBlock,
+      })
+      : null;
+  }, { failOpen: true });
+
+  if (locked?.lockTimeout) {
+    suppressed = [{ reason: "lock_timeout" }];
+  }
 
   print({
     ok: true,
     hook: event.hook,
     sessionId: sessionEvent?.sessionId ?? null,
     injections: matches.map(formatInjection),
-    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+    suppressedInjections: suppressed,
     contextBlock,
   });
 }
 
 async function validationAfterRunEventHook(event) {
   const stateDir = statePath();
-  await ensureState(stateDir);
-
   const sessionId = requireString(event.sessionId, "event.sessionId");
   const commandText = requireString(event.command, "event.command");
   const exitCode = requireNumber(event.exitCode, "event.exitCode");
   const failureSignals = validationFailureSignals(event, exitCode);
-  const sessionEvent = await appendSessionEvent(stateDir, {
-    type: "hook_event",
-    receivedAt: new Date().toISOString(),
-    hook: event.hook,
-    sessionId,
-    command: commandText,
-    exitCode,
-    durationMs: numberOrNull(event.durationMs),
-    failureSignals,
-    stdout: typeof event.stdout === "string" ? event.stdout : "",
-    stderr: typeof event.stderr === "string" ? event.stderr : "",
-  });
+  let sessionEvent = null;
 
-  await appendJsonLine(join(stateDir, "events.jsonl"), {
-    type: "hook_event",
-    receivedAt: sessionEvent.receivedAt,
-    hook: event.hook,
-    sessionId,
-    command: commandText,
-    exitCode,
-    failureSignals,
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId,
+      command: commandText,
+      exitCode,
+      durationMs: numberOrNull(event.durationMs),
+      failureSignals,
+      stdout: typeof event.stdout === "string" ? event.stdout : "",
+      stderr: typeof event.stderr === "string" ? event.stderr : "",
+    });
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "hook_event",
+      receivedAt: sessionEvent.receivedAt,
+      hook: event.hook,
+      sessionId,
+      command: commandText,
+      exitCode,
+      failureSignals,
+    });
   });
 
   print({
@@ -732,29 +803,32 @@ async function validationAfterRunEventHook(event) {
 
 async function diffAfterEditEventHook(event) {
   const stateDir = statePath();
-  await ensureState(stateDir);
-
   const sessionId = requireString(event.sessionId, "event.sessionId");
   const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
   const breadthSignals = diffBreadthSignals(event, changedFiles);
-  const sessionEvent = await appendSessionEvent(stateDir, {
-    type: "hook_event",
-    receivedAt: new Date().toISOString(),
-    hook: event.hook,
-    sessionId,
-    changedFiles,
-    linesAdded: numberOrNull(event.linesAdded),
-    linesDeleted: numberOrNull(event.linesDeleted),
-    breadthSignals,
-  });
+  let sessionEvent = null;
 
-  await appendJsonLine(join(stateDir, "events.jsonl"), {
-    type: "hook_event",
-    receivedAt: sessionEvent.receivedAt,
-    hook: event.hook,
-    sessionId,
-    changedFiles,
-    breadthSignals,
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId,
+      changedFiles,
+      linesAdded: numberOrNull(event.linesAdded),
+      linesDeleted: numberOrNull(event.linesDeleted),
+      breadthSignals,
+    });
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "hook_event",
+      receivedAt: sessionEvent.receivedAt,
+      hook: event.hook,
+      sessionId,
+      changedFiles,
+      breadthSignals,
+    });
   });
 
   print({
@@ -772,35 +846,39 @@ async function diffAfterEditEventHook(event) {
 
 async function outcomeAfterTaskEventHook(event) {
   const stateDir = statePath();
-  await ensureState(stateDir);
-
   const sessionId = requireString(event.sessionId, "event.sessionId");
-  const activePrecedentIds = await activeInjectionIdsForSession(stateDir, sessionId);
-  const sessionEvent = await appendSessionEvent(stateDir, {
-    type: "hook_event",
-    receivedAt: new Date().toISOString(),
-    hook: event.hook,
-    sessionId,
-    success: Boolean(event.success),
-    status: typeof event.status === "string" ? event.status : (event.success ? "success" : "failure"),
-    retries: numberOrNull(event.retries),
-    tokenEstimate: numberOrNull(event.tokenEstimate),
-    notes: typeof event.notes === "string" ? event.notes : "",
-    attributedPrecedents: activePrecedentIds,
-    precedent: event.precedent ?? null,
-    replay: event.replay ?? null,
-  });
+  let activePrecedentIds = [];
+  let sessionEvent = null;
 
-  await appendJsonLine(join(stateDir, "events.jsonl"), {
-    type: "hook_event",
-    receivedAt: sessionEvent.receivedAt,
-    hook: event.hook,
-    sessionId,
-    success: sessionEvent.event.success,
-    status: sessionEvent.event.status,
-    retries: sessionEvent.event.retries,
-    tokenEstimate: sessionEvent.event.tokenEstimate,
-    attributedPrecedents: activePrecedentIds,
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    activePrecedentIds = await activeInjectionIdsForSession(stateDir, sessionId);
+    sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId,
+      success: Boolean(event.success),
+      status: typeof event.status === "string" ? event.status : (event.success ? "success" : "failure"),
+      retries: numberOrNull(event.retries),
+      tokenEstimate: numberOrNull(event.tokenEstimate),
+      notes: typeof event.notes === "string" ? event.notes : "",
+      attributedPrecedents: activePrecedentIds,
+      precedent: event.precedent ?? null,
+      replay: event.replay ?? null,
+    });
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "hook_event",
+      receivedAt: sessionEvent.receivedAt,
+      hook: event.hook,
+      sessionId,
+      success: sessionEvent.event.success,
+      status: sessionEvent.event.status,
+      retries: sessionEvent.event.retries,
+      tokenEstimate: sessionEvent.event.tokenEstimate,
+      attributedPrecedents: activePrecedentIds,
+    });
   });
 
   print({
@@ -827,8 +905,6 @@ async function runValidationCommand() {
   }
 
   const stateDir = statePath();
-  await ensureState(stateDir);
-
   const startedAt = Date.now();
   const result = await spawnPassthrough(runCommandArgs);
   const durationMs = Date.now() - startedAt;
@@ -836,28 +912,31 @@ async function runValidationCommand() {
   const failureSignals = validationFailureSignals({
     stderr: result.stderr,
   }, result.exitCode);
-  const sessionEvent = await appendSessionEvent(stateDir, {
-    type: "hook_event",
-    receivedAt: new Date().toISOString(),
-    hook: "validation.after_run",
-    sessionId,
-    command: commandText,
-    exitCode: result.exitCode,
-    durationMs,
-    failureSignals,
-    stdout: result.stdout,
-    stderr: result.stderr,
-  });
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: "validation.after_run",
+      sessionId,
+      command: commandText,
+      exitCode: result.exitCode,
+      durationMs,
+      failureSignals,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
 
-  await appendJsonLine(join(stateDir, "events.jsonl"), {
-    type: "hook_event",
-    receivedAt: sessionEvent.receivedAt,
-    hook: "validation.after_run",
-    sessionId,
-    command: commandText,
-    exitCode: result.exitCode,
-    durationMs,
-    failureSignals,
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "hook_event",
+      receivedAt: sessionEvent.receivedAt,
+      hook: "validation.after_run",
+      sessionId,
+      command: commandText,
+      exitCode: result.exitCode,
+      durationMs,
+      failureSignals,
+    });
   });
 
   process.exit(result.exitCode);
@@ -985,6 +1064,9 @@ async function checkState() {
   await checkPromotedPrecedents(checks, stateDir);
   await checkNoRawSecrets(checks, stateDir);
   await checkManifestBuilds(checks);
+  if (args.strict) {
+    await checkStrictStateArtifacts(checks, stateDir);
+  }
 
   const ok = checks.every((check) => check.ok);
   const payload = {
@@ -1023,23 +1105,26 @@ async function pruneState() {
     removedFiles: [],
   };
 
-  await pruneJsonLinesByTime(join(stateDir, "events.jsonl"), cutoff, dryRun, plan, "removedEvents", "keptEvents");
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    await pruneJsonLinesByTime(join(stateDir, "events.jsonl"), cutoff, dryRun, plan, "removedEvents", "keptEvents");
 
-  for (const sessionFile of await jsonFiles(join(stateDir, "sessions"), ".jsonl")) {
-    await pruneJsonLinesByTime(sessionFile, cutoff, dryRun, plan, "removedSessionEvents", "keptSessionEvents");
-  }
+    for (const sessionFile of await jsonFiles(join(stateDir, "sessions"), ".jsonl")) {
+      await pruneJsonLinesByTime(sessionFile, cutoff, dryRun, plan, "removedSessionEvents", "keptSessionEvents");
+    }
 
-  for (const replayDir of await childDirs(join(stateDir, "replays"))) {
-    const replayPath = join(replayDir, "replay.json");
-    const replayTime = await fileTime(replayPath);
+    for (const replayDir of await childDirs(join(stateDir, "replays"))) {
+      const replayPath = join(replayDir, "replay.json");
+      const replayTime = await fileTime(replayPath);
 
-    if (replayTime && replayTime < cutoff) {
-      plan.removedFiles.push(replayDir);
-      if (!dryRun) {
-        await rm(replayDir, { recursive: true, force: true });
+      if (replayTime && replayTime < cutoff) {
+        plan.removedFiles.push(replayDir);
+        if (!dryRun) {
+          await rm(replayDir, { recursive: true, force: true });
+        }
       }
     }
-  }
+  });
 
   print(plan);
 }
@@ -1396,7 +1481,7 @@ async function appendSessionEvent(stateDir, rawEvent) {
   if (typeof event.stdout === "string" && event.stdout.length > 0) {
     await mkdir(artifactDir, { recursive: true });
     const stdoutPath = join(artifactDir, `${Date.now()}-${event.hook.replaceAll(".", "_")}.stdout.txt`);
-    await writeFile(stdoutPath, event.stdout);
+    await writeFileAtomic(stdoutPath, event.stdout);
     event.stdoutPath = stdoutPath;
     event.stdoutSummary = summarizeText(event.stdout);
     delete event.stdout;
@@ -1405,7 +1490,7 @@ async function appendSessionEvent(stateDir, rawEvent) {
   if (typeof event.stderr === "string" && event.stderr.length > 0) {
     await mkdir(artifactDir, { recursive: true });
     const stderrPath = join(artifactDir, `${Date.now()}-${event.hook.replaceAll(".", "_")}.stderr.txt`);
-    await writeFile(stderrPath, event.stderr);
+    await writeFileAtomic(stderrPath, event.stderr);
     event.stderrPath = stderrPath;
     event.stderrSummary = summarizeText(event.stderr);
     delete event.stderr;
@@ -1658,8 +1743,8 @@ async function runReplayCommand({ label, command, storedCommand, cwd, outputDir 
   const stdout = redactSecrets(result.stdout).value;
   const stderr = redactSecrets(result.stderr).value;
 
-  await writeFile(stdoutPath, stdout);
-  await writeFile(stderrPath, stderr);
+  await writeFileAtomic(stdoutPath, stdout);
+  await writeFileAtomic(stderrPath, stderr);
 
   return {
     command: storedCommand,
@@ -1986,7 +2071,7 @@ async function writeDefaultConfig(stateDir) {
     stateDir: configuredStateDir,
   });
 
-  await writeFile(join(stateDir, "config.json"), `${JSON.stringify(sortObject(config), null, 2)}\n`);
+  await writeFileAtomic(join(stateDir, "config.json"), `${JSON.stringify(sortObject(config), null, 2)}\n`);
   runtimeConfig = config;
   runtimeConfigPath = join(stateDir, "config.json");
   runtimeConfigHash = stableHash(runtimeConfig);
@@ -2248,6 +2333,34 @@ async function checkManifestBuilds(checks) {
   });
 }
 
+async function checkStrictStateArtifacts(checks, stateDir) {
+  const lockDir = join(stateDir, "state.lock");
+
+  try {
+    await stat(lockDir);
+    checks.push({
+      ok: false,
+      name: "state_lock",
+      file: lockDir,
+      message: "state lock exists",
+    });
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      checks.push({ ok: true, name: "state_lock", file: lockDir });
+    } else {
+      checks.push({ ok: false, name: "state_lock", file: lockDir, message: error.message });
+    }
+  }
+
+  const tempFiles = (await allFiles(stateDir)).filter((file) => file.endsWith(".tmp"));
+  checks.push({
+    ok: tempFiles.length === 0,
+    name: "atomic_temp_files",
+    files: tempFiles,
+    message: tempFiles.length > 0 ? "temporary atomic-write files remain" : undefined,
+  });
+}
+
 function validateConfigForCheck(config, name, file, checks) {
   const before = checks.length;
   try {
@@ -2338,7 +2451,7 @@ async function ensureFile(path) {
     await access(path);
   } catch {
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, "");
+    await writeFileAtomic(path, "");
   }
 }
 
@@ -2349,7 +2462,85 @@ async function appendJsonLine(path, value) {
 
 async function writeJsonLines(path, values) {
   await ensureFile(path);
-  await writeFile(path, values.map((value) => JSON.stringify(redactSecretsDeep(value).value)).join("\n") + (values.length > 0 ? "\n" : ""));
+  await writeFileAtomic(path, values.map((value) => JSON.stringify(redactSecretsDeep(value).value)).join("\n") + (values.length > 0 ? "\n" : ""));
+}
+
+async function writeFileAtomic(path, content) {
+  await mkdir(dirname(path), { recursive: true });
+  const tempPath = `${path}.${process.pid}.${Date.now()}.${atomicWriteCounter++}.tmp`;
+  await writeFile(tempPath, content);
+  await rename(tempPath, path);
+}
+
+async function withStateLock(stateDir, fn, { failOpen = false } = {}) {
+  const resolvedStateDir = resolve(stateDir);
+  if (activeLockDir === resolvedStateDir) {
+    return fn();
+  }
+
+  await mkdir(resolvedStateDir, { recursive: true });
+  const lockDir = join(resolvedStateDir, "state.lock");
+  const timeoutMs = failOpen ? Math.min(runtimeConfig.hookTimeoutMs, 1500) : 5000;
+  const startedAt = Date.now();
+
+  while (true) {
+    try {
+      await mkdir(lockDir);
+      await writeFile(join(lockDir, "owner.json"), JSON.stringify({
+        pid: process.pid,
+        createdAt: new Date().toISOString(),
+      }));
+      break;
+    } catch (error) {
+      if (error.code !== "EEXIST") {
+        throw error;
+      }
+
+      if (await removeStaleLock(lockDir)) {
+        continue;
+      }
+
+      if (Date.now() - startedAt > timeoutMs) {
+        if (failOpen) {
+          return { lockTimeout: true };
+        }
+
+        fail(`state lock timeout: ${lockDir}`);
+      }
+
+      await sleep(25);
+    }
+  }
+
+  activeLockDir = resolvedStateDir;
+  try {
+    return await fn();
+  } finally {
+    activeLockDir = null;
+    await rm(lockDir, { recursive: true, force: true });
+  }
+}
+
+async function removeStaleLock(lockDir) {
+  try {
+    const info = await stat(lockDir);
+    if (Date.now() - info.mtimeMs > 30000) {
+      await rm(lockDir, { recursive: true, force: true });
+      return true;
+    }
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return true;
+    }
+
+    throw error;
+  }
+
+  return false;
+}
+
+function sleep(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
 const SECRET_PATTERNS = [

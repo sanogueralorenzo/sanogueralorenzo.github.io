@@ -126,7 +126,7 @@ node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs manifest --runtime generic
-node precedent/bin/precedent.mjs check --json
+node precedent/bin/precedent.mjs check --strict --json
 node precedent/bin/precedent.mjs prune --dry-run --json
 node precedent/bin/precedent.mjs observe --session demo
 node precedent/bin/precedent.mjs report
@@ -146,7 +146,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
-- `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety.
+- `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
 - `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
@@ -181,6 +181,8 @@ Minimal config:
 
 Promotion is idempotent. Re-observing the same promoted precedent updates the existing ledger row instead of appending duplicates, merges unique evidence, preserves the original `created_at`, refreshes `updated_at` only when the record changes, and keeps `.precedent/precedents.jsonl` sorted by precedent id for deterministic diffs.
 
+State writes are serialized through `.precedent/state.lock`, and rewritten JSON files use atomic temp-file renames. Context hooks use the configured fail-open policy when the lock cannot be acquired quickly, returning no injection instead of blocking an ordinary conversation.
+
 All JSON inputs use an explicit v1 schema marker. `observe`, `hook`, and `replay` reject missing or unknown schema versions with an exact field error.
 
 Security behavior is intentionally small and deterministic: before Precedent writes hook events, sessions, traces, replay artifacts, ledgers, or context injections, it redacts common secrets with typed markers such as `[REDACTED:bearer_token]`, `[REDACTED:openai_key]`, `[REDACTED:github_token]`, `[REDACTED:slack_token]`, `[REDACTED:connection_string_password]`, and `[REDACTED:credential]`. `run` still streams the wrapped command's stdout/stderr unchanged to the caller and preserves the exact exit code, but the stored command output is redacted.
@@ -189,7 +191,7 @@ GitHub Actions check:
 
 ```yaml
 - name: Check Precedent state
-  run: node precedent/bin/precedent.mjs check --json
+  run: node precedent/bin/precedent.mjs check --strict --json
 ```
 
 Example runtime manifest:
