@@ -109,6 +109,9 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Context" || kind === "Effect") {
     return { trust: { zone: "unknown", source: "synthetic" }, ...normalizedData };
   }
+  if (kind === "Capability") {
+    return { family: "synthetic", action: null, grants: [], approvalPolicy: "none", ...normalizedData };
+  }
   if (kind === "Check" && isPlainObject(normalizedData.effect)) {
     return {
       ...normalizedData,
@@ -1462,6 +1465,33 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].trust_zone, "trusted");
     assert.equal(diagnostics[2].source_is_nonempty, false);
     assert.equal(diagnostics[2].argument_is_valid, false);
+  });
+
+  it("validates graph capability policy diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "capability:missing-policy", kind: "Capability", label: "missing policy", span: testSpan(1), data: { grants: null } },
+        { id: "capability:bad-policy", kind: "Capability", label: "bad policy", span: testSpan(2), data: { family: "file", grants: [], approvalPolicy: "sometimes" } },
+        { id: "capability:blank-family", kind: "Capability", label: "blank family", span: testSpan(3), data: { family: "   ", grants: [], approvalPolicy: "required" } },
+      ],
+      edges: [],
+    });
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_CAPABILITY_INVALID");
+    assert.equal(diagnostics[0].capability_id, "capability:missing-policy");
+    assert.equal(diagnostics[0].family_is_nonempty, true);
+    assert.equal(diagnostics[0].grants_is_array, false);
+    assert.equal(diagnostics[0].approval_policy_is_valid, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_CAPABILITY_INVALID");
+    assert.equal(diagnostics[1].approval_policy, "sometimes");
+    assert.equal(diagnostics[1].family_is_nonempty, true);
+    assert.equal(diagnostics[1].grants_is_array, true);
+    assert.equal(diagnostics[1].approval_policy_is_valid, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_CAPABILITY_INVALID");
+    assert.equal(diagnostics[2].family, "   ");
+    assert.equal(diagnostics[2].family_is_nonempty, false);
   });
 
   it("validates graph step input binding diagnostics", () => {

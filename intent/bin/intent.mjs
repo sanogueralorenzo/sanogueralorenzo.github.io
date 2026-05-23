@@ -1330,6 +1330,10 @@ function validateGraph(graph, options = {}) {
       }));
       continue;
     }
+    const capabilityDiagnostic = validateGraphCapability(graphNode, graphSpan);
+    if (capabilityDiagnostic) {
+      diagnostics.push(capabilityDiagnostic);
+    }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
       diagnostics.push(trustDiagnostic);
@@ -1676,6 +1680,27 @@ function isDiagnosticRecord(value) {
     && typeof value.message === "string"
     && value.message.trim() !== ""
     && isSpan(value.span);
+}
+
+function validateGraphCapability(graphNode, graphSpan) {
+  if (graphNode.kind !== "Capability") {
+    return null;
+  }
+  const familyIsNonempty = typeof graphNode.data.family === "string" && graphNode.data.family.trim() !== "";
+  const grantsIsArray = Array.isArray(graphNode.data.grants);
+  const approvalPolicyIsValid = graphNode.data.approvalPolicy === "none" || graphNode.data.approvalPolicy === "required";
+  if (familyIsNonempty && grantsIsArray && approvalPolicyIsValid) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CAPABILITY_INVALID", `capability '${graphNode.label}' must carry valid authorization policy data.`, graphNode.span ?? graphSpan, {
+    capability: graphNode.label,
+    capability_id: graphNode.id,
+    family: typeof graphNode.data.family === "string" ? graphNode.data.family : null,
+    approval_policy: typeof graphNode.data.approvalPolicy === "string" ? graphNode.data.approvalPolicy : null,
+    family_is_nonempty: familyIsNonempty,
+    grants_is_array: grantsIsArray,
+    approval_policy_is_valid: approvalPolicyIsValid,
+  });
 }
 
 function validateGraphNodeTrust(graphNode, graphSpan) {
