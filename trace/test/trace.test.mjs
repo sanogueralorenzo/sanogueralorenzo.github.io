@@ -194,12 +194,22 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
 
     const sessionRecapJson = JSON.parse((await runTrace(repo, ["session", "recap", payload.session, "--json"])).stdout);
     assert.equal(sessionRecapJson.schema_version, "trace.session_recap.v1");
+    assert.equal(sessionRecapJson.field, "all");
     assert.equal(sessionRecapJson.session, payload.session);
     assert.equal(sessionRecapJson.events, 4);
     assert.equal(sessionRecapJson.commitMemoryEvents, 4);
     assert.deepEqual(sessionRecapJson.sections.prompts, ["remember why app text exists"]);
     assert.deepEqual(sessionRecapJson.sections.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(sessionRecapJson.sections.handoff, ["Preserve the decision: Use committed Markdown for reviewable memory"]);
+
+    const decisionRecap = await runTrace(repo, ["session", "recap", payload.session, "--field", "decisions", "--limit", "1"]);
+    assert.match(decisionRecap.stdout, /Field: `decisions`/);
+    assert.match(decisionRecap.stdout, /## Decisions\n\n- Use committed Markdown for reviewable memory/);
+    assert.doesNotMatch(decisionRecap.stdout, /## Handoff/);
+    const handoffRecapJson = JSON.parse((await runTrace(repo, ["session", "recap", payload.session, "--field", "handoff", "--json"])).stdout);
+    assert.equal(handoffRecapJson.field, "handoff");
+    assert.deepEqual(Object.keys(handoffRecapJson.sections), ["handoff"]);
+    assert.deepEqual(handoffRecapJson.sections.handoff, ["Preserve the decision: Use committed Markdown for reviewable memory"]);
 
     const sessionCheck = JSON.parse((await runTrace(repo, ["session", "check", payload.session, "--json"])).stdout);
     assert.equal(sessionCheck.schema_version, "trace.session_check.v1");

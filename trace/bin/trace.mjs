@@ -1381,29 +1381,33 @@ async function recapSession(sessionId) {
 
   const events = await readSessionEvents(root, resolvedSession).catch((error) => fail(`session ${resolvedSession} not found or unreadable: ${error.message}`));
   const limit = parsePositiveInteger(args.limit ?? "5", "--limit");
+  const field = normalizeRecapField(args.field);
   const recap = await sessionRecap(root, resolvedSession, events, limit);
+  const output = {
+    ...recap,
+    field,
+    sections: recapSectionsForField(recap.sections, field),
+  };
 
   if (args.json) {
-    print(recap);
+    print(output);
     return;
   }
 
   const lines = [
     "# Trace Session Recap",
     "",
-    `Session: \`${recap.session}\``,
-    `Path: \`${recap.path}\``,
-    `Events: ${recap.events}`,
-    `Commit Memory Events: ${recap.commitMemoryEvents}`,
+    `Session: \`${output.session}\``,
+    `Path: \`${output.path}\``,
+    `Events: ${output.events}`,
+    `Commit Memory Events: ${output.commitMemoryEvents}`,
   ];
-  appendRecapSection(lines, "Intent Signals", recap.sections.prompts);
-  appendRecapSection(lines, "Responses", recap.sections.responses);
-  appendRecapSection(lines, "Tool Activity", recap.sections.tools);
-  appendRecapSection(lines, "Decisions", recap.sections.decisions);
-  appendRecapSection(lines, "Validation", recap.sections.validation);
-  appendRecapSection(lines, "Risks", recap.sections.risks);
-  appendRecapSection(lines, "Handoff", recap.sections.handoff);
-  appendRecapSection(lines, "Notes", recap.sections.notes);
+  if (field !== "all") {
+    lines.push(`Field: \`${field}\``);
+  }
+  for (const [key, label] of recapSectionEntries(field)) {
+    appendRecapSection(lines, label, output.sections[key]);
+  }
   process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
 }
 
@@ -1694,6 +1698,59 @@ function appendRecapSection(lines, name, values) {
   for (const value of values) {
     lines.push(`- ${value}`);
   }
+}
+
+function normalizeRecapField(value) {
+  const field = String(value ?? "all").toLowerCase();
+  const aliases = {
+    all: "all",
+    intent: "prompts",
+    intents: "prompts",
+    prompt: "prompts",
+    prompts: "prompts",
+    response: "responses",
+    responses: "responses",
+    tool: "tools",
+    tools: "tools",
+    activity: "tools",
+    decision: "decisions",
+    decisions: "decisions",
+    validation: "validation",
+    risk: "risks",
+    risks: "risks",
+    handoff: "handoff",
+    handoffs: "handoff",
+    note: "notes",
+    notes: "notes",
+  };
+
+  if (!aliases[field]) {
+    fail(`unknown session recap field: ${value}`);
+  }
+
+  return aliases[field];
+}
+
+function recapSectionEntries(field = "all") {
+  const entries = [
+    ["prompts", "Intent Signals"],
+    ["responses", "Responses"],
+    ["tools", "Tool Activity"],
+    ["decisions", "Decisions"],
+    ["validation", "Validation"],
+    ["risks", "Risks"],
+    ["handoff", "Handoff"],
+    ["notes", "Notes"],
+  ];
+  return field === "all" ? entries : entries.filter(([key]) => key === field);
+}
+
+function recapSectionsForField(sections, field = "all") {
+  const selected = {};
+  for (const [key] of recapSectionEntries(field)) {
+    selected[key] = sections[key] ?? [];
+  }
+  return selected;
 }
 
 async function runRedactCommand(action, values) {
@@ -3601,7 +3658,7 @@ Usage:
   trace session list
   trace session current
   trace session show <session> [--limit 20]
-  trace session recap [session] [--limit 5] [--json]
+  trace session recap [session] [--field intent|responses|tools|decisions|validation|risks|handoff|notes] [--limit 5] [--json]
   trace session check [session] [--strict] [--json]
   trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list
