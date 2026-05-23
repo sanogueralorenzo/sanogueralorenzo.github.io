@@ -116,6 +116,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.conversationObserve.stdin.messages, "$MESSAGES");
     assert.equal(first.adapter.conversationObserve.injectFrom, "contextBlock");
     assert.ok(first.adapter.conversationObserve.output.includes("correctionSafetyReceipt"));
+    assert.ok(first.adapter.conversationObserve.output.includes("assumptionReceipt"));
     assert.ok(first.adapter.conversationObserve.output.includes("turnDirectiveReceipt"));
     assert.deepEqual(first.adapter.preflight.command.slice(0, 5), [
       "node",

@@ -2255,6 +2255,7 @@ async function conversationObserveEventHook(event) {
   const eventId = hookEventId(event);
   const messages = conversationMessages(event);
   const correctionSignals = conversationCorrectionSignals(messages);
+  const assumptionSignals = conversationAssumptionSignals(messages);
   const turnDirectiveSignals = conversationTurnDirectiveSignals(messages);
   const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
   const correctionSafetyReceipt = correctionSafetyReceiptFor({
@@ -2263,11 +2264,14 @@ async function conversationObserveEventHook(event) {
     correctionSignals,
     changedFiles,
   });
+  const assumptionReceipt = assumptionReceiptFor(assumptionSignals);
   const turnDirectiveReceipt = turnDirectiveReceiptFor({ messages, turnDirectiveSignals });
   const acceptedCorrectionSignals = correctionSafetyReceipt.status === "accepted" ? correctionSignals : [];
+  const acceptedAssumptionSignals = assumptionReceipt.status === "accepted" ? assumptionSignals : [];
   const acceptedTurnDirectives = turnDirectiveReceipt.status === "accepted" ? turnDirectiveSignals : [];
   const contextBlock = [
     formatCorrectionContextBlock(acceptedCorrectionSignals),
+    formatAssumptionContextBlock(acceptedAssumptionSignals),
     formatTurnDirectiveContextBlock(directiveSummary(acceptedTurnDirectives)),
   ].filter(Boolean).join("\n");
   let sessionEvent = null;
@@ -2287,6 +2291,9 @@ async function conversationObserveEventHook(event) {
       correctionSignals,
       acceptedCorrectionSignals,
       correctionSafetyReceipt,
+      assumptionSignals,
+      acceptedAssumptionSignals,
+      assumptionReceipt,
       turnDirectiveSignals,
       acceptedTurnDirectives,
       turnDirectiveReceipt,
@@ -2306,6 +2313,9 @@ async function conversationObserveEventHook(event) {
         correctionSignals: sessionEvent.event.correctionSignals,
         acceptedCorrectionSignals: sessionEvent.event.acceptedCorrectionSignals,
         correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
+        assumptionSignals: sessionEvent.event.assumptionSignals,
+        acceptedAssumptionSignals: sessionEvent.event.acceptedAssumptionSignals,
+        assumptionReceipt: sessionEvent.event.assumptionReceipt,
         turnDirectiveSignals: sessionEvent.event.turnDirectiveSignals,
         acceptedTurnDirectives: sessionEvent.event.acceptedTurnDirectives,
         turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
@@ -2326,11 +2336,15 @@ async function conversationObserveEventHook(event) {
       correctionSignals: sessionEvent.event.correctionSignals,
       acceptedCorrectionSignals: sessionEvent.event.acceptedCorrectionSignals,
       correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
+      assumptionSignals: sessionEvent.event.assumptionSignals,
+      acceptedAssumptionSignals: sessionEvent.event.acceptedAssumptionSignals,
+      assumptionReceipt: sessionEvent.event.assumptionReceipt,
       turnDirectiveSignals: sessionEvent.event.turnDirectiveSignals,
       acceptedTurnDirectives: sessionEvent.event.acceptedTurnDirectives,
       turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
     },
     correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
+    assumptionReceipt: sessionEvent.event.assumptionReceipt,
     turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
     turnDirectives: directiveSummary(sessionEvent.event.acceptedTurnDirectives),
     contextBlock: sessionEvent.event.contextBlock,
@@ -3250,7 +3264,7 @@ function buildManifest(runtime, stateDir) {
       "conversation.observe": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -3624,7 +3638,7 @@ async function attachRuntime() {
       },
       conversationObserve: {
         command: hookCommand,
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
         injectFrom: "contextBlock",
         stdin: {
           schema_version: SCHEMA_VERSION,
@@ -8040,9 +8054,12 @@ async function traceFromSession(stateDir, sessionId) {
     ? {
       correctionSignals: observations.flatMap((event) => Array.isArray(event.correctionSignals) ? event.correctionSignals : []),
       acceptedCorrectionSignals: observations.flatMap((event) => Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : []),
+      assumptionSignals: observations.flatMap((event) => Array.isArray(event.assumptionSignals) ? event.assumptionSignals : []),
+      acceptedAssumptionSignals: observations.flatMap((event) => Array.isArray(event.acceptedAssumptionSignals) ? event.acceptedAssumptionSignals : []),
       turnDirectiveSignals: observations.flatMap((event) => Array.isArray(event.turnDirectiveSignals) ? event.turnDirectiveSignals : []),
       acceptedTurnDirectives: observations.flatMap((event) => Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : []),
       safetyReceipts: observations.map((event) => event.correctionSafetyReceipt).filter(Boolean),
+      assumptionReceipts: observations.map((event) => event.assumptionReceipt).filter(Boolean),
       turnDirectiveReceipts: observations.map((event) => event.turnDirectiveReceipt).filter(Boolean),
       changedFiles: uniqueStrings(observations.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : [])),
     }
@@ -8087,6 +8104,9 @@ function sessionTraceEvent(event) {
     correctionSignals: Array.isArray(event.correctionSignals) ? event.correctionSignals : [],
     acceptedCorrectionSignals: Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : [],
     correctionSafetyReceipt: event.correctionSafetyReceipt ?? null,
+    assumptionSignals: Array.isArray(event.assumptionSignals) ? event.assumptionSignals : [],
+    acceptedAssumptionSignals: Array.isArray(event.acceptedAssumptionSignals) ? event.acceptedAssumptionSignals : [],
+    assumptionReceipt: event.assumptionReceipt ?? null,
     turnDirectiveSignals: Array.isArray(event.turnDirectiveSignals) ? event.turnDirectiveSignals : [],
     acceptedTurnDirectives: Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : [],
     turnDirectiveReceipt: event.turnDirectiveReceipt ?? null,
@@ -8722,6 +8742,34 @@ function conversationCorrectionSignals(messages) {
   return uniqueBy(signals.filter((signal) => signal.expected && signal.actual), (signal) => `${signal.type}:${signal.expected}:${signal.actual}`);
 }
 
+function conversationAssumptionSignals(messages) {
+  const signals = [];
+
+  for (const message of messages) {
+    const lines = message.content.split(/\r?\n/u);
+    for (const line of lines) {
+      const match = line.match(/^\s*(?:[-*]\s*)?(?:assumption|assume)\s*[:\-]\s*(.+?)\s*$/iu);
+      if (!match) {
+        continue;
+      }
+
+      const text = cleanAssumptionText(match[1]);
+      if (text.length === 0) {
+        continue;
+      }
+
+      signals.push({
+        type: "agent_assumption",
+        text,
+        source: message.role,
+        trusted: message.trusted !== false,
+      });
+    }
+  }
+
+  return uniqueBy(signals, (signal) => `${signal.type}:${signal.text}:${signal.source}:${signal.trusted}`);
+}
+
 function conversationTurnDirectiveSignals(messages) {
   const signals = [];
 
@@ -8792,6 +8840,53 @@ function turnDirectiveReceiptFor({ messages, turnDirectiveSignals }) {
     reasons,
     trustedSources,
     pathSafety,
+  };
+}
+
+function assumptionReceiptFor(assumptionSignals) {
+  if (assumptionSignals.length === 0) {
+    return {
+      status: "no_assumption",
+      accepted: false,
+      reasons: [],
+      sourceSafety: [],
+    };
+  }
+
+  const sourceSafety = assumptionSignals.map((signal) => {
+    if (signal.source !== "assistant") {
+      return {
+        source: signal.source,
+        trusted: signal.trusted === true,
+        safe: false,
+        reason: "non_assistant_source",
+      };
+    }
+    if (signal.trusted !== true) {
+      return {
+        source: signal.source,
+        trusted: false,
+        safe: false,
+        reason: "untrusted_source",
+      };
+    }
+
+    return {
+      source: signal.source,
+      trusted: true,
+      safe: true,
+      reason: null,
+    };
+  });
+  const reasons = uniqueStrings(sourceSafety
+    .filter((item) => !item.safe)
+    .map((item) => item.reason));
+
+  return {
+    status: reasons.length === 0 ? "accepted" : "quarantined",
+    accepted: reasons.length === 0,
+    reasons,
+    sourceSafety,
   };
 }
 
@@ -8908,6 +9003,15 @@ function cleanCorrectionPath(value) {
     .trim();
 }
 
+function cleanAssumptionText(value) {
+  return String(value)
+    .replace(/^["'`]+|["'`]+$/gu, "")
+    .replace(/\s+/gu, " ")
+    .replace(/[.;]+$/gu, "")
+    .trim()
+    .slice(0, 300);
+}
+
 function cleanDirectivePath(value) {
   return cleanCorrectionPath(value)
     .replace(/^the\s+/iu, "")
@@ -8999,6 +9103,17 @@ function formatCorrectionContextBlock(signals) {
     "Precedent correction:",
     ...commandCorrections.slice(0, 3).map((signal) => `- Use ${signal.expected} instead of ${signal.actual}.`),
     ...boundaryCorrections.slice(0, 3).map((signal) => `- Keep edits inside ${signal.expected} instead of ${signal.actual}.`),
+  ].join("\n");
+}
+
+function formatAssumptionContextBlock(signals) {
+  if (!Array.isArray(signals) || signals.length === 0) {
+    return "";
+  }
+
+  return [
+    "Precedent assumptions to verify:",
+    ...signals.slice(0, 5).map((signal) => `- ${signal.text}.`),
   ].join("\n");
 }
 
