@@ -404,13 +404,20 @@ Next graph envelope validation milestone:
   emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
   runtimes must not infer executable inputs, side effects, gates, checkpoints,
   approvals, timeouts, retries, or output types.
-- Runtime Completion node metadata is the next Phase 2 static-model milestone.
-  `Completion` node data must carry `outputType` as `null` or a non-empty
-  string and `outputTypeSpan` as `null` or a valid span. Malformed Completion
-  node payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make graph output
+- Runtime Completion node metadata is part of graph validation. `Completion`
+  node data must carry `outputType` as `null` or a non-empty string and
+  `outputTypeSpan` as `null` or a valid span. Malformed Completion node
+  payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make graph output
   non-executable. This runtime payload contract is separate from the existing
   completion-edge contract, which still requires `completes`, `produces`,
   `verifies`, and invariant `guards` edges.
+- Runtime Invariant node metadata is the next Phase 2 static-model milestone.
+  `Invariant` node data must carry `assertion` as `Require` or `Deny` and
+  `invariant` as a non-empty string. Malformed Invariant node payloads emit
+  `INTENT_GRAPH_INVARIANT_INVALID` and make graph output non-executable
+  because runtimes must not infer always-on rule polarity or identity. This
+  runtime payload contract is separate from the existing guard-edge contract,
+  where missing `guards` edges still emit `INTENT_GRAPH_GUARD_INVALID`.
 - Runtime input metadata is part of graph validation. Goal inputs and step
   inputs must carry `data.scope` as either `goal` or `step` and a non-empty
   `data.type`. Step input nodes must additionally be attached to their owning
@@ -558,8 +565,9 @@ blocking diagnostics.
 - Parse step-body `timeout ...` and `retry ...` lines as step policy
   statements owned by their containing step, and emit `INTENT_POLICY_INVALID`
   when policy syntax is invalid.
-- Enforce invariant placement, emit invariant statements as `Invariant` nodes,
-  and attach those nodes to the graph as guards.
+- Enforce invariant placement, emit invariant statements as `Invariant` nodes
+  with `data.assertion` set to `Require` or `Deny` and non-empty
+  `data.invariant`, and attach those nodes to the graph as guards.
 - Enforce `deny production_deploy` by rejecting `Deploy` effects targeting
   `production` with `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - Enforce `deny secret_write` by rejecting file write effects whose path or name
@@ -609,7 +617,8 @@ blocking diagnostics.
   non-empty string, and `data.outputTypeSpan` as `null` or a valid span.
 - Emit every `Completion` node with `data.outputType` as `null` or a non-empty
   string and `data.outputTypeSpan` as `null` or a valid span.
-- Emit each invariant statement as an `Invariant` node with `guards` edges to
+- Emit each invariant statement as an `Invariant` node with `data.assertion` set
+  to `Require` or `Deny`, non-empty `data.invariant`, and `guards` edges to
   completion and to every effect, checkpoint, and step requirement check in the
   same goal.
 - Reject execution cycles unless a future bounded-loop form declares progress.
@@ -937,7 +946,11 @@ Rules:
 ## Invariant Guards
 
 Invariant blocks contain always-on `deny ...` statements. Each statement emits
-one graph `Invariant` node whose span is the `deny ...` line.
+one graph `Invariant` node whose span is the `deny ...` line. Invariant node
+data must carry `assertion` as `Require` or `Deny` and `invariant` as a
+non-empty string. Malformed Invariant node payloads emit
+`INTENT_GRAPH_INVARIANT_INVALID` and make graph output non-executable because
+runtimes must not infer always-on rule polarity or identity.
 
 Rules:
 
@@ -949,6 +962,10 @@ Rules:
 - Graph validation emits `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node
   is missing its `guards` edge to `Completion` or to any `Effect`,
   `Checkpoint`, or step-scoped `Check` node in the same goal.
+- The Invariant node payload contract is separate from the guard-edge contract:
+  malformed `data.assertion` or `data.invariant` emits
+  `INTENT_GRAPH_INVARIANT_INVALID`, while missing `guards` edges still emit
+  `INTENT_GRAPH_GUARD_INVALID`.
 - Enforce `deny production_deploy` by rejecting any `Deploy` effect whose
   normalized `target` is `production` with `INTENT_INVARIANT_VIOLATION` at the
   invariant line span.
@@ -1319,6 +1336,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_INPUT_UNBOUND`
 - `INTENT_GRAPH_GOAL_COMPLETION_INVALID`
 - `INTENT_GRAPH_COMPLETION_INVALID`
+- `INTENT_GRAPH_INVARIANT_INVALID`
 - `INTENT_GRAPH_GUARD_INVALID`
 - `INTENT_GRAPH_AUTHORIZATION_INVALID`
 - `INTENT_GRAPH_EFFECT_REQUEST_INVALID`
@@ -1992,8 +2010,13 @@ step-scoped `data.ownerStep` or `data.assertion`, or carries malformed nested
 `INTENT_GRAPH_TRUST_INVALID`. Graph validation emits
 `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
 `guards` edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped
-`Check` node in the same goal. Completion is reachable only when all incoming
-completion edges have succeeded or remained unviolated.
+`Check` node in the same goal. Graph validation emits
+`INTENT_GRAPH_INVARIANT_INVALID` when an `Invariant` node lacks
+`data.assertion` as `Require` or `Deny` or lacks non-empty `data.invariant`;
+malformed Invariant payloads make graph output non-executable and are separate
+from missing guard edges, which still emit `INTENT_GRAPH_GUARD_INVALID`.
+Completion is reachable only when all incoming completion edges have succeeded
+or remained unviolated.
 
 The runtime must treat the graph as authoritative: it may execute only graph
 nodes, may invoke only authorized effects, must preserve guard and approval
