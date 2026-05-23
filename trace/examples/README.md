@@ -47,6 +47,7 @@ trace search --field agents "codex"
 trace search --field lifecycle "validation"
 trace search --field decisions "storage"
 trace search --field handoff "preserve"
+trace recall "storage" --output trace-recall.md
 trace pr-body main..HEAD
 trace pr-body main..HEAD --output trace-pr-body.md
 trace release-notes v1.0.0..HEAD

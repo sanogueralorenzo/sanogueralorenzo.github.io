@@ -2613,40 +2613,64 @@ async function recallMemories(query) {
 
   const index = await loadSearchIndex(root);
   const matches = rankRecallEntries(index.entries, terms, files, { checkpoint, session, field }).slice(0, limit);
-  if (args.json) {
+  const payload = recallPayload(query, field, files, checkpoint, session, matches);
+  const document = args.json ? `${JSON.stringify(payload, null, 2)}\n` : renderRecallMarkdown(query, field, files, checkpoint, session, matches);
+  if (args.output) {
+    const outputPath = resolve(args.output);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, document);
     print({
       ok: true,
-      schema_version: "trace.recall.v1",
-      query: query.trim(),
-      field,
-      files,
-      checkpoint: checkpoint || null,
-      session: session || null,
+      schema_version: "trace.recall_output.v1",
+      output: args.output,
       matches: matches.length,
-      results: matches.map(({ score, entry }) => ({
-        score,
-        sha: entry.sha,
-        file: entry.file,
-        checkpoint: entry.checkpoint,
-        session: entry.session,
-        created: entry.created,
-        title: recallTitle(entry),
-        agents: entry.agents,
-        lifecycle: entry.lifecycle,
-        intent: entry.intent,
-        summary: entry.summary,
-        decisions: entry.decisions,
-        responses: entry.responses,
-        tools: entry.tools,
-        files: entry.files,
-        validation: entry.validation,
-        risks: entry.risks,
-        handoff: entry.handoff,
-      })),
+      bytes: Buffer.byteLength(document),
     });
     return;
   }
 
+  if (args.json) {
+    process.stdout.write(document);
+    return;
+  }
+
+  process.stdout.write(document);
+}
+
+function recallPayload(query, field, files, checkpoint, session, matches) {
+  return {
+    ok: true,
+    schema_version: "trace.recall.v1",
+    query: query.trim(),
+    field,
+    files,
+    checkpoint: checkpoint || null,
+    session: session || null,
+    matches: matches.length,
+    results: matches.map(({ score, entry }) => ({
+      score,
+      sha: entry.sha,
+      file: entry.file,
+      checkpoint: entry.checkpoint,
+      session: entry.session,
+      created: entry.created,
+      title: recallTitle(entry),
+      agents: entry.agents,
+      lifecycle: entry.lifecycle,
+      intent: entry.intent,
+      summary: entry.summary,
+      decisions: entry.decisions,
+      responses: entry.responses,
+      tools: entry.tools,
+      files: entry.files,
+      validation: entry.validation,
+      risks: entry.risks,
+      handoff: entry.handoff,
+    })),
+  };
+}
+
+function renderRecallMarkdown(query, field, files, checkpoint, session, matches) {
   const lines = ["# Trace Recall", ""];
   if (query.trim()) {
     lines.push(`Query: \`${query.trim()}\``);
@@ -2690,7 +2714,7 @@ async function recallMemories(query) {
     lines.push("");
   }
 
-  process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 async function changedFilesForRecall(root) {
@@ -3885,7 +3909,7 @@ Usage:
   trace log [--limit 20] [--json]
   trace index
   trace search [--field agents|lifecycle|intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
-  trace recall [query] [--field agents|lifecycle|intent|summary|decisions|responses|tools|files|validation|risks|handoff] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
+  trace recall [query] [--field agents|lifecycle|intent|summary|decisions|responses|tools|files|validation|risks|handoff] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json] [--output FILE]
   trace summary [range] [--json] [--output FILE]
   trace branch-summary [branch] [--base main] [--json] [--output FILE]
   trace pr-body [range] [--json] [--output FILE]

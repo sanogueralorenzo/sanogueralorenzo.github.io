@@ -108,6 +108,7 @@ trace recall --files src/auth.ts
 trace recall --checkpoint <checkpoint>
 trace recall --session <session>
 trace recall --json "auth retry"
+trace recall "auth retry" --output trace-recall.md
 trace summary main..HEAD
 trace branch-summary feature --base main
 trace pr-body main..HEAD
@@ -195,6 +196,7 @@ node trace/bin/trace.mjs recall --files src/auth.ts
 node trace/bin/trace.mjs recall --checkpoint <checkpoint>
 node trace/bin/trace.mjs recall --session <session>
 node trace/bin/trace.mjs recall --json "auth retry"
+node trace/bin/trace.mjs recall "auth retry" --output trace-recall.md
 node trace/bin/trace.mjs summary main..HEAD
 node trace/bin/trace.mjs branch-summary feature --base main
 node trace/bin/trace.mjs pr-body main..HEAD
@@ -246,7 +248,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change, ranks matches by term frequency, and can search all memory text or a specific field such as `agents`, `lifecycle`, `intent`, `summary`, `decisions`, `responses`, `tools`, `files`, `checkpoint`, `session`, `validation`, `risks`, or `handoff`. Use `--json` and `--limit` when agents need structured local search results with score, commit, memory path, checkpoint, and session identity.
 
-`trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path, checkpoint/session identity, adapter provenance, lifecycle event counts, intent, summary, decisions, responses, tool activity, files, validation, risks, and handoff. Add `--field agents`, `--field lifecycle`, `--field decisions`, `--field validation`, or another memory field to recall context from that specific part of committed memories. `trace recall --files src/auth.ts` ranks memories by affected files, `trace recall --checkpoint <checkpoint>` and `trace recall --session <session>` jump directly from Trace identity back to committed memories, plain `trace recall` uses locally changed files when available, and `--json` emits the same recall bundle as structured data.
+`trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path, checkpoint/session identity, adapter provenance, lifecycle event counts, intent, summary, decisions, responses, tool activity, files, validation, risks, and handoff. Add `--field agents`, `--field lifecycle`, `--field decisions`, `--field validation`, or another memory field to recall context from that specific part of committed memories. `trace recall --files src/auth.ts` ranks memories by affected files, `trace recall --checkpoint <checkpoint>` and `trace recall --session <session>` jump directly from Trace identity back to committed memories, plain `trace recall` uses locally changed files when available, and `--json` emits the same recall bundle as structured data. Add `--output <file>` to write the Markdown or JSON bundle for an agent handoff while stdout returns a small schema-stable write result.
 
 `trace doctor` audits the local Trace installation in one read-only command: config, CLI install health, managed hook commands, adapter contract specs, committed memory shape, uncommitted Trace files, checkpoint ref integrity, checkpoint links from committed memories, and search index freshness. Add `--strict-memory` to include the same committed-memory intent, decision, and validation quality gate used by `trace check` and CI. Missing CLI installs and stale rebuildable caches are warnings, while missing or tampered hooks, malformed memory files, malformed adapter configs, missing linked checkpoint payloads, checkpoint integrity errors, and strict memory quality findings fail the command.
 

@@ -195,6 +195,22 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(recallJson.results[0].validation, /node --test/);
     assert.match(recallJson.results[0].handoff, /Preserve the decision/);
 
+    const recallPath = join(repo, "trace-recall.md");
+    const recallWrite = JSON.parse((await runTrace(repo, ["recall", "reviewable", "--limit", "1", "--output", recallPath])).stdout);
+    assert.equal(recallWrite.schema_version, "trace.recall_output.v1");
+    assert.equal(recallWrite.output, recallPath);
+    assert.equal(recallWrite.matches, 1);
+    assert.equal(recallWrite.bytes, (await readFile(recallPath, "utf8")).length);
+    assert.match(await readFile(recallPath, "utf8"), /# Trace Recall/);
+    assert.match(await readFile(recallPath, "utf8"), /Use committed Markdown for reviewable memory/);
+
+    const recallJsonPath = join(repo, "trace-recall.json");
+    const recallJsonWrite = JSON.parse((await runTrace(repo, ["recall", "reviewable", "--limit", "1", "--json", "--output", recallJsonPath])).stdout);
+    assert.equal(recallJsonWrite.schema_version, "trace.recall_output.v1");
+    const recallJsonFile = JSON.parse(await readFile(recallJsonPath, "utf8"));
+    assert.equal(recallJsonFile.schema_version, "trace.recall.v1");
+    assert.equal(recallJsonFile.matches, 1);
+
     const decisionRecall = await runTrace(repo, ["recall", "--field", "decisions", "reviewable", "--limit", "1"]);
     assert.match(decisionRecall.stdout, /Field: `decisions`/);
     assert.match(decisionRecall.stdout, /Use committed Markdown for reviewable memory/);
