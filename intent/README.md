@@ -441,9 +441,11 @@ Validation expectations:
 - Graph `Capability` nodes are runtime policy inputs. They must carry valid
   approval-policy data: `data.family` must be non-empty,
   `data.approvalPolicy` must be either `none` or `required`, and `data.grants`
-  must be an array. Malformed capability policy data emits
-  `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
-  runtime authorization and approval enforcement must not infer missing policy.
+  must be an array of structured grant records. Each grant must carry non-empty
+  `action`, `key`, and `raw` strings, a string `value`, and a valid source
+  `span`. Malformed capability policy data emits `INTENT_GRAPH_CAPABILITY_INVALID`
+  and makes the graph non-executable because runtime authorization and approval
+  enforcement must not infer missing policy.
 - Runtime capability ownership edge contracts are the next Phase 2 static-model
   milestone. Every graph `Capability` node must have exactly one outgoing
   `authorizes` edge whose target is its owning `Goal`. Malformed, missing,

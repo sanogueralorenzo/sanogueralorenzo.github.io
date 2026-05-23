@@ -2224,11 +2224,12 @@ describe("intent static model CLI", () => {
         { id: "capability:missing-policy", kind: "Capability", label: "missing policy", span: testSpan(1), data: { grants: null } },
         { id: "capability:bad-policy", kind: "Capability", label: "bad policy", span: testSpan(2), data: { family: "file", grants: [], approvalPolicy: "sometimes" } },
         { id: "capability:blank-family", kind: "Capability", label: "blank family", span: testSpan(3), data: { family: "   ", grants: [], approvalPolicy: "required" } },
+        { id: "capability:bad-grants", kind: "Capability", label: "bad grants", span: testSpan(4), data: { grants: [{ action: "", key: "path", value: "./src/**", raw: "read path: \"./src/**\"", span: testSpan(4) }, { action: "read", key: "path", value: "./src/**", raw: "" }] } },
       ],
       edges: [],
     });
 
-    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics.length, 4);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_CAPABILITY_INVALID");
     assert.equal(diagnostics[0].capability_id, "capability:missing-policy");
     assert.equal(diagnostics[0].family_is_nonempty, true);
@@ -2242,6 +2243,9 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_CAPABILITY_INVALID");
     assert.equal(diagnostics[2].family, "   ");
     assert.equal(diagnostics[2].family_is_nonempty, false);
+    assert.equal(diagnostics[3].code, "INTENT_GRAPH_CAPABILITY_INVALID");
+    assert.equal(diagnostics[3].capability_id, "capability:bad-grants");
+    assert.deepEqual(diagnostics[3].invalid_grant_indexes, [0, 1]);
   });
 
   it("validates graph memory retention diagnostics", () => {

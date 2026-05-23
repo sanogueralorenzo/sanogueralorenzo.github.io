@@ -2123,8 +2123,13 @@ function validateGraphCapability(graphNode, graphSpan) {
   }
   const familyIsNonempty = typeof graphNode.data.family === "string" && graphNode.data.family.trim() !== "";
   const grantsIsArray = Array.isArray(graphNode.data.grants);
+  const invalidGrantIndexes = grantsIsArray
+    ? graphNode.data.grants
+        .map((grant, grantIndex) => isGraphGrantRecord(grant) ? null : grantIndex)
+        .filter((grantIndex) => grantIndex !== null)
+    : [];
   const approvalPolicyIsValid = graphNode.data.approvalPolicy === "none" || graphNode.data.approvalPolicy === "required";
-  if (familyIsNonempty && grantsIsArray && approvalPolicyIsValid) {
+  if (familyIsNonempty && grantsIsArray && invalidGrantIndexes.length === 0 && approvalPolicyIsValid) {
     return null;
   }
   return error("INTENT_GRAPH_CAPABILITY_INVALID", `capability '${graphNode.label}' must carry valid authorization policy data.`, graphNode.span ?? graphSpan, {
@@ -2134,8 +2139,21 @@ function validateGraphCapability(graphNode, graphSpan) {
     approval_policy: typeof graphNode.data.approvalPolicy === "string" ? graphNode.data.approvalPolicy : null,
     family_is_nonempty: familyIsNonempty,
     grants_is_array: grantsIsArray,
+    invalid_grant_indexes: invalidGrantIndexes,
     approval_policy_is_valid: approvalPolicyIsValid,
   });
+}
+
+function isGraphGrantRecord(value) {
+  return isPlainObject(value)
+    && typeof value.action === "string"
+    && value.action.trim() !== ""
+    && typeof value.key === "string"
+    && value.key.trim() !== ""
+    && typeof value.value === "string"
+    && typeof value.raw === "string"
+    && value.raw.trim() !== ""
+    && isSpan(value.span);
 }
 
 function validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {

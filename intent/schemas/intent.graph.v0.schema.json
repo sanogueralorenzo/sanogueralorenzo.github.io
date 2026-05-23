@@ -111,16 +111,16 @@
       "additionalProperties": false,
       "properties": {
         "action": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "key": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "value": {
           "type": "string"
         },
         "raw": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"

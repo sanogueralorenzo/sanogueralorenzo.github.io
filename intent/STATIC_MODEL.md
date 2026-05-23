@@ -2544,10 +2544,12 @@ capability authorization, diagnostics, and runtime provenance can point to the
 grant that authorized an effect or context source.
 Capability nodes are also runtime policy inputs. Graph validation requires
 `data.family` to be non-empty, `data.approvalPolicy` to be either `none` or
-`required`, and `data.grants` to be an array. Malformed capability policy data
-emits `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable
-because runtime authorization and approval enforcement must not infer missing
-policy. Every graph `Capability` node must also have exactly one outgoing
+`required`, and `data.grants` to be an array of structured grant records with
+non-empty `action`, `key`, and `raw` strings, a string `value`, and a valid
+source `span`. Malformed capability policy data emits
+`INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
+runtime authorization and approval enforcement must not infer missing policy.
+Every graph `Capability` node must also have exactly one outgoing
 `authorizes` edge whose target is its owning `Goal`. Malformed, missing,
 duplicate, or wrong-Goal capability ownership `authorizes` edges emit
 `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
