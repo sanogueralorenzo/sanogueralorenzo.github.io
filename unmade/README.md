@@ -21,3 +21,13 @@ It is a public index of possible things: fragments, case files, prototypes, scen
 The site is meant to be browsed by scrolling, then entered through individual case pages.
 
 Each entry should feel like an artifact: a name, a fragment, a visual trace, a short explanation, and the unresolved question it leaves behind.
+
+## Local Preview
+
+```shell
+cd unmade
+npm install
+npm run dev
+```
+
+Then open `http://localhost:8080/unmade/`.
