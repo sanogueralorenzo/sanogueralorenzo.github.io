@@ -19,7 +19,9 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     await git(repo, ["add", "app.txt"]);
     await git(repo, ["commit", "-m", "Add app text"]);
 
-    await runTrace(repo, ["init"]);
+    const init = JSON.parse((await runTrace(repo, ["init"])).stdout);
+    assert.equal(init.schema_version, "trace.init_result.v1");
+    assert.equal(init.traceDir, ".trace");
     const capture = JSON.parse((await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "remember why app text exists"])).stdout);
     assert.equal(capture.schema_version, "trace.capture_result.v1");
     assert.match(capture.session, /^[A-Za-z0-9-]+$/);
@@ -2026,7 +2028,9 @@ test("enable installs git hooks that link commits and write post-commit memory",
   try {
     await git(repo, ["config", "user.name", "Trace Test"]);
     await git(repo, ["config", "user.email", "trace@example.com"]);
-    await runTrace(repo, ["enable"]);
+    const enabledHooks = JSON.parse((await runTrace(repo, ["enable"])).stdout);
+    assert.equal(enabledHooks.schema_version, "trace.enable_result.v1");
+    assert.equal(enabledHooks.enabled, true);
     await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "hook captured intent"]);
     await writeFile(join(repo, "feature.txt"), "feature\n");
     await git(repo, ["add", "feature.txt"]);
@@ -2063,8 +2067,15 @@ test("enable disable and doctor validate managed hook bodies", async () => {
     const hookPath = join(repo, ".git/hooks/post-commit");
     await writeFile(hookPath, "#!/bin/sh\nprintf existing-hook\\n\n");
 
-    await runTrace(repo, ["enable"]);
-    await runTrace(repo, ["enable"]);
+    const help = await runTrace(repo, ["--help"]);
+    assert.match(help.stdout, /Trace records compact commit memory/);
+
+    const firstEnable = JSON.parse((await runTrace(repo, ["enable"])).stdout);
+    assert.equal(firstEnable.schema_version, "trace.enable_result.v1");
+    assert.equal(firstEnable.enabled, true);
+    const secondEnable = JSON.parse((await runTrace(repo, ["enable"])).stdout);
+    assert.equal(secondEnable.schema_version, "trace.enable_result.v1");
+    assert.equal(secondEnable.enabled, true);
     const enabled = await readFile(hookPath, "utf8");
     assert.equal(enabled.match(/# trace:start/g)?.length, 1);
     assert.match(enabled, /printf existing-hook/);
@@ -2079,7 +2090,9 @@ test("enable disable and doctor validate managed hook bodies", async () => {
     assert.equal(hooks.details.postCommit.valid, false);
 
     await runTrace(repo, ["enable"]);
-    await runTrace(repo, ["disable"]);
+    const disabledPayload = JSON.parse((await runTrace(repo, ["disable"])).stdout);
+    assert.equal(disabledPayload.schema_version, "trace.disable_result.v1");
+    assert.equal(disabledPayload.enabled, false);
     const disabled = await readFile(hookPath, "utf8");
     assert.doesNotMatch(disabled, /# trace:start/);
     assert.match(disabled, /printf existing-hook/);

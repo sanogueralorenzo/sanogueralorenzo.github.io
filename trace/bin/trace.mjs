@@ -49,7 +49,7 @@ const args = parseArgs(rawArgs);
 main().catch((error) => fail(error.message));
 
 async function main() {
-  if (command === "help" || args.help) {
+  if (command === "help" || command === "--help" || command === "-h" || args.help) {
     printHelp();
     return;
   }
@@ -239,7 +239,7 @@ function parseArgs(values) {
   return parsed;
 }
 
-async function initRepo() {
+async function initRepo(options = {}) {
   const root = await repoRoot();
   const traceRoot = join(root, TRACE_DIR);
   await mkdir(join(traceRoot, "commits"), { recursive: true });
@@ -254,15 +254,17 @@ async function initRepo() {
     },
   }, null, 2)}\n`);
   await writeFileIfMissing(join(traceRoot, "commits", ".gitkeep"), "");
-  print({ ok: true, traceDir: TRACE_DIR });
+  if (!options.quiet) {
+    print({ ok: true, schema_version: "trace.init_result.v1", traceDir: TRACE_DIR });
+  }
 }
 
 async function enableRepo() {
-  await initRepo();
+  await initRepo({ quiet: true });
   await installHook("pre-commit", traceHookCommand("pre-commit"));
   await installHook("prepare-commit-msg", traceHookCommand("prepare-commit-msg"));
   await installHook("post-commit", traceHookCommand("post-commit"));
-  print({ ok: true, enabled: true });
+  print({ ok: true, schema_version: "trace.enable_result.v1", enabled: true, traceDir: TRACE_DIR });
 }
 
 async function disableRepo() {
@@ -270,7 +272,7 @@ async function disableRepo() {
   await removeManagedBlock(join(hooksDir, "pre-commit"));
   await removeManagedBlock(join(hooksDir, "prepare-commit-msg"));
   await removeManagedBlock(join(hooksDir, "post-commit"));
-  print({ ok: true, enabled: false });
+  print({ ok: true, schema_version: "trace.disable_result.v1", enabled: false });
 }
 
 async function runInstallCommand(action, values) {
