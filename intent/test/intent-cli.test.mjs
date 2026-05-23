@@ -145,6 +145,7 @@ function testGrant(action, key, value, line) {
       valueSpan: testSpan(line),
       span: testSpan(line),
     }],
+    approvalRequired: false,
     raw: `${action} ${key}: "${value}"`,
     span: testSpan(line),
     actionSpan: testSpan(line),
@@ -831,6 +832,7 @@ describe("intent static model CLI", () => {
       "      effect Command(\"npm test\")",
       "      effect WebRead(url: \"https://example.com/research\")",
       "      effect http.get(\"https://example.com/status\")",
+      "      approval \"release owner approves push\"",
       "      effect git.push(branch: \"refs/heads/main\", remote: \"origin\")",
       "      effect git.commit(message: \"ship fix\")",
       "      effect SecretRead(name: \"GITHUB_TOKEN\")",
@@ -884,6 +886,7 @@ describe("intent static model CLI", () => {
         ["remote", ["origin"], "string_list"],
         ["approval", "required", "identifier"],
       ]);
+      assert.equal(gitPushGrant.approvalRequired, true);
       const gitPushLine = source.split("\n").find((line) => line.includes("git.push"));
       assert.equal(gitPushGrant.args[1].keySpan.start.column, gitPushLine.indexOf("remotes") + 1);
       assert.equal(gitPushGrant.args[1].valueSpan.start.column, gitPushLine.indexOf("[\"origin\"]") + 1);
@@ -934,6 +937,11 @@ describe("intent static model CLI", () => {
         { target: "target" },
       ]);
       assert(authorizations.every(Boolean));
+      const gitCapability = graph.nodes.find((node) => node.kind === "Capability" && node.data.family === "git");
+      const gitPushEffect = effects.find((effect) => effect.label === "git.push");
+      assert.equal(gitCapability.data.approvalPolicy, "required");
+      assert.equal(gitPushEffect.data.approvalRequired, true);
+      assert.equal(graph.edges.some((edge) => edge.kind === "approves" && edge.to === gitPushEffect.id), true);
       assert.deepEqual(authorizations.map((edge) => edge.data.contractId), effects.map((effect) => effect.data.contractId));
       assert.deepEqual(authorizations.map((edge) => edge.data.grants.map((grant) => [grant.argument, grant.sourceArgument])), [
         [["path", "path"]],
@@ -1341,6 +1349,54 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].capability, "git");
     assert.equal(payload.diagnostics[0].step, "push_release");
     assert.equal(payload.diagnostics.length, 1);
+  });
+
+  it("rejects grant-level approval-required effects without a step approval gate", () => {
+    const dir = mkdtempSync(join(tmpdir(), "intent-grant-approval-missing-"));
+    const file = join(dir, "grant_approval_missing.intent");
+    const source = [
+      "package fixtures.grant_approval_missing",
+      "type Patch",
+      "type GitRef",
+      "goal grant_approval_missing() -> GitRef {",
+      "  context repo(\"./\")",
+      "  capability git {",
+      "    git.push(branches: [\"main\"], remotes: [\"origin\"], approval: required)",
+      "  }",
+      "  memory session {",
+      "    retain approvals until goal_complete",
+      "  }",
+      "  plan {",
+      "    step prepare -> Patch",
+      "    step push_release(input: Patch) -> GitRef {",
+      "      effect git.push(branch: \"main\", remote: \"origin\")",
+      "    }",
+      "  }",
+      "  verify {",
+      "    require no_policy_violations",
+      "  }",
+      "  invariant {",
+      "    deny secret_write",
+      "    deny unrelated_file_write",
+      "  }",
+      "}",
+    ].join("\n");
+    writeFileSync(file, source, "utf8");
+
+    try {
+      const result = run(["check", file]);
+      const payload = JSON.parse(result.stdout);
+
+      assert.equal(result.status, 1);
+      assert.equal(payload.ok, false);
+      assert.equal(payload.diagnostics[0].code, "INTENT_APPROVAL_MISSING");
+      assert.equal(payload.diagnostics[0].effect, "git.push");
+      assert.equal(payload.diagnostics[0].capability, "git");
+      assert.equal(payload.diagnostics[0].step, "push_release");
+      assert.equal(payload.diagnostics.length, 1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("rejects nonliteral shell commands as unsafe trust flow", () => {

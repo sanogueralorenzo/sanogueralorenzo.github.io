@@ -536,9 +536,11 @@ Validation expectations:
   Multi-argument grants such as `push branch: "main" remote: "origin"` authorize
   each matching effect argument from the same grant, and known dotted aliases
   such as `shell.exec(commands: ["npm test"])` normalize through the effect
-  contract registry before authorization. Grants that cover known v0 contracts
-  also carry `contractId` and `contractArgument` so stale grant references are
-  rejected during graph validation.
+  contract registry before authorization. A grant with `approval: required`
+  carries `approvalRequired: true` and makes matching authorized effects require
+  a step approval gate. Grants that cover known v0 contracts also carry
+  `contractId` and `contractArgument` so stale grant references are rejected
+  during graph validation.
 - Graph `Check` nodes are runtime verification gates, not executable steps.
   They must carry a non-empty `data.requirement`; optional `data.scope` must be
   either `goal` or `step`. Step-scoped checks must also carry non-empty
@@ -553,7 +555,8 @@ Validation expectations:
   `data.approvalPolicy` must be either `none` or `required`, and `data.grants`
   must be an array of structured grant records. Each grant must carry non-empty
   `action`, `key`, and `raw` strings, a scalar or list `value`, ordered `args`,
-  and valid source `span` and `actionSpan` data. Malformed capability policy data
+  boolean `approvalRequired`, and valid source `span` and `actionSpan` data.
+  Malformed capability policy data
   emits `INTENT_GRAPH_CAPABILITY_INVALID`
   and makes the graph non-executable because runtime authorization and approval
   enforcement must not infer missing policy.

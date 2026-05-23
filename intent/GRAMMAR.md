@@ -122,9 +122,10 @@ such as `push branch: "main" remote: "origin"` stay as one grant with multiple
 argument records, so AST output, graph `Capability` node `grants`, and
 diagnostics/provenance can point to the grant or constrained argument instead
 of only the surrounding capability block. A capability body may contain
-`approval required`; the
-checker treats effects authorized by that capability as requiring a step-local
-`approval ...` gate. `memory` bodies are parsed as statement lists, every
+`approval required`; a structured grant may also contain `approval: required`.
+The checker treats effects authorized by either approval policy as requiring a
+step-local `approval ...` gate. `memory` bodies are parsed as statement lists,
+every
 `key ...` line is parsed into structured key metadata, and every `retain ...
 until ...` line is additionally parsed into structured `retentionRules` data
 with a retained subject span and an until-condition span.
@@ -480,11 +481,13 @@ The parser emits names and type reference strings; the checker owns binding.
   execution.
 - Nonliteral constrained sink arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.
-- Capability blocks may contain `approval required`. Any effect authorized by
-  that capability requires a step-local `approval ...` gate; missing approval is
-  `INTENT_APPROVAL_MISSING`. Graph output records the policy on the
-  `Capability` node and connects the step `Approval` node to each matching
-  approval-required `Effect` node with an `approves` edge.
+- Capability blocks may contain `approval required`, and structured grants may
+  contain `approval: required`. Any effect authorized by that capability policy
+  or matching grant policy requires a step-local `approval ...` gate; missing
+  approval is `INTENT_APPROVAL_MISSING`. Graph output records the policy on the
+  `Capability` node and on each structured grant, then connects the step
+  `Approval` node to each matching approval-required `Effect` node with an
+  `approves` edge.
 - Verify `shell("command")` and `shell(command: "command")` requirements bind
   to in-scope shell run capability grants. If no declared grant covers the
   normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.

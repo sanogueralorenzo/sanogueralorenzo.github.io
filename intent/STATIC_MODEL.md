@@ -1172,6 +1172,8 @@ Rules:
   key, source value, value kind, `keySpan`, `valueSpan`, and full argument
   `span` for argument-level diagnostics. Grant values may be strings, string
   lists, positive integers, durations, or identifiers.
+- Each grant carries `approvalRequired`; it is true when the grant contains
+  `approval: required`.
 - Multi-argument grants such as `push branch: "main" remote: "origin"` remain a
   single grant record whose `args` cover both constraints.
 - Parsed dotted grant calls retain ordered argument records from the source call
@@ -1818,19 +1820,22 @@ entry when available, and otherwise falls back to the effect call span.
 Capability approval requirements:
 
 - A capability body may contain `approval required`.
+- A structured capability grant may contain `approval: required`; the grant keeps
+  that argument in `args` and also sets `approvalRequired: true`.
 - A capability with `approval required` still authorizes only matching effects;
   the approval policy applies after the normal capability constraint match.
-- Any effect authorized by that capability is approval-required in its owning
-  step.
+- Any effect authorized by that capability, or by a matching approval-required
+  grant, is approval-required in its owning step.
 - The owning step must declare at least one step-local `approval ...` gate.
 - If no step-local approval gate is present, the checker emits
   `INTENT_APPROVAL_MISSING` at the effect call span.
 - Approval gate labels must be non-empty after trimming. An empty label such as
   `approval ""` emits `INTENT_APPROVAL_INVALID` at the approval line span and
   makes graph output non-executable.
-- Graph output records the approval policy on the authorizing `Capability` node
-  and creates `approves` edges from step `Approval` nodes to matching
-  approval-required `Effect` nodes.
+- Graph output records the aggregate approval policy on the authorizing
+  `Capability` node, preserves grant-level `approvalRequired`, and creates
+  `approves` edges from step `Approval` nodes to matching approval-required
+  `Effect` nodes.
 
 ## Verification Shell Binding
 
@@ -2812,9 +2817,11 @@ non-executable because runtime trust sinks must not infer trust for effect
 execution.
 
 Capability nodes carry normalized grants and any approval policy parsed from
-the capability block. A body line of `approval required` is represented as
+the capability block or structured grant arguments. A body line of
+`approval required`, or any grant with `approval: required`, is represented as
 `data.approvalPolicy: "required"` on the `Capability` node. Each structured
-entry in `data.grants` carries the source `span` of its grant line, plus
+entry in `data.grants` carries the source `span` of its grant line,
+`approvalRequired`, plus
 `contractId` and `contractArgument` when the grant covers a known v0 effect
 contract, so capability authorization, diagnostics, and runtime provenance can
 point to the grant that authorized an effect or context source.

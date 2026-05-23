@@ -1491,7 +1491,7 @@ function capabilityOwnerAuthorizationEdgeData(capability, goal) {
   return {
     capability: capability.name,
     family: capability.family,
-    approvalPolicy: capability.approvalRequired ? "required" : "none",
+    approvalPolicy: capabilityApprovalPolicy(capability),
     goal: goal.name,
     sourceSpan: capability.span,
     targetSpan: goal.span,
@@ -1677,7 +1677,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         family: capability.family,
         action: capability.action,
         grants: capability.grants,
-        approvalPolicy: capability.approvalRequired ? "required" : "none",
+        approvalPolicy: capabilityApprovalPolicy(capability),
       }));
       edges.push(edge(id, goalId, "authorizes", capabilityOwnerAuthorizationEdgeData(capability, goal)));
     }
@@ -3118,6 +3118,7 @@ function isGraphGrantRecord(value, family = null) {
     && value.raw.trim() !== ""
     && isSpan(value.span)
     && isSpan(value.actionSpan)
+    && typeof value.approvalRequired === "boolean"
     && Array.isArray(value.args)
     && value.args.length > 0
     && value.args.every(isGrantArgumentRecord)
@@ -5626,11 +5627,15 @@ function grantLineValueEnd(text, valueStart) {
 function capabilityGrantRecord(family, action, args, raw, grantSpan, actionSpan) {
   const [firstArg] = args;
   const contract = effectContractForGrant({ family, action, key: firstArg.key });
+  const approvalRequired = args.some((argument) => {
+    return argument.key === "approval" && argument.value === "required";
+  });
   return {
     action,
     key: firstArg.key,
     value: firstArg.value,
     args,
+    approvalRequired,
     raw,
     span: grantSpan,
     actionSpan,
@@ -6260,10 +6265,27 @@ function isEffectAuthorized(effect, capabilities) {
 
 function approvalRequiredCapability(effect, capabilities) {
   return capabilities.find((capability) => {
-    return capability.approvalRequired
-      && isFamilyMatch(effect.family, capability.family)
-      && !getCapabilityDenial(effect, [capability]);
+    return isFamilyMatch(effect.family, capability.family)
+      && !getCapabilityDenial(effect, [capability])
+      && (capability.approvalRequired || matchingApprovalRequiredGrant(effect, capability));
   }) ?? null;
+}
+
+function capabilityApprovalPolicy(capability) {
+  return capability.approvalRequired || (capability.grants ?? []).some((grant) => grant.approvalRequired)
+    ? "required"
+    : "none";
+}
+
+function matchingApprovalRequiredGrant(effect, capability) {
+  return effectArguments(effect).some((argument) => {
+    return (capability.grants ?? []).some((grant) => {
+      return grant.approvalRequired
+        && grant.action === effect.action
+        && grantArgumentForEffectArgument(argument, grant)
+        && isGrantMatch(argument, grant);
+    });
+  });
 }
 
 function isFamilyMatch(effectName, capabilityName) {

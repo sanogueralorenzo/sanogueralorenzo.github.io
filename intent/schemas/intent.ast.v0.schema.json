@@ -398,7 +398,7 @@
     },
     "grant": {
       "type": "object",
-      "required": ["action", "key", "value", "args", "raw", "span", "actionSpan"],
+      "required": ["action", "key", "value", "args", "approvalRequired", "raw", "span", "actionSpan"],
       "additionalProperties": false,
       "properties": {
         "action": {
@@ -416,6 +416,9 @@
           "items": {
             "$ref": "#/$defs/grant_arg"
           }
+        },
+        "approvalRequired": {
+          "type": "boolean"
         },
         "raw": {
           "$ref": "#/$defs/non_empty_string"
