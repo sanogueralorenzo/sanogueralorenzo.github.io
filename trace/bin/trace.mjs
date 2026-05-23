@@ -101,6 +101,11 @@ async function main() {
     return;
   }
 
+  if (command === "review") {
+    await reviewMemories();
+    return;
+  }
+
   if (command === "log") {
     await logMemories();
     return;
@@ -170,7 +175,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run"].includes(key)) {
+    if (["json", "help", "dry-run", "all"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -886,6 +891,99 @@ async function showMemory(commitish) {
     fail(`memory not found for commit ${sha}`);
   }
   process.stdout.write(await readFile(memoryPath, "utf8"));
+}
+
+async function reviewMemories() {
+  const root = await repoRoot();
+  const memoryStatuses = args.all
+    ? (await listMemoryFiles(root)).map((file) => ({ path: relativePath(root, file), status: "tracked" }))
+    : await pendingMemoryStatuses(root);
+  const memories = [];
+
+  for (const entry of memoryStatuses) {
+    const file = join(root, entry.path);
+    if (!await exists(file)) {
+      continue;
+    }
+    memories.push(await memoryReviewEntry(root, file, entry.status));
+  }
+
+  memories.sort((left, right) => right.created.localeCompare(left.created) || left.path.localeCompare(right.path));
+
+  if (args.json) {
+    print({ ok: true, mode: args.all ? "all" : "pending", memories });
+    return;
+  }
+
+  const lines = ["# Trace Memory Review", "", `Mode: ${args.all ? "all memories" : "pending memories"}`, `Memories: ${memories.length}`, ""];
+  if (memories.length === 0) {
+    lines.push(args.all ? "No Trace memories found." : "No pending Trace memories found.", "");
+  }
+
+  for (const memory of memories) {
+    lines.push(`## ${memory.commit.slice(0, 12)} ${memory.title}`, "");
+    lines.push(`Memory: \`${memory.path}\``);
+    lines.push(`Status: ${memory.status}`);
+    appendReviewSection(lines, "Intent", memory.intent);
+    appendReviewSection(lines, "Summary", memory.summary);
+    appendReviewSection(lines, "Decisions", memory.decisions);
+    appendReviewSection(lines, "Validation", memory.validation);
+    appendReviewSection(lines, "Risks", memory.risks);
+    lines.push("");
+  }
+
+  process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+}
+
+async function pendingMemoryStatuses(root) {
+  const output = await git(["status", "--porcelain", "-uall", "--", `${TRACE_DIR}/commits`], { cwd: root });
+  return output.split("\n")
+    .filter(Boolean)
+    .map((line) => ({
+      status: normalizePorcelainStatus(line.slice(0, 2)),
+      path: line.slice(3).replace(/^"|"$/g, ""),
+    }))
+    .filter((entry) => entry.path.endsWith(".md"));
+}
+
+async function memoryReviewEntry(root, file, status) {
+  const content = await readFile(file, "utf8");
+  const commit = content.match(/^Commit: `([^`]+)`/m)?.[1] ?? file.split("/").pop()?.replace(/\.md$/, "") ?? "";
+  const title = firstLine(content).replace(/^#\s*/, "").replace(new RegExp(`^${escapeRegExp(commit.slice(0, 12))}\\s+`), "");
+  return {
+    path: relativePath(root, file),
+    status,
+    commit,
+    title,
+    created: content.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
+    intent: section(content, "Intent") ?? "Not recorded.",
+    summary: section(content, "Summary") ?? "Not recorded.",
+    decisions: section(content, "Decisions") ?? "Not recorded.",
+    validation: section(content, "Validation") ?? "Not recorded.",
+    risks: section(content, "Risks") ?? "No known open risks recorded.",
+  };
+}
+
+function normalizePorcelainStatus(status) {
+  const value = status.trim();
+  if (value === "??") {
+    return "untracked";
+  }
+  if (value === "A") {
+    return "added";
+  }
+  if (value === "M") {
+    return "modified";
+  }
+  return value || "changed";
+}
+
+function appendReviewSection(lines, name, value) {
+  const content = String(value ?? "").trim();
+  if (!content) {
+    return;
+  }
+  lines.push("", `### ${name}`, "", content);
 }
 
 async function logMemories() {
@@ -1752,6 +1850,7 @@ Usage:
   trace ci [range]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
+  trace review [--all] [--json]
   trace log [--limit 20]
   trace index
   trace search [--field decisions|files|validation|risks] <query>

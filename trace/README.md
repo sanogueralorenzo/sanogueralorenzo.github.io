@@ -60,6 +60,7 @@ trace agent add gemini
 trace capture --event prompt --role user --message "why this change exists"
 trace record --validation "npm test"
 trace show HEAD
+trace review
 trace log
 trace index
 trace search "auth retry"
@@ -94,6 +95,7 @@ node trace/bin/trace.mjs agent add gemini
 node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
 node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
+node trace/bin/trace.mjs review
 node trace/bin/trace.mjs log
 node trace/bin/trace.mjs index
 node trace/bin/trace.mjs search "auth retry"
@@ -121,7 +123,7 @@ node trace/bin/trace.mjs ci main..HEAD
 
 This keeps the project tree focused on reviewable memories while raw checkpoint data stays outside the normal branch history unless someone explicitly pushes the Trace ref.
 
-Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace check` fails when Trace memory files are uncommitted or malformed, which makes that handoff explicit instead of silently pretending the memory is already durable.
+Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace review` shows the pending memory review queue with intent, summary, decisions, validation, and risks before those files are committed. `trace check` fails when Trace memory files are uncommitted or malformed, which makes that handoff explicit instead of silently pretending the memory is already durable.
 
 `trace record` and the post-commit hook distill raw session events into compact commit memory. Repeated events are deduplicated, long entries are truncated, and noisy sections are capped with an explicit omitted-events line so committed memory stays reviewable while the full checkpoint remains available on the Trace ref.
 

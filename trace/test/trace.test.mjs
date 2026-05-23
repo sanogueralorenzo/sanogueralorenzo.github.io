@@ -204,6 +204,17 @@ test("check fails on uncommitted Trace memories and passes after committing them
     await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "check committed trace state"]);
     await runTrace(repo, ["record", "--validation", "node --test"]);
 
+    const review = await runTrace(repo, ["review"]);
+    assert.match(review.stdout, /Trace Memory Review/);
+    assert.match(review.stdout, /Mode: pending memories/);
+    assert.match(review.stdout, /check committed trace state/);
+    assert.match(review.stdout, /node --test/);
+
+    const reviewJson = JSON.parse((await runTrace(repo, ["review", "--json"])).stdout);
+    assert.equal(reviewJson.mode, "pending");
+    assert.equal(reviewJson.memories.length, 1);
+    assert.equal(reviewJson.memories[0].status, "untracked");
+
     const dirty = await runTraceAllowFailure(repo, ["check"]);
     assert.equal(dirty.exitCode, 1);
     const dirtyPayload = JSON.parse(dirty.stdout);
@@ -217,6 +228,11 @@ test("check fails on uncommitted Trace memories and passes after committing them
     const cleanPayload = JSON.parse(clean.stdout);
     assert.equal(cleanPayload.ok, true);
     assert.equal(cleanPayload.uncommitted.length, 0);
+
+    const pendingReview = await runTrace(repo, ["review"]);
+    assert.match(pendingReview.stdout, /No pending Trace memories found/);
+    const allReview = await runTrace(repo, ["review", "--all"]);
+    assert.match(allReview.stdout, /check committed trace state/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
