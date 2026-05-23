@@ -995,7 +995,14 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     assert.equal(secondRecord.checkpoint, "checkpoint-b");
 
     const beforeCleanup = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.equal(beforeCleanup.total, 2);
+    assert.equal(beforeCleanup.limit, null);
     assert.equal(beforeCleanup.checkpoints.length, 2);
+
+    const limitedCheckpoints = JSON.parse((await runTrace(repo, ["checkpoint", "list", "--limit", "1"])).stdout);
+    assert.equal(limitedCheckpoints.total, 2);
+    assert.equal(limitedCheckpoints.limit, 1);
+    assert.deepEqual(limitedCheckpoints.checkpoints.map((checkpoint) => checkpoint.checkpoint_id), ["checkpoint-b"]);
 
     const bundlePath = join(repo, "trace-checkpoints.json");
     const exported = JSON.parse((await runTrace(repo, ["checkpoint", "export", "--output", bundlePath])).stdout);

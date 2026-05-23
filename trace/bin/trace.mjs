@@ -724,8 +724,19 @@ async function runCheckpointCommand(action, values) {
 
 async function listCheckpoints() {
   const root = await repoRoot();
+  const limit = args.limit == null ? null : parsePositiveInteger(args.limit, "--limit");
   const checkpoints = await readCheckpointPayloads(root);
-  print({ ok: true, ref: CHECKPOINT_REF, checkpoints: checkpoints.map(({ payload }) => checkpointSummary(payload)) });
+  const sorted = limit == null
+    ? checkpoints
+    : [...checkpoints].sort((left, right) => checkpointSortKey(right).localeCompare(checkpointSortKey(left)));
+  const limited = limit == null ? sorted : sorted.slice(0, limit);
+  print({
+    ok: true,
+    ref: CHECKPOINT_REF,
+    total: checkpoints.length,
+    limit,
+    checkpoints: limited.map(({ payload }) => checkpointSummary(payload)),
+  });
 }
 
 async function verifyCheckpoints() {
@@ -3574,7 +3585,7 @@ Usage:
   trace agent list
   trace agent check [codex|claude-code|gemini|generic|all]
   trace agent remove <codex|claude-code|gemini|generic|all>
-  trace checkpoint list
+  trace checkpoint list [--limit N]
   trace checkpoint show <checkpoint> [--limit 20] [--json]
   trace checkpoint status [remote]
   trace checkpoint verify
