@@ -959,6 +959,9 @@ async function outcomeAfterTaskEventHook(event) {
       sessionId,
       success,
       status,
+      task: typeof event.task === "string" ? event.task : null,
+      scope: typeof event.scope === "string" ? event.scope : null,
+      changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles),
       retries: numberOrNull(event.retries),
       tokenEstimate: numberOrNull(event.tokenEstimate),
       notes: typeof event.notes === "string" ? event.notes : "",
@@ -974,6 +977,9 @@ async function outcomeAfterTaskEventHook(event) {
       sessionId,
       success: sessionEvent.event.success,
       status: sessionEvent.event.status,
+      task: sessionEvent.event.task,
+      scope: sessionEvent.event.scope,
+      changedFiles: sessionEvent.event.changedFiles,
       retries: sessionEvent.event.retries,
       tokenEstimate: sessionEvent.event.tokenEstimate,
       attributedPrecedents: activePrecedentIds,
@@ -1003,6 +1009,9 @@ async function outcomeAfterTaskEventHook(event) {
     outcome: {
       success: sessionEvent.event.success,
       status: sessionEvent.event.status,
+      task: sessionEvent.event.task,
+      scope: sessionEvent.event.scope,
+      changedFiles: sessionEvent.event.changedFiles,
       retries: sessionEvent.event.retries,
       tokenEstimate: sessionEvent.event.tokenEstimate,
       attributedPrecedents: activePrecedentIds,
@@ -1133,7 +1142,7 @@ function buildManifest(runtime, stateDir) {
       },
       "outcome.after_task": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "success", "status", "retries", "tokenEstimate", "notes", "precedent", "replay"],
+        stdin: ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "outcome"],
         timeoutMs,
         failurePolicy,
@@ -1257,6 +1266,9 @@ async function attachRuntime() {
           sessionId,
           success: "$SUCCESS",
           status: "$STATUS",
+          task: taskSource.task,
+          scope: scope || null,
+          changedFiles,
           retries: "$RETRIES",
           tokenEstimate: "$TOKEN_ESTIMATE",
           notes: "$NOTES",
@@ -1979,7 +1991,7 @@ async function traceFromSession(stateDir, sessionId) {
     fail(`session has no recorded hook events: ${sessionId}`);
   }
 
-  const beforeTurns = events.filter((event) => event.hook === "context.before_turn");
+  const contextTurns = events.filter((event) => event.hook === "context.before_turn" || event.hook === "context.export");
   const validations = events.filter((event) => event.hook === "validation.after_run");
   const diffs = events.filter((event) => event.hook === "diff.after_edit");
   const reviews = events.filter((event) => event.hook === "review.after_feedback");
@@ -1987,12 +1999,13 @@ async function traceFromSession(stateDir, sessionId) {
   const receivedTimes = events
     .map((event) => Date.parse(event.receivedAt ?? ""))
     .filter((timestamp) => Number.isFinite(timestamp));
-  const lastBeforeTurn = beforeTurns.at(-1) ?? {};
+  const lastContextTurn = contextTurns.at(-1) ?? {};
   const lastOutcome = outcomes.at(-1) ?? {};
   const changedFiles = uniqueStrings([
-    ...beforeTurns.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+    ...contextTurns.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
     ...diffs.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
     ...reviews.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+    ...outcomes.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
   ]);
   const validationFailures = validations
     .filter((event) => event.exitCode !== 0)
@@ -2036,8 +2049,8 @@ async function traceFromSession(stateDir, sessionId) {
     schema_version: SCHEMA_VERSION,
     id: `session-${safeFileName(sessionId)}`,
     sessionId,
-    task: lastBeforeTurn.task ?? lastOutcome.task ?? null,
-    scope: lastBeforeTurn.scope ?? lastOutcome.scope ?? null,
+    task: nonEmptyString(lastOutcome.task) ? lastOutcome.task : (lastContextTurn.task ?? null),
+    scope: nonEmptyString(lastOutcome.scope) ? lastOutcome.scope : (lastContextTurn.scope ?? null),
     outcome: lastOutcome.status ?? (lastOutcome.success === true ? "success" : "unknown"),
     changedFiles,
     failures,
@@ -2224,6 +2237,12 @@ function tracesAreAnalogous(failedTrace, successTrace) {
     return false;
   }
 
+  const scopesMatch = Boolean(failedTrace.scope) && failedTrace.scope === successTrace.scope;
+  const pathsOverlap = tracesHavePathOverlap(failedTrace, successTrace);
+  if (!scopesMatch && !pathsOverlap) {
+    return false;
+  }
+
   const failedTask = String(failedTrace.task ?? "").toLowerCase();
   const successTask = String(successTrace.task ?? "").toLowerCase();
   const failedWords = new Set(failedTask.split(/[^a-z0-9_:-]+/u).filter((word) => word.length >= 4));
@@ -2231,7 +2250,17 @@ function tracesAreAnalogous(failedTrace, successTrace) {
     .split(/[^a-z0-9_:-]+/u)
     .filter((word) => failedWords.has(word)).length;
 
-  return overlap > 0 || failedTrace.scope === successTrace.scope;
+  return overlap > 0 || scopesMatch;
+}
+
+function tracesHavePathOverlap(failedTrace, successTrace) {
+  const failedPrefixes = new Set(commonPathPrefixes(failedTrace.changedFiles ?? []));
+  if (failedPrefixes.size === 0) {
+    return false;
+  }
+
+  return commonPathPrefixes(successTrace.changedFiles ?? [])
+    .some((prefix) => failedPrefixes.has(prefix));
 }
 
 function precedentFromSessionPair(failedTrace, successTrace, replayPath, replayId) {
@@ -2422,6 +2451,10 @@ function summarizeText(value) {
 
 function uniqueStrings(values) {
   return [...new Set(values.filter((value) => typeof value === "string" && value.trim().length > 0))];
+}
+
+function nonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function numberOrNull(value) {

@@ -55,6 +55,9 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterReview.stdin.hook, "review.after_feedback");
     assert.deepEqual(first.adapter.afterReview.stdin.sessionId, first.sessionId);
     assert.deepEqual(first.adapter.afterOutcome.stdin.sessionId, first.sessionId);
+    assert.equal(first.adapter.afterOutcome.stdin.task, "add webhook handler");
+    assert.equal(first.adapter.afterOutcome.stdin.scope, "feature:webhooks");
+    assert.deepEqual(first.adapter.afterOutcome.stdin.changedFiles, ["features/webhooks/providers/stripe.ts"]);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

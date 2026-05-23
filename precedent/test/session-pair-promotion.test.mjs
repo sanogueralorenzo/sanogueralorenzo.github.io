@@ -269,6 +269,68 @@ test("failed session does not pair with a successful session that still has fail
   }
 });
 
+test("generic tasks do not promote across different scopes or paths", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "failed-webhooks",
+      task: "fix failing test",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "failed-webhooks",
+      command: "pnpm test",
+      exitCode: 1,
+      stderr: "wrong test command",
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "failed-webhooks",
+      success: false,
+      status: "failure",
+      notes: "wrong test command",
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "success-billing",
+      task: "fix failing test",
+      scope: "feature:billing",
+      changedFiles: ["features/billing/refunds.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "success-billing",
+      command: "pnpm test:billing",
+      exitCode: 0,
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "success-billing",
+      success: true,
+      status: "success",
+    });
+    const compiled = await runJson(["compile", "--state-dir", stateDir, "--promote-session-pairs", "--json"]);
+
+    assert.deepEqual(outcome.learning.promoted, []);
+    assert.deepEqual(compiled.promoted, []);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.deepEqual(precedents, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("session-pair promotion is idempotent", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
 

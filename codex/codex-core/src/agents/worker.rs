@@ -85,6 +85,10 @@ pub(super) struct WorkerLoopArgs {
     #[arg(long = "precedent-scope", value_name = "SCOPE")]
     pub precedent_scope: Option<String>,
 
+    /// Comma-separated changed files passed to Precedent when ranking context
+    #[arg(long = "precedent-changed-files", value_name = "FILES")]
+    pub precedent_changed_files: Option<String>,
+
     /// Precedent CLI entrypoint
     #[arg(
         long = "precedent-bin",
@@ -206,6 +210,7 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
                         &cwd,
                         &args,
                         session_id,
+                        &prompt,
                         &error.to_string(),
                         false,
                         "codex_exec_failed",
@@ -223,6 +228,7 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
                 &cwd,
                 &args,
                 session_id,
+                &prompt,
                 &result.final_message,
                 stop_matched,
                 if stop_matched { "success" } else { "failure" },
@@ -475,6 +481,12 @@ fn fetch_precedent_context(
         cmd.arg("--scope");
         cmd.arg(scope);
     }
+    if let Some(changed_files) = &args.precedent_changed_files
+        && !changed_files.trim().is_empty()
+    {
+        cmd.arg("--changed-files");
+        cmd.arg(changed_files);
+    }
 
     let output = output_with_timeout(
         cmd,
@@ -508,12 +520,13 @@ fn record_precedent_outcome(
     cwd: &Path,
     args: &WorkerLoopArgs,
     session_id: &str,
+    task: &str,
     final_message: &str,
     success: bool,
     status: &str,
 ) {
     if let Err(error) =
-        try_record_precedent_outcome(cwd, args, session_id, final_message, success, status)
+        try_record_precedent_outcome(cwd, args, session_id, task, final_message, success, status)
     {
         eprintln!("[precedent {session_id}] outcome unavailable: {error}");
     }
@@ -523,6 +536,7 @@ fn try_record_precedent_outcome(
     cwd: &Path,
     args: &WorkerLoopArgs,
     session_id: &str,
+    task: &str,
     final_message: &str,
     success: bool,
     status: &str,
@@ -542,6 +556,9 @@ fn try_record_precedent_outcome(
         "sessionId": session_id,
         "success": success,
         "status": status,
+        "task": task,
+        "scope": args.precedent_scope.as_deref().unwrap_or(""),
+        "changedFiles": precedent_changed_files(args),
         "retries": 0,
         "tokenEstimate": null,
         "notes": final_message,
@@ -588,6 +605,17 @@ fn prompt_with_precedent_context(prompt: &str, context_block: Option<&str>) -> S
 
 fn precedent_session_id(loop_run_id: &str, iteration: u64) -> String {
     format!("codex-core-worker-loop-{loop_run_id}-{iteration}")
+}
+
+fn precedent_changed_files(args: &WorkerLoopArgs) -> Vec<String> {
+    args.precedent_changed_files
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(str::trim)
+        .filter(|file| !file.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 fn output_with_timeout(
@@ -682,6 +710,7 @@ mod tests {
             skip_git_repo_check: false,
             precedent_state_dir: None,
             precedent_scope: None,
+            precedent_changed_files: None,
             precedent_bin: PathBuf::from("precedent/bin/precedent.mjs"),
             codex_bin: PathBuf::from("codex"),
         }
@@ -762,6 +791,7 @@ mod tests {
         let codex_bin = dir.join("fake-codex.sh");
         let precedent_bin = dir.join("fake-precedent.sh");
         let prompt_capture = dir.join("prompt.txt");
+        let context_capture = dir.join("context-args.txt");
         let hook_capture = dir.join("hook.json");
         let state_dir = dir.join("state");
         fs::create_dir_all(&state_dir).unwrap();
@@ -797,6 +827,7 @@ printf '%s' 'LOOP_DONE from fake codex' > "$out"
             &format!(
                 r#"#!/bin/sh
 if [ "$1" = "context" ]; then
+  printf '%s\n' "$*" > '{}'
   printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Use repo lesson."}}'
   exit 0
 fi
@@ -807,6 +838,7 @@ if [ "$1" = "hook" ]; then
 fi
 exit 2
 "#,
+                context_capture.display(),
                 hook_capture.display()
             ),
         );
@@ -817,6 +849,8 @@ exit 2
         args.once = true;
         args.precedent_state_dir = Some(state_dir);
         args.precedent_scope = Some("feature:webhooks".to_string());
+        args.precedent_changed_files =
+            Some("features/webhooks/providers/stripe.ts,features/webhooks/schema.ts".to_string());
         args.precedent_bin = precedent_bin;
         args.codex_bin = codex_bin;
 
@@ -824,9 +858,18 @@ exit 2
 
         let prompt = fs::read_to_string(prompt_capture).unwrap();
         assert!(prompt.starts_with("Precedent:\n- Use repo lesson.\n\nship the feature"));
+        let context_args = fs::read_to_string(context_capture).unwrap();
+        assert!(context_args.contains("--changed-files"));
+        assert!(
+            context_args
+                .contains("features/webhooks/providers/stripe.ts,features/webhooks/schema.ts")
+        );
         let hook = fs::read_to_string(hook_capture).unwrap();
         assert!(hook.contains(r#""hook":"outcome.after_task""#));
         assert!(hook.contains(r#""success":true"#));
+        assert!(hook.contains(r#""task":"ship the feature""#));
+        assert!(hook.contains(r#""scope":"feature:webhooks""#));
+        assert!(hook.contains(r#""changedFiles":["features/webhooks/providers/stripe.ts","features/webhooks/schema.ts"]"#));
 
         let _ = fs::remove_dir_all(dir);
     }

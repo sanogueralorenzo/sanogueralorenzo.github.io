@@ -207,6 +207,53 @@ test("learned traces and candidates keep stored secrets redacted", async () => {
   }
 });
 
+test("context export sessions preserve task scope and paths for learning", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-learning-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--session",
+      "exported",
+      "--json",
+    ]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "exported",
+      command: "pnpm test",
+      exitCode: 1,
+      stderr: "wrong test command",
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "exported",
+      success: false,
+      status: "failure",
+      notes: "agent used the wrong test command",
+    });
+
+    assert.deepEqual(outcome.learning.candidateIds, ["cand_feature_webhooks_wrong_test_command"]);
+
+    const trace = JSON.parse(await readFile(join(stateDir, "traces/session-exported.json"), "utf8"));
+    assert.equal(trace.task, "add webhook handler");
+    assert.equal(trace.scope, "feature:webhooks");
+    assert.deepEqual(trace.changedFiles, ["features/webhooks/providers/stripe.ts"]);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function recordFailedWebhookSession(stateDir, sessionId) {
   await hook(stateDir, {
     schema_version: "precedent.v1",
