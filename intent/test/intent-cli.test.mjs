@@ -1105,10 +1105,12 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
-        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(2) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(2) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
     const duplicateProducesDiagnostics = validateGraph({
@@ -1117,21 +1119,42 @@ describe("intent static model CLI", () => {
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
         { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
         { id: "goal:demo:step:b", kind: "Step", label: "b", span: testSpan(3) },
-        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(4) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(5) },
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
         { from: "goal:demo:step:b", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    });
+    const missingVerifyAndGuardDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:invariant:0", kind: "Invariant", label: "rule", span: testSpan(3) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
       ],
     });
 
     assert.equal(missingProducesDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(missingProducesDiagnostics[0].completes_edges, 1);
     assert.equal(missingProducesDiagnostics[0].produces_edges, 0);
+    assert.equal(missingProducesDiagnostics[0].verifies_edges, 1);
     assert.equal(duplicateProducesDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(duplicateProducesDiagnostics[0].completes_edges, 1);
     assert.equal(duplicateProducesDiagnostics[0].produces_edges, 2);
+    assert.equal(duplicateProducesDiagnostics[0].verifies_edges, 1);
+    assert.equal(missingVerifyAndGuardDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(missingVerifyAndGuardDiagnostics[0].verifies_edges, 0);
+    assert.equal(missingVerifyAndGuardDiagnostics[0].guards_edges, 0);
+    assert.equal(missingVerifyAndGuardDiagnostics[0].expected_guard_edges, 1);
   });
 
   it("validates CLI outputs against versioned schemas", () => {

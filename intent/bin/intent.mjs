@@ -1210,12 +1210,21 @@ function validateGraph(graph) {
     const incomingEdges = incomingCompletionEdges.get(graphNode.id) ?? [];
     const completingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "completes" && nodesById.get(graphEdge.from)?.kind === "Goal");
     const producingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "produces" && nodesById.get(graphEdge.from)?.kind === "Step");
-    if (completingEdges.length !== 1 || producingEdges.length !== 1) {
-      diagnostics.push(error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must have one incoming completes edge from a goal and one incoming produces edge from a step.`, graphNode.span ?? fallbackSpan, {
+    const verifyingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "verifies" && nodesById.get(graphEdge.from)?.kind === "Check");
+    const guardingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "guards" && nodesById.get(graphEdge.from)?.kind === "Invariant");
+    const goalId = graphNode.id.endsWith(":completion") ? graphNode.id.slice(0, -":completion".length) : null;
+    const expectedGuardEdges = goalId
+      ? graph.nodes.filter((candidate) => candidate.kind === "Invariant" && candidate.id.startsWith(`${goalId}:invariant:`)).length
+      : guardingEdges.length;
+    if (completingEdges.length !== 1 || producingEdges.length !== 1 || verifyingEdges.length < 1 || guardingEdges.length !== expectedGuardEdges) {
+      diagnostics.push(error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must have incoming completes, produces, verifies, and invariant guard edges.`, graphNode.span ?? fallbackSpan, {
         completion: graphNode.label,
         completion_id: graphNode.id,
         completes_edges: completingEdges.length,
         produces_edges: producingEdges.length,
+        verifies_edges: verifyingEdges.length,
+        guards_edges: guardingEdges.length,
+        expected_guard_edges: expectedGuardEdges,
       }));
     }
   }
