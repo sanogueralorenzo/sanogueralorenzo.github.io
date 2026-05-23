@@ -70,7 +70,7 @@ jobs:
     uses: ./.github/workflows/jury-package-manifest-check.yml
 ```
 
-[examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `dry-run-publication` has `needs: package-manifest`, uploads `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as `jury-package-dry-run`, and `publish` downloads and verifies that artifact before the step that maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`. The workflow requires `dry_run_reviewer`; the verification step writes `packageVersion`, `tarballName`, and `reviewedBy` to `GITHUB_STEP_SUMMARY` so the release page records the package identity and who reviewed it before credentials were exposed. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
+[examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `dry-run-publication` has `needs: package-manifest`, uploads `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as `jury-package-dry-run`, and keeps that artifact for 30 days with `retention-days: 30`. `publish` downloads and verifies that artifact before the step that maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`. The workflow requires `dry_run_reviewer`; the verification step writes `packageVersion`, `tarballName`, and `reviewedBy` to `GITHUB_STEP_SUMMARY` so the release page records the package identity and who reviewed it before credentials were exposed. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
 
 ## npm Credentials and Provenance
 

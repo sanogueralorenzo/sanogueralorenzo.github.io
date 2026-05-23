@@ -36,6 +36,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jury-package-dry-run
+          retention-days: 30
           path: |
             jury-pack-dry-run.json
             jury-pack-dry-run-record.json

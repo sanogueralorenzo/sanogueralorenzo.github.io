@@ -450,6 +450,7 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.includes("actions/upload-artifact@v4"));
   assert.ok(workflow.includes("actions/download-artifact@v4"));
   assert.ok(workflow.includes("jury-package-dry-run"));
+  assert.ok(workflow.includes("retention-days: 30"));
   assert.ok(workflow.includes("jury-pack-dry-run.json"));
   assert.ok(workflow.includes("jury-pack-dry-run-record.json"));
   assert.ok(workflow.includes("GITHUB_STEP_SUMMARY"));
@@ -530,6 +531,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("needs: package-manifest"));
   assert.ok(readme.includes("dry-run-publication"));
   assert.ok(readme.includes("jury-package-dry-run"));
+  assert.ok(readme.includes("retention-days: 30"));
   assert.ok(readme.includes("NODE_AUTH_TOKEN"));
   assert.ok(readme.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(readme.includes("dry_run_reviewer"));
@@ -1135,6 +1137,8 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("jury-pack-dry-run.json"));
   assert.ok(publicationNotes.includes("jury-pack-dry-run-record.json"));
   assert.ok(publicationNotes.includes("jury-package-dry-run"));
+  assert.ok(publicationNotes.includes("retention-days: 30"));
+  assert.ok(publicationNotes.includes("30 days"));
   assert.ok(publicationNotes.includes("dry-run-publication"));
   assert.ok(publicationNotes.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(publicationNotes.includes("dry_run_reviewer"));
@@ -2033,6 +2037,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("jury-pack-dry-run.json"));
   assert.ok(checklist.includes("jury-pack-dry-run-record.json"));
   assert.ok(checklist.includes("jury-package-dry-run"));
+  assert.ok(checklist.includes("retention-days: 30"));
   assert.ok(checklist.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(checklist.includes("dry_run_reviewer"));
   assert.ok(checklist.includes("packageVersion"));
@@ -2135,6 +2140,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package publication notes/);
   assert.match(handoff, /dry-run release publication checklist guidance/);
   assert.match(handoff, /dry-run publication artifact handoff/);
+  assert.match(handoff, /dry-run artifact retention expectations/);
   assert.match(handoff, /dry-run publication summary output/);
   assert.match(handoff, /dry-run package summary reviewer audit notes/);
   assert.match(handoff, /stale dry-run artifact troubleshooting/);
@@ -2145,7 +2151,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /release artifact retention expectations for dry-run publication records/);
+  assert.match(handoff, /retained dry-run artifact with the npm-published package metadata/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

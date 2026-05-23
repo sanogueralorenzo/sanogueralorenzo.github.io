@@ -14,6 +14,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.
 - [ ] Record the dry-run tarball name from `jury-pack-dry-run.json` as `tarballName`, for example `sanogueralorenzo-jury-0.1.0.tgz`.
 - [ ] Upload `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as the `jury-package-dry-run` CI artifact.
+- [ ] Keep the `jury-package-dry-run` artifact for 30 days with `retention-days: 30`.
 - [ ] Download and verify the `jury-package-dry-run` artifact before any step maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`.
 - [ ] Set `dry_run_reviewer` to the person who reviewed the verified package summary.
 - [ ] Review the `GITHUB_STEP_SUMMARY` entry for the verified `packageVersion`, `tarballName`, and `reviewedBy`.
