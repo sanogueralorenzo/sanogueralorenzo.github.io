@@ -114,6 +114,10 @@ Rules:
   `argSpans` maps each positional key such as `_0` or named key such as `path`,
   `command`, `url`, or `branch` to the source span for diagnostics and runtime
   provenance.
+- Diagnostics for capability denial, context source denial, verification shell
+  denial, and unsafe shell trust flows use the constrained argument's
+  `argSpans` entry when that argument was parsed. They fall back to the wider
+  call span only when the constrained argument has no parsed argument span.
 - Structured capability grants keep `span` from the exact grant line that
   caused the grant object, not from the surrounding capability block.
 
@@ -340,6 +344,11 @@ blocking diagnostics.
 - Bind structured web and documents context sources to declared read capability
   grants, and emit `INTENT_CONTEXT_UNDECLARED` when no in-scope grant covers
   the requested source.
+- Prefer argument-level spans for denied constrained resources: capability
+  denials, unsafe shell trust-flow denials, structured context source denials,
+  and verification shell denials should point at the parsed `path`, `command`,
+  `url`, `domain`, `branch`, `remote`, `message`, `name`, `id`, `target`, or
+  positional argument span that caused the denial.
 - Emit `INTENT_VERIFY_IMPURE` for side-effect calls inside goal-level `verify`
   requirements, including file writes, git commits, git pushes, web or HTTP
   reads, deploys, and ticket updates.
@@ -784,7 +793,9 @@ Context source constraints:
 - Web context URL and domain arguments use the same normalization and matching
   rules as web/http read constraints.
 - If no matching grant covers the normalized path, URL host, or domain
-  argument, the checker emits `INTENT_CONTEXT_UNDECLARED`.
+  argument, the checker emits `INTENT_CONTEXT_UNDECLARED` at that parsed
+  argument span. If the source call has no parsed argument span, the diagnostic
+  uses the wider context source call span.
 - A successful context source binding creates an `authorizes` edge from the
   matching `Capability` node to the `Context` node.
 
@@ -905,8 +916,9 @@ Git push constraints:
   `INTENT_CAPABILITY_DENIED`.
 
 When no in-scope capability covers a constrained resource, the checker emits
-`INTENT_CAPABILITY_DENIED` at the effect call span with the denied argument,
-denied value, and allowed grants.
+`INTENT_CAPABILITY_DENIED` with the denied argument, denied value, and allowed
+grants. The diagnostic span is the constrained argument's parsed `argSpans`
+entry when available, and otherwise falls back to the effect call span.
 
 Capability approval requirements:
 
@@ -949,8 +961,9 @@ Rules:
 - A successful binding creates an `authorizes` edge from the matching
   `Capability` node to the `Check` node.
 - If no declared shell run grant covers the command, the checker emits
-  `INTENT_VERIFY_UNDECLARED` at the verification shell call span with the
-  denied command and allowed shell run grants.
+  `INTENT_VERIFY_UNDECLARED` with the denied command and allowed shell run
+  grants. The diagnostic span is the shell command argument span when parsed,
+  and otherwise falls back to the verification shell call span.
 
 ## Verification Purity
 
