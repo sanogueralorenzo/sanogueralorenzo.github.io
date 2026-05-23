@@ -453,6 +453,9 @@ Validation expectations:
   emits `INTENT_GRAPH_EFFECT_INVALID` and makes the graph non-executable
   because runtimes must not infer an adapter, action, argument provenance, or
   approval requirement.
+- Effect adapter family, action, constrained arguments, aliases, and
+  trust-sensitive sinks are normalized through the v0 effect contract registry
+  before graph emission.
 - Graph `Check` nodes are runtime verification gates, not executable steps.
   They must carry a non-empty `data.requirement`; optional `data.scope` must be
   either `goal` or `step`. Step-scoped checks must also carry non-empty

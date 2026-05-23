@@ -1037,6 +1037,10 @@ Rules:
   structured context web URL or domain, structured context documents path,
   web/http read URL or domain, git commit messages, git push branch or remote
   arguments, secret read names, ticket update ids, and deploy targets.
+- Effect family, action, constrained arguments, aliases, and trust-sensitive
+  sink arguments are resolved through the v0 effect contract registry. The
+  registry currently covers file read/write, shell run, web read, git push,
+  git commit, deploy, ticket update, and secret read adapter operations.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -2588,10 +2592,12 @@ validation requires every `Context` node trust record to carry zone `trusted`,
 Effect nodes carry normalized runtime adapter call data: `family`, `action`,
 `args`, `argKinds`, `argSpans`, `expression`, `approvalRequired`, and trust
 metadata when applicable. `family` and `action` must be non-empty strings so
-the runtime invokes an explicit adapter operation. `args`, `argKinds`, and
-`argSpans` must be objects, every `argSpans` value must be a valid source span,
-and `approvalRequired` must be a boolean so the runtime can enforce argument
-provenance and approval without inference. Malformed adapter data emits
+the runtime invokes an explicit adapter operation. Those adapter operations are
+normalized by the v0 effect contract registry before graph emission. `args`,
+`argKinds`, and `argSpans` must be objects, every `argSpans` value must be a
+valid source span, and `approvalRequired` must be a boolean so the runtime can
+enforce argument provenance and approval without inference. Malformed adapter
+data emits
 `INTENT_GRAPH_EFFECT_INVALID` and makes the graph non-executable. Verification
 shell `Check` nodes carry the same effect data under `data.effect`, so
 diagnostics can point to the exact denied command argument. Runtime validation

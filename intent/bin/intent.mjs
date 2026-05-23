@@ -70,6 +70,117 @@ const GRAPH_EDGE_KINDS = new Set([
   "writes",
 ]);
 const TRUST_ZONES = new Set(["trusted", "untrusted", "unknown"]);
+const EFFECT_CONTRACTS = [
+  {
+    family: "file",
+    action: "read",
+    match: /^(FileRead|ReadFile|fs\.read|file\.read)$/,
+    arguments: [
+      { key: "path", aliases: ["path", "paths", "_0"], normalize: "path" },
+    ],
+  },
+  {
+    family: "file",
+    action: "write",
+    match: /^(FileWrite|WriteFile|fs\.write|file\.write)$/,
+    arguments: [
+      {
+        key: "path",
+        aliases: ["path", "paths", "_0"],
+        normalize: "path",
+        trustSink: "file write path",
+      },
+    ],
+  },
+  {
+    family: "shell",
+    action: "run",
+    match: /^(ShellExec|shell\.exec|Command)$/,
+    arguments: [
+      {
+        key: "command",
+        aliases: ["command", "commands", "_0"],
+        normalize: "command",
+        trustSink: "shell command",
+      },
+    ],
+  },
+  {
+    family: "web",
+    action: "read",
+    match: /^(Http|HttpGet|Web|WebRead|web\.read|http\.get|http\.request)$/,
+    arguments: [
+      { key: "domain", aliases: ["domain", "domains"], normalize: "domain" },
+      { key: "domain", aliases: ["url", "urls", "_0"], normalize: "url_domain" },
+    ],
+  },
+  {
+    family: "git",
+    action: "push",
+    match: /^(GitPush|git\.push)$/,
+    arguments: [
+      {
+        key: "branch",
+        aliases: ["branch", "branches", "_0"],
+        normalize: "ref",
+        trustSink: "git branch",
+      },
+      {
+        key: "remote",
+        aliases: ["remote", "remotes"],
+        normalize: "ref",
+        trustSink: "git remote",
+      },
+    ],
+  },
+  {
+    family: "git",
+    action: "commit",
+    match: /^(GitCommit|git\.commit)$/,
+    arguments: [
+      {
+        key: "message",
+        aliases: ["message", "_0"],
+        normalize: "commit_message",
+        trustSink: "git commit message",
+      },
+    ],
+  },
+  {
+    family: "deploy",
+    action: "deploy",
+    match: /^(Deploy|deploy\.)/,
+    arguments: [
+      {
+        key: "target",
+        aliases: ["target", "environment", "env", "_0"],
+        normalize: "deploy_target",
+        trustSink: "deploy target",
+      },
+    ],
+  },
+  {
+    family: "ticket",
+    action: "update",
+    match: /^(Ticket|ticket\.)/,
+    arguments: [
+      { key: "id", aliases: ["id", "_0"], normalize: "ticket", trustSink: "ticket id" },
+    ],
+  },
+  {
+    family: "secret",
+    action: "read",
+    match: /^(SecretRead|Secret|secret\.read|secret\.)/,
+    arguments: [
+      {
+        key: "name",
+        aliases: ["name", "names", "_0"],
+        normalize: "secret",
+        trustSink: "secret name",
+      },
+    ],
+  },
+];
 
 function usage() {
   return [
@@ -4157,6 +4268,9 @@ function requirementValueSpan(requirement, startIndex, length) {
 }
 
 function isKnownEffectCall(name) {
+  if (effectContractByName(normalizedEffectName(name))) {
+    return true;
+  }
   if (/^[A-Z][A-Za-z0-9_.]*$/.test(name)) {
     return true;
   }
@@ -4354,30 +4468,29 @@ function contextAccess(context) {
 }
 
 function effectFamily(name) {
-  const normalized = name.replace(/^Effect\./, "");
-  if (/^(FileRead|ReadFile|fs\.read|file\.read)/.test(normalized)) return "file";
-  if (/^(FileWrite|WriteFile|fs\.write|file\.write)/.test(normalized)) return "file";
-  if (/^(ShellExec|shell\.exec|Command)/.test(normalized)) return "shell";
-  if (/^(Http|Web|web\.read|http\.request)/.test(normalized)) return "web";
+  const normalized = normalizedEffectName(name);
+  const contract = effectContractByName(normalized);
+  if (contract) return contract.family;
   if (/^(Git|git\.)/.test(normalized)) return "git";
-  if (/^(Deploy|deploy\.)/.test(normalized)) return "deploy";
-  if (/^(Ticket|ticket\.)/.test(normalized)) return "ticket";
-  if (/^(SecretRead|Secret|secret\.)/.test(normalized)) return "secret";
   return normalized.split(/[.(]/)[0].toLowerCase();
 }
 
 function effectAction(name) {
-  const normalized = name.replace(/^Effect\./, "");
-  if (/^(FileRead|ReadFile|fs\.read|file\.read)/.test(normalized)) return "read";
-  if (/^(FileWrite|WriteFile|fs\.write|file\.write)/.test(normalized)) return "write";
-  if (/^(ShellExec|shell\.exec|Command)/.test(normalized)) return "run";
-  if (/^(Http|Web|web\.read|http\.request)/.test(normalized)) return "read";
-  if (/^(GitPush|git\.push)/.test(normalized)) return "push";
-  if (/^(GitCommit|git\.commit)/.test(normalized)) return "commit";
-  if (/^(Deploy|deploy\.)/.test(normalized)) return "deploy";
-  if (/^(Ticket|ticket\.)/.test(normalized)) return "update";
-  if (/^(SecretRead|Secret|secret\.read)/.test(normalized)) return "read";
-  return null;
+  return effectContractByName(normalizedEffectName(name))?.action ?? null;
+}
+
+function normalizedEffectName(name) {
+  return name.replace(/^Effect\./, "");
+}
+
+function effectContractByName(name) {
+  return EFFECT_CONTRACTS.find((contract) => contract.match.test(name)) ?? null;
+}
+
+function effectContractForAccess(effect) {
+  return EFFECT_CONTRACTS.find((contract) => {
+    return effect.family === contract.family && effect.action === contract.action;
+  }) ?? null;
 }
 
 function isEffectAuthorized(effect, capabilities) {
@@ -4456,26 +4569,17 @@ function getTrustFlowDiagnostic(effect) {
 }
 
 function trustSinkArgument(effect) {
-  const sinks = [
-    { family: "shell", action: "run", key: "command", description: "shell command" },
-    { family: "file", action: "write", key: "path", description: "file write path" },
-    { family: "secret", action: "read", key: "name", description: "secret name" },
-    { family: "ticket", action: "update", key: "id", description: "ticket id" },
-    { family: "deploy", action: "deploy", key: "target", description: "deploy target" },
-    { family: "git", action: "push", key: "branch", description: "git branch" },
-    { family: "git", action: "push", key: "remote", description: "git remote" },
-    { family: "git", action: "commit", key: "message", description: "git commit message" },
-  ];
-  const sink = sinks.find((candidate) => {
-    return effect.family === candidate.family
-      && effect.action === candidate.action
-      && effectArgumentRawValue(effect, candidate.key) !== null;
+  const sink = effectContractForAccess(effect)?.arguments.find((candidate) => {
+    return candidate.trustSink && effectArgumentRawValue(effect, candidate.key) !== null;
   });
   if (!sink) {
     return null;
   }
   return {
-    ...sink,
+    family: effect.family,
+    action: effect.action,
+    key: sink.key,
+    description: sink.trustSink,
     value: effectArgumentRawValue(effect, sink.key),
   };
 }
@@ -4577,18 +4681,9 @@ function effectArgumentSpan(effect, argument) {
   if (argSpans[argument.argument] || argSpans[argument.key]) {
     return argSpans[argument.argument] ?? argSpans[argument.key];
   }
-  const aliases = {
-    path: ["paths", "_0"],
-    command: ["commands", "_0"],
-    domain: ["domains", "url", "urls", "_0"],
-    branch: ["branches", "_0"],
-    remote: ["remotes", "_0"],
-    message: ["_0"],
-    target: ["environment", "env", "_0"],
-    name: ["names", "_0"],
-    id: ["_0"],
-  };
-  for (const key of aliases[argument.argument] ?? aliases[argument.key] ?? []) {
+  const aliases = effectArgumentAliases(argument.argument ?? argument.key)
+    .filter((alias) => alias !== argument.key);
+  for (const key of aliases) {
     if (argSpans[key]) {
       return argSpans[key];
     }
@@ -4605,58 +4700,41 @@ function effectArgumentRawValue(effect, key) {
 }
 
 function effectArgumentAliasValues(values, key) {
-  const aliases = {
-    path: ["path", "paths", "_0"],
-    command: ["command", "commands", "_0"],
-    domain: ["domain", "domains", "url", "urls", "_0"],
-    branch: ["branch", "branches", "_0"],
-    remote: ["remote", "remotes", "_0"],
-    message: ["message", "_0"],
-    target: ["target", "environment", "env", "_0"],
-    name: ["name", "names", "_0"],
-    id: ["id", "_0"],
-  };
-  return (aliases[key] ?? [key]).map((alias) => values[alias]);
+  return effectArgumentAliases(key).map((alias) => values[alias]);
+}
+
+function effectArgumentAliases(key) {
+  const aliases = EFFECT_CONTRACTS.flatMap((contract) => contract.arguments)
+    .filter((argument) => argument.key === key)
+    .flatMap((argument) => argument.aliases);
+  return aliases.length > 0 ? [...new Set([key, ...aliases])] : [key];
 }
 
 function effectArguments(effect) {
-  if (effect.family === "file") {
-    const value = effect.args.path ?? effect.args.paths ?? effect.args._0;
-    return value ? [{ key: "path", value }] : [];
-  }
-  if (effect.family === "shell") {
-    const value = effect.args.command ?? effect.args.commands ?? effect.args._0;
-    return value ? [{ key: "command", value }] : [];
-  }
-  if (effect.family === "web" || effect.family === "http") {
-    const domain = effect.args.domain ?? effect.args.domains;
-    if (domain) {
-      return [{ key: "domain", value: normalizeDomain(domain) }];
-    }
-    const url = effect.args.url ?? effect.args.urls ?? effect.args._0;
-    const host = url ? domainFromUrl(url) : null;
-    return url ? [{ key: "domain", value: host ?? url }] : [];
-  }
-  if (effect.family === "git") {
-    return [
-      effect.args.branch ? { key: "branch", value: normalizeRefName(effect.args.branch) } : null,
-      effect.args.remote ? { key: "remote", value: normalizeRefName(effect.args.remote) } : null,
-      effect.args.message ? { key: "message", value: normalizeCommitMessage(effect.args.message) } : null,
-    ].filter(Boolean);
-  }
-  if (effect.family === "deploy") {
-    const value = effect.args.target ?? effect.args.environment ?? effect.args.env ?? effect.args._0;
-    return value ? [{ key: "target", value: normalizeDeployTarget(value) }] : [];
-  }
-  if (effect.family === "secret") {
-    const value = effect.args.name ?? effect.args.names ?? effect.args._0;
-    return value ? [{ key: "name", value: normalizeSecretName(value) }] : [];
-  }
-  if (effect.family === "ticket") {
-    const value = effect.args.id ?? effect.args._0;
-    return value ? [{ key: "id", value: normalizeTicketRef(value) }] : [];
-  }
-  return [];
+  const contract = effectContractForAccess(effect);
+  if (!contract) return [];
+  const seenKeys = new Set();
+  return contract.arguments.map((argument) => {
+    if (seenKeys.has(argument.key)) return null;
+    const rawValue = argument.aliases
+      .map((alias) => effect.args[alias])
+      .find((value) => typeof value === "string");
+    if (!rawValue) return null;
+    seenKeys.add(argument.key);
+    return { key: argument.key, value: normalizeEffectArgument(rawValue, argument.normalize) };
+  }).filter(Boolean);
+}
+
+function normalizeEffectArgument(value, kind) {
+  if (kind === "command") return normalizeCommand(value);
+  if (kind === "domain") return normalizeDomain(value);
+  if (kind === "url_domain") return domainFromUrl(value) ?? value;
+  if (kind === "ref") return normalizeRefName(value);
+  if (kind === "commit_message") return normalizeCommitMessage(value);
+  if (kind === "deploy_target") return normalizeDeployTarget(value);
+  if (kind === "secret") return normalizeSecretName(value);
+  if (kind === "ticket") return normalizeTicketRef(value);
+  return value;
 }
 
 function isGrantMatch(argument, grant) {

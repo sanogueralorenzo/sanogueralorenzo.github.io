@@ -588,6 +588,95 @@ describe("intent static model CLI", () => {
     }
   });
 
+  it("normalizes v0 effect adapter aliases through explicit contracts", () => {
+    const dir = mkdtempSync(join(tmpdir(), "intent-effect-contracts-"));
+    const file = join(dir, "effect_contracts.intent");
+    const source = [
+      "package fixtures.effect_contracts",
+      "type Input",
+      "type Patch",
+      "type Done",
+      "goal effect_contracts(input: Input) -> Done {",
+      "  context repo(\"./\")",
+      "  context web(\"https://example.com/**\")",
+      "  capability file {",
+      "    write path: \"./src/**\"",
+      "  }",
+      "  capability shell {",
+      "    run command: \"npm test\"",
+      "  }",
+      "  capability web {",
+      "    read domain: \"example.com\"",
+      "  }",
+      "  capability git {",
+      "    push branch: \"main\"",
+      "    commit message: \"ship fix\"",
+      "  }",
+      "  capability secret {",
+      "    read name: \"GITHUB_TOKEN\"",
+      "  }",
+      "  capability ticket {",
+      "    update id: \"CODE-123\"",
+      "  }",
+      "  capability deploy {",
+      "    deploy target: \"staging\"",
+      "  }",
+      "  memory session {",
+      "    retain evidence until goal_complete",
+      "  }",
+      "  plan {",
+      "    step run_effects(input: Input) -> Patch {",
+      "      effect Effect.FileWrite(path: \"./src/app.ts\")",
+      "      effect WriteFile(\"./src/alias.ts\")",
+      "      effect Command(\"npm test\")",
+      "      effect WebRead(url: \"https://example.com/research\")",
+      "      effect http.get(\"https://example.com/status\")",
+      "      effect git.push(branch: \"refs/heads/main\")",
+      "      effect git.commit(message: \"ship fix\")",
+      "      effect SecretRead(name: \"GITHUB_TOKEN\")",
+      "      effect TicketUpdate(id: \"CODE-123\")",
+      "      effect Deploy(target: \"staging\")",
+      "    }",
+      "    step finish(input: Patch) -> Done",
+      "  }",
+      "  verify {",
+      "    require shell(\"npm test\").exit_code == 0",
+      "  }",
+      "  invariant {",
+      "    deny secret_write",
+      "    deny production_deploy",
+      "  }",
+      "}",
+    ].join("\n");
+    writeFileSync(file, source, "utf8");
+
+    try {
+      const check = runJson(["check", file]);
+      const graph = runJson(["graph", file]);
+      const effects = graph.nodes.filter((node) => node.kind === "Effect");
+
+      assert.equal(check.ok, true);
+      assert.deepEqual(check.diagnostics, []);
+      assert.deepEqual(effects.map((effect) => [effect.label, effect.data.family, effect.data.action]), [
+        ["Effect.FileWrite", "file", "write"],
+        ["WriteFile", "file", "write"],
+        ["Command", "shell", "run"],
+        ["WebRead", "web", "read"],
+        ["http.get", "web", "read"],
+        ["git.push", "git", "push"],
+        ["git.commit", "git", "commit"],
+        ["SecretRead", "secret", "read"],
+        ["TicketUpdate", "ticket", "update"],
+        ["Deploy", "deploy", "deploy"],
+      ]);
+      assert(effects.every((effect) => {
+        return graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === effect.id);
+      }));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects unsupported v0 call argument syntax", () => {
     const dir = mkdtempSync(join(tmpdir(), "intent-call-args-invalid-"));
     const file = join(dir, "invalid_call_args.intent");

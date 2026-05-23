@@ -304,6 +304,13 @@ a value already marked trusted by the checker. Nonliteral constrained sink
 expressions that are not trusted produce `INTENT_TRUST_FLOW_UNSAFE` rather
 than being treated as opaque trusted strings.
 
+Effect adapter calls are normalized by the v0 effect contract registry before
+capability matching and graph emission. The registry currently covers file
+read/write, shell run, web read, git push, git commit, secret read, ticket
+update, and deploy adapter aliases. Unknown or custom effect calls continue to
+use fallback family/action parsing until a later adapter schema makes custom
+contracts explicit.
+
 Git commit effects use a named `message` constrained argument. The checker
 binds `GitCommit(message: "...")` and `git.commit(message: "...")` to in-scope
 `commit message: "..."` capability grants. Commit messages are normalized
