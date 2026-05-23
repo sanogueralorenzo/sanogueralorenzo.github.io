@@ -58,6 +58,11 @@ async function main() {
     return;
   }
 
+  if (command === "redact") {
+    await runRedactCommand(subcommand, rawArgs);
+    return;
+  }
+
   if (command === "capture") {
     await captureEvent();
     return;
@@ -154,6 +159,9 @@ async function initRepo() {
     memory_dir: ".trace/commits",
     checkpoint_ref: CHECKPOINT_REF,
     raw_storage: "git-common-dir/trace/sessions",
+    redaction: {
+      custom_rules: [],
+    },
   }, null, 2)}\n`);
   await writeFileIfMissing(join(traceRoot, "commits", ".gitkeep"), "");
   print({ ok: true, traceDir: TRACE_DIR });
@@ -179,6 +187,7 @@ async function printStatus() {
   const prepareHook = await fileIncludes(join(await gitHooksDir(), "prepare-commit-msg"), HOOK_START);
   const postHook = await fileIncludes(join(await gitHooksDir(), "post-commit"), HOOK_START);
   const configExists = await exists(join(root, TRACE_DIR, "config.json"));
+  const config = await loadTraceConfig(root);
   const agents = await listAgentConfigs(root);
   print({
     ok: true,
@@ -189,6 +198,7 @@ async function printStatus() {
       postCommit: postHook,
     },
     agents,
+    redactionRules: customRules(config).length,
     rawStorage: join(common, "trace", "sessions"),
     checkpointRef: CHECKPOINT_REF,
   });
@@ -389,6 +399,57 @@ async function captureEvent() {
   print({ ok: true, session: event.session_id, event: event.event });
 }
 
+async function runRedactCommand(action, values) {
+  if (action === "add") {
+    await addRedactionRule(values[0] ?? args.label, values[1] ?? args.pattern);
+    return;
+  }
+
+  if (action === "remove" || action === "rm") {
+    await removeRedactionRule(values[0] ?? args.label);
+    return;
+  }
+
+  if (!action || action === "list") {
+    const root = await repoRoot();
+    print({ ok: true, rules: customRules(await loadTraceConfig(root)) });
+    return;
+  }
+
+  fail(`unknown redact command: ${action}`);
+}
+
+async function addRedactionRule(label, pattern) {
+  if (!label) {
+    fail("redaction label is required");
+  }
+  if (!pattern) {
+    fail("redaction pattern is required");
+  }
+
+  validateRegex(pattern);
+  const root = await repoRoot();
+  await ensureTrace(root);
+  const config = await loadTraceConfig(root);
+  const rules = customRules(config).filter((rule) => rule.label !== label);
+  rules.push({ label, pattern });
+  await writeTraceConfig(root, withCustomRules(config, rules));
+  print({ ok: true, label, pattern });
+}
+
+async function removeRedactionRule(label) {
+  if (!label) {
+    fail("redaction label is required");
+  }
+
+  const root = await repoRoot();
+  await ensureTrace(root);
+  const config = await loadTraceConfig(root);
+  const rules = customRules(config).filter((rule) => rule.label !== label);
+  await writeTraceConfig(root, withCustomRules(config, rules));
+  print({ ok: true, label, rules: rules.length });
+}
+
 async function runAgentCommand(action, values) {
   if (action === "add" || action === "install") {
     await addAgent(values[0] ?? args.name);
@@ -498,7 +559,7 @@ async function appendEvent(root, input) {
     event: input.event,
     role: input.role,
     source: input.source ?? "manual",
-    message: redact(input.message),
+    message: await redact(root, input.message),
     created_at: now(),
   };
   const sessionFile = await sessionPath(root, sessionId);
@@ -687,11 +748,11 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
   const validations = events.filter((event) => event.event === "validation").map((event) => event.message).filter(Boolean);
   const risks = events.filter((event) => event.event === "risk").map((event) => event.message).filter(Boolean);
   const notes = events.filter((event) => !["prompt", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
-  const intent = redact(overrides.intent ?? prompts.at(-1) ?? subject);
-  const validation = redact(overrides.validation ?? validations.at(-1) ?? "Not recorded.");
-  const risk = redact(overrides.risk ?? risks.at(-1) ?? "No known open risks recorded.");
-  const summary = notes.length > 0 ? notes.slice(-3).map((note) => `- ${redact(note)}`).join("\n") : `- ${redact(subject)}`;
-  const decisionLines = decisions.length > 0 ? decisions.map((decision) => `- ${redact(decision)}`).join("\n") : "- Not recorded.";
+  const intent = await redact(root, overrides.intent ?? prompts.at(-1) ?? subject);
+  const validation = await redact(root, overrides.validation ?? validations.at(-1) ?? "Not recorded.");
+  const risk = await redact(root, overrides.risk ?? risks.at(-1) ?? "No known open risks recorded.");
+  const summary = notes.length > 0 ? (await Promise.all(notes.slice(-3).map(async (note) => `- ${await redact(root, note)}`))).join("\n") : `- ${await redact(root, subject)}`;
+  const decisionLines = decisions.length > 0 ? (await Promise.all(decisions.map(async (decision) => `- ${await redact(root, decision)}`))).join("\n") : "- Not recorded.";
   const fileLines = files.length > 0 ? files.map((file) => `- \`${file}\``).join("\n") : "- No files reported by git.";
   const rawCheckpoint = {
     schema_version: "trace.checkpoint.v1",
@@ -805,6 +866,36 @@ async function ensureTrace(root) {
   if (!await exists(join(root, TRACE_DIR, "config.json"))) {
     await initRepo();
   }
+}
+
+async function loadTraceConfig(root) {
+  const path = join(root, TRACE_DIR, "config.json");
+  if (!await exists(path)) {
+    return {
+      schema_version: CONFIG_VERSION,
+      redaction: { custom_rules: [] },
+    };
+  }
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
+async function writeTraceConfig(root, config) {
+  await writeFile(join(root, TRACE_DIR, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
+}
+
+function customRules(config) {
+  const rules = config?.redaction?.custom_rules;
+  return Array.isArray(rules) ? rules : [];
+}
+
+function withCustomRules(config, rules) {
+  return {
+    ...config,
+    redaction: {
+      ...(config.redaction ?? {}),
+      custom_rules: rules,
+    },
+  };
 }
 
 async function listMemoryFiles(root) {
@@ -924,10 +1015,18 @@ async function readStdin() {
   return Buffer.concat(chunks).toString("utf8").trim();
 }
 
-function redact(value) {
-  return String(value)
+async function redact(root, value) {
+  let redacted = String(value)
     .replace(/\b(api[_-]?key|token|secret|password)=("[^"]*"|'[^']*'|[^\s]+)/gi, "$1=REDACTED")
     .replace(/\b[A-Za-z0-9_=-]{24,}\b/g, (match) => match.includes("REDACTED") ? match : "REDACTED");
+
+  const config = await loadTraceConfig(root);
+  for (const rule of customRules(config)) {
+    validateRegex(rule.pattern);
+    redacted = redacted.replace(new RegExp(rule.pattern, "gu"), `[REDACTED_${String(rule.label).toUpperCase()}]`);
+  }
+
+  return redacted;
 }
 
 function memoryPathFor(root, sha) {
@@ -961,6 +1060,9 @@ Usage:
   trace checkpoint push [remote] [--dry-run]
   trace checkpoint fetch [remote] [--dry-run]
   trace checkpoint cleanup [--sessions-before-days 14]
+  trace redact add <label> <regex>
+  trace redact list
+  trace redact remove <label>
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace log [--limit 20]
@@ -1053,6 +1155,14 @@ function shellQuote(value) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function validateRegex(pattern) {
+  try {
+    new RegExp(pattern, "u");
+  } catch (error) {
+    fail(`invalid redaction pattern: ${error.message}`);
+  }
 }
 
 function parseOptionalJson(raw) {

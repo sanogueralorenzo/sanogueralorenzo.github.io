@@ -171,6 +171,64 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
   }
 });
 
+test("custom redaction rules apply to raw events and commit memories", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "redact.txt"), "redact\n");
+    await git(repo, ["add", "redact.txt"]);
+    await git(repo, ["commit", "-m", "Add redact file"]);
+
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["redact", "add", "codename", "PROJECT-[A-Z]+"]);
+    const listed = JSON.parse((await runTrace(repo, ["redact", "list"])).stdout);
+    assert.deepEqual(listed.rules, [{ label: "codename", pattern: "PROJECT-[A-Z]+" }]);
+
+    await runTrace(repo, [
+      "capture",
+      "--event",
+      "prompt",
+      "--role",
+      "user",
+      "--message",
+      "ship PROJECT-ORION with token=visible-secret",
+    ]);
+    await runTrace(repo, ["record", "--validation", "PROJECT-ORION validation"]);
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
+    const session = await readFile(join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`), "utf8");
+    assert.match(session, /\[REDACTED_CODENAME\]/);
+    assert.match(session, /token=REDACTED/);
+    assert.doesNotMatch(session, /PROJECT-ORION/);
+    assert.doesNotMatch(session, /visible-secret/);
+
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.match(memory, /\[REDACTED_CODENAME\]/);
+    assert.doesNotMatch(memory, /PROJECT-ORION/);
+
+    await runTrace(repo, ["redact", "remove", "codename"]);
+    const removed = JSON.parse((await runTrace(repo, ["redact", "list"])).stdout);
+    assert.deepEqual(removed.rules, []);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("custom redaction rules reject invalid regex patterns", async () => {
+  const repo = await tempRepo();
+
+  try {
+    const result = await runTraceAllowFailure(repo, ["redact", "add", "bad", "["]);
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /invalid redaction pattern/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("agent add list remove manages local hook adapter configs", async () => {
   const repo = await tempRepo();
 

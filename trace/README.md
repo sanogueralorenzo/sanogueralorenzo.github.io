@@ -64,6 +64,8 @@ trace checkpoint list
 trace checkpoint verify
 trace checkpoint push origin --dry-run
 trace checkpoint cleanup --sessions-before-days 14
+trace redact add codename 'PROJECT-[A-Z]+'
+trace redact list
 trace check
 ```
 
@@ -84,6 +86,8 @@ node trace/bin/trace.mjs checkpoint list
 node trace/bin/trace.mjs checkpoint verify
 node trace/bin/trace.mjs checkpoint push origin --dry-run
 node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14
+node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
+node trace/bin/trace.mjs redact list
 node trace/bin/trace.mjs check
 ```
 
@@ -116,3 +120,12 @@ Checkpoint commands keep the raw side of Trace explicit:
 - `trace checkpoint verify` checks checkpoint payload shape and commit reachability.
 - `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref.
 - `trace checkpoint cleanup --sessions-before-days 14` prunes old local raw session JSONL files from the git common directory.
+
+Redaction is local and configurable. Built-in rules scrub common token/password shapes and high-entropy strings. Custom rules live in `.trace/config.json`:
+
+```shell
+trace redact add codename 'PROJECT-[A-Z]+'
+trace redact remove codename
+```
+
+Custom matches are replaced with labeled placeholders like `[REDACTED_CODENAME]` before raw events or commit memories are written.
