@@ -115,7 +115,8 @@ Rules:
   `outputTypeSpan` so diagnostics can point at the exact declared output type
   instead of the wider node span.
 - Graph node and edge data that embeds parameters keeps those parameter spans
-  for provenance.
+  for provenance. Data dependency edges may carry `sourceSpan` and `targetSpan`
+  so the producing and consuming parameters can both be traced precisely.
 - Parsed call arguments keep `argSpans` alongside `args` and `argKinds`.
   `argSpans` maps each positional key such as `_0` or named key such as `path`,
   `command`, `url`, or `branch` to the source span for diagnostics and runtime
@@ -421,7 +422,8 @@ plan in source order.
   checked.
 - Step input names are local labels and do not create cross-step references.
 - Bound input graph data keeps the source parameter span from the goal or step
-  header that declared the parameter.
+  header that declared the parameter and the target parameter span from the step
+  input that consumes it.
 - There are no implicit conversions, field projections, destructuring, or
   forward references.
 - If no prior value has the required type, the checker emits
@@ -433,11 +435,15 @@ Every successful binding is also emitted as graph data dependency:
 - Each step input becomes an `input` graph node with `scope: "step"` and the
   owning step id.
 - A step input bound to a goal input creates a `data` edge from the goal input
-  node to the step input node.
+  node to the step input node. Its edge `data` may include `sourceSpan` for the
+  goal parameter and `targetSpan` for the step parameter.
 - A step input bound to an earlier step output creates a `data` edge from the
-  producing step node to the step input node.
+  producing step node to the step input node. Its edge `data` may include
+  `sourceSpan` for the producing output type and `targetSpan` for the step
+  parameter.
 - A step input node creates a `requires` edge to its owning step, so execution
-  waits for the bound value before the step can run.
+  waits for the bound value before the step can run. Its edge `data` may include
+  `targetSpan` for the required step parameter.
 
 ## Effect Call Arguments
 
@@ -1428,6 +1434,9 @@ node or an earlier producing step. If multiple prior values have the same type,
 the checker selects the nearest prior value in source order and emits the chosen
 edge deterministically. Parameter data embedded in `Goal`, `Step`, `Input`,
 `data`, and `requires` graph payloads retains the declaring parameter `span`.
+Graph `data` edge payloads may also include `sourceSpan` and `targetSpan` for
+the two bound parameters, while graph `requires` edge payloads may include
+`targetSpan` for the required input parameter.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that

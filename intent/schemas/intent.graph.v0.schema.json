@@ -932,6 +932,12 @@
             },
             "policy": {
               "type": "string"
+            },
+            "sourceSpan": {
+              "$ref": "#/$defs/span"
+            },
+            "targetSpan": {
+              "$ref": "#/$defs/span"
             }
           }
         }
