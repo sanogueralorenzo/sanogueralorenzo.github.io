@@ -36,6 +36,7 @@ const INVALID_CONTEXT_SOURCE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_c
 const INVALID_DEPLOY_TARGET_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_deploy_target_outside_capability.intent", import.meta.url).pathname;
 const INVALID_INVARIANT_PRODUCTION_DEPLOY = new URL("../fixtures/invalid_invariant_production_deploy.intent", import.meta.url).pathname;
 const INVALID_INVARIANT_SECRET_WRITE = new URL("../fixtures/invalid_invariant_secret_write.intent", import.meta.url).pathname;
+const INVALID_INVARIANT_UNRELATED_FILE_WRITE = new URL("../fixtures/invalid_invariant_unrelated_file_write.intent", import.meta.url).pathname;
 const INVALID_GIT_COMMIT_MESSAGE_MISMATCH = new URL("../fixtures/invalid_git_commit_message_mismatch.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
@@ -379,6 +380,22 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].value, "./.env");
     assert.equal(payload.diagnostics[0].span.start.line, 46);
     assert.equal(payload.diagnostics[0].effect_span.start.line, 34);
+    assert.equal(payload.diagnostics[0].effect_span.start.column, 24);
+  });
+
+  it("rejects file writes denied by unrelated file invariants", () => {
+    const result = run(["check", INVALID_INVARIANT_UNRELATED_FILE_WRITE]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_INVARIANT_VIOLATION");
+    assert.equal(payload.diagnostics[0].invariant, "unrelated_file_write");
+    assert.equal(payload.diagnostics[0].effect, "FileWrite");
+    assert.equal(payload.diagnostics[0].argument, "path");
+    assert.equal(payload.diagnostics[0].value, "./docs/readme.md");
+    assert.equal(payload.diagnostics[0].span.start.line, 35);
+    assert.equal(payload.diagnostics[0].effect_span.start.line, 26);
     assert.equal(payload.diagnostics[0].effect_span.start.column, 24);
   });
 

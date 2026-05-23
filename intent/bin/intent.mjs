@@ -568,7 +568,7 @@ function checkIntent(ast) {
           continue;
         }
 
-        const invariantViolation = getInvariantViolation(effect, goal.invariants);
+        const invariantViolation = getInvariantViolation(effect, goal.invariants, goal.context);
         if (invariantViolation) {
           diagnostics.push(error("INTENT_INVARIANT_VIOLATION", invariantViolation.message, invariantViolation.invariant.span, {
             invariant: invariantViolation.invariant.value,
@@ -1731,7 +1731,7 @@ function getTrustFlowDiagnostic(effect) {
   };
 }
 
-function getInvariantViolation(effect, invariants) {
+function getInvariantViolation(effect, invariants, contexts = []) {
   for (const invariant of invariants) {
     if (invariant.kind !== "Deny") {
       continue;
@@ -1742,6 +1742,19 @@ function getInvariantViolation(effect, invariants) {
       if (effect.family === "file" && effect.action === "write" && pathArgument && isSecretPath(pathArgument.value)) {
         return {
           message: `invariant '${invariant.value}' denies effect '${effect.name}' path '${pathArgument.value}'.`,
+          invariant,
+          argument: "path",
+          value: pathArgument.value,
+        };
+      }
+      continue;
+    }
+    if (rule === "unrelated_file_write") {
+      const pathArgument = effectArguments(effect).find((argument) => argument.key === "path");
+      const repoRoots = repoContextRoots(contexts);
+      if (effect.family === "file" && effect.action === "write" && pathArgument && repoRoots.length > 0 && !isPathUnderRepoRoots(pathArgument.value, repoRoots)) {
+        return {
+          message: `invariant '${invariant.value}' denies effect '${effect.name}' path '${pathArgument.value}' outside repository context.`,
           invariant,
           argument: "path",
           value: pathArgument.value,
@@ -1768,6 +1781,27 @@ function getInvariantViolation(effect, invariants) {
 function isSecretPath(value) {
   const basename = path.posix.basename(normalizePathLike(value)).toLowerCase();
   return basename === ".env" || /\b(secret|token|credential|key|password)s?\b/.test(basename);
+}
+
+function repoContextRoots(contexts) {
+  return contexts
+    .filter((context) => context.source === "repo")
+    .map((context) => context.args.path ?? context.args.paths ?? context.args._0)
+    .filter((value) => typeof value === "string")
+    .map((value) => normalizePathLike(value));
+}
+
+function isPathUnderRepoRoots(value, repoRoots) {
+  const normalized = normalizePathLike(value);
+  if (normalized.startsWith("../") || normalized.startsWith("/")) {
+    return false;
+  }
+  return repoRoots.some((root) => {
+    if (root === "") {
+      return true;
+    }
+    return normalized === root || normalized.startsWith(`${root}/`);
+  });
 }
 
 function effectTrust(effect) {
