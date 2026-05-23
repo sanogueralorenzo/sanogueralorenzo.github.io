@@ -15,7 +15,7 @@ The parser must accept:
 - Step declarations inside `plan`, including step-local requirements,
   approval gates, checkpoints, retry policies, and timeouts.
 - `require` and `deny` statements.
-- Effect call arguments in simple call expressions.
+- Context and effect call arguments in simple call expressions.
 - Line comments.
 - String literals.
 - Identifiers.
@@ -77,14 +77,18 @@ require_stmt     = "require", s, raw_expr, line_end ;
 deny_stmt        = "deny", s, raw_expr, line_end ;
 ```
 
-`context` is a single-line declaration in this milestone. Context declarations
-that describe web resources or browser/page state are treated as untrusted by
-the checker unless a later policy explicitly upgrades them. `capability` bodies
-are parsed as statement lists whose items are preserved as raw spanned lines.
-`memory` bodies are parsed as statement lists, and every `retain ... until ...`
-line is additionally parsed into structured `retentionRules` data with a
-retained subject span and an until-condition span. `verify` accepts only
-`require`; `invariant` accepts only `deny`.
+`context` is a single-line declaration in this milestone. The `context <call>`
+form preserves the parsed call as structured source data: source name, ordered
+arguments, argument kinds, original expression text, and checker-owned trust
+zone/source. Context declarations that describe repo, doc, or file resources
+are treated as trusted local sources by the first checker prototype. Context
+declarations that describe web resources or browser/page state are treated as
+untrusted external sources unless a later policy explicitly upgrades them.
+`capability` bodies are parsed as statement lists whose items are preserved as
+raw spanned lines. `memory` bodies are parsed as statement lists, and every
+`retain ... until ...` line is additionally parsed into structured
+`retentionRules` data with a retained subject span and an until-condition span.
+`verify` accepts only `require`; `invariant` accepts only `deny`.
 
 Each `deny ...` line inside an `invariant` block is parsed as an invariant
 statement. The graph builder emits each invariant statement as an `Invariant`
@@ -156,8 +160,8 @@ node to the owning `Step`.
 
 The parser preserves raw expression text for later phases, but it also parses
 simple call expressions used for contexts, effects, and checks. This lets the
-checker inspect effect arguments without evaluating the full expression
-language.
+checker inspect context and effect arguments without evaluating the full
+expression language.
 
 ```ebnf
 call_expr = identifier_path, ws, "(", ws,
@@ -174,7 +178,7 @@ Raw expressions must still preserve source spans and balanced string/comment
 handling, so diagnostics can point at the original text. When a raw expression
 contains a parseable call expression, the parser emits both the raw text and a
 spanned `CallExpr` with the callee path, ordered arguments, optional argument
-names, literal values, and nested call values.
+names, argument kinds, literal values, and nested call values.
 
 Unsupported argument syntax inside a parsed call is `INTENT_PARSE_ERROR`.
 Unsupported expression syntax outside the call envelope remains raw text unless
@@ -266,7 +270,10 @@ The parser emits names and type reference strings; the checker owns binding.
 - Step params become `input` graph nodes with step scope.
 - A bound step input creates a `data` edge from the matching goal input or
   earlier step output to that step input node.
-- Web context values are untrusted source values.
+- Context calls preserve source name, args, argKinds, expression, and
+  trust zone/source for checker and graph output.
+- Repo, doc, and file context values are trusted local source values.
+- Web context values are untrusted external source values.
 - Web/http read effects use the first positional argument or a named `url` or
   `domain` argument, and bind to in-scope `read domain: "..."` capability
   grants. URL hosts are compared against exact or wildcard granted domains; if

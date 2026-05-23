@@ -11,8 +11,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `PackageDecl`: package path for a source file.
 - `ImportDecl`: imported package or symbol path.
 - `GoalDecl`: root executable unit, inputs, output, clauses, and body blocks.
-- `ContextDecl`: named source of truth, resource expression, freshness policy,
-  and access mode.
+- `ContextDecl`: named source of truth with structured call data, resource
+  expression, freshness policy, access mode, and trust zone/source.
 - `CapabilityDecl`: named permission grant with family, action, constraints,
   and optional approval requirement.
 - `MemoryDecl`: scoped state or retained evidence with one or more retention
@@ -289,8 +289,9 @@ blocking diagnostics.
 - Resolve every type reference against built-ins and file-local type
   declarations.
 - Bind step inputs against goal inputs and earlier step outputs in source order.
-- Assign first-prototype trust zones to source values. Web contexts are
-  untrusted; literals and checker-approved policy outputs are trusted.
+- Assign first-prototype trust zones to source values. Repo, doc, and file
+  contexts are trusted local sources; web contexts are untrusted external
+  sources; literals and checker-approved policy outputs are trusted.
 - Type check expressions, inputs, outputs, context values, state values, step
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
@@ -400,6 +401,43 @@ Rules:
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
+
+## Context Sources
+
+Context declarations preserve their source call as structured data:
+
+```intent
+context repo(path: "./")
+context doc("intent/STATIC_MODEL.md")
+context web(url: "https://docs.example.com/guide")
+```
+
+The parsed `ContextDecl` retains the source name, ordered args, argKinds,
+original expression text, source span, and checker-owned trust metadata:
+
+```json
+{
+  "kind": "ContextDecl",
+  "source": "repo",
+  "args": [{ "name": "path", "value": "./", "span": "loc.6" }],
+  "argKinds": ["string"],
+  "expression": "repo(path: \"./\")",
+  "trust": { "zone": "trusted", "source": "local" }
+}
+```
+
+Rules:
+
+- `source` is the callee path from the context call.
+- `args` retain positional and named argument values in source order.
+- `argKinds` retain each argument kind before checker normalization.
+- `expression` is the original context call text.
+- Repo, doc, and file contexts are trusted local source values in the first
+  checker prototype.
+- Web contexts and browser/page state are untrusted external source values in
+  the first checker prototype.
+- Graph `Context` nodes carry the same source name, args, argKinds,
+  expression, and trust zone/source data as their originating `ContextDecl`.
 
 ## Step Requirements
 
@@ -782,6 +820,19 @@ node id. It is an intermediate contract for a local runtime.
       }
     },
     {
+      "id": "goal:ship_checkout_fix:context:0",
+      "kind": "Context",
+      "label": "repo",
+      "span": "loc.6",
+      "data": {
+        "source": "repo",
+        "args": [{ "name": "path", "value": "./", "span": "loc.6" }],
+        "argKinds": ["string"],
+        "expression": "repo(path: \"./\")",
+        "trust": { "zone": "trusted", "source": "local" }
+      }
+    },
+    {
       "id": "goal:ship_checkout_fix:capability:0",
       "kind": "Capability",
       "label": "tests",
@@ -1096,6 +1147,11 @@ Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
 lacks retention lifecycle data is non-executable because the checker must emit
 `INTENT_MEMORY_UNSCOPED`.
+
+Context nodes carry the same structured source call data as `ContextDecl`:
+`source`, `args`, `argKinds`, `expression`, and `trust`. Repo, doc, and file
+context nodes use trusted local trust metadata. Web context nodes and
+browser/page state use untrusted external trust metadata.
 
 Step requirement nodes are `Check` nodes scoped to one owning step. They create
 `requires` edges into that step and `gates` edges to the owning goal. They are
