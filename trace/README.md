@@ -131,7 +131,7 @@ node trace/bin/trace.mjs coverage main..HEAD
 node trace/bin/trace.mjs ci main..HEAD
 ```
 
-`trace enable` installs managed `prepare-commit-msg` and `post-commit` git hook blocks. The prepare hook adds `Trace-Checkpoint` and `Trace-Session` trailers to the commit message. The post-commit hook writes a compact memory file under `.trace/commits/` and stores the raw checkpoint payload on the local `refs/trace/checkpoints` git ref.
+`trace enable` installs managed `pre-commit`, `prepare-commit-msg`, and `post-commit` git hook blocks. The pre-commit hook blocks raw transcript or checkpoint-shaped files from being committed under `.trace/`. The prepare hook adds `Trace-Checkpoint` and `Trace-Session` trailers to the commit message. The post-commit hook writes a compact memory file under `.trace/commits/` and stores the raw checkpoint payload on the local `refs/trace/checkpoints` git ref.
 
 This keeps the project tree focused on reviewable memories while raw checkpoint data stays outside the normal branch history unless someone explicitly pushes the Trace ref.
 

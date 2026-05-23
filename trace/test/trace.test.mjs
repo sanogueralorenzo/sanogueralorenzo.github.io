@@ -320,6 +320,7 @@ test("doctor reports hook and local memory health without mutating caches", asyn
     const missingHookCheck = missingPayload.checks.find((check) => check.name === "hooks");
     assert.equal(missingPayload.ok, false);
     assert.equal(missingHookCheck.ok, false);
+    assert.equal(missingHookCheck.preCommit, false);
     assert.equal(missingHookCheck.prepareCommitMsg, false);
     assert.equal(missingHookCheck.postCommit, false);
 
@@ -799,8 +800,10 @@ test("enable installs git hooks that link commits and write post-commit memory",
 
     const status = await runTrace(repo, ["status"]);
     const payload = JSON.parse(status.stdout);
+    assert.equal(payload.hooks.preCommit, true);
     assert.equal(payload.hooks.prepareCommitMsg, true);
     assert.equal(payload.hooks.postCommit, true);
+    assert.equal(payload.hooks.details.preCommit.valid, true);
     assert.equal(payload.hooks.details.prepareCommitMsg.valid, true);
     assert.equal(payload.hooks.details.postCommit.valid, true);
     assert.match(payload.hooks.details.postCommit.command, /trace\.mjs'? hook post-commit/);
@@ -838,6 +841,31 @@ test("enable disable and doctor validate managed hook bodies", async () => {
     const disabled = await readFile(hookPath, "utf8");
     assert.doesNotMatch(disabled, /# trace:start/);
     assert.match(disabled, /printf existing-hook/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("managed pre-commit hook rejects staged raw Trace transcript files", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await runTrace(repo, ["enable"]);
+    await mkdir(join(repo, ".trace/sessions"), { recursive: true });
+    await writeFile(join(repo, ".trace/sessions/leak.jsonl"), "{\"message\":\"full transcript\"}\n");
+    await git(repo, ["add", ".trace/sessions/leak.jsonl"]);
+
+    const blocked = await run(repo, ["git", "commit", "-m", "Commit leaked Trace transcript"], fixedEnv);
+    assert.equal(blocked.exitCode, 1);
+    assert.match(blocked.stderr, /Trace blocked unsafe raw memory files/);
+    assert.match(blocked.stderr, /\.trace\/sessions\/leak\.jsonl/);
+
+    await git(repo, ["rm", "--cached", ".trace/sessions/leak.jsonl"]);
+    await writeFile(join(repo, "safe.txt"), "safe\n");
+    await git(repo, ["add", "safe.txt"]);
+    await git(repo, ["commit", "-m", "Commit safe file"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

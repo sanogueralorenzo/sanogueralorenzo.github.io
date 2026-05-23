@@ -156,6 +156,11 @@ async function main() {
     return;
   }
 
+  if (command === "hook" && subcommand === "pre-commit") {
+    await hookPreCommit();
+    return;
+  }
+
   if (command === "hook" && subcommand === "post-commit") {
     await hookPostCommit();
     return;
@@ -217,6 +222,7 @@ async function initRepo() {
 
 async function enableRepo() {
   await initRepo();
+  await installHook("pre-commit", traceHookCommand("pre-commit"));
   await installHook("prepare-commit-msg", traceHookCommand("prepare-commit-msg"));
   await installHook("post-commit", traceHookCommand("post-commit"));
   print({ ok: true, enabled: true });
@@ -224,6 +230,7 @@ async function enableRepo() {
 
 async function disableRepo() {
   const hooksDir = await gitHooksDir();
+  await removeManagedBlock(join(hooksDir, "pre-commit"));
   await removeManagedBlock(join(hooksDir, "prepare-commit-msg"));
   await removeManagedBlock(join(hooksDir, "post-commit"));
   print({ ok: true, enabled: false });
@@ -272,7 +279,8 @@ async function runDoctor() {
     {
       name: "hooks",
       level: "error",
-      ok: hooks.details.prepareCommitMsg.valid && hooks.details.postCommit.valid,
+      ok: hooks.details.preCommit.valid && hooks.details.prepareCommitMsg.valid && hooks.details.postCommit.valid,
+      preCommit: hooks.preCommit,
       prepareCommitMsg: hooks.prepareCommitMsg,
       postCommit: hooks.postCommit,
       details: hooks.details,
@@ -1665,6 +1673,23 @@ async function hookPrepareCommitMsg(values) {
   await writeFile(commitMsgFile, `${current}${needsNewline}\nTrace-Checkpoint: ${checkpointId}\nTrace-Session: ${sessionId}\n`);
 }
 
+async function hookPreCommit() {
+  const root = await repoRoot();
+  const unsafeFiles = await stagedUnsafeTraceFiles(root);
+  if (unsafeFiles.length === 0) {
+    return;
+  }
+
+  process.stderr.write([
+    "Trace blocked unsafe raw memory files from being committed.",
+    "Raw transcripts and checkpoint payloads must stay outside the project tree.",
+    ...unsafeFiles.map((file) => `- ${file}`),
+    "Move these files out of .trace/ or remove them from the index, then retry.",
+    "",
+  ].join("\n"));
+  process.exitCode = 1;
+}
+
 async function traceCommitTrailers(root, sha) {
   const body = await git(["show", "-s", "--format=%B", sha], { cwd: root });
   return {
@@ -1846,6 +1871,9 @@ function stripManagedBlock(content) {
 }
 
 function traceHookCommand(name) {
+  if (name === "pre-commit") {
+    return `trace hook pre-commit "$@"`;
+  }
   if (name === "prepare-commit-msg") {
     return `trace hook prepare-commit-msg "$@"`;
   }
@@ -2019,6 +2047,13 @@ function isUnsafeTracePath(path) {
     || normalized.endsWith("/pending_commit.json");
 }
 
+async function stagedUnsafeTraceFiles(root) {
+  const files = (await git(["diff", "--cached", "--name-only", "--diff-filter=ACMR", "--", TRACE_DIR], { cwd: root }))
+    .split("\n")
+    .filter(Boolean);
+  return files.filter(isUnsafeTracePath);
+}
+
 async function walk(dir, files) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
@@ -2119,12 +2154,15 @@ async function gitHooksDir() {
 }
 
 async function traceHookStatus() {
+  const preCommit = await managedHookStatus("pre-commit");
   const prepareCommitMsg = await managedHookStatus("prepare-commit-msg");
   const postCommit = await managedHookStatus("post-commit");
   return {
+    preCommit: preCommit.installed,
     prepareCommitMsg: prepareCommitMsg.installed,
     postCommit: postCommit.installed,
     details: {
+      preCommit,
       prepareCommitMsg,
       postCommit,
     },
@@ -2263,6 +2301,7 @@ Usage:
   trace branch-summary [branch] [--base main] [--json]
   trace pr-body [range] [--json]
   trace release-notes [range] [--json]
+  trace hook pre-commit
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
   trace doctor
   trace check
