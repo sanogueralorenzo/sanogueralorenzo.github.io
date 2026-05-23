@@ -144,6 +144,37 @@ Canonical schema files for this milestone:
 The parser, checker, and graph builder may add optional fields only when the
 schema allows them and existing consumers can ignore them safely.
 
+### Schema-Level Structural Strings
+
+The AST, check, and graph schemas all reject empty structural strings before a
+runtime, editor, or CI adapter interprets the payload. This keeps source
+identity, declaration identity, diagnostics, and graph endpoints stable at the
+contract boundary instead of leaving each consumer to guess which blanks are
+meaningful.
+
+For `intent.ast.v0`, schema-level non-empty strings include top-level `source`,
+every span `file`, package names, type names, goal names, step names, parameter
+names and parameter types when present, context source/value/expression fields,
+trust source labels, raw block names and headers, statement kinds and values,
+capability family/name/constraint strings, capability actions when present,
+grant `action`, `key`, `value`, and `raw` strings, memory scope/retention/body
+strings, retention `raw` text, retention subject and `until` raw text when
+present, effect names, effect families, effect actions when present, effect
+argument values, argument kinds, and effect expressions.
+
+For `intent.check.v0`, schema-level non-empty strings include diagnostic
+`code`, `message`, every diagnostic span `file`, and optional diagnostic
+metadata strings such as `name`, `type`, `step`, `parameter`, `memory`, `scope`,
+`retention`, `effect`, `family`, `action`, `required_family`, `argument`,
+`value`, `allowed`, and `declared_capabilities` entries when those fields are
+present.
+
+Nullable descriptive fields remain nullable where the schema explicitly allows
+them. Examples include goal titles, output types, output type spans, optional
+capability and effect actions, memory names, type definitions, and parsed
+retention subject or lifecycle parts. Null means "not declared"; an empty
+string does not stand in for missing structure.
+
 ### Parse Output: `intent.ast.v0`
 
 Command:

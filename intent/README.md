@@ -87,6 +87,16 @@ Validation expectations:
   `ok: true`.
 - Invalid fixtures must exit non-zero for `check`, emit `ok: false`, and include
   stable diagnostic codes and spans.
+- AST and check schemas reject empty structural strings before downstream tools
+  consume the payload. That includes AST `source` and span `file` values,
+  package, type, goal, step, and parameter identifiers, capability and effect
+  structural names, grant action/key/value/raw fields, diagnostic `code` and
+  `message` fields, diagnostic span files, and string metadata that names a
+  path, resource, effect, family, action, scope, parameter, or step.
+- Nullable descriptive fields remain nullable where the contract explicitly
+  allows them, including goal titles, output types and output type spans,
+  optional capability/effect actions, memory names, type definitions, and
+  parsed retention subjects or lifecycle targets.
 - Graph JSON with `ok: false` is for tooling/debug output only and must not be
   treated as executable by a runtime.
 - Executable graph payloads must have `ok: true` and an empty `diagnostics`
