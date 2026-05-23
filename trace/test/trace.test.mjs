@@ -1231,6 +1231,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     await git(repo, ["init", "--bare", bareRemote]);
     await git(repo, ["remote", "add", "origin", bareRemote]);
     const missingRemoteStatus = JSON.parse((await runTrace(repo, ["checkpoint", "status", "origin"])).stdout);
+    assert.equal(missingRemoteStatus.schema_version, "trace.checkpoint_status.v1");
     assert.equal(missingRemoteStatus.localPresent, true);
     assert.equal(missingRemoteStatus.remotePresent, false);
     assert.equal(missingRemoteStatus.inSync, false);
@@ -1494,6 +1495,7 @@ test("agent add list remove manages local hook adapter configs", async () => {
 
     const status = await runTrace(repo, ["status", "--prefix", join(repo, "trace-bin")]);
     const statusPayload = JSON.parse(status.stdout);
+    assert.equal(statusPayload.schema_version, "trace.status.v1");
     assert.deepEqual(statusPayload.agents.map((agent) => agent.agent), ["codex"]);
     assert.equal(statusPayload.install.ok, true);
     assert.equal(statusPayload.install.installed, false);

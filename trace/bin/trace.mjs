@@ -402,6 +402,7 @@ async function printStatus() {
   const install = await installStatusPayload();
   print({
     ok: true,
+    schema_version: "trace.status.v1",
     repo: root,
     config: configExists,
     install,
@@ -884,6 +885,7 @@ async function checkpointStatus(remote) {
   const status = await checkpointSyncStatus(root, remote);
   print({
     ok: true,
+    schema_version: "trace.checkpoint_status.v1",
     ref: CHECKPOINT_REF,
     remote,
     ...status,

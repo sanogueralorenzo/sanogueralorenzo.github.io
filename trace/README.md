@@ -283,7 +283,7 @@ Adapters may also send a JSON array or newline-delimited JSON objects to `trace 
 
 See `trace/examples/` for complete local workflows covering adapter capture, commit memory review, PR/release summaries, and CI checks.
 
-`trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, `--status` reports the same install state as `trace install status`, and `--uninstall` removes it. `trace install [install|update|uninstall|status] [--prefix <dir>]` provides the same local install flow from the CLI and returns schema-stable JSON for automation. The status output reports whether the expected symlink is installed, whether it points at the current checkout, and the exact install/update/uninstall commands for that prefix. `trace status` includes the same install health alongside repository hooks, adapters, raw storage, and checkpoint ref state.
+`trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, `--status` reports the same install state as `trace install status`, and `--uninstall` removes it. `trace install [install|update|uninstall|status] [--prefix <dir>]` provides the same local install flow from the CLI and returns schema-stable JSON for automation. The status output reports whether the expected symlink is installed, whether it points at the current checkout, and the exact install/update/uninstall commands for that prefix. `trace status` returns schema-stable JSON with the same install health alongside repository hooks, adapters, raw storage, and checkpoint ref state.
 
 `trace agent add all` creates local adapter specs for every supported first-class adapter. `trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create a single spec under `.trace/agents/`. The specs document the command an agent integration should call:
 
@@ -297,7 +297,7 @@ Checkpoint commands keep the raw side of Trace explicit:
 
 - `trace checkpoint list` shows checkpoint payloads stored on `refs/trace/checkpoints`; add `--limit` to inspect only the newest local checkpoint summaries.
 - `trace checkpoint show <checkpoint>` inspects one local checkpoint payload without copying raw data into the project tree; add `--json` when an agent needs the full structured payload.
-- `trace checkpoint status <remote>` compares the local checkpoint ref with a remote ref and prints the exact push/fetch commands needed to sync it.
+- `trace checkpoint status <remote>` compares the local checkpoint ref with a remote ref and returns schema-stable JSON with the exact push/fetch commands needed to sync it.
 - `trace checkpoint verify` checks checkpoint payload shape, commit reachability, and stored SHA-256 integrity metadata.
 - `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref and return a schema-stable before/after status for automation.
 - `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service; add `--dry-run` to validate and preview an import without rewriting `refs/trace/checkpoints`.
