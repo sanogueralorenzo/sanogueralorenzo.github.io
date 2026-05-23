@@ -39,10 +39,11 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(strictDryRunPayload.ok, false);
     assert.equal(strictDryRunPayload.checks.find((check) => check.name === "validation").ok, false);
 
-    const dryRun = JSON.parse((await runTrace(repo, ["record", "--dry-run", "--check-session", "--validation", "node --test"])).stdout);
+    const dryRun = JSON.parse((await runTrace(repo, ["record", "--dry-run", "--check-session", "--validation", "node --test", "--end-session"])).stdout);
     assert.equal(dryRun.ok, true);
     assert.equal(dryRun.schema_version, "trace.record_result.v1");
     assert.equal(dryRun.dryRun, true);
+    assert.equal(dryRun.wouldEndSession, true);
     assert.match(dryRun.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
     assert.equal(dryRun.sessionCheck.ok, true);
     assert.match(dryRun.markdown, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
@@ -62,7 +63,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const missingDryRunCheckpoint = await run(repo, ["git", "rev-parse", "--verify", "refs/trace/checkpoints"], fixedEnv);
     assert.notEqual(missingDryRunCheckpoint.exitCode, 0);
 
-    const record = await runTrace(repo, ["record", "--check-session", "--validation", "node --test"]);
+    const record = await runTrace(repo, ["record", "--check-session", "--validation", "node --test", "--end-session"]);
     const payload = JSON.parse(record.stdout);
 
     assert.equal(payload.ok, true);
@@ -75,6 +76,13 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(payload.checkpointPreview.schema_version, "trace.record_checkpoint_preview.v1");
     assert.equal(payload.checkpointPreview.integrity, true);
     assert.equal(payload.checkpointPreview.checkpoint_id, payload.checkpoint);
+    assert.deepEqual(payload.sessionEnd, { ended: payload.session, current: null, event: "note" });
+
+    const currentAfterRecord = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
+    assert.equal(currentAfterRecord.current, null);
+    const recordedSession = JSON.parse((await runTrace(repo, ["session", "show", payload.session])).stdout);
+    assert.equal(recordedSession.events.at(-1).source, "trace-record");
+    assert.equal(recordedSession.events.at(-1).message, "session recorded");
 
     const strictMemoryCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--strict-memory"])).stdout);
     assert.equal(strictMemoryCi.ok, true);
@@ -274,7 +282,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(sessionRecapJson.schema_version, "trace.session_recap.v1");
     assert.equal(sessionRecapJson.field, "all");
     assert.equal(sessionRecapJson.session, payload.session);
-    assert.equal(sessionRecapJson.events, 4);
+    assert.equal(sessionRecapJson.events, 5);
     assert.equal(sessionRecapJson.commitMemoryEvents, 4);
     assert.deepEqual(sessionRecapJson.sections.agents, []);
     assert.deepEqual(sessionRecapJson.sections.lifecycle, ["total: 4", "prompt: 1", "response: 1", "tool: 1", "decision: 1"]);

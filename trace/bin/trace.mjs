@@ -222,7 +222,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run", "check-session", "strict", "strict-memory", "all", "agents", "checkpoints", "install", "update", "uninstall", "status"].includes(key)) {
+    if (["json", "help", "dry-run", "check-session", "strict", "strict-memory", "end-session", "all", "agents", "checkpoints", "install", "update", "uninstall", "status"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -2408,6 +2408,7 @@ async function recordMemory() {
       markdown: memory.markdown,
       memoryPreview: recordMemoryPreview(memory.markdown),
       checkpointPreview: recordCheckpointPreview(memory.rawCheckpoint),
+      wouldEndSession: Boolean(args["end-session"]),
     };
     if (sessionReport) {
       output.sessionCheck = sessionReport;
@@ -2419,6 +2420,7 @@ async function recordMemory() {
   await mkdir(dirname(memoryPath), { recursive: true });
   await writeFile(memoryPath, memory.markdown);
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
+  const sessionEnd = args["end-session"] ? await endRecordedSession(root, sessionId) : null;
   const output = {
     ok: true,
     schema_version: "trace.record_result.v1",
@@ -2428,11 +2430,33 @@ async function recordMemory() {
     session: sessionId,
     memoryPreview: recordMemoryPreview(memory.markdown),
     checkpointPreview: recordCheckpointPreview(memory.rawCheckpoint),
+    sessionEnd,
   };
   if (sessionReport) {
     output.sessionCheck = sessionReport;
   }
   print(output);
+}
+
+async function endRecordedSession(root, sessionId) {
+  if (!sessionId) {
+    return { ended: null, current: await readCurrentSession(root).catch(() => null), reason: "record has no session" };
+  }
+
+  const current = await readCurrentSession(root).catch(() => null);
+  if (current !== sessionId) {
+    return { ended: null, current, reason: "recorded session is not current" };
+  }
+
+  const event = await appendEvent(root, {
+    sessionId,
+    event: "note",
+    role: "system",
+    source: "trace-record",
+    message: "session recorded",
+  });
+  await rm(await currentSessionPath(root), { force: true });
+  return { ended: sessionId, current: null, event: event.event };
 }
 
 async function recordSessionCheck(root, sessionId) {
@@ -3506,7 +3530,7 @@ ${handoff}
 }
 
 function includeInCommitMemory(event) {
-  return event.source !== "trace-session";
+  return !["trace-session", "trace-record"].includes(event.source);
 }
 
 function memoryAgentItems(events) {
@@ -4088,7 +4112,7 @@ Usage:
   trace redact remove <label>
   trace coverage [range] [--agents] [--checkpoints] [--strict-memory]
   trace ci [range] [--agents] [--checkpoints] [--strict-memory]
-  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--strict] [--dry-run]
+  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--strict] [--end-session] [--dry-run]
   trace show [commit] [--json] [--output FILE]
   trace review [--all] [--json] [--output FILE]
   trace log [--limit 20] [--json]
