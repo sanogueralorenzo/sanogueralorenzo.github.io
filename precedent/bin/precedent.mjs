@@ -1086,6 +1086,14 @@ async function repairBeforeRetryEventHook(event) {
 
       suppressedRepairs = repairSuppressionReasonsForCandidate(allEvents, candidate);
       if (suppressedRepairs.length > 0) {
+        await appendJsonLine(join(stateDir, "events.jsonl"), {
+          type: "hook_event",
+          receivedAt: new Date().toISOString(),
+          hook: event.hook,
+          sessionId,
+          suppressedRepairs,
+          attributedPrecedents: candidate.attributedPrecedents,
+        });
         return;
       }
 
@@ -1180,17 +1188,30 @@ async function repairAfterRetryEventHook(event) {
           };
         } else {
           const retryEvents = await readSessionEvents(stateDir, sessionId);
-          const retryCandidate = latestRepairCandidate(retryEvents);
-          const cleared = retryCandidate === null;
-          repairReceipt = {
-            id: repairId,
-            repairSessionId: repairEvent.sessionId ?? repairSessionId,
-            retrySessionId: sessionId,
-            status: cleared ? "cleared" : "still_failing",
-            cleared,
-            repairResolved: true,
-            failureSource: retryCandidate?.repairSource ?? null,
-          };
+          if (!hasRepairRetryEvidence(retryEvents)) {
+            suppressedRepairs = [{ reason: "missing_retry_evidence" }];
+            repairReceipt = {
+              id: repairId,
+              repairSessionId: repairEvent.sessionId ?? repairSessionId,
+              retrySessionId: sessionId,
+              status: "unresolved",
+              cleared: false,
+              repairResolved: false,
+              failureSource: null,
+            };
+          } else {
+            const retryCandidate = latestRepairCandidate(retryEvents);
+            const cleared = retryCandidate === null;
+            repairReceipt = {
+              id: repairId,
+              repairSessionId: repairEvent.sessionId ?? repairSessionId,
+              retrySessionId: sessionId,
+              status: cleared ? "cleared" : "still_failing",
+              cleared,
+              repairResolved: true,
+              failureSource: retryCandidate?.repairSource ?? null,
+            };
+          }
         }
       }
 
@@ -1377,6 +1398,7 @@ function buildManifest(runtime, stateDir) {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"],
         output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairId", "repairBlock", "repairSource", "suppressedRepairs"],
+        injectFrom: "repairBlock",
         timeoutMs,
         failurePolicy,
       },
@@ -1601,6 +1623,7 @@ async function reportState() {
     replays,
     events: events.length,
     artifactCounts,
+    repairHealth: repairHealthSummary(events, precedents),
     precedentHealth: precedents.map((precedent) => ({
       id: precedent.id,
       ...outcomeSummaryForPrecedent(events, precedent.id),
@@ -1622,6 +1645,7 @@ async function checkState() {
   await checkJsonLinesInDir(checks, join(stateDir, "sessions"), "session");
   await checkReplayArtifacts(checks, join(stateDir, "replays"));
   await checkPromotedPrecedents(checks, stateDir);
+  await checkRepairReceipts(checks, stateDir);
   await checkNoRawSecrets(checks, stateDir);
   await checkManifestBuilds(checks);
   if (args.strict) {
@@ -2172,6 +2196,28 @@ function repairResetTimeForPrecedent(events, id) {
   );
 }
 
+function repairHealthSummary(events, precedents) {
+  const receipts = events.filter((event) => event.hook === "repair.after_retry" && event.repairReceipt);
+  const suppressedRepairEvents = events.filter((event) =>
+    event.hook === "repair.before_retry"
+    && Array.isArray(event.suppressedRepairs)
+    && event.suppressedRepairs.some((item) => item.reason === "repair_efficacy_suppressed")
+  );
+  const lifecycles = precedents.map((precedent) => lifecycleForPrecedent(events, precedent.id));
+  const isRepairLifecycle = (lifecycle, status) =>
+    lifecycle.status === status && lifecycle.retireReasons.some((reason) => reason.includes("repair failure"));
+
+  return {
+    attempts: receipts.length,
+    cleared: receipts.filter((event) => event.repairReceipt.repairResolved === true && event.repairReceipt.cleared === true).length,
+    stillFailing: receipts.filter((event) => event.repairReceipt.repairResolved === true && event.repairReceipt.cleared === false).length,
+    unresolved: receipts.filter((event) => event.repairReceipt.repairResolved !== true).length,
+    efficacySuppressed: suppressedRepairEvents.length,
+    staleByRepair: lifecycles.filter((lifecycle) => isRepairLifecycle(lifecycle, "stale")).length,
+    retiredByRepair: lifecycles.filter((lifecycle) => isRepairLifecycle(lifecycle, "retired")).length,
+  };
+}
+
 function eventTime(event) {
   const timestamp = Date.parse(event?.receivedAt ?? event?.observedAt ?? "");
   return Number.isFinite(timestamp) ? timestamp : 0;
@@ -2544,6 +2590,14 @@ async function findRepairBeforeRetryEvent(stateDir, repairId, repairSessionId) {
 
   return (await readSessionEvents(stateDir, event.sessionId))
     .find((item) => item.hook === "repair.before_retry" && item.repairId === repairId) ?? event;
+}
+
+function hasRepairRetryEvidence(events) {
+  return events.some((event) => (
+    event.hook === "validation.after_run"
+    || event.hook === "diff.after_edit"
+    || event.hook === "outcome.after_task"
+  ));
 }
 
 function repairCandidateForEvent(event) {
@@ -3984,6 +4038,62 @@ async function checkPromotedPrecedents(checks, stateDir) {
   if (!checks.some((check) => check.name === "promoted_precedent" && !check.ok)) {
     checks.push({ ok: true, name: "promoted_precedent", file: join(stateDir, "precedents.jsonl") });
   }
+}
+
+async function checkRepairReceipts(checks, stateDir) {
+  const file = join(stateDir, "events.jsonl");
+  let events = [];
+  try {
+    events = await readJsonLinesForCheck(file);
+  } catch (error) {
+    checks.push({ ok: false, name: "repair_receipt", file, message: error.message });
+    return;
+  }
+
+  const repairEvents = events.filter((event) => event.hook === "repair.before_retry" && event.repairId);
+  const receipts = events.filter((event) => event.hook === "repair.after_retry" && event.repairReceipt);
+  const missingRepairIds = [];
+  const missingRetryEvidence = [];
+  const unresolved = [];
+
+  for (const event of receipts) {
+    const receipt = event.repairReceipt;
+    const repairEvent = repairEvents.find((item) =>
+      item.repairId === receipt.id
+      && (!receipt.repairSessionId || item.sessionId === receipt.repairSessionId)
+    );
+
+    if (receipt.repairResolved === true && !repairEvent) {
+      missingRepairIds.push(receipt.id ?? "(missing)");
+    }
+
+    if (receipt.repairResolved === true && !events.some((item) =>
+      item.sessionId === receipt.retrySessionId
+      && (item.hook === "validation.after_run" || item.hook === "diff.after_edit" || item.hook === "outcome.after_task")
+    )) {
+      missingRetryEvidence.push(receipt.id ?? "(missing)");
+    }
+
+    if (receipt.repairResolved !== true) {
+      unresolved.push(receipt.id ?? "(missing)");
+    }
+  }
+
+  checks.push({
+    ok: missingRepairIds.length === 0 && missingRetryEvidence.length === 0 && unresolved.length === 0,
+    name: "repair_receipt",
+    file,
+    missingRepairIds,
+    missingRetryEvidence,
+    unresolved,
+    message: unresolved.length > 0
+      ? "unresolved repair receipt(s) found"
+      : missingRepairIds.length > 0
+        ? "resolved repair receipt references unknown repair id"
+        : missingRetryEvidence.length > 0
+          ? "resolved repair receipt lacks retry evidence"
+          : undefined,
+  });
 }
 
 async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {

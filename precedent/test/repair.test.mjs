@@ -139,6 +139,9 @@ test("repair.after_retry records cleared repair receipts in report and explain",
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(report.repairHealth.attempts, 1);
+    assert.equal(report.repairHealth.cleared, 1);
+    assert.equal(report.repairHealth.unresolved, 0);
     assert.equal(health.repairClearedCount, 1);
     assert.equal(health.repairStillFailingCount, 0);
     assert.equal(health.repairSuccessRate, 1);
@@ -178,6 +181,8 @@ test("repair.after_retry records still-failing repair receipts", async () => {
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(report.repairHealth.attempts, 1);
+    assert.equal(report.repairHealth.stillFailing, 1);
     assert.equal(health.repairClearedCount, 0);
     assert.equal(health.repairStillFailingCount, 1);
   } finally {
@@ -201,6 +206,34 @@ test("repair.after_retry fails open without a repair id", async () => {
   }
 });
 
+test("repair.after_retry stays unresolved without retry evidence", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await recordRepairableDiff(stateDir, "failed-session");
+    const repair = await repairBeforeRetry(stateDir, "failed-session");
+    const receipt = await repairAfterRetry(stateDir, "retry-empty", repair.repairId, "failed-session", ["prec_webhook_replay_boundary"]);
+
+    assert.equal(receipt.recorded, true);
+    assert.equal(receipt.repairReceipt.status, "unresolved");
+    assert.equal(receipt.repairReceipt.repairResolved, false);
+    assert.equal(receipt.suppressedRepairs[0].reason, "missing_retry_evidence");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(report.repairHealth.attempts, 1);
+    assert.equal(report.repairHealth.unresolved, 1);
+    assert.equal(health.repairAttemptCount, 0);
+
+    const check = await runProcess(["check", "--state-dir", stateDir, "--json"]);
+    const payload = JSON.parse(check.stdout);
+    assert.equal(check.exitCode, 1);
+    assert.ok(payload.checks.some((item) => item.name === "repair_receipt" && item.unresolved.includes(repair.repairId)));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("repair.after_retry handles unknown repair ids without polluting health", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
 
@@ -215,6 +248,7 @@ test("repair.after_retry handles unknown repair ids without polluting health", a
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(report.repairHealth.unresolved, 1);
     assert.equal(health.repairAttemptCount, 0);
     assert.equal(health.repairStillFailingCount, 0);
   } finally {
@@ -243,6 +277,7 @@ test("repair efficacy suppresses after two still-failing receipts and resets aft
     report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
     assert.equal(health.status, "stale");
+    assert.equal(report.repairHealth.staleByRepair, 1);
     assert.equal(health.repairStillFailingCount, 2);
     assert.equal(health.repairStillFailingSinceLastClearOrSuccessCount, 2);
     assert.ok(health.retireReasons.some((reason) => reason.includes("repair failure")));
@@ -254,6 +289,8 @@ test("repair efficacy suppresses after two still-failing receipts and resets aft
     assert.equal(suppressedRepair.suppressedRepairs[0].reason, "repair_efficacy_suppressed");
     assert.equal(suppressedRepair.suppressedRepairs[0].repairStillFailingSinceLastClearOrSuccessCount, 2);
     assert.equal(suppressedRepair.suppressedRepairs[0].threshold, 2);
+    report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.repairHealth.efficacySuppressed, 1);
 
     context = await contextForWebhook(stateDir);
     assert.equal(context.injections.length, 0);
@@ -384,6 +421,16 @@ async function promoteWebhookPrecedent(stateDir) {
 }
 
 function runJson(args, stdinJson = null) {
+  return runProcess(args, stdinJson).then((result) => {
+    if (result.exitCode !== 0) {
+      throw new Error(`precedent ${args.join(" ")} failed\n${result.stderr}`);
+    }
+
+    return JSON.parse(result.stdout);
+  });
+}
+
+function runProcess(args, stdinJson = null) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {
       cwd: repoRoot,
@@ -402,12 +449,7 @@ function runJson(args, stdinJson = null) {
     });
     child.on("error", reject);
     child.on("close", (exitCode) => {
-      if (exitCode !== 0) {
-        reject(new Error(`precedent ${args.join(" ")} failed\n${stderr}`));
-        return;
-      }
-
-      resolvePromise(JSON.parse(stdout));
+      resolvePromise({ exitCode, stdout, stderr });
     });
 
     if (stdinJson) {
