@@ -12,9 +12,9 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `ImportDecl`: imported package or symbol path.
 - `GoalDecl`: root executable unit, spanned inputs, output, clauses, and body
   blocks.
-- `ContextDecl`: named source of truth with structured call data, resource
-  expression, freshness policy, access mode, trust zone/source, and optional
-  capability coverage.
+- `ContextDecl`: named source of truth with structured call data, argument
+  source spans, resource expression, freshness policy, access mode, trust
+  zone/source, and optional capability coverage.
 - `CapabilityDecl`: named permission grant with family, action, constraints,
   structured grant objects, and optional approval policy.
 - `CapabilityGrant`: structured capability body grant with action path,
@@ -37,8 +37,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `InvariantBlock`: always-on rules evaluated across completion, effects,
   checkpoints, and step requirement checks.
 - `EffectDecl`: reusable typed effect signature.
-- `EffectCall`: parsed effect request with callee, arguments, source span, and
-  raw text.
+- `EffectCall`: parsed effect request with callee, arguments, argument source
+  spans, source span, and raw text.
 - `PolicyDecl`: trust, denial, approval, and flow rules.
 - `TrustMark`: checker-owned trust metadata for a value, effect argument, graph
   node, or graph edge.
@@ -105,6 +105,10 @@ Rules:
   parameter object itself.
 - Graph node and edge data that embeds parameters keeps those parameter spans
   for provenance.
+- Parsed call arguments keep `argSpans` alongside `args` and `argKinds`.
+  `argSpans` maps each positional key such as `_0` or named key such as `path`,
+  `command`, `url`, or `branch` to the source span for diagnostics and runtime
+  provenance.
 - Structured capability grants keep `span` from the exact grant line that
   caused the grant object, not from the surrounding capability block.
 
@@ -425,6 +429,8 @@ validate capability coverage before graph emission.
       "span": "loc.22"
     }
   ],
+  "argKinds": ["string"],
+  "argSpans": { "command": "loc.22" },
   "raw": "shell.exec(command: \"npm test\")",
   "span": "loc.21"
 }
@@ -433,6 +439,10 @@ validate capability coverage before graph emission.
 Rules:
 
 - Positional and named arguments are retained in source order.
+- `argKinds` retain each argument kind before checker normalization.
+- `argSpans` maps `_0`, `_1`, and other positional keys or named argument keys
+  to the exact argument token span. It is required for context calls, effect
+  calls, and verification shell calls.
 - Literal string, number, and boolean values are normalized for checking while
   retaining raw token spans.
 - Nested calls may be parsed as argument values, but the first capability
@@ -490,7 +500,8 @@ context web(url: "https://docs.example.com/guide")
 ```
 
 The parsed `ContextDecl` retains the source name, ordered args, argKinds,
-original expression text, source span, and checker-owned trust metadata:
+argSpans, original expression text, source span, and checker-owned trust
+metadata:
 
 ```json
 {
@@ -498,6 +509,7 @@ original expression text, source span, and checker-owned trust metadata:
   "source": "repo",
   "args": [{ "name": "path", "value": "./", "span": "loc.6" }],
   "argKinds": ["string"],
+  "argSpans": { "path": "loc.6" },
   "expression": "repo(path: \"./\")",
   "trust": { "zone": "trusted", "source": "local" }
 }
@@ -508,6 +520,8 @@ Rules:
 - `source` is the callee path from the context call.
 - `args` retain positional and named argument values in source order.
 - `argKinds` retain each argument kind before checker normalization.
+- `argSpans` maps positional keys such as `_0` and named keys such as `path`,
+  `url`, or `domain` to the source span of that argument.
 - `expression` is the original context call text.
 - Repo contexts are trusted local source values in the first checker prototype
   and are not capability-enforced yet.
@@ -525,7 +539,7 @@ Rules:
   matching `Capability` node to the `Context` node.
 - Browser/page state is untrusted external source data in the first checker
   prototype.
-- Graph `Context` nodes carry the same source name, args, argKinds,
+- Graph `Context` nodes carry the same source name, args, argKinds, argSpans,
   expression, and trust zone/source data as their originating `ContextDecl`.
 
 ## Step Requirements
@@ -921,6 +935,8 @@ Rules:
   are verification shell requests, not plan step effects.
 - Verification shell requests use the same command argument normalization as
   shell command constraints.
+- Verification shell requests preserve `args`, `argKinds`, and `argSpans` on
+  the graph `Check` node effect data.
 - A verification shell request is valid only when an in-scope capability grants
   shell `run` for the normalized command.
 - A successful binding creates an `authorizes` edge from the matching
@@ -1042,6 +1058,7 @@ node id. It is an intermediate contract for a local runtime.
         "source": "repo",
         "args": [{ "name": "path", "value": "./", "span": "loc.6" }],
         "argKinds": ["string"],
+        "argSpans": { "path": "loc.6" },
         "expression": "repo(path: \"./\")",
         "trust": { "zone": "trusted", "source": "local" }
       }
@@ -1167,6 +1184,8 @@ node id. It is an intermediate contract for a local runtime.
         "family": "shell",
         "action": "run",
         "args": { "command": "npm test" },
+        "argKinds": { "command": "string" },
+        "argSpans": { "command": "loc.16" },
         "expression": "ShellExec(command: \"npm test\")",
         "trust": {
           "sinks": [
@@ -1215,9 +1234,18 @@ node id. It is an intermediate contract for a local runtime.
     {
       "id": "goal:ship_checkout_fix:verify:0",
       "kind": "Check",
-      "label": "run_tests.exit_code == 0",
+      "label": "shell(\"npm test\").exit_code == 0",
       "span": "loc.19",
-      "data": {}
+      "data": {
+        "effect": {
+          "family": "shell",
+          "action": "run",
+          "args": { "command": "npm test" },
+          "argKinds": { "_0": "string" },
+          "argSpans": { "_0": "loc.19" },
+          "expression": "shell(\"npm test\")"
+        }
+      }
     },
     {
       "id": "goal:ship_checkout_fix:completion",
@@ -1374,9 +1402,14 @@ also non-executable because the checker must emit
 `INTENT_MEMORY_RETENTION_INVALID`.
 
 Context nodes carry the same structured source call data as `ContextDecl`:
-`source`, `args`, `argKinds`, `expression`, and `trust`. Repo, doc, and file
-context nodes use trusted local trust metadata. Web context nodes and
+`source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Repo, doc,
+and file context nodes use trusted local trust metadata. Web context nodes and
 browser/page state use untrusted external trust metadata.
+
+Effect nodes carry normalized effect call data: `family`, `action`, `args`,
+`argKinds`, `argSpans`, `expression`, and trust metadata when applicable.
+Verification shell `Check` nodes carry the same effect data under
+`data.effect`, so diagnostics can point to the exact denied command argument.
 
 Capability nodes carry normalized grants and any approval policy parsed from
 the capability block. A body line of `approval required` is represented as

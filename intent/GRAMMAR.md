@@ -92,8 +92,9 @@ deny_stmt        = "deny", s, raw_expr, line_end ;
 
 `context` is a single-line declaration in this milestone. The `context <call>`
 form preserves the parsed call as structured source data: source name, ordered
-arguments, argument kinds, original expression text, and checker-owned trust
-zone/source. Context declarations that describe repo resources are treated as
+arguments, argument kinds, argument source spans, original expression text, and
+checker-owned trust zone/source. Context declarations that describe repo
+resources are treated as
 trusted local sources by the first checker prototype and are not
 capability-enforced yet. Structured `context web(...)` declarations are treated
 as untrusted external sources and must be covered by an in-scope
@@ -245,7 +246,8 @@ Deploy(target: "staging")
 Inside `verify` requirements, `shell("npm test")` and
 `shell(command: "npm test")` are parseable verification shell calls. The checker
 binds them to declared shell run capability grants instead of treating them as
-opaque predicate text.
+opaque predicate text. Verification shell calls preserve ordered args, argKinds,
+and argSpans the same way as effect calls.
 
 Goal-level `verify` requirements are pure assertions by default. A `verify`
 requirement may include only predicate logic and supported verification effects,
@@ -349,7 +351,7 @@ The parser emits names and type reference strings; the checker owns binding.
 - Step params become `input` graph nodes with step scope.
 - A bound step input creates a `data` edge from the matching goal input or
   earlier step output to that step input node.
-- Context calls preserve source name, args, argKinds, expression, and
+- Context calls preserve source name, args, argKinds, argSpans, expression, and
   trust zone/source for checker and graph output.
 - Repo context values are trusted local source values and are not
   capability-enforced yet.
@@ -399,6 +401,10 @@ The parser emits names and type reference strings; the checker owns binding.
 - Verify `shell("command")` and `shell(command: "command")` requirements bind
   to in-scope shell run capability grants. If no declared grant covers the
   normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.
+- Context calls, effect calls, and verification shell calls carry `argSpans`
+  alongside `args` and `argKinds`. `argSpans` maps argument keys such as `_0`,
+  `path`, `command`, `url`, or `branch` to the source span of the argument token
+  that should receive provenance and diagnostics.
 - Goal-level `verify` requirements are pure assertions except for supported
   verification effects. Side-effect calls such as `FileWrite`, `GitPush`, web
   reads, git commits, deploys, or ticket updates inside `verify` emit
