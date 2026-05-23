@@ -10,6 +10,10 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Review [PUBLISHING.md](PUBLISHING.md) before changing package publication settings.
 - [ ] Copy [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml) into `.github/workflows/` before publication CI.
 - [ ] Use [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) as the npm publication shape when releases need `needs: package-manifest`.
+- [ ] Run `(cd jury && npm pack --dry-run --json) > jury-pack-dry-run.json` after the package manifest check.
+- [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.
+- [ ] Record the dry-run tarball name from `jury-pack-dry-run.json` as `tarballName`, for example `sanogueralorenzo-jury-0.1.0.tgz`.
+- [ ] Confirm `tarballName` matches the recorded `packageVersion` before `npm publish --provenance --access public`.
 - [ ] Store the npm publish token as `secrets.NPM_TOKEN` with scope limited to publishing `@sanogueralorenzo/jury`.
 - [ ] Expose `NODE_AUTH_TOKEN` only in the publish job after `needs: package-manifest` passes.
 - [ ] Keep `permissions.id-token: write` and `npm publish --provenance --access public` enabled for npm provenance.

@@ -49,6 +49,17 @@ The manifest check runs `npm pack --dry-run --json` from the package root, equiv
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI reports a package manifest failure during release packaging.
 
+## Dry-Run Publication Record
+
+Before npm publication, save the pack dry run output and record the exact package identity that will be published:
+
+```shell
+(cd jury && npm pack --dry-run --json) > jury-pack-dry-run.json
+node -e "const [pack]=JSON.parse(require('node:fs').readFileSync('jury-pack-dry-run.json','utf8')); console.log(JSON.stringify({packageVersion: pack.version, tarballName: pack.filename}, null, 2));"
+```
+
+The release checklist must record both `packageVersion` and `tarballName` before any `npm publish --provenance --access public` step can run. For `@sanogueralorenzo/jury@0.1.0`, the expected tarball name is `sanogueralorenzo-jury-0.1.0.tgz`. If the version or tarball name does not match the intended release, stop before exposing `NODE_AUTH_TOKEN`.
+
 ## Reusable CI Step
 
 Copy [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml) into `.github/workflows/` and call it before the publication job:

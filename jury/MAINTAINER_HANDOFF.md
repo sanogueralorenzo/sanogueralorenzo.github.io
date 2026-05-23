@@ -31,7 +31,7 @@ npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 npm --prefix jury run package:manifest:check
 ```
 
-The test suite covers the CI adoption guide, package publication notes, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -51,4 +51,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a dry-run release publication checklist that records the exact package version and tarball name before npm publication.
+Add a CI artifact handoff for the dry-run release publication record before the publish job consumes npm credentials.

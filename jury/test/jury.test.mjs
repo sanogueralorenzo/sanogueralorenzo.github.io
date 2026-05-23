@@ -1036,6 +1036,11 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes(release.packagePublication.releaseWorkflow));
   assert.ok(publicationNotes.includes(release.packagePublication.manifestCheckCommand));
   assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
+  assert.ok(publicationNotes.includes("Dry-Run Publication Record"));
+  assert.ok(publicationNotes.includes("jury-pack-dry-run.json"));
+  assert.ok(publicationNotes.includes("packageVersion"));
+  assert.ok(publicationNotes.includes("tarballName"));
+  assert.ok(publicationNotes.includes("sanogueralorenzo-jury-0.1.0.tgz"));
   assert.ok(publicationNotes.includes("secrets.NPM_TOKEN"));
   assert.ok(publicationNotes.includes("NODE_AUTH_TOKEN"));
   assert.ok(publicationNotes.includes("permissions.id-token: write"));
@@ -1063,6 +1068,30 @@ test("release metadata references existing schemas, exports, and commands", asyn
   const manifestPayload = JSON.parse(manifestCheck.stdout);
   assert.equal(manifestPayload.ok, true);
   assert.deepEqual(manifestPayload.missing, []);
+
+  const dryRunDir = await tempState();
+  const dryRunPath = join(dryRunDir, "jury-pack-dry-run.json");
+  try {
+    const dryRun = await runShell(`(cd jury && npm pack --dry-run --json) > ${shellQuote(dryRunPath)}`);
+    assert.equal(dryRun.exitCode, 0, dryRun.stderr);
+
+    const [pack] = JSON.parse(await readFile(dryRunPath, "utf8"));
+    const expectedRecord = {
+      packageVersion: packageJson.version,
+      tarballName: `sanogueralorenzo-jury-${packageJson.version}.tgz`,
+    };
+    const recordScript = `const [pack]=JSON.parse(require('node:fs').readFileSync(${JSON.stringify(dryRunPath)},'utf8')); console.log(JSON.stringify({packageVersion: pack.version, tarballName: pack.filename}, null, 2));`;
+    const recordCommand = `node -e ${shellQuote(recordScript)}`;
+    const record = await runShell(recordCommand);
+
+    assert.equal(pack.version, expectedRecord.packageVersion);
+    assert.equal(pack.filename, expectedRecord.tarballName);
+    assert.equal(record.exitCode, 0, record.stderr);
+    assert.deepEqual(JSON.parse(record.stdout), expectedRecord);
+  } finally {
+    await rm(dryRunDir, { recursive: true, force: true });
+  }
+
   for (const relativePath of release.packagePublication.requiredFiles) {
     assert.ok(manifestPayload.checked_paths.includes(relativePath), `manifest check should cover ${relativePath}`);
   }
@@ -1897,6 +1926,10 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("ciAdoption"));
   assert.ok(checklist.includes("package publication"));
   assert.ok(checklist.includes("package:manifest:check"));
+  assert.ok(checklist.includes("jury-pack-dry-run.json"));
+  assert.ok(checklist.includes("packageVersion"));
+  assert.ok(checklist.includes("tarballName"));
+  assert.ok(checklist.includes("sanogueralorenzo-jury-0.1.0.tgz"));
   assert.ok(checklist.includes("secrets.NPM_TOKEN"));
   assert.ok(checklist.includes("@sanogueralorenzo/jury"));
   assert.ok(checklist.includes("NODE_AUTH_TOKEN"));
@@ -1989,6 +2022,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /downloads the signed producer artifact/);
   assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
   assert.match(handoff, /package publication notes/);
+  assert.match(handoff, /dry-run release publication checklist guidance/);
   assert.match(handoff, /npm token and provenance release checklist guidance/);
   assert.match(handoff, /CI adoption metadata contract/);
   assert.match(handoff, /release metadata/);
@@ -1996,7 +2030,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check/);
-  assert.match(handoff, /dry-run release publication checklist/);
+  assert.match(handoff, /dry-run release publication record/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
