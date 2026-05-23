@@ -21,12 +21,14 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
   subject, until condition, raw text, and source span.
 - `PlanBlock`: ordered list of executable steps.
 - `StepDecl`: typed inputs, output, step-local requirements, step approval
-  gates, step checkpoint statements, declared effects, timeout, retry policy,
+  gates, step checkpoint statements, step policy statements, declared effects,
   checks, and body expression.
 - `StepApproval`: structured `approval ...` step-body statement with raw
   approval text and source span.
 - `StepCheckpoint`: structured `checkpoint ...` step-body statement with raw
   checkpoint text and source span.
+- `StepPolicy`: structured `timeout ...` or `retry ...` step-body statement
+  with policy kind, raw policy text, and source span.
 - `VerifyBlock`: required or advisory completion checks.
 - `InvariantBlock`: always-on rules evaluated across completion, effects,
   checkpoints, and step requirement checks.
@@ -309,6 +311,8 @@ blocking diagnostics.
   containing step.
 - Parse step-body `checkpoint ...` lines as step checkpoints owned by their
   containing step.
+- Parse step-body `timeout ...` and `retry ...` lines as step policy statements
+  owned by their containing step.
 - Enforce invariant placement, emit invariant statements as `Invariant` nodes,
   and attach those nodes to the graph as guards.
 - Reject unsafe trust flows, including untrusted data flowing into executable
@@ -320,7 +324,7 @@ blocking diagnostics.
 - Emit `INTENT_MEMORY_UNSCOPED` when a memory block has no parsed
   `retain ... until ...` retention rule.
 - Build dependency edges from step inputs, produced values, checks, approvals,
-  checkpoints, and completion gates.
+  checkpoints, policies, and completion gates.
 - Emit step requirements as `Check` nodes with `requires` edges into the owning
   step and `gates` edges to the owning goal.
 - Emit step approval gates as `Approval` nodes, list them on the owning `Step`
@@ -328,6 +332,9 @@ blocking diagnostics.
   node to the owning `Step`.
 - Emit step checkpoints as `Checkpoint` nodes, list them on the owning `Step`
   node data, and connect each one with a `checkpoints` edge from that `Step`.
+- Emit step timeout and retry policies as `Policy` nodes, list them on the
+  owning `Step` node data, and connect each one with a `timeouts` or `retries`
+  edge from that `Policy` node to the owning `Step`.
 - Emit each invariant statement as an `Invariant` node with `guards` edges to
   completion and to every effect, checkpoint, and step requirement check in the
   same goal.
@@ -473,6 +480,36 @@ Rules:
   checkpoint `Checkpoint` node.
 - Step checkpoints do not create `verifies` edges to the goal `Completion`
   node and do not replace memory retention rules.
+
+## Step Policies
+
+Step bodies may contain `timeout ...` and `retry ...` lines that declare
+execution policy for only that step:
+
+```intent
+plan {
+  step run_tests(patch: GitDiff) -> TestReport {
+    timeout 2m
+    retry max_attempts: 3, backoff: exponential
+  }
+}
+```
+
+Rules:
+
+- Step-body timeout and retry lines are parsed into the owning `StepDecl` as
+  step policy statements.
+- `timeout` preserves the raw duration text; `retry` preserves the raw policy
+  text.
+- Each step policy emits one graph `Policy` node whose span is the policy line.
+- The owning `Step` node data lists timeout and retry summaries in source
+  order.
+- The graph builder creates a `timeouts` edge from each timeout `Policy` node
+  to the owning `Step`.
+- The graph builder creates a `retries` edge from each retry `Policy` node to
+  the owning `Step`.
+- Step policies do not create `verifies` edges to the goal `Completion` node
+  and do not replace approval, checkpoint, or capability policy requirements.
 
 ## Invariant Guards
 
@@ -804,7 +841,9 @@ node id. It is an intermediate contract for a local runtime.
         "effects": ["ShellExec"],
         "approvals": ["release_manager_review"],
         "requirements": [],
-        "checkpoints": ["test_report_written"]
+        "checkpoints": ["test_report_written"],
+        "timeouts": ["2m"],
+        "retries": ["max_attempts: 3, backoff: exponential"]
       }
     },
     {
@@ -827,6 +866,30 @@ node id. It is an intermediate contract for a local runtime.
         "scope": "step",
         "ownerStep": "run_tests",
         "checkpoint": "test_report_written"
+      }
+    },
+    {
+      "id": "goal:ship_checkout_fix:step:run_tests:policy:timeout:0",
+      "kind": "Policy",
+      "label": "timeout 2m",
+      "span": "loc.16",
+      "data": {
+        "scope": "step",
+        "ownerStep": "run_tests",
+        "kind": "timeout",
+        "duration": "2m"
+      }
+    },
+    {
+      "id": "goal:ship_checkout_fix:step:run_tests:policy:retry:0",
+      "kind": "Policy",
+      "label": "retry max_attempts: 3, backoff: exponential",
+      "span": "loc.16",
+      "data": {
+        "scope": "step",
+        "ownerStep": "run_tests",
+        "kind": "retry",
+        "policy": "max_attempts: 3, backoff: exponential"
       }
     },
     {
@@ -949,6 +1012,16 @@ node id. It is an intermediate contract for a local runtime.
       "kind": "checkpoints"
     },
     {
+      "from": "goal:ship_checkout_fix:step:run_tests:policy:timeout:0",
+      "to": "goal:ship_checkout_fix:step:run_tests",
+      "kind": "timeouts"
+    },
+    {
+      "from": "goal:ship_checkout_fix:step:run_tests:policy:retry:0",
+      "to": "goal:ship_checkout_fix:step:run_tests",
+      "kind": "retries"
+    },
+    {
       "from": "goal:ship_checkout_fix:step:run_tests:requirement:0",
       "to": "goal:ship_checkout_fix",
       "kind": "gates"
@@ -1004,13 +1077,13 @@ node id. It is an intermediate contract for a local runtime.
 ```
 
 Required node kinds are `Goal`, `Input`, `Context`, `Capability`, `Memory`,
-`Step`, `Effect`, `Check`, `Invariant`, `Approval`, `Checkpoint`, and
+`Step`, `Effect`, `Check`, `Invariant`, `Approval`, `Checkpoint`, `Policy`, and
 `Completion`.
 
 Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
-`verifies`, `guards`, `gates`, `approves`, `checkpoints`, `completes`,
-`plans`, `precedes`, `requests`, `supplies`, `informs`, `declares`, and
-`constrains`.
+`verifies`, `guards`, `gates`, `approves`, `checkpoints`, `timeouts`,
+`retries`, `completes`, `plans`, `precedes`, `requests`, `supplies`,
+`informs`, `declares`, and `constrains`.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
@@ -1036,6 +1109,12 @@ checkpoint has one incoming `checkpoints` edge from that owning step.
 Step approval nodes are `Approval` nodes scoped to one owning step. The owning
 step node lists them in its `data.approvals` array, and each approval has one
 outgoing `approves` edge to that owning step.
+
+Step policy nodes are `Policy` nodes scoped to one owning step. The owning step
+node lists timeout summaries in `data.timeouts` and retry summaries in
+`data.retries`. Each timeout policy has one outgoing `timeouts` edge to that
+owning step, and each retry policy has one outgoing `retries` edge to that
+owning step.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.

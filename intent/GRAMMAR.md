@@ -13,7 +13,7 @@ The parser must accept:
 - Goal declarations.
 - `context`, `capability`, `memory`, `plan`, `verify`, and `invariant` blocks.
 - Step declarations inside `plan`, including step-local requirements,
-  approval gates, and checkpoints.
+  approval gates, checkpoints, retry policies, and timeouts.
 - `require` and `deny` statements.
 - Effect call arguments in simple call expressions.
 - Line comments.
@@ -103,22 +103,30 @@ declared lifecycle.
 step_decl  = "step", s, identifier, [ params ], ws, "->", ws, type_ref,
              ( line_end | ws, step_body ) ;
 step_body  = "{", ws, { step_item, ws }, "}" ;
-step_item  = step_require_stmt | step_approval_stmt | step_checkpoint_stmt ;
+step_item  = step_require_stmt
+           | step_approval_stmt
+           | step_checkpoint_stmt
+           | step_timeout_stmt
+           | step_retry_stmt ;
 step_require_stmt = "require", s, raw_expr, line_end ;
 step_approval_stmt = "approval", s, raw_expr, line_end ;
 step_checkpoint_stmt = "checkpoint", s, raw_expr, line_end ;
+step_timeout_stmt = "timeout", s, duration, line_end ;
+step_retry_stmt = "retry", s, raw_policy, line_end ;
 params     = "(", ws, [ param, { ws, ",", ws, param } ], ws, ")" ;
 param      = identifier, ws, ":", ws, type_ref ;
 type_ref   = identifier, { ws, type_suffix } ;
 type_suffix = "<", ws, type_ref, { ws, ",", ws, type_ref }, ws, ">" ;
+duration   = raw_text_until_terminator ;
+raw_policy = raw_text_until_terminator ;
 ```
 
 Step declarations may be signatures only or may include a body containing
-step-local `require ...`, `approval ...`, and `checkpoint ...` lines. Effect
-bodies, retries, timeouts, and execution statements are out of scope. Step input
-names are local to the step signature; the checker binds inputs by matching
-their type against goal inputs and previous step outputs in source order. Each
-step param becomes a step input port in the checked graph.
+step-local `require ...`, `approval ...`, `checkpoint ...`, `timeout ...`, and
+`retry ...` lines. Effect bodies and execution statements are out of scope.
+Step input names are local to the step signature; the checker binds inputs by
+matching their type against goal inputs and previous step outputs in source
+order. Each step param becomes a step input port in the checked graph.
 
 `require ...` lines inside a step body are parsed as step requirements. They are
 not goal-level `verify` checks and do not create completion verification gates.
@@ -137,6 +145,12 @@ statements. They are not memory retention declarations and do not become
 goal-level verification checks. The graph builder emits each step checkpoint as
 a `Checkpoint` node, lists it on the owning step node data, and creates a
 `checkpoints` edge from the owning `Step` to that `Checkpoint`.
+
+`timeout <duration>` and `retry <raw policy>` lines inside a step body are
+parsed as step policy statements and represented on the owning `StepDecl`. The
+graph builder surfaces them on the owning step node data, emits each statement
+as a `Policy` node, and creates `timeouts` or `retries` edges from that policy
+node to the owning `Step`.
 
 ## Expressions
 
@@ -225,7 +239,7 @@ identifiers in declaration positions:
 
 ```text
 package goal context capability memory plan verify invariant step require deny
-approval checkpoint
+approval checkpoint timeout retry
 ```
 
 Known built-in type names for checker binding are `String`, `Bool`, `Int`,
@@ -281,6 +295,9 @@ The parser emits names and type reference strings; the checker owns binding.
 - Step-body `checkpoint ...` lines become graph `Checkpoint` nodes. They are
   listed on the owning step node data and connected by `checkpoints` edges from
   that step.
+- Step-body `timeout ...` and `retry ...` lines become graph `Policy` nodes.
+  They are listed on the owning step node data and connected by `timeouts` or
+  `retries` edges from each policy node to that step.
 - Memory blocks must contain at least one parsed `retain ... until ...`
   retention rule. Missing retention is `INTENT_MEMORY_UNSCOPED`.
 - Parsed retention rules are emitted as checker data and graph `Memory` node
