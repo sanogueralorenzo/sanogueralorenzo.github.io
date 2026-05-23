@@ -1,0 +1,31 @@
+package fixtures.invalid_goal_output_type_mismatch
+
+type ExpectedReport = {
+  summary: String
+}
+
+type DraftPatch = {
+  files: List<Path>
+}
+
+goal "produce expected report" -> ExpectedReport {
+  context repo("./")
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step prepare_patch -> DraftPatch
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

@@ -49,6 +49,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_duplicate_step_input.intent`: declares the same step input name twice and should fail `INTENT_NAME_DUPLICATE` at the duplicate parameter span.
 - `invalid_unsupported_goal_statement.intent`: declares an otherwise valid-looking goal with unsupported raw goal statement `delegate reviewer`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
+- `invalid_goal_output_type_mismatch.intent`: declares goal output `ExpectedReport` but the final plan step outputs `DraftPatch`, which should fail `INTENT_TYPE_MISMATCH` at the final step output type span.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.
 - `invalid_duplicate_step_name.intent`: declares the same step name twice in one plan.
 - `invalid_trust_flow_untrusted_shell_input.intent`: feeds a value produced from web context into `ShellExec(command: input)`.

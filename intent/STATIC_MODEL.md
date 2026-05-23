@@ -327,6 +327,9 @@ blocking diagnostics.
 - Resolve every type reference against built-ins and file-local type
   declarations.
 - Bind step inputs against goal inputs and earlier step outputs in source order.
+- When a goal declares an output type and has plan steps, require the final
+  plan step output type to exactly match the goal output type. If it differs,
+  emit `INTENT_TYPE_MISMATCH` at the final step output type span.
 - Assign first-prototype trust zones to source values. Repo contexts are
   trusted local sources and are not capability-enforced yet; structured
   `context documents(...)` sources are trusted local sources that require
