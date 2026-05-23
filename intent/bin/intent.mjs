@@ -4,6 +4,9 @@ import path from "node:path";
 import process from "node:process";
 
 const VERSION = "intent.static.v0";
+const AST_SCHEMA_VERSION = "intent.ast.v0";
+const CHECK_SCHEMA_VERSION = "intent.check.v0";
+const GRAPH_SCHEMA_VERSION = "intent.graph.v0";
 const sourceLineOffsets = new Map();
 const BUILTIN_TYPES = new Set([
   "String",
@@ -110,7 +113,7 @@ function main(argv) {
     const diagnostics = checkIntent(ast);
     if (command === "check") {
       printJson({
-        schema_version: "intent.check.v0",
+        schema_version: CHECK_SCHEMA_VERSION,
         ok: diagnostics.length === 0,
         diagnostics,
       });
@@ -128,7 +131,7 @@ function main(argv) {
       span: span(file, 1, 1),
     };
     printJson({
-      schema_version: "intent.check.v0",
+      schema_version: CHECK_SCHEMA_VERSION,
       ok: false,
       diagnostics: [diagnostic],
     });
@@ -144,7 +147,7 @@ function parseIntent(source, file) {
   const lines = source.split(/\r?\n/);
   sourceLineOffsets.set(path.normalize(file), computeLineOffsets(source));
   const root = {
-    schema_version: "intent.ast.v0",
+    schema_version: AST_SCHEMA_VERSION,
     source: path.normalize(file),
     package: null,
     types: [],
@@ -1182,7 +1185,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
   }
 
   const graph = {
-    schema_version: "intent.graph.v0",
+    schema_version: GRAPH_SCHEMA_VERSION,
     ast_schema_version: ast.schema_version,
     source: ast.source,
     package: ast.package?.name ?? "main",
@@ -1198,6 +1201,17 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
 function validateGraph(graph) {
   const diagnostics = [];
+  if (
+    (graph.schema_version !== undefined && graph.schema_version !== GRAPH_SCHEMA_VERSION)
+    || (graph.ast_schema_version !== undefined && graph.ast_schema_version !== AST_SCHEMA_VERSION)
+  ) {
+    diagnostics.push(error("INTENT_GRAPH_SCHEMA_INVALID", `graph envelope uses unsupported schema version.`, span(graph.source ?? "graph", 1, 1), {
+      schema_version: graph.schema_version ?? null,
+      expected_schema_version: GRAPH_SCHEMA_VERSION,
+      ast_schema_version: graph.ast_schema_version ?? null,
+      expected_ast_schema_version: AST_SCHEMA_VERSION,
+    }));
+  }
   const nodesById = new Map();
   for (const graphNode of graph.nodes) {
     const previousNode = nodesById.get(graphNode.id);

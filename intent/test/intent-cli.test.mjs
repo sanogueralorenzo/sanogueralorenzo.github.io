@@ -1071,6 +1071,23 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].span.start.line, 2);
   });
 
+  it("validates graph schema version diagnostics", () => {
+    const diagnostics = validateGraph({
+      schema_version: "intent.graph.v1",
+      ast_schema_version: "intent.ast.v1",
+      source: "synthetic.intent",
+      nodes: [],
+      edges: [],
+    });
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_SCHEMA_INVALID");
+    assert.equal(diagnostics[0].schema_version, "intent.graph.v1");
+    assert.equal(diagnostics[0].expected_schema_version, "intent.graph.v0");
+    assert.equal(diagnostics[0].ast_schema_version, "intent.ast.v1");
+    assert.equal(diagnostics[0].expected_ast_schema_version, "intent.ast.v0");
+  });
+
   it("validates graph node kind diagnostics", () => {
     const diagnostics = validateGraph({
       source: "synthetic.intent",
