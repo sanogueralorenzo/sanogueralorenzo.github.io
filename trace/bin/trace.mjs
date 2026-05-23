@@ -3606,7 +3606,7 @@ Usage:
   trace review [--all] [--json]
   trace log [--limit 20] [--json]
   trace index
-  trace search [--field decisions|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
+  trace search [--field intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
   trace recall [query] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
   trace summary [range] [--json]
   trace branch-summary [branch] [--base main] [--json]

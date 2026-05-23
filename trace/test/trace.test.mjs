@@ -109,8 +109,21 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
 
     const decisionSearch = await runTrace(repo, ["search", "--field", "decisions", "reviewable"]);
     assert.match(decisionSearch.stdout, /\.trace\/commits\//);
+    const intentSearch = JSON.parse((await runTrace(repo, ["search", "--field", "intent", "--json", "exists"])).stdout);
+    assert.equal(intentSearch.field, "intent");
+    assert.equal(intentSearch.matches, 1);
+    assert.match(intentSearch.results[0].snippet, /remember why app text exists/);
+    const summarySearch = JSON.parse((await runTrace(repo, ["search", "--field", "summary", "--json", "fixture"])).stdout);
+    assert.equal(summarySearch.field, "summary");
+    assert.equal(summarySearch.matches, 1);
+    const toolSearch = JSON.parse((await runTrace(repo, ["search", "--field", "tools", "--json", "commit"])).stdout);
+    assert.equal(toolSearch.field, "tools");
+    assert.equal(toolSearch.matches, 1);
     const fileSearch = await runTrace(repo, ["search", "--field", "files", "app.txt"]);
     assert.match(fileSearch.stdout, /app.txt/);
+    const validationSearch = JSON.parse((await runTrace(repo, ["search", "--field", "validation", "--json", "node"])).stdout);
+    assert.equal(validationSearch.field, "validation");
+    assert.equal(validationSearch.matches, 1);
     const handoffSearch = JSON.parse((await runTrace(repo, ["search", "--field", "handoff", "--json", "preserve"])).stdout);
     assert.equal(handoffSearch.field, "handoff");
     assert.equal(handoffSearch.matches, 1);

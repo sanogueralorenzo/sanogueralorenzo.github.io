@@ -82,8 +82,13 @@ trace log
 trace log --json --limit 20
 trace index
 trace search "auth retry"
+trace search --field intent "why auth changed"
+trace search --field summary "fixture"
 trace search --field decisions "retry"
+trace search --field tools "git commit"
 trace search --field files "auth"
+trace search --field validation "npm test"
+trace search --field risks "timeout"
 trace search --field handoff "preserve"
 trace search --field session <session>
 trace search --json --limit 5 "auth retry"
@@ -153,8 +158,13 @@ node trace/bin/trace.mjs log
 node trace/bin/trace.mjs log --json --limit 20
 node trace/bin/trace.mjs index
 node trace/bin/trace.mjs search "auth retry"
+node trace/bin/trace.mjs search --field intent "why auth changed"
+node trace/bin/trace.mjs search --field summary "fixture"
 node trace/bin/trace.mjs search --field decisions "retry"
+node trace/bin/trace.mjs search --field tools "git commit"
 node trace/bin/trace.mjs search --field files "auth"
+node trace/bin/trace.mjs search --field validation "npm test"
+node trace/bin/trace.mjs search --field risks "timeout"
 node trace/bin/trace.mjs search --field session <session>
 node trace/bin/trace.mjs search --json --limit 5 "auth retry"
 node trace/bin/trace.mjs recall "auth retry"
@@ -210,7 +220,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories, including the future-agent handoff section. Branch, PR, and release text are generated views, not the canonical memory store. Add `--json` to emit the same memory-derived summary as structured data for agents and CI automation, including per-commit memory path, checkpoint, session, files, validation, risks, and handoff.
 
-`trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change, ranks matches by term frequency, and can search all memory text or a specific field such as `decisions`, `files`, `checkpoint`, `session`, `validation`, `risks`, or `handoff`. Use `--json` and `--limit` when agents need structured local search results with score, commit, memory path, checkpoint, and session identity.
+`trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change, ranks matches by term frequency, and can search all memory text or a specific field such as `intent`, `summary`, `decisions`, `responses`, `tools`, `files`, `checkpoint`, `session`, `validation`, `risks`, or `handoff`. Use `--json` and `--limit` when agents need structured local search results with score, commit, memory path, checkpoint, and session identity.
 
 `trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path, checkpoint/session identity, intent, summary, decisions, validation, risks, and handoff. `trace recall --files src/auth.ts` ranks memories by affected files, `trace recall --checkpoint <checkpoint>` and `trace recall --session <session>` jump directly from Trace identity back to committed memories, plain `trace recall` uses locally changed files when available, and `--json` emits the same recall bundle as structured data.
 
