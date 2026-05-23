@@ -1,0 +1,34 @@
+{
+  "id": "webhook-replay-improves",
+  "task": "add a webhook handler for provider delivery events",
+  "scope": "feature:webhooks",
+  "changedFiles": [
+    "features/webhooks/providers/delivery.ts"
+  ],
+  "failures": [
+    "wrong test command",
+    "provider-specific logic added outside webhook provider boundary",
+    "missed nullable payload field"
+  ],
+  "baseline": {
+    "command": "node -e \"process.stderr.write('missing nullable payload handling\\n'); process.exit(1)\""
+  },
+  "rerun": {
+    "command": "node -e \"process.stdout.write('webhook provider check passed\\n')\""
+  },
+  "precedent": {
+    "id": "prec_webhook_replay_boundary",
+    "scope": "feature:webhooks",
+    "trigger": "task mentions webhook handler, webhook payload, or provider event",
+    "lesson": "Webhook provider changes must use the provider boundary and nullable payload helpers.",
+    "artifact": "skill",
+    "paths": [
+      "features/webhooks",
+      "webhooks/providers"
+    ],
+    "evidence": [
+      "review-comment: provider-specific logic leaked into shared handler"
+    ],
+    "injection": "For webhook changes in this repo: run pnpm test:webhooks, keep provider-specific logic inside the webhook provider boundary, and reuse existing nullable payload helpers."
+  }
+}
