@@ -482,31 +482,27 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_INPUT_SUPPLY_INVALID`,
   `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`,
   `INTENT_GRAPH_STEP_SEQUENCE_INVALID`,
-  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics.
-  This prevents topology/data edges from being replayed as ambiguous
-  runtime-control edges while preserving ownership, sequencing, and payload
-  diagnostics.
-- Runtime graph `produces` edge payloads are the next Phase 2 static-model
-  milestone. The role-valid `produces` edge from the final executable `Step` to
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`,
+  `INTENT_GRAPH_TYPED_EDGE_INVALID`, and malformed node payload diagnostics.
+  Runtime `data` edge payloads must also match endpoint names, endpoint types,
+  and source/target spans. This prevents topology/data edges from being
+  replayed as ambiguous runtime-control edges while preserving ownership,
+  sequencing, typed-binding, and payload diagnostics.
+- Runtime graph `produces` and `requires` edge payloads are typed contracts.
+  The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
-  `targetSpan` values. `sourceSpan` points to the final step output, and
-  `targetSpan` points to the goal output. Malformed `produces` edge payloads
-  emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
-  non-executable; wrong completion edge counts remain
-  `INTENT_GRAPH_COMPLETION_INVALID`, unsupported endpoint roles emit
-  `INTENT_GRAPH_PRODUCE_INVALID`, and wrong final-step sequencing remains
-  `INTENT_GRAPH_STEP_SEQUENCE_INVALID`.
-- Runtime graph `requires` edge payloads are the next Phase 2 static-model
-  milestone. `requires` is valid only as `Input` to `Step` for step inputs or
-  step-scoped `Check` to `Step` for step requirements. Step-input `requires`
-  edges from an `Input` node to its owning `Step` must carry non-empty
-  `parameter`, non-empty `type`, and a valid `targetSpan`. Step-requirement
-  `requires` edges from a step-scoped `Check` node to its owning `Step` must
-  carry non-empty `requirement`. Malformed `requires` edge payloads emit
-  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable.
-  Unsupported `requires` endpoint roles emit `INTENT_GRAPH_REQUIRE_INVALID`;
-  missing attachment coverage remains
-  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+  `targetSpan` values, and those values must match the source `Step` output
+  type/span and any declared target `Completion` output type/span. `requires`
+  is valid only as `Input` to `Step` for step inputs or step-scoped `Check` to `Step` for
+  step requirements. Step-input `requires` edges must match the source input
+  name, type, owning step, and span; step-requirement `requires` edges must
+  match the source requirement and owning step. Malformed payloads emit
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, typed endpoint mismatches emit
+  `INTENT_GRAPH_TYPED_EDGE_INVALID`, unsupported endpoint roles emit
+  `INTENT_GRAPH_PRODUCE_INVALID` or `INTENT_GRAPH_REQUIRE_INVALID`, wrong
+  completion counts remain `INTENT_GRAPH_COMPLETION_INVALID`, wrong final-step
+  sequencing remains `INTENT_GRAPH_STEP_SEQUENCE_INVALID`, and missing
+  attachment coverage remains `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Runtime graph goal-input supply edge contracts are the next Phase 2
   static-model milestone. Every goal-scoped `Input` node must have exactly one
   outgoing role-valid `supplies` edge to its owning `Goal`. Missing or extra
@@ -944,14 +940,18 @@ Every successful binding is also emitted as graph data dependency:
 - A step input bound to an earlier step output creates a `data` edge from the
   producing step node to the step input node. Its edge `data` must include
   non-empty `parameter`, non-empty `type`, `sourceSpan` for the producing
-  output type, and `targetSpan` for the step parameter.
+  output type, and `targetSpan` for the step parameter. These values must match
+  the producer type/span and target input name/type/span.
 - A step input node creates a `requires` edge to its owning step, so execution
   waits for the bound value before the step can run. Its edge `data` must
   include non-empty `parameter`, non-empty `type`, and `targetSpan` for the
-  required step parameter.
+  required step parameter. These values must match the source input name/type,
+  source span, and owning step.
 - The final executable step creates a `produces` edge to the goal completion
   node. Its edge `data` must include non-empty `type`, `sourceSpan` for the
-  final step output, and `targetSpan` for the goal output.
+  final step output, and `targetSpan` for the goal output. These values must
+  match the source step output type/span and any declared target completion
+  output type/span.
 - Graph data-edge role validation emits `INTENT_GRAPH_DATA_ROLE_INVALID` when
   a `data` edge does not connect either a goal-scoped `Input` node or `Step`
   producer to a step-scoped `Input` consumer. Role-valid data edge semantic
@@ -959,8 +959,8 @@ Every successful binding is also emitted as graph data dependency:
 - Graph requires-edge payload validation emits
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a step-input `requires` edge omits
   non-empty `parameter`, non-empty `type`, or valid `targetSpan`. Wrong
-  step-input attachment endpoints remain
-  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+  step-input attachment endpoints remain `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+  Role-valid typed mismatches emit `INTENT_GRAPH_TYPED_EDGE_INVALID`.
 - Graph goal-input supply validation emits
   `INTENT_GRAPH_INPUT_SUPPLY_INVALID` when a goal-scoped `Input` node has
   missing or extra outgoing role-valid `supplies` edges to its owning `Goal`.
@@ -1159,7 +1159,8 @@ Rules:
 - Graph requires-edge payload validation emits
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a step-requirement `requires` edge
   omits non-empty `requirement`. Wrong step-requirement attachment endpoints
-  remain `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+  remain `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`. Role-valid requirement or
+  owner-step mismatches emit `INTENT_GRAPH_TYPED_EDGE_INVALID`.
 - Graph validation requires every `Check` node to carry a non-empty
   `data.requirement`. Step-scoped requirements also require
   `data.scope: "step"`, non-empty `data.ownerStep`, and non-empty
@@ -1768,6 +1769,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_PRODUCE_INVALID`
 - `INTENT_GRAPH_DATA_ROLE_INVALID`
 - `INTENT_GRAPH_DATA_INVALID`
+- `INTENT_GRAPH_TYPED_EDGE_INVALID`
 - `INTENT_GRAPH_REQUIRE_INVALID`
 - `INTENT_GRAPH_INPUT_INVALID`
 - `INTENT_GRAPH_SUPPLY_INVALID`
@@ -2272,10 +2274,10 @@ separate from `INTENT_GRAPH_DATA_INVALID`,
 `INTENT_GRAPH_INPUT_SUPPLY_INVALID`,
 `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`,
 `INTENT_GRAPH_STEP_SEQUENCE_INVALID`,
-`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics,
-and prevent topology/data edges from being replayed as ambiguous
-runtime-control edges while preserving ownership, sequencing, and payload
-diagnostics.
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, `INTENT_GRAPH_TYPED_EDGE_INVALID`, and
+malformed node payload diagnostics, and prevent topology/data edges from being
+replayed as ambiguous runtime-control edges while preserving ownership,
+sequencing, typed-binding, and payload diagnostics.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
@@ -2292,11 +2294,13 @@ Parameter data embedded in `Goal`, `Step`, `Input`, `data`, and `requires` graph
 payloads retains the declaring parameter `span`.
 Graph `data` edge payloads must include non-empty `parameter`, non-empty
 `type`, and valid `sourceSpan` and `targetSpan` values for the two bound
-parameters, while graph `requires` edge payloads may include `targetSpan` for
-the required input parameter.
+parameters, and those values must match the producer type/span and step input
+name/type/span. Graph `requires` edge payloads must match the source step input
+or step requirement name/type/span and owning step.
 Graph `produces` edge payloads that connect the final executable step to
 completion must include non-empty `type`, valid `sourceSpan` for the final step
-output, and valid `targetSpan` for the goal output.
+output, and valid `targetSpan` for the goal output, and those values must match
+the producing `Step` and any declared target `Completion` output contract.
 Graph step attachment edge payloads must include non-empty `data.approval` on
 step-scoped `Approval` to `Step` `approves` edges and `Approval` to `Effect`
 `approves` edges, non-empty `data.policy` on step-scoped `Policy` to `Step`
@@ -2325,6 +2329,9 @@ when a final-step-to-completion `produces` edge payload omits non-empty `type`
 or valid `sourceSpan` or `targetSpan` values, or when a step attachment edge
 payload omits non-empty `data.approval`, `data.policy`, or `data.checkpoint`
 values,
+emits `INTENT_GRAPH_TYPED_EDGE_INVALID` when role-valid `data`, `requires`, or
+`produces` edge payloads do not match endpoint names, types, ownership, or
+source spans,
 emits
 `INTENT_GRAPH_COMPLETE_INVALID` when a `completes` edge has unsupported
 endpoint roles, emits `INTENT_GRAPH_PRODUCE_INVALID` when a `produces` edge has
@@ -2702,15 +2709,19 @@ invariant edges from being replayed as ambiguous runtime-control edges while
 preserving invariant-specific coverage diagnostics. The last executable step in
 the plan creates a `produces` edge to completion. That edge must carry
 non-empty `data.type`, `data.sourceSpan` for the final step output, and
-`data.targetSpan` for the goal output. Malformed `produces` edge payloads emit
-`INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable.
+`data.targetSpan` for the goal output. Those values must match the source
+`Step` output type/span and any declared target `Completion` output type/span,
+or graph validation emits `INTENT_GRAPH_TYPED_EDGE_INVALID`. Malformed `produces` edge
+payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
+non-executable.
 `completes` is valid only as `Goal` to `Completion`; unsupported endpoint roles
 emit `INTENT_GRAPH_COMPLETE_INVALID`. `produces` is valid only as `Step` to
 `Completion`; unsupported endpoint roles emit `INTENT_GRAPH_PRODUCE_INVALID`.
 These generic completion delivery role diagnostics are separate from
 `INTENT_GRAPH_COMPLETION_INVALID`, `INTENT_GRAPH_GOAL_COMPLETION_INVALID`, and
-`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, preventing ambiguous completion replay
-while preserving completion-specific diagnostics.
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and `INTENT_GRAPH_TYPED_EDGE_INVALID`,
+preventing ambiguous completion replay while preserving completion-specific
+diagnostics.
 Completion node data also carries `outputType` as `null` or a
 non-empty string and `outputTypeSpan` as `null` or a valid span; malformed
 Completion payload data emits

@@ -176,10 +176,10 @@ function defaultGraphNodeData(kind, data) {
     return { family: "synthetic", action: null, grants: [], approvalPolicy: "none", ...normalizedData };
   }
   if (kind === "Goal") {
-    return { title: null, parameters: [], outputType: null, outputTypeSpan: null, ...normalizedData };
+    return { title: null, parameters: [], outputType: "Synthetic", outputTypeSpan: testSpan(1), ...normalizedData };
   }
   if (kind === "Completion") {
-    return { outputType: null, outputTypeSpan: null, ...normalizedData };
+    return { outputType: "Synthetic", outputTypeSpan: testSpan(1), ...normalizedData };
   }
   if (kind === "Invariant") {
     return { assertion: "Deny", invariant: "synthetic", ...normalizedData };
@@ -199,8 +199,8 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Step") {
     return {
       inputs: [],
-      outputType: null,
-      outputTypeSpan: null,
+      outputType: "Synthetic",
+      outputTypeSpan: testSpan(1),
       effects: [],
       requirements: [],
       checkpoints: [],
@@ -3374,6 +3374,60 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].completion_id, "goal:other:completion");
     assert.equal(diagnostics[1].output_type_is_valid, true);
     assert.equal(diagnostics[1].output_type_span_is_valid, false);
+  });
+
+  it("validates graph typed edge contract diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1), data: { outputType: "Report" } },
+        { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: testSpan(2), data: { scope: "goal", type: "Ticket" } },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(3), data: { outputType: "Patch" } },
+        { id: "goal:demo:step:patch:input:ticket", kind: "Input", label: "ticket", span: testSpan(4), data: { scope: "step", type: "Ticket" } },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "ready", span: testSpan(5), data: { scope: "step", ownerStep: "patch", assertion: "Require", requirement: "ticket.ready" } },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4), data: { outputType: "Report", outputTypeSpan: testSpan(4) } },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:input:ticket", to: "goal:demo:step:patch:input:ticket", kind: "data", data: { parameter: "ticket_id", type: "Issue", sourceSpan: testSpan(1), targetSpan: testSpan(5) } },
+        { from: "goal:demo:step:patch:input:ticket", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "ticket_id", type: "Issue", targetSpan: testSpan(5) } },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "ticket.closed" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: testSpan(2), targetSpan: testSpan(4) } },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPED_EDGE_INVALID");
+
+    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics[0].edge, "data");
+    assert.equal(diagnostics[0].from, "goal:demo:input:ticket");
+    assert.equal(diagnostics[0].to, "goal:demo:step:patch:input:ticket");
+    assert.deepEqual(diagnostics[0].checks.map((check) => [check.name, check.ok]), [
+      ["parameter_matches_target", false],
+      ["type_matches_source", false],
+      ["type_matches_target", false],
+      ["source_span_matches_source", false],
+      ["target_span_matches_target", false],
+    ]);
+    assert.equal(diagnostics[1].edge, "requires");
+    assert.deepEqual(diagnostics[1].checks.map((check) => [check.name, check.ok]), [
+      ["owner_step_matches_target", true],
+      ["parameter_matches_source", false],
+      ["type_matches_source", false],
+      ["target_span_matches_source", false],
+    ]);
+    assert.equal(diagnostics[2].edge, "requires");
+    assert.deepEqual(diagnostics[2].checks.map((check) => [check.name, check.ok]), [
+      ["owner_step_matches_target", true],
+      ["requirement_matches_source", false],
+    ]);
+    assert.equal(diagnostics[3].edge, "produces");
+    assert.deepEqual(diagnostics[3].checks.map((check) => [check.name, check.ok]), [
+      ["type_matches_source", false],
+      ["type_matches_target", true],
+      ["source_span_matches_source", false],
+      ["target_span_matches_target", true],
+    ]);
   });
 
   it("validates graph invariant payload diagnostics", () => {

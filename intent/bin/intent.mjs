@@ -1654,6 +1654,11 @@ function validateGraph(graph, options = {}) {
       diagnostics.push(edgeRoleDiagnostic);
       continue;
     }
+    const typedEdgeDiagnostic = validateGraphTypedEdgeContract(nodesById, graphEdge, fallbackSpan);
+    if (typedEdgeDiagnostic) {
+      diagnostics.push(typedEdgeDiagnostic);
+      continue;
+    }
     const memoryTargetDiagnostic = validateGraphMemoryTarget(nodesById, graphEdge, fallbackSpan);
     if (memoryTargetDiagnostic) {
       diagnostics.push(memoryTargetDiagnostic);
@@ -2272,6 +2277,138 @@ function validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, f
     owner_goal_declares_edges: ownerGoalDeclareEdges.length,
     wrong_goal_declares_edges: wrongGoalDeclareEdges.length,
   });
+}
+
+function validateGraphTypedEdgeContract(nodesById, graphEdge, fallbackSpan) {
+  if (!["data", "requires", "produces"].includes(graphEdge.kind)) {
+    return null;
+  }
+  const sourceNode = nodesById.get(graphEdge.from);
+  const targetNode = nodesById.get(graphEdge.to);
+  const checks = typedEdgeChecks(graphEdge, sourceNode, targetNode);
+  if (checks.length === 0 || checks.every((check) => check.ok)) {
+    return null;
+  }
+  return error("INTENT_GRAPH_TYPED_EDGE_INVALID", `${graphEdge.kind} edge '${graphEdge.from}' to '${graphEdge.to}' must match endpoint names, types, ownership, and source spans.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    checks,
+  });
+}
+
+function typedEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (graphEdge.kind === "produces") {
+    return producesEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "data") {
+    return dataEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "requires") {
+    return requiresEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  return [];
+}
+
+function producesEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind !== "Step" || targetNode?.kind !== "Completion") {
+    return [];
+  }
+  const payloadType = normalizeTypeRefOrNull(graphEdge.data?.type);
+  const stepOutputType = normalizeTypeRefOrNull(sourceNode.data?.outputType);
+  const completionOutputType = normalizeTypeRefOrNull(targetNode.data?.outputType);
+  return [
+    typedCheck("type_matches_source", payloadType !== null && payloadType === stepOutputType, graphEdge.data?.type, sourceNode.data?.outputType),
+    typedCheck("type_matches_target", completionOutputType === null || payloadType === completionOutputType, graphEdge.data?.type, targetNode.data?.outputType),
+    typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceNode.data?.outputTypeSpan ?? sourceNode.span), graphEdge.data?.sourceSpan, sourceNode.data?.outputTypeSpan ?? sourceNode.span),
+    typedCheck("target_span_matches_target", spansEqual(graphEdge.data?.targetSpan, targetNode.data?.outputTypeSpan ?? targetNode.span), graphEdge.data?.targetSpan, targetNode.data?.outputTypeSpan ?? targetNode.span),
+  ];
+}
+
+function dataEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (!targetNode || targetNode.kind !== "Input" || targetNode.data?.scope !== "step") {
+    return [];
+  }
+  const sourceType = graphProducerType(sourceNode);
+  const sourceSpan = graphProducerSpan(sourceNode);
+  const payloadType = normalizeTypeRefOrNull(graphEdge.data?.type);
+  const targetType = normalizeTypeRefOrNull(targetNode.data?.type);
+  return [
+    typedCheck("parameter_matches_target", graphEdge.data?.parameter === targetNode.label, graphEdge.data?.parameter, targetNode.label),
+    typedCheck("type_matches_source", payloadType !== null && payloadType === sourceType, graphEdge.data?.type, graphProducerTypeLabel(sourceNode)),
+    typedCheck("type_matches_target", payloadType !== null && payloadType === targetType, graphEdge.data?.type, targetNode.data?.type),
+    typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceSpan), graphEdge.data?.sourceSpan, sourceSpan),
+    typedCheck("target_span_matches_target", spansEqual(graphEdge.data?.targetSpan, targetNode.span), graphEdge.data?.targetSpan, targetNode.span),
+  ];
+}
+
+function requiresEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind === "Input" && targetNode?.kind === "Step") {
+    const sourceType = normalizeTypeRefOrNull(sourceNode.data?.type);
+    const payloadType = normalizeTypeRefOrNull(graphEdge.data?.type);
+    return [
+      typedCheck("owner_step_matches_target", parentNodeId(sourceNode.id, ":input:") === targetNode.id, parentNodeId(sourceNode.id, ":input:"), targetNode.id),
+      typedCheck("parameter_matches_source", graphEdge.data?.parameter === sourceNode.label, graphEdge.data?.parameter, sourceNode.label),
+      typedCheck("type_matches_source", payloadType !== null && payloadType === sourceType, graphEdge.data?.type, sourceNode.data?.type),
+      typedCheck("target_span_matches_source", spansEqual(graphEdge.data?.targetSpan, sourceNode.span), graphEdge.data?.targetSpan, sourceNode.span),
+    ];
+  }
+  if (sourceNode?.kind === "Check" && sourceNode.data?.scope === "step" && targetNode?.kind === "Step") {
+    return [
+      typedCheck("owner_step_matches_target", parentNodeId(sourceNode.id, ":requirement:") === targetNode.id, parentNodeId(sourceNode.id, ":requirement:"), targetNode.id),
+      typedCheck("requirement_matches_source", graphEdge.data?.requirement === sourceNode.data?.requirement, graphEdge.data?.requirement, sourceNode.data?.requirement),
+    ];
+  }
+  return [];
+}
+
+function graphProducerType(sourceNode) {
+  return normalizeTypeRefOrNull(graphProducerTypeLabel(sourceNode));
+}
+
+function graphProducerTypeLabel(sourceNode) {
+  if (sourceNode?.kind === "Input" && sourceNode.data?.scope === "goal") {
+    return sourceNode.data?.type;
+  }
+  if (sourceNode?.kind === "Step") {
+    return sourceNode.data?.outputType;
+  }
+  return null;
+}
+
+function graphProducerSpan(sourceNode) {
+  if (sourceNode?.kind === "Input" && sourceNode.data?.scope === "goal") {
+    return sourceNode.span;
+  }
+  if (sourceNode?.kind === "Step") {
+    return sourceNode.data?.outputTypeSpan ?? sourceNode.span;
+  }
+  return null;
+}
+
+function normalizeTypeRefOrNull(value) {
+  return typeof value === "string" && value.trim() !== "" ? normalizeTypeRef(value) : null;
+}
+
+function typedCheck(name, ok, actual, expected) {
+  return { name, ok, actual: typedValue(actual), expected: typedValue(expected) };
+}
+
+function typedValue(value) {
+  if (isSpan(value)) {
+    return value;
+  }
+  return typeof value === "string" ? value : null;
+}
+
+function spansEqual(left, right) {
+  return isSpan(left)
+    && isSpan(right)
+    && left.file === right.file
+    && left.start.line === right.start.line
+    && left.start.column === right.start.column
+    && left.end.line === right.end.line
+    && left.end.column === right.end.column;
 }
 
 function validateGraphInput(graphNode, graphSpan) {
