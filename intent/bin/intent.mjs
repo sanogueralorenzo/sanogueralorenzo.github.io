@@ -935,7 +935,21 @@ function checkIntent(ast) {
 function validateEffectContracts(goal, diagnostics) {
   for (const step of goal.steps) {
     for (const effect of step.effects) {
-      if (isResolvedEffectContract(effect)) {
+      const contract = effectContractForAccess(effect);
+      if (contract) {
+        const argumentDiagnostic = invalidEffectContractArgument(effect, contract);
+        if (argumentDiagnostic) {
+          diagnostics.push(error("INTENT_EFFECT_ARGUMENT_INVALID", `effect '${effect.name}' argument '${argumentDiagnostic.argument}' must be a string or trusted identifier for v0 contract '${contract.id}'.`, effectArgumentSpan(effect, argumentDiagnostic), {
+            effect: effect.name,
+            family: effect.family,
+            action: effect.action,
+            argument: argumentDiagnostic.argument,
+            value: argumentDiagnostic.value,
+            kind: argumentDiagnostic.kind,
+            contractId: contract.id,
+            step: step.name,
+          }));
+        }
         continue;
       }
       diagnostics.push(error("INTENT_EFFECT_UNKNOWN", `effect '${effect.name}' does not resolve to a v0 effect adapter contract.`, effect.span, {
@@ -946,6 +960,33 @@ function validateEffectContracts(goal, diagnostics) {
       }));
     }
   }
+}
+
+function invalidEffectContractArgument(effect, contract) {
+  for (const argument of contract.arguments) {
+    const source = argument.aliases.find((alias) => Object.hasOwn(effect.args ?? {}, alias));
+    if (!source) {
+      continue;
+    }
+    const kind = effect.argKinds?.[source] ?? null;
+    if (kind === "string" || kind === "identifier") {
+      continue;
+    }
+    return {
+      argument: argument.key,
+      key: source,
+      value: stringifyDiagnosticValue(effect.args[source]),
+      kind: kind ?? "unknown",
+    };
+  }
+  return null;
+}
+
+function stringifyDiagnosticValue(value) {
+  if (Array.isArray(value)) {
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 function validateApprovalRequirements(goal, diagnostics) {

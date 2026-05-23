@@ -889,6 +889,10 @@ blocking diagnostics.
   source file paths, context source web domains, web/http read domains, and git
   commit messages, git push branches or remotes, secret read names, ticket
   update ids, and deploy targets.
+- Reject non-string constrained effect arguments with
+  `INTENT_EFFECT_ARGUMENT_INVALID` before capability matching. Identifiers may
+  continue to the trust-flow checker; integers, durations, and lists are not
+  valid v0 effect sink resources.
 - Preserve grant-level source spans when capability body grants are parsed, and
   use those spans in AST output, graph capability grants, allowed-grant
   diagnostics, and provenance metadata.
@@ -1927,6 +1931,7 @@ Initial diagnostic families:
 - `INTENT_TYPE_MISMATCH`
 - `INTENT_STEP_INPUT_UNRESOLVED`
 - `INTENT_EFFECT_UNDECLARED`
+- `INTENT_EFFECT_ARGUMENT_INVALID`
 - `INTENT_CAPABILITY_DENIED`
 - `INTENT_APPROVAL_MISSING`
 - `INTENT_APPROVAL_INVALID`

@@ -1,0 +1,17 @@
+package fixtures.invalid_effect_argument_type
+
+type Report
+
+goal invalid_effect_argument_type() -> Report {
+  capability shell {
+    run command: "npm test"
+  }
+  plan {
+    step run_tests -> Report {
+      effect ShellExec(command: 30)
+    }
+  }
+  verify {
+    require no_policy_violations
+  }
+}

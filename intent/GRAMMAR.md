@@ -329,7 +329,9 @@ prototype. A shell command, file write path, secret name, ticket id, deploy
 target, git push ref, or git commit message must be either a string literal or
 a value already marked trusted by the checker. Nonliteral constrained sink
 expressions that are not trusted produce `INTENT_TRUST_FLOW_UNSAFE` rather
-than being treated as opaque trusted strings.
+than being treated as opaque trusted strings. Non-string constrained values,
+such as numbers, durations, or lists in an effect call, emit
+`INTENT_EFFECT_ARGUMENT_INVALID` before capability matching.
 
 Effect adapter calls are normalized by the v0 effect contract registry before
 capability matching and graph emission. The registry currently covers file
