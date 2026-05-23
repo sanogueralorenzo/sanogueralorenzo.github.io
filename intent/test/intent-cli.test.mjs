@@ -186,6 +186,10 @@ function attachedStepValues(graph, step, field) {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const incoming = graph.edges.filter((edge) => edge.to === step.id);
   const outgoing = graph.edges.filter((edge) => edge.from === step.id);
+  if (field === "inputs") {
+    return incoming.filter((edge) => edge.kind === "requires" && nodesById.get(edge.from)?.kind === "Input" && nodesById.get(edge.from)?.data.scope === "step")
+      .map((edge) => nodesById.get(edge.from)).sort(spanSort).map((node) => ({ name: node.label, type: node.data.type, span: node.span }));
+  }
   if (field === "effects") {
     return outgoing.filter((edge) => edge.kind === "requests" && nodesById.get(edge.to)?.kind === "Effect")
       .map((edge) => nodesById.get(edge.to)).sort(spanSort).map((node) => node.label);
@@ -1875,13 +1879,13 @@ describe("intent static model CLI", () => {
   });
 
   it("keeps step summary metadata aligned with owned child nodes", () => {
-    for (const fixture of [VALID_STEP_POLICY_GRAPH, VALID_STEP_APPROVAL_GRAPH, VALID_CHECKPOINT_GRAPH, VALID_MEMORY_FLOW_GRAPH]) {
+    for (const fixture of [VALID_DEPENDENCY_GRAPH, VALID_STEP_POLICY_GRAPH, VALID_STEP_APPROVAL_GRAPH, VALID_CHECKPOINT_GRAPH, VALID_MEMORY_FLOW_GRAPH]) {
       const graph = runJson(["graph", fixture]);
       const steps = graph.nodes.filter((node) => node.kind === "Step");
 
       assert.equal(graph.ok, true);
       for (const step of steps) {
-        for (const field of ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"]) {
+        for (const field of ["inputs", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"]) {
           assert.deepEqual(step.data[field], attachedStepValues(graph, step, field));
         }
       }
@@ -3361,6 +3365,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(1), data: {
+          inputs: [{ name: "ticket", type: "Ticket", span: testSpan(10) }],
           effects: ["ShellRun"],
           requirements: ["ticket.reviewed"],
           checkpoints: ["after patch"],
@@ -3370,6 +3375,7 @@ describe("intent static model CLI", () => {
           memoryAccesses: ["session.summary"],
         } },
         { id: "goal:demo:memory:0", kind: "Memory", label: "session", span: testSpan(2) },
+        { id: "goal:demo:step:patch:input:ticket", kind: "Input", label: "ticket", span: testSpan(10), data: { scope: "step", type: "Finding" } },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
         { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "ready", span: testSpan(4), data: { scope: "step", ownerStep: "patch", requirement: "ticket.ready" } },
         { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(5), data: { checkpoint: "before patch" } },
@@ -3378,6 +3384,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(8), data: { policyKind: "retry", policy: "max 2" } },
       ],
       edges: [
+        { from: "goal:demo:step:patch:input:ticket", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "ticket", type: "Finding", targetSpan: testSpan(10) } },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "ticket.ready" } },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints", data: { checkpoint: "before patch" } },
@@ -3388,13 +3395,15 @@ describe("intent static model CLI", () => {
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_STEP_METADATA_INVALID");
 
-    assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.field), ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"]);
-    assert.deepEqual(diagnostics[0].declared_values, ["ShellRun"]);
-    assert.deepEqual(diagnostics[0].owned_values, ["FileWrite"]);
-    assert.deepEqual(diagnostics[0].owned_node_ids, ["goal:demo:step:patch:effect:0"]);
+    assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.field), ["inputs", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"]);
+    assert.deepEqual(diagnostics[0].declared_values.map((input) => input.type), ["Ticket"]);
+    assert.deepEqual(diagnostics[0].owned_values.map((input) => input.type), ["Finding"]);
+    assert.deepEqual(diagnostics[0].owned_node_ids, ["goal:demo:step:patch:input:ticket"]);
     assert.equal(diagnostics[0].declared_count, 1);
     assert.equal(diagnostics[0].owned_count, 1);
     assert.deepEqual(diagnostics[0].mismatched_indexes, [0]);
+    assert.deepEqual(diagnostics[1].declared_values, ["ShellRun"]);
+    assert.deepEqual(diagnostics[1].owned_values, ["FileWrite"]);
   });
 
   it("validates graph step input binding diagnostics", () => {

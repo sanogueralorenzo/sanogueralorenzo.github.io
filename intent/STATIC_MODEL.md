@@ -689,9 +689,9 @@ Next graph envelope validation milestone:
   Malformed Step node payloads emit `INTENT_GRAPH_STEP_INVALID` and make graph
   output non-executable because runtimes must not infer executable inputs, side
   effects, gates, checkpoints, approvals, timeouts, retries, memory accesses, or
-  output types. Step summary arrays for effects, requirements, checkpoints,
-  approvals, timeouts, retries, and memory accesses must exactly match owned
-  child nodes or memory access edges in source order; mismatches emit
+  output types. Step summary arrays for inputs, effects, requirements,
+  checkpoints, approvals, timeouts, retries, and memory accesses must exactly
+  match owned child nodes or memory access edges in source order; mismatches emit
   `INTENT_GRAPH_STEP_METADATA_INVALID`.
 - Runtime Completion node metadata is part of graph validation. `Completion`
   node data must carry `outputType` as `null` or a non-empty string and

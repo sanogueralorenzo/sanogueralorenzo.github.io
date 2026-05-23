@@ -448,9 +448,9 @@ Validation expectations:
   `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
   runtimes must not infer executable inputs, side effects, gates, checkpoints,
   approvals, timeouts, retries, memory accesses, or output types. The Step
-  summary arrays for effects, requirements, checkpoints, approvals, timeouts,
-  retries, and memory accesses must exactly match owned child nodes or memory
-  access edges in source order; mismatches emit
+  summary arrays for inputs, effects, requirements, checkpoints, approvals,
+  timeouts, retries, and memory accesses must exactly match owned child nodes
+  or memory access edges in source order; mismatches emit
   `INTENT_GRAPH_STEP_METADATA_INVALID`.
 - Graph `Completion` nodes carry runtime completion metadata. Completion node
   data must carry `outputType` as `null` or a non-empty string and

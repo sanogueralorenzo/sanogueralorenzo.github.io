@@ -3168,9 +3168,39 @@ function validateGraphStep(graphNode, graphSpan) {
 }
 
 function validateGraphStepMetadata(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode, fallbackSpan) {
-  return stepMetadataSpecs(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode)
-    .map((spec) => validateGraphStepMetadataField(graphNode, spec, fallbackSpan))
-    .filter((diagnostic) => diagnostic !== null);
+  return [
+    validateGraphStepInputMetadata(nodesById, incomingEdgesByNode, graphNode, fallbackSpan),
+    ...stepMetadataSpecs(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode)
+      .map((spec) => validateGraphStepMetadataField(graphNode, spec, fallbackSpan)),
+  ].filter((diagnostic) => diagnostic !== null);
+}
+
+function validateGraphStepInputMetadata(nodesById, incomingEdgesByNode, graphNode, fallbackSpan) {
+  const declaredInputs = graphNode.data?.inputs;
+  const ownedInputs = ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "requires", "Input")
+    .filter((ownedNode) => ownedNode.data?.scope === "step");
+  if (!Array.isArray(declaredInputs) || declaredInputs.some((input) => !isGraphParameterRecord(input)) || (declaredInputs.length === 0 && ownedInputs.length === 0)) {
+    return null;
+  }
+  const ownedValues = ownedInputs.map((ownedNode) => ({
+    name: ownedNode.label,
+    type: ownedNode.data?.type,
+    span: ownedNode.span,
+  }));
+  if (parameterArraysEqual(declaredInputs, ownedValues)) {
+    return null;
+  }
+  return error("INTENT_GRAPH_STEP_METADATA_INVALID", `step '${graphNode.label}' inputs metadata must match owned step input nodes in source order.`, graphNode.span ?? fallbackSpan, {
+    step: graphNode.label,
+    step_id: graphNode.id,
+    field: "inputs",
+    declared_values: declaredInputs,
+    owned_values: ownedValues,
+    owned_node_ids: ownedInputs.map((ownedNode) => ownedNode.id),
+    declared_count: declaredInputs.length,
+    owned_count: ownedInputs.length,
+    mismatched_indexes: mismatchedParameterIndexes(declaredInputs, ownedValues),
+  });
 }
 
 function validateGraphStepMetadataField(graphNode, spec, fallbackSpan) {
@@ -3289,11 +3319,30 @@ function stringArraysEqual(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
+function parameterArraysEqual(left, right) {
+  return left.length === right.length && left.every((value, index) => parametersEqual(value, right[index]));
+}
+
+function parametersEqual(left, right) {
+  return left?.name === right?.name && left?.type === right?.type && spansEqual(left?.span, right?.span);
+}
+
 function mismatchedIndexes(left, right) {
   const indexes = [];
   const length = Math.max(left.length, right.length);
   for (let index = 0; index < length; index += 1) {
     if (left[index] !== right[index]) {
+      indexes.push(index);
+    }
+  }
+  return indexes;
+}
+
+function mismatchedParameterIndexes(left, right) {
+  const indexes = [];
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    if (!parametersEqual(left[index], right[index])) {
       indexes.push(index);
     }
   }
