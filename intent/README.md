@@ -100,6 +100,10 @@ Validation expectations:
 - Executable graph payloads must include `nodes` and `edges` arrays. Missing
   or non-array collections emit `INTENT_GRAPH_SHAPE_INVALID` and are not
   executable contracts.
+- Executable graph payloads must contain object node records with string `id`
+  and `kind`, and object edge records with string `from`, `to`, and `kind`.
+  Malformed records emit stable graph shape diagnostics before endpoint or kind
+  validation.
 - A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,
   cycles, missing authorization or approval edges, or invalid completion gates is
   malformed and must be rejected before execution.
