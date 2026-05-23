@@ -1968,7 +1968,7 @@ function isNonemptyStringArray(value) {
 }
 
 function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
-  if (graphEdge.kind !== "data") {
+  if (graphEdge.kind !== "data" && graphEdge.kind !== "produces") {
     return null;
   }
   const payload = isPlainObject(graphEdge.data) ? graphEdge.data : {};
@@ -1976,10 +1976,13 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
   const typeIsNonempty = typeof payload.type === "string" && payload.type.trim() !== "";
   const sourceSpanIsValid = isSpan(payload.sourceSpan);
   const targetSpanIsValid = isSpan(payload.targetSpan);
-  if (parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid) {
+  const payloadIsValid = graphEdge.kind === "data"
+    ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
+    : typeIsNonempty && sourceSpanIsValid && targetSpanIsValid;
+  if (payloadIsValid) {
     return null;
   }
-  return error("INTENT_GRAPH_EDGE_PAYLOAD_INVALID", `data edge '${graphEdge.from}' to '${graphEdge.to}' must carry valid typed binding data.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+  return error("INTENT_GRAPH_EDGE_PAYLOAD_INVALID", `${graphEdge.kind} edge '${graphEdge.from}' to '${graphEdge.to}' must carry valid typed binding data.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
     edge: graphEdge.kind,
     from: graphEdge.from,
     to: graphEdge.to,

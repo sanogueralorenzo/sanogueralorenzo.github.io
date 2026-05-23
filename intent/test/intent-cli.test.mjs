@@ -92,6 +92,14 @@ function validateTestGraph(graph) {
           }
         : node;
     }),
+    edges: graph.edges?.map((edge) => {
+      return isPlainObject(edge)
+        ? {
+            ...edge,
+            data: defaultGraphEdgeData(edge.kind, edge.data),
+          }
+        : edge;
+    }),
   };
   return validateGraph({
     schema_version: "intent.graph.v0",
@@ -199,6 +207,16 @@ function defaultGraphNodeData(kind, data) {
     return baseData;
   }
   return normalizedData;
+}
+
+function defaultGraphEdgeData(kind, data) {
+  if (data !== undefined) {
+    return data;
+  }
+  if (kind === "produces") {
+    return { type: "Synthetic", sourceSpan: testSpan(1), targetSpan: testSpan(1) };
+  }
+  return undefined;
 }
 
 function validateSchema(schema, value) {
@@ -1936,6 +1954,31 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].parameter_is_nonempty, true);
     assert.equal(diagnostics[2].type_is_nonempty, false);
     assert.equal(diagnostics[2].target_span_is_valid, true);
+  });
+
+  it("validates graph produces edge payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(1) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(2) },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "", sourceSpan: testSpan(1), targetSpan: testSpan(2) } },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "Report", targetSpan: testSpan(2) } },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: testSpan(1) } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].edge, "produces");
+    assert.equal(diagnostics[0].type_is_nonempty, false);
+    assert.equal(diagnostics[0].source_span_is_valid, true);
+    assert.equal(diagnostics[0].target_span_is_valid, true);
+    assert.equal(diagnostics[1].type_is_nonempty, true);
+    assert.equal(diagnostics[1].source_span_is_valid, false);
+    assert.equal(diagnostics[2].type_is_nonempty, true);
+    assert.equal(diagnostics[2].target_span_is_valid, false);
   });
 
   it("validates graph authorization diagnostics", () => {
