@@ -79,6 +79,15 @@ function testSpan(line) {
   };
 }
 
+function validateTestGraph(graph) {
+  return validateGraph({
+    schema_version: "intent.graph.v0",
+    ast_schema_version: "intent.ast.v0",
+    source: "synthetic.intent",
+    ...graph,
+  });
+}
+
 function validateSchema(schema, value) {
   const errors = [];
   validateAgainst(schema, value, schema, "$", errors);
@@ -1028,12 +1037,12 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph endpoint and cycle diagnostics", () => {
-    const danglingDiagnostics = validateGraph({
+    const danglingDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [{ id: "node:a", kind: "Type", label: "a", span: testSpan(1) }],
       edges: [{ from: "node:a", to: "node:missing", kind: "requests" }],
     });
-    const cycleDiagnostics = validateGraph({
+    const cycleDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "node:a", kind: "Type", label: "a", span: testSpan(1) },
@@ -1053,7 +1062,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph duplicate node diagnostics", () => {
-    const diagnostics = validateGraph({
+    const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "node:a", kind: "Type", label: "a", span: testSpan(1) },
@@ -1079,6 +1088,11 @@ describe("intent static model CLI", () => {
       nodes: [],
       edges: [],
     });
+    const missingDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [],
+      edges: [],
+    });
 
     assert.equal(diagnostics.length, 1);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_SCHEMA_INVALID");
@@ -1086,10 +1100,14 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].expected_schema_version, "intent.graph.v0");
     assert.equal(diagnostics[0].ast_schema_version, "intent.ast.v1");
     assert.equal(diagnostics[0].expected_ast_schema_version, "intent.ast.v0");
+    assert.equal(missingDiagnostics.length, 1);
+    assert.equal(missingDiagnostics[0].code, "INTENT_GRAPH_SCHEMA_INVALID");
+    assert.equal(missingDiagnostics[0].schema_version, null);
+    assert.equal(missingDiagnostics[0].ast_schema_version, null);
   });
 
   it("validates graph node kind diagnostics", () => {
-    const diagnostics = validateGraph({
+    const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "node:widget", kind: "Widget", label: "widget", span: testSpan(1) },
@@ -1105,7 +1123,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph edge kind diagnostics", () => {
-    const diagnostics = validateGraph({
+    const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "node:a", kind: "Type", label: "a", span: testSpan(1) },
@@ -1125,7 +1143,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph step input binding diagnostics", () => {
-    const unboundDiagnostics = validateGraph({
+    const unboundDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", span: testSpan(1) },
@@ -1133,7 +1151,7 @@ describe("intent static model CLI", () => {
       ],
       edges: [],
     });
-    const duplicateDiagnostics = validateGraph({
+    const duplicateDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo:input:a", kind: "Input", label: "a", span: testSpan(1), data: { scope: "goal" } },
@@ -1153,7 +1171,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph data edge shape diagnostics", () => {
-    const diagnostics = validateGraph({
+    const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", span: testSpan(1) },
@@ -1177,7 +1195,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph authorization diagnostics", () => {
-    const diagnostics = validateGraph({
+    const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1208,7 +1226,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph effect request diagnostics", () => {
-    const missingDiagnostics = validateGraph({
+    const missingDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1226,7 +1244,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
-    const wrongSourceDiagnostics = validateGraph({
+    const wrongSourceDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1257,7 +1275,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph step plan diagnostics", () => {
-    const missingDiagnostics = validateGraph({
+    const missingDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1265,7 +1283,7 @@ describe("intent static model CLI", () => {
       ],
       edges: [],
     });
-    const wrongSourceDiagnostics = validateGraph({
+    const wrongSourceDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1285,7 +1303,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph step sequence diagnostics", () => {
-    const missingChainDiagnostics = validateGraph({
+    const missingChainDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1302,7 +1320,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
-    const wrongProducerDiagnostics = validateGraph({
+    const wrongProducerDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1333,14 +1351,14 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph goal completion diagnostics", () => {
-    const missingCompletionDiagnostics = validateGraph({
+    const missingCompletionDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
       ],
       edges: [],
     });
-    const wrongCompletionDiagnostics = validateGraph({
+    const wrongCompletionDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1361,7 +1379,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph step attachment diagnostics", () => {
-    const diagnostics = validateGraph({
+    const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1405,7 +1423,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph completion edge diagnostics", () => {
-    const missingProducesDiagnostics = validateGraph({
+    const missingProducesDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1417,7 +1435,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
-    const duplicateProducesDiagnostics = validateGraph({
+    const duplicateProducesDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1433,7 +1451,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
-    const missingVerifyAndGuardDiagnostics = validateGraph({
+    const missingVerifyAndGuardDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
@@ -1462,7 +1480,7 @@ describe("intent static model CLI", () => {
   });
 
   it("validates graph invariant guard diagnostics", () => {
-    const diagnostics = validateGraph({
+    const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },

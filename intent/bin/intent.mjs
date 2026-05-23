@@ -1201,10 +1201,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
 function validateGraph(graph) {
   const diagnostics = [];
-  if (
-    (graph.schema_version !== undefined && graph.schema_version !== GRAPH_SCHEMA_VERSION)
-    || (graph.ast_schema_version !== undefined && graph.ast_schema_version !== AST_SCHEMA_VERSION)
-  ) {
+  if (graph.schema_version !== GRAPH_SCHEMA_VERSION || graph.ast_schema_version !== AST_SCHEMA_VERSION) {
     diagnostics.push(error("INTENT_GRAPH_SCHEMA_INVALID", `graph envelope uses unsupported schema version.`, span(graph.source ?? "graph", 1, 1), {
       schema_version: graph.schema_version ?? null,
       expected_schema_version: GRAPH_SCHEMA_VERSION,
