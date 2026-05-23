@@ -157,7 +157,10 @@ Validation expectations:
   coverage: missing, duplicate, or wrong-owner incoming `plans` edges for a
   `Step` remain `INTENT_GRAPH_STEP_PLAN_INVALID`; malformed `Goal` payloads
   remain `INTENT_GRAPH_GOAL_INVALID`; and malformed `Step` payloads remain
-  `INTENT_GRAPH_STEP_INVALID`. Constraining the generic role prevents plan
+  `INTENT_GRAPH_STEP_INVALID`. Role-valid `plans` edges carry goal name, step
+  name, zero-based step index, and source/target spans matching the owner
+  `Goal` and planned `Step`; mismatches emit
+  `INTENT_GRAPH_STEP_PLAN_INVALID`. Constraining the generic role prevents plan
   topology from being replayed from ambiguous runtime-control edges while
   preserving step-specific ownership diagnostics.
 - Runtime graph `declares` edges have a constrained role contract. A
@@ -247,7 +250,10 @@ Validation expectations:
   metadata, and source/target spans matching the source `Context` and owning
   `Goal`; mismatches emit `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`.
   `precedes` is valid only as `Step` to `Step`; unsupported endpoint roles
-  emit `INTENT_GRAPH_PRECEDE_INVALID`. These generic role diagnostics are
+  emit `INTENT_GRAPH_PRECEDE_INVALID`. Role-valid `precedes` edges carry
+  previous/next step names, adjacent zero-based indexes, and source/target spans
+  matching the ordered source and target `Step`; mismatches emit
+  `INTENT_GRAPH_STEP_SEQUENCE_INVALID`. These generic role diagnostics are
   separate from `INTENT_GRAPH_DATA_INVALID`,
   `INTENT_GRAPH_INPUT_SUPPLY_INVALID`,
   `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`,

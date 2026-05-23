@@ -400,6 +400,36 @@ function defaultGraphEdgeData(edge, data, nodesById = new Map()) {
       };
     }
   }
+  if (edge.kind === "plans") {
+    const sourceNode = nodesById.get(edge.from);
+    const targetNode = nodesById.get(edge.to);
+    if (sourceNode?.kind === "Goal" && targetNode?.kind === "Step") {
+      const steps = [...nodesById.values()].filter((node) => node.kind === "Step" && node.id.startsWith(`${sourceNode.id}:step:`));
+      return {
+        goal: sourceNode.label,
+        step: targetNode.label,
+        index: steps.findIndex((node) => node.id === targetNode.id),
+        sourceSpan: sourceNode.span,
+        targetSpan: targetNode.span,
+      };
+    }
+  }
+  if (edge.kind === "precedes") {
+    const sourceNode = nodesById.get(edge.from);
+    const targetNode = nodesById.get(edge.to);
+    const goalId = typeof sourceNode?.id === "string" ? sourceNode.id.split(":step:")[0] : null;
+    if (sourceNode?.kind === "Step" && targetNode?.kind === "Step" && goalId) {
+      const steps = [...nodesById.values()].filter((node) => node.kind === "Step" && node.id.startsWith(`${goalId}:step:`));
+      return {
+        previousStep: sourceNode.label,
+        nextStep: targetNode.label,
+        previousIndex: steps.findIndex((node) => node.id === sourceNode.id),
+        nextIndex: steps.findIndex((node) => node.id === targetNode.id),
+        sourceSpan: sourceNode.span,
+        targetSpan: targetNode.span,
+      };
+    }
+  }
   if (edge.kind === "requires" && typeof edge.from === "string" && edge.from.includes(":requirement:")) {
     return { requirement: "synthetic" };
   }
@@ -1612,6 +1642,12 @@ describe("intent static model CLI", () => {
     const fileWrite = graph.nodes.find((node) => node.kind === "Effect" && node.data.args.path === "./src/app.ts");
     const shellCheck = graph.nodes.find((node) => node.kind === "Check" && node.data.effect?.args.command === "npm test");
     const fileWriteRequest = graph.edges.find((edge) => edge.kind === "requests" && edge.to === fileWrite?.id);
+    const planEdge = graph.edges.find((edge) => edge.kind === "plans");
+    const precedesEdge = graph.edges.find((edge) => edge.kind === "precedes");
+    const plannedGoal = graph.nodes.find((node) => node.id === planEdge?.from);
+    const plannedStep = graph.nodes.find((node) => node.id === planEdge?.to);
+    const previousStep = graph.nodes.find((node) => node.id === precedesEdge?.from);
+    const nextStep = graph.nodes.find((node) => node.id === precedesEdge?.to);
 
     assert.equal(graph.schema_version, "intent.graph.v0");
     assert.equal(graph.ok, true);
@@ -1639,7 +1675,18 @@ describe("intent static model CLI", () => {
     assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => {
       return grant.value === "npm test" && grant.span?.start?.line === 27;
     })), true);
-    assert.equal(graph.edges.some((edge) => edge.kind === "plans"), true);
+    assert.equal(Boolean(planEdge), true);
+    assert.equal(planEdge.data.goal, plannedGoal.label);
+    assert.equal(planEdge.data.step, plannedStep.label);
+    assert.equal(planEdge.data.index, 0);
+    assert.equal(planEdge.data.sourceSpan.start.line, plannedGoal.span.start.line);
+    assert.equal(planEdge.data.targetSpan.start.line, plannedStep.span.start.line);
+    assert.equal(Boolean(precedesEdge), true);
+    assert.equal(precedesEdge.data.previousStep, previousStep.label);
+    assert.equal(precedesEdge.data.nextStep, nextStep.label);
+    assert.equal(precedesEdge.data.nextIndex, precedesEdge.data.previousIndex + 1);
+    assert.equal(precedesEdge.data.sourceSpan.start.line, previousStep.span.start.line);
+    assert.equal(precedesEdge.data.targetSpan.start.line, nextStep.span.start.line);
     assert.equal(graph.edges.some((edge) => edge.kind === "gates"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to.includes(":verify:")), true);
   });
@@ -4530,6 +4577,40 @@ describe("intent static model CLI", () => {
     assert.equal(wrongSourceDiagnostics[0].owner_goal_plans_edges, 0);
   });
 
+  it("validates graph step plan metadata diagnostics", () => {
+    const goalSpan = testSpan(1);
+    const stepSpan = testSpan(2);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: goalSpan },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: stepSpan },
+      ],
+      edges: [
+        {
+          from: "goal:demo",
+          to: "goal:demo:step:patch",
+          kind: "plans",
+          data: {
+            goal: "demo",
+            step: "wrong",
+            index: 0,
+            sourceSpan: goalSpan,
+            targetSpan: stepSpan,
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_STEP_PLAN_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].data_is_object, true);
+    assert.equal(diagnostics[0].goal_matches_source, true);
+    assert.equal(diagnostics[0].step_matches_target, false);
+    assert.equal(diagnostics[0].index_matches_target, true);
+    assert.equal(diagnostics[0].source_span_matches_goal, true);
+    assert.equal(diagnostics[0].target_span_matches_step, true);
+  });
+
   it("validates graph step sequence diagnostics", () => {
     const missingChainDiagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -4568,6 +4649,37 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
+    const invalidMetadataDiagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:step:b", kind: "Step", label: "b", span: testSpan(3) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(4) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(5) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:step:a", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:step:b", kind: "plans" },
+        {
+          from: "goal:demo:step:a",
+          to: "goal:demo:step:b",
+          kind: "precedes",
+          data: {
+            previousStep: "a",
+            nextStep: "wrong",
+            previousIndex: 0,
+            nextIndex: 1,
+            sourceSpan: testSpan(2),
+            targetSpan: testSpan(3),
+          },
+        },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:b", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    });
 
     assert.equal(missingChainDiagnostics.length, 1);
     assert.equal(missingChainDiagnostics[0].code, "INTENT_GRAPH_STEP_SEQUENCE_INVALID");
@@ -4578,6 +4690,10 @@ describe("intent static model CLI", () => {
     assert.equal(wrongProducerDiagnostics[0].code, "INTENT_GRAPH_STEP_SEQUENCE_INVALID");
     assert.deepEqual(wrongProducerDiagnostics[0].completion_producer_step_ids, ["goal:demo:step:a"]);
     assert.equal(wrongProducerDiagnostics[0].expected_completion_producer_step_id, "goal:demo:step:b");
+    assert.equal(invalidMetadataDiagnostics.length, 1);
+    assert.equal(invalidMetadataDiagnostics[0].code, "INTENT_GRAPH_STEP_SEQUENCE_INVALID");
+    assert.equal(invalidMetadataDiagnostics[0].invalid_precedes_metadata.length, 1);
+    assert.equal(invalidMetadataDiagnostics[0].invalid_precedes_metadata[0].next_step_matches_target, false);
   });
 
   it("validates graph goal completion diagnostics", () => {

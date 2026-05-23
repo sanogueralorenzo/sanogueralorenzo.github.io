@@ -1149,6 +1149,30 @@
             "source": {
               "type": "string"
             },
+            "goal": {
+              "type": "string"
+            },
+            "step": {
+              "type": "string"
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "previousStep": {
+              "type": "string"
+            },
+            "nextStep": {
+              "type": "string"
+            },
+            "previousIndex": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "nextIndex": {
+              "type": "integer",
+              "minimum": 0
+            },
             "family": {
               "type": "string"
             },

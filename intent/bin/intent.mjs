@@ -1390,6 +1390,27 @@ function contextInformsEdgeData(context, access, goal) {
   };
 }
 
+function stepPlanEdgeData(goal, step, index) {
+  return {
+    goal: goal.name,
+    step: step.name,
+    index,
+    sourceSpan: goal.span,
+    targetSpan: step.span,
+  };
+}
+
+function stepPrecedesEdgeData(previousStep, nextStep, previousIndex, nextIndex) {
+  return {
+    previousStep: previousStep.name,
+    nextStep: nextStep.name,
+    previousIndex,
+    nextIndex,
+    sourceSpan: previousStep.span,
+    targetSpan: nextStep.span,
+  };
+}
+
 function completionStepCheckpoints(goal) {
   const finalStep = goal.steps.at(-1);
   if (!finalStep) {
@@ -1590,6 +1611,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       }
     }
 
+    let previousStep = null;
     let previousStepId = null;
     let lastStepId = null;
     const guardTargetIds = [];
@@ -1607,10 +1629,11 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         retries: step.retries.map((retry) => retry.value),
         memoryAccesses: step.memoryAccesses.map((access) => access.target),
       }));
-      edges.push(edge(goalId, id, "plans"));
-      if (previousStepId) {
-        edges.push(edge(previousStepId, id, "precedes"));
+      edges.push(edge(goalId, id, "plans", stepPlanEdgeData(goal, step, index)));
+      if (previousStepId && previousStep) {
+        edges.push(edge(previousStepId, id, "precedes", stepPrecedesEdgeData(previousStep, step, index - 1, index)));
       }
+      previousStep = step;
       previousStepId = id;
       lastStepId = id;
       const stepApprovalIds = [];
@@ -2438,7 +2461,14 @@ function validateGraph(graph, options = {}) {
     const ownerGoal = ownerGoalId ? nodesById.get(ownerGoalId) : null;
     const planEdges = (incomingEdgesByNode.get(graphNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "plans");
     const ownerPlanEdges = planEdges.filter((graphEdge) => graphEdge.from === ownerGoalId && ownerGoal?.kind === "Goal");
-    if (ownerPlanEdges.length !== 1 || planEdges.length !== ownerPlanEdges.length) {
+    if (ownerPlanEdges.length === 1 && planEdges.length === ownerPlanEdges.length) {
+      const planMetadataDiagnostic = validateGraphStepPlanMetadata(ownerPlanEdges[0], ownerGoal, graphNode, graphStepIndex(graphNodes, ownerGoalId, graphNode.id), fallbackSpan);
+      if (planMetadataDiagnostic) {
+        diagnostics.push(planMetadataDiagnostic);
+      }
+      continue;
+    }
+    {
       diagnostics.push(error("INTENT_GRAPH_STEP_PLAN_INVALID", `step '${graphNode.label}' must have exactly one incoming plans edge from its owning goal.`, graphNode.span ?? fallbackSpan, {
         step: graphNode.label,
         step_id: graphNode.id,
@@ -4824,6 +4854,65 @@ function validateGraphContextInformsMetadata(graphEdge, contextNode, goalNode, f
   });
 }
 
+function validateGraphStepPlanMetadata(graphEdge, goalNode, stepNode, stepIndex, fallbackSpan) {
+  const data = graphEdge.data;
+  const dataIsObject = isPlainObject(data);
+  const goalMatchesSource = dataIsObject && data.goal === goalNode.label;
+  const stepMatchesTarget = dataIsObject && data.step === stepNode.label;
+  const indexMatchesTarget = dataIsObject && data.index === stepIndex;
+  const sourceSpanMatchesGoal = dataIsObject && spansEqual(data.sourceSpan, goalNode.span);
+  const targetSpanMatchesStep = dataIsObject && spansEqual(data.targetSpan, stepNode.span);
+  if (
+    dataIsObject
+    && goalMatchesSource
+    && stepMatchesTarget
+    && indexMatchesTarget
+    && sourceSpanMatchesGoal
+    && targetSpanMatchesStep
+  ) {
+    return null;
+  }
+  return error("INTENT_GRAPH_STEP_PLAN_INVALID", `plans edge '${graphEdge.from}' to '${graphEdge.to}' must carry step plan metadata matching its owning goal and target step.`, edgeDiagnosticSpan(new Map([[goalNode.id, goalNode], [stepNode.id, stepNode]]), graphEdge, fallbackSpan), {
+    step: stepNode.label,
+    step_id: stepNode.id,
+    owner_goal_id: goalNode.id,
+    plans_edges: 1,
+    owner_goal_plans_edges: 1,
+    plan_edge: { from: graphEdge.from, to: graphEdge.to, kind: graphEdge.kind },
+    data_is_object: dataIsObject,
+    goal_matches_source: goalMatchesSource,
+    step_matches_target: stepMatchesTarget,
+    index_matches_target: indexMatchesTarget,
+    source_span_matches_goal: sourceSpanMatchesGoal,
+    target_span_matches_step: targetSpanMatchesStep,
+  });
+}
+
+function validateGraphStepPrecedesMetadata(graphEdge, previousStepNode, nextStepNode, previousIndex, nextIndex) {
+  const data = graphEdge.data;
+  const dataIsObject = isPlainObject(data);
+  return {
+    edge: { from: graphEdge.from, to: graphEdge.to },
+    data_is_object: dataIsObject,
+    previous_step_matches_source: dataIsObject && data.previousStep === previousStepNode.label,
+    next_step_matches_target: dataIsObject && data.nextStep === nextStepNode.label,
+    previous_index_matches_source: dataIsObject && data.previousIndex === previousIndex,
+    next_index_matches_target: dataIsObject && data.nextIndex === nextIndex,
+    source_span_matches_previous_step: dataIsObject && spansEqual(data.sourceSpan, previousStepNode.span),
+    target_span_matches_next_step: dataIsObject && spansEqual(data.targetSpan, nextStepNode.span),
+  };
+}
+
+function stepPrecedesMetadataIsValid(metadata) {
+  return metadata.data_is_object
+    && metadata.previous_step_matches_source
+    && metadata.next_step_matches_target
+    && metadata.previous_index_matches_source
+    && metadata.next_index_matches_target
+    && metadata.source_span_matches_previous_step
+    && metadata.target_span_matches_next_step;
+}
+
 function trustRecordsEqual(left, right) {
   return isPlainObject(left)
     && isPlainObject(right)
@@ -4952,6 +5041,8 @@ function validateGoalStepSequence(graphNodes, graphEdges, incomingEdgesByNode, g
   const outgoingPrecedesTargets = new Map(stepNodes.map((stepNode) => [stepNode.id, []]));
   const precedesEdges = [];
   const malformedPrecedesEdges = [];
+  const unorderedPrecedesEdges = [];
+  const invalidPrecedesMetadata = [];
 
   for (const graphEdge of graphEdges) {
     if (graphEdge.kind !== "precedes") {
@@ -4967,6 +5058,17 @@ function validateGoalStepSequence(graphNodes, graphEdges, incomingEdgesByNode, g
       continue;
     }
     precedesEdges.push(graphEdge);
+    const previousStepNode = graphNodes.find((candidate) => candidate.id === graphEdge.from);
+    const nextStepNode = graphNodes.find((candidate) => candidate.id === graphEdge.to);
+    const previousIndex = graphStepIndex(graphNodes, goalNode.id, graphEdge.from);
+    const nextIndex = graphStepIndex(graphNodes, goalNode.id, graphEdge.to);
+    const metadata = validateGraphStepPrecedesMetadata(graphEdge, previousStepNode, nextStepNode, previousIndex, nextIndex);
+    if (!stepPrecedesMetadataIsValid(metadata)) {
+      invalidPrecedesMetadata.push(metadata);
+    }
+    if (nextIndex !== previousIndex + 1) {
+      unorderedPrecedesEdges.push({ from: graphEdge.from, to: graphEdge.to, previous_index: previousIndex, next_index: nextIndex });
+    }
     incomingPrecedesCounts.set(graphEdge.to, (incomingPrecedesCounts.get(graphEdge.to) ?? 0) + 1);
     outgoingPrecedesTargets.get(graphEdge.from).push(graphEdge.to);
   }
@@ -5010,7 +5112,9 @@ function validateGoalStepSequence(graphNodes, graphEdges, incomingEdgesByNode, g
       && headStepIds.length === 1
       && tailStepIds.length === 1
       && branchStepIds.length === 0
-      && orderedStepIds.length === stepNodes.length;
+      && orderedStepIds.length === stepNodes.length
+      && unorderedPrecedesEdges.length === 0
+      && invalidPrecedesMetadata.length === 0;
 
   if (validChain && producerIsTail) {
     return null;
@@ -5026,10 +5130,18 @@ function validateGoalStepSequence(graphNodes, graphEdges, incomingEdgesByNode, g
     tail_step_ids: tailStepIds,
     branch_step_ids: branchStepIds,
     malformed_precedes_edges: malformedPrecedesEdges.map((graphEdge) => ({ from: graphEdge.from, to: graphEdge.to })),
+    unordered_precedes_edges: unorderedPrecedesEdges,
+    invalid_precedes_metadata: invalidPrecedesMetadata,
     ordered_step_ids: orderedStepIds,
     completion_producer_step_ids: completionProducerStepIds,
     expected_completion_producer_step_id: expectedTailStepId,
   });
+}
+
+function graphStepIndex(graphNodes, goalId, stepId) {
+  return graphNodes
+    .filter((candidate) => candidate.kind === "Step" && candidate.id.startsWith(`${goalId}:step:`))
+    .findIndex((candidate) => candidate.id === stepId);
 }
 
 function invariantGoalId(invariantId) {
