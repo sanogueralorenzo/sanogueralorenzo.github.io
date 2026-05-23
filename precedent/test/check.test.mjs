@@ -92,6 +92,32 @@ test("check fails for promoted precedent without improvement", async () => {
   }
 });
 
+test("check fails for promoted precedent without replay receipt", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await appendFile(join(stateDir, "precedents.jsonl"), `${JSON.stringify({
+      id: "prec_no_replay_receipt",
+      promotion_status: "promoted",
+      evidence: ["verified by replay"],
+      promotion: {
+        baseline_failures: 1,
+        rerun_failures: 0,
+      },
+    })}\n`);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("replay.id is required")));
+    assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("replay.path is required")));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("check fails for raw secret-like values in state", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

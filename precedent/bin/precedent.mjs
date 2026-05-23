@@ -1874,6 +1874,7 @@ function normalizePrecedent(precedent, traceId) {
     evidence: Array.isArray(precedent.evidence) ? precedent.evidence : [],
     injection: requireString(precedent.injection, "precedent.injection"),
     promotion: precedent.promotion ?? {},
+    replay: precedent.replay ?? null,
     guards: Array.isArray(precedent.guards) ? precedent.guards : [],
   };
 }
@@ -1896,6 +1897,20 @@ function precedentFromTrace(trace) {
     ...trace.precedent,
     evidence: [...evidence, ...replayEvidence],
     promotion: trace.replay.promotion,
+    replay: replayReceiptFromTrace(trace),
+  };
+}
+
+function replayReceiptFromTrace(trace) {
+  const promotion = trace.replay?.promotion ?? {};
+
+  return {
+    id: requireString(trace.replay?.id, "trace.replay.id"),
+    path: requireString(trace.replay?.path, "trace.replay.path"),
+    baseline_failures: promotion.baseline_failures,
+    rerun_failures: promotion.rerun_failures,
+    baseline_exit_code: promotion.baseline_exit_code ?? trace.replay?.baseline?.exitCode ?? null,
+    rerun_exit_code: promotion.rerun_exit_code ?? trace.replay?.rerun?.exitCode ?? null,
   };
 }
 
@@ -2211,6 +2226,7 @@ function replayExplanation(precedent) {
   const rerunFailures = promotion.rerun_failures;
   const baselineExitCode = promotion.baseline_exit_code ?? null;
   const rerunExitCode = promotion.rerun_exit_code ?? null;
+  const receipt = precedent.replay ?? null;
 
   return {
     baselineFailures: Number.isFinite(baselineFailures) ? baselineFailures : null,
@@ -2220,6 +2236,7 @@ function replayExplanation(precedent) {
       : null,
     baselineExitCode,
     rerunExitCode,
+    receipt,
   };
 }
 
@@ -3453,6 +3470,10 @@ function precedentFromSessionPair(failedTrace, successTrace, replayPath, replayI
     replay: {
       id: replayId,
       path: replayPath,
+      baseline_failures: 1,
+      rerun_failures: 0,
+      baseline_exit_code: failedValidationExitCode(failedTrace),
+      rerun_exit_code: successfulValidation?.exitCode ?? 0,
     },
     promotion: {
       baseline_failures: 1,
@@ -3711,6 +3732,26 @@ function assessPromotionCandidate(precedent) {
     reasons.push("precedent.promotion must show baseline_failures greater than rerun_failures");
   }
 
+  const replay = precedent.replay ?? {};
+  if (!nonEmptyString(replay.id)) {
+    reasons.push("precedent.replay.id is required for promotion");
+  }
+  if (!nonEmptyString(replay.path)) {
+    reasons.push("precedent.replay.path is required for promotion");
+  }
+  if (replay.baseline_failures !== baselineFailures) {
+    reasons.push("precedent.replay.baseline_failures must match promotion baseline_failures");
+  }
+  if (replay.rerun_failures !== rerunFailures) {
+    reasons.push("precedent.replay.rerun_failures must match promotion rerun_failures");
+  }
+  if (!Number.isFinite(replay.baseline_exit_code)) {
+    reasons.push("precedent.replay.baseline_exit_code must be a number");
+  }
+  if (!Number.isFinite(replay.rerun_exit_code)) {
+    reasons.push("precedent.replay.rerun_exit_code must be a number");
+  }
+
   return {
     ok: reasons.length === 0,
     reasons,
@@ -3932,6 +3973,14 @@ function buildReplayTrace(replayCase, replay, replayPath) {
       verified: true,
       id: replay.id,
       path: replayPath,
+      baseline: {
+        command: replay.baseline.command,
+        exitCode: replay.baseline.exitCode,
+      },
+      rerun: {
+        command: replay.rerun.command,
+        exitCode: replay.rerun.exitCode,
+      },
       evidence: replayEvidence,
       promotion: replay.promotion,
     },
@@ -4540,11 +4589,19 @@ async function checkRepairReceipts(checks, stateDir) {
 }
 
 async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {
-  if (!precedent.replay?.path) {
+  const replay = precedent.replay ?? {};
+  assertCheck(nonEmptyString(replay.id), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay.id is required`);
+  assertCheck(nonEmptyString(replay.path), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay.path is required`);
+  assertCheck(replay.baseline_failures === precedent.promotion?.baseline_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay baseline failure count does not match promotion`);
+  assertCheck(replay.rerun_failures === precedent.promotion?.rerun_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay rerun failure count does not match promotion`);
+  assertCheck(Number.isFinite(replay.baseline_exit_code), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay baseline exit code is required`);
+  assertCheck(Number.isFinite(replay.rerun_exit_code), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay rerun exit code is required`);
+
+  if (!nonEmptyString(replay.path)) {
     return;
   }
 
-  const replayPath = resolve(precedent.replay.path);
+  const replayPath = resolve(replay.path);
   if (!pathWithin(resolve(stateDir), replayPath)) {
     checks.push({
       ok: false,
@@ -4556,10 +4613,12 @@ async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {
   }
 
   try {
-    const replay = parseJson(await readFile(replayPath, "utf8"), replayPath);
-    assertCheck(replay.id === precedent.replay.id, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay id does not match receipt`);
-    assertCheck(replay.promotion?.baseline_failures === precedent.promotion?.baseline_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} baseline failure count does not match replay`);
-    assertCheck(replay.promotion?.rerun_failures === precedent.promotion?.rerun_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} rerun failure count does not match replay`);
+    const artifact = parseJson(await readFile(replayPath, "utf8"), replayPath);
+    assertCheck(artifact.id === replay.id, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay id does not match receipt`);
+    assertCheck(artifact.promotion?.baseline_failures === precedent.promotion?.baseline_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} baseline failure count does not match replay`);
+    assertCheck(artifact.promotion?.rerun_failures === precedent.promotion?.rerun_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} rerun failure count does not match replay`);
+    assertCheck(artifact.baseline?.exitCode === replay.baseline_exit_code, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} baseline exit code does not match replay`);
+    assertCheck(artifact.rerun?.exitCode === replay.rerun_exit_code, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} rerun exit code does not match replay`);
   } catch (error) {
     checks.push({
       ok: false,

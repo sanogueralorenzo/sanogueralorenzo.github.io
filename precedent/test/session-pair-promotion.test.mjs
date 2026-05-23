@@ -30,6 +30,10 @@ test("compile promotes analogous failed and successful ordinary sessions", async
     assert.ok(precedents[0].evidence.some((item) => item.includes("successful validation: pnpm test:webhooks exited 0")));
     assert.ok(precedents[0].evidence.some((item) => item.includes("session-pair replay:")));
     assert.match(precedents[0].replay.path, /replays\/session-pair-session-failed-session-session-success-session\/replay\.json$/u);
+    assert.equal(precedents[0].replay.baseline_failures, 1);
+    assert.equal(precedents[0].replay.rerun_failures, 0);
+    assert.equal(precedents[0].replay.baseline_exit_code, 1);
+    assert.equal(precedents[0].replay.rerun_exit_code, 0);
     assert.ok(precedents[0].guards.some((guard) => guard.type === "required_validation_command"));
     assert.ok(precedents[0].guards.some((guard) => guard.type === "changed_files_within_paths"));
 

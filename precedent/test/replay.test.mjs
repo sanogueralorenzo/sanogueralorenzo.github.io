@@ -58,6 +58,11 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     assert.equal(observed.promoted.promotion_status, "promoted");
     assert.equal(observed.promoted.promotion.baseline_failures, 1);
     assert.equal(observed.promoted.promotion.rerun_failures, 0);
+    assert.equal(observed.promoted.replay.id, "webhook-replay-improves");
+    assert.equal(observed.promoted.replay.baseline_failures, 1);
+    assert.equal(observed.promoted.replay.rerun_failures, 0);
+    assert.equal(observed.promoted.replay.baseline_exit_code, 1);
+    assert.equal(observed.promoted.replay.rerun_exit_code, 0);
     assert.equal(observed.observed.promotionAction, "created");
 
     const observedAgain = await runPrecedent([
@@ -107,6 +112,7 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     assert.equal(explained.source.traceId, "webhook-replay-improves-replay");
     assert.equal(explained.source.replayId, "webhook-replay-improves");
     assert.equal(explained.replay.failureDelta, 1);
+    assert.equal(explained.replay.receipt.id, "webhook-replay-improves");
     assert.equal(explained.matching.scope, "feature:webhooks");
     assert.deepEqual(explained.matching.paths, ["features/webhooks", "webhooks/providers"]);
     assert.ok(explained.evidence.includes("replay: baseline exited 1"));
@@ -216,6 +222,8 @@ test("replay can promote a ledger candidate without a handcrafted case file", as
 
     assert.equal(replay.replay.candidateId, "cand_webhook_replacement");
     assert.equal(replay.replay.improved, true);
+    assert.equal(replay.trace.replay.baseline.exitCode, 1);
+    assert.equal(replay.trace.replay.rerun.exitCode, 0);
     assert.equal(replay.trace.precedent.id, "cand_webhook_replacement");
     assert.equal(replay.trace.replay.promotion.baseline_failures, 1);
     assert.equal(replay.trace.replay.promotion.rerun_failures, 0);
@@ -230,6 +238,9 @@ test("replay can promote a ledger candidate without a handcrafted case file", as
     ]);
     assert.equal(observed.observed.promotionStatus, "promoted");
     assert.equal(observed.promoted.id, "cand_webhook_replacement");
+    assert.equal(observed.promoted.replay.id, "candidate-cand_webhook_replacement");
+    assert.equal(observed.promoted.replay.baseline_exit_code, 1);
+    assert.equal(observed.promoted.replay.rerun_exit_code, 0);
 
     const injected = await runPrecedent([
       "context",
@@ -310,6 +321,53 @@ test("replay without improvement is observed but not promoted", async () => {
       "--json",
     ]);
     assert.deepEqual(inject.injections, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("observe rejects promoted traces without typed replay receipts", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+    const traceOut = join(stateDir, "string-evidence-trace.json");
+    await writeFile(traceOut, JSON.stringify({
+      schema_version: "precedent.v1",
+      id: "string-evidence-trace",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      outcome: "success",
+      changedFiles: ["features/webhooks/provider.ts"],
+      failures: [],
+      precedent: {
+        id: "prec_string_evidence",
+        scope: "feature:webhooks",
+        trigger: "add webhook handler",
+        lesson: "Use string-only promotion evidence.",
+        artifact: "skill",
+        paths: ["features/webhooks"],
+        evidence: ["looks good"],
+        injection: "String-only evidence should not promote.",
+        promotion: {
+          baseline_failures: 1,
+          rerun_failures: 0,
+        },
+      },
+    }, null, 2));
+
+    const observed = await runPrecedent([
+      "observe",
+      "--state-dir",
+      stateDir,
+      "--trace",
+      traceOut,
+      "--json",
+    ]);
+
+    assert.equal(observed.observed.promotionStatus, "rejected");
+    assert.equal(observed.promoted, null);
+    assert.ok(observed.rejected.reasons.includes("precedent.replay.id is required for promotion"));
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

@@ -92,11 +92,33 @@ async function seedPruneState(stateDir) {
     id: "prec_keep",
     promotion_status: "promoted",
     evidence: ["test evidence"],
+    replay: {
+      id: "keep-replay",
+      path: join(stateDir, "replays/keep-replay/replay.json"),
+      baseline_failures: 1,
+      rerun_failures: 0,
+      baseline_exit_code: 1,
+      rerun_exit_code: 0,
+    },
+    promotion: {
+      baseline_failures: 1,
+      rerun_failures: 0,
+      baseline_exit_code: 1,
+      rerun_exit_code: 0,
+    },
+  })}\n`);
+  await mkdir(join(stateDir, "replays/keep-replay"), { recursive: true });
+  await writeFile(join(stateDir, "replays/keep-replay/replay.json"), JSON.stringify({
+    id: "keep-replay",
+    completedAt: "2026-02-01T00:00:00.000Z",
+    baseline: { exitCode: 1 },
+    rerun: { exitCode: 0 },
     promotion: {
       baseline_failures: 1,
       rerun_failures: 0,
     },
-  })}\n`);
+    improved: true,
+  }));
   await mkdir(join(stateDir, "replays/old-replay"), { recursive: true });
   await writeFile(join(stateDir, "replays/old-replay/replay.json"), JSON.stringify({
     id: "old-replay",
