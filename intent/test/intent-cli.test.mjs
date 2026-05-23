@@ -2581,11 +2581,12 @@ describe("intent static model CLI", () => {
         { id: "step:bad-inputs", kind: "Step", label: "bad inputs", span: testSpan(1), data: { inputs: [{ name: "", type: "Finding", span: testSpan(1) }] } },
         { id: "step:bad-output", kind: "Step", label: "bad output", span: testSpan(2), data: { outputType: "", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
         { id: "step:bad-lists", kind: "Step", label: "bad lists", span: testSpan(3), data: { effects: ["write", ""], requirements: null, checkpoints: ["before"], approvals: [" "], timeouts: ["5m"], retries: ["max 2"] } },
+        { id: "step:bad-memory", kind: "Step", label: "bad memory", span: testSpan(4), data: { memoryAccesses: ["session.evidence", ""] } },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_STEP_INVALID");
 
-    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics.length, 4);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_STEP_INVALID");
     assert.equal(diagnostics[0].step_id, "step:bad-inputs");
     assert.deepEqual(diagnostics[0].invalid_input_indexes, [0]);
@@ -2597,6 +2598,9 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].requirements_are_valid, false);
     assert.equal(diagnostics[2].approvals_are_valid, false);
     assert.equal(diagnostics[2].checkpoints_are_valid, true);
+    assert.equal(diagnostics[3].code, "INTENT_GRAPH_STEP_INVALID");
+    assert.equal(diagnostics[3].step_id, "step:bad-memory");
+    assert.equal(diagnostics[3].memory_accesses_are_valid, false);
   });
 
   it("validates graph step input binding diagnostics", () => {

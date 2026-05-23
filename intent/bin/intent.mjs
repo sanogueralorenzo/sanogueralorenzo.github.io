@@ -2285,6 +2285,7 @@ function validateGraphStep(graphNode, graphSpan) {
   const approvalsAreValid = isNonemptyStringArray(graphNode.data.approvals);
   const timeoutsAreValid = isNonemptyStringArray(graphNode.data.timeouts);
   const retriesAreValid = isNonemptyStringArray(graphNode.data.retries);
+  const memoryAccessesAreValid = isNonemptyStringArray(graphNode.data.memoryAccesses);
   if (
     inputsIsArray
     && invalidInputIndexes.length === 0
@@ -2296,6 +2297,7 @@ function validateGraphStep(graphNode, graphSpan) {
     && approvalsAreValid
     && timeoutsAreValid
     && retriesAreValid
+    && memoryAccessesAreValid
   ) {
     return null;
   }
@@ -2312,6 +2314,7 @@ function validateGraphStep(graphNode, graphSpan) {
     approvals_are_valid: approvalsAreValid,
     timeouts_are_valid: timeoutsAreValid,
     retries_are_valid: retriesAreValid,
+    memory_accesses_are_valid: memoryAccessesAreValid,
   });
 }
 

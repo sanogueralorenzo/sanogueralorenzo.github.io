@@ -385,14 +385,15 @@ Validation expectations:
   step. Malformed input payloads emit `INTENT_GRAPH_INPUT_INVALID` and make the
   graph non-executable because runtimes must not infer missing type, scope, or
   step ownership.
-- Graph `Step` node data must carry arrays for `inputs`, `effects`, `requirements`,
-  `checkpoints`, `approvals`, `timeouts`, and `retries`. Each input must be a
-  valid parameter record with non-empty `name` and `type` strings and a valid
-  `span`. `outputType` may be `null` or a non-empty string, and
+- Graph `Step` node data must carry arrays for `inputs`, `effects`,
+  `requirements`, `checkpoints`, `approvals`, `timeouts`, `retries`, and
+  `memoryAccesses`. Each input must be a valid parameter record with non-empty
+  `name` and `type` strings and a valid `span`; every memory access target must
+  be non-empty. `outputType` may be `null` or a non-empty string, and
   `outputTypeSpan` may be `null` or a valid span. Malformed Step node payloads
   emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable
   because runtimes must not infer executable inputs, side effects, gates,
-  checkpoints, approvals, timeouts, retries, or output types.
+  checkpoints, approvals, timeouts, retries, memory accesses, or output types.
 - Graph `Completion` nodes carry runtime completion metadata. Completion node
   data must carry `outputType` as `null` or a non-empty string
   and `outputTypeSpan` as `null` or a valid span. Malformed Completion node

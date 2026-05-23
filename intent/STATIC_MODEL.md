@@ -632,14 +632,15 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
   runtimes must not infer goal titles, inputs, output types, or provenance.
 - Runtime Step node metadata is part of graph validation. `Step` node data must
-  carry arrays for `inputs`, `effects`, `requirements`,
-  `checkpoints`, `approvals`, `timeouts`, and `retries`. Each input must be a
-  valid parameter record with non-empty `name` and `type` strings and a valid
-  `span`. `outputType` may be `null` or a non-empty string, and
-  `outputTypeSpan` may be `null` or a valid span. Malformed Step node payloads
-  emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
-  runtimes must not infer executable inputs, side effects, gates, checkpoints,
-  approvals, timeouts, retries, or output types.
+  carry arrays for `inputs`, `effects`, `requirements`, `checkpoints`,
+  `approvals`, `timeouts`, `retries`, and `memoryAccesses`. Each input must be
+  a valid parameter record with non-empty `name` and `type` strings and a valid
+  `span`, and every memory access target must be non-empty. `outputType` may be
+  `null` or a non-empty string, and `outputTypeSpan` may be `null` or a valid
+  span. Malformed Step node payloads emit `INTENT_GRAPH_STEP_INVALID` and make
+  graph output non-executable because runtimes must not infer executable inputs,
+  side effects, gates, checkpoints, approvals, timeouts, retries, memory
+  accesses, or output types.
 - Runtime Completion node metadata is part of graph validation. `Completion`
   node data must carry `outputType` as `null` or a non-empty string and
   `outputTypeSpan` as `null` or a valid span. Malformed Completion node
@@ -2456,7 +2457,8 @@ blank after trimming, whose node or edge kind is outside the supported sets
 above, whose edge endpoint does not resolve inside the same payload, whose
 `Type` nodes omit valid runtime Type node data, whose
 `Goal` nodes omit valid runtime Goal node data, whose
-`Step` nodes omit valid runtime Step node data, whose
+`Step` nodes omit valid runtime Step node data including non-empty
+`memoryAccesses` entries, whose
 `Completion` nodes omit valid runtime Completion node data, whose
 `plans` edges use unsupported endpoint roles, whose
 external `Context` source nodes lack required Capability authorization edges,

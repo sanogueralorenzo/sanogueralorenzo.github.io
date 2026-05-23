@@ -689,7 +689,7 @@
                 "memoryAccesses": {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/non_empty_string"
                   }
                 }
               }
