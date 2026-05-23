@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile, appendFile, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, appendFile, rm, readdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_STATE_DIR = ".jury";
 const VERDICT_SCHEMA_VERSION = "jury.verdict.v1";
 const VALID_DECISIONS = new Set(["accept", "reject", "retry", "human_decision"]);
 const BLOCKING_SEVERITIES = new Set(["medium", "high", "critical"]);
+const SCHEMA_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "schemas");
 const command = process.argv[2] ?? "help";
 const subcommand = process.argv[3]?.startsWith("--") ? null : process.argv[3] ?? null;
 const rawArgs = process.argv.slice(subcommand ? 4 : 3);
 const args = parseArgs(rawArgs);
+let collectValidationErrors = false;
 
 main().catch((error) => fail(error.message));
 
@@ -43,6 +46,11 @@ async function main() {
 
   if (command === "objection" && subcommand === "resolve") {
     await resolveObjection();
+    return;
+  }
+
+  if (command === "critic" && subcommand === "run") {
+    await runCritic();
     return;
   }
 
@@ -198,6 +206,22 @@ async function addObjection() {
   print(objection);
 }
 
+async function runCritic() {
+  const dir = stateDir();
+  await ensureState(dir);
+  const claimId = requireArg("claim");
+  const role = requireArg("role");
+  const review = await reviewForClaim(dir, claimId);
+  const objections = criticObjections(review, role);
+
+  for (const objection of objections) {
+    validateObjection(objection);
+    await appendJsonl(fileFor(dir, "objections"), objection);
+  }
+
+  print({ ok: true, role, claim_id: claimId, objections });
+}
+
 async function resolveObjection() {
   const dir = stateDir();
   await ensureState(dir);
@@ -293,14 +317,16 @@ async function gateVerdict() {
   const path = resolve(requireArg("verdict"));
   const verdict = parseJson(await readFile(path, "utf8"), path);
   validateVerdict(verdict);
+  const review = args.claim ? await reviewForClaim(stateDir(), args.claim) : null;
+  const details = review ? gateDetails(review, verdict) : gateDetailsFromVerdict(verdict);
 
   if (verdict.decision !== "accept") {
-    print({ ok: false, decision: verdict.decision, reason: verdict.reason });
+    print({ ok: false, decision: verdict.decision, reason: verdict.reason, ...details });
     process.exitCode = 1;
     return;
   }
 
-  print({ ok: true, decision: verdict.decision, reason: verdict.reason });
+  print({ ok: true, decision: verdict.decision, reason: verdict.reason, ...details });
 }
 
 async function checkState() {
@@ -310,9 +336,9 @@ async function checkState() {
 
   for (const name of ["claims", "evidence", "objections", "waivers", "verdicts"]) {
     try {
-      const records = await readJsonl(fileFor(dir, name));
+      const records = await withValidationErrors(() => readJsonl(fileFor(dir, name)));
       for (const record of records) {
-        validateRecord(name, record);
+        await withValidationErrors(() => validateRecord(name, record));
       }
       checks.push({ name, ok: true });
     } catch (error) {
@@ -320,11 +346,181 @@ async function checkState() {
     }
   }
 
+  checks.push(await checkSchemaFiles());
+
   const ok = checks.every((check) => check.ok);
   print({ ok, checks });
 
   if (!ok) {
     process.exitCode = 1;
+  }
+}
+
+function criticObjections(review, role) {
+  if (role === "tests") {
+    return testsCritic(review);
+  }
+
+  if (role === "security") {
+    return securityCritic(review);
+  }
+
+  if (role === "scope") {
+    return scopeCritic(review);
+  }
+
+  fail(`critic role must be one of tests, security, scope`);
+}
+
+function testsCritic(review) {
+  const commandEvidence = review.evidence.filter((item) => item.type === "command");
+
+  if (commandEvidence.length === 0) {
+    return [criticObjection(review.claim.id, "tests", "missing_test_evidence", "No command evidence is attached to the claim.", "high", [])];
+  }
+
+  const failed = commandEvidence.filter((item) => item.status === "failed");
+
+  if (failed.length > 0) {
+    return [criticObjection(review.claim.id, "tests", "failed_test_evidence", "One or more validation commands failed.", "critical", failed.map((item) => item.id))];
+  }
+
+  return [];
+}
+
+function securityCritic(review) {
+  const riskyPatterns = [
+    [/rm\s+-rf\s+\/?(?:\s|$)/i, "destructive rm command"],
+    [/delete_accounts|drop\s+table|truncate\s+table/i, "destructive data operation"],
+    [/curl\b.*\|\s*(?:sh|bash)/i, "curl pipe shell execution"],
+    [/\b(?:ghp|github_pat|sk)-[a-z0-9_:-]{10,}/i, "secret-like token"],
+    [/\bsudo\b/i, "privileged command"],
+  ];
+  const hits = [];
+
+  for (const item of review.evidence) {
+    const text = [item.source, item.summary, item.command].filter(Boolean).join("\n");
+    const match = riskyPatterns.find(([pattern]) => pattern.test(text));
+
+    if (match) {
+      hits.push({ evidence: item, reason: match[1] });
+    }
+  }
+
+  if (hits.length === 0) {
+    return [];
+  }
+
+  return [criticObjection(
+    review.claim.id,
+    "security",
+    "risky_evidence",
+    `Potentially unsafe evidence or command found: ${hits.map((hit) => hit.reason).sort().join(", ")}.`,
+    hits.some((hit) => /secret|destructive/.test(hit.reason)) ? "critical" : "high",
+    hits.map((hit) => hit.evidence.id),
+  )];
+}
+
+function scopeCritic(review) {
+  if (review.claim.scope.length === 0) {
+    return [criticObjection(review.claim.id, "scope", "missing_scope", "The claim has no explicit scope.", "medium", [])];
+  }
+
+  const changedFiles = parseList(args["changed-files"] ?? "");
+
+  if (changedFiles.length === 0) {
+    return [];
+  }
+
+  const outOfScope = changedFiles.filter((file) => !review.claim.scope.some((scope) => file === scope || file.startsWith(`${scope.replace(/\/+$/, "")}/`)));
+
+  if (outOfScope.length === 0) {
+    return [];
+  }
+
+  return [criticObjection(review.claim.id, "scope", "out_of_scope_changes", `Changed files fall outside claim scope: ${outOfScope.join(", ")}.`, "high", [])];
+}
+
+function criticObjection(claimId, role, code, summary, severity, evidenceIds) {
+  return sortRecord({
+    schema_version: "jury.objection.v1",
+    id: `obj_${claimId}_${role}_${code}`,
+    claim_id: claimId,
+    summary,
+    raised_by: `critic:${role}`,
+    severity,
+    status: "open",
+    evidence_ids: evidenceIds.sort(),
+    resolution: null,
+    created_at: now(),
+    updated_at: now(),
+  });
+}
+
+function gateDetails(review, verdict) {
+  return {
+    missing_fields: missingReviewFields(review),
+    unresolved_objections: review.objections
+      .filter((item) => item.status === "open" && BLOCKING_SEVERITIES.has(item.severity))
+      .map((item) => ({ id: item.id, severity: item.severity, summary: item.summary })),
+    next_actions: verdict.next_actions ?? [],
+  };
+}
+
+function gateDetailsFromVerdict(verdict) {
+  return {
+    missing_fields: [],
+    unresolved_objections: [],
+    next_actions: verdict.next_actions ?? [],
+  };
+}
+
+function missingReviewFields(review) {
+  const missing = [];
+
+  if (review.evidence.length === 0) {
+    missing.push("evidence");
+  }
+
+  if (!review.claim.scope || review.claim.scope.length === 0) {
+    missing.push("claim.scope");
+  }
+
+  return missing;
+}
+
+async function checkSchemaFiles() {
+  try {
+    const files = (await readdir(schemaDir())).filter((file) => file.endsWith(".schema.json")).sort();
+
+    if (files.length === 0) {
+      return { name: "schema_files", ok: false, message: "no schema files found" };
+    }
+
+    for (const file of files) {
+      const schema = await withValidationErrors(async () => parseJson(await readFile(join(schemaDir(), file), "utf8"), file));
+      await withValidationErrors(() => {
+        requireString(schema.$schema, `${file}.$schema`);
+        requireString(schema.title, `${file}.title`);
+        requireEnum(schema.type, ["object"], `${file}.type`);
+        requireArray(schema.required, `${file}.required`);
+      });
+    }
+
+    return { name: "schema_files", ok: true, files };
+  } catch (error) {
+    return { name: "schema_files", ok: false, message: error.message };
+  }
+}
+
+async function withValidationErrors(action) {
+  const previous = collectValidationErrors;
+  collectValidationErrors = true;
+
+  try {
+    return await action();
+  } finally {
+    collectValidationErrors = previous;
   }
 }
 
@@ -592,6 +788,10 @@ function stateFiles(dir) {
   return ["claims", "evidence", "objections", "waivers", "verdicts"].map((name) => fileFor(dir, name));
 }
 
+function schemaDir() {
+  return args["schema-dir"] ?? SCHEMA_DIR;
+}
+
 function uniqueId(prefix, value, existing) {
   const base = slug(value);
   let candidate = `${prefix}_${base}`;
@@ -698,17 +898,22 @@ Commands:
   jury init
   jury claim create --summary <text> [--impact high] [--scope path,path]
   jury evidence add --claim <id> --type command --command "npm test" --exit-code 0
+  jury critic run --claim <id> --role tests
   jury objection add --claim <id> --summary <text> [--severity high]
   jury objection resolve --id <id> --resolution <text>
   jury waiver add --objection <id> --reason <text>
   jury status --claim <id>
   jury judge --claim <id> [--out verdict.json] [--require-human-approval true]
-  jury gate --verdict verdict.json
+  jury gate --verdict verdict.json [--claim <id>]
   jury check --strict
   jury demo code-change`);
 }
 
 function fail(message) {
+  if (collectValidationErrors) {
+    throw new Error(message);
+  }
+
   process.stderr.write(`${message}\n`);
   process.exit(1);
 }

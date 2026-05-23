@@ -46,11 +46,13 @@ jury claim create --summary "checkout fix is ready" --impact high
 jury status --claim claim_checkout_ready
 jury evidence add --claim claim_checkout_ready --type command --command "npm test" --exit-code 0
 jury critic run --claim claim_checkout_ready --role tests
+jury critic run --claim claim_checkout_ready --role security
+jury critic run --claim claim_checkout_ready --role scope --changed-files src/checkout/applyCoupon.ts
 jury objection add --claim claim_checkout_ready --severity high --summary "missing regression test"
 jury objection resolve --id obj_missing_regression_test --resolution "added test"
 jury judge --claim claim_checkout_ready --format json
 jury check --strict
-jury gate --verdict verdict.json
+jury gate --claim claim_checkout_ready --verdict verdict.json
 ```
 
 Acceptance checks:

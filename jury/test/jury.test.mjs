@@ -10,6 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../..");
 const cliPath = join(repoRoot, "jury/bin/jury.mjs");
 const fixturesDir = join(repoRoot, "jury/fixtures/verdicts");
+const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
 
 test("judge accepts a claim with passing evidence and no blocking objections", async () => {
@@ -136,6 +137,73 @@ test("fixture verdicts cover accept, reject, retry, and human_decision gate path
     assert.equal(result.exitCode, exitCode);
     assert.equal(payload.ok, ok);
     assert.equal(payload.decision, decision);
+  }
+});
+
+test("check validates explicit schema fixtures", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+
+    const healthy = await runJson(["check", "--state-dir", stateDir, "--strict"]);
+    assert.ok(healthy.checks.some((check) => check.name === "schema_files" && check.ok === true));
+
+    const invalid = await runProcess(["check", "--state-dir", stateDir, "--schema-dir", invalidSchemaDir, "--strict", "--json"]);
+    const payload = JSON.parse(invalid.stdout);
+
+    assert.equal(invalid.exitCode, 1);
+    assert.ok(payload.checks.some((check) => check.name === "schema_files" && check.ok === false && check.message.includes("required")));
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("deterministic critics raise tests, security, and scope objections", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    const claim = await runJson(["claim", "create", "--state-dir", stateDir, "--summary", "database cleanup is ready", "--scope", "src/checkout"]);
+
+    const tests = await runJson(["critic", "run", "--state-dir", stateDir, "--claim", claim.id, "--role", "tests"]);
+    assert.equal(tests.objections[0].id, `obj_${claim.id}_tests_missing_test_evidence`);
+    assert.equal(tests.objections[0].severity, "high");
+
+    await runJson(["evidence", "add", "--state-dir", stateDir, "--claim", claim.id, "--type", "command", "--command", "delete_accounts --tenant prod", "--exit-code", "0"]);
+    const security = await runJson(["critic", "run", "--state-dir", stateDir, "--claim", claim.id, "--role", "security"]);
+    assert.equal(security.objections[0].id, `obj_${claim.id}_security_risky_evidence`);
+    assert.equal(security.objections[0].severity, "critical");
+
+    const scope = await runJson(["critic", "run", "--state-dir", stateDir, "--claim", claim.id, "--role", "scope", "--changed-files", "src/billing/delete.ts"]);
+    assert.equal(scope.objections[0].id, `obj_${claim.id}_scope_out_of_scope_changes`);
+    assert.match(scope.objections[0].summary, /src\/billing\/delete\.ts/);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("gate explains exact missing fields and unresolved objections when state is provided", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    const claim = await runJson(["claim", "create", "--state-dir", stateDir, "--summary", "vague claim"]);
+    const objection = await runJson(["critic", "run", "--state-dir", stateDir, "--claim", claim.id, "--role", "scope"]);
+    await runJson(["judge", "--state-dir", stateDir, "--claim", claim.id, "--out", join(stateDir, "verdict.json")]);
+
+    const result = await runProcess(["gate", "--state-dir", stateDir, "--claim", claim.id, "--verdict", join(stateDir, "verdict.json"), "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.deepEqual(payload.missing_fields, ["evidence", "claim.scope"]);
+    assert.deepEqual(payload.unresolved_objections, [{
+      id: objection.objections[0].id,
+      severity: "medium",
+      summary: "The claim has no explicit scope.",
+    }]);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
   }
 });
 

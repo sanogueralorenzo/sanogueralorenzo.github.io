@@ -164,15 +164,20 @@ This repository includes a small dependency-free prototype:
 node jury/bin/jury.mjs init
 node jury/bin/jury.mjs claim create --summary "checkout fix is ready" --impact high
 node jury/bin/jury.mjs evidence add --claim claim_checkout_fix_is_ready --type command --command "npm test" --exit-code 0
+node jury/bin/jury.mjs critic run --claim claim_checkout_fix_is_ready --role tests
+node jury/bin/jury.mjs critic run --claim claim_checkout_fix_is_ready --role security
+node jury/bin/jury.mjs critic run --claim claim_checkout_fix_is_ready --role scope --changed-files src/checkout/applyCoupon.ts
 node jury/bin/jury.mjs objection add --claim claim_checkout_fix_is_ready --summary "missing regression test" --severity high
 node jury/bin/jury.mjs objection resolve --id obj_claim_checkout_fix_is_ready_missing_regression_test --resolution "added regression test"
 node jury/bin/jury.mjs judge --claim claim_checkout_fix_is_ready --out verdict.json
-node jury/bin/jury.mjs gate --verdict verdict.json
+node jury/bin/jury.mjs gate --claim claim_checkout_fix_is_ready --verdict verdict.json
 node jury/bin/jury.mjs check --strict
 node jury/bin/jury.mjs demo code-change
 ```
 
 The prototype stores local state in `.jury/` as append-only JSONL files for claims, evidence, objections, waivers, and verdicts. `.jury/` is local runtime state and is not committed.
+
+`critic run` currently supports deterministic `tests`, `security`, and `scope` roles. `check --strict` validates local JSONL state plus the schema files in `jury/schemas/`. `gate` exits zero only for `accept` verdicts and, when passed `--claim`, reports missing fields and unresolved blocking objections from current state.
 
 ## Open Questions
 
