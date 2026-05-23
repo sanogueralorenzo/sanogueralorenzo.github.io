@@ -16,7 +16,6 @@ import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.prompt.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import com.sanogueralorenzo.voice.engine.VoiceEngine
-import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,7 +53,7 @@ class SummaryEngine(
     private data class EditRequest(
         val originalText: String,
         val instructionText: String,
-        val intent: EditInstructionRules.EditIntent,
+        val intent: VoiceEngine.EditIntent,
         val listMode: Boolean
     )
 
@@ -321,7 +320,7 @@ class SummaryEngine(
                 backend = initializedBackend ?: Backend.GPU()
             )
 
-        val instructionAnalysis = EditInstructionRules.analyzeInstruction(instructionText)
+        val instructionAnalysis = VoiceEngine.analyzeInstruction(instructionText)
         val editRequest = EditRequest(
             originalText = originalText,
             instructionText = instructionAnalysis.normalizedInstruction,
@@ -584,7 +583,7 @@ class SummaryEngine(
     }
 
     private fun looksLikeList(text: String): Boolean {
-        return EditInstructionRules.looksLikeList(text)
+        return VoiceEngine.looksLikeList(text)
     }
 
     companion object {

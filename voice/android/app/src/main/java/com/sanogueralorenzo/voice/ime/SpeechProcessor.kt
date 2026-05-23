@@ -10,8 +10,6 @@ import com.sanogueralorenzo.voice.engine.VoiceEngine
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.summary.RewriteResult
 import com.sanogueralorenzo.voice.summary.SummaryEngine
-import com.sanogueralorenzo.voice.summary.rules.post.PostReplaceCapitalizationRule
-import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 
 /**
  * 4-stage speech pipeline orchestrator:
@@ -202,7 +200,7 @@ internal class PreLlmRulesStage(
     ): PreLlmResult {
         val normalizedTranscript = transcript.trim()
         val hasSource = sourceText.trim().isNotBlank()
-        val shouldEdit = hasSource && EditInstructionRules.isStrictEditCommand(normalizedTranscript)
+        val shouldEdit = hasSource && VoiceEngine.isStrictEditCommand(normalizedTranscript)
         return if (shouldEdit) {
             processEdit(sourceText = sourceText, instructionTranscript = normalizedTranscript)
         } else {
@@ -262,9 +260,9 @@ internal class PreLlmRulesStage(
             )
         }
 
-        val instructionAnalysis = EditInstructionRules.analyzeInstruction(normalizedInstruction)
+        val instructionAnalysis = VoiceEngine.analyzeInstruction(normalizedInstruction)
         val editIntent = instructionAnalysis.intent.name
-        val deterministicEdit = EditInstructionRules.tryApplyDeterministicEdit(
+        val deterministicEdit = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = sourceText,
             instructionText = normalizedInstruction
         )
@@ -374,8 +372,6 @@ internal class LlmStage(
  * final rewrite result and diagnostics for commit/debug trace.
  */
 internal class PostLlmRulesStage {
-    private val postReplaceCapitalizationRule = PostReplaceCapitalizationRule()
-
     fun processComplete(
         input: PreLlmResult.Complete
     ): ImeRewriteResult {
@@ -434,7 +430,7 @@ internal class PostLlmRulesStage {
         llm: LlmStageResult
     ): ImeRewriteResult {
         val localRulesAfterLlm = mutableListOf<String>()
-        val normalizedOutput = postReplaceCapitalizationRule.apply(
+        val normalizedOutput = VoiceEngine.postReplaceCapitalization(
             sourceText = input.sourceText,
             instructionText = input.instruction,
             editedOutput = llm.output

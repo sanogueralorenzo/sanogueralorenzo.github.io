@@ -42,7 +42,7 @@ import com.sanogueralorenzo.voice.ime.ImeSpeechProcessorEntryPoint
 import com.sanogueralorenzo.voice.ime.ImeSpeechProcessorRequest
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
+import com.sanogueralorenzo.voice.engine.VoiceEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -587,7 +587,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         val shouldPreserveBlankEdit =
             result.operation == ImeOperation.EDIT &&
                 result.output.isBlank() &&
-                result.editIntent != EditInstructionRules.EditIntent.DELETE_ALL.name
+                result.editIntent != VoiceEngine.EditIntent.DELETE_ALL.name
 
         if (result.output.isBlank() && result.operation == ImeOperation.APPEND) {
             return false

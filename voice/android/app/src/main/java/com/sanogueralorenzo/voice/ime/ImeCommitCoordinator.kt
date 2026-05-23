@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.ime
 
-import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
+import com.sanogueralorenzo.voice.engine.VoiceEngine
 
 internal class ImeCommitCoordinator {
     fun commit(
@@ -21,7 +21,7 @@ internal class ImeCommitCoordinator {
 
         val shouldPreserveBlankEdit = operation == ImeOperation.EDIT &&
             outputForCommit.isBlank() &&
-            editIntent != EditInstructionRules.EditIntent.DELETE_ALL.name
+            editIntent != VoiceEngine.EditIntent.DELETE_ALL.name
 
         val committed = when {
             outputForCommit.isBlank() && operation == ImeOperation.APPEND -> false

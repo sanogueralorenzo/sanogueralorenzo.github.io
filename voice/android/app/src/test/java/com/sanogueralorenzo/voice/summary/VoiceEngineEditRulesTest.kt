@@ -1,7 +1,6 @@
 package com.sanogueralorenzo.voice.summary
 
-import com.sanogueralorenzo.voice.summary.rules.post.PostReplaceCapitalizationRule
-import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
+import com.sanogueralorenzo.voice.engine.VoiceEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -9,68 +8,66 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class EditInstructionRulesTest {
-    private val postReplaceCapitalizationRule = PostReplaceCapitalizationRule()
-
+class VoiceEngineEditRulesTest {
     @Test
     fun analyzeInstruction_detectsDeleteAllPhrases() {
-        val deleteAll = EditInstructionRules.analyzeInstruction("delete all")
-        val clearEverything = EditInstructionRules.analyzeInstruction("clear everything please")
-        val removeWhole = EditInstructionRules.analyzeInstruction("remove the whole message")
-        val undo = EditInstructionRules.analyzeInstruction("undo")
+        val deleteAll = VoiceEngine.analyzeInstruction("delete all")
+        val clearEverything = VoiceEngine.analyzeInstruction("clear everything please")
+        val removeWhole = VoiceEngine.analyzeInstruction("remove the whole message")
+        val undo = VoiceEngine.analyzeInstruction("undo")
 
-        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, deleteAll.intent)
-        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, clearEverything.intent)
-        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, removeWhole.intent)
-        assertEquals(EditInstructionRules.EditIntent.DELETE_ALL, undo.intent)
+        assertEquals(VoiceEngine.EditIntent.DELETE_ALL, deleteAll.intent)
+        assertEquals(VoiceEngine.EditIntent.DELETE_ALL, clearEverything.intent)
+        assertEquals(VoiceEngine.EditIntent.DELETE_ALL, removeWhole.intent)
+        assertEquals(VoiceEngine.EditIntent.DELETE_ALL, undo.intent)
     }
 
     @Test
     fun analyzeInstruction_detectsReplaceIntent() {
-        val result = EditInstructionRules.analyzeInstruction("replace milk with oat milk")
-        assertEquals(EditInstructionRules.EditIntent.REPLACE, result.intent)
+        val result = VoiceEngine.analyzeInstruction("replace milk with oat milk")
+        assertEquals(VoiceEngine.EditIntent.REPLACE, result.intent)
         assertEquals("replace milk with oat milk", result.normalizedInstruction)
     }
 
     @Test
     fun strictEditCommand_requiresStartAnchoredCommand() {
-        assertTrue(EditInstructionRules.isStrictEditCommand("replace milk with oat milk"))
-        assertTrue(EditInstructionRules.isStrictEditCommand("fix milk to oat milk"))
-        assertTrue(EditInstructionRules.isStrictEditCommand("please remove milk"))
-        assertTrue(EditInstructionRules.isStrictEditCommand("actually never mind"))
-        assertTrue(EditInstructionRules.isStrictEditCommand("undo"))
-        assertFalse(EditInstructionRules.isStrictEditCommand("actually can we replace milk with oat milk"))
-        assertFalse(EditInstructionRules.isStrictEditCommand("hey maybe never mind this part"))
-        assertFalse(EditInstructionRules.isStrictEditCommand("scratch that"))
-        assertFalse(EditInstructionRules.isStrictEditCommand("make this professional"))
+        assertTrue(VoiceEngine.isStrictEditCommand("replace milk with oat milk"))
+        assertTrue(VoiceEngine.isStrictEditCommand("fix milk to oat milk"))
+        assertTrue(VoiceEngine.isStrictEditCommand("please remove milk"))
+        assertTrue(VoiceEngine.isStrictEditCommand("actually never mind"))
+        assertTrue(VoiceEngine.isStrictEditCommand("undo"))
+        assertFalse(VoiceEngine.isStrictEditCommand("actually can we replace milk with oat milk"))
+        assertFalse(VoiceEngine.isStrictEditCommand("hey maybe never mind this part"))
+        assertFalse(VoiceEngine.isStrictEditCommand("scratch that"))
+        assertFalse(VoiceEngine.isStrictEditCommand("make this professional"))
     }
 
     @Test
     fun analyzeInstruction_prefersFinalCorrectionForReplace() {
-        val result = EditInstructionRules.analyzeInstruction(
+        val result = VoiceEngine.analyzeInstruction(
             "replace milk with oat milk no, make it almond milk"
         )
-        assertEquals(EditInstructionRules.EditIntent.REPLACE, result.intent)
+        assertEquals(VoiceEngine.EditIntent.REPLACE, result.intent)
         assertEquals("replace milk with almond milk", result.normalizedInstruction)
     }
 
     @Test
     fun allowBlankOutput_onlyForDeleteAllIntent() {
-        assertTrue(EditInstructionRules.shouldAllowBlankOutput(EditInstructionRules.EditIntent.DELETE_ALL))
-        assertFalse(EditInstructionRules.shouldAllowBlankOutput(EditInstructionRules.EditIntent.REPLACE))
-        assertFalse(EditInstructionRules.shouldAllowBlankOutput(EditInstructionRules.EditIntent.GENERAL))
+        assertTrue(VoiceEngine.shouldAllowBlankOutput(VoiceEngine.EditIntent.DELETE_ALL))
+        assertFalse(VoiceEngine.shouldAllowBlankOutput(VoiceEngine.EditIntent.REPLACE))
+        assertFalse(VoiceEngine.shouldAllowBlankOutput(VoiceEngine.EditIntent.GENERAL))
     }
 
     @Test
     fun looksLikeList_detectsShoppingAndDelimitedItems() {
         val shoppingText = "buy milk, eggs, bananas, bread"
-        assertTrue(EditInstructionRules.looksLikeList(shoppingText))
+        assertTrue(VoiceEngine.looksLikeList(shoppingText))
     }
 
     @Test
     fun looksLikeList_ignoresPlainProse() {
         val prose = "I can make it at 5pm and bring the document for review."
-        assertFalse(EditInstructionRules.looksLikeList(prose))
+        assertFalse(VoiceEngine.looksLikeList(prose))
     }
 
     @Test
@@ -92,11 +89,11 @@ class EditInstructionRulesTest {
         )
 
         for (instruction in cases) {
-            val result = EditInstructionRules.tryApplyDeterministicEdit(source, instruction)
+            val result = VoiceEngine.tryApplyDeterministicEdit(source, instruction)
             assertNotNull(result)
             assertEquals("", result?.output)
-            assertEquals(EditInstructionRules.CommandKind.CLEAR_ALL, result?.commandKind)
-            assertEquals(EditInstructionRules.CommandScope.ALL, result?.scope)
+            assertEquals(VoiceEngine.CommandKind.CLEAR_ALL, result?.commandKind)
+            assertEquals(VoiceEngine.CommandScope.ALL, result?.scope)
             assertEquals(1, result?.matchedCount)
             assertFalse(result?.noMatchDetected == true)
         }
@@ -114,29 +111,29 @@ class EditInstructionRulesTest {
             "undo milk"
         )
 
-        val first = EditInstructionRules.tryApplyDeterministicEdit(source, cases[0])
+        val first = VoiceEngine.tryApplyDeterministicEdit(source, cases[0])
         assertEquals("buy next week", first?.output)
 
-        val second = EditInstructionRules.tryApplyDeterministicEdit(source, cases[1])
+        val second = VoiceEngine.tryApplyDeterministicEdit(source, cases[1])
         assertEquals("buy next week", second?.output)
 
-        val third = EditInstructionRules.tryApplyDeterministicEdit(source, cases[2])
+        val third = VoiceEngine.tryApplyDeterministicEdit(source, cases[2])
         assertEquals("buy milk", third?.output)
 
-        val fourth = EditInstructionRules.tryApplyDeterministicEdit(source, cases[3])
+        val fourth = VoiceEngine.tryApplyDeterministicEdit(source, cases[3])
         assertEquals("buy next week", fourth?.output)
 
-        val fifth = EditInstructionRules.tryApplyDeterministicEdit(source, cases[4])
+        val fifth = VoiceEngine.tryApplyDeterministicEdit(source, cases[4])
         assertEquals("buy next week", fifth?.output)
 
-        val sixth = EditInstructionRules.tryApplyDeterministicEdit(source, cases[5])
+        val sixth = VoiceEngine.tryApplyDeterministicEdit(source, cases[5])
         assertEquals("buy next week", sixth?.output)
     }
 
     @Test
     fun deterministic_deleteTerm_supportsMultipleTargets() {
         val source = "buy apple eggs milk bread"
-        val result = EditInstructionRules.tryApplyDeterministicEdit(
+        val result = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "remove eggs and milk"
         )
@@ -149,11 +146,11 @@ class EditInstructionRulesTest {
     @Test
     fun deterministic_deleteAllOnly_commands_doNotAcceptTargets() {
         val source = "buy milk and eggs"
-        val resetTargeted = EditInstructionRules.tryApplyDeterministicEdit(
+        val resetTargeted = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "reset milk"
         )
-        val startOverTargeted = EditInstructionRules.tryApplyDeterministicEdit(
+        val startOverTargeted = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "start over milk"
         )
@@ -166,64 +163,64 @@ class EditInstructionRulesTest {
     fun deterministic_replaceTerm_supportsVerbVariants() {
         val source = "buy milk and bread"
 
-        val change = EditInstructionRules.tryApplyDeterministicEdit(source, "change milk to oat milk")
+        val change = VoiceEngine.tryApplyDeterministicEdit(source, "change milk to oat milk")
         assertEquals("buy oat milk and bread", change?.output)
 
-        val swap = EditInstructionRules.tryApplyDeterministicEdit(source, "swap milk for oat milk")
+        val swap = VoiceEngine.tryApplyDeterministicEdit(source, "swap milk for oat milk")
         assertEquals("buy oat milk and bread", swap?.output)
 
-        val substitute = EditInstructionRules.tryApplyDeterministicEdit(
+        val substitute = VoiceEngine.tryApplyDeterministicEdit(
             source,
             "substitute milk with oat milk"
         )
         assertEquals("buy oat milk and bread", substitute?.output)
 
-        val correct = EditInstructionRules.tryApplyDeterministicEdit(source, "correct milk to oat milk")
+        val correct = VoiceEngine.tryApplyDeterministicEdit(source, "correct milk to oat milk")
         assertEquals("buy oat milk and bread", correct?.output)
 
-        val fix = EditInstructionRules.tryApplyDeterministicEdit(source, "fix milk to oat milk")
+        val fix = VoiceEngine.tryApplyDeterministicEdit(source, "fix milk to oat milk")
         assertEquals("buy oat milk and bread", fix?.output)
 
-        val update = EditInstructionRules.tryApplyDeterministicEdit(source, "update milk to oat milk")
+        val update = VoiceEngine.tryApplyDeterministicEdit(source, "update milk to oat milk")
         assertEquals("buy oat milk and bread", update?.output)
 
-        val useInstead = EditInstructionRules.tryApplyDeterministicEdit(source, "use oat milk instead of milk")
+        val useInstead = VoiceEngine.tryApplyDeterministicEdit(source, "use oat milk instead of milk")
         assertEquals("buy oat milk and bread", useInstead?.output)
     }
 
     @Test
     fun deterministic_updateNumber_replacesLastNumberToken() {
         val source = "Meeting moved from 5:00 PM to 6:00 PM tomorrow."
-        val result = EditInstructionRules.tryApplyDeterministicEdit(
+        val result = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "update number to 6:30"
         )
 
         assertNotNull(result)
         assertEquals("Meeting moved from 5:00 PM to 6:30 tomorrow.", result?.output)
-        assertEquals(EditInstructionRules.CommandKind.UPDATE_NUMBER, result?.commandKind)
+        assertEquals(VoiceEngine.CommandKind.UPDATE_NUMBER, result?.commandKind)
         assertEquals(1, result?.matchedCount)
     }
 
     @Test
     fun deterministic_replaceTerm_supportsPoliteNaturalLanguageForm() {
         val source = "Hey guys. This is Mario speaking."
-        val result = EditInstructionRules.tryApplyDeterministicEdit(
+        val result = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "can you replace the word guys with the word girls?"
         )
 
         assertNotNull(result)
         assertEquals("Hey girls. This is Mario speaking.", result?.output)
-        assertEquals(EditInstructionRules.CommandKind.REPLACE_TERM, result?.commandKind)
-        assertEquals(EditInstructionRules.CommandScope.ALL, result?.scope)
+        assertEquals(VoiceEngine.CommandKind.REPLACE_TERM, result?.commandKind)
+        assertEquals(VoiceEngine.CommandScope.ALL, result?.scope)
         assertEquals(1, result?.matchedCount)
     }
 
     @Test
     fun deterministic_replaceTerm_preservesCapitalizedReplacementWhenTargetIsCapitalized() {
         val source = "Hey Mia, can you review this?"
-        val result = EditInstructionRules.tryApplyDeterministicEdit(
+        val result = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "replace Mia with john"
         )
@@ -234,7 +231,7 @@ class EditInstructionRulesTest {
 
     @Test
     fun postReplaceCapitalization_capitalizesEditedOutputForReplaceCommand() {
-        val output = postReplaceCapitalizationRule.apply(
+        val output = VoiceEngine.postReplaceCapitalization(
             sourceText = "Hey Mia, can you review this?",
             instructionText = "replace Mia with john",
             editedOutput = "Hey john, can you review this?"
@@ -247,16 +244,16 @@ class EditInstructionRulesTest {
     fun deterministic_scope_delete_first_and_last() {
         val source = "milk bread milk eggs milk"
 
-        val first = EditInstructionRules.tryApplyDeterministicEdit(source, "delete first milk")
+        val first = VoiceEngine.tryApplyDeterministicEdit(source, "delete first milk")
         assertNotNull(first)
         assertEquals("bread milk eggs milk", first?.output)
-        assertEquals(EditInstructionRules.CommandScope.FIRST, first?.scope)
+        assertEquals(VoiceEngine.CommandScope.FIRST, first?.scope)
         assertEquals(1, first?.matchedCount)
 
-        val last = EditInstructionRules.tryApplyDeterministicEdit(source, "delete last milk")
+        val last = VoiceEngine.tryApplyDeterministicEdit(source, "delete last milk")
         assertNotNull(last)
         assertEquals("milk bread milk eggs", last?.output)
-        assertEquals(EditInstructionRules.CommandScope.LAST, last?.scope)
+        assertEquals(VoiceEngine.CommandScope.LAST, last?.scope)
         assertEquals(1, last?.matchedCount)
     }
 
@@ -264,21 +261,21 @@ class EditInstructionRulesTest {
     fun deterministic_scope_replace_first_and_last() {
         val source = "milk bread milk eggs milk"
 
-        val first = EditInstructionRules.tryApplyDeterministicEdit(source, "replace first milk with oat")
+        val first = VoiceEngine.tryApplyDeterministicEdit(source, "replace first milk with oat")
         assertNotNull(first)
         assertEquals("oat bread milk eggs milk", first?.output)
-        assertEquals(EditInstructionRules.CommandScope.FIRST, first?.scope)
+        assertEquals(VoiceEngine.CommandScope.FIRST, first?.scope)
 
-        val last = EditInstructionRules.tryApplyDeterministicEdit(source, "replace last milk with oat")
+        val last = VoiceEngine.tryApplyDeterministicEdit(source, "replace last milk with oat")
         assertNotNull(last)
         assertEquals("milk bread milk eggs oat", last?.output)
-        assertEquals(EditInstructionRules.CommandScope.LAST, last?.scope)
+        assertEquals(VoiceEngine.CommandScope.LAST, last?.scope)
     }
 
     @Test
     fun deterministic_noMatch_reportsMetadata() {
         val source = "Please buy milk and eggs."
-        val result = EditInstructionRules.tryApplyDeterministicEdit(
+        val result = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = "replace bread with rice"
         )
@@ -288,20 +285,20 @@ class EditInstructionRulesTest {
         assertFalse(result?.applied == true)
         assertEquals(0, result?.matchedCount)
         assertTrue(result?.noMatchDetected == true)
-        assertEquals(EditInstructionRules.RuleConfidence.LOW, result?.ruleConfidence)
+        assertEquals(VoiceEngine.RuleConfidence.LOW, result?.ruleConfidence)
     }
 
     @Test
     fun deterministic_rejectsAmbiguousPronounTargets() {
         val source = "Please buy milk and eggs."
         assertNull(
-            EditInstructionRules.tryApplyDeterministicEdit(
+            VoiceEngine.tryApplyDeterministicEdit(
                 sourceText = source,
                 instructionText = "delete it"
             )
         )
         assertNull(
-            EditInstructionRules.tryApplyDeterministicEdit(
+            VoiceEngine.tryApplyDeterministicEdit(
                 sourceText = source,
                 instructionText = "change that to bread"
             )
@@ -313,7 +310,7 @@ class EditInstructionRulesTest {
         val source = "Please buy milk and eggs."
         val longInstruction = "please delete the word milk from the message and then rewrite the rest politely"
 
-        val result = EditInstructionRules.tryApplyDeterministicEdit(
+        val result = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = source,
             instructionText = longInstruction
         )
@@ -323,7 +320,7 @@ class EditInstructionRulesTest {
 
     @Test
     fun deterministic_returnsNullForGeneralInstruction() {
-        val result = EditInstructionRules.tryApplyDeterministicEdit(
+        val result = VoiceEngine.tryApplyDeterministicEdit(
             sourceText = "Please buy milk and eggs.",
             instructionText = "make this friendlier"
         )
@@ -345,14 +342,14 @@ class EditInstructionRulesTest {
         )
 
         commands.forEach { command ->
-            val result = EditInstructionRules.tryApplyDeterministicEdit(
+            val result = VoiceEngine.tryApplyDeterministicEdit(
                 sourceText = source,
                 instructionText = command
             )
             assertNotNull(result)
             assertEquals(source, result?.output)
             assertFalse(result?.applied == true)
-            assertEquals(EditInstructionRules.CommandKind.NO_OP, result?.commandKind)
+            assertEquals(VoiceEngine.CommandKind.NO_OP, result?.commandKind)
             assertFalse(result?.noMatchDetected == true)
         }
     }
