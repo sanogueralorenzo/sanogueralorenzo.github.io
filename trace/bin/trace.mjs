@@ -1194,24 +1194,28 @@ function withoutCheckpointIntegrity(payload) {
 
 async function captureEvent() {
   const root = await repoRoot();
+  const dryRun = Boolean(args["dry-run"]);
   const eventName = args.event ?? "note";
   if (!TRACE_EVENTS.includes(eventName)) {
     fail(`unsupported capture event ${eventName}: expected ${TRACE_EVENTS.join(", ")}`);
   }
 
-  const event = await appendEvent(root, {
+  const eventInput = {
     sessionId: args.session,
     event: eventName,
     role: args.role ?? "agent",
     message: args.message ?? await readStdin(),
     source: args.source ?? "manual",
-  });
+  };
+  const event = dryRun ? await previewEvent(root, eventInput) : await appendEvent(root, eventInput);
   print({
     ok: true,
     schema_version: "trace.capture_result.v1",
+    dryRun,
     session: event.session_id,
     event: event.event,
     source: event.source,
+    preview: dryRun ? event : undefined,
   });
 }
 
@@ -3697,7 +3701,7 @@ Usage:
   trace install status [--prefix DIR]
   trace init
   trace enable
-  trace capture --event prompt --role user --message "why this change exists"
+  trace capture --event prompt --role user --message "why this change exists" [--dry-run]
   trace run [--event validation|tool|risk] [--session id] -- <command> [args...]
   trace session start [session-id]
   trace session end [session-id]

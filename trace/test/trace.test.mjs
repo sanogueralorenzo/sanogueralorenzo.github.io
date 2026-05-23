@@ -1600,6 +1600,25 @@ test("capture rejects unsupported lifecycle events", async () => {
 
   try {
     await runTrace(repo, ["init"]);
+    const preview = JSON.parse((await runTrace(repo, [
+      "capture",
+      "--event",
+      "risk",
+      "--session",
+      "manual-dry-run",
+      "--message",
+      "GITHUB_TOKEN=visible-secret",
+      "--dry-run",
+    ])).stdout);
+    assert.equal(preview.schema_version, "trace.capture_result.v1");
+    assert.equal(preview.dryRun, true);
+    assert.equal(preview.session, "manual-dry-run");
+    assert.equal(preview.preview.event, "risk");
+    assert.match(preview.preview.message, /GITHUB_TOKEN=REDACTED/);
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const missingSession = await run(repo, ["test", "!", "-e", join(repo, commonDir, "trace/sessions/manual-dry-run.jsonl")], fixedEnv);
+    assert.equal(missingSession.exitCode, 0);
+
     const rejected = await runTraceAllowFailure(repo, ["capture", "--event", "memory", "--message", "bad event"]);
     assert.equal(rejected.exitCode, 1);
     assert.match(rejected.stderr, /unsupported capture event memory/);
