@@ -2406,6 +2406,7 @@ async function reviewMemories() {
     lines.push(`Checkpoint: \`${memory.checkpoint}\``);
     lines.push(`Session: \`${memory.session}\``);
     appendReviewSection(lines, "Intent", memory.intent);
+    appendReviewSection(lines, "Agents", memory.agents);
     appendReviewSection(lines, "Summary", memory.summary);
     appendReviewSection(lines, "Decisions", memory.decisions);
     appendReviewSection(lines, "Files", memory.files);
@@ -2441,6 +2442,7 @@ async function memoryReviewEntry(root, file, status) {
     created: content.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
     checkpoint: content.match(/^Checkpoint: `([^`]+)`/m)?.[1] ?? "none",
     session: content.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
+    agents: section(content, "Agents") ?? "No agent adapters recorded.",
     intent: section(content, "Intent") ?? "Not recorded.",
     summary: section(content, "Summary") ?? "Not recorded.",
     decisions: section(content, "Decisions") ?? "Not recorded.",
@@ -2627,6 +2629,7 @@ async function recallMemories(query) {
         session: entry.session,
         created: entry.created,
         title: recallTitle(entry),
+        agents: entry.agents,
         intent: entry.intent,
         summary: entry.summary,
         decisions: entry.decisions,
@@ -2670,6 +2673,7 @@ async function recallMemories(query) {
     lines.push(`Checkpoint: \`${entry.checkpoint}\``);
     lines.push(`Session: \`${entry.session}\``);
     lines.push(`Score: ${match.score}`);
+    appendRecallSection(lines, "Agents", entry.agents);
     appendRecallSection(lines, "Intent", entry.intent);
     appendRecallSection(lines, "Summary", entry.summary);
     appendRecallSection(lines, "Decisions", entry.decisions);
@@ -2789,6 +2793,7 @@ async function buildSearchIndex(root, files = null) {
       session: content.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
       created: content.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
       title: firstLine(content.replace(/^#\s*/, "")),
+      agents: section(content, "Agents") ?? "",
       intent: section(content, "Intent") ?? "",
       summary: section(content, "Summary") ?? "",
       decisions: section(content, "Decisions") ?? "",
@@ -2803,6 +2808,7 @@ async function buildSearchIndex(root, files = null) {
       ...entry,
       text: [
         entry.title,
+        entry.agents,
         entry.intent,
         entry.summary,
         entry.decisions,
@@ -2921,6 +2927,9 @@ function renderSummaryMarkdown(range, memories, options = {}) {
     lines.push("", "## Highlights", "");
     appendReleaseHighlights(lines, memories);
 
+    lines.push("", "## Agents", "");
+    appendMergedSection(lines, memories, "Agents");
+
     lines.push("", "## Decisions", "");
     appendMergedSection(lines, memories, "Decisions");
 
@@ -2947,6 +2956,9 @@ function renderSummaryMarkdown(range, memories, options = {}) {
 
     lines.push("", "## Decisions", "");
     appendMergedSection(lines, memories, "Decisions");
+
+    lines.push("", "## Agents", "");
+    appendMergedSection(lines, memories, "Agents");
 
     if (options.branchSummary) {
       lines.push("", "## Changed Files", "");
@@ -2982,6 +2994,7 @@ function summaryPayload(range, memories, options = {}) {
     memories: records.length,
     intent: records.map((record) => record.intent).filter(Boolean),
     highlights: records.flatMap((record) => record.summary.length > 0 ? record.summary : [record.intent].filter(Boolean)),
+    agents: uniqueValues(records.flatMap((record) => record.agents)),
     decisions: records.flatMap((record) => record.decisions),
     files: uniqueValues(records.flatMap((record) => record.files)),
     validation: records.flatMap((record) => record.validation),
@@ -2993,6 +3006,7 @@ function summaryPayload(range, memories, options = {}) {
       checkpoint: record.checkpoint,
       session: record.session,
       created: record.created,
+      agents: record.agents,
       intent: record.intent,
       summary: record.summary,
       decisions: record.decisions,
@@ -3012,6 +3026,7 @@ function memoryRecord(memory) {
     checkpoint: memory.match(/^Checkpoint: `([^`]+)`/m)?.[1] ?? "none",
     session: memory.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
     created: memory.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
+    agents: sectionItems(memory, "Agents", ["No agent adapters recorded."]),
     intent: firstLine(section(memory, "Intent") ?? ""),
     summary: sectionItems(memory, "Summary", ["Not recorded."]),
     decisions: sectionItems(memory, "Decisions", ["Not recorded."]),
@@ -3192,8 +3207,10 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
     ...extracted.risks,
   ];
   const notes = memoryEvents.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
+  const agents = memoryAgentItems(memoryEvents);
   const summaryEvents = [...responses, ...tools, ...notes].slice(-3);
   const intent = await conciseMemoryText(root, overrides.intent ?? prompts.at(-1) ?? subject);
+  const agentLines = await formatMemoryList(root, agents, "No agent adapters recorded.");
   const summary = await formatMemoryList(root, summaryEvents.length > 0 ? summaryEvents : [subject]);
   const decisionLines = await formatMemoryList(root, decisions, "Not recorded.");
   const responseLines = await formatMemoryList(root, responses, "Not recorded.");
@@ -3226,6 +3243,10 @@ Commit: \`${sha}\`
 Checkpoint: \`${checkpointId}\`
 Session: \`${sessionId ?? "none"}\`
 Created: \`${createdAt}\`
+
+## Agents
+
+${agentLines}
 
 ## Intent
 
@@ -3269,6 +3290,18 @@ ${handoff}
 
 function includeInCommitMemory(event) {
   return event.source !== "trace-session";
+}
+
+function memoryAgentItems(events) {
+  const adapters = compactMemoryItems(events.map((event) => event.adapter).filter(Boolean));
+  const adapterSet = new Set(adapters.map((adapter) => adapter.toLowerCase()));
+  const sources = compactMemoryItems(events
+    .map((event) => event.source)
+    .filter((source) => source && source !== "manual" && !adapterSet.has(String(source).toLowerCase())));
+  return [
+    ...adapters.map((adapter) => `adapter: ${adapter}`),
+    ...sources.map((source) => `source: ${source}`),
+  ];
 }
 
 async function writeCheckpointRef(root, checkpointId, payload) {
@@ -3811,8 +3844,8 @@ Usage:
   trace review [--all] [--json]
   trace log [--limit 20] [--json]
   trace index
-  trace search [--field intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
-  trace recall [query] [--field intent|summary|decisions|responses|tools|files|validation|risks|handoff] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
+  trace search [--field agents|intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
+  trace recall [query] [--field agents|intent|summary|decisions|responses|tools|files|validation|risks|handoff] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
   trace summary [range] [--json] [--output FILE]
   trace branch-summary [branch] [--base main] [--json] [--output FILE]
   trace pr-body [range] [--json] [--output FILE]
@@ -4040,6 +4073,12 @@ function normalizeSearchField(value) {
     tool: "tools",
     tools: "tools",
     activity: "tools",
+    agent: "agents",
+    agents: "agents",
+    adapter: "agents",
+    adapters: "agents",
+    source: "agents",
+    sources: "agents",
     file: "files",
     files: "files",
     checkpoint: "checkpoint",

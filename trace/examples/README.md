@@ -43,6 +43,7 @@ Use committed memories for handoff and review:
 
 ```shell
 trace show HEAD
+trace search --field agents "codex"
 trace search --field decisions "storage"
 trace search --field handoff "preserve"
 trace pr-body main..HEAD

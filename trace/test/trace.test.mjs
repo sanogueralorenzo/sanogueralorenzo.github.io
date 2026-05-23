@@ -360,10 +360,20 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
     const prBody = await runTrace(repo, ["pr-body", "HEAD"]);
     assert.match(prBody.stdout, /Trace PR Summary/);
     assert.match(prBody.stdout, /add retry memory for service/);
+    assert.match(prBody.stdout, /## Agents\n\n- adapter: codex/);
     assert.match(prBody.stdout, /Keep raw checkpoint data outside the project tree/);
     assert.match(prBody.stdout, /## Handoff\n\n- Preserve the decision: Keep raw checkpoint data outside the project tree/);
     assert.match(prBody.stdout, /token=REDACTED/);
     assert.doesNotMatch(prBody.stdout, /super-secret-token/);
+
+    const prBodyJson = JSON.parse((await runTrace(repo, ["pr-body", "HEAD", "--json"])).stdout);
+    assert.deepEqual(prBodyJson.agents, ["adapter: codex"]);
+    assert.deepEqual(prBodyJson.commits[0].agents, ["adapter: codex"]);
+
+    const agentSearch = JSON.parse((await runTrace(repo, ["search", "--field", "agents", "--json", "codex"])).stdout);
+    assert.equal(agentSearch.field, "agents");
+    assert.equal(agentSearch.matches, 1);
+    assert.match(agentSearch.results[0].snippet, /adapter: codex/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
