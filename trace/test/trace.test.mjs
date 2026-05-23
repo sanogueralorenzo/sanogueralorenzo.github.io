@@ -1410,6 +1410,36 @@ test("documented example agent payloads are accepted by adapters", async () => {
   }
 });
 
+test("agent hook dry-run normalizes payloads without writing local session state", async () => {
+  const repo = await tempRepo();
+
+  try {
+    const payload = JSON.stringify({
+      session_id: "dry-run-session",
+      type: "tool_call",
+      tool_name: "shell",
+      arguments: "GITHUB_TOKEN=visible-secret npm --prefix trace test",
+    });
+    const preview = JSON.parse((await runTraceWithInput(repo, ["hook", "agent", "--adapter", "codex", "--dry-run"], payload)).stdout);
+    assert.equal(preview.ok, true);
+    assert.equal(preview.dryRun, true);
+    assert.equal(preview.events.length, 1);
+    assert.equal(preview.events[0].schema_version, "trace.event.v1");
+    assert.equal(preview.events[0].session_id, "dry-run-session");
+    assert.equal(preview.events[0].event, "tool");
+    assert.equal(preview.events[0].adapter, "codex");
+    assert.match(preview.events[0].message, /GITHUB_TOKEN=REDACTED/);
+
+    const status = await git(repo, ["status", "--short"]);
+    assert.equal(status.stdout, "");
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const missingSession = await run(repo, ["test", "!", "-e", join(repo, commonDir, "trace/sessions/dry-run-session.jsonl")], fixedEnv);
+    assert.equal(missingSession.exitCode, 0);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("capture rejects unsupported lifecycle events", async () => {
   const repo = await tempRepo();
 

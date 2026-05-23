@@ -2850,7 +2850,10 @@ async function hookPostCommit() {
 
 async function hookAgent(values) {
   const root = await repoRoot();
-  await ensureTrace(root);
+  const dryRun = Boolean(args["dry-run"]);
+  if (!dryRun) {
+    await ensureTrace(root);
+  }
   const raw = await readStdin();
   const payload = parseOptionalJson(raw);
   const jsonLines = payload == null ? parseOptionalJsonLines(raw) : null;
@@ -2861,15 +2864,21 @@ async function hookAgent(values) {
     const sessionId = args.session ?? item?.session_id ?? item?.sessionId;
     const normalizedEvents = normalizeAgentPayloadEvents(args.adapter ?? args.source, args.event ?? firstPositional(values), item, raw);
     for (const normalized of normalizedEvents) {
-      events.push(await appendEvent(root, {
+      const event = {
         sessionId,
         event: normalized.event,
         role: args.role ?? normalized.role,
         source: args.source ?? normalized.source,
         adapter: normalized.adapter,
         message: args.message ?? normalized.message,
-      }));
+      };
+      events.push(dryRun ? await previewEvent(root, event) : await appendEvent(root, event));
     }
+  }
+
+  if (dryRun) {
+    print({ ok: true, dryRun: true, events });
+    return;
   }
 
   if (events.length === 1) {
@@ -2882,6 +2891,19 @@ async function hookAgent(values) {
     ok: true,
     events: events.map((event) => ({ session: event.session_id, event: event.event, source: event.source, adapter: event.adapter })),
   });
+}
+
+async function previewEvent(root, input) {
+  return {
+    schema_version: "trace.event.v1",
+    session_id: input.sessionId ?? null,
+    event: input.event,
+    role: input.role,
+    source: input.source ?? "manual",
+    adapter: input.adapter ?? null,
+    message: await redact(root, input.message),
+    created_at: now(),
+  };
 }
 
 async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
@@ -3534,7 +3556,7 @@ Usage:
   trace pr-body [range] [--json]
   trace release-notes [range] [--json]
   trace hook pre-commit
-  trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
+  trace hook agent [event] [--adapter codex|claude-code|gemini|generic] [--dry-run]
   trace doctor [--strict-memory]
   trace check [--checkpoints] [--strict-memory]
   trace status

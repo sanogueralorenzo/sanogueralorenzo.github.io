@@ -18,6 +18,7 @@ trace agent check all
 Adapters write normalized lifecycle events into the git common directory, not the project tree:
 
 ```shell
+cat trace/examples/codex-tool-call.json | trace hook agent --adapter codex --dry-run
 cat trace/examples/codex-tool-call.json | trace hook agent --adapter codex
 cat trace/examples/claude-code-user-prompt.json | trace hook agent --adapter claude-code
 cat trace/examples/gemini-model-response.json | trace hook agent --adapter gemini

@@ -62,6 +62,7 @@ trace agent add claude-code
 trace agent add gemini
 trace agent check all
 trace capture --event prompt --role user --message "why this change exists"
+trace hook agent --adapter codex --dry-run
 trace run -- npm test
 trace session start task-auth-retry
 trace session end task-auth-retry
@@ -128,6 +129,7 @@ node trace/bin/trace.mjs agent add codex
 node trace/bin/trace.mjs agent add claude-code
 node trace/bin/trace.mjs agent add gemini
 node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
+node trace/bin/trace.mjs hook agent --adapter codex --dry-run
 node trace/bin/trace.mjs run -- npm test
 node trace/bin/trace.mjs session start task-auth-retry
 node trace/bin/trace.mjs session end task-auth-retry
@@ -190,7 +192,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace record` and the post-commit hook distill raw session events into compact commit memory. When a commit already has `Trace-Checkpoint` or `Trace-Session` trailers, `trace record` reuses those identities so manual recording stays aligned with hook-created commits. Repeated events are deduplicated, local session lifecycle notes are kept in the raw checkpoint but excluded from the reviewable summary, long entries are truncated, noisy sections are capped with an explicit omitted-events line, and labeled response lines such as `Decision:`, `Validation:`, and `Risk:` are promoted into the right memory sections. A short `Handoff` section is derived from the visible decision, validation, risks, and changed files so future agents know what to preserve or recheck while the full checkpoint remains available on the Trace ref. Use `trace record --dry-run` to preview the exact Markdown memory without writing `.trace/commits/` or updating `refs/trace/checkpoints`, `trace record --check-session` to fail before writing when the selected session only contains local lifecycle notes, and `trace record --check-session --strict` when the session must include intent, decision, and validation signals.
 
-`trace capture` only accepts the supported lifecycle events: prompt, response, tool, decision, validation, risk, and note. This keeps manual captures, adapter events, search fields, and generated memories aligned to one stable taxonomy.
+`trace capture` only accepts the supported lifecycle events: prompt, response, tool, decision, validation, risk, and note. This keeps manual captures, adapter events, search fields, and generated memories aligned to one stable taxonomy. `trace hook agent --dry-run` returns the normalized, redacted lifecycle events for an adapter payload without writing `.trace/config.json`, session JSONL, or current-session state, so integrations can test their mapping before they capture real memory.
 
 `trace run -- <command>` executes a local validation or tool command, streams its output, records the command result plus compact stdout/stderr into the current raw session, and exits with the same code. Successful commands become `validation` events by default; failed commands become `risk` events. Use `--event tool` when the command is tool activity rather than validation.
 
