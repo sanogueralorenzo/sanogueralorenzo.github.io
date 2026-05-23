@@ -123,6 +123,9 @@ statement. The graph builder emits each invariant statement as an `Invariant`
 node and creates `guards` edges from that node to the goal completion node and
 to every effect, step checkpoint, and step requirement check in the same goal.
 This keeps always-on rules visible across side effects and recovery boundaries.
+The first enforced invariant rule is `deny production_deploy`, which rejects
+`Deploy` effects targeting `production` with `INTENT_INVARIANT_VIOLATION` at
+the invariant line span.
 
 Every `memory` block must include at least one `retain ... until ...` retention
 rule. A memory block without a parsed retention rule is syntactically valid, but
@@ -409,6 +412,9 @@ The parser emits names and type reference strings; the checker owns binding.
   verification effects. Side-effect calls such as `FileWrite`, `GitPush`, web
   reads, git commits, deploys, or ticket updates inside `verify` emit
   `INTENT_VERIFY_IMPURE`.
+- The first enforced invariant rule is `deny production_deploy`; it rejects
+  `Deploy` effects whose normalized `target` is `production` with
+  `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - Step-body `require ...` lines become step requirement checks. They are
   emitted as graph `Check` nodes with `requires` edges into the owning step and
   `gates` edges to the owning goal, distinct from goal-level `verify`
