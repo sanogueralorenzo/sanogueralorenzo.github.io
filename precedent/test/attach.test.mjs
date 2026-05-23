@@ -276,6 +276,58 @@ test("attach-run executes an ordinary session with automatic attribution", async
   }
 });
 
+test("attach-run retries are idempotent with an event prefix", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const args = [
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "demo-run",
+      "--event-prefix",
+      "delivery-1",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node -e \"process.exit(0)\" # pnpm test:webhooks",
+      "--json",
+    ];
+
+    const first = await runJson(args);
+    const retry = await runJson(args);
+
+    assert.equal(first.eventPrefix, "delivery-1");
+    assert.equal(first.beforeTurn.recorded, true);
+    assert.equal(first.validation.recorded, true);
+    assert.equal(first.outcome.recorded, true);
+    assert.equal(retry.beforeTurn.recorded, false);
+    assert.equal(retry.beforeTurn.deduped, true);
+    assert.equal(retry.validation.recorded, false);
+    assert.equal(retry.validation.deduped, true);
+    assert.equal(retry.outcome.recorded, false);
+    assert.equal(retry.outcome.deduped, true);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/demo-run.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:context.before_turn").length, 1);
+    assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:validation.after_run").length, 1);
+    assert.equal(sessionEvents.filter((event) => event.eventId === "delivery-1:outcome.after_task").length, 1);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((entry) => entry.id === "prec_webhook_replay_boundary");
+    assert.equal(health.injectionCount, 1);
+    assert.equal(health.successCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("attach-run failed validation creates a replay-gated learning candidate", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
 

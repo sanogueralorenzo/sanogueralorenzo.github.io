@@ -13,9 +13,10 @@ const eventsDir = join(__dirname, "events");
 const tracesDir = join(__dirname, "traces");
 const firstTurnEvent = join(eventsDir, "before-delivery-turn.json");
 const followupTurnEvent = join(eventsDir, "before-refund-turn.json");
-const failedTrace = join(tracesDir, "failed-webhook-turn.json");
 const followupTrace = join(tracesDir, "followup-webhook-turn.json");
+const replayCase = join(repoRoot, "precedent/examples/replay/webhook-case.json");
 const stateDir = await mkdtemp(join(tmpdir(), "precedent-hook-loop-"));
+const replayTrace = join(stateDir, "webhook-replay-trace.json");
 
 try {
   const beforeFirstTurn = await runPrecedent([
@@ -28,11 +29,22 @@ try {
   ]);
 
   await runPrecedent([
+    "replay",
+    "--state-dir",
+    stateDir,
+    "--case",
+    replayCase,
+    "--trace-out",
+    replayTrace,
+    "--json",
+  ]);
+
+  await runPrecedent([
     "observe",
     "--state-dir",
     stateDir,
     "--trace",
-    failedTrace,
+    replayTrace,
     "--json",
   ]);
 
@@ -65,11 +77,11 @@ try {
   assert(beforeFirstTurn.injections.length === 0, "first hook should not inject precedent");
   assert(beforeFollowupTurn.contextBlock.startsWith("Precedent:"), "follow-up hook should return a context block");
   assert(
-    beforeFollowupTurn.injections.some((injection) => injection.id === "prec_webhook_provider_boundary"),
+    beforeFollowupTurn.injections.some((injection) => injection.id === "prec_webhook_replay_boundary"),
     "follow-up hook should inject webhook precedent",
   );
   assert(report.precedents === 1, "ledger should contain one promoted precedent");
-  assert(report.events === 4, "ledger should contain two hook events and two observed trace events");
+  assert(report.events === 5, "ledger should contain hook, replay, and observed trace events");
 
   process.stdout.write(`${JSON.stringify({
     ok: true,
@@ -81,7 +93,7 @@ try {
       },
       {
         hook: "conversation.observe",
-        trace: "failed-webhook-turn.json",
+        trace: "webhook-replay-trace.json",
       },
       {
         hook: "context.before_turn",

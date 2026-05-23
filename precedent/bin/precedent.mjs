@@ -1339,7 +1339,7 @@ async function outcomeAfterTaskEventHook(event) {
       });
     }
 
-    learning = await createSessionLearningSnapshot(stateDir, sessionId);
+    learning = sessionEvent.deduped ? null : await createSessionLearningSnapshot(stateDir, sessionId);
     if (!sessionEvent.deduped && sessionEvent.event.success === true) {
       const promoted = await promoteSessionPairs(stateDir, {
         successSessionId: sessionId,
@@ -1972,6 +1972,9 @@ async function attachRunSession() {
   });
   const sessionId = sessionIdentity.sessionId;
   const validationCommand = requireString(args["validation-command"], "attach-run --validation-command");
+  const eventPrefix = typeof args["event-prefix"] === "string" && args["event-prefix"].trim().length > 0
+    ? args["event-prefix"].trim()
+    : null;
 
   const beforeTurn = await runPrecedentChildJson([
     "context",
@@ -1982,6 +1985,7 @@ async function attachRunSession() {
     ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
     "--session",
     sessionId,
+    ...(eventPrefix ? ["--event-id", `${eventPrefix}:context.before_turn`] : []),
     "--format",
     "json",
     "--json",
@@ -1999,6 +2003,7 @@ async function attachRunSession() {
     schema_version: SCHEMA_VERSION,
     hook: "validation.after_run",
     sessionId,
+    ...eventIdField(eventPrefix ? `${eventPrefix}:validation.after_run` : null),
     command: redactSecrets(validationCommand).value,
     exitCode: validationResult.exitCode,
     durationMs,
@@ -2018,6 +2023,7 @@ async function attachRunSession() {
     schema_version: SCHEMA_VERSION,
     hook: "outcome.after_task",
     sessionId,
+    ...eventIdField(eventPrefix ? `${eventPrefix}:outcome.after_task` : null),
     success,
     status: args.status ?? (success ? "success" : "failure"),
     task: taskSource.task,
@@ -2033,6 +2039,7 @@ async function attachRunSession() {
     runtime,
     stateDir: stateDirArg,
     sessionId,
+    eventPrefix,
     identity: sessionIdentity,
     task: taskSource.task,
     taskFile: taskSource.taskFile,
@@ -5845,7 +5852,7 @@ Usage:
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent attach [--runtime generic|codex] [--session session-id|--thread-id thread-id] --task "text"
-  precedent attach-run --task "text" --validation-command "cmd" [--session session-id|--thread-id thread-id]
+  precedent attach-run --task "text" --validation-command "cmd" [--session session-id|--thread-id thread-id] [--event-prefix id]
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
