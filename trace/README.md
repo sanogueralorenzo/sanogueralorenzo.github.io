@@ -108,6 +108,7 @@ trace checkpoint cleanup --sessions-before-days 14 --keep 100 --dry-run
 trace checkpoint cleanup --sessions-before-days 14 --keep 100
 trace redact add codename 'PROJECT-[A-Z]+'
 trace redact list
+trace redact preview --text 'PROJECT-ORION token=secret'
 trace redact audit
 trace doctor
 trace doctor --strict-memory
@@ -175,6 +176,7 @@ node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14 --keep 100
 node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14 --keep 100
 node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
 node trace/bin/trace.mjs redact list
+node trace/bin/trace.mjs redact preview --text 'PROJECT-ORION token=secret'
 node trace/bin/trace.mjs redact audit
 node trace/bin/trace.mjs doctor
 node trace/bin/trace.mjs doctor --strict-memory
@@ -253,8 +255,9 @@ Redaction is local and configurable. Built-in rules scrub common token/password 
 
 ```shell
 trace redact add codename 'PROJECT-[A-Z]+'
+trace redact preview --text 'PROJECT-ORION token=secret'
 trace redact audit
 trace redact remove codename
 ```
 
-Custom matches are replaced with labeled placeholders like `[REDACTED_CODENAME]` before raw events or commit memories are written. `trace redact audit` scans committed memories, local raw session files, and checkpoint ref payloads for unredacted secret assignments or configured custom patterns, and `trace doctor` includes the same audit.
+Custom matches are replaced with labeled placeholders like `[REDACTED_CODENAME]` before raw events or commit memories are written. `trace redact preview` applies the active built-in and custom rules to text or stdin without writing state, so agents can verify local rules before capture. `trace redact audit` scans committed memories, local raw session files, and checkpoint ref payloads for unredacted secret assignments or configured custom patterns, and `trace doctor` includes the same audit.

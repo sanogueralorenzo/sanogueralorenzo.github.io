@@ -1087,6 +1087,19 @@ test("custom redaction rules apply to raw events and commit memories", async () 
     const listed = JSON.parse((await runTrace(repo, ["redact", "list"])).stdout);
     assert.deepEqual(listed.rules, [{ label: "codename", pattern: "PROJECT-[A-Z]+" }]);
 
+    const preview = JSON.parse((await runTrace(repo, [
+      "redact",
+      "preview",
+      "--text",
+      "ship PROJECT-ORION with token=visible-secret",
+      "--json",
+    ])).stdout);
+    assert.equal(preview.schema_version, "trace.redaction_preview.v1");
+    assert.equal(preview.redacted, "ship [REDACTED_CODENAME] with token=REDACTED");
+
+    const stdinPreview = await runTraceWithInput(repo, ["redact", "preview"], "Authorization: Bearer short-token");
+    assert.equal(stdinPreview.stdout, "Authorization: Bearer REDACTED\n");
+
     await runTrace(repo, [
       "capture",
       "--event",

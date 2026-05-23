@@ -1690,6 +1690,11 @@ async function runRedactCommand(action, values) {
     return;
   }
 
+  if (action === "preview") {
+    await previewRedaction(values);
+    return;
+  }
+
   if (!action || action === "list") {
     const root = await repoRoot();
     print({ ok: true, rules: customRules(await loadTraceConfig(root)) });
@@ -1737,6 +1742,25 @@ async function auditRedactionCommand() {
   if (!audit.ok) {
     process.exitCode = 1;
   }
+}
+
+async function previewRedaction(values) {
+  const root = await repoRoot();
+  let input = args.text ?? positionalValues(values).join(" ");
+  if (!input) {
+    input = await readStdin();
+  }
+  if (!input) {
+    fail("redact preview requires text argument, --text, or stdin");
+  }
+
+  const redacted = await redact(root, input);
+  if (args.json) {
+    print({ ok: true, schema_version: "trace.redaction_preview.v1", redacted });
+    return;
+  }
+
+  process.stdout.write(`${redacted}\n`);
 }
 
 async function redactionAudit(root) {
@@ -3559,6 +3583,7 @@ Usage:
   trace redact add <label> <regex>
   trace redact list
   trace redact audit
+  trace redact preview [--text "..."] [--json]
   trace redact remove <label>
   trace coverage [range] [--agents] [--checkpoints] [--strict-memory]
   trace ci [range] [--agents] [--checkpoints] [--strict-memory]

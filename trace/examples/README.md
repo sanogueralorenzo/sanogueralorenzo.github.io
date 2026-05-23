@@ -52,5 +52,6 @@ trace release-notes v1.0.0..HEAD
 Use CI to prevent missing memory and transcript leaks:
 
 ```shell
+trace redact preview --text 'PROJECT-ORION token=secret'
 trace ci main..HEAD --agents --checkpoints
 ```
