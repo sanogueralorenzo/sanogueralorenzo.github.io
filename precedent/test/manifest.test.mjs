@@ -15,6 +15,7 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.equal(manifest.runtime, "generic");
   assert.equal(manifest.hooks["context.before_turn"].injectFrom, "contextBlock");
   assert.equal(manifest.hooks["context.before_turn"].failurePolicy, "fail_open");
+  assert.deepEqual(manifest.hooks["context.before_turn"].output, ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "source"]);
   assert.deepEqual(manifest.hooks["review.after_feedback"].stdin, ["schema_version", "hook", "sessionId", "comments", "changedFiles", "reviewer"]);
   assert.equal(manifest.hooks["review.after_feedback"].failurePolicy, "fail_open");
   assert.deepEqual(manifest.hooks["validation.after_run"].stdin, ["schema_version", "hook", "sessionId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"]);

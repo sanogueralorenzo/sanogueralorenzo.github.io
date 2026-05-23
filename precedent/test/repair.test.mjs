@@ -305,6 +305,15 @@ test("repair efficacy suppresses after two still-failing receipts and resets aft
     assert.equal(context.injections.length, 0);
     assert.equal(context.suppressedInjections[0].reason, "stale_repair_efficacy");
     assert.equal(context.suppressedInjections[0].counterexampleCount, 3);
+    assert.equal(context.revisionBriefs.length, 1);
+    assert.equal(context.revisionBriefs[0].id, "prec_webhook_replay_boundary");
+    assert.equal(context.revisionBriefs[0].status, "stale");
+    assert.match(context.revisionBriefs[0].failureSummary, /repair still failing/u);
+    assert.equal(context.revisionBriefs[0].recentCounterexamples.length, 3);
+    assert.equal(context.revisionBriefs[0].revisionCriteria.length, 3);
+    report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.revisionBriefCount, 1);
 
     const explained = await runJson(["explain", "--state-dir", stateDir, "--id", "prec_webhook_replay_boundary", "--json"]);
     assert.equal(explained.outcomes.repairStillFailingSinceLastClearOrSuccessCount, 2);

@@ -338,6 +338,7 @@ async function exportContext() {
       ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
+    const revisionBriefs = revisionBriefsForSuppressed(events, lifecycleSelected.suppressed);
     const exportEvent = {
       type: "context_export",
       observedAt: new Date().toISOString(),
@@ -353,12 +354,14 @@ async function exportContext() {
         reasons: match.matchReasons ?? [],
       })),
       suppressedInjections,
+      revisionBriefs,
     };
     payload = {
       schema_version: "precedent.context.v1",
       contextBlock,
       injections: selected.matches.map(formatInjection),
       suppressedInjections,
+      revisionBriefs,
       source: {
         command: "context",
         task,
@@ -385,6 +388,7 @@ async function exportContext() {
         injections: exportEvent.injections,
         injectionMatches: exportEvent.injectionMatches,
         suppressedInjections: exportEvent.suppressedInjections,
+        revisionBriefs: exportEvent.revisionBriefs,
       });
     }
   }, { failOpen: true });
@@ -395,6 +399,7 @@ async function exportContext() {
       contextBlock: "",
       injections: [],
       suppressedInjections: [{ reason: "lock_timeout" }],
+      revisionBriefs: [],
       source: {
         command: "context",
         task,
@@ -738,6 +743,7 @@ async function contextBeforeTurnEventHook(event) {
   const threshold = Number(args.threshold ?? event.threshold ?? 4);
   let matches = [];
   let suppressed = [];
+  let revisionBriefs = [];
   let contextBlock = "";
   let sessionEvent = null;
   const locked = await withStateLock(stateDir, async () => {
@@ -763,6 +769,7 @@ async function contextBeforeTurnEventHook(event) {
       ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
+    revisionBriefs = revisionBriefsForSuppressed(events, lifecycleSelected.suppressed);
     contextBlock = formatInjectionBlock(matches);
 
     const hookEvent = {
@@ -782,6 +789,7 @@ async function contextBeforeTurnEventHook(event) {
         reasons: match.matchReasons ?? [],
       })),
       suppressedInjections: suppressed,
+      revisionBriefs,
     };
 
     await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
@@ -796,6 +804,7 @@ async function contextBeforeTurnEventHook(event) {
 
   if (locked?.lockTimeout) {
     suppressed = [{ reason: "lock_timeout" }];
+    revisionBriefs = [];
   }
 
   print({
@@ -804,6 +813,7 @@ async function contextBeforeTurnEventHook(event) {
     sessionId: sessionEvent?.sessionId ?? null,
     injections: matches.map(formatInjection),
     suppressedInjections: suppressed,
+    revisionBriefs,
     contextBlock,
   });
 }
@@ -1362,7 +1372,7 @@ function buildManifest(runtime, stateDir) {
           "--format",
           "json",
         ],
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "source"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "source"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -1475,7 +1485,7 @@ async function attachRuntime() {
     adapter: {
       beforeTurn: {
         command: beforeTurnCommand,
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "source"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "source"],
         injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1906,6 +1916,38 @@ function formatSuppressedInjection(match, events = null) {
   return formatted;
 }
 
+function revisionBriefsForSuppressed(events, suppressed) {
+  return suppressed
+    .filter((match) => ["stale_repair_efficacy", "retired_repair_efficacy"].includes(match.suppressionReason))
+    .map((match) => revisionBriefForPrecedent(events, match));
+}
+
+function revisionBriefForPrecedent(events, match) {
+  const counterexamples = counterexamplesForPrecedent(events, match.id);
+  return {
+    id: match.id,
+    status: match.suppressionReason === "retired_repair_efficacy" ? "retired" : "stale",
+    failureSummary: counterexampleSummary(counterexamples),
+    recentCounterexamples: counterexamples.slice(-3),
+    revisionCriteria: [
+      "Identify the assumption in the old precedent that the counterexamples invalidate.",
+      "Capture a clean session with matching scope or path overlap and passing validation.",
+      "Promote a replacement only after replay evidence shows fewer failures.",
+    ],
+  };
+}
+
+function counterexampleSummary(counterexamples) {
+  const counts = {};
+  for (const counterexample of counterexamples) {
+    counts[counterexample.type] = (counts[counterexample.type] ?? 0) + 1;
+  }
+
+  return Object.entries(counts)
+    .map(([type, count]) => `${count} ${type.replaceAll("_", " ")}`)
+    .join(", ") || "no counterexamples";
+}
+
 function suppressLifecycleInjections({ events, matches, includeStale }) {
   const selected = [];
   const suppressed = [];
@@ -2063,6 +2105,10 @@ function outcomeSummaryForPrecedent(events, id) {
     Array.isArray(event.suppressedInjections)
     && event.suppressedInjections.some((item) => item.id === id),
   );
+  const revisionBriefCount = events.filter((event) =>
+    Array.isArray(event.revisionBriefs)
+    && event.revisionBriefs.some((item) => item.id === id),
+  ).length;
   const guardChecks = guardChecksForPrecedent(events, id);
   const guardPasses = guardChecks.filter((check) => check.status === "pass");
   const guardWarnings = guardChecks.filter((check) => check.status === "warn");
@@ -2094,6 +2140,7 @@ function outcomeSummaryForPrecedent(events, id) {
     successCount: successes.length,
     failureCount: failures.length,
     suppressionCount: suppressions.length,
+    revisionBriefCount,
     guardPassCount: guardPasses.length,
     guardWarningCount: guardWarnings.length,
     repairAttemptCount: repairReceipts.length,

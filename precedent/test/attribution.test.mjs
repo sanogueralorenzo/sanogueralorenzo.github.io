@@ -193,6 +193,7 @@ test("stale precedents are suppressed until a later attributed success", async (
     assert.deepEqual(suppressed.injections, []);
     assert.equal(suppressed.suppressedInjections.length, 1);
     assert.equal(suppressed.suppressedInjections[0].reason, "stale");
+    assert.deepEqual(suppressed.revisionBriefs, []);
 
     const included = await runJson([
       "context",
