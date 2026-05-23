@@ -1111,6 +1111,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:verify:0", kind: "Check", label: "shell(\"npm test\")", span: testSpan(4), data: { effect: { family: "shell", action: "run" } } },
       ],
       edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
       ],
@@ -1136,6 +1137,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
       ],
       edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
       ],
     });
@@ -1148,6 +1150,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
       ],
       edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
       ],
@@ -1161,6 +1164,34 @@ describe("intent static model CLI", () => {
     assert.equal(wrongSourceDiagnostics[0].code, "INTENT_GRAPH_EFFECT_REQUEST_INVALID");
     assert.equal(wrongSourceDiagnostics[0].request_edges, 1);
     assert.equal(wrongSourceDiagnostics[0].owner_step_request_edges, 0);
+  });
+
+  it("validates graph step plan diagnostics", () => {
+    const missingDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+      ],
+      edges: [],
+    });
+    const wrongSourceDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch", kind: "plans" },
+      ],
+    });
+
+    assert.equal(missingDiagnostics[0].code, "INTENT_GRAPH_STEP_PLAN_INVALID");
+    assert.equal(missingDiagnostics[0].plans_edges, 0);
+    assert.equal(missingDiagnostics[0].owner_goal_plans_edges, 0);
+    assert.equal(wrongSourceDiagnostics[0].code, "INTENT_GRAPH_STEP_PLAN_INVALID");
+    assert.equal(wrongSourceDiagnostics[0].plans_edges, 1);
+    assert.equal(wrongSourceDiagnostics[0].owner_goal_plans_edges, 0);
   });
 
   it("validates graph step attachment diagnostics", () => {
@@ -1178,6 +1209,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(9), data: { approvalRequired: true } },
       ],
       edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
       ],
@@ -1273,6 +1305,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(8), data: { scope: "step" } },
       ],
       edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },

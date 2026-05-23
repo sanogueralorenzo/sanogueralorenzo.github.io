@@ -1376,6 +1376,25 @@ function validateGraph(graph) {
     }
   }
 
+  for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Step") {
+      continue;
+    }
+    const ownerGoalId = parentNodeId(graphNode.id, ":step:");
+    const ownerGoal = ownerGoalId ? nodesById.get(ownerGoalId) : null;
+    const planEdges = (incomingEdgesByNode.get(graphNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "plans");
+    const ownerPlanEdges = planEdges.filter((graphEdge) => graphEdge.from === ownerGoalId && ownerGoal?.kind === "Goal");
+    if (ownerPlanEdges.length !== 1 || planEdges.length !== ownerPlanEdges.length) {
+      diagnostics.push(error("INTENT_GRAPH_STEP_PLAN_INVALID", `step '${graphNode.label}' must have exactly one incoming plans edge from its owning goal.`, graphNode.span ?? fallbackSpan, {
+        step: graphNode.label,
+        step_id: graphNode.id,
+        owner_goal_id: ownerGoalId,
+        plans_edges: planEdges.length,
+        owner_goal_plans_edges: ownerPlanEdges.length,
+      }));
+    }
+  }
+
   const visiting = new Set();
   const visited = new Set();
   let cycleReported = false;
