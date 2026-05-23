@@ -7,6 +7,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_code_change.intent`: code-change goal with declared step output types, repository context, file and shell capabilities, allowed `FileWrite` and `ShellExec` calls, verification, and invariants.
 - `valid_dependency_graph.intent`: named goal input feeding the first step, followed by prior step outputs feeding later steps for graph dependency coverage.
 - `valid_research.intent`: research goal with declared source, claim, and report types, web and local document context, read-only capabilities, plan steps, citation verification, and invariants.
+- `valid_trust_flow_shell_literal.intent`: trust-flow goal where `ShellExec` uses a literal command declared by shell capability.
 
 ## Invalid
 
@@ -17,3 +18,4 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.
 - `invalid_duplicate_step_name.intent`: declares the same step name twice in one plan.
+- `invalid_trust_flow_untrusted_shell_input.intent`: feeds a value produced from web context into `ShellExec(command: input)`.

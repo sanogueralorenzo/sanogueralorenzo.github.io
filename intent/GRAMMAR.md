@@ -69,7 +69,9 @@ require_stmt     = "require", s, raw_expr, line_end ;
 deny_stmt        = "deny", s, raw_expr, line_end ;
 ```
 
-`context` is a single-line declaration in this milestone. `capability` and
+`context` is a single-line declaration in this milestone. Context declarations
+that describe web resources or browser/page state are treated as untrusted by
+the checker unless a later policy explicitly upgrades them. `capability` and
 `memory` bodies are parsed as statement lists whose items are preserved as raw
 spanned lines. `verify` accepts only `require`; `invariant` accepts only `deny`.
 
@@ -126,6 +128,12 @@ file.write("intent/STATIC_MODEL.md")
 shell.exec(command: "npm test")
 ```
 
+Shell command arguments are trust-sensitive in the first checker prototype. A
+shell command argument must be either a string literal or a value already marked
+trusted by the checker. Nonliteral shell command expressions that are not
+trusted produce `INTENT_TRUST_FLOW_UNSAFE` rather than being treated as an
+opaque command string.
+
 ## Lexical Rules
 
 ```ebnf
@@ -175,6 +183,12 @@ The parser emits names and type reference strings; the checker owns binding.
 - Step params become `input` graph nodes with step scope.
 - A bound step input creates a `data` edge from the matching goal input or
   earlier step output to that step input node.
+- Web context values are untrusted source values.
+- Shell command arguments must be literal or trusted before execution.
+- Nonliteral shell command arguments that are not trusted are
+  `INTENT_TRUST_FLOW_UNSAFE`.
+- Graph nodes and edges record trust metadata where it helps downstream
+  runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.
 - Every goal emits one `completion` graph node.
 - Required `verify` checks create `verifies` edges to the completion node,

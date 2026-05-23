@@ -395,13 +395,15 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
 }
 
 function parseEffectUse(text, file, lineNumber, raw) {
+  const parsedArgs = parseCallArgs(text);
   const name = text.match(/^([A-Za-z][A-Za-z0-9_.]*)/)?.[1] ?? text;
   return {
     kind: "EffectUse",
     name,
     family: effectFamily(name),
     action: effectAction(name),
-    args: parseCallArgs(text),
+    args: parsedArgs.values,
+    argKinds: parsedArgs.kinds,
     expression: text,
     span: lineSpan(file, lineNumber, raw),
   };
@@ -461,6 +463,19 @@ function checkIntent(ast) {
             effect: effect.name,
             required_family: effect.family,
             declared_capabilities: capabilities,
+          }));
+          continue;
+        }
+
+        const trustFlow = getTrustFlowDiagnostic(effect);
+        if (trustFlow) {
+          diagnostics.push(error("INTENT_TRUST_FLOW_UNSAFE", trustFlow.message, effect.span, {
+            effect: effect.name,
+            family: effect.family,
+            action: effect.action,
+            argument: trustFlow.argument,
+            value: trustFlow.value,
+            trust: trustFlow.trust,
           }));
           continue;
         }
@@ -654,6 +669,8 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           family: effectUse.family,
           action: effectUse.action,
           args: effectUse.args,
+          argKinds: effectUse.argKinds,
+          trust: effectTrust(effectUse),
           expression: effectUse.expression,
         }));
         edges.push(edge(id, effectId, "requests"));
@@ -742,7 +759,7 @@ function parseCapabilityGrant(text) {
 
   const dottedCall = trimmed.match(/^[a-z][a-z0-9_]*\.([a-z][a-z0-9_]*)\((.*)\)$/);
   if (dottedCall) {
-    const args = parseCallArgs(dottedCall[2]);
+    const { values: args } = parseCallArgs(dottedCall[2]);
     const key = args.paths ? "path" : args.commands ? "command" : args.path ? "path" : args.command ? "command" : null;
     const value = args.paths ?? args.commands ?? args.path ?? args.command ?? null;
     if (key && typeof value === "string") {
@@ -759,15 +776,24 @@ function parseCapabilityGrant(text) {
 }
 
 function parseCallArgs(text) {
-  const args = {};
+  const values = {};
+  const kinds = {};
   for (const match of text.matchAll(/([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"/g)) {
-    args[match[1]] = match[2];
+    values[match[1]] = match[2];
+    kinds[match[1]] = "string";
+  }
+  for (const match of text.matchAll(/([a-z][a-z0-9_]*)\s*:\s*([a-z][a-z0-9_]*)\b/g)) {
+    if (!(match[1] in values)) {
+      values[match[1]] = match[2];
+      kinds[match[1]] = "identifier";
+    }
   }
   const positional = text.match(/\(\s*"([^"]*)"/);
   if (positional) {
-    args._0 = positional[1];
+    values._0 = positional[1];
+    kinds._0 = "string";
   }
-  return args;
+  return { values, kinds };
 }
 
 function normalizeTypeRef(typeRef) {
@@ -1037,6 +1063,39 @@ function getCapabilityDenial(effect, capabilities) {
     value: argument.value,
     allowed: candidateGrants.map((grant) => grant.value),
   };
+}
+
+function getTrustFlowDiagnostic(effect) {
+  if (effect.family !== "shell") {
+    return null;
+  }
+  const commandKey = effect.args.command ? "command" : effect.args._0 ? "_0" : null;
+  if (!commandKey) {
+    return null;
+  }
+  if (effect.argKinds?.[commandKey] === "string") {
+    return null;
+  }
+  return {
+    message: `effect '${effect.name}' uses nonliteral shell command '${effect.args[commandKey]}'.`,
+    argument: commandKey === "_0" ? "command" : commandKey,
+    value: effect.args[commandKey],
+    trust: "untrusted",
+  };
+}
+
+function effectTrust(effect) {
+  if (effect.family !== "shell") {
+    return { zone: "unknown", source: "effect" };
+  }
+  const commandKey = effect.args.command ? "command" : effect.args._0 ? "_0" : null;
+  if (!commandKey) {
+    return { zone: "unknown", source: "missing_command" };
+  }
+  if (effect.argKinds?.[commandKey] === "string") {
+    return { zone: "trusted", source: "literal", argument: "command" };
+  }
+  return { zone: "untrusted", source: effect.argKinds?.[commandKey] ?? "unknown", argument: "command" };
 }
 
 function effectArgument(effect) {

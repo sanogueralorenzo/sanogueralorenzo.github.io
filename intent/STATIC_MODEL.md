@@ -25,6 +25,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `EffectCall`: parsed effect request with callee, arguments, source span, and
   raw text.
 - `PolicyDecl`: trust, denial, approval, and flow rules.
+- `TrustMark`: checker-owned trust metadata for a value, effect argument, graph
+  node, or graph edge.
 - `TypeDecl`: record, enum, alias, union, or generic type declaration.
 - `Expr`: literals, names, field access, calls, lists, records, conditionals,
   matches, lets, returns, assignments, and effect requests.
@@ -276,6 +278,8 @@ blocking diagnostics.
 - Resolve every type reference against built-ins and file-local type
   declarations.
 - Bind step inputs against goal inputs and earlier step outputs in source order.
+- Assign first-prototype trust zones to source values. Web contexts are
+  untrusted; literals and checker-approved policy outputs are trusted.
 - Type check expressions, inputs, outputs, context values, state values, step
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
@@ -288,6 +292,8 @@ blocking diagnostics.
 - Enforce invariant placement and attach invariants to the graph as guards.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
+- Emit `INTENT_TRUST_FLOW_UNSAFE` for nonliteral shell command arguments that
+  are not already trusted by the checker.
 - Require memory and checkpoint state to be scoped, serializable, and assigned a
   retention lifecycle.
 - Build dependency edges from step inputs, produced values, checks, approvals,
@@ -351,7 +357,35 @@ Rules:
 - Nested calls may be parsed as argument values, but the first capability
   milestone only checks literal file path and shell command arguments.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
-  when the effect call is not used for a capability-constrained resource.
+  when the effect call is not used for a capability-constrained resource or a
+  trust-sensitive resource.
+
+## Trust Flow
+
+The first trust-flow checker is intentionally narrow. It tracks only the trust
+state needed to prevent untrusted web-derived values from becoming executable
+shell commands.
+
+Trust zones:
+
+- `trusted`: string literals, numeric literals, boolean literals, and values
+  produced by checker-approved policies or trusted effects.
+- `untrusted`: web contexts, browser/page state, remote HTML, remote JSON, URLs,
+  query strings, form fields, and any values derived from them.
+- `unknown`: values whose source is not modeled by the first prototype.
+
+Rules:
+
+- Web context declarations produce untrusted values by default.
+- Trust propagates through step input binding and graph `data` edges.
+- A value derived from any untrusted input remains untrusted unless a future
+  policy or verifier explicitly upgrades it.
+- Shell command arguments are executable trust sinks.
+- A shell command argument is accepted when it is a string literal or when the
+  checker can prove the argument value is trusted.
+- A nonliteral shell command argument that is not trusted emits
+  `INTENT_TRUST_FLOW_UNSAFE` at the argument span and makes graph output
+  non-executable with `ok: false`.
 
 ## Capability Constraints
 
@@ -378,7 +412,8 @@ Shell command constraints:
   collapsing internal ASCII whitespace runs to a single space.
 - The first milestone allows exact command strings only; globs, regex, shell
   parsing, environment mutation, and command prefixes are unsupported.
-- Non-literal shell command arguments are denied.
+- Nonliteral shell command arguments must resolve to trusted values. Untrusted
+  or unknown nonliteral command arguments emit `INTENT_TRUST_FLOW_UNSAFE`.
 
 When no in-scope capability covers a constrained resource, the checker emits
 `INTENT_CAPABILITY_DENIED` at the effect call span with the denied argument,
@@ -465,7 +500,8 @@ node id. It is an intermediate contract for a local runtime.
       "span": "loc.4",
       "data": {
         "scope": "goal",
-        "type": "TicketRef"
+        "type": "TicketRef",
+        "trust": { "zone": "unknown", "source": "goal_input" }
       }
     },
     {
@@ -520,7 +556,16 @@ node id. It is an intermediate contract for a local runtime.
         "family": "shell",
         "action": "run",
         "args": { "command": "npm test" },
-        "expression": "ShellExec(command: \"npm test\")"
+        "expression": "ShellExec(command: \"npm test\")",
+        "trust": {
+          "sinks": [
+            {
+              "argument": "command",
+              "zone": "trusted",
+              "reason": "literal"
+            }
+          ]
+        }
       }
     },
     {
@@ -530,7 +575,8 @@ node id. It is an intermediate contract for a local runtime.
       "span": "loc.15",
       "data": {
         "scope": "step",
-        "type": "GitDiff"
+        "type": "GitDiff",
+        "trust": { "zone": "unknown", "source": "data_edge" }
       }
     },
     {
@@ -555,7 +601,11 @@ node id. It is an intermediate contract for a local runtime.
       "from": "goal:ship_checkout_fix:input:ticket",
       "to": "goal:ship_checkout_fix:step:prepare_patch:input:ticket",
       "kind": "data",
-      "data": { "parameter": "ticket", "type": "TicketRef" }
+      "data": {
+        "parameter": "ticket",
+        "type": "TicketRef",
+        "trust": { "zone": "unknown" }
+      }
     },
     {
       "from": "goal:ship_checkout_fix:step:prepare_patch:input:ticket",
@@ -567,7 +617,11 @@ node id. It is an intermediate contract for a local runtime.
       "from": "goal:ship_checkout_fix:step:prepare_patch",
       "to": "goal:ship_checkout_fix:step:run_tests:input:patch",
       "kind": "data",
-      "data": { "parameter": "patch", "type": "GitDiff" }
+      "data": {
+        "parameter": "patch",
+        "type": "GitDiff",
+        "trust": { "zone": "unknown" }
+      }
     },
     {
       "from": "goal:ship_checkout_fix:step:run_tests:input:patch",

@@ -367,7 +367,7 @@
     },
     "effect_use": {
       "type": "object",
-      "required": ["kind", "name", "family", "action", "args", "expression", "span"],
+      "required": ["kind", "name", "family", "action", "args", "argKinds", "expression", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -386,6 +386,12 @@
           "type": "object",
           "additionalProperties": {
             "type": "string"
+          }
+        },
+        "argKinds": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": ["string", "identifier"]
           }
         },
         "expression": {

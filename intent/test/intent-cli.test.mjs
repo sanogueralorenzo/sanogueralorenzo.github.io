@@ -14,6 +14,7 @@ const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verifi
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
+const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
@@ -145,6 +146,7 @@ describe("intent static model CLI", () => {
     const codeChange = runJson(["check", VALID_CODE_CHANGE]);
     const dependencyGraph = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const research = runJson(["check", VALID_RESEARCH]);
+    const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
 
     assert.equal(codeChange.ok, true);
     assert.deepEqual(codeChange.diagnostics, []);
@@ -152,6 +154,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(dependencyGraph.diagnostics, []);
     assert.equal(research.ok, true);
     assert.deepEqual(research.diagnostics, []);
+    assert.equal(trustFlow.ok, true);
+    assert.deepEqual(trustFlow.diagnostics, []);
   });
 
   it("rejects effectful goals without verification", () => {
@@ -193,6 +197,17 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_DENIED");
     assert.equal(payload.diagnostics[0].argument, "command");
     assert.equal(payload.diagnostics[0].value, "npm run lint");
+  });
+
+  it("rejects nonliteral shell commands as unsafe trust flow", () => {
+    const result = run(["check", INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_TRUST_FLOW_UNSAFE");
+    assert.equal(payload.diagnostics[0].argument, "command");
+    assert.equal(payload.diagnostics[0].trust, "untrusted");
   });
 
   it("rejects unresolved type references", () => {
@@ -238,6 +253,7 @@ describe("intent static model CLI", () => {
     assert.equal(kinds.has("Step"), true);
     assert.equal(kinds.has("Check"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.args.path === "./src/app.ts"), true);
+    assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.trust.zone === "trusted"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => grant.value === "npm test")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "plans"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "gates"), true);

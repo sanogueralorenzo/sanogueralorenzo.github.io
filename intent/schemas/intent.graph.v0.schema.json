@@ -430,7 +430,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["family", "action", "args", "expression"],
+              "required": ["family", "action", "args", "argKinds", "trust", "expression"],
               "additionalProperties": false,
               "properties": {
                 "family": {
@@ -443,6 +443,28 @@
                   "type": "object",
                   "additionalProperties": {
                     "type": "string"
+                  }
+                },
+                "argKinds": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "enum": ["string", "identifier"]
+                  }
+                },
+                "trust": {
+                  "type": "object",
+                  "required": ["zone", "source"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "zone": {
+                      "enum": ["trusted", "untrusted", "unknown"]
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "argument": {
+                      "type": "string"
+                    }
                   }
                 },
                 "expression": {
