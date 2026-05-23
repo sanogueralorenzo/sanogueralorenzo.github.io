@@ -160,6 +160,11 @@ Validation expectations:
   non-empty. Malformed approval gate data emits `INTENT_GRAPH_APPROVAL_INVALID`
   and makes the graph non-executable because runtimes must not infer approval
   identity or step ownership.
+- Graph `Checkpoint` nodes are runtime resumability inputs. They must carry
+  valid step checkpoint data: `data.checkpoint` must be non-empty and
+  `data.ownerStep` must be non-empty. Malformed checkpoint data emits
+  `INTENT_GRAPH_CHECKPOINT_INVALID` and makes the graph non-executable because
+  runtimes must not infer checkpoint identity or step ownership.
 - Graph `Policy` nodes are runtime execution-policy inputs. They must carry
   valid step execution data: `data.policyKind` must be either `timeout` or
   `retry`, `data.policy` must be non-empty, and `data.ownerStep` must be

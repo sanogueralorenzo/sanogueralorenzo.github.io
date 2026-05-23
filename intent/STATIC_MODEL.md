@@ -391,6 +391,11 @@ Next graph envelope validation milestone:
   Malformed step approval gate data emits `INTENT_GRAPH_APPROVAL_INVALID` and
   makes the graph non-executable because runtimes must not infer approval
   identity or step ownership.
+- Runtime checkpoint metadata is part of graph validation. `Checkpoint` nodes
+  must carry non-empty `data.checkpoint` and non-empty `data.ownerStep`.
+  Malformed step checkpoint data emits `INTENT_GRAPH_CHECKPOINT_INVALID` and
+  makes the graph non-executable because runtimes must not infer checkpoint
+  identity or step ownership.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.
@@ -525,8 +530,9 @@ blocking diagnostics.
 - For approval-required effects, also connect a step `Approval` node to each
   matching `Effect` node with an `approves` edge and record the approval policy
   on the authorizing `Capability` node.
-- Emit step checkpoints as `Checkpoint` nodes, list them on the owning `Step`
-  node data, and connect each one with a `checkpoints` edge from that `Step`.
+- Emit step checkpoints as `Checkpoint` nodes with non-empty `data.checkpoint`
+  and `data.ownerStep`, list them on the owning `Step` node data, and connect
+  each one with a `checkpoints` edge from that `Step`.
 - Emit step timeout and retry policies as `Policy` nodes, list them on the
   owning `Step` node data, and connect each one with a `timeouts` or `retries`
   edge from that `Policy` node to the owning `Step`.
@@ -795,6 +801,10 @@ Rules:
 - The graph builder creates a `checkpoints` edge from the owning `Step` to each
   checkpoint `Checkpoint` node.
 - Checkpoint labels must be non-empty after trimming.
+- Runtime graph validation also requires each `Checkpoint` node to carry
+  non-empty `data.checkpoint` and non-empty `data.ownerStep`. Malformed
+  checkpoint node data emits `INTENT_GRAPH_CHECKPOINT_INVALID` and makes graph
+  output non-executable.
 - An empty checkpoint label, including `checkpoint ""`, emits
   `INTENT_CHECKPOINT_INVALID` at the checkpoint line span and makes graph
   output non-executable.
@@ -1206,6 +1216,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_TRUST_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
 - `INTENT_GRAPH_APPROVAL_INVALID`
+- `INTENT_GRAPH_CHECKPOINT_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
 - `INTENT_GRAPH_POLICY_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
@@ -1724,9 +1735,11 @@ not completion checks and must not create `verifies` edges to the goal
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
 checkpoint has one incoming `checkpoints` edge from that owning step.
-Checkpoint labels must be non-empty after trimming; a graph with an empty
-checkpoint label is non-executable because the checker must emit
-`INTENT_CHECKPOINT_INVALID`.
+Checkpoint graph data must carry non-empty `data.checkpoint` and non-empty
+`data.ownerStep`; malformed checkpoint records are non-executable because graph
+validation must emit `INTENT_GRAPH_CHECKPOINT_INVALID`. Source checkpoint
+labels must also be non-empty after trimming; a source checkpoint with an empty
+label is non-executable because the checker must emit `INTENT_CHECKPOINT_INVALID`.
 
 Step approval nodes are `Approval` nodes scoped to one owning step. The owning
 step node lists them in its `data.approvals` array, and each approval has one
