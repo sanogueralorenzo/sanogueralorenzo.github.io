@@ -22,6 +22,7 @@ const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.int
 const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
 const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph.intent", import.meta.url).pathname;
 const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.intent", import.meta.url).pathname;
+const VALID_TRUST_FLOW_SHELL_LITERAL = new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname;
 const INVALID_GOAL_MISSING = new URL("../fixtures/invalid_goal_missing.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
@@ -73,6 +74,14 @@ function validateSchema(schema, value) {
   const errors = [];
   validateAgainst(schema, value, schema, "$", errors);
   return errors;
+}
+
+function assertGraphEdgesResolve(graph) {
+  const nodeIds = new Set(graph.nodes.map((node) => node.id));
+  for (const edge of graph.edges) {
+    assert.equal(nodeIds.has(edge.from), true, `missing graph edge source '${edge.from}'`);
+    assert.equal(nodeIds.has(edge.to), true, `missing graph edge target '${edge.to}'`);
+  }
 }
 
 function validateAgainst(schema, value, root, path, errors) {
@@ -220,7 +229,7 @@ describe("intent static model CLI", () => {
     const invariantGuardGraph = runJson(["check", VALID_INVARIANT_GUARD_GRAPH]);
     const stepApprovalGraph = runJson(["check", VALID_STEP_APPROVAL_GRAPH]);
     const stepPolicyGraph = runJson(["check", VALID_STEP_POLICY_GRAPH]);
-    const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
+    const trustFlow = runJson(["check", VALID_TRUST_FLOW_SHELL_LITERAL]);
 
     assert.equal(codeChange.ok, true);
     assert.deepEqual(codeChange.diagnostics, []);
@@ -924,6 +933,31 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.kind === "timeouts" && edge.from === timeout.id && edge.to === patchStep.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "retries" && edge.from === retry.id && edge.to === patchStep.id), true);
     assert.equal(graph.edges.some((edge) => edge.from === timeout.id && edge.kind === "verifies"), false);
+  });
+
+  it("emits only graph edges whose endpoints exist in the same payload", () => {
+    const validFixtures = [
+      VALID_CODE_CHANGE,
+      VALID_CHECKPOINT_GRAPH,
+      VALID_CONTEXT_TRUST_GRAPH,
+      VALID_DEPLOY_TARGET,
+      VALID_DEPENDENCY_GRAPH,
+      VALID_GIT_COMMIT_MESSAGE,
+      VALID_GIT_PUSH_BRANCH,
+      VALID_INVARIANT_GUARD_GRAPH,
+      VALID_RESEARCH,
+      VALID_SECRET_READ,
+      VALID_STEP_APPROVAL_GRAPH,
+      VALID_STEP_POLICY_GRAPH,
+      VALID_STEP_REQUIREMENTS,
+      VALID_TICKET_UPDATE,
+      VALID_TRUST_FLOW_SHELL_LITERAL,
+      VALID_WEB_READ_WILDCARD,
+    ];
+
+    for (const fixture of validFixtures) {
+      assertGraphEdgesResolve(runJson(["graph", fixture]));
+    }
   });
 
   it("validates CLI outputs against versioned schemas", () => {
