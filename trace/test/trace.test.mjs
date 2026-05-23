@@ -310,11 +310,15 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
     await git(repo, ["commit", "-m", "Create service"]);
     await runTrace(repo, ["init"]);
 
-    await runTraceWithInput(repo, ["hook", "agent", "prompt"], JSON.stringify({
+    const promptCapture = JSON.parse((await runTraceWithInput(repo, ["hook", "agent", "prompt"], JSON.stringify({
       session_id: "session-json",
       agent: "codex",
       prompt: "add retry memory for service",
-    }));
+    }))).stdout);
+    assert.equal(promptCapture.schema_version, "trace.agent_hook_result.v1");
+    assert.equal(promptCapture.dryRun, false);
+    assert.equal(promptCapture.session, "session-json");
+    assert.equal(promptCapture.event, "prompt");
     await runTraceWithInput(repo, ["hook", "agent", "decision"], JSON.stringify({
       session_id: "session-json",
       agent: "codex",
@@ -1568,6 +1572,7 @@ test("agent hook dry-run normalizes payloads without writing local session state
     });
     const preview = JSON.parse((await runTraceWithInput(repo, ["hook", "agent", "--adapter", "codex", "--dry-run"], payload)).stdout);
     assert.equal(preview.ok, true);
+    assert.equal(preview.schema_version, "trace.agent_hook_result.v1");
     assert.equal(preview.dryRun, true);
     assert.equal(preview.events.length, 1);
     assert.equal(preview.events[0].schema_version, "trace.event.v1");
@@ -1618,6 +1623,8 @@ test("agent hook expands structured lifecycle memory fields", async () => {
       validations: ["npm --prefix trace test passed"],
       risks: ["Review adapter payload mapping before release"],
     }))).stdout);
+    assert.equal(captured.schema_version, "trace.agent_hook_result.v1");
+    assert.equal(captured.dryRun, false);
     assert.deepEqual(captured.events.map((event) => event.event), ["response", "decision", "validation", "risk"]);
 
     await runTrace(repo, ["record", "--session", "structured-session"]);

@@ -3042,18 +3042,28 @@ async function hookAgent(values) {
   }
 
   if (dryRun) {
-    print({ ok: true, dryRun: true, events });
+    print({ ok: true, schema_version: "trace.agent_hook_result.v1", dryRun: true, events });
     return;
   }
 
   if (events.length === 1) {
     const event = events[0];
-    print({ ok: true, session: event.session_id, event: event.event, source: event.source, adapter: event.adapter });
+    print({
+      ok: true,
+      schema_version: "trace.agent_hook_result.v1",
+      dryRun: false,
+      session: event.session_id,
+      event: event.event,
+      source: event.source,
+      adapter: event.adapter,
+    });
     return;
   }
 
   print({
     ok: true,
+    schema_version: "trace.agent_hook_result.v1",
+    dryRun: false,
     events: events.map((event) => ({ session: event.session_id, event: event.event, source: event.source, adapter: event.adapter })),
   });
 }
