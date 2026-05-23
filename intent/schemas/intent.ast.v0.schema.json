@@ -299,7 +299,7 @@
     },
     "memory": {
       "type": "object",
-      "required": ["kind", "scope", "name", "retention", "statements", "span"],
+      "required": ["kind", "scope", "name", "retention", "retentionRules", "statements", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -317,11 +317,63 @@
             "type": "string"
           }
         },
+        "retentionRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/retention_rule"
+          }
+        },
         "statements": {
           "type": "array",
           "items": {
             "type": "string"
           }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "retention_rule": {
+      "type": "object",
+      "required": ["subject", "until", "raw", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/spanned_text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "until": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/spanned_text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "spanned_text": {
+      "type": "object",
+      "required": ["raw", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "raw": {
+          "type": "string"
         },
         "span": {
           "$ref": "#/$defs/span"

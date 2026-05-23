@@ -16,6 +16,7 @@ const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
+const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_without_retention.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
@@ -139,6 +140,9 @@ describe("intent static model CLI", () => {
     assert.equal(ast.types.length, 3);
     assert.equal(ast.goals[0].name, "apply_code_change");
     assert.equal(ast.goals[0].steps.length, 3);
+    assert.equal(ast.goals[0].memory[0].retention[0], "retain summaries until goal_complete");
+    assert.equal(ast.goals[0].memory[0].retentionRules[0].subject.raw, "summaries");
+    assert.equal(ast.goals[0].memory[0].retentionRules[0].until.raw, "goal_complete");
     assert.equal(ast.goals[0].span.file, VALID_CODE_CHANGE);
     assert.equal(ast.goals[0].span.start.line, 15);
   });
@@ -224,6 +228,17 @@ describe("intent static model CLI", () => {
     assert.deepEqual(payload.diagnostics[0].allowed, ["npm test"]);
   });
 
+  it("rejects memory blocks without retention lifecycle rules", () => {
+    const result = run(["check", INVALID_MEMORY_WITHOUT_RETENTION]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_MEMORY_UNSCOPED");
+    assert.equal(payload.diagnostics[0].memory, "project");
+    assert.equal(payload.diagnostics[0].scope, "project");
+  });
+
   it("rejects unresolved type references", () => {
     const result = run(["check", INVALID_UNRESOLVED_TYPE]);
     const payload = JSON.parse(result.stdout);
@@ -268,6 +283,7 @@ describe("intent static model CLI", () => {
     assert.equal(kinds.has("Check"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.args.path === "./src/app.ts"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.trust.zone === "trusted"), true);
+    assert.equal(graph.nodes.some((node) => node.kind === "Memory" && node.data.retentionRules[0].subject.raw === "summaries"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Check" && node.data.effect?.args.command === "npm test"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => grant.value === "npm test")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "plans"), true);

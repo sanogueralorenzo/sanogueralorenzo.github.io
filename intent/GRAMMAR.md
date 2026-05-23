@@ -60,7 +60,14 @@ dependency edges.
 ```ebnf
 context_block    = "context", s, call_expr, line_end ;
 capability_block = "capability", s, identifier, ws, block ;
-memory_block     = "memory", s, identifier, ws, block ;
+memory_block     = "memory", s, identifier, ws, "{", ws,
+                   { memory_stmt, ws }, "}" ;
+memory_stmt      = retain_stmt | raw_memory_stmt ;
+retain_stmt      = "retain", s, retain_subject, s, "until", s,
+                   retain_until, line_end ;
+retain_subject   = raw_text_until_until_keyword ;
+retain_until     = raw_text_until_terminator ;
+raw_memory_stmt  = raw_text_until_terminator, line_end ;
 plan_block       = "plan", ws, "{", ws, { step_decl, ws }, "}" ;
 verify_block     = "verify", ws, "{", ws, { require_stmt, ws }, "}" ;
 invariant_block  = "invariant", ws, "{", ws, { deny_stmt, ws }, "}" ;
@@ -71,9 +78,17 @@ deny_stmt        = "deny", s, raw_expr, line_end ;
 
 `context` is a single-line declaration in this milestone. Context declarations
 that describe web resources or browser/page state are treated as untrusted by
-the checker unless a later policy explicitly upgrades them. `capability` and
-`memory` bodies are parsed as statement lists whose items are preserved as raw
-spanned lines. `verify` accepts only `require`; `invariant` accepts only `deny`.
+the checker unless a later policy explicitly upgrades them. `capability` bodies
+are parsed as statement lists whose items are preserved as raw spanned lines.
+`memory` bodies are parsed as statement lists, and every `retain ... until ...`
+line is additionally parsed into structured `retentionRules` data with a
+retained subject span and an until-condition span. `verify` accepts only
+`require`; `invariant` accepts only `deny`.
+
+Every `memory` block must include at least one `retain ... until ...` retention
+rule. A memory block without a parsed retention rule is syntactically valid, but
+the checker emits `INTENT_MEMORY_UNSCOPED` because the retained state has no
+declared lifecycle.
 
 ## Steps
 
@@ -195,6 +210,11 @@ The parser emits names and type reference strings; the checker owns binding.
 - Verify `shell("command")` and `shell(command: "command")` requirements bind
   to in-scope shell run capability grants. If no declared grant covers the
   normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.
+- Memory blocks must contain at least one parsed `retain ... until ...`
+  retention rule. Missing retention is `INTENT_MEMORY_UNSCOPED`.
+- Parsed retention rules are emitted as checker data and graph `Memory` node
+  `retentionRules` lifecycle data so runtimes can enforce retention without
+  reparsing raw text.
 - Graph nodes and edges record trust metadata where it helps downstream
   runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.

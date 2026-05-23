@@ -15,7 +15,10 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
   and access mode.
 - `CapabilityDecl`: named permission grant with family, action, constraints,
   and optional approval requirement.
-- `MemoryDecl`: scoped state or retained evidence with lifecycle rules.
+- `MemoryDecl`: scoped state or retained evidence with one or more retention
+  lifecycle rules.
+- `MemoryRetention`: structured `retain ... until ...` rule with retained
+  subject, until condition, raw text, and source span.
 - `PlanBlock`: ordered list of executable steps.
 - `StepDecl`: typed inputs, output, declared effects, timeout, retry policy,
   checks, and body expression.
@@ -297,6 +300,8 @@ blocking diagnostics.
   are not already trusted by the checker.
 - Require memory and checkpoint state to be scoped, serializable, and assigned a
   retention lifecycle.
+- Emit `INTENT_MEMORY_UNSCOPED` when a memory block has no parsed
+  `retain ... until ...` retention rule.
 - Build dependency edges from step inputs, produced values, checks, approvals,
   checkpoints, and completion gates.
 - Reject execution cycles unless a future bounded-loop form declares progress.
@@ -360,6 +365,40 @@ Rules:
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
+
+## Memory Retention
+
+Memory blocks declare retained state or evidence and must make the lifecycle
+explicit. Each `memory` block must contain at least one parsed retention line:
+
+```intent
+memory session audit_evidence {
+  retain test_report until goal.completed
+}
+```
+
+The parser preserves every memory body line as raw text in `retention`. Lines
+matching `retain ... until ...` are also parsed into structured
+`retentionRules` entries:
+
+```json
+{
+  "kind": "MemoryRetention",
+  "subject": { "raw": "test_report", "span": "loc.12" },
+  "until": { "raw": "goal.completed", "span": "loc.13" },
+  "raw": "retain test_report until goal.completed",
+  "span": "loc.11"
+}
+```
+
+Rules:
+
+- A memory block with no parsed retention entries emits
+  `INTENT_MEMORY_UNSCOPED`.
+- A malformed `retain` line emits `INTENT_MEMORY_RETENTION_INVALID`.
+- Retention entries are checker-owned lifecycle data, not opaque comments.
+- The graph builder emits `retentionRules` in the owning `Memory` node data so
+  runtimes can enforce retention without reparsing memory body text.
 
 ## Trust Flow
 
@@ -489,6 +528,7 @@ Initial diagnostic families:
 - `INTENT_INVARIANT_VIOLATION`
 - `INTENT_TRUST_FLOW_UNSAFE`
 - `INTENT_MEMORY_UNSCOPED`
+- `INTENT_MEMORY_RETENTION_INVALID`
 - `INTENT_GRAPH_CYCLE`
 
 Errors make graph output non-executable by setting `ok: false`. Warnings and
@@ -540,6 +580,23 @@ node id. It is an intermediate contract for a local runtime.
         "family": "shell",
         "action": null,
         "grants": [{ "action": "run", "key": "command", "value": "npm test" }]
+      }
+    },
+    {
+      "id": "goal:ship_checkout_fix:memory:audit_evidence",
+      "kind": "Memory",
+      "label": "audit_evidence",
+      "span": "loc.10",
+      "data": {
+        "retention": ["retain test_report until goal.completed"],
+        "retentionRules": [
+          {
+            "subject": { "raw": "test_report", "span": "loc.11" },
+            "until": { "raw": "goal.completed", "span": "loc.11" },
+            "raw": "retain test_report until goal.completed",
+            "span": "loc.11"
+          }
+        ]
       }
     },
     {
@@ -701,6 +758,11 @@ step input must have exactly one incoming `data` edge from either a goal input
 node or an earlier producing step. If multiple prior values have the same type,
 the checker selects the nearest prior value in source order and emits the chosen
 edge deterministically.
+
+Memory nodes carry raw `retention` lines plus structured `retentionRules`
+parsed from `retain ... until ...` lines. A graph with a `Memory` node that
+lacks retention lifecycle data is non-executable because the checker must emit
+`INTENT_MEMORY_UNSCOPED`.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.

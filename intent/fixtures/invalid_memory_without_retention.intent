@@ -1,0 +1,29 @@
+package fixtures.invalid_memory_without_retention
+
+type Summary = {
+  text: String
+}
+
+goal "declare memory without retention" {
+  context repo("./")
+
+  capability file {
+    read path: "./docs/**"
+  }
+
+  memory project {
+  }
+
+  plan {
+    step summarize_request -> Summary
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

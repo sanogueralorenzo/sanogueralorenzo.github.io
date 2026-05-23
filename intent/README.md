@@ -54,8 +54,9 @@ node --test intent/test/*.test.mjs
 ```
 
 The first implementation parses package and goal blocks, preserves source spans,
-checks for missing verification and undeclared effects, and emits versioned JSON
-contracts for downstream tools.
+checks for missing verification, undeclared effects, capability coverage,
+verification shell grants, and memory retention lifecycles, and emits versioned
+JSON contracts for downstream tools.
 
 ## JSON Output Contracts
 
@@ -112,7 +113,8 @@ Those behaviors are usually hidden inside prompts, frameworks, logs, or orchestr
 - `capability`: explicit permissions for files, shell commands, network calls, secrets, deploys, and external tools.
 - `plan`: resumable steps with stable inputs and outputs.
 - `effect`: typed side effects such as `FileWrite`, `ShellExec`, `HttpCall`, `GitCommit`, or `Deploy`.
-- `memory`: persisted state that must be scoped, inspectable, and erasable.
+- `memory`: persisted state that must be scoped, retained with an explicit
+  `retain ... until ...` lifecycle, inspectable, and erasable.
 - `uncertainty`: first-class assumptions, confidence, and human-decision points.
 - `verify`: tests, assertions, screenshots, policy checks, and runtime checks.
 - `rollback`: compensating actions for risky or irreversible effects.

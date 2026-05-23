@@ -280,12 +280,14 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
 
   if (normalized === "memory") {
     const headerParts = header.split(/\s+/);
+    const lines = meaningfulLines(body);
     goal.memory.push({
       kind: "Memory",
       scope: headerParts[1] ?? "unspecified",
       name: headerParts[2] ?? null,
-      retention: meaningfulLines(body).filter((line) => line.text.startsWith("retain ")).map((line) => line.text),
-      statements: meaningfulLines(body).map((line) => line.text),
+      retention: lines.filter((line) => line.text.startsWith("retain ")).map((line) => line.text),
+      retentionRules: lines.filter((line) => line.text.startsWith("retain ")).map((line) => parseRetentionRule(line, file)),
+      statements: lines.map((line) => line.text),
       span: span(file, startLine, 1, endLine, 1),
     });
     return;
@@ -409,6 +411,18 @@ function parseEffectUse(text, file, lineNumber, raw) {
   };
 }
 
+function parseRetentionRule(line, file) {
+  const match = line.text.match(/^retain\s+(.+?)\s+until\s+(.+)$/);
+  const subject = match?.[1]?.trim() ?? null;
+  const until = match?.[2]?.trim() ?? null;
+  return {
+    subject: subject ? spannedText(subject, line, file) : null,
+    until: until ? spannedText(until, line, file) : null,
+    raw: line.text,
+    span: lineSpan(file, line.lineNumber, line.raw),
+  };
+}
+
 function checkIntent(ast) {
   const diagnostics = [];
   const declaredTypes = new Map();
@@ -446,11 +460,7 @@ function checkIntent(ast) {
       diagnostics.push(error("INTENT_VERIFY_MISSING", `goal '${goal.name}' uses effects but has no verify block with require statements.`, goal.span));
     }
 
-    for (const memory of goal.memory) {
-      if (memory.scope !== "session" && memory.retention.length === 0) {
-        diagnostics.push(error("INTENT_MEMORY_UNSCOPED", `memory '${memory.name ?? memory.scope}' must declare retention.`, memory.span));
-      }
-    }
+    validateMemory(goal, diagnostics);
 
     validateGoalTypes(goal, declaredTypes, diagnostics);
     validateStepBindings(goal, diagnostics);
@@ -497,6 +507,29 @@ function checkIntent(ast) {
   }
 
   return diagnostics;
+}
+
+function validateMemory(goal, diagnostics) {
+  for (const memory of goal.memory) {
+    const retentionRules = memory.retentionRules ?? [];
+    if (retentionRules.length === 0) {
+      diagnostics.push(error("INTENT_MEMORY_UNSCOPED", `memory '${memory.name ?? memory.scope}' must declare retention.`, memory.span, {
+        memory: memory.name ?? memory.scope,
+        scope: memory.scope,
+      }));
+      continue;
+    }
+
+    for (const retention of retentionRules) {
+      if (!retention.subject?.raw || !retention.until?.raw) {
+        diagnostics.push(error("INTENT_MEMORY_RETENTION_INVALID", `memory '${memory.name ?? memory.scope}' has invalid retention rule '${retention.raw}'.`, retention.span, {
+          memory: memory.name ?? memory.scope,
+          scope: memory.scope,
+          retention: retention.raw,
+        }));
+      }
+    }
+  }
 }
 
 function validateGoalTypes(goal, declaredTypes, diagnostics) {
@@ -653,6 +686,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       nodes.push(node(id, "Memory", memory.name ?? memory.scope, memory.span, {
         scope: memory.scope,
         retention: memory.retention,
+        retentionRules: memory.retentionRules ?? [],
       }));
       edges.push(edge(goalId, id, "declares"));
     }
@@ -927,6 +961,17 @@ function statementNode(kind, value, file, lineNumber, raw) {
     kind,
     value,
     span: lineSpan(file, lineNumber, raw),
+  };
+}
+
+function spannedText(value, line, file) {
+  const textStart = line.raw.indexOf(line.text);
+  const columnOffset = textStart >= 0 ? textStart : Math.max(line.raw.search(/\S/), 0);
+  const valueStart = line.text.indexOf(value);
+  const startColumn = columnOffset + valueStart + 1;
+  return {
+    raw: value,
+    span: span(file, line.lineNumber, startColumn, line.lineNumber, startColumn + value.length),
   };
 }
 

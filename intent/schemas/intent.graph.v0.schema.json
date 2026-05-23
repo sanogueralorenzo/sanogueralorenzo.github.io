@@ -117,6 +117,52 @@
         }
       }
     },
+    "retention_rule": {
+      "type": "object",
+      "required": ["subject", "until", "raw", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/spanned_text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "until": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/spanned_text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "spanned_text": {
+      "type": "object",
+      "required": ["raw", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "raw": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
     "trust": {
       "type": "object",
       "required": ["zone", "source"],
@@ -374,7 +420,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["scope", "retention"],
+              "required": ["scope", "retention", "retentionRules"],
               "additionalProperties": false,
               "properties": {
                 "scope": {
@@ -384,6 +430,12 @@
                   "type": "array",
                   "items": {
                     "type": "string"
+                  }
+                },
+                "retentionRules": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/retention_rule"
                   }
                 }
               }
