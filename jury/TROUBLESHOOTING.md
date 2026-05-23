@@ -42,6 +42,7 @@ node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --key-policy
 - stale verdict: the claim changed after `verdict.json` was written, so the verdict no longer matches current claim state.
 - downloaded artifact no longer trusted: the signed bundle may still verify cryptographically, but `bundle preflight --key-policy` rejects it when the bundle producer `source` or `revision` no longer matches reviewed policy metadata.
 - package manifest missing CI metadata: `npm --prefix jury run package:manifest:check` rejects a package tarball that omits `release.json`, `CI_ADOPTION.md`, supported workflow files, or required package files from [PUBLISHING.md](PUBLISHING.md).
+- stale or mismatched dry-run publication artifact: `jury-pack-dry-run-record.json` was generated for a different package version or tarball name, so the publish job must stop before `NODE_AUTH_TOKEN` is exposed.
 
 ## Package Manifest Failure
 
@@ -67,6 +68,16 @@ node jury/scripts/check-package-manifest.mjs --pack-manifest npm-pack.json
 ```
 
 Fix the package file list or restore the omitted file, then rerun `npm --prefix jury run package:manifest:check`.
+
+## Dry-Run Publication Artifact Failure
+
+Use this when the npm publish workflow fails before credentials are exposed with `packageVersion did not match` or `tarballName did not match`. The downloaded `jury-package-dry-run` artifact must contain `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` from the same `dry-run-publication` job that followed the package manifest check.
+
+```shell
+node -e 'const fs=require("node:fs"); const pkg=JSON.parse(fs.readFileSync("jury/package.json","utf8")); const record=JSON.parse(fs.readFileSync("jury-pack-dry-run-record.json","utf8")); const expectedTarball=`sanogueralorenzo-jury-${pkg.version}.tgz`; if (record.packageVersion !== pkg.version) throw new Error(`packageVersion ${record.packageVersion} did not match ${pkg.version}`); if (record.tarballName !== expectedTarball) throw new Error(`tarballName ${record.tarballName} did not match ${expectedTarball}`); console.log(JSON.stringify({packageVersion: record.packageVersion, tarballName: record.tarballName}, null, 2));'
+```
+
+If the command fails, rerun `dry-run-publication` after `package-manifest` instead of reusing an older artifact. Do not map `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN` until the downloaded record verifies against the current `jury/package.json`.
 
 ## Downloaded Artifact Trust Failure
 

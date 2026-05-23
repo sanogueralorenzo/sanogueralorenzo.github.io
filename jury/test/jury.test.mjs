@@ -731,6 +731,14 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(publishing.includes("TROUBLESHOOTING.md"));
   assert.ok(guide.includes("jury-key-policy.untrusted-producer.json"));
   assert.ok(guide.includes("key policy has no trusted producer"));
+  assert.ok(guide.includes("Dry-Run Publication Artifact Failure"));
+  assert.ok(guide.includes("stale or mismatched dry-run publication artifact"));
+  assert.ok(guide.includes("jury-package-dry-run"));
+  assert.ok(guide.includes("jury-pack-dry-run.json"));
+  assert.ok(guide.includes("jury-pack-dry-run-record.json"));
+  assert.ok(guide.includes("packageVersion did not match"));
+  assert.ok(guide.includes("tarballName did not match"));
+  assert.ok(guide.includes("NODE_AUTH_TOKEN"));
   assert.ok(guide.includes("Package Manifest Failure"));
   assert.ok(guide.includes("npm --prefix jury run package:manifest:check"));
   assert.ok(guide.includes("--pack-manifest npm-pack.json"));
@@ -744,6 +752,32 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   const manifestCheck = await runShell(manifestCommands[0]);
   assert.equal(manifestCheck.exitCode, 0, manifestCheck.stderr);
   assert.equal(JSON.parse(manifestCheck.stdout.slice(manifestCheck.stdout.indexOf("{"))).ok, true);
+
+  const dryRunArtifactCommands = extractShellBlock(guide, "Dry-Run Publication Artifact Failure");
+  assert.equal(dryRunArtifactCommands.length, 1);
+  const checkout = await copyJuryCheckout();
+  try {
+    await writeFile(join(checkout, "jury-pack-dry-run-record.json"), JSON.stringify({
+      packageVersion: "0.1.0",
+      tarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+    }));
+    const validRecord = await runShell(dryRunArtifactCommands[0], checkout);
+    assert.equal(validRecord.exitCode, 0, validRecord.stderr);
+    assert.deepEqual(JSON.parse(validRecord.stdout), {
+      packageVersion: "0.1.0",
+      tarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+    });
+
+    await writeFile(join(checkout, "jury-pack-dry-run-record.json"), JSON.stringify({
+      packageVersion: "0.0.0",
+      tarballName: "sanogueralorenzo-jury-0.0.0.tgz",
+    }));
+    const staleRecord = await runShell(dryRunArtifactCommands[0], checkout);
+    assert.equal(staleRecord.exitCode, 1);
+    assert.match(staleRecord.stderr, /packageVersion 0\.0\.0 did not match 0\.1\.0/);
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
+  }
 });
 
 test("fixture verdicts cover accept, reject, retry, and human_decision gate paths", async () => {
@@ -1083,6 +1117,8 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("packageVersion"));
   assert.ok(publicationNotes.includes("tarballName"));
   assert.ok(publicationNotes.includes("sanogueralorenzo-jury-0.1.0.tgz"));
+  assert.ok(publicationNotes.includes("If the version or tarball name does not match"));
+  assert.ok(publicationNotes.includes("TROUBLESHOOTING.md"));
   assert.ok(publicationNotes.includes("secrets.NPM_TOKEN"));
   assert.ok(publicationNotes.includes("NODE_AUTH_TOKEN"));
   assert.ok(publicationNotes.includes("permissions.id-token: write"));
@@ -1976,6 +2012,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("tarballName"));
   assert.ok(checklist.includes("sanogueralorenzo-jury-0.1.0.tgz"));
   assert.ok(checklist.indexOf("jury-package-dry-run") < checklist.indexOf("secrets.NPM_TOKEN"));
+  assert.ok(checklist.includes("stale or mismatched"));
   assert.ok(checklist.includes("secrets.NPM_TOKEN"));
   assert.ok(checklist.includes("@sanogueralorenzo/jury"));
   assert.ok(checklist.includes("NODE_AUTH_TOKEN"));
@@ -2070,6 +2107,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package publication notes/);
   assert.match(handoff, /dry-run release publication checklist guidance/);
   assert.match(handoff, /dry-run publication artifact handoff/);
+  assert.match(handoff, /stale dry-run artifact troubleshooting/);
   assert.match(handoff, /npm token and provenance release checklist guidance/);
   assert.match(handoff, /CI adoption metadata contract/);
   assert.match(handoff, /release metadata/);
@@ -2077,7 +2115,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /stale or mismatched dry-run publication artifacts/);
+  assert.match(handoff, /CI summary output for the verified dry-run publication record/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

@@ -58,7 +58,7 @@ Before npm publication, save the pack dry run output and record the exact packag
 node -e "const [pack]=JSON.parse(require('node:fs').readFileSync('jury-pack-dry-run.json','utf8')); console.log(JSON.stringify({packageVersion: pack.version, tarballName: pack.filename}, null, 2));"
 ```
 
-The release checklist must record both `packageVersion` and `tarballName` before any `npm publish --provenance --access public` step can run. For `@sanogueralorenzo/jury@0.1.0`, the expected tarball name is `sanogueralorenzo-jury-0.1.0.tgz`. If the version or tarball name does not match the intended release, stop before exposing `NODE_AUTH_TOKEN`.
+The release checklist must record both `packageVersion` and `tarballName` before any `npm publish --provenance --access public` step can run. For `@sanogueralorenzo/jury@0.1.0`, the expected tarball name is `sanogueralorenzo-jury-0.1.0.tgz`. If the version or tarball name does not match the intended release, stop before exposing `NODE_AUTH_TOKEN` and use [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Reusable CI Step
 

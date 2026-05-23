@@ -16,6 +16,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Upload `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as the `jury-package-dry-run` CI artifact.
 - [ ] Download and verify the `jury-package-dry-run` artifact before any step maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`.
 - [ ] Confirm `tarballName` matches the recorded `packageVersion` before `npm publish --provenance --access public`.
+- [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when the dry-run artifact is stale or mismatched.
 - [ ] Store the npm publish token as `secrets.NPM_TOKEN` with scope limited to publishing `@sanogueralorenzo/jury`.
 - [ ] Expose `NODE_AUTH_TOKEN` only in the publish job after `needs: package-manifest` passes and the dry-run artifact verifies.
 - [ ] Keep `permissions.id-token: write` and `npm publish --provenance --access public` enabled for npm provenance.
