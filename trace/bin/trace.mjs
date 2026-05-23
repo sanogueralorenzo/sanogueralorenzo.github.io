@@ -1304,6 +1304,7 @@ async function searchMemories(query) {
 
   const root = await repoRoot();
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const limit = parsePositiveInteger(args.limit ?? "20", "--limit");
   const index = await loadSearchIndex(root);
   const field = normalizeSearchField(args.field);
   const matches = [];
@@ -1317,7 +1318,21 @@ async function searchMemories(query) {
     matches.push({ sha: entry.sha, file: entry.file, snippet: snippet(searchable, terms[0]) });
   }
 
-  for (const match of matches) {
+  const limited = matches.slice(0, limit);
+  if (args.json) {
+    print({
+      ok: true,
+      schema_version: "trace.search_results.v1",
+      query,
+      field,
+      terms,
+      matches: limited.length,
+      results: limited,
+    });
+    return;
+  }
+
+  for (const match of limited) {
     process.stdout.write(`${match.sha.slice(0, 12)} ${match.file}\n${match.snippet}\n`);
   }
 }
@@ -1336,6 +1351,28 @@ async function recallMemories(query) {
 
   const index = await loadSearchIndex(root);
   const matches = rankRecallEntries(index.entries, terms, files).slice(0, limit);
+  if (args.json) {
+    print({
+      ok: true,
+      schema_version: "trace.recall.v1",
+      query: query.trim(),
+      files,
+      matches: matches.length,
+      results: matches.map(({ score, entry }) => ({
+        score,
+        sha: entry.sha,
+        file: entry.file,
+        title: recallTitle(entry),
+        intent: entry.intent,
+        summary: entry.summary,
+        decisions: entry.decisions,
+        validation: entry.validation,
+        risks: entry.risks,
+      })),
+    });
+    return;
+  }
+
   const lines = ["# Trace Recall", ""];
   if (query.trim()) {
     lines.push(`Query: \`${query.trim()}\``);
@@ -2314,8 +2351,8 @@ Usage:
   trace review [--all] [--json]
   trace log [--limit 20]
   trace index
-  trace search [--field decisions|files|validation|risks] <query>
-  trace recall [query] [--files path[,path]] [--limit 5]
+  trace search [--field decisions|files|validation|risks] [--limit 20] [--json] <query>
+  trace recall [query] [--files path[,path]] [--limit 5] [--json]
   trace summary [range] [--json]
   trace branch-summary [branch] [--base main] [--json]
   trace pr-body [range] [--json]

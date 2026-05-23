@@ -68,8 +68,10 @@ trace index
 trace search "auth retry"
 trace search --field decisions "retry"
 trace search --field files "auth"
+trace search --json --limit 5 "auth retry"
 trace recall "auth retry"
 trace recall --files src/auth.ts
+trace recall --json "auth retry"
 trace summary main..HEAD
 trace branch-summary feature --base main
 trace pr-body main..HEAD
@@ -109,8 +111,10 @@ node trace/bin/trace.mjs index
 node trace/bin/trace.mjs search "auth retry"
 node trace/bin/trace.mjs search --field decisions "retry"
 node trace/bin/trace.mjs search --field files "auth"
+node trace/bin/trace.mjs search --json --limit 5 "auth retry"
 node trace/bin/trace.mjs recall "auth retry"
 node trace/bin/trace.mjs recall --files src/auth.ts
+node trace/bin/trace.mjs recall --json "auth retry"
 node trace/bin/trace.mjs summary main..HEAD
 node trace/bin/trace.mjs branch-summary feature --base main
 node trace/bin/trace.mjs pr-body main..HEAD
@@ -145,9 +149,9 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. Branch, PR, and release text are generated views, not the canonical memory store. Add `--json` to emit the same memory-derived summary as structured data for agents and CI automation.
 
-`trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change and can search all memory text or a specific field such as `decisions`, `files`, `validation`, or `risks`.
+`trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change and can search all memory text or a specific field such as `decisions`, `files`, `validation`, or `risks`. Use `--json` and `--limit` when agents need structured local search results.
 
-`trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path plus intent, summary, decisions, validation, and risks. `trace recall --files src/auth.ts` ranks memories by affected files, and plain `trace recall` uses locally changed files when available.
+`trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path plus intent, summary, decisions, validation, and risks. `trace recall --files src/auth.ts` ranks memories by affected files, plain `trace recall` uses locally changed files when available, and `--json` emits the same recall bundle as structured data.
 
 `trace doctor` audits the local Trace installation in one read-only command: config, managed hook commands, adapter contract specs, committed memory shape, uncommitted Trace files, checkpoint ref integrity, and search index freshness. Missing or stale rebuildable caches are warnings, while missing or tampered hooks, malformed memory files, malformed adapter configs, and checkpoint integrity errors fail the command.
 
