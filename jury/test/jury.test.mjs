@@ -443,6 +443,7 @@ test("release workflow requires package manifest before npm publication", async 
   const replaySummaryCommands = extractWorkflowRunBlock(workflow, "Summarize Jury package release replay artifacts");
   const replaySummaryDiagnosticsCommands = extractWorkflowRunBlock(workflow, "Diagnose Jury package release replay summary");
   const replaySummaryDiagnosticsRetentionHandoffCommands = extractWorkflowRunBlock(workflow, "Record Jury package release replay diagnostics retention handoff");
+  const replaySummaryDiagnosticsRetentionHandoffReplayCommands = extractWorkflowRunBlock(workflow, "Replay Jury package release replay diagnostics retention handoff");
   const dryRunCommands = extractWorkflowRunBlock(workflow, "Create Jury package dry-run record");
   const verifyCommands = extractWorkflowRunBlock(workflow, "Verify Jury package dry-run record");
   const publishCommands = extractWorkflowRunBlock(workflow, "Publish Jury package");
@@ -475,6 +476,7 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.includes("Summarize Jury package release replay artifacts"));
   assert.ok(workflow.includes("Diagnose Jury package release replay summary"));
   assert.ok(workflow.includes("Record Jury package release replay diagnostics retention handoff"));
+  assert.ok(workflow.includes("Replay Jury package release replay diagnostics retention handoff"));
   assert.ok(workflow.includes("Upload Jury package release replay summary"));
   assert.ok(workflow.includes("jury-package-release-evidence"));
   assert.ok(workflow.includes("jury-package-release-archive-manifest"));
@@ -519,8 +521,11 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.indexOf("Summarize Jury package release replay artifacts") < workflow.indexOf("Diagnose Jury package release replay summary"));
   assert.ok(workflow.indexOf("Diagnose Jury package release replay summary") < workflow.indexOf("Record Jury package release replay diagnostics retention handoff"));
   assert.ok(workflow.indexOf("Record Jury package release replay diagnostics retention handoff") < workflow.indexOf("Upload Jury package release replay summary"));
+  assert.ok(workflow.indexOf("Record Jury package release replay diagnostics retention handoff") < workflow.indexOf("Replay Jury package release replay diagnostics retention handoff"));
+  assert.ok(workflow.indexOf("Replay Jury package release replay diagnostics retention handoff") < workflow.indexOf("Upload Jury package release replay summary"));
   assert.ok(workflow.indexOf("Diagnose Jury package release replay summary") < workflow.indexOf("Upload Jury package release replay summary"));
   assert.ok(workflow.indexOf("Record Jury package release replay diagnostics retention handoff") < workflow.indexOf("Create Jury package dry-run record"));
+  assert.ok(workflow.indexOf("Replay Jury package release replay diagnostics retention handoff") < workflow.indexOf("Create Jury package dry-run record"));
   assert.ok(workflow.indexOf("Diagnose Jury package release replay summary") < workflow.indexOf("Create Jury package dry-run record"));
   assert.ok(workflow.indexOf("Summarize Jury package release replay artifacts") < workflow.indexOf("Upload Jury package release replay summary"));
   assert.ok(workflow.indexOf("Upload Jury package release replay summary") < workflow.indexOf("Create Jury package dry-run record"));
@@ -562,6 +567,9 @@ test("release workflow requires package manifest before npm publication", async 
   ]);
   assert.deepEqual(replaySummaryDiagnosticsRetentionHandoffCommands, [
     '(cd jury && node -e \'const fs=require("node:fs"); const evidenceDir=process.env.JURY_PACKAGE_RELEASE_EVIDENCE_DIR; const manifestPath=process.env.JURY_PACKAGE_RELEASE_MANIFEST_PATH; const diagnosticsPath=process.env.JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_PATH; const handoffPath=process.env.JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_RETENTION_HANDOFF_PATH; const manifest=JSON.parse(fs.readFileSync(manifestPath,"utf8")); const diagnostics=JSON.parse(fs.readFileSync(diagnosticsPath,"utf8")); const remediation=JSON.parse(fs.readFileSync(`${evidenceDir}/archive-drift-remediation-audit.json`,"utf8")); const retained=JSON.parse(fs.readFileSync(`${evidenceDir}/jury-package-release-replay-summary-diagnostics-retention-handoff.json`,"utf8")); const artifact=(manifest.provenance?.artifacts??[]).find((item)=>item.name==="jury-package-release-replay-summary"); const reviewedBy=(remediation.approval?.approvedBy||"").trim(); const errors=[]; if (!reviewedBy) errors.push("archive-drift-remediation-audit approval.approvedBy must identify who reviewed diagnostics retention"); if (diagnostics.schema_version!=="jury.package_release_replay_summary_diagnostics.v1") errors.push("diagnostics schema_version must equal jury.package_release_replay_summary_diagnostics.v1"); if (artifact?.sourceJob!=="package-release-evidence-replay") errors.push("jury-package-release-replay-summary sourceJob must be package-release-evidence-replay"); if (artifact?.retentionDays!==90) errors.push("jury-package-release-replay-summary retentionDays must be 90"); if (!artifact?.files?.includes("jury-package-release-replay-summary-diagnostics.json")) errors.push("jury-package-release-replay-summary files must include diagnostics JSON"); const handoff={schema_version:"jury.package_release_replay_summary_diagnostics_retention_handoff.v1",reason:"jury-package-release-replay-summary-diagnostics retained with failed and replacement release archives",sourceArtifact:"jury-package-release-replay-summary",sourceJob:"package-release-evidence-replay",retentionDays:90,diagnosticsSchemaVersion:diagnostics.schema_version,retainedDiagnostics:"jury-package-release-replay-summary-diagnostics.json",summaryFile:diagnostics.summaryFile,retainedWith:["retained-package-release-evidence-manifest.json","jury-package-release-replay-summary.md","archive-drift-remediation-audit.json"],failedPackageVersion:diagnostics.failedPackageVersion,failedTarballName:diagnostics.failedTarballName,replacementPackageVersion:diagnostics.replacementPackageVersion,runId:manifest.provenance.runId,sourceRevision:manifest.provenance.sourceRevision,reviewedBy}; const stable=(value)=>JSON.stringify(value,Object.keys(value).sort()); if (stable(handoff)!==stable(retained)) errors.push("generated diagnostics retention handoff must match retained archive evidence"); if (errors.length) throw new Error(`replay summary diagnostics retention handoff failed: ${errors.join("; ")}`); fs.writeFileSync(handoffPath, `${JSON.stringify(handoff,null,2)}\\n`); console.log(JSON.stringify({ok:true,handoffPath,reviewedBy}, null, 2));\')',
+  ]);
+  assert.deepEqual(replaySummaryDiagnosticsRetentionHandoffReplayCommands, [
+    '(cd jury && node -e \'const fs=require("node:fs"); const evidenceDir=process.env.JURY_PACKAGE_RELEASE_EVIDENCE_DIR; const manifestPath=process.env.JURY_PACKAGE_RELEASE_MANIFEST_PATH; const diagnosticsPath=process.env.JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_PATH; const handoffPath=process.env.JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_RETENTION_HANDOFF_PATH; const manifest=JSON.parse(fs.readFileSync(manifestPath,"utf8")); const diagnostics=JSON.parse(fs.readFileSync(diagnosticsPath,"utf8")); const handoff=JSON.parse(fs.readFileSync(handoffPath,"utf8")); const retained=JSON.parse(fs.readFileSync(`${evidenceDir}/jury-package-release-replay-summary-diagnostics-retention-handoff.json`,"utf8")); const remediation=JSON.parse(fs.readFileSync(`${evidenceDir}/archive-drift-remediation-audit.json`,"utf8")); const artifact=(manifest.provenance?.artifacts??[]).find((item)=>item.name==="jury-package-release-replay-summary"); const expected={schema_version:"jury.package_release_replay_summary_diagnostics_retention_handoff.v1",reason:"jury-package-release-replay-summary-diagnostics retained with failed and replacement release archives",sourceArtifact:"jury-package-release-replay-summary",sourceJob:"package-release-evidence-replay",retentionDays:90,diagnosticsSchemaVersion:diagnostics.schema_version,retainedDiagnostics:"jury-package-release-replay-summary-diagnostics.json",summaryFile:diagnostics.summaryFile,failedPackageVersion:diagnostics.failedPackageVersion,failedTarballName:diagnostics.failedTarballName,replacementPackageVersion:diagnostics.replacementPackageVersion,runId:manifest.provenance?.runId,sourceRevision:manifest.provenance?.sourceRevision,reviewedBy:remediation.approval?.approvedBy}; const errors=[]; for (const [field,value] of Object.entries(expected)) if (handoff[field]!==value) errors.push(`${field} must match retained diagnostics evidence`); for (const item of ["retained-package-release-evidence-manifest.json","jury-package-release-replay-summary.md","archive-drift-remediation-audit.json"]) if (!(handoff.retainedWith??[]).includes(item)) errors.push(`retainedWith missing ${item}`); if (artifact?.sourceJob!=="package-release-evidence-replay") errors.push("jury-package-release-replay-summary sourceJob must be package-release-evidence-replay"); if (artifact?.retentionDays!==90) errors.push("jury-package-release-replay-summary retentionDays must be 90"); if (!artifact?.files?.includes("jury-package-release-replay-summary-diagnostics.json")) errors.push("jury-package-release-replay-summary files must include diagnostics JSON"); if (!artifact?.files?.includes("jury-package-release-replay-summary-diagnostics-retention-handoff.json")) errors.push("jury-package-release-replay-summary files must include diagnostics retention handoff"); const stable=(value)=>JSON.stringify(value,Object.keys(value).sort()); if (stable(handoff)!==stable(retained)) errors.push("generated diagnostics retention handoff must match retained archive evidence"); if (errors.length) throw new Error(`replay summary diagnostics retention handoff replay failed: ${errors.join("; ")}`); console.log(JSON.stringify({ok:true,handoffPath,reviewedBy:handoff.reviewedBy}, null, 2));\')',
   ]);
   assert.deepEqual(publishCommands, [
     'test -n "$NODE_AUTH_TOKEN"',
@@ -665,6 +673,30 @@ test("release workflow requires package manifest before npm publication", async 
     assert.equal(replaySummaryDiagnosticsRetentionHandoffPayload.runId, "example-release-run-1001");
     assert.equal(replaySummaryDiagnosticsRetentionHandoffPayload.sourceRevision, "example-release-revision");
     assert.equal(replaySummaryDiagnosticsRetentionHandoffPayload.reviewedBy, "release-maintainer@example.com");
+
+    const replaySummaryDiagnosticsRetentionHandoffReplay = await runShell(replaySummaryDiagnosticsRetentionHandoffReplayCommands.join("\n"), checkout, {
+      ...fixedEnv,
+      JURY_PACKAGE_RELEASE_EVIDENCE_DIR: "../package-release-evidence",
+      JURY_PACKAGE_RELEASE_MANIFEST_PATH: "../package-release-manifest/retained-package-release-evidence-manifest.json",
+      JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_PATH: "../jury-package-release-replay-summary-diagnostics.json",
+      JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_RETENTION_HANDOFF_PATH: "../jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    });
+    assert.equal(replaySummaryDiagnosticsRetentionHandoffReplay.exitCode, 0, `${replaySummaryDiagnosticsRetentionHandoffReplayCommands.join("\n")}\nstdout:\n${replaySummaryDiagnosticsRetentionHandoffReplay.stdout}\nstderr:\n${replaySummaryDiagnosticsRetentionHandoffReplay.stderr}`);
+    assert.equal(JSON.parse(replaySummaryDiagnosticsRetentionHandoffReplay.stdout).reviewedBy, "release-maintainer@example.com");
+
+    replaySummaryDiagnosticsRetentionHandoffPayload.runId = "different-release-run";
+    await writeFile(join(checkout, "jury-package-release-replay-summary-diagnostics-retention-handoff.json"), `${JSON.stringify(replaySummaryDiagnosticsRetentionHandoffPayload, null, 2)}\n`);
+    const invalidReplaySummaryDiagnosticsRetentionHandoffReplay = await runShell(replaySummaryDiagnosticsRetentionHandoffReplayCommands.join("\n"), checkout, {
+      ...fixedEnv,
+      JURY_PACKAGE_RELEASE_EVIDENCE_DIR: "../package-release-evidence",
+      JURY_PACKAGE_RELEASE_MANIFEST_PATH: "../package-release-manifest/retained-package-release-evidence-manifest.json",
+      JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_PATH: "../jury-package-release-replay-summary-diagnostics.json",
+      JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_RETENTION_HANDOFF_PATH: "../jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    });
+    assert.equal(invalidReplaySummaryDiagnosticsRetentionHandoffReplay.exitCode, 1);
+    assert.match(invalidReplaySummaryDiagnosticsRetentionHandoffReplay.stderr, /replay summary diagnostics retention handoff replay failed: runId must match retained diagnostics evidence/);
+    replaySummaryDiagnosticsRetentionHandoffPayload.runId = "example-release-run-1001";
+    await writeFile(join(checkout, "jury-package-release-replay-summary-diagnostics-retention-handoff.json"), `${JSON.stringify(replaySummaryDiagnosticsRetentionHandoffPayload, null, 2)}\n`);
 
     const retainedReplaySummaryDiagnosticsRetentionHandoffPath = join(replayDir, "jury-package-release-replay-summary-diagnostics-retention-handoff.json");
     const retainedReplaySummaryDiagnosticsRetentionHandoff = JSON.parse(await readFile(retainedReplaySummaryDiagnosticsRetentionHandoffPath, "utf8"));
@@ -2416,6 +2448,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("replay summary CI workflow diagnostics failure"));
   assert.ok(publicationNotes.includes("replay summary diagnostics retention handoff failure"));
   assert.ok(publicationNotes.includes("replay summary diagnostics retention handoff schema failure"));
+  assert.ok(publicationNotes.includes("replays that generated handoff against the retained manifest"));
   assert.ok(publicationNotes.includes("replay summary retention failure"));
   assert.ok(publicationNotes.includes("jury.package_release_replay_summary_expiry_handoff.v1"));
   assert.ok(publicationNotes.includes("schemas/package-release-replay-summary-expiry-handoff.schema.json"));
@@ -3576,6 +3609,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("Promote `jury-package-release-replay-summary.md`"));
   assert.ok(checklist.includes("Promote `jury-package-release-replay-summary-diagnostics.json`"));
   assert.ok(checklist.includes("Promote `jury-package-release-replay-summary-diagnostics-retention-handoff.json`"));
+  assert.ok(checklist.includes("replays the generated diagnostics retention handoff"));
   assert.ok(checklist.includes("Record retained artifact provenance"));
   assert.ok(checklist.includes("If replay summary retention fails"));
   assert.ok(checklist.includes("If replay summary diagnostics fail"));
@@ -3785,6 +3819,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /schemas\/package-release-replay-summary-diagnostics-retention-handoff\.schema\.json/);
   assert.match(handoff, /jury-package-release-replay-summary-diagnostics-retention-handoff\.json/);
   assert.match(handoff, /diagnostics schema version/);
+  assert.match(handoff, /Replay Summary Diagnostics Retention Handoff CI Replay Enforcement/);
+  assert.match(handoff, /Replay Jury package release replay diagnostics retention handoff/);
+  assert.match(handoff, /fails before `dry-run-publication`/);
   assert.match(handoff, /Replay Summary Retention Handoff/);
   assert.match(handoff, /package-release-evidence-replay` source job/);
   assert.match(handoff, /Release Archive Fixture/);
@@ -3834,7 +3871,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics retention handoff schema failure troubleshooting CI replay enforcement for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics retention handoff schema failure troubleshooting CI replay enforcement failure troubleshooting for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

@@ -51,6 +51,8 @@ If the handoff schema fails, use [../../../../TROUBLESHOOTING.md](../../../../TR
 
 [jury-package-release-replay-summary-diagnostics-retention-handoff.json](jury-package-release-replay-summary-diagnostics-retention-handoff.json) is the reviewed handoff fixture for retaining `jury-package-release-replay-summary-diagnostics.json` with failed and replacement release archives. It records the replay source artifact, source job, 90-day retention window, diagnostics schema version, retained diagnostics file, summary file, retained companion records, failed package version, failed tarball name, replacement package version, workflow run id, source revision, and reviewing maintainer.
 
+The publication workflow regenerates this handoff during `package-release-evidence-replay`, then replays the generated file against the retained manifest, diagnostics JSON, retained fixture handoff, archive drift remediation audit, and replay summary artifact provenance before uploading the replay summary artifact.
+
 If the diagnostics retention handoff schema fails, use [../../../../TROUBLESHOOTING.md](../../../../TROUBLESHOOTING.md) to inspect the required schema version, source artifact, source job, retention window, diagnostics schema version, retained companion records, failed and replacement package identity, workflow run id, source revision, and reviewing maintainer before closing the failed or replacement release archive.
 
 ## Validation
