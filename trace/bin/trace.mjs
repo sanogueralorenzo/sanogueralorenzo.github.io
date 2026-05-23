@@ -1688,6 +1688,7 @@ async function reviewMemories() {
     appendReviewSection(lines, "Decisions", memory.decisions);
     appendReviewSection(lines, "Validation", memory.validation);
     appendReviewSection(lines, "Risks", memory.risks);
+    appendReviewSection(lines, "Handoff", memory.handoff);
     lines.push("");
   }
 
