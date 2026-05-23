@@ -1639,6 +1639,10 @@ function validateGraph(graph, options = {}) {
     if (graphNode.kind !== "Invariant") {
       continue;
     }
+    const constraintDiagnostic = validateGraphInvariantConstraint(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
+    if (constraintDiagnostic) {
+      diagnostics.push(constraintDiagnostic);
+    }
     const goalId = invariantGoalId(graphNode.id);
     if (!goalId) {
       continue;
@@ -2438,6 +2442,25 @@ function invariantGoalId(invariantId) {
   const marker = ":invariant:";
   const markerIndex = invariantId.indexOf(marker);
   return markerIndex === -1 ? null : invariantId.slice(0, markerIndex);
+}
+
+function validateGraphInvariantConstraint(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
+  const ownerGoalId = invariantGoalId(graphNode.id);
+  const outgoingEdges = outgoingEdgesByNode.get(graphNode.id) ?? [];
+  const constraintEdges = outgoingEdges.filter((graphEdge) => graphEdge.kind === "constrains");
+  const ownerConstraintEdges = constraintEdges.filter((graphEdge) => {
+    return graphEdge.to === ownerGoalId && nodesById.get(graphEdge.to)?.kind === "Goal";
+  });
+  if (ownerConstraintEdges.length === 1 && constraintEdges.length === ownerConstraintEdges.length) {
+    return null;
+  }
+  return error("INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID", `invariant '${graphNode.label}' must have one constrains edge to its owning goal.`, graphNode.span ?? fallbackSpan, {
+    invariant: graphNode.label,
+    invariant_id: graphNode.id,
+    owner_goal_id: ownerGoalId,
+    constrains_edges: constraintEdges.length,
+    owner_goal_constrains_edges: ownerConstraintEdges.length,
+  });
 }
 
 function invariantGuardTargetIds(nodes, goalId) {

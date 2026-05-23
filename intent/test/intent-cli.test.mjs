@@ -2430,6 +2430,35 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].invariant_is_nonempty, false);
   });
 
+  it("validates graph invariant constraint diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "goal:demo:invariant:0", kind: "Invariant", label: "missing", span: testSpan(3) },
+        { id: "goal:demo:invariant:1", kind: "Invariant", label: "wrong", span: testSpan(4) },
+        { id: "goal:demo:invariant:2", kind: "Invariant", label: "duplicate", span: testSpan(5) },
+      ],
+      edges: [
+        { from: "goal:demo:invariant:1", to: "goal:other", kind: "constrains" },
+        { from: "goal:demo:invariant:2", to: "goal:demo", kind: "constrains" },
+        { from: "goal:demo:invariant:2", to: "goal:other", kind: "constrains" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].invariant_id, "goal:demo:invariant:0");
+    assert.equal(diagnostics[0].constrains_edges, 0);
+    assert.equal(diagnostics[0].owner_goal_constrains_edges, 0);
+    assert.equal(diagnostics[1].invariant_id, "goal:demo:invariant:1");
+    assert.equal(diagnostics[1].constrains_edges, 1);
+    assert.equal(diagnostics[1].owner_goal_constrains_edges, 0);
+    assert.equal(diagnostics[2].invariant_id, "goal:demo:invariant:2");
+    assert.equal(diagnostics[2].constrains_edges, 2);
+    assert.equal(diagnostics[2].owner_goal_constrains_edges, 1);
+  });
+
   it("validates graph invariant guard diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -2459,6 +2488,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts" },
         { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries" },
+        { from: "goal:demo:invariant:0", to: "goal:demo", kind: "constrains" },
         { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
       ],
     });
