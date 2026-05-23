@@ -295,13 +295,13 @@
         "args": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/$defs/grant_arg_value"
           }
         },
         "argKinds": {
           "type": "object",
           "additionalProperties": {
-            "enum": ["string", "identifier"]
+            "$ref": "#/$defs/arg_kind"
           }
         },
         "argSpans": {
@@ -408,7 +408,7 @@
           "$ref": "#/$defs/non_empty_string"
         },
         "value": {
-          "type": "string"
+          "$ref": "#/$defs/grant_arg_value"
         },
         "args": {
           "type": "array",
@@ -443,7 +443,7 @@
           "$ref": "#/$defs/non_empty_string"
         },
         "value": {
-          "type": "string"
+          "$ref": "#/$defs/grant_arg_value"
         },
         "kind": {
           "$ref": "#/$defs/non_empty_string"
@@ -465,6 +465,25 @@
           "$ref": "#/$defs/span"
         }
       }
+    },
+    "grant_arg_value": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "arg_kind": {
+      "enum": ["string", "string_list", "integer", "duration", "identifier"]
     },
     "memory": {
       "type": "object",
@@ -709,13 +728,13 @@
         "args": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/$defs/grant_arg_value"
           }
         },
         "argKinds": {
           "type": "object",
           "additionalProperties": {
-            "enum": ["string", "identifier"]
+            "$ref": "#/$defs/arg_kind"
           }
         },
         "argSpans": {

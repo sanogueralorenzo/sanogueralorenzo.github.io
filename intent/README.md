@@ -531,9 +531,12 @@ Validation expectations:
   selected contract id, contract arguments, and matched grant argument records
   with `argument`, `sourceArgument`, `value`, `grantAction`, `grantKey`, and
   `grantValue`. Structured capability grants carry a grant-line `span`,
-  `actionSpan`, and ordered `args` records with key/value spans; multi-argument
-  grants such as `push branch: "main" remote: "origin"` authorize each matching
-  effect argument from the same grant. Grants that cover known v0 contracts
+  `actionSpan`, and ordered `args` records with key/value spans and typed values
+  for strings, string lists, integers, durations, and identifiers.
+  Multi-argument grants such as `push branch: "main" remote: "origin"` authorize
+  each matching effect argument from the same grant, and known dotted aliases
+  such as `shell.exec(commands: ["npm test"])` normalize through the effect
+  contract registry before authorization. Grants that cover known v0 contracts
   also carry `contractId` and `contractArgument` so stale grant references are
   rejected during graph validation.
 - Graph `Check` nodes are runtime verification gates, not executable steps.
@@ -549,8 +552,8 @@ Validation expectations:
   approval-policy data: `data.family` must be non-empty,
   `data.approvalPolicy` must be either `none` or `required`, and `data.grants`
   must be an array of structured grant records. Each grant must carry non-empty
-  `action`, `key`, and `raw` strings, a string `value`, ordered `args`, and
-  valid source `span` and `actionSpan` data. Malformed capability policy data
+  `action`, `key`, and `raw` strings, a scalar or list `value`, ordered `args`,
+  and valid source `span` and `actionSpan` data. Malformed capability policy data
   emits `INTENT_GRAPH_CAPABILITY_INVALID`
   and makes the graph non-executable because runtime authorization and approval
   enforcement must not infer missing policy.

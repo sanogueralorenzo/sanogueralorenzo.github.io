@@ -800,16 +800,16 @@ describe("intent static model CLI", () => {
       "  context repo(\"./\")",
       "  context web(\"https://example.com/**\")",
       "  capability file {",
-      "    write path: \"./src/**\"",
+      "    write paths: [\"./src/**\", \"./generated/**\"] max_bytes: 200000",
       "  }",
       "  capability shell {",
-      "    run command: \"npm test\"",
+      "    shell.exec(commands: [\"npm test\"], timeout: 5m)",
       "  }",
       "  capability web {",
-      "    read domain: \"example.com\"",
+      "    read domains: [\"example.com\"]",
       "  }",
       "  capability git {",
-      "    push branch: \"main\" remote: \"origin\"",
+      "    git.push(branches: [\"main\"], remotes: [\"origin\"], approval: required)",
       "    commit message: \"ship fix\"",
       "  }",
       "  capability secret {",
@@ -880,11 +880,23 @@ describe("intent static model CLI", () => {
       }));
       const gitPushGrant = capabilityGrants.find((grant) => grant.action === "push");
       assert.deepEqual(gitPushGrant.args.map((argument) => [argument.key, argument.value, argument.kind]), [
-        ["branch", "main", "string"],
-        ["remote", "origin", "string"],
+        ["branch", ["main"], "string_list"],
+        ["remote", ["origin"], "string_list"],
+        ["approval", "required", "identifier"],
       ]);
-      assert.equal(gitPushGrant.args[1].keySpan.start.column, source.split("\n")[17].indexOf("remote") + 1);
-      assert.equal(gitPushGrant.args[1].valueSpan.start.column, source.split("\n")[17].indexOf("\"origin\"") + 1);
+      const gitPushLine = source.split("\n").find((line) => line.includes("git.push"));
+      assert.equal(gitPushGrant.args[1].keySpan.start.column, gitPushLine.indexOf("remotes") + 1);
+      assert.equal(gitPushGrant.args[1].valueSpan.start.column, gitPushLine.indexOf("[\"origin\"]") + 1);
+      const fileWriteGrant = capabilityGrants.find((grant) => grant.action === "write");
+      assert.deepEqual(fileWriteGrant.args.map((argument) => [argument.key, argument.value, argument.kind]), [
+        ["path", ["./src/**", "./generated/**"], "string_list"],
+        ["max_bytes", 200000, "integer"],
+      ]);
+      const shellGrant = capabilityGrants.find((grant) => grant.action === "run");
+      assert.deepEqual(shellGrant.args.map((argument) => [argument.key, argument.value, argument.kind]), [
+        ["command", ["npm test"], "string_list"],
+        ["timeout", "5m", "duration"],
+      ]);
       assert.deepEqual(effects.map((effect) => [effect.label, effect.data.family, effect.data.action]), [
         ["Effect.FileWrite", "file", "write"],
         ["WriteFile", "file", "write"],
@@ -988,7 +1000,7 @@ describe("intent static model CLI", () => {
       "package fixtures.invalid_call_args",
       "type Report = Result",
       "goal invalid_call_args() -> Report {",
-      "  context repo(123)",
+      "  context repo([\"./\", invalid])",
       "  plan {",
       "    step done -> Report",
       "  }",
@@ -1005,7 +1017,7 @@ describe("intent static model CLI", () => {
 
       assert.equal(result.status, 1);
       assert.equal(payload.diagnostics[0].code, "INTENT_PARSE_ERROR");
-      assert.equal(payload.diagnostics[0].message, "unsupported call argument '123'");
+      assert.equal(payload.diagnostics[0].message, "unsupported list argument '[\"./\", invalid]'");
       assert.equal(payload.diagnostics[0].span.start.line, 4);
     } finally {
       rmSync(dir, { recursive: true, force: true });

@@ -268,9 +268,9 @@ expression language.
 call_expr = identifier_path, ws, "(", ws,
             [ call_arg, { ws, ",", ws, call_arg } ], ws, ")" ;
 call_arg  = [ identifier, ws, ":", ws ], arg_value ;
-arg_value = string | number | bool | identifier_path | call_expr ;
-number    = [ "-" ], digit, { digit }, [ ".", digit, { digit } ] ;
-bool      = "true" | "false" ;
+arg_value = string | string_list | integer | duration | identifier_path ;
+string_list = "[", ws, [ string, { ws, ",", ws, string } ], ws, "]" ;
+integer   = digit, { digit } ;
 raw_expr  = raw_text_until_terminator ;
 raw_type_def = raw_text_until_terminator ;
 ```
@@ -282,12 +282,15 @@ spanned `CallExpr` with the callee path, ordered arguments, optional argument
 names, argument kinds, literal values, and nested call values.
 
 The `intent.ast.v0` parser accepts comma-separated positional and named string
-literals plus single-segment lowercase identifiers. Unsupported argument
-syntax inside a parsed v0 call, including numbers, booleans, dotted
-identifiers, and nested calls, is `INTENT_PARSE_ERROR`; those argument kinds
-are reserved for the next schema version. Unsupported expression syntax outside
-the call envelope remains raw text unless the surrounding grammar requires a
-call expression.
+literals, string lists, positive integers, simple durations, and single-segment
+lowercase identifiers. Unsupported argument syntax inside a parsed v0 call,
+including records, booleans, dotted identifiers, and nested calls, is
+`INTENT_PARSE_ERROR`; those argument kinds are reserved for later schema
+versions. Unsupported expression syntax outside the call envelope remains raw
+text unless the surrounding grammar requires a call expression. Capability grant
+arguments preserve list, integer, and duration values in ordered `args` records,
+and known dotted grant aliases such as `shell.exec` are normalized through the
+v0 effect contract registry before authorization.
 
 Examples of parseable effect calls:
 

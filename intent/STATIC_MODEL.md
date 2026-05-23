@@ -1136,6 +1136,10 @@ capability files {
 capability git {
   push branch: "main" remote: "origin"
 }
+
+capability shell {
+  shell.exec(commands: ["npm test"], timeout: 5m)
+}
 ```
 
 ```json
@@ -1166,11 +1170,13 @@ Rules:
 - Each grant also carries an `actionSpan`.
 - Constraint arguments are ordered in `args`; each entry carries the canonical
   key, source value, value kind, `keySpan`, `valueSpan`, and full argument
-  `span` for argument-level diagnostics.
+  `span` for argument-level diagnostics. Grant values may be strings, string
+  lists, positive integers, durations, or identifiers.
 - Multi-argument grants such as `push branch: "main" remote: "origin"` remain a
   single grant record whose `args` cover both constraints.
-- Parsed dotted grant calls retain the dotted action path and ordered argument
-  records from the source call.
+- Parsed dotted grant calls retain ordered argument records from the source call
+  and normalize known adapter aliases through the v0 effect contract registry,
+  so `shell.exec(commands: ["npm test"])` is a `run command` grant.
 - Graph `Capability` node `data.grants` entries carry the same grant-level
   `span` as the AST `CapabilityGrant`.
 - Structured AST and graph grants that cover known effect adapter contracts

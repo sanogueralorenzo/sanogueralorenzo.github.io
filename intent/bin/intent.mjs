@@ -3113,7 +3113,7 @@ function isGraphGrantRecord(value, family = null) {
     && value.action.trim() !== ""
     && typeof value.key === "string"
     && value.key.trim() !== ""
-    && typeof value.value === "string"
+    && isGrantArgumentValue(value.value)
     && typeof value.raw === "string"
     && value.raw.trim() !== ""
     && isSpan(value.span)
@@ -3122,7 +3122,7 @@ function isGraphGrantRecord(value, family = null) {
     && value.args.length > 0
     && value.args.every(isGrantArgumentRecord)
     && value.args[0].key === value.key
-    && value.args[0].value === value.value;
+    && grantValuesEqual(value.args[0].value, value.value);
   if (!baseIsValid) {
     return false;
   }
@@ -3144,12 +3144,18 @@ function isGrantArgumentRecord(value) {
   return isPlainObject(value)
     && typeof value.key === "string"
     && value.key.trim() !== ""
-    && typeof value.value === "string"
+    && isGrantArgumentValue(value.value)
     && typeof value.kind === "string"
     && value.kind.trim() !== ""
     && (value.keySpan === null || isSpan(value.keySpan))
     && isSpan(value.valueSpan)
     && isSpan(value.span);
+}
+
+function isGrantArgumentValue(value) {
+  return typeof value === "string"
+    || typeof value === "number"
+    || (Array.isArray(value) && value.every((item) => typeof item === "string"));
 }
 
 function validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
@@ -3237,7 +3243,7 @@ function stringMapsEqual(left, right) {
   const leftEntries = Object.entries(left);
   const rightEntries = Object.entries(right);
   return leftEntries.length === rightEntries.length
-    && leftEntries.every(([key, value]) => typeof value === "string" && right[key] === value);
+    && leftEntries.every(([key, value]) => grantValuesEqual(value, right[key]));
 }
 
 function spanMapsEqual(left, right) {
@@ -4860,7 +4866,17 @@ function authorizationGrantRecordsEqual(left, right) {
     && left.value === right.value
     && left.grantAction === right.grantAction
     && left.grantKey === right.grantKey
-    && left.grantValue === right.grantValue;
+    && grantValuesEqual(left.grantValue, right.grantValue);
+}
+
+function grantValuesEqual(left, right) {
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) => value === right[index]);
+  }
+  return left === right;
 }
 
 function graphCapabilityAccess(capabilityNode) {
@@ -5505,12 +5521,13 @@ function parseCapabilityGrant(capabilityName, text, grantSpan, file = grantSpan?
     return lineGrant;
   }
 
-  const dottedCall = trimmed.match(/^[a-z][a-z0-9_]*\.([a-z][a-z0-9_]*)\((.*)\)$/);
+  const dottedCall = trimmed.match(/^([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)\((.*)\)$/);
   if (dottedCall) {
     const parsedArgs = parseCallArgs(trimmed, file, lineNumber, raw);
-    const args = parsedArgs.records.map((argument) => canonicalGrantArgument(family, dottedCall[1], argument));
+    const action = canonicalGrantAction(family, dottedCall[2], `${dottedCall[1]}.${dottedCall[2]}`);
+    const args = parsedArgs.records.map((argument) => canonicalGrantArgument(family, action, argument));
     if (args.length > 0) {
-      return capabilityGrantRecord(family, dottedCall[1], args, trimmed, grantSpan, grantActionSpan(trimmed, dottedCall[1], file, lineNumber, raw));
+      return capabilityGrantRecord(family, action, args, trimmed, grantSpan, grantActionSpan(trimmed, dottedCall[2], file, lineNumber, raw));
     }
   }
 
@@ -5526,33 +5543,84 @@ function parseCapabilityLineGrant(family, trimmed, grantSpan, file, lineNumber, 
   if (!argsText.trim()) {
     return null;
   }
+  const canonicalAction = canonicalGrantAction(family, action);
+  const args = parseGrantLineArguments(argsText, action.length, file, lineNumber, raw, trimmed)
+    .map((argument) => canonicalGrantArgument(family, canonicalAction, argument));
+  if (args.length === 0) {
+    return null;
+  }
+  return capabilityGrantRecord(family, canonicalAction, args, trimmed, grantSpan, grantActionSpan(trimmed, action, file, lineNumber, raw));
+}
+
+function parseGrantLineArguments(argsText, trimmedOffset, file, lineNumber, raw, trimmed) {
   const args = [];
-  const matcher = /\s+([a-z][a-z0-9_]*)\s*:\s*("[^"]*"|[a-z][a-z0-9_]*)/gy;
-  let cursor = 0;
-  let match = null;
-  while ((match = matcher.exec(argsText)) !== null) {
-    if (match.index !== cursor) {
-      return null;
+  let index = 0;
+  while (index < argsText.length) {
+    const leading = argsText.slice(index).search(/\S/);
+    if (leading < 0) {
+      break;
     }
-    const sourceKey = match[1];
-    const valueText = match[2];
-    const keyStart = action.length + match.index + match[0].indexOf(sourceKey);
-    const valueStart = action.length + match.index + match[0].lastIndexOf(valueText);
+    const keyStartInArgs = index + leading;
+    const keyMatch = /^([a-z][a-z0-9_]*)\s*:/.exec(argsText.slice(keyStartInArgs));
+    if (!keyMatch) {
+      return [];
+    }
+    const sourceKey = keyMatch[1];
+    const colonInArgs = keyStartInArgs + keyMatch[0].lastIndexOf(":");
+    const valueLeading = argsText.slice(colonInArgs + 1).search(/\S/);
+    if (valueLeading < 0) {
+      return [];
+    }
+    const valueStartInArgs = colonInArgs + 1 + valueLeading;
+    const valueEndInArgs = grantLineValueEnd(argsText, valueStartInArgs);
+    const valueText = argsText.slice(valueStartInArgs, valueEndInArgs).trim();
+    if (!valueText) {
+      return [];
+    }
     const parsed = parseCallArgumentValue(valueText, file, lineNumber, raw);
-    args.push(canonicalGrantArgument(family, action, {
+    const keyStart = trimmedOffset + keyStartInArgs;
+    const valueStart = trimmedOffset + valueStartInArgs;
+    args.push({
       key: sourceKey,
       value: parsed.value,
       kind: parsed.kind,
       keySpan: sourceSpan(file, lineNumber, raw, trimmed, keyStart, sourceKey.length),
       valueSpan: sourceSpan(file, lineNumber, raw, trimmed, valueStart, valueText.length),
       span: sourceSpan(file, lineNumber, raw, trimmed, keyStart, valueStart + valueText.length - keyStart),
-    }));
-    cursor = matcher.lastIndex;
+    });
+    index = valueEndInArgs;
   }
-  if (args.length === 0 || cursor !== argsText.length) {
-    return null;
+  return args;
+}
+
+function grantLineValueEnd(text, valueStart) {
+  let inString = false;
+  let bracketDepth = 0;
+  for (let index = valueStart; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (char === "[") {
+      bracketDepth += 1;
+      continue;
+    }
+    if (char === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      continue;
+    }
+    if (bracketDepth === 0 && /\s/.test(char)) {
+      const rest = text.slice(index);
+      if (/^\s+[a-z][a-z0-9_]*\s*:/.test(rest) || rest.trim() === "") {
+        return index;
+      }
+    }
   }
-  return capabilityGrantRecord(family, action, args, trimmed, grantSpan, grantActionSpan(trimmed, action, file, lineNumber, raw));
+  return text.length;
 }
 
 function capabilityGrantRecord(family, action, args, raw, grantSpan, actionSpan) {
@@ -5576,6 +5644,10 @@ function canonicalGrantArgument(family, action, argument) {
     ...argument,
     key: contractArgument?.argument.key ?? argument.key,
   };
+}
+
+function canonicalGrantAction(family, action, sourceName = `${family}.${action}`) {
+  return effectContractByName(sourceName)?.action ?? action;
 }
 
 function grantActionSpan(trimmed, action, file, lineNumber, raw) {
@@ -5659,6 +5731,7 @@ function callArgsEnvelope(text, file, lineNumber, raw) {
 function splitCallArguments(text, startIndex, file, lineNumber, raw) {
   const args = [];
   let inString = false;
+  let bracketDepth = 0;
   let partStart = 0;
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
@@ -5666,7 +5739,18 @@ function splitCallArguments(text, startIndex, file, lineNumber, raw) {
       inString = !inString;
       continue;
     }
-    if (!inString && char === ",") {
+    if (inString) {
+      continue;
+    }
+    if (char === "[") {
+      bracketDepth += 1;
+      continue;
+    }
+    if (char === "]") {
+      bracketDepth = Math.max(0, bracketDepth - 1);
+      continue;
+    }
+    if (bracketDepth === 0 && char === ",") {
       args.push({ text: text.slice(partStart, index), startIndex: startIndex + partStart });
       partStart = index + 1;
     }
@@ -5682,6 +5766,28 @@ function parseCallArgumentValue(value, file, lineNumber, raw) {
   const stringLiteral = /^"([^"]*)"$/.exec(value);
   if (stringLiteral) {
     return { kind: "string", value: stringLiteral[1] };
+  }
+  const stringList = /^\[(.*)\]$/.exec(value);
+  if (stringList) {
+    const items = splitCallArguments(stringList[1], 1, file, lineNumber, raw).map((item) => item.text.trim());
+    const values = items.length === 1 && items[0] === ""
+      ? []
+      : items.map((item) => {
+        const parsed = /^"([^"]*)"$/.exec(item);
+        if (!parsed) {
+          throw parseError(file, lineNumber, raw, `unsupported list argument '${value}'`);
+        }
+        return parsed[1];
+      });
+    return { kind: "string_list", value: values };
+  }
+  const integerLiteral = /^[0-9]+$/.exec(value);
+  if (integerLiteral) {
+    return { kind: "integer", value: Number(value) };
+  }
+  const durationLiteral = /^[0-9]+(?:ms|s|m|h|d)$/.exec(value);
+  if (durationLiteral) {
+    return { kind: "duration", value };
   }
   if (/^[a-z][a-z0-9_]*$/.test(value)) {
     return { kind: "identifier", value };
@@ -6200,7 +6306,7 @@ function getCapabilityDenial(effect, capabilities) {
       message: `effect '${effect.name}' ${argument.key} '${argument.value}' is outside declared capability grants.`,
       argument: argument.key,
       value: argument.value,
-      allowed: candidateGrants.map((grant) => grantArgumentForEffectArgument(argument, grant)?.value).filter((value) => value !== undefined),
+      allowed: candidateGrants.flatMap((grant) => grantArgumentValues(argument, grant)),
     };
   }
 
@@ -6449,32 +6555,32 @@ function normalizeEffectArgument(value, kind) {
 }
 
 function isGrantMatch(argument, grant) {
-  const grantArgument = grantArgumentForEffectArgument(argument, grant);
-  if (!grantArgument) {
+  const grantValues = grantArgumentValues(argument, grant);
+  if (grantValues.length === 0) {
     return false;
   }
   if (argument.key === "path") {
-    return isPathGrantMatch(argument.value, grantArgument.value);
+    return grantValues.some((value) => isPathGrantMatch(argument.value, value));
   }
   if (argument.key === "domain") {
-    return isDomainGrantMatch(argument.value, grantArgument.value);
+    return grantValues.some((value) => isDomainGrantMatch(argument.value, value));
   }
   if (argument.key === "branch" || argument.key === "remote") {
-    return normalizeRefName(argument.value) === normalizeRefName(grantArgument.value);
+    return grantValues.some((value) => normalizeRefName(argument.value) === normalizeRefName(value));
   }
   if (argument.key === "message") {
-    return normalizeCommitMessage(argument.value) === normalizeCommitMessage(grantArgument.value);
+    return grantValues.some((value) => normalizeCommitMessage(argument.value) === normalizeCommitMessage(value));
   }
   if (argument.key === "target") {
-    return normalizeDeployTarget(argument.value) === normalizeDeployTarget(grantArgument.value);
+    return grantValues.some((value) => normalizeDeployTarget(argument.value) === normalizeDeployTarget(value));
   }
   if (argument.key === "name") {
-    return normalizeSecretName(argument.value) === normalizeSecretName(grantArgument.value);
+    return grantValues.some((value) => normalizeSecretName(argument.value) === normalizeSecretName(value));
   }
   if (argument.key === "id") {
-    return normalizeTicketRef(argument.value) === normalizeTicketRef(grantArgument.value);
+    return grantValues.some((value) => normalizeTicketRef(argument.value) === normalizeTicketRef(value));
   }
-  return normalizeCommand(argument.value) === normalizeCommand(grantArgument.value);
+  return grantValues.some((value) => normalizeCommand(argument.value) === normalizeCommand(value));
 }
 
 function grantArgumentForEffectArgument(argument, grant) {
@@ -6482,6 +6588,17 @@ function grantArgumentForEffectArgument(argument, grant) {
     ? grant.args
     : [{ key: grant.key, value: grant.value }];
   return args.find((candidate) => candidate.key === argument.key) ?? null;
+}
+
+function grantArgumentValues(argument, grant) {
+  const grantArgument = grantArgumentForEffectArgument(argument, grant);
+  if (!grantArgument) {
+    return [];
+  }
+  if (Array.isArray(grantArgument.value)) {
+    return grantArgument.value;
+  }
+  return typeof grantArgument.value === "string" ? [grantArgument.value] : [];
 }
 
 function isPathGrantMatch(value, pattern) {
