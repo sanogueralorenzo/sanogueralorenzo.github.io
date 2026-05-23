@@ -383,6 +383,10 @@ blocking diagnostics.
   and attach those nodes to the graph as guards.
 - Enforce `deny production_deploy` by rejecting `Deploy` effects targeting
   `production` with `INTENT_INVARIANT_VIOLATION` at the invariant line span.
+- Enforce `deny secret_write` by rejecting file write effects whose path or name
+  looks like a secret, for example `.env`, `secret`, `token`, `credential`,
+  `key`, or `password`, with `INTENT_INVARIANT_VIOLATION` at the invariant line
+  span.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
 - Emit `INTENT_TRUST_FLOW_UNSAFE` for nonliteral shell command arguments that
@@ -722,9 +726,13 @@ Rules:
 - The graph builder also creates `guards` edges from each `Invariant` node to
   every `Effect`, `Checkpoint`, and step-scoped requirement `Check` node in the
   same goal.
-- The first enforced invariant rule is `deny production_deploy`. It rejects
-  any `Deploy` effect whose normalized `target` is `production` with
-  `INTENT_INVARIANT_VIOLATION` at the invariant line span.
+- Enforce `deny production_deploy` by rejecting any `Deploy` effect whose
+  normalized `target` is `production` with `INTENT_INVARIANT_VIOLATION` at the
+  invariant line span.
+- Enforce `deny secret_write` by rejecting file write effects whose path or name
+  looks like a secret, for example `.env`, `secret`, `token`, `credential`,
+  `key`, or `password`, with `INTENT_INVARIANT_VIOLATION` at the invariant line
+  span.
 - Invariant guards do not replace capability, checkpoint, step requirement, or
   verification edges. They make always-on rules visible wherever side effects,
   recovery boundaries, and step-local checks can affect execution.
