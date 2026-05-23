@@ -529,6 +529,30 @@ a {
   background: #d9cbc3;
 }
 
+.unmade-object-diagram {
+  background: #e8e2d5;
+}
+
+.unmade-object-ritual {
+  background: #b55b47;
+}
+
+.unmade-object-product {
+  background: #8ea29a;
+}
+
+.unmade-object-stage {
+  background: #d8c27d;
+}
+
+.unmade-object-photo {
+  background: #cfd6d8;
+}
+
+.unmade-object-key {
+  background: #9f9778;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
