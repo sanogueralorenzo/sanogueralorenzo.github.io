@@ -1076,6 +1076,30 @@ describe("intent static model CLI", () => {
     assert.equal(duplicateDiagnostics[0].incoming_data_edges, 2);
   });
 
+  it("validates graph data edge shape diagnostics", () => {
+    const diagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", span: testSpan(1) },
+        { id: "goal:demo:input:a", kind: "Input", label: "a", span: testSpan(2), data: { scope: "goal" } },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(3) },
+        { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(4), data: { scope: "step" } },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch:input:input", kind: "data" },
+        { from: "goal:demo:input:a", to: "goal:demo:step:patch", kind: "data" },
+      ],
+    });
+
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_DATA_INVALID");
+    assert.equal(diagnostics[0].from_kind, "Goal");
+    assert.equal(diagnostics[0].to_kind, "Input");
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_DATA_INVALID");
+    assert.equal(diagnostics[1].from_kind, "Input");
+    assert.equal(diagnostics[1].to_kind, "Step");
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_INPUT_UNBOUND");
+  });
+
   it("validates CLI outputs against versioned schemas", () => {
     const astSchema = readJson(AST_SCHEMA);
     const checkSchema = readJson(CHECK_SCHEMA);

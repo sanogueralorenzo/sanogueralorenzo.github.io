@@ -1179,6 +1179,20 @@ function validateGraph(graph) {
     }
     outgoing.get(graphEdge.from).push(graphEdge.to);
     if (graphEdge.kind === "data") {
+      const sourceNode = nodesById.get(graphEdge.from);
+      const targetNode = nodesById.get(graphEdge.to);
+      const sourceIsProducer = (sourceNode.kind === "Input" && sourceNode.data?.scope === "goal") || sourceNode.kind === "Step";
+      const targetIsStepInput = targetNode.kind === "Input" && targetNode.data?.scope === "step";
+      if (!sourceIsProducer || !targetIsStepInput) {
+        diagnostics.push(error("INTENT_GRAPH_DATA_INVALID", `graph data edge must connect a goal input or step producer to a step input.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+          edge: graphEdge.kind,
+          from: graphEdge.from,
+          to: graphEdge.to,
+          from_kind: sourceNode.kind,
+          to_kind: targetNode.kind,
+        }));
+        continue;
+      }
       incomingDataCounts.set(graphEdge.to, (incomingDataCounts.get(graphEdge.to) ?? 0) + 1);
     }
   }
