@@ -353,6 +353,12 @@ Next graph envelope validation milestone:
   `from`, `to`, and `kind` values. Blank structural strings emit
   `INTENT_GRAPH_SHAPE_INVALID` before duplicate, endpoint, or edge-kind
   validation.
+- Graph diagnostic payloads are part of the executable/diagnostic envelope
+  contract. `diagnostics` must be an array, and every diagnostic record must be
+  an object with `severity: "error"`, non-empty `code` and `message` strings,
+  and a valid `span`. A malformed diagnostic record emits a stable graph
+  validation diagnostic and makes the graph non-executable even when
+  non-executable graph output is allowed for tooling inspection.
 - Executable graph edge records may carry `data`; when present it must be an
   object. Any `sourceSpan` or `targetSpan` inside edge `data` must be a valid
   span before runtime dependency or provenance logic can use it.

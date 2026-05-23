@@ -102,6 +102,13 @@ Validation expectations:
 - Executable graph payloads must have `ok: true` and an empty `diagnostics`
   array. `ok: false` or stale diagnostics make the graph a diagnostic artifact,
   not an executable contract.
+- Graph diagnostic payloads are part of the executable/diagnostic envelope
+  contract. `diagnostics` must be an array, and each diagnostic must be an
+  object with `severity: "error"`, non-empty `code` and `message` strings, and
+  a valid `span`.
+- Malformed graph diagnostic records emit a stable graph validation diagnostic
+  and make the graph non-executable even when non-executable graph output is
+  allowed for tooling inspection.
 - Static graph validators must accept only their supported `schema_version` and
   `ast_schema_version` pair. Missing or unsupported values for either field
   emit `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
