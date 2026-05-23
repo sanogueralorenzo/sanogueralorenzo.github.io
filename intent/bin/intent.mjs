@@ -1585,6 +1585,10 @@ function effectArguments(effect) {
       effect.args.remote ? { key: "remote", value: normalizeRefName(effect.args.remote) } : null,
     ].filter(Boolean);
   }
+  if (effect.family === "deploy") {
+    const value = effect.args.target ?? effect.args.environment ?? effect.args.env ?? effect.args._0;
+    return value ? [{ key: "target", value: normalizeDeployTarget(value) }] : [];
+  }
   if (effect.family === "secret") {
     const value = effect.args.name ?? effect.args.names ?? effect.args._0;
     return value ? [{ key: "name", value: normalizeSecretName(value) }] : [];
@@ -1605,6 +1609,9 @@ function isGrantMatch(argument, grant) {
   }
   if (argument.key === "branch" || argument.key === "remote") {
     return normalizeRefName(argument.value) === normalizeRefName(grant.value);
+  }
+  if (argument.key === "target") {
+    return normalizeDeployTarget(argument.value) === normalizeDeployTarget(grant.value);
   }
   if (argument.key === "name") {
     return normalizeSecretName(argument.value) === normalizeSecretName(grant.value);
@@ -1643,6 +1650,10 @@ function normalizeCommand(value) {
 
 function normalizeRefName(value) {
   return value.trim().replace(/^refs\/heads\//, "");
+}
+
+function normalizeDeployTarget(value) {
+  return value.trim().toLowerCase();
 }
 
 function normalizeSecretName(value) {

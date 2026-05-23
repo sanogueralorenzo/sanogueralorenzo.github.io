@@ -10,6 +10,7 @@ const GRAPH_SCHEMA = new URL("../schemas/intent.graph.v0.schema.json", import.me
 const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import.meta.url).pathname;
 const VALID_CHECKPOINT_GRAPH = new URL("../fixtures/valid_checkpoint_graph.intent", import.meta.url).pathname;
 const VALID_CONTEXT_TRUST_GRAPH = new URL("../fixtures/valid_context_trust_graph.intent", import.meta.url).pathname;
+const VALID_DEPLOY_TARGET = new URL("../fixtures/valid_deploy_target.intent", import.meta.url).pathname;
 const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.intent", import.meta.url).pathname;
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
 const VALID_SECRET_READ = new URL("../fixtures/valid_secret_read.intent", import.meta.url).pathname;
@@ -30,6 +31,7 @@ const INVALID_SECRET_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_secr
 const INVALID_TICKET_UPDATE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_ticket_update_outside_capability.intent", import.meta.url).pathname;
 const INVALID_WEB_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_web_read_outside_capability.intent", import.meta.url).pathname;
 const INVALID_CONTEXT_SOURCE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_context_source_outside_capability.intent", import.meta.url).pathname;
+const INVALID_DEPLOY_TARGET_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_deploy_target_outside_capability.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
 const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_impure_file_write.intent", import.meta.url).pathname;
@@ -171,6 +173,7 @@ describe("intent static model CLI", () => {
     const codeChange = runJson(["check", VALID_CODE_CHANGE]);
     const checkpointGraph = runJson(["check", VALID_CHECKPOINT_GRAPH]);
     const contextTrustGraph = runJson(["check", VALID_CONTEXT_TRUST_GRAPH]);
+    const deployTarget = runJson(["check", VALID_DEPLOY_TARGET]);
     const dependencyGraph = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const research = runJson(["check", VALID_RESEARCH]);
     const secretRead = runJson(["check", VALID_SECRET_READ]);
@@ -189,6 +192,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(checkpointGraph.diagnostics, []);
     assert.equal(contextTrustGraph.ok, true);
     assert.deepEqual(contextTrustGraph.diagnostics, []);
+    assert.equal(deployTarget.ok, true);
+    assert.deepEqual(deployTarget.diagnostics, []);
     assert.equal(dependencyGraph.ok, true);
     assert.deepEqual(dependencyGraph.diagnostics, []);
     assert.equal(research.ok, true);
@@ -278,6 +283,19 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].argument, "id");
     assert.equal(payload.diagnostics[0].value, "CODE-999");
     assert.deepEqual(payload.diagnostics[0].allowed, ["CODE-123"]);
+  });
+
+  it("rejects deploys outside declared target grants", () => {
+    const result = run(["check", INVALID_DEPLOY_TARGET_OUTSIDE_CAPABILITY]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_DENIED");
+    assert.equal(payload.diagnostics[0].effect, "Deploy");
+    assert.equal(payload.diagnostics[0].argument, "target");
+    assert.equal(payload.diagnostics[0].value, "production");
+    assert.deepEqual(payload.diagnostics[0].allowed, ["staging"]);
   });
 
   it("rejects web reads outside declared domain grants", () => {
@@ -546,6 +564,17 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === ticketEffect.id), true);
   });
 
+  it("emits deploys as authorized deploy effect nodes", () => {
+    const graph = runJson(["graph", VALID_DEPLOY_TARGET]);
+    const deployEffect = graph.nodes.find((node) => node.kind === "Effect" && node.label === "Deploy");
+
+    assert.equal(graph.ok, true);
+    assert.equal(deployEffect.data.family, "deploy");
+    assert.equal(deployEffect.data.action, "deploy");
+    assert.equal(deployEffect.data.args.target, "staging");
+    assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === deployEffect.id), true);
+  });
+
   it("emits step timeout and retry policies as policy nodes and edges", () => {
     const graph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
     const patchStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "patch_code");
@@ -574,6 +603,7 @@ describe("intent static model CLI", () => {
     const validCheck = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const invalidCheck = JSON.parse(run(["check", INVALID_UNRESOLVED_TYPE]).stdout);
     const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
+    const deployGraph = runJson(["graph", VALID_DEPLOY_TARGET]);
     const approvalGraph = runJson(["graph", VALID_STEP_APPROVAL_GRAPH]);
     const policyGraph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
     const contextGraph = runJson(["graph", VALID_CONTEXT_TRUST_GRAPH]);
@@ -584,6 +614,7 @@ describe("intent static model CLI", () => {
     assert.deepEqual(validateSchema(checkSchema, validCheck), []);
     assert.deepEqual(validateSchema(checkSchema, invalidCheck), []);
     assert.deepEqual(validateSchema(graphSchema, graph), []);
+    assert.deepEqual(validateSchema(graphSchema, deployGraph), []);
     assert.deepEqual(validateSchema(graphSchema, approvalGraph), []);
     assert.deepEqual(validateSchema(graphSchema, policyGraph), []);
     assert.deepEqual(validateSchema(graphSchema, contextGraph), []);
