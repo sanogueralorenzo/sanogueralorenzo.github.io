@@ -463,6 +463,12 @@
                 "expression": {
                   "type": "string"
                 },
+                "contractId": {
+                  "$ref": "#/$defs/non_empty_string"
+                },
+                "contractArguments": {
+                  "$ref": "#/$defs/contract_arguments"
+                },
                 "trust": {
                   "$ref": "#/$defs/trust"
                 }

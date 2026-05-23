@@ -596,17 +596,20 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
-- Runtime context source authorization edge contracts are the next Phase 2
-  static-model milestone. Runtime `Context` nodes with `data.source` equal to
-  `web` or `documents` must have one or more incoming `authorizes` edges from
-  `Capability` nodes. `repo` Context nodes remain local/trusted and do not
-  require graph authorization edges. Malformed, missing, or non-Capability
+- Runtime context source authorization edge contracts are part of graph
+  validation. Runtime `Context` nodes with `data.source` equal to `web` or
+  `documents` carry `contractId` and `contractArguments` records for the
+  selected read contract and must have one or more incoming `authorizes` edges
+  from `Capability` nodes. Those authorization edges carry the same contract id
+  and matched grant records. `repo` Context nodes remain local/trusted and do
+  not require graph authorization edges. Malformed, missing, or non-Capability
   authorization edges for external context sources emit
-  `INTENT_GRAPH_AUTHORIZATION_INVALID` and make graph output non-executable;
-  malformed Context node data remains `INTENT_GRAPH_CONTEXT_INVALID`, and
-  malformed trust metadata remains `INTENT_GRAPH_TRUST_INVALID`. This makes
-  external context source access explicit in the runtime graph instead of
-  relying only on source checker results.
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`; stale grant or edge contract references
+  emit `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`; malformed Context node data
+  remains `INTENT_GRAPH_CONTEXT_INVALID`; and malformed trust metadata remains
+  `INTENT_GRAPH_TRUST_INVALID`. This makes external context source access
+  explicit in the runtime graph instead of relying only on source checker
+  results.
 - Runtime context ownership edge contracts are the next Phase 2 static-model
   milestone. Every `Context` node must have exactly one outgoing `informs` edge
   to its owning `Goal`. This ownership edge is separate from external context
@@ -1147,6 +1150,8 @@ Rules:
   prototype.
 - Graph `Context` nodes carry the same source name, args, argKinds, argSpans,
   expression, and trust zone/source data as their originating `ContextDecl`.
+  External `web` and `documents` Context nodes also carry the selected
+  `contractId` and `contractArguments` mapping.
 - Graph `Context` nodes are non-executable runtime source bindings. Runtime
   validation requires non-empty `data.source` and `data.expression` strings,
   object `data.args`, `data.argKinds`, and `data.argSpans` maps, and valid
@@ -1154,12 +1159,15 @@ Rules:
   emit `INTENT_GRAPH_CONTEXT_INVALID`; malformed context trust records remain
   `INTENT_GRAPH_TRUST_INVALID`.
 - Runtime `Context` nodes with `data.source` equal to `web` or `documents` must
-  have one or more incoming `authorizes` edges from `Capability` nodes. `repo`
-  Context nodes remain local/trusted and do not require graph authorization
-  edges. Malformed, missing, or non-Capability authorization edges for external
-  context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes external
-  context source access explicit in the runtime graph instead of relying only on
-  source checker results.
+  have one or more incoming `authorizes` edges from `Capability` nodes. Those
+  edges carry the selected contract id, argument references, and matched grant
+  records used for the context source. `repo` Context nodes remain local/trusted
+  and do not require graph authorization edges. Malformed, missing, or
+  non-Capability authorization edges for external context sources emit
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`; stale contract or argument references
+  emit `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`. This makes external context
+  source access explicit in the runtime graph instead of relying only on source
+  checker results.
 - Every graph `Context` node must have exactly one outgoing role-valid
   `informs` edge to its owning `Goal`. This ownership edge is separate from
   external context authorization: `web` and `documents` Context nodes still
@@ -2582,19 +2590,25 @@ explicit for runtime recovery and provenance instead of relying only on id
 strings.
 
 Context nodes carry the same structured source call data as `ContextDecl`:
-`source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Runtime
-validation treats `Context` nodes as non-executable source bindings: `source`
-and `expression` must be non-empty strings, `args`, `argKinds`, and `argSpans`
-must be objects, and every `argSpans` value must be a valid source span.
-Malformed context source records emit `INTENT_GRAPH_CONTEXT_INVALID` and make
-the graph non-executable. Runtime `Context` nodes with `data.source` equal to
-`web` or `documents` must have one or more incoming `authorizes` edges from
-`Capability` nodes. Malformed, missing, or non-Capability authorization edges
-for those external context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID` and
-make the graph non-executable. `repo` Context nodes remain local/trusted and do
-not require graph authorization edges. Every `Context` node must also have
-exactly one outgoing role-valid `informs` edge to its owning `Goal`. Missing or
-extra role-valid context `informs` edges emit
+`source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. External
+`web` and `documents` Context nodes also carry `contractId` and
+`contractArguments` records for the selected read contract. Runtime validation
+treats `Context` nodes as non-executable source bindings: `source` and
+`expression` must be non-empty strings, `args`, `argKinds`, and `argSpans` must
+be objects, every `argSpans` value must be a valid source span, and any context
+contract metadata must match the derived source access. Malformed context source
+records emit `INTENT_GRAPH_CONTEXT_INVALID` and make the graph non-executable.
+Runtime `Context` nodes with `data.source` equal to `web` or `documents` must
+have one or more incoming `authorizes` edges from `Capability` nodes. Those
+edges carry the selected contract id, argument references, and matched grant
+records. Malformed, missing, or non-Capability authorization edges for those
+external context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID`, and stale
+edge contract or argument references emit
+`INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`, making the graph non-executable.
+`repo` Context nodes remain local/trusted and do not require graph authorization
+edges. Every `Context` node must also have exactly one outgoing role-valid
+`informs` edge to its owning `Goal`. Missing or extra role-valid context
+`informs` edges emit
 `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make the graph non-executable.
 Unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`. This
 ownership edge is separate from external context authorization. Web context

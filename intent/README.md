@@ -354,17 +354,20 @@ Validation expectations:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
-- Runtime context source authorization edge contracts are the next Phase 2
-  static-model milestone. Runtime `Context` nodes with `data.source` equal to
-  `web` or `documents` must have one or more incoming `authorizes` edges from
-  `Capability` nodes. `repo` Context nodes remain local/trusted and do not
-  require graph authorization edges. Malformed, missing, or non-Capability
+- Runtime context source authorization edge contracts are part of graph
+  validation. Runtime `Context` nodes with `data.source` equal to `web` or
+  `documents` carry `contractId` and `contractArguments` records for the
+  selected read contract and must have one or more incoming `authorizes` edges
+  from `Capability` nodes. Those authorization edges carry the same contract id
+  and matched grant records. `repo` Context nodes remain local/trusted and do
+  not require graph authorization edges. Malformed, missing, or non-Capability
   authorization edges for external context sources emit
-  `INTENT_GRAPH_AUTHORIZATION_INVALID` and make graph output non-executable;
-  malformed Context node data remains `INTENT_GRAPH_CONTEXT_INVALID`, and
-  malformed trust metadata remains `INTENT_GRAPH_TRUST_INVALID`. This makes
-  external context source access explicit in the runtime graph instead of
-  relying only on source checker results.
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`; stale grant or edge contract references
+  emit `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`; malformed Context node data
+  remains `INTENT_GRAPH_CONTEXT_INVALID`; and malformed trust metadata remains
+  `INTENT_GRAPH_TRUST_INVALID`. This makes external context source access
+  explicit in the runtime graph instead of relying only on source checker
+  results.
 - Runtime context ownership edge contracts are the next Phase 2 static-model
   milestone. Every `Context` node must have exactly one outgoing `informs` edge
   to its owning `Goal`. This ownership edge is separate from external context
@@ -457,15 +460,16 @@ Validation expectations:
   emits `INTENT_GRAPH_EFFECT_INVALID` and makes the graph non-executable
   because runtimes must not infer an adapter, action, argument provenance, or
   approval requirement.
-- Effect adapter family, action, constrained arguments, aliases, and
-  trust-sensitive sinks are normalized through the v0 effect contract registry
-  before graph emission. Effect nodes and verification-effect payloads carry a
-  stable `contractId` plus `contractArguments` references so runtimes can verify
-  which adapter contract and source argument aliases were selected. Effect
-  authorization edges also carry the selected contract id and matched grant
-  argument records. Structured capability grants that cover known v0 effect
-  contracts carry `contractId` and `contractArgument` so stale grant references
-  are rejected during graph validation.
+- Effect adapter family, action, constrained arguments, aliases, context-source
+  read access, and trust-sensitive sinks are normalized through the v0 effect
+  contract registry before graph emission. Effect nodes, verification-effect
+  payloads, and external `Context` nodes carry a stable `contractId` plus
+  `contractArguments` references so runtimes can verify which contract and
+  source argument aliases were selected. Authorization edges also carry the
+  selected contract id and matched grant argument records. Structured
+  capability grants that cover known v0 contracts carry `contractId` and
+  `contractArgument` so stale grant references are rejected during graph
+  validation.
 - Graph `Check` nodes are runtime verification gates, not executable steps.
   They must carry a non-empty `data.requirement`; optional `data.scope` must be
   either `goal` or `step`. Step-scoped checks must also carry non-empty

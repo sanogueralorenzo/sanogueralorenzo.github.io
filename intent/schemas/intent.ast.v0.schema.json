@@ -103,6 +103,12 @@
         }
       }
     },
+    "contract_arguments": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
     "package": {
       "type": "object",
       "required": ["kind", "name", "span"],
@@ -306,6 +312,12 @@
         },
         "expression": {
           "type": "string"
+        },
+        "contractId": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "contractArguments": {
+          "$ref": "#/$defs/contract_arguments"
         },
         "trust": {
           "$ref": "#/$defs/trust"

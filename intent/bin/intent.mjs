@@ -673,7 +673,7 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
 function parseContextSource(text, file, lineNumber, raw) {
   const source = text.match(/^([a-z][a-z0-9_]*)\s*\(/)?.[1] ?? firstWord(text);
   const parsedArgs = parseCallArgs(text, file, lineNumber, raw);
-  return {
+  const context = {
     kind: "ContextSource",
     value: text,
     source,
@@ -683,6 +683,14 @@ function parseContextSource(text, file, lineNumber, raw) {
     expression: text,
     trust: contextTrust(source),
     span: lineSpan(file, lineNumber, raw),
+  };
+  const access = contextContractAccess(context);
+  return {
+    ...context,
+    ...(access?.contractId ? {
+      contractId: access.contractId,
+      contractArguments: access.contractArguments,
+    } : {}),
   };
 }
 
@@ -1276,6 +1284,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
     for (const [index, context] of goal.context.entries()) {
       const id = `${goalId}:context:${index}`;
+      const access = contextContractAccess(context);
       nodes.push(node(id, "Context", context.value, context.span, {
         source: context.source,
         args: context.args,
@@ -1283,13 +1292,16 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         argSpans: context.argSpans,
         expression: context.expression,
         trust: context.trust,
+        ...(access?.contractId ? {
+          contractId: access.contractId,
+          contractArguments: access.contractArguments,
+        } : {}),
       }));
       edges.push(edge(id, goalId, "informs"));
-      const access = contextAccess(context);
       if (access) {
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
           if (isFamilyMatch(access.family, capability.family) && !getCapabilityDenial(access, [capability])) {
-            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, id, "authorizes"));
+            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, id, "authorizes", authorizationEdgeData(access, capability)));
           }
         }
       }
@@ -3465,11 +3477,12 @@ function validateGraphContext(graphNode, graphSpan) {
   }
   const sourceIsNonempty = typeof graphNode.data.source === "string" && graphNode.data.source.trim() !== "";
   const expressionIsNonempty = typeof graphNode.data.expression === "string" && graphNode.data.expression.trim() !== "";
+  const contractDiagnostic = validateGraphContextContract(graphNode);
   const argsIsObject = isPlainObject(graphNode.data.args);
   const argKindsIsObject = isPlainObject(graphNode.data.argKinds);
   const argSpansIsObject = isPlainObject(graphNode.data.argSpans);
   const argSpansAreValid = argSpansIsObject && Object.values(graphNode.data.argSpans).every(isSpan);
-  if (sourceIsNonempty && expressionIsNonempty && argsIsObject && argKindsIsObject && argSpansAreValid) {
+  if (sourceIsNonempty && expressionIsNonempty && !contractDiagnostic && argsIsObject && argKindsIsObject && argSpansAreValid) {
     return null;
   }
   return error("INTENT_GRAPH_CONTEXT_INVALID", `context '${graphNode.label}' must carry valid runtime source data.`, graphNode.span ?? graphSpan, {
@@ -3479,11 +3492,42 @@ function validateGraphContext(graphNode, graphSpan) {
     expression: typeof graphNode.data.expression === "string" ? graphNode.data.expression : null,
     source_is_nonempty: sourceIsNonempty,
     expression_is_nonempty: expressionIsNonempty,
+    contract_id: typeof graphNode.data.contractId === "string" ? graphNode.data.contractId : null,
+    contract_id_is_nonempty: typeof graphNode.data.contractId === "string" && graphNode.data.contractId.trim() !== "",
+    contract_is_known: contractDiagnostic ? contractDiagnostic.contract_is_known : true,
+    contract_family_matches: contractDiagnostic ? contractDiagnostic.contract_family_matches : true,
+    contract_action_matches: contractDiagnostic ? contractDiagnostic.contract_action_matches : true,
+    contract_arguments_are_valid: contractDiagnostic ? contractDiagnostic.contract_arguments_are_valid : true,
     args_is_object: argsIsObject,
     arg_kinds_is_object: argKindsIsObject,
     arg_spans_is_object: argSpansIsObject,
     arg_spans_are_valid: argSpansAreValid,
   });
+}
+
+function validateGraphContextContract(graphNode) {
+  if (graphNode.data.contractId === undefined && graphNode.data.contractArguments === undefined) {
+    return null;
+  }
+  const access = graphContextAccess(graphNode);
+  const contractIdIsNonempty = typeof graphNode.data.contractId === "string" && graphNode.data.contractId.trim() !== "";
+  const contract = contractIdIsNonempty ? effectContractById(graphNode.data.contractId) : null;
+  const contractArgumentsAreValid = validateContractArgumentRefs(contract, {
+    args: graphNode.data.args,
+    contractArguments: graphNode.data.contractArguments,
+  });
+  const contractFamilyMatches = Boolean(contract) && Boolean(access) && access.family === contract.family;
+  const contractActionMatches = Boolean(contract) && Boolean(access) && access.action === contract.action;
+  if (contractIdIsNonempty && contract && contractFamilyMatches && contractActionMatches && contractArgumentsAreValid) {
+    return null;
+  }
+  return {
+    contract_id_is_nonempty: contractIdIsNonempty,
+    contract_is_known: Boolean(contract),
+    contract_family_matches: contractFamilyMatches,
+    contract_action_matches: contractActionMatches,
+    contract_arguments_are_valid: contractArgumentsAreValid,
+  };
 }
 
 function validateGraphCheck(graphNode, graphSpan) {
@@ -3610,6 +3654,13 @@ function requiresContextAuthorization(graphNode) {
   return graphNode.data?.source === "web" || graphNode.data?.source === "documents";
 }
 
+function contextContractAccess(context) {
+  if (context.source !== "web" && context.source !== "documents") {
+    return null;
+  }
+  return contextAccess(context);
+}
+
 function invalidGraphGrantAuthorization(capabilityNode, targetNode, graphEdge) {
   const capability = graphCapabilityAccess(capabilityNode);
   const access = graphAuthorizationAccess(targetNode);
@@ -3728,25 +3779,35 @@ function graphAuthorizationAccess(graphNode) {
     return graphEffectAccess(graphNode, graphNode.data.effect);
   }
   if (graphNode.kind === "Context" && requiresContextAuthorization(graphNode)) {
-    if (
-      typeof graphNode.data.expression !== "string"
-      || !isPlainObject(graphNode.data.args)
-      || !isPlainObject(graphNode.data.argKinds)
-      || !isPlainObject(graphNode.data.argSpans)
-      || !Object.values(graphNode.data.args).every((value) => typeof value === "string")
-    ) {
-      return null;
-    }
-    return contextAccess({
-      source: graphNode.data.source,
-      args: graphNode.data.args,
-      argKinds: graphNode.data.argKinds,
-      argSpans: graphNode.data.argSpans,
-      expression: graphNode.data.expression,
-      span: graphNode.span,
-    });
+    return graphContextAccess(graphNode);
   }
   return null;
+}
+
+function graphContextAccess(graphNode) {
+  if (
+    typeof graphNode.data.expression !== "string"
+    || !isPlainObject(graphNode.data.args)
+    || !isPlainObject(graphNode.data.argKinds)
+    || !isPlainObject(graphNode.data.argSpans)
+    || !Object.values(graphNode.data.args).every((value) => typeof value === "string")
+  ) {
+    return null;
+  }
+  const access = contextAccess({
+    source: graphNode.data.source,
+    args: graphNode.data.args,
+    argKinds: graphNode.data.argKinds,
+    argSpans: graphNode.data.argSpans,
+    expression: graphNode.data.expression,
+    span: graphNode.span,
+  });
+  if (!access) return null;
+  return {
+    ...access,
+    contractId: graphNode.data.contractId ?? access.contractId,
+    contractArguments: graphNode.data.contractArguments ?? access.contractArguments,
+  };
 }
 
 function graphEffectAccess(graphNode, effectData) {
@@ -4556,7 +4617,7 @@ function contextAccess(context) {
       args.domain ??= domain;
       argKinds.domain ??= context.argKinds.domain ?? context.argKinds.domains ?? (url ? context.argKinds._0 : undefined);
     }
-    return {
+    const access = {
       kind: "ContextAccess",
       name: context.expression,
       family: "web",
@@ -4567,6 +4628,7 @@ function contextAccess(context) {
       expression: context.expression,
       span: context.span,
     };
+    return withContractReferences(access, { ...access, args: context.args });
   }
   if (["documents", "doc", "file"].includes(context.source)) {
     const pathValue = context.args.path ?? context.args.paths ?? context.args._0;
@@ -4580,7 +4642,7 @@ function contextAccess(context) {
       args.path ??= pathValue;
       argKinds.path ??= context.argKinds.path ?? context.argKinds.paths ?? context.argKinds._0;
     }
-    return {
+    const access = {
       kind: "ContextAccess",
       name: context.expression,
       family: "file",
@@ -4591,6 +4653,7 @@ function contextAccess(context) {
       expression: context.expression,
       span: context.span,
     };
+    return withContractReferences(access, { ...access, args: context.args });
   }
   return null;
 }
@@ -4609,6 +4672,14 @@ function effectAction(name) {
 
 function effectContractId(effect) {
   return effectContractForAccess(effect)?.id ?? null;
+}
+
+function withContractReferences(access, contractSource = access) {
+  return {
+    ...access,
+    contractId: effectContractId(access),
+    contractArguments: effectContractArgumentRefs(contractSource),
+  };
 }
 
 function normalizedEffectName(name) {
@@ -4724,7 +4795,9 @@ function getCapabilityDenial(effect, capabilities) {
 
 function authorizationEdgeData(effect, capability) {
   const contractId = effectContractId(effect);
-  const contractArguments = effectContractArgumentRefs(effect);
+  const contractArguments = isPlainObject(effect.contractArguments)
+    ? effect.contractArguments
+    : effectContractArgumentRefs(effect);
   const grants = effectArguments(effect).map((argument) => {
     const grant = (capability.grants ?? []).find((candidate) => {
       return candidate.action === effect.action

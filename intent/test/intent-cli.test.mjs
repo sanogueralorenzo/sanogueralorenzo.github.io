@@ -1452,6 +1452,8 @@ describe("intent static model CLI", () => {
     const repoContext = graph.nodes.find((node) => node.kind === "Context" && node.data.source === "repo");
     const webContext = graph.nodes.find((node) => node.kind === "Context" && node.data.source === "web");
     const documentsContext = graph.nodes.find((node) => node.kind === "Context" && node.data.source === "documents");
+    const webAuthorization = graph.edges.find((edge) => edge.kind === "authorizes" && edge.to === webContext.id);
+    const documentsAuthorization = graph.edges.find((edge) => edge.kind === "authorizes" && edge.to === documentsContext.id);
 
     assert.equal(graph.ok, true);
     assert.equal(repoContext.data.args._0, "./");
@@ -1461,13 +1463,29 @@ describe("intent static model CLI", () => {
     assert.equal(repoContext.data.expression, "repo(\"./\")");
     assert.equal(repoContext.data.trust.zone, "trusted");
     assert.equal(repoContext.data.trust.source, "local_context");
+    assert.equal(repoContext.data.contractId, undefined);
+    assert.equal(repoContext.data.contractArguments, undefined);
     assert.equal(webContext.data.args._0, "https://example.com/**");
+    assert.equal(webContext.data.contractId, "intent.effect.web.read.v0");
+    assert.deepEqual(webContext.data.contractArguments, { domain: "_0" });
     assert.equal(webContext.data.trust.zone, "untrusted");
     assert.equal(webContext.data.trust.source, "external_context");
     assert.equal(documentsContext.data.trust.zone, "trusted");
+    assert.equal(documentsContext.data.contractId, "intent.effect.file.read.v0");
+    assert.deepEqual(documentsContext.data.contractArguments, { path: "_0" });
     assert.equal(graph.edges.some((edge) => edge.kind === "informs" && edge.from === webContext.id), true);
-    assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === webContext.id), true);
-    assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === documentsContext.id), true);
+    assert.equal(Boolean(webAuthorization), true);
+    assert.equal(webAuthorization.data.contractId, "intent.effect.web.read.v0");
+    assert.deepEqual(webAuthorization.data.contractArguments, { domain: "_0" });
+    assert.deepEqual(webAuthorization.data.grants.map((grant) => [grant.argument, grant.sourceArgument, grant.grantValue]), [
+      ["domain", "_0", "example.com"],
+    ]);
+    assert.equal(Boolean(documentsAuthorization), true);
+    assert.equal(documentsAuthorization.data.contractId, "intent.effect.file.read.v0");
+    assert.deepEqual(documentsAuthorization.data.contractArguments, { path: "_0" });
+    assert.deepEqual(documentsAuthorization.data.grants.map((grant) => [grant.argument, grant.sourceArgument, grant.grantValue]), [
+      ["path", "_0", "./docs/**"],
+    ]);
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === repoContext.id), false);
   });
 
@@ -3046,11 +3064,26 @@ describe("intent static model CLI", () => {
         { id: "context:missing", kind: "Context", label: "missing context", span: testSpan(1), data: { source: null } },
         { id: "context:bad-spans", kind: "Context", label: "bad spans", span: testSpan(2), data: { argSpans: { path: "line 1" } } },
         { id: "context:bad-shape", kind: "Context", label: "bad shape", span: testSpan(3), data: { source: "   ", expression: "", args: null, argKinds: null } },
+        {
+          id: "context:bad-contract",
+          kind: "Context",
+          label: "bad contract",
+          span: testSpan(4),
+          data: {
+            source: "web",
+            expression: "web(url: \"https://example.com\")",
+            contractId: "intent.effect.file.read.v0",
+            contractArguments: { domain: "url" },
+            args: { url: "https://example.com" },
+            argKinds: { url: "string" },
+            argSpans: { url: testSpan(4) },
+          },
+        },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CONTEXT_INVALID");
 
-    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics.length, 4);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_CONTEXT_INVALID");
     assert.equal(diagnostics[0].context_id, "context:missing");
     assert.equal(diagnostics[0].source_is_nonempty, false);
@@ -3064,6 +3097,11 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].expression_is_nonempty, false);
     assert.equal(diagnostics[2].args_is_object, false);
     assert.equal(diagnostics[2].arg_kinds_is_object, false);
+    assert.equal(diagnostics[3].contract_id, "intent.effect.file.read.v0");
+    assert.equal(diagnostics[3].contract_is_known, true);
+    assert.equal(diagnostics[3].contract_family_matches, false);
+    assert.equal(diagnostics[3].contract_action_matches, true);
+    assert.equal(diagnostics[3].contract_arguments_are_valid, false);
   });
 
   it("validates graph check payload diagnostics", () => {
@@ -3685,6 +3723,64 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].invalid_authorizations[0].argument, "path");
     assert.equal(diagnostics[0].invalid_authorizations[0].value, "path");
     assert.deepEqual(diagnostics[0].invalid_authorizations[0].allowed, ["_0"]);
+  });
+
+  it("rejects stale context authorization contract edge references", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        {
+          id: "goal:demo:capability:web",
+          kind: "Capability",
+          label: "web",
+          span: testSpan(2),
+          data: {
+            family: "web",
+            grants: [{
+              ...testGrant("read", "domain", "example.com", 2),
+              contractId: "intent.effect.web.read.v0",
+              contractArgument: "domain",
+            }],
+          },
+        },
+        {
+          id: "goal:demo:context:web",
+          kind: "Context",
+          label: "web",
+          span: testSpan(3),
+          data: {
+            source: "web",
+            expression: "web(url: \"https://example.com/context\")",
+            contractId: "intent.effect.web.read.v0",
+            contractArguments: { domain: "url" },
+            args: { url: "https://example.com/context" },
+            argKinds: { url: "string" },
+            argSpans: { url: testSpan(3) },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo:capability:web", to: "goal:demo", kind: "authorizes" },
+        {
+          from: "goal:demo:capability:web",
+          to: "goal:demo:context:web",
+          kind: "authorizes",
+          data: {
+            contractId: "intent.effect.web.read.v0",
+            contractArguments: { domain: "url" },
+            grants: [{ argument: "domain", sourceArgument: "domain", value: "example.com" }],
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].target_id, "goal:demo:context:web");
+    assert.equal(diagnostics[0].invalid_authorizations[0].reason, "edge_argument_mismatch");
+    assert.equal(diagnostics[0].invalid_authorizations[0].argument, "domain");
+    assert.equal(diagnostics[0].invalid_authorizations[0].value, "domain");
+    assert.deepEqual(diagnostics[0].invalid_authorizations[0].allowed, ["url"]);
   });
 
   it("validates graph context authorization diagnostics", () => {
