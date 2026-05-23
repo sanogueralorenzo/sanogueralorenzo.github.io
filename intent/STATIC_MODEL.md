@@ -329,6 +329,8 @@ blocking diagnostics.
   goal-level verification requirements.
 - Parse step-body `approval ...` lines as step approval gates owned by their
   containing step.
+- Emit `INTENT_APPROVAL_INVALID` at the approval line span when an approval
+  gate label is empty after trimming.
 - Parse step-body `checkpoint ...` lines as step checkpoints owned by their
   containing step.
 - Emit `INTENT_CHECKPOINT_INVALID` at the checkpoint line span when a
@@ -354,7 +356,9 @@ blocking diagnostics.
   step and `gates` edges to the owning goal.
 - Emit step approval gates as `Approval` nodes, list them on the owning `Step`
   node data, and connect each one with an `approves` edge from that `Approval`
-  node to the owning `Step`.
+  node to the owning `Step`. Approval labels must be non-empty after trimming;
+  empty labels such as `approval ""` are `INTENT_APPROVAL_INVALID` at the
+  approval line span and make graph output non-executable.
 - For approval-required effects, also connect a step `Approval` node to each
   matching `Effect` node with an `approves` edge and record the approval policy
   on the authorizing `Capability` node.
@@ -568,6 +572,10 @@ Rules:
   node to the owning `Step`, so the step cannot run until approval is granted.
 - Step approval gates do not create `verifies` edges to the goal `Completion`
   node and do not replace capability policy approval requirements.
+- Approval gate labels must be non-empty after trimming.
+- An empty approval label, including `approval ""`, emits
+  `INTENT_APPROVAL_INVALID` at the approval line span and makes graph output
+  non-executable.
 - When a capability authorizing an effect contains `approval required`, the
   effect's owning step must contain at least one step-local `approval ...` gate.
   The graph builder also creates an `approves` edge from a step `Approval` node
@@ -880,6 +888,9 @@ Capability approval requirements:
 - The owning step must declare at least one step-local `approval ...` gate.
 - If no step-local approval gate is present, the checker emits
   `INTENT_APPROVAL_MISSING` at the effect call span.
+- Approval gate labels must be non-empty after trimming. An empty label such as
+  `approval ""` emits `INTENT_APPROVAL_INVALID` at the approval line span and
+  makes graph output non-executable.
 - Graph output records the approval policy on the authorizing `Capability` node
   and creates `approves` edges from step `Approval` nodes to matching
   approval-required `Effect` nodes.
@@ -961,6 +972,7 @@ Initial diagnostic families:
 - `INTENT_EFFECT_UNDECLARED`
 - `INTENT_CAPABILITY_DENIED`
 - `INTENT_APPROVAL_MISSING`
+- `INTENT_APPROVAL_INVALID`
 - `INTENT_VERIFY_MISSING`
 - `INTENT_VERIFY_IMPURE`
 - `INTENT_VERIFY_UNDECLARED`
@@ -1378,7 +1390,9 @@ step node lists them in its `data.approvals` array, and each approval has one
 outgoing `approves` edge to that owning step. When an effect in that step is
 authorized by a capability whose approval policy is `required`, a step
 `Approval` node also has an outgoing `approves` edge to that approval-required
-`Effect` node.
+`Effect` node. Approval labels must be non-empty after trimming; a graph with an
+empty approval label is non-executable because the checker must emit
+`INTENT_APPROVAL_INVALID`.
 
 Step policy nodes are `Policy` nodes scoped to one owning step. The owning step
 node lists timeout summaries in `data.timeouts` and retry summaries in

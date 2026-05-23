@@ -173,7 +173,10 @@ to the owning `Step`. When an effect in the same step is authorized by a
 capability with `approval required`, the checker also creates an `approves`
 edge from a step `Approval` node to that approval-required `Effect` node. If no
 step-local approval gate is present, the checker emits
-`INTENT_APPROVAL_MISSING`.
+`INTENT_APPROVAL_MISSING`. Approval gate labels must be non-empty after
+trimming. An empty approval label, including `approval ""`, emits
+`INTENT_APPROVAL_INVALID` at the approval line span and makes graph output
+non-executable.
 
 `checkpoint ...` lines inside a step body are parsed as step checkpoint
 statements. They are not memory retention declarations and do not become
@@ -404,7 +407,10 @@ The parser emits names and type reference strings; the checker owns binding.
   requirements.
 - Step-body `approval ...` lines become step approval gates. They are emitted
   as graph `Approval` nodes, listed on the owning step node data, and connected
-  by `approves` edges from each approval node to that step.
+  by `approves` edges from each approval node to that step. Approval labels
+  must be non-empty after trimming. Empty labels such as `approval ""` are
+  `INTENT_APPROVAL_INVALID` at the approval line span and make graph output
+  non-executable.
 - Step-body `checkpoint ...` lines become graph `Checkpoint` nodes. They are
   listed on the owning step node data and connected by `checkpoints` edges from
   that step. Checkpoint labels must be non-empty after trimming. Empty labels
