@@ -545,9 +545,12 @@ The parser emits names and type reference strings; the checker owns binding.
   `INTENT_GRAPH_EDGE_UNRESOLVED`; a step `Input` node without exactly one
   incoming `data` edge emits `INTENT_GRAPH_INPUT_UNBOUND`; a `data` edge with
   an invalid producer or consumer emits `INTENT_GRAPH_DATA_INVALID`; a `Goal`
-  node that lacks its `${goal_id}:completion` `Completion` node, lacks exactly
-  one outgoing `completes` edge to that node, or has `completes` edges to
-  another completion emits `INTENT_GRAPH_GOAL_COMPLETION_INVALID`; a
+  node whose parameters differ from owned goal input nodes or whose output
+  metadata differs from its `Completion` emits
+  `INTENT_GRAPH_GOAL_METADATA_INVALID`; a `Goal` node that lacks its
+  `${goal_id}:completion` `Completion` node, lacks exactly one outgoing
+  `completes` edge to that node, or has `completes` edges to another completion
+  emits `INTENT_GRAPH_GOAL_COMPLETION_INVALID`; a
   `Effect` node or verification `Check` node with `data.effect` that lacks an
   incoming `authorizes` edge from a `Capability`, or whose incoming
   `authorizes` edge is not from a `Capability`, emits

@@ -2424,6 +2424,7 @@ function validateGraph(graph, options = {}) {
     if (graphNode.kind !== "Goal") {
       continue;
     }
+    diagnostics.push(...validateGraphGoalMetadata(nodesById, incomingEdgesByNode, graphNode, fallbackSpan));
     const completionDiagnostic = validateGoalCompletionOwnership(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
     if (completionDiagnostic) {
       diagnostics.push(completionDiagnostic);
@@ -2551,6 +2552,82 @@ function validateGraphGoal(graphNode, graphSpan) {
     output_type_is_valid: outputTypeIsValid,
     output_type_span_is_valid: outputTypeSpanIsValid,
   });
+}
+
+function validateGraphGoalMetadata(nodesById, incomingEdgesByNode, graphNode, fallbackSpan) {
+  return [
+    validateGraphGoalParameterMetadata(nodesById, incomingEdgesByNode, graphNode, fallbackSpan),
+    validateGraphGoalCompletionMetadata(nodesById, graphNode, fallbackSpan),
+  ].filter((diagnostic) => diagnostic !== null);
+}
+
+function validateGraphGoalParameterMetadata(nodesById, incomingEdgesByNode, graphNode, fallbackSpan) {
+  const declaredParameters = graphNode.data?.parameters;
+  const ownedInputs = ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "supplies", "Input")
+    .filter((ownedNode) => ownedNode.data?.scope === "goal");
+  if (!Array.isArray(declaredParameters) || declaredParameters.some((parameter) => !isGraphParameterRecord(parameter)) || (declaredParameters.length === 0 && ownedInputs.length === 0)) {
+    return null;
+  }
+  const ownedValues = ownedInputs.map((ownedNode) => ({
+    name: ownedNode.label,
+    type: ownedNode.data?.type,
+    span: ownedNode.span,
+  }));
+  if (parameterArraysEqual(declaredParameters, ownedValues)) {
+    return null;
+  }
+  return error("INTENT_GRAPH_GOAL_METADATA_INVALID", `goal '${graphNode.label}' parameter metadata must match owned goal input nodes in source order.`, graphNode.span ?? fallbackSpan, {
+    goal: graphNode.label,
+    goal_id: graphNode.id,
+    field: "parameters",
+    declared_values: declaredParameters,
+    owned_values: ownedValues,
+    owned_node_ids: ownedInputs.map((ownedNode) => ownedNode.id),
+    declared_count: declaredParameters.length,
+    owned_count: ownedInputs.length,
+    mismatched_indexes: mismatchedParameterIndexes(declaredParameters, ownedValues),
+  });
+}
+
+function validateGraphGoalCompletionMetadata(nodesById, graphNode, fallbackSpan) {
+  const completionNode = nodesById.get(`${graphNode.id}:completion`);
+  if (completionNode?.kind !== "Completion" || !isGraphOutputMetadataValid(graphNode.data) || !isGraphOutputMetadataValid(completionNode.data)) {
+    return null;
+  }
+  const declaredValue = graphOutputMetadata(graphNode);
+  const ownedValue = graphOutputMetadata(completionNode);
+  if (outputMetadataEqual(declaredValue, ownedValue)) {
+    return null;
+  }
+  return error("INTENT_GRAPH_GOAL_METADATA_INVALID", `goal '${graphNode.label}' output metadata must match its completion node.`, graphNode.span ?? fallbackSpan, {
+    goal: graphNode.label,
+    goal_id: graphNode.id,
+    field: "outputType",
+    declared_value: declaredValue,
+    owned_value: ownedValue,
+    owned_node_ids: [completionNode.id],
+  });
+}
+
+function isGraphOutputMetadataValid(data) {
+  return data?.outputType === null
+    ? data.outputTypeSpan === null
+    : typeof data?.outputType === "string" && data.outputType.trim() !== "" && isSpan(data.outputTypeSpan);
+}
+
+function graphOutputMetadata(graphNode) {
+  return {
+    outputType: graphNode.data.outputType,
+    outputTypeSpan: graphNode.data.outputTypeSpan,
+  };
+}
+
+function outputMetadataEqual(left, right) {
+  return left?.outputType === right?.outputType && outputSpansEqual(left?.outputTypeSpan, right?.outputTypeSpan);
+}
+
+function outputSpansEqual(left, right) {
+  return left === null && right === null ? true : spansEqual(left, right);
 }
 
 function validateGraphCompletion(graphNode, graphSpan) {

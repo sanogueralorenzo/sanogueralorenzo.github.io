@@ -427,7 +427,9 @@ Validation expectations:
   `null` only when `outputType` is `null` or a valid span when `outputType` is
   non-empty. Malformed Goal node payloads emit `INTENT_GRAPH_GOAL_INVALID` and
   make graph output non-executable because runtimes must not infer goal titles,
-  inputs, output types, or provenance.
+  inputs, output types, or provenance. Goal parameter metadata must match owned
+  goal input nodes in source order, and goal output metadata must match the
+  owned `Completion` node; mismatches emit `INTENT_GRAPH_GOAL_METADATA_INVALID`.
 - Graph `Input` nodes are runtime data ports. Goal inputs and step inputs must
   carry `data.scope` as either `goal` or `step` and a non-empty `data.type`.
   Goal-scoped input nodes must supply their owning goal through exactly one

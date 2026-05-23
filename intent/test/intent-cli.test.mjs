@@ -221,6 +221,22 @@ function attachedStepValues(graph, step, field) {
     .map((edge) => nodesById.get(edge.from)).sort(spanSort).map((node) => node.data.policy);
 }
 
+function attachedGoalValues(graph, goal, field) {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  if (field === "parameters") {
+    return graph.edges
+      .filter((edge) => edge.kind === "supplies" && edge.to === goal.id && nodesById.get(edge.from)?.kind === "Input" && nodesById.get(edge.from)?.data.scope === "goal")
+      .map((edge) => nodesById.get(edge.from))
+      .sort(spanSort)
+      .map((node) => ({ name: node.label, type: node.data.type, span: node.span }));
+  }
+  const completion = nodesById.get(`${goal.id}:completion`);
+  return {
+    outputType: completion?.data.outputType,
+    outputTypeSpan: completion?.data.outputTypeSpan,
+  };
+}
+
 function defaultGraphNodeData(kind, data) {
   const normalizedData = isPlainObject(data) ? data : {};
   if (kind === "Type") {
@@ -1735,6 +1751,22 @@ describe("intent static model CLI", () => {
     }), true);
   });
 
+  it("keeps goal metadata aligned with owned inputs and completion", () => {
+    for (const fixture of [VALID_CODE_CHANGE, VALID_DEPENDENCY_GRAPH, VALID_MEMORY_FLOW_GRAPH]) {
+      const graph = runJson(["graph", fixture]);
+      const goals = graph.nodes.filter((node) => node.kind === "Goal");
+
+      assert.equal(graph.ok, true);
+      for (const goal of goals) {
+        assert.deepEqual(goal.data.parameters, attachedGoalValues(graph, goal, "parameters"));
+        assert.deepEqual({
+          outputType: goal.data.outputType,
+          outputTypeSpan: goal.data.outputTypeSpan,
+        }, attachedGoalValues(graph, goal, "outputType"));
+      }
+    }
+  });
+
   it("emits step requirement checks as preconditions without completion verification edges", () => {
     const graph = runJson(["graph", VALID_STEP_REQUIREMENTS]);
     const stepRequirement = graph.nodes.find((node) => node.kind === "Check" && node.data.scope === "step");
@@ -3090,6 +3122,36 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[4].goal_id, "goal:unexpected-output-span");
     assert.equal(diagnostics[4].output_type_is_valid, true);
     assert.equal(diagnostics[4].output_type_span_is_valid, false);
+  });
+
+  it("validates graph goal metadata diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1), data: {
+          parameters: [{ name: "ticket", type: "Ticket", span: testSpan(2) }],
+          outputType: "Report",
+          outputTypeSpan: testSpan(3),
+        } },
+        { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: testSpan(2), data: { scope: "goal", type: "Finding" } },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4), data: { outputType: "Patch", outputTypeSpan: testSpan(4) } },
+      ],
+      edges: [
+        { from: "goal:demo:input:ticket", to: "goal:demo", kind: "supplies", data: { parameter: "ticket", type: "Finding", sourceSpan: testSpan(2), targetSpan: testSpan(2) } },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_GOAL_METADATA_INVALID");
+
+    assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.field), ["parameters", "outputType"]);
+    assert.deepEqual(diagnostics[0].declared_values.map((parameter) => parameter.type), ["Ticket"]);
+    assert.deepEqual(diagnostics[0].owned_values.map((parameter) => parameter.type), ["Finding"]);
+    assert.deepEqual(diagnostics[0].owned_node_ids, ["goal:demo:input:ticket"]);
+    assert.equal(diagnostics[0].declared_count, 1);
+    assert.equal(diagnostics[0].owned_count, 1);
+    assert.deepEqual(diagnostics[0].mismatched_indexes, [0]);
+    assert.equal(diagnostics[1].declared_value.outputType, "Report");
+    assert.equal(diagnostics[1].owned_value.outputType, "Patch");
+    assert.deepEqual(diagnostics[1].owned_node_ids, ["goal:demo:completion"]);
   });
 
   it("validates graph step policy diagnostics", () => {

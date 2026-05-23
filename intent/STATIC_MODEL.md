@@ -678,7 +678,9 @@ Next graph envelope validation milestone:
   `null` only when `outputType` is `null` or a valid span when `outputType` is
   non-empty. Malformed Goal node payloads emit `INTENT_GRAPH_GOAL_INVALID` and
   make graph output non-executable because runtimes must not infer goal titles,
-  inputs, output types, or provenance.
+  inputs, output types, or provenance. Goal parameter metadata must match owned
+  goal input nodes in source order, and goal output metadata must match the
+  owned `Completion` node; mismatches emit `INTENT_GRAPH_GOAL_METADATA_INVALID`.
 - Runtime Step node metadata is part of graph validation. `Step` node data must
   carry arrays for `inputs`, `effects`, `requirements`, `checkpoints`,
   `approvals`, `timeouts`, `retries`, and `memoryAccesses`. Each input must be
@@ -1882,6 +1884,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_TYPE_INVALID`
 - `INTENT_GRAPH_TYPE_DECLARE_INVALID`
 - `INTENT_GRAPH_GOAL_INVALID`
+- `INTENT_GRAPH_GOAL_METADATA_INVALID`
 - `INTENT_GRAPH_STEP_INVALID`
 - `INTENT_GRAPH_STEP_METADATA_INVALID`
 - `INTENT_GRAPH_PLAN_INVALID`
@@ -2421,6 +2424,8 @@ type, the checker selects the nearest prior value in source order and emits the
 chosen edge deterministically.
 Parameter data embedded in `Goal`, `Step`, `Input`, `supplies`, `data`, and
 `requires` graph payloads retains the declaring parameter `span`.
+Goal parameter metadata must match owned goal `Input` nodes reached through
+role-valid `supplies` edges in source order.
 Graph `supplies` edge payloads must include non-empty `parameter`, non-empty
 `type`, and valid `sourceSpan` and `targetSpan` values for the declared goal
 parameter, and those values must match the source goal input name/type/span and
@@ -2554,6 +2559,9 @@ parameter record with non-empty `name` and `type` strings and a valid `span`,
 when `outputType` is neither `null` nor a non-empty string, or when
 `outputTypeSpan` is not `null` for a null `outputType` or a valid span for a
 non-empty `outputType`.
+Graph validation emits `INTENT_GRAPH_GOAL_METADATA_INVALID` when valid
+`Goal.data.parameters` differ from owned goal input nodes or when valid goal
+output metadata differs from the owned `Completion` node output metadata.
 Graph validation emits `INTENT_GRAPH_STEP_INVALID` when a `Step` node omits
 array data for `inputs`, `effects`, `requirements`, `checkpoints`, `approvals`,
 `timeouts`, or `retries`, when any step input is not a valid parameter record
@@ -2758,7 +2766,9 @@ valid `span`. `outputType` may be `null` or a non-empty string; `outputTypeSpan`
 must be `null` when `outputType` is `null` and a valid span when `outputType`
 is non-empty. Malformed Goal node payloads emit `INTENT_GRAPH_GOAL_INVALID` and
 make graph output non-executable because runtimes must not infer goal titles,
-inputs, output types, or provenance.
+inputs, output types, or provenance. Valid Goal parameter metadata must match
+owned goal `Input` nodes in source order, and valid Goal output metadata must
+match `${goal_id}:completion` `Completion.data.outputType/outputTypeSpan`.
 
 Step nodes carry the runtime graph contract for executable work. Their data
 must include arrays for `inputs`, `effects`, `requirements`, `checkpoints`,
