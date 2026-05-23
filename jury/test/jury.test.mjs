@@ -916,6 +916,48 @@ test("release metadata references existing schemas, exports, and commands", asyn
     assert.match(artifact.schema_version, /^jury\.(check|verdict|review_bundle)\.v1$/);
   }
 
+  const guide = await readFile(join(repoRoot, "jury", release.ciAdoption.guide), "utf8");
+  assert.ok(guide.includes("release.json"));
+  assert.deepEqual(
+    release.ciAdoption.workflows.map((workflow) => workflow.variant),
+    [
+      "unsigned-single-job",
+      "signed-producer",
+      "signed-artifact-handoff",
+      "reusable-downstream-verifier",
+    ],
+  );
+
+  for (const workflow of release.ciAdoption.workflows) {
+    assert.match(workflow.path, /^examples\/ci\/.+\.yml$/);
+    const workflowYaml = await readFile(join(repoRoot, "jury", workflow.path), "utf8");
+    assert.ok(guide.includes(workflow.path), `CI_ADOPTION.md should mention ${workflow.path}`);
+    assert.ok(workflow.trustBoundary.length > 0, `${workflow.variant} must define a trust boundary`);
+    assert.ok(workflow.artifacts.length > 0, `${workflow.variant} must list artifacts`);
+    for (const artifactName of workflow.artifacts) {
+      assert.ok(guide.includes(artifactName), `CI_ADOPTION.md should mention ${artifactName}`);
+    }
+
+    const uploadPaths = extractWorkflowUploadPaths(workflowYaml);
+    if (workflow.variant === "reusable-downstream-verifier") {
+      const defaults = extractWorkflowCallInputDefaults(workflowYaml);
+      const defaultArtifacts = [
+        defaults.get("verdict-out"),
+        defaults.get("gate-out"),
+        `${defaults.get("state-dir")}/*.jsonl`,
+      ];
+
+      assert.deepEqual(new Set(workflow.artifacts), new Set(defaultArtifacts));
+      assert.deepEqual(new Set(uploadPaths), new Set([
+        "${{ inputs.verdict-out }}",
+        "${{ inputs.gate-out }}",
+        "${{ inputs.state-dir }}/*.jsonl",
+      ]));
+    } else {
+      assert.deepEqual(new Set(workflow.artifacts), new Set(uploadPaths));
+    }
+  }
+
   for (const commandName of ["judge", "gate", "bundle export", "bundle preflight", "bundle import", "check", "demo code-change"]) {
     assert.ok(release.cli.commands.includes(commandName), `${commandName} must be listed`);
   }
@@ -1644,6 +1686,8 @@ test("migration doc preserves the release artifact contract", async () => {
   assert.ok(migration.includes("verdict.json"));
   assert.ok(migration.includes(".jury/*.jsonl"));
   assert.ok(migration.includes("release.json"));
+  assert.ok(migration.includes("CI adoption guide paths"));
+  assert.ok(migration.includes("workflow variants"));
 });
 
 test("release checklist links the adoption path and valid artifacts", async () => {
@@ -1656,6 +1700,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   for (const requiredLink of [
     "QUICKSTART.md",
     "CI_ADOPTION.md",
+    "release.json",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
@@ -1694,7 +1739,13 @@ test("release checklist links the adoption path and valid artifacts", async () =
     assert.ok(release.ciArtifacts.includes(artifact), `release.json should list ${artifact}`);
   }
 
+  assert.ok(checklist.includes("ciAdoption"));
+  for (const workflow of release.ciAdoption.workflows) {
+    assert.ok(linkedTargets.includes(workflow.path), `RELEASE_CHECKLIST.md should link ${workflow.path}`);
+  }
+
   assert.ok(readme.includes("RELEASE_CHECKLIST.md"));
+  assert.ok(readme.includes("CI workflow variants"));
 
   const verdict = JSON.parse(await readFile(join(ciQuickstartFixturesDir, "verdict.json"), "utf8"));
   const bundle = JSON.parse(await readFile(join(ciQuickstartFixturesDir, "review-bundle.json"), "utf8"));
@@ -1727,6 +1778,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/fixtures/key-policy-rotation",
     "MIGRATION.md",
     "RELEASE_CHECKLIST.md",
+    "release.json",
     "TROUBLESHOOTING.md",
   ]) {
     assert.ok(linkedTargets.includes(requiredLink), `MAINTAINER_HANDOFF.md should link ${requiredLink}`);
@@ -1767,7 +1819,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
   assert.match(handoff, /downloads the signed producer artifact/);
-  assert.match(handoff, /release metadata for CI adoption guide paths/);
+  assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
+  assert.match(handoff, /release metadata/);
+  assert.match(handoff, /package publication notes for the CI adoption metadata contract/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
@@ -1933,6 +1987,57 @@ function extractWorkflowSingleLineRun(workflow, stepName) {
   assert.ok(runLine, `${stepName} run command should exist`);
 
   return runLine.trim().slice("run: ".length);
+}
+
+function extractWorkflowUploadPaths(workflow) {
+  const lines = workflow.split("\n");
+  const paths = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const pathMatch = line.match(/^(\s*)path:\s*\|$/);
+    if (!pathMatch) {
+      continue;
+    }
+
+    const pathIndent = pathMatch[1].length;
+    for (let pathLineIndex = index + 1; pathLineIndex < lines.length; pathLineIndex += 1) {
+      const pathLine = lines[pathLineIndex];
+      if (pathLine.trim() === "") {
+        continue;
+      }
+
+      const currentIndent = pathLine.match(/^(\s*)/)?.[1].length ?? 0;
+      if (currentIndent <= pathIndent) {
+        break;
+      }
+
+      paths.push(pathLine.trim());
+    }
+  }
+
+  return paths;
+}
+
+function extractWorkflowCallInputDefaults(workflow) {
+  const lines = workflow.split("\n");
+  const defaults = new Map();
+  let currentInput = null;
+
+  for (const line of lines) {
+    const inputMatch = line.match(/^      ([a-z][a-z0-9-]*):$/);
+    if (inputMatch) {
+      currentInput = inputMatch[1];
+      continue;
+    }
+
+    const defaultMatch = line.match(/^        default: (.+)$/);
+    if (currentInput && defaultMatch) {
+      defaults.set(currentInput, defaultMatch[1]);
+    }
+  }
+
+  return defaults;
 }
 
 function shellQuote(value) {

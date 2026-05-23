@@ -52,7 +52,7 @@ node jury/bin/jury.mjs check --state-dir .jury-imported --strict
 
 ## Compatibility
 
-Use [release.json](release.json) to discover supported schema files, state files, export examples, and CLI commands. Consumers should reject artifacts with unknown `schema_version` values instead of guessing.
+Use [release.json](release.json) to discover supported schema files, state files, export examples, CLI commands, CI adoption guide paths, and workflow variants. Consumers should reject artifacts with unknown `schema_version` values instead of guessing.
 
 Run `bundle preflight` before `bundle import` for third-party bundles. Preflight reports all bundle validation errors it can find and exits before creating or mutating `.jury/` state. Import consumers should enforce `--expect-producer-name`, `--expect-producer-version`, `--expect-source`, and `--expect-revision-pattern` before trusting the bundle.
 

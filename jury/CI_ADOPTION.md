@@ -2,14 +2,16 @@
 
 Use this guide to pick the smallest Jury CI path that still matches the trust boundary of the repository.
 
+The same workflow paths and artifact expectations are listed in [release.json](release.json) under `ciAdoption` so release tooling can consume the contract without parsing this guide.
+
 ## Choose a Workflow
 
 | Need | Use | Produces | Trust boundary |
 | --- | --- | --- | --- |
 | Single-job verdict and portable review state | [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml) | `verdict.json`, `gate.json`, `review-bundle.json`, `.jury/*.jsonl` | Same job produces and consumes the verdict. |
 | Single producer job with signed output | [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml) | `verdict.json`, `gate.json`, `review-bundle.signed.json`, `.jury/*.jsonl` | Producer signs the bundle with `secrets.JURY_CI_PRIVATE_KEY`. |
-| Producer and consumer jobs in one workflow | [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml) | Signed producer artifact plus downstream `downstream-verdict.json` and `downstream-gate.json` | Consumer downloads the signed artifact and verifies it with `jury-key-policy.json`. |
-| Reusable downstream verifier | [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml) | Imported verdict, gate output, and `.jury-trusted/*.jsonl` | A downstream workflow receives a signed bundle and reviewed key policy. |
+| Producer and consumer jobs in one workflow | [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml) | Producer `verdict.json`, `gate.json`, `review-bundle.signed.json`, `.jury/*.jsonl`, plus `downstream-verdict.json`, `downstream-gate.json`, and `.jury-downstream/*.jsonl` | Consumer downloads the signed artifact and verifies it with `jury-key-policy.json`. |
+| Reusable downstream verifier | [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml) | `imported-verdict.json`, `trusted-gate.json`, and `.jury-trusted/*.jsonl` | A downstream workflow receives a signed bundle and reviewed key policy. |
 
 ## Setup Checklist
 

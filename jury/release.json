@@ -54,6 +54,57 @@
     "reviewBundle": "examples/exports/review-bundle.accept.v1.json",
     "verdict": "examples/exports/verdict.accept.v1.json"
   },
+  "ciAdoption": {
+    "guide": "CI_ADOPTION.md",
+    "workflows": [
+      {
+        "variant": "unsigned-single-job",
+        "path": "examples/ci/jury-review-gate.yml",
+        "trustBoundary": "single-job",
+        "artifacts": [
+          "verdict.json",
+          "gate.json",
+          "review-bundle.json",
+          ".jury/*.jsonl"
+        ]
+      },
+      {
+        "variant": "signed-producer",
+        "path": "examples/ci/jury-signed-review-gate.yml",
+        "trustBoundary": "signed producer output",
+        "artifacts": [
+          "verdict.json",
+          "gate.json",
+          "review-bundle.signed.json",
+          ".jury/*.jsonl"
+        ]
+      },
+      {
+        "variant": "signed-artifact-handoff",
+        "path": "examples/ci/jury-signed-artifact-handoff.yml",
+        "trustBoundary": "downloaded producer artifact",
+        "artifacts": [
+          "verdict.json",
+          "gate.json",
+          "review-bundle.signed.json",
+          ".jury/*.jsonl",
+          "downstream-verdict.json",
+          "downstream-gate.json",
+          ".jury-downstream/*.jsonl"
+        ]
+      },
+      {
+        "variant": "reusable-downstream-verifier",
+        "path": "examples/ci/jury-trusted-bundle-verify.yml",
+        "trustBoundary": "reusable trusted-producer verification",
+        "artifacts": [
+          "imported-verdict.json",
+          "trusted-gate.json",
+          ".jury-trusted/*.jsonl"
+        ]
+      }
+    ]
+  },
   "ciArtifacts": [
     "verdict.json",
     "gate.json",
