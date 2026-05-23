@@ -553,6 +553,30 @@ a {
   background: #9f9778;
 }
 
+.unmade-object-inventory {
+  background: #eee6d8;
+}
+
+.unmade-object-label {
+  background: #9fb1aa;
+}
+
+.unmade-object-invitation {
+  background: #dacb9a;
+}
+
+.unmade-object-score {
+  background: #efe7dc;
+}
+
+.unmade-object-transcript {
+  background: #c9d4d8;
+}
+
+.unmade-object-door {
+  background: #6f9fbc;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
