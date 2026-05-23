@@ -95,7 +95,8 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(showJson.memory.commit, payload.commit);
     assert.equal(showJson.memory.memory, payload.memory);
     assert.equal(showJson.memory.intent, "remember why app text exists");
-    assert.deepEqual(showJson.memory.summary, ["created a minimal text fixture"]);
+    assert.deepEqual(showJson.memory.lifecycle, ["total: 4", "prompt: 1", "response: 1", "tool: 1", "decision: 1"]);
+    assert.deepEqual(showJson.memory.summary, ["created a minimal text fixture", "git commit wrote app.txt"]);
     assert.deepEqual(showJson.memory.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(showJson.memory.responses, ["created a minimal text fixture"]);
     assert.deepEqual(showJson.memory.tools, ["git commit wrote app.txt"]);
@@ -129,6 +130,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(index.entries[0].checkpoint, /^[0-9a-f]+$/);
     assert.match(index.entries[0].session, /^[A-Za-z0-9-]+$/);
     assert.equal(index.entries[0].decisions, "- Use committed Markdown for reviewable memory");
+    assert.equal(index.entries[0].lifecycle, "- total: 4\n- prompt: 1\n- response: 1\n- tool: 1\n- decision: 1");
 
     const decisionSearch = await runTrace(repo, ["search", "--field", "decisions", "reviewable"]);
     assert.match(decisionSearch.stdout, /\.trace\/commits\//);
@@ -139,6 +141,10 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const summarySearch = JSON.parse((await runTrace(repo, ["search", "--field", "summary", "--json", "fixture"])).stdout);
     assert.equal(summarySearch.field, "summary");
     assert.equal(summarySearch.matches, 1);
+    const lifecycleSearch = JSON.parse((await runTrace(repo, ["search", "--field", "lifecycle", "--json", "decision"])).stdout);
+    assert.equal(lifecycleSearch.field, "lifecycle");
+    assert.equal(lifecycleSearch.matches, 1);
+    assert.match(lifecycleSearch.results[0].snippet, /decision: 1/);
     const toolSearch = JSON.parse((await runTrace(repo, ["search", "--field", "tools", "--json", "commit"])).stdout);
     assert.equal(toolSearch.field, "tools");
     assert.equal(toolSearch.matches, 1);
@@ -181,6 +187,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(recallJson.results[0].file, payload.memory);
     assert.match(recallJson.results[0].checkpoint, /^[0-9a-f]+$/);
     assert.match(recallJson.results[0].session, /^[A-Za-z0-9-]+$/);
+    assert.match(recallJson.results[0].lifecycle, /decision: 1/);
     assert.match(recallJson.results[0].decisions, /Use committed Markdown/);
     assert.match(recallJson.results[0].responses, /created a minimal text fixture/);
     assert.match(recallJson.results[0].tools, /git commit wrote app.txt/);
@@ -276,6 +283,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(summaryJson.schema_version, "trace.summary.v1");
     assert.equal(summaryJson.kind, "range");
     assert.deepEqual(summaryJson.intent, ["remember why app text exists"]);
+    assert.deepEqual(summaryJson.lifecycle, ["decision: 1", "prompt: 1", "response: 1", "tool: 1", "total: 4"]);
     assert.deepEqual(summaryJson.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(summaryJson.files, ["app.txt"]);
     assert.deepEqual(summaryJson.validation, ["node --test"]);
@@ -284,6 +292,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(summaryJson.commits[0].checkpoint, /^[0-9a-f]+$/);
     assert.match(summaryJson.commits[0].session, /^[A-Za-z0-9-]+$/);
     assert.equal(summaryJson.commits[0].memory, payload.memory);
+    assert.deepEqual(summaryJson.commits[0].lifecycle, ["total: 4", "prompt: 1", "response: 1", "tool: 1", "decision: 1"]);
     assert.deepEqual(summaryJson.commits[0].files, ["app.txt"]);
     assert.deepEqual(summaryJson.commits[0].validation, ["node --test"]);
     assert.deepEqual(summaryJson.commits[0].decisions, ["Use committed Markdown for reviewable memory"]);
@@ -361,6 +370,7 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
     assert.match(prBody.stdout, /Trace PR Summary/);
     assert.match(prBody.stdout, /add retry memory for service/);
     assert.match(prBody.stdout, /## Agents\n\n- adapter: codex/);
+    assert.match(prBody.stdout, /## Lifecycle\n\n- total: 3\n- prompt: 1\n- decision: 1\n- risk: 1/);
     assert.match(prBody.stdout, /Keep raw checkpoint data outside the project tree/);
     assert.match(prBody.stdout, /## Handoff\n\n- Preserve the decision: Keep raw checkpoint data outside the project tree/);
     assert.match(prBody.stdout, /token=REDACTED/);
@@ -368,12 +378,18 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
 
     const prBodyJson = JSON.parse((await runTrace(repo, ["pr-body", "HEAD", "--json"])).stdout);
     assert.deepEqual(prBodyJson.agents, ["adapter: codex"]);
+    assert.deepEqual(prBodyJson.lifecycle, ["decision: 1", "prompt: 1", "risk: 1", "total: 3"]);
     assert.deepEqual(prBodyJson.commits[0].agents, ["adapter: codex"]);
+    assert.deepEqual(prBodyJson.commits[0].lifecycle, ["total: 3", "prompt: 1", "decision: 1", "risk: 1"]);
 
     const agentSearch = JSON.parse((await runTrace(repo, ["search", "--field", "agents", "--json", "codex"])).stdout);
     assert.equal(agentSearch.field, "agents");
     assert.equal(agentSearch.matches, 1);
     assert.match(agentSearch.results[0].snippet, /adapter: codex/);
+    const lifecycleSearch = JSON.parse((await runTrace(repo, ["search", "--field", "lifecycle", "--json", "risk"])).stdout);
+    assert.equal(lifecycleSearch.field, "lifecycle");
+    assert.equal(lifecycleSearch.matches, 1);
+    assert.match(lifecycleSearch.results[0].snippet, /risk: 1/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
