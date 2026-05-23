@@ -2083,23 +2083,32 @@ async function outcomeAfterTaskEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
   const eventId = hookEventId(event);
-  const success = hookBoolean(event.success, "event.success", false);
-  const status = typeof event.status === "string" ? event.status : (success ? "success" : "failure");
+  const claimedSuccess = hookBoolean(event.success, "event.success", false);
+  const claimedStatus = typeof event.status === "string" ? event.status : (claimedSuccess ? "success" : "failure");
   let activePrecedentIds = [];
   let sessionEvent = null;
   let learning = null;
   let warrantStatus = null;
+  let finalizationCompliance = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
+    const sessionEvents = await readSessionEvents(stateDir, sessionId);
+    finalizationCompliance = finalizationComplianceForOutcome(sessionEvents, claimedSuccess);
     activePrecedentIds = await attributedPrecedentIdsForSession(stateDir, sessionId, event.attributedPrecedents, event.deliveryId);
     warrantStatus = await warrantStatusForOutcome(stateDir, event.warrantId);
+    const success = finalizationCompliance.effectiveSuccess;
+    const status = claimedSuccess && !success
+      ? finalizationCompliance.status
+      : claimedStatus;
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
       hook: event.hook,
       sessionId,
       ...eventIdField(eventId),
+      claimedSuccess,
+      claimedStatus,
       success,
       status,
       task: typeof event.task === "string" ? event.task : null,
@@ -2112,6 +2121,7 @@ async function outcomeAfterTaskEventHook(event) {
       deliveryId: stringOrNull(event.deliveryId),
       warrantId: stringOrNull(event.warrantId),
       warrantStatus,
+      finalizationCompliance,
       precedent: event.precedent ?? null,
       replay: event.replay ?? null,
     });
@@ -2123,6 +2133,8 @@ async function outcomeAfterTaskEventHook(event) {
         hook: event.hook,
         sessionId,
         ...eventIdField(eventId),
+        claimedSuccess: sessionEvent.event.claimedSuccess,
+        claimedStatus: sessionEvent.event.claimedStatus,
         success: sessionEvent.event.success,
         status: sessionEvent.event.status,
         task: sessionEvent.event.task,
@@ -2134,6 +2146,7 @@ async function outcomeAfterTaskEventHook(event) {
         deliveryId: stringOrNull(event.deliveryId),
         warrantId: stringOrNull(event.warrantId),
         warrantStatus,
+        finalizationCompliance: sessionEvent.event.finalizationCompliance,
       });
     }
 
@@ -2169,6 +2182,7 @@ async function outcomeAfterTaskEventHook(event) {
       tokenEstimate: sessionEvent.event.tokenEstimate,
       attributedPrecedents: activePrecedentIds,
       warrantStatus,
+      finalizationCompliance: sessionEvent.event.finalizationCompliance,
     },
     learning,
   });
@@ -5623,27 +5637,41 @@ async function warrantHealthSummary(stateDir) {
 
 async function finalizationHealthSummary(stateDir) {
   const pending = [];
+  const missing = [];
   const bypassed = [];
 
   for (const entry of await runtimeSessionEntries(stateDir)) {
     let blocked = null;
+    const previous = [];
 
     for (const event of entry.events) {
+      if (event.hook === "outcome.after_task" && event.claimedSuccess === true) {
+        const compliance = event.finalizationCompliance ?? finalizationComplianceForOutcome(previous, true);
+        if (compliance.status === "missing_finalization") {
+          missing.push(formatFinalizationComplianceDebt(entry.sessionId, event, compliance));
+        } else if (compliance.status === "blocked_finalization") {
+          bypassed.push(formatFinalizationComplianceDebt(entry.sessionId, event, compliance));
+        }
+      }
+
       if (event.hook === "finalize.before_response" && event.finalization) {
         if (event.finalization.status === "blocked") {
           blocked = event;
         } else if (event.finalization.decision === "ready") {
           blocked = null;
         }
+        previous.push(event);
         continue;
       }
 
       if (event.hook === "outcome.after_task") {
-        if (blocked && event.success === true) {
+        if (blocked && event.claimedSuccess === true && !event.finalizationCompliance) {
           bypassed.push(formatBlockedFinalizationDebt(entry.sessionId, blocked, event));
         }
         blocked = null;
       }
+
+      previous.push(event);
     }
 
     if (blocked) {
@@ -5653,12 +5681,26 @@ async function finalizationHealthSummary(stateDir) {
 
   return {
     pending: pending.length,
+    missing: missing.length,
     bypassed: bypassed.length,
-    needsAttention: bypassed.length,
+    needsAttention: missing.length + bypassed.length,
     details: {
       pending: pending.slice(0, 20),
+      missing: missing.slice(0, 20),
       bypassed: bypassed.slice(0, 20),
     },
+  };
+}
+
+function formatFinalizationComplianceDebt(sessionId, outcomeEvent, compliance) {
+  return {
+    sessionId,
+    finalizationEventId: compliance.finalizationEventId ?? null,
+    outcomeEventId: outcomeEvent.eventId ?? null,
+    status: compliance.status,
+    decision: compliance.decision ?? null,
+    reason: compliance.reason ?? null,
+    nextAction: compliance.nextAction ?? null,
   };
 }
 
@@ -5670,6 +5712,65 @@ function formatBlockedFinalizationDebt(sessionId, finalizationEvent, outcomeEven
     decision: finalizationEvent.finalization?.decision ?? null,
     reason: finalizationEvent.finalization?.reason ?? null,
     nextAction: finalizationEvent.finalization?.nextAction ?? null,
+  };
+}
+
+function finalizationComplianceForOutcome(sessionEvents, claimedSuccess) {
+  const turnEvents = eventsSinceLastOutcome(sessionEvents);
+  const latestTriggerIndex = turnEvents.findLastIndex((event) => FINALIZATION_TRIGGER_HOOKS.has(event.hook));
+  if (latestTriggerIndex < 0) {
+    return {
+      status: "not_required",
+      claimedSuccess,
+      effectiveSuccess: claimedSuccess,
+      reason: "no_finalization_trigger",
+    };
+  }
+
+  const latestFinalizationIndex = turnEvents.findLastIndex((event) => event.hook === "finalize.before_response");
+  if (latestFinalizationIndex < latestTriggerIndex) {
+    return {
+      status: "missing_finalization",
+      claimedSuccess,
+      effectiveSuccess: claimedSuccess,
+      reason: "missing_finalize_before_response",
+    };
+  }
+
+  const finalizationEvent = turnEvents[latestFinalizationIndex];
+  const finalization = finalizationEvent.finalization ?? {};
+  if (finalization.decision === "ready") {
+    return {
+      status: "ready",
+      claimedSuccess,
+      effectiveSuccess: claimedSuccess,
+      finalizationEventId: finalizationEvent.eventId ?? null,
+      decision: finalization.decision,
+      reason: finalization.reason ?? null,
+      nextAction: finalization.nextAction ?? null,
+    };
+  }
+
+  if (finalization.status === "blocked") {
+    return {
+      status: "blocked_finalization",
+      claimedSuccess,
+      effectiveSuccess: false,
+      finalizationEventId: finalizationEvent.eventId ?? null,
+      decision: finalization.decision ?? null,
+      reason: finalization.reason ?? null,
+      nextAction: finalization.nextAction ?? null,
+    };
+  }
+
+  return {
+    status: "unknown_finalization",
+    claimedSuccess,
+    effectiveSuccess: claimedSuccess,
+    finalizationEventId: finalizationEvent.eventId ?? null,
+    decision: finalization.decision ?? null,
+    reason: finalization.reason ?? null,
+    nextAction: finalization.nextAction ?? null,
   };
 }
 
@@ -9252,13 +9353,13 @@ async function checkFinalizations(checks, stateDir, strict) {
   const health = await finalizationHealthSummary(stateDir);
 
   checks.push({
-    ok: !strict || health.bypassed === 0,
+    ok: !strict || health.needsAttention === 0,
     name: "finalization",
     file: join(stateDir, "sessions"),
     strict,
     ...health,
-    message: strict && health.bypassed > 0
-      ? "successful outcome bypassed blocked finalize.before_response action"
+    message: strict && health.needsAttention > 0
+      ? "successful outcome bypassed or missed finalize.before_response readiness"
       : undefined,
   });
 }

@@ -417,6 +417,11 @@ async function recordSuccessfulSession(stateDir, success = true) {
     exitCode: 0,
     stdout: "passed",
   });
+  await hook(stateDir, {
+    schema_version: "precedent.v1",
+    hook: "finalize.before_response",
+    sessionId: "success-session",
+  });
   return hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "outcome.after_task",

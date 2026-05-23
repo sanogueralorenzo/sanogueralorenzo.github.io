@@ -547,7 +547,7 @@ test("strict check fails successful outcomes that bypass blocked finalization", 
       sessionId: "bypass-finalization",
       eventId: "finalize-1",
     });
-    await hook(stateDir, {
+    const outcome = await hook(stateDir, {
       schema_version: "precedent.v1",
       hook: "outcome.after_task",
       sessionId: "bypass-finalization",
@@ -562,11 +562,63 @@ test("strict check fails successful outcomes that bypass blocked finalization", 
     const finalizationCheck = payload.checks.find((check) => check.name === "finalization");
 
     assert.equal(blocked.decision, "validate");
+    assert.equal(outcome.outcome.success, false);
+    assert.equal(outcome.outcome.finalizationCompliance.status, "blocked_finalization");
+    assert.equal(outcome.outcome.finalizationCompliance.claimedSuccess, true);
     assert.equal(report.finalizationHealth.bypassed, 1);
     assert.equal(report.finalizationHealth.details.bypassed[0].finalizationEventId, "finalize-1");
     assert.equal(result.exitCode, 1);
     assert.equal(finalizationCheck.ok, false);
     assert.equal(finalizationCheck.bypassed, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("strict check fails successful outcomes that miss finalization", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "missing-finalization",
+      eventId: "validation-1",
+      command: "pnpm test",
+      exitCode: 0,
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "missing-finalization",
+      eventId: "outcome-1",
+      success: true,
+      status: "success",
+    });
+    const retry = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "missing-finalization",
+      eventId: "outcome-1",
+      success: true,
+      status: "success",
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const finalizationCheck = payload.checks.find((check) => check.name === "finalization");
+
+    assert.equal(outcome.outcome.success, true);
+    assert.equal(outcome.outcome.finalizationCompliance.status, "missing_finalization");
+    assert.equal(retry.deduped, true);
+    assert.equal(retry.outcome.finalizationCompliance.status, "missing_finalization");
+    assert.equal(report.finalizationHealth.missing, 1);
+    assert.equal(report.finalizationHealth.details.missing[0].outcomeEventId, "outcome-1");
+    assert.equal(result.exitCode, 1);
+    assert.equal(finalizationCheck.ok, false);
+    assert.equal(finalizationCheck.missing, 1);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

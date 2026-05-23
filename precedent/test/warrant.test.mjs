@@ -436,11 +436,52 @@ test("warrant closes satisfied outcomes with validation evidence", async () => {
       success: true,
     });
     assert.equal(outcome.outcome.warrantStatus.status, "satisfied");
+    assert.equal(outcome.outcome.finalizationCompliance.status, "missing_finalization");
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(report.warrantHealth.issued, 1);
     assert.equal(report.warrantHealth.satisfied, 1);
     assert.equal(report.warrantHealth.needsAttention, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("outcome preserves successful result after ready finalization", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const warrant = await issueWebhookWarrant(stateDir, "ready-outcome-session");
+
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "ready-outcome-session",
+      eventId: "validation-1",
+      warrantId: warrant.warrantId,
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const ready = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "ready-outcome-session",
+      eventId: "finalize-1",
+      warrantId: warrant.warrantId,
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "ready-outcome-session",
+      eventId: "outcome-1",
+      warrantId: warrant.warrantId,
+      success: true,
+    });
+
+    assert.equal(ready.decision, "ready");
+    assert.equal(outcome.outcome.success, true);
+    assert.equal(outcome.outcome.finalizationCompliance.status, "ready");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
