@@ -1009,8 +1009,17 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     const emptyList = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
     assert.deepEqual(emptyList.checkpoints, []);
 
+    const importPreview = JSON.parse((await runTrace(repo, ["checkpoint", "import", bundlePath, "--dry-run"])).stdout);
+    assert.equal(importPreview.ok, true);
+    assert.equal(importPreview.dryRun, true);
+    assert.equal(importPreview.imported, 2);
+    assert.equal(importPreview.retained, 2);
+    const emptyAfterPreview = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.deepEqual(emptyAfterPreview.checkpoints, []);
+
     const imported = JSON.parse((await runTrace(repo, ["checkpoint", "import", bundlePath])).stdout);
     assert.equal(imported.ok, true);
+    assert.equal(imported.dryRun, false);
     assert.equal(imported.imported, 2);
     const restored = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
     assert.deepEqual(restored.checkpoints.map((checkpoint) => checkpoint.checkpoint_id), ["checkpoint-a", "checkpoint-b"]);

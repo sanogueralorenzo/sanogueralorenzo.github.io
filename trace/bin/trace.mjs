@@ -955,6 +955,7 @@ async function importCheckpointBundle(values) {
   }
 
   const root = await repoRoot();
+  const dryRun = Boolean(args["dry-run"]);
   const inputPath = resolve(process.cwd(), input);
   const bundle = JSON.parse(await readFile(inputPath, "utf8"));
   const imported = checkpointBundleEntries(bundle);
@@ -970,8 +971,10 @@ async function importCheckpointBundle(values) {
     merged.set(checkpoint.path, checkpoint);
   }
 
-  await writeCheckpointTree(root, Array.from(merged.values()), `Trace checkpoint import ${imported.length}`);
-  print({ ok: true, path: inputPath, ref: CHECKPOINT_REF, imported: imported.length, retained: merged.size });
+  if (!dryRun) {
+    await writeCheckpointTree(root, Array.from(merged.values()), `Trace checkpoint import ${imported.length}`);
+  }
+  print({ ok: true, dryRun, path: inputPath, ref: CHECKPOINT_REF, imported: imported.length, retained: merged.size });
 }
 
 function checkpointBundleEntries(bundle) {
@@ -3578,7 +3581,7 @@ Usage:
   trace checkpoint push [remote] [--dry-run]
   trace checkpoint fetch [remote] [--dry-run]
   trace checkpoint export [--output trace-checkpoints.json]
-  trace checkpoint import <trace-checkpoints.json>
+  trace checkpoint import <trace-checkpoints.json> [--dry-run]
   trace checkpoint cleanup [--sessions-before-days 14] [--keep 100] [--dry-run]
   trace redact add <label> <regex>
   trace redact list

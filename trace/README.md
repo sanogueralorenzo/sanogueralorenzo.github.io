@@ -104,6 +104,7 @@ trace checkpoint verify
 trace checkpoint push origin --dry-run
 trace checkpoint export --output trace-checkpoints.json
 trace checkpoint import trace-checkpoints.json
+trace checkpoint import trace-checkpoints.json --dry-run
 trace checkpoint cleanup --sessions-before-days 14 --keep 100 --dry-run
 trace checkpoint cleanup --sessions-before-days 14 --keep 100
 trace redact add codename 'PROJECT-[A-Z]+'
@@ -172,6 +173,7 @@ node trace/bin/trace.mjs checkpoint verify
 node trace/bin/trace.mjs checkpoint push origin --dry-run
 node trace/bin/trace.mjs checkpoint export --output trace-checkpoints.json
 node trace/bin/trace.mjs checkpoint import trace-checkpoints.json
+node trace/bin/trace.mjs checkpoint import trace-checkpoints.json --dry-run
 node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14 --keep 100 --dry-run
 node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14 --keep 100
 node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
@@ -248,7 +250,7 @@ Checkpoint commands keep the raw side of Trace explicit:
 - `trace checkpoint status <remote>` compares the local checkpoint ref with a remote ref and prints the exact push/fetch commands needed to sync it.
 - `trace checkpoint verify` checks checkpoint payload shape, commit reachability, and stored SHA-256 integrity metadata.
 - `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref.
-- `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service.
+- `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service; add `--dry-run` to validate and preview an import without rewriting `refs/trace/checkpoints`.
 - `trace checkpoint cleanup --sessions-before-days 14 --keep 100` prunes old local raw session JSONL files from the git common directory and rewrites the checkpoint ref to retain only the newest checkpoint payloads when `--keep` is provided; add `--dry-run` to preview the exact removals without deleting sessions or rewriting the ref.
 
 Redaction is local and configurable. Built-in rules scrub common token/password shapes, environment-style secret names such as `OPENAI_API_KEY` and `GITHUB_TOKEN`, authorization headers, and high-entropy strings. Custom rules live in `.trace/config.json`:
