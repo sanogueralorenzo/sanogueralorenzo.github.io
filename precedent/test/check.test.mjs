@@ -527,6 +527,51 @@ test("check fails replacement candidates with unknown targets or traces", async 
   }
 });
 
+test("strict check fails successful outcomes that bypass blocked finalization", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "bypass-finalization",
+      eventId: "validation-1",
+      command: "pnpm test",
+      exitCode: 1,
+      stderr: "tests failed",
+    });
+    const blocked = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "bypass-finalization",
+      eventId: "finalize-1",
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "bypass-finalization",
+      eventId: "outcome-1",
+      success: true,
+      status: "success",
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const finalizationCheck = payload.checks.find((check) => check.name === "finalization");
+
+    assert.equal(blocked.decision, "validate");
+    assert.equal(report.finalizationHealth.bypassed, 1);
+    assert.equal(report.finalizationHealth.details.bypassed[0].finalizationEventId, "finalize-1");
+    assert.equal(result.exitCode, 1);
+    assert.equal(finalizationCheck.ok, false);
+    assert.equal(finalizationCheck.bypassed, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   await runJson(["init", "--state-dir", stateDir, "--json"]);
   const traceOut = join(stateDir, "trace.json");

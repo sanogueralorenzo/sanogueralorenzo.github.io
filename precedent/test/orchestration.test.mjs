@@ -174,6 +174,77 @@ test("orchestration.after_idle finalizes unfinished sessions", async () => {
   }
 });
 
+test("orchestration.after_idle re-surfaces blocked finalization without duplicating it", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "blocked-finalization",
+      "--event-id",
+      "warrant-1",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    const blocked = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "blocked-finalization",
+      eventId: "finalize-1",
+      warrantId: warrant.warrantId,
+    });
+    const idle = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "orchestration.after_idle",
+      sessionId: "blocked-finalization",
+      eventId: "idle-1",
+      warrantId: warrant.warrantId,
+    });
+
+    assert.equal(blocked.decision, "validate");
+    assert.equal(idle.idle.finalization.status, "blocked");
+    assert.equal(idle.idle.finalization.reason, "blocked_finalization_pending");
+    assert.deepEqual(idle.idle.finalization.nextAction, blocked.nextAction);
+    assert.equal(idle.idle.finalization.recorded, false);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/blocked-finalization.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.hook === "finalize.before_response").length, 1);
+
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "blocked-finalization",
+      eventId: "validation-1",
+      warrantId: warrant.warrantId,
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const ready = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "blocked-finalization",
+      eventId: "finalize-2",
+      warrantId: warrant.warrantId,
+    });
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+
+    assert.equal(ready.decision, "ready");
+    assert.equal(report.finalizationHealth.pending, 0);
+    assert.equal(report.finalizationHealth.bypassed, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("orchestration.after_idle skips already finalized sessions", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
 

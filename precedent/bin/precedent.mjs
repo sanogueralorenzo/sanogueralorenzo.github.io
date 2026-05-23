@@ -3978,6 +3978,7 @@ async function reportState() {
   const replayAudit = await replayAuditEntries(precedents, stateDir);
   const runtimeWiringHealth = await runtimeWiringHealthSummary(stateDir, events);
   const warrantHealth = await warrantHealthSummary(stateDir);
+  const finalizationHealth = await finalizationHealthSummary(stateDir);
   const artifactHealth = await candidateArtifactHealth(stateDir, candidates);
 
   const artifactCounts = {};
@@ -4000,6 +4001,7 @@ async function reportState() {
     repairHealth: repairHealthSummary(events, precedents),
     runtimeWiringHealth,
     warrantHealth,
+    finalizationHealth,
     artifactHealth,
     precedentHealth: precedents.map((precedent) => ({
       id: precedent.id,
@@ -4322,6 +4324,7 @@ async function checkState() {
   await checkCorrectionSafety(checks, stateDir, args.strict === true);
   await checkRuntimeWiring(checks, stateDir, args.strict === true);
   await checkWarrants(checks, stateDir, args.strict === true);
+  await checkFinalizations(checks, stateDir, args.strict === true);
   await checkNoRawSecrets(checks, stateDir);
   await checkManifestBuilds(checks);
   if (args.strict) {
@@ -5618,6 +5621,58 @@ async function warrantHealthSummary(stateDir) {
   };
 }
 
+async function finalizationHealthSummary(stateDir) {
+  const pending = [];
+  const bypassed = [];
+
+  for (const entry of await runtimeSessionEntries(stateDir)) {
+    let blocked = null;
+
+    for (const event of entry.events) {
+      if (event.hook === "finalize.before_response" && event.finalization) {
+        if (event.finalization.status === "blocked") {
+          blocked = event;
+        } else if (event.finalization.decision === "ready") {
+          blocked = null;
+        }
+        continue;
+      }
+
+      if (event.hook === "outcome.after_task") {
+        if (blocked && event.success === true) {
+          bypassed.push(formatBlockedFinalizationDebt(entry.sessionId, blocked, event));
+        }
+        blocked = null;
+      }
+    }
+
+    if (blocked) {
+      pending.push(formatBlockedFinalizationDebt(entry.sessionId, blocked, null));
+    }
+  }
+
+  return {
+    pending: pending.length,
+    bypassed: bypassed.length,
+    needsAttention: bypassed.length,
+    details: {
+      pending: pending.slice(0, 20),
+      bypassed: bypassed.slice(0, 20),
+    },
+  };
+}
+
+function formatBlockedFinalizationDebt(sessionId, finalizationEvent, outcomeEvent) {
+  return {
+    sessionId,
+    finalizationEventId: finalizationEvent.eventId ?? null,
+    outcomeEventId: outcomeEvent?.eventId ?? null,
+    decision: finalizationEvent.finalization?.decision ?? null,
+    reason: finalizationEvent.finalization?.reason ?? null,
+    nextAction: finalizationEvent.finalization?.nextAction ?? null,
+  };
+}
+
 async function candidateArtifactHealth(stateDir, candidates) {
   const candidateIds = new Set(candidates.map((candidate) => candidate.id));
   const rendered = [];
@@ -6761,12 +6816,12 @@ async function runIdleFinalization({ stateDir, sessionId, eventId, warrantId }) 
 
     if (!plan.needed) {
       result = {
-        status: "not_needed",
+        status: plan.pending ? "blocked" : "not_needed",
         reason: plan.reason,
-        decision: null,
-        nextAction: null,
-        finalization: null,
-        contextBlock: "",
+        decision: plan.finalization?.decision ?? null,
+        nextAction: plan.finalization?.nextAction ?? null,
+        finalization: plan.finalization ?? null,
+        contextBlock: plan.contextBlock ?? "",
         recorded: false,
         deduped: false,
         sessionEventPath: null,
@@ -6844,6 +6899,17 @@ async function idleFinalizationPlan({ stateDir, sessionEvents, explicitWarrantId
 
   const latestFinalizationIndex = turnEvents.findLastIndex((event) => event.hook === "finalize.before_response");
   if (latestFinalizationIndex > latestTriggerIndex) {
+    const latestFinalization = turnEvents[latestFinalizationIndex];
+    if (latestFinalization.finalization?.status === "blocked") {
+      return {
+        needed: false,
+        pending: true,
+        reason: "blocked_finalization_pending",
+        finalization: latestFinalization.finalization,
+        contextBlock: latestFinalization.contextBlock ?? formatFinalizeContextBlock(latestFinalization.finalization),
+      };
+    }
+
     return {
       needed: false,
       reason: "already_finalized",
@@ -9178,6 +9244,21 @@ async function checkWarrants(checks, stateDir, strict) {
     ...health,
     message: strict && health.needsAttention > 0
       ? "warrant outcome has unresolved or violated contract"
+      : undefined,
+  });
+}
+
+async function checkFinalizations(checks, stateDir, strict) {
+  const health = await finalizationHealthSummary(stateDir);
+
+  checks.push({
+    ok: !strict || health.bypassed === 0,
+    name: "finalization",
+    file: join(stateDir, "sessions"),
+    strict,
+    ...health,
+    message: strict && health.bypassed > 0
+      ? "successful outcome bypassed blocked finalize.before_response action"
       : undefined,
   });
 }
