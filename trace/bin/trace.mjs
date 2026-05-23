@@ -1152,10 +1152,14 @@ async function startSession(requestedSessionId) {
   await ensureTrace(root);
   const sessionId = requestedSessionId ? validateSessionId(requestedSessionId) : newSessionId();
   const file = await sessionPath(root, sessionId);
-  await mkdir(dirname(file), { recursive: true });
-  await writeFile(file, "", { flag: "a" });
-  await writeFile(await currentSessionPath(root), sessionId);
-  print({ ok: true, session: sessionId, path: relativePath(root, file) });
+  const event = await appendEvent(root, {
+    sessionId,
+    event: "note",
+    role: "system",
+    source: "trace-session",
+    message: "session started",
+  });
+  print({ ok: true, session: sessionId, path: relativePath(root, file), event: event.event });
 }
 
 async function endSession(expectedSessionId) {
@@ -1170,8 +1174,15 @@ async function endSession(expectedSessionId) {
     fail(`current session is ${current}, not ${expectedSessionId}`);
   }
 
+  const event = await appendEvent(root, {
+    sessionId: current,
+    event: "note",
+    role: "system",
+    source: "trace-session",
+    message: "session ended",
+  });
   await rm(await currentSessionPath(root), { force: true });
-  print({ ok: true, ended: current, current: null });
+  print({ ok: true, ended: current, current: null, event: event.event });
 }
 
 async function listSessions() {

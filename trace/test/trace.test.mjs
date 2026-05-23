@@ -1052,6 +1052,7 @@ test("session start creates and switches current lifecycle sessions", async () =
     const started = JSON.parse((await runTrace(repo, ["session", "start", "task-auth-retry"])).stdout);
     assert.equal(started.ok, true);
     assert.equal(started.session, "task-auth-retry");
+    assert.equal(started.event, "note");
     assert.match(started.path, /trace\/sessions\/task-auth-retry\.jsonl$/);
 
     const current = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
@@ -1060,12 +1061,15 @@ test("session start creates and switches current lifecycle sessions", async () =
     const emptyList = JSON.parse((await runTrace(repo, ["session", "list"])).stdout);
     assert.equal(emptyList.current, "task-auth-retry");
     assert.equal(emptyList.sessions[0].session, "task-auth-retry");
-    assert.equal(emptyList.sessions[0].events, 0);
+    assert.equal(emptyList.sessions[0].events, 1);
+    assert.deepEqual(emptyList.sessions[0].counts, { note: 1 });
+    assert.deepEqual(emptyList.sessions[0].sources, ["trace-session"]);
 
     await runTrace(repo, ["capture", "--event", "decision", "--message", "session start controls capture"]);
     const shown = JSON.parse((await runTrace(repo, ["session", "show", "task-auth-retry"])).stdout);
-    assert.equal(shown.events.length, 1);
-    assert.equal(shown.events[0].message, "session start controls capture");
+    assert.equal(shown.events.length, 2);
+    assert.equal(shown.events[0].message, "session started");
+    assert.equal(shown.events[1].message, "session start controls capture");
 
     const wrongEnd = await runTraceAllowFailure(repo, ["session", "end", "other-session"]);
     assert.equal(wrongEnd.exitCode, 1);
@@ -1074,8 +1078,11 @@ test("session start creates and switches current lifecycle sessions", async () =
     const ended = JSON.parse((await runTrace(repo, ["session", "end", "task-auth-retry"])).stdout);
     assert.equal(ended.ended, "task-auth-retry");
     assert.equal(ended.current, null);
+    assert.equal(ended.event, "note");
     const afterEnd = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
     assert.equal(afterEnd.current, null);
+    const endedSession = JSON.parse((await runTrace(repo, ["session", "show", "task-auth-retry"])).stdout);
+    assert.deepEqual(endedSession.events.map((event) => event.message), ["session started", "session start controls capture", "session ended"]);
 
     const generated = JSON.parse((await runTrace(repo, ["session", "start"])).stdout);
     assert.match(generated.session, /^2026-05-23-[0-9a-f]{16}$/);
