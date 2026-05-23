@@ -219,6 +219,9 @@
           "$ref": "#/$defs/approval_node"
         },
         {
+          "$ref": "#/$defs/policy_node"
+        },
+        {
           "$ref": "#/$defs/memory_node"
         },
         {
@@ -484,6 +487,42 @@
       ],
       "unevaluatedProperties": false
     },
+    "policy_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Policy"
+            },
+            "data": {
+              "type": "object",
+              "required": ["scope", "ownerStep", "policyKind", "policy"],
+              "additionalProperties": false,
+              "properties": {
+                "scope": {
+                  "enum": ["step"]
+                },
+                "ownerStep": {
+                  "type": "string"
+                },
+                "policyKind": {
+                  "enum": ["timeout", "retry"]
+                },
+                "policy": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "step_node": {
       "type": "object",
       "allOf": [
@@ -498,7 +537,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints", "approvals"],
+              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries"],
               "additionalProperties": false,
               "properties": {
                 "inputs": {
@@ -529,6 +568,18 @@
                   }
                 },
                 "approvals": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "timeouts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "retries": {
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -770,7 +821,9 @@
             "produces",
             "requests",
             "requires",
+            "retries",
             "supplies",
+            "timeouts",
             "verifies"
           ]
         },
@@ -791,6 +844,9 @@
               "type": "string"
             },
             "approval": {
+              "type": "string"
+            },
+            "policy": {
               "type": "string"
             }
           }

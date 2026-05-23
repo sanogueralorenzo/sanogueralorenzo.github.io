@@ -869,26 +869,26 @@ node id. It is an intermediate contract for a local runtime.
       }
     },
     {
-      "id": "goal:ship_checkout_fix:step:run_tests:policy:timeout:0",
+      "id": "goal:ship_checkout_fix:step:run_tests:timeout:0",
       "kind": "Policy",
-      "label": "timeout 2m",
+      "label": "2m",
       "span": "loc.16",
       "data": {
         "scope": "step",
         "ownerStep": "run_tests",
-        "kind": "timeout",
-        "duration": "2m"
+        "policyKind": "timeout",
+        "policy": "2m"
       }
     },
     {
-      "id": "goal:ship_checkout_fix:step:run_tests:policy:retry:0",
+      "id": "goal:ship_checkout_fix:step:run_tests:retry:0",
       "kind": "Policy",
-      "label": "retry max_attempts: 3, backoff: exponential",
+      "label": "max_attempts: 3, backoff: exponential",
       "span": "loc.16",
       "data": {
         "scope": "step",
         "ownerStep": "run_tests",
-        "kind": "retry",
+        "policyKind": "retry",
         "policy": "max_attempts: 3, backoff: exponential"
       }
     },
@@ -1012,12 +1012,12 @@ node id. It is an intermediate contract for a local runtime.
       "kind": "checkpoints"
     },
     {
-      "from": "goal:ship_checkout_fix:step:run_tests:policy:timeout:0",
+      "from": "goal:ship_checkout_fix:step:run_tests:timeout:0",
       "to": "goal:ship_checkout_fix:step:run_tests",
       "kind": "timeouts"
     },
     {
-      "from": "goal:ship_checkout_fix:step:run_tests:policy:retry:0",
+      "from": "goal:ship_checkout_fix:step:run_tests:retry:0",
       "to": "goal:ship_checkout_fix:step:run_tests",
       "kind": "retries"
     },

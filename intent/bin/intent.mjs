@@ -356,6 +356,8 @@ function parseStep(header, body, file, startLine, endLine) {
   const requirements = [];
   const checkpoints = [];
   const approvals = [];
+  const timeouts = [];
+  const retries = [];
   if (match[3]) {
     const effectOutput = match[3].trim().match(/^Effect<\s*([A-Za-z][A-Za-z0-9_.]*)/);
     if (effectOutput) {
@@ -375,6 +377,12 @@ function parseStep(header, body, file, startLine, endLine) {
     if (line.text.startsWith("approval ")) {
       approvals.push(parseApprovalStatement(line, file));
     }
+    if (line.text.startsWith("timeout ")) {
+      timeouts.push(parsePolicyStatement("Timeout", line, file, "timeout "));
+    }
+    if (line.text.startsWith("retry ")) {
+      retries.push(parsePolicyStatement("Retry", line, file, "retry "));
+    }
   }
   return {
     kind: "Step",
@@ -385,6 +393,8 @@ function parseStep(header, body, file, startLine, endLine) {
     requirements,
     checkpoints,
     approvals,
+    timeouts,
+    retries,
     span: span(file, startLine, 1, endLine, 1),
   };
 }
@@ -439,6 +449,10 @@ function parseCheckpointStatement(line, file) {
 
 function parseApprovalStatement(line, file) {
   return statementNode("Approval", unquote(line.text.slice("approval ".length)), file, line.lineNumber, line.raw);
+}
+
+function parsePolicyStatement(kind, line, file, prefix) {
+  return statementNode(kind, unquote(line.text.slice(prefix.length)), file, line.lineNumber, line.raw);
 }
 
 function checkIntent(ast) {
@@ -732,6 +746,8 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         requirements: step.requirements.map((requirement) => requirement.value),
         checkpoints: step.checkpoints.map((checkpoint) => checkpoint.value),
         approvals: step.approvals.map((approval) => approval.value),
+        timeouts: step.timeouts.map((timeout) => timeout.value),
+        retries: step.retries.map((retry) => retry.value),
       }));
       edges.push(edge(goalId, id, "plans"));
       if (previousStepId) {
@@ -785,6 +801,34 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         edges.push(edge(approvalId, id, "approves", {
           approval: approval.value,
         }));
+      }
+
+      for (const [timeoutIndex, timeout] of step.timeouts.entries()) {
+        const timeoutId = `${id}:timeout:${timeoutIndex}`;
+        nodes.push(node(timeoutId, "Policy", timeout.value, timeout.span, {
+          scope: "step",
+          ownerStep: step.name,
+          policyKind: "timeout",
+          policy: timeout.value,
+        }));
+        edges.push(edge(timeoutId, id, "timeouts", {
+          policy: timeout.value,
+        }));
+        guardTargetIds.push(timeoutId);
+      }
+
+      for (const [retryIndex, retry] of step.retries.entries()) {
+        const retryId = `${id}:retry:${retryIndex}`;
+        nodes.push(node(retryId, "Policy", retry.value, retry.span, {
+          scope: "step",
+          ownerStep: step.name,
+          policyKind: "retry",
+          policy: retry.value,
+        }));
+        edges.push(edge(retryId, id, "retries", {
+          policy: retry.value,
+        }));
+        guardTargetIds.push(retryId);
       }
 
       for (const [checkpointIndex, checkpoint] of step.checkpoints.entries()) {

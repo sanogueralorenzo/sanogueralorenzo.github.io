@@ -16,6 +16,7 @@ const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent"
 const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.intent", import.meta.url).pathname;
 const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
 const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph.intent", import.meta.url).pathname;
+const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
@@ -166,6 +167,7 @@ describe("intent static model CLI", () => {
     const stepRequirements = runJson(["check", VALID_STEP_REQUIREMENTS]);
     const invariantGuardGraph = runJson(["check", VALID_INVARIANT_GUARD_GRAPH]);
     const stepApprovalGraph = runJson(["check", VALID_STEP_APPROVAL_GRAPH]);
+    const stepPolicyGraph = runJson(["check", VALID_STEP_POLICY_GRAPH]);
     const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
 
     assert.equal(codeChange.ok, true);
@@ -186,6 +188,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(invariantGuardGraph.diagnostics, []);
     assert.equal(stepApprovalGraph.ok, true);
     assert.deepEqual(stepApprovalGraph.diagnostics, []);
+    assert.equal(stepPolicyGraph.ok, true);
+    assert.deepEqual(stepPolicyGraph.diagnostics, []);
     assert.equal(trustFlow.ok, true);
     assert.deepEqual(trustFlow.diagnostics, []);
   });
@@ -423,6 +427,26 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.from === approval.id && edge.kind === "verifies"), false);
   });
 
+  it("emits step timeout and retry policies as policy nodes and edges", () => {
+    const graph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
+    const patchStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "patch_code");
+    const timeout = graph.nodes.find((node) => node.kind === "Policy" && node.data.policyKind === "timeout");
+    const retry = graph.nodes.find((node) => node.kind === "Policy" && node.data.policyKind === "retry");
+
+    assert.equal(graph.ok, true);
+    assert.equal(timeout.data.scope, "step");
+    assert.equal(timeout.data.ownerStep, "patch_code");
+    assert.equal(timeout.data.policy, "5m");
+    assert.equal(retry.data.scope, "step");
+    assert.equal(retry.data.ownerStep, "patch_code");
+    assert.equal(retry.data.policy, "max 2");
+    assert.equal(patchStep.data.timeouts.includes("5m"), true);
+    assert.equal(patchStep.data.retries.includes("max 2"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "timeouts" && edge.from === timeout.id && edge.to === patchStep.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "retries" && edge.from === retry.id && edge.to === patchStep.id), true);
+    assert.equal(graph.edges.some((edge) => edge.from === timeout.id && edge.kind === "verifies"), false);
+  });
+
   it("validates CLI outputs against versioned schemas", () => {
     const astSchema = readJson(AST_SCHEMA);
     const checkSchema = readJson(CHECK_SCHEMA);
@@ -431,10 +455,12 @@ describe("intent static model CLI", () => {
     const validCheck = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const invalidCheck = JSON.parse(run(["check", INVALID_UNRESOLVED_TYPE]).stdout);
     const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
+    const policyGraph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
 
     assert.deepEqual(validateSchema(astSchema, ast), []);
     assert.deepEqual(validateSchema(checkSchema, validCheck), []);
     assert.deepEqual(validateSchema(checkSchema, invalidCheck), []);
     assert.deepEqual(validateSchema(graphSchema, graph), []);
+    assert.deepEqual(validateSchema(graphSchema, policyGraph), []);
   });
 });
