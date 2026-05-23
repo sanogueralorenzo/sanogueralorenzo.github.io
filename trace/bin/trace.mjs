@@ -1229,6 +1229,11 @@ async function runSessionCommand(action, values) {
     return;
   }
 
+  if (action === "recap" || action === "summary") {
+    await recapSession(values[0] ?? args.session);
+    return;
+  }
+
   if (action === "show") {
     await showSession(values[0] ?? args.session);
     return;
@@ -1301,6 +1306,40 @@ async function showSession(sessionId) {
   });
 }
 
+async function recapSession(sessionId) {
+  const root = await repoRoot();
+  const resolvedSession = sessionId ?? await readCurrentSession(root).catch(() => null);
+  if (!resolvedSession) {
+    fail("session id is required");
+  }
+
+  const events = await readSessionEvents(root, resolvedSession).catch((error) => fail(`session ${resolvedSession} not found or unreadable: ${error.message}`));
+  const limit = parsePositiveInteger(args.limit ?? "5", "--limit");
+  const recap = await sessionRecap(root, resolvedSession, events, limit);
+
+  if (args.json) {
+    print(recap);
+    return;
+  }
+
+  const lines = [
+    "# Trace Session Recap",
+    "",
+    `Session: \`${recap.session}\``,
+    `Path: \`${recap.path}\``,
+    `Events: ${recap.events}`,
+    `Commit Memory Events: ${recap.commitMemoryEvents}`,
+  ];
+  appendRecapSection(lines, "Intent Signals", recap.sections.prompts);
+  appendRecapSection(lines, "Responses", recap.sections.responses);
+  appendRecapSection(lines, "Tool Activity", recap.sections.tools);
+  appendRecapSection(lines, "Decisions", recap.sections.decisions);
+  appendRecapSection(lines, "Validation", recap.sections.validation);
+  appendRecapSection(lines, "Risks", recap.sections.risks);
+  appendRecapSection(lines, "Notes", recap.sections.notes);
+  process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+}
+
 async function sessionSummaries(root) {
   const files = await listSessionFiles(root);
   const sessions = [];
@@ -1354,6 +1393,70 @@ async function sessionSummary(root, file) {
     sources: Array.from(sources).sort(),
     adapters: Array.from(adapters).sort(),
   };
+}
+
+async function sessionRecap(root, sessionId, events, limit) {
+  const commitMemoryEvents = events.filter(includeInCommitMemory);
+  const prompts = commitMemoryEvents.filter((event) => event.role === "user" || event.event === "prompt").map(eventMessage);
+  const responses = commitMemoryEvents.filter((event) => event.event === "response" || event.role === "assistant").map(eventMessage);
+  const tools = commitMemoryEvents.filter((event) => event.event === "tool").map(eventMessage);
+  const decisions = commitMemoryEvents.filter((event) => event.event === "decision").map(eventMessage);
+  const validation = commitMemoryEvents.filter((event) => event.event === "validation").map(eventMessage);
+  const risks = commitMemoryEvents.filter((event) => event.event === "risk").map(eventMessage);
+  const notes = commitMemoryEvents.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map(eventMessage);
+
+  return {
+    ok: true,
+    schema_version: "trace.session_recap.v1",
+    session: sessionId,
+    path: relativePath(root, await sessionPath(root, sessionId)),
+    events: events.length,
+    commitMemoryEvents: commitMemoryEvents.length,
+    omittedLifecycleEvents: events.length - commitMemoryEvents.length,
+    counts: eventCounts(events),
+    sections: {
+      prompts: await recapItems(root, prompts, limit),
+      responses: await recapItems(root, responses, limit),
+      tools: await recapItems(root, tools, limit),
+      decisions: await recapItems(root, decisions, limit),
+      validation: await recapItems(root, validation, limit),
+      risks: await recapItems(root, risks, limit),
+      notes: await recapItems(root, notes, limit),
+    },
+  };
+}
+
+function eventMessage(event) {
+  return event.message ?? "";
+}
+
+function eventCounts(events) {
+  const counts = {};
+  for (const event of events) {
+    counts[event.event] = (counts[event.event] ?? 0) + 1;
+  }
+  return counts;
+}
+
+async function recapItems(root, values, limit) {
+  const items = compactMemoryItems(values).slice(0, limit);
+  const redacted = [];
+  for (const item of items) {
+    redacted.push(await conciseMemoryText(root, item));
+  }
+  return redacted;
+}
+
+function appendRecapSection(lines, name, values) {
+  lines.push("", `## ${name}`, "");
+  if (values.length === 0) {
+    lines.push("- Not recorded.");
+    return;
+  }
+
+  for (const value of values) {
+    lines.push(`- ${value}`);
+  }
 }
 
 async function runRedactCommand(action, values) {
@@ -3129,6 +3232,7 @@ Usage:
   trace session list
   trace session current
   trace session show <session> [--limit 20]
+  trace session recap [session] [--limit 5] [--json]
   trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list
   trace agent check [codex|claude-code|gemini|generic|all]
