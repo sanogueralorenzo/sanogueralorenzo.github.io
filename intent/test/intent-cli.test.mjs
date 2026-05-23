@@ -15,6 +15,7 @@ const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
+const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
@@ -210,6 +211,19 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].trust, "untrusted");
   });
 
+  it("rejects verification shell commands without matching capability grants", () => {
+    const result = run(["check", INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_VERIFY_UNDECLARED");
+    assert.equal(payload.diagnostics[0].requirement, "shell(\"npm run lint\").exit_code == 0");
+    assert.equal(payload.diagnostics[0].argument, "command");
+    assert.equal(payload.diagnostics[0].value, "npm run lint");
+    assert.deepEqual(payload.diagnostics[0].allowed, ["npm test"]);
+  });
+
   it("rejects unresolved type references", () => {
     const result = run(["check", INVALID_UNRESOLVED_TYPE]);
     const payload = JSON.parse(result.stdout);
@@ -254,9 +268,11 @@ describe("intent static model CLI", () => {
     assert.equal(kinds.has("Check"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.args.path === "./src/app.ts"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.trust.zone === "trusted"), true);
+    assert.equal(graph.nodes.some((node) => node.kind === "Check" && node.data.effect?.args.command === "npm test"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => grant.value === "npm test")), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "plans"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "gates"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to.includes(":verify:")), true);
   });
 
   it("emits explicit data dependencies and completion gates", () => {

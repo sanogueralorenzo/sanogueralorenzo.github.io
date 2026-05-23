@@ -289,6 +289,7 @@ blocking diagnostics.
   branches, secret names, and approval targets.
 - Require verification gates for every goal and ensure they are pure unless
   they declare a verification effect.
+- Bind verification shell requirements to declared shell run capability grants.
 - Enforce invariant placement and attach invariants to the graph as guards.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
@@ -419,6 +420,31 @@ When no in-scope capability covers a constrained resource, the checker emits
 `INTENT_CAPABILITY_DENIED` at the effect call span with the denied argument,
 denied value, and allowed grants.
 
+## Verification Shell Binding
+
+Verification requirements may call shell checks as completion gates:
+
+```intent
+verify {
+  require shell("npm test").exit_code == 0
+  require shell(command: "npm run lint").exit_code == 0
+}
+```
+
+Rules:
+
+- `shell("command")` and `shell(command: "command")` in a `verify` requirement
+  are verification shell requests, not plan step effects.
+- Verification shell requests use the same command argument normalization as
+  shell command constraints.
+- A verification shell request is valid only when an in-scope capability grants
+  shell `run` for the normalized command.
+- A successful binding creates an `authorizes` edge from the matching
+  `Capability` node to the `Check` node.
+- If no declared shell run grant covers the command, the checker emits
+  `INTENT_VERIFY_UNDECLARED` at the verification shell call span with the
+  denied command and allowed shell run grants.
+
 ## Diagnostics
 
 Diagnostics are structured and stable enough for editor and CI use.
@@ -459,6 +485,7 @@ Initial diagnostic families:
 - `INTENT_CAPABILITY_DENIED`
 - `INTENT_VERIFY_MISSING`
 - `INTENT_VERIFY_IMPURE`
+- `INTENT_VERIFY_UNDECLARED`
 - `INTENT_INVARIANT_VIOLATION`
 - `INTENT_TRUST_FLOW_UNSAFE`
 - `INTENT_MEMORY_UNSCOPED`

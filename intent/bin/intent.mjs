@@ -454,6 +454,7 @@ function checkIntent(ast) {
 
     validateGoalTypes(goal, declaredTypes, diagnostics);
     validateStepBindings(goal, diagnostics);
+    validateVerifyRequirements(goal, diagnostics);
 
     const capabilities = goal.capabilities.map((capability) => capability.family);
     for (const step of goal.steps) {
@@ -565,6 +566,35 @@ function validateStepBindings(goal, diagnostics) {
     const outputType = normalizeTypeRef(step.outputType);
     if (outputType) {
       availableTypes.add(outputType);
+    }
+  }
+}
+
+function validateVerifyRequirements(goal, diagnostics) {
+  for (const requirement of goal.verify) {
+    const effect = verificationEffect(requirement);
+    if (!effect) {
+      continue;
+    }
+
+    const denial = !isEffectAuthorized(effect, goal.capabilities)
+      ? {
+          message: `verify requirement '${requirement.value}' is not authorized by goal capabilities.`,
+          argument: "command",
+          value: effect.args.command,
+          allowed: [],
+        }
+      : getCapabilityDenial(effect, goal.capabilities);
+
+    if (denial) {
+      diagnostics.push(error("INTENT_VERIFY_UNDECLARED", `verify requirement '${requirement.value}' must be declared by a matching capability grant.`, requirement.span, {
+        requirement: requirement.value,
+        family: effect.family,
+        action: effect.action,
+        argument: denial.argument,
+        value: denial.value,
+        allowed: denial.allowed,
+      }));
     }
   }
 }
@@ -697,9 +727,26 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
     for (const [index, check] of goal.verify.entries()) {
       const id = `${goalId}:verify:${index}`;
-      nodes.push(node(id, "Check", check.value, check.span));
+      const effect = verificationEffect(check);
+      nodes.push(node(id, "Check", check.value, check.span, effect ? {
+        requirement: check.value,
+        effect: {
+          family: effect.family,
+          action: effect.action,
+          args: effect.args,
+          argKinds: effect.argKinds,
+          trust: effectTrust(effect),
+        },
+      } : {}));
       edges.push(edge(id, goalId, "gates"));
       edges.push(edge(id, completionId, "verifies"));
+      if (effect) {
+        for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
+          if (isFamilyMatch(effect.family, capability.family) && !getCapabilityDenial(effect, [capability])) {
+            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, id, "authorizes"));
+          }
+        }
+      }
     }
 
     for (const [index, invariant] of goal.invariants.entries()) {
@@ -880,6 +927,28 @@ function statementNode(kind, value, file, lineNumber, raw) {
     kind,
     value,
     span: lineSpan(file, lineNumber, raw),
+  };
+}
+
+function verificationEffect(requirement) {
+  const shellCall = requirement.value.match(/\bshell\s*\(\s*(?:"([^"]*)"|command\s*:\s*"([^"]*)")\s*\)/);
+  const command = shellCall?.[1] ?? shellCall?.[2] ?? null;
+  if (!command) {
+    return null;
+  }
+  return {
+    kind: "EffectUse",
+    name: "shell",
+    family: "shell",
+    action: "run",
+    args: {
+      command,
+    },
+    argKinds: {
+      command: "string",
+    },
+    expression: requirement.value,
+    span: requirement.span,
   };
 }
 

@@ -117,6 +117,22 @@
         }
       }
     },
+    "trust": {
+      "type": "object",
+      "required": ["zone", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "zone": {
+          "enum": ["trusted", "untrusted", "unknown"]
+        },
+        "source": {
+          "type": "string"
+        },
+        "argument": {
+          "type": "string"
+        }
+      }
+    },
     "diagnostic": {
       "type": "object",
       "required": ["severity", "code", "message", "span"],
@@ -452,20 +468,7 @@
                   }
                 },
                 "trust": {
-                  "type": "object",
-                  "required": ["zone", "source"],
-                  "additionalProperties": false,
-                  "properties": {
-                    "zone": {
-                      "enum": ["trusted", "untrusted", "unknown"]
-                    },
-                    "source": {
-                      "type": "string"
-                    },
-                    "argument": {
-                      "type": "string"
-                    }
-                  }
+                  "$ref": "#/$defs/trust"
                 },
                 "expression": {
                   "type": "string"
@@ -518,7 +521,40 @@
             },
             "data": {
               "type": "object",
-              "additionalProperties": false
+              "additionalProperties": false,
+              "properties": {
+                "requirement": {
+                  "type": "string"
+                },
+                "effect": {
+                  "type": "object",
+                  "required": ["family", "action", "args", "argKinds", "trust"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "family": {
+                      "type": "string"
+                    },
+                    "action": {
+                      "type": ["string", "null"]
+                    },
+                    "args": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "argKinds": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "enum": ["string", "identifier"]
+                      }
+                    },
+                    "trust": {
+                      "$ref": "#/$defs/trust"
+                    }
+                  }
+                }
+              }
             }
           }
         }

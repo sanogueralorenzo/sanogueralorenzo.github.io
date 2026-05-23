@@ -15,6 +15,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
 - `invalid_file_write_outside_capability.intent`: calls `FileWrite` for a path outside the declared write grant.
 - `invalid_shell_exec_outside_capability.intent`: calls `ShellExec` with a command outside the declared shell grant.
+- `invalid_verify_shell_without_capability.intent`: requires `shell("npm run lint")` in verification without declaring the matching shell run grant.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.
 - `invalid_duplicate_step_name.intent`: declares the same step name twice in one plan.

@@ -1,0 +1,51 @@
+package fixtures.invalid_verify_shell_without_capability
+
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+type VerifiedPatch = {
+  patch: Patch
+}
+
+goal "verify with ungranted shell command" {
+  context repo("./")
+
+  capability file {
+    read path: "./src/**"
+    write path: "./src/**"
+  }
+
+  capability shell {
+    run command: "npm test"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_request -> Finding
+    step patch_code(input: Finding) -> Patch {
+      effect FileWrite(path: "./src/app.ts")
+    }
+    step verify_patch(input: Patch) -> VerifiedPatch {
+      effect ShellExec(command: "npm test")
+    }
+  }
+
+  verify {
+    require shell("npm test").exit_code == 0
+    require shell("npm run lint").exit_code == 0
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

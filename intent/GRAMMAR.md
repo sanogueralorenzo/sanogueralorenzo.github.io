@@ -128,6 +128,11 @@ file.write("intent/STATIC_MODEL.md")
 shell.exec(command: "npm test")
 ```
 
+Inside `verify` requirements, `shell("npm test")` and
+`shell(command: "npm test")` are parseable verification shell calls. The checker
+binds them to declared shell run capability grants instead of treating them as
+opaque predicate text.
+
 Shell command arguments are trust-sensitive in the first checker prototype. A
 shell command argument must be either a string literal or a value already marked
 trusted by the checker. Nonliteral shell command expressions that are not
@@ -187,6 +192,9 @@ The parser emits names and type reference strings; the checker owns binding.
 - Shell command arguments must be literal or trusted before execution.
 - Nonliteral shell command arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.
+- Verify `shell("command")` and `shell(command: "command")` requirements bind
+  to in-scope shell run capability grants. If no declared grant covers the
+  normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.
 - Graph nodes and edges record trust metadata where it helps downstream
   runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.
