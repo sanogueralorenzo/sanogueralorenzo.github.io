@@ -934,9 +934,11 @@
               "type": "string"
             },
             "sourceSpan": {
+              "description": "For data edges, the bound producer span. For produces edges to completion, the final step output type span.",
               "$ref": "#/$defs/span"
             },
             "targetSpan": {
+              "description": "For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span.",
               "$ref": "#/$defs/span"
             }
           }

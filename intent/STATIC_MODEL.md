@@ -447,6 +447,9 @@ Every successful binding is also emitted as graph data dependency:
 - A step input node creates a `requires` edge to its owning step, so execution
   waits for the bound value before the step can run. Its edge `data` may include
   `targetSpan` for the required step parameter.
+- The final executable step creates a `produces` edge to the goal completion
+  node. Its edge `data` may include `sourceSpan` for the final step output type
+  and `targetSpan` for the goal output type.
 
 ## Effect Call Arguments
 
@@ -1440,6 +1443,9 @@ edge deterministically. Parameter data embedded in `Goal`, `Step`, `Input`,
 Graph `data` edge payloads may also include `sourceSpan` and `targetSpan` for
 the two bound parameters, while graph `requires` edge payloads may include
 `targetSpan` for the required input parameter.
+Graph `produces` edge payloads that connect the final executable step to
+completion may include `sourceSpan` for the final step output type and
+`targetSpan` for the goal output type.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
@@ -1519,9 +1525,10 @@ Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.
 Invariants that apply to the goal create `guards` edges to completion and to
 every effect, checkpoint, and step requirement check in that goal. The last
-executable step in the plan creates a `produces` edge to completion. Completion
-is reachable only when all incoming completion edges have succeeded or remained
-unviolated.
+executable step in the plan creates a `produces` edge to completion. That edge
+may carry `data.sourceSpan` for the final step output type and
+`data.targetSpan` for the goal output type. Completion is reachable only when
+all incoming completion edges have succeeded or remained unviolated.
 
 The runtime must treat the graph as authoritative: it may execute only graph
 nodes, may invoke only authorized effects, must preserve guard and approval
