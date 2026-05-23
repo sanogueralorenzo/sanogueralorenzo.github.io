@@ -15,7 +15,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, trusted key policy manifest, and untrusted-producer troubleshooting policy.
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
-- [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release): local package release evidence examples for failed publication rollback and replacement patch supersedence audits.
+- [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release): local package release evidence examples for failed publication rollback, replacement patch supersedence audits, and the retained release archive manifest fixture.
 - [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json): JSON schema contract for retained package release archive manifests.
 - [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json): JSON schema contract for package release evidence audit files.
 - [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs): local schema and relationship check for the package release evidence fixtures.
@@ -45,6 +45,10 @@ Retained package release evidence manifest export is available through `npm --pr
 ## Manifest CI Handoff
 
 The npm publication example exports `retained-package-release-evidence-manifest.json`, uploads it as the `jury-package-release-archive-manifest` artifact, downloads it in `package-release-evidence-replay`, and verifies it with `--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"` before `dry-run-publication`.
+
+## Release Archive Fixture
+
+The package release fixture directory includes [examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json](examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json). Keep it synchronized with `rollback-audit.json`, `replacement-patch-audit.json`, the dry-run record, npm metadata, downstream gates, retention policy, and artifact provenance by regenerating it with `--manifest-out examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json` and verifying it with `--verify-manifest examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json`.
 
 ## Manifest Replay Troubleshooting
 
@@ -80,4 +84,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest release archive fixture for failed and replacement release archives.
+Add retained package release evidence manifest archive drift check for failed and replacement release archives.

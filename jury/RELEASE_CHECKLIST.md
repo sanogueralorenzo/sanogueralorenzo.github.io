@@ -95,6 +95,7 @@ Expected fixture files:
 - [examples/ci/fixtures/package-release/replacement-npm-view.json](examples/ci/fixtures/package-release/replacement-npm-view.json)
 - [examples/ci/fixtures/package-release/replacement-downstream-gate.json](examples/ci/fixtures/package-release/replacement-downstream-gate.json)
 - [examples/ci/fixtures/package-release/replacement-patch-audit.json](examples/ci/fixtures/package-release/replacement-patch-audit.json)
+- [examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json](examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json)
 - [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json)
 - [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json)
 - [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs)

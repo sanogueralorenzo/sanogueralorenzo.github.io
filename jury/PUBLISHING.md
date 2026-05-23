@@ -124,7 +124,7 @@ Export the retained release archive manifest before closing the failed release r
 npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json
 ```
 
-The exported `jury.package_release_archive_manifest.v1` manifest combines the failed publication identity, replacement patch identity, retention requirements, and artifact provenance into one file that can travel with the release record or incident archive.
+The exported `jury.package_release_archive_manifest.v1` manifest combines the failed publication identity, replacement patch identity, retention requirements, and artifact provenance into one file that can travel with the release record or incident archive. [examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json](examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json) is the checked-in release archive fixture for the rollback and replacement audit examples.
 
 Before closing the release archive, verify the retained manifest against the archived evidence:
 

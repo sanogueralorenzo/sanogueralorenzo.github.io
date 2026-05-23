@@ -1,0 +1,74 @@
+{
+  "schema_version": "jury.package_release_archive_manifest.v1",
+  "package": "@sanogueralorenzo/jury",
+  "failed": {
+    "packageVersion": "0.1.0",
+    "tarballName": "sanogueralorenzo-jury-0.1.0.tgz",
+    "dryRunRecord": "jury-pack-dry-run-record.json",
+    "npmView": "failed-npm-view.json",
+    "downstreamGate": "downstream-failure-gate.json",
+    "rollbackAudit": "rollback-audit.json",
+    "deprecation": {
+      "attempted": true,
+      "allowed": true,
+      "command": "npm deprecate @sanogueralorenzo/jury@0.1.0 \"Downstream Jury verification failed; use a later patch release.\"",
+      "result": "failed version points consumers to a later patch release"
+    }
+  },
+  "replacement": {
+    "packageVersion": "0.1.1",
+    "npmView": "replacement-npm-view.json",
+    "distTarball": "https://registry.npmjs.org/@sanogueralorenzo/jury/-/sanogueralorenzo-jury-0.1.1.tgz",
+    "downstreamGate": "replacement-downstream-gate.json",
+    "replacementAudit": "replacement-patch-audit.json"
+  },
+  "retention": {
+    "policy": "jury.package_release_retention.v1",
+    "storage": "release record or incident archive",
+    "retainUntil": "180 days after replacement downstream verification passes",
+    "artifacts": [
+      "jury-package-dry-run",
+      "jury-package-release-evidence",
+      "jury-pack-dry-run-record.json",
+      "failed-npm-view.json",
+      "downstream-failure-gate.json",
+      "rollback-audit.json",
+      "GITHUB_STEP_SUMMARY",
+      "replacement-npm-view.json",
+      "replacement-downstream-gate.json",
+      "replacement-patch-audit.json"
+    ]
+  },
+  "provenance": {
+    "source": "github-actions",
+    "workflow": "jury-npm-publish.yml",
+    "runId": "example-release-run-1001",
+    "sourceRevision": "example-release-revision",
+    "artifacts": [
+      {
+        "name": "jury-package-dry-run",
+        "sourceJob": "dry-run-publication",
+        "retentionDays": 90,
+        "files": [
+          "jury-pack-dry-run.json",
+          "jury-pack-dry-run-record.json"
+        ]
+      },
+      {
+        "name": "jury-package-release-evidence",
+        "sourceJob": "package-release-fixtures",
+        "retentionDays": 90,
+        "files": [
+          "README.md",
+          "jury-pack-dry-run-record.json",
+          "failed-npm-view.json",
+          "downstream-failure-gate.json",
+          "rollback-audit.json",
+          "replacement-npm-view.json",
+          "replacement-downstream-gate.json",
+          "replacement-patch-audit.json"
+        ]
+      }
+    ]
+  }
+}

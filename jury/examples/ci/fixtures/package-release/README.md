@@ -29,14 +29,18 @@ Both audit files also include `retention.provenance` for the retained CI artifac
 
 Retain the failed and replacement evidence until at least 180 days after replacement downstream verification passes. The replacement audit depends on the failed `packageVersion`, failed `tarballName`, failed downstream gate, rollback audit, replacement npm metadata, replacement downstream gate, and failed-version deprecation result.
 
+## Release Archive Manifest
+
+[retained-package-release-evidence-manifest.json](retained-package-release-evidence-manifest.json) is the retained release archive handoff fixture. It combines the failed publication identity, replacement patch identity, retention policy, and CI artifact provenance that must travel with the release record or incident archive.
+
 ## Validation
 
 Run the fixture check after changing these files:
 
 ```shell
 npm --prefix jury run fixtures:package-release:check
-npm --prefix jury run fixtures:package-release:check -- --manifest-out retained-package-release-evidence-manifest.json
-npm --prefix jury run fixtures:package-release:check -- --verify-manifest retained-package-release-evidence-manifest.json
+npm --prefix jury run fixtures:package-release:check -- --manifest-out examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json
+npm --prefix jury run fixtures:package-release:check -- --verify-manifest examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json
 ```
 
 The command validates `rollback-audit.json` and `replacement-patch-audit.json` against [../../../../schemas/package-release-evidence.schema.json](../../../../schemas/package-release-evidence.schema.json), then checks the fixture relationships that prove the replacement patch supersedes the failed publication. `--manifest-out` writes a `jury.package_release_archive_manifest.v1` file for the retained release archive, validates it against [../../../../schemas/package-release-archive-manifest.schema.json](../../../../schemas/package-release-archive-manifest.schema.json), and combines failed publication evidence, replacement patch evidence, retention requirements, and artifact provenance into one handoff manifest. `--verify-manifest` validates an archived manifest against the same schema and compares it with the current retained evidence before maintainers close the failed release record. If manifest replay fails, use [../../../../TROUBLESHOOTING.md](../../../../TROUBLESHOOTING.md) to inspect the manifest identity, required archive evidence, retention artifacts, and provenance artifacts.

@@ -805,21 +805,24 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   const replacementNpmView = await readFixture("replacement-npm-view.json");
   const replacementGate = await readFixture("replacement-downstream-gate.json");
   const replacementAudit = await readFixture("replacement-patch-audit.json");
+  const retainedArchiveManifest = await readFixture("retained-package-release-evidence-manifest.json");
   const publicationNotes = await readFile(join(repoRoot, "jury/PUBLISHING.md"), "utf8");
   const replacementCommands = extractShellBlock(publicationNotes, "Replacement Patch Evidence");
 
   assert.ok(readme.includes("rollback-audit.json"));
   assert.ok(readme.includes("replacement-patch-audit.json"));
+  assert.ok(readme.includes("retained-package-release-evidence-manifest.json"));
   assert.ok(readme.includes("npm --prefix jury run fixtures:package-release:check"));
   assert.ok(readme.includes("downstream verification passes"));
   assert.ok(readme.includes("jury.package_release_retention.v1"));
   assert.ok(readme.includes("retention.provenance"));
   assert.ok(readme.includes("source revision"));
   assert.ok(readme.includes("retentionDays: 90"));
-  assert.ok(readme.includes("--manifest-out retained-package-release-evidence-manifest.json"));
-  assert.ok(readme.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
+  assert.ok(readme.includes("--manifest-out examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json"));
+  assert.ok(readme.includes("--verify-manifest examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json"));
   assert.ok(readme.includes("jury.package_release_archive_manifest.v1"));
   assert.ok(readme.includes("package-release-archive-manifest.schema.json"));
+  assert.ok(readme.includes("Release Archive Manifest"));
   assert.ok(readme.includes("90-day artifact expiry"));
   assert.ok(readme.includes("180 days after replacement downstream verification passes"));
   for (const target of linkedTargets) {
@@ -829,6 +832,10 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.equal(rollbackAudit.audit_type, "failed-publication-rollback");
   assert.equal(replacementAudit.schema_version, "jury.package_release_evidence.v1");
   assert.equal(replacementAudit.audit_type, "replacement-patch-supersedence");
+  assert.equal(retainedArchiveManifest.schema_version, "jury.package_release_archive_manifest.v1");
+  assert.equal(retainedArchiveManifest.failed.rollbackAudit, "rollback-audit.json");
+  assert.equal(retainedArchiveManifest.replacement.replacementAudit, "replacement-patch-audit.json");
+  assert.deepEqual(retainedArchiveManifest.provenance.artifacts.map((artifact) => artifact.name), ["jury-package-dry-run", "jury-package-release-evidence"]);
   assert.equal(rollbackAudit.retention.policy, "jury.package_release_retention.v1");
   assert.equal(replacementAudit.retention.policy, "jury.package_release_retention.v1");
   assert.equal(rollbackAudit.retention.storage, "release record or incident archive");
@@ -896,6 +903,26 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.equal(fixtureCheckPayload.schema, "schemas/package-release-evidence.schema.json");
   assert.equal(fixtureCheckPayload.archiveManifestSchema, "schemas/package-release-archive-manifest.schema.json");
   assert.deepEqual(fixtureCheckPayload.fixtures, ["rollback-audit.json", "replacement-patch-audit.json"]);
+  const fixtureManifestCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --verify-manifest ${shellQuote(join(ciPackageReleaseFixturesDir, "retained-package-release-evidence-manifest.json"))}`);
+  assert.equal(fixtureManifestCheck.exitCode, 0, fixtureManifestCheck.stderr);
+  assert.equal(JSON.parse(fixtureManifestCheck.stdout.slice(fixtureManifestCheck.stdout.indexOf("{"))).verifiedManifest, join(ciPackageReleaseFixturesDir, "retained-package-release-evidence-manifest.json"));
+  const documentedFixtureCommands = extractShellBlock(readme, "Validation");
+  assert.equal(documentedFixtureCommands[1], "npm --prefix jury run fixtures:package-release:check -- --manifest-out examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json");
+  assert.equal(documentedFixtureCommands[2], "npm --prefix jury run fixtures:package-release:check -- --verify-manifest examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json");
+  const documentedFixtureCheckout = await copyJuryCheckout();
+  try {
+    for (const command of documentedFixtureCommands) {
+      const documentedCheck = await runShell(command, documentedFixtureCheckout);
+      assert.equal(documentedCheck.exitCode, 0, documentedCheck.stderr);
+    }
+    const documentedManifest = JSON.parse(await readFile(join(
+      documentedFixtureCheckout,
+      "jury/examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json",
+    ), "utf8"));
+    assert.deepEqual(documentedManifest, retainedArchiveManifest);
+  } finally {
+    await rm(documentedFixtureCheckout, { recursive: true, force: true });
+  }
 
   const manifestDir = await tempState();
   try {
@@ -929,6 +956,7 @@ test("package release evidence fixtures cover rollback and replacement audits", 
     assert.equal(manifest.provenance.runId, rollbackAudit.retention.provenance.runId);
     assert.equal(manifest.provenance.sourceRevision, rollbackAudit.retention.provenance.sourceRevision);
     assert.deepEqual(manifest.provenance.artifacts.map((artifact) => artifact.name), ["jury-package-dry-run", "jury-package-release-evidence"]);
+    assert.deepEqual(manifest, retainedArchiveManifest);
 
     const missingProvenanceArtifactManifest = structuredClone(manifest);
     missingProvenanceArtifactManifest.provenance.artifacts = missingProvenanceArtifactManifest.provenance.artifacts.filter((artifact) => artifact.name !== "jury-package-release-evidence");
@@ -1612,6 +1640,8 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("before any publication dry run"));
   assert.ok(publicationNotes.includes("jury-package-release-evidence"));
   assert.ok(publicationNotes.includes("retained-package-release-evidence-manifest.json"));
+  assert.ok(publicationNotes.includes("examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json"));
+  assert.ok(publicationNotes.includes("checked-in release archive fixture"));
   assert.ok(publicationNotes.includes("rollback and replacement audit examples"));
   assert.ok(publicationNotes.includes("package-release-evidence-replay"));
   assert.ok(publicationNotes.includes("--fixture-dir"));
@@ -2624,6 +2654,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/package-release/replacement-npm-view.json",
     "examples/ci/fixtures/package-release/replacement-downstream-gate.json",
     "examples/ci/fixtures/package-release/replacement-patch-audit.json",
+    "examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json",
     "schemas/package-release-archive-manifest.schema.json",
     "schemas/package-release-evidence.schema.json",
     "scripts/validate-package-release-fixtures.mjs",
@@ -2669,6 +2700,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("Record retained artifact provenance"));
   assert.ok(checklist.includes("workflow run and source revision"));
   assert.ok(checklist.includes("retained-package-release-evidence-manifest.json"));
+  assert.ok(checklist.includes("examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("--manifest-out retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("schemas/package-release-archive-manifest.schema.json"));
@@ -2731,6 +2763,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/fixtures/key-policy",
     "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/package-release",
+    "examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json",
     "schemas/package-release-archive-manifest.schema.json",
     "schemas/package-release-evidence.schema.json",
     "scripts/validate-package-release-fixtures.mjs",
@@ -2776,7 +2809,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /CI migration overlap window/);
   assert.match(handoff, /revoked-old policy/);
   assert.match(handoff, /rejects stale old-key bundles after cutover/);
-  assert.match(handoff, /failed publication rollback and replacement patch supersedence audits/);
+  assert.match(handoff, /failed publication rollback, replacement patch supersedence audits/);
+  assert.match(handoff, /retained release archive manifest fixture/);
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
@@ -2826,6 +2860,10 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /jury-package-release-archive-manifest/);
   assert.match(handoff, /JURY_PACKAGE_RELEASE_MANIFEST_PATH/);
   assert.match(handoff, /before `dry-run-publication`/);
+  assert.match(handoff, /Release Archive Fixture/);
+  assert.match(handoff, /examples\/ci\/fixtures\/package-release\/retained-package-release-evidence-manifest\.json/);
+  assert.match(handoff, /Keep it synchronized with `rollback-audit\.json`/);
+  assert.match(handoff, /--verify-manifest examples\/ci\/fixtures\/package-release\/retained-package-release-evidence-manifest\.json/);
   assert.match(handoff, /package release evidence artifact upload guidance/);
   assert.match(handoff, /package release evidence artifact download and replay guidance/);
   assert.match(handoff, /Package release evidence replay troubleshooting now covers/);
@@ -2834,7 +2872,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest release archive fixture for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest archive drift check for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
