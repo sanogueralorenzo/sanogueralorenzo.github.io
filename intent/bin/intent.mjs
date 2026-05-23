@@ -24,6 +24,7 @@ const BUILTIN_TYPES = new Set([
   "Verified",
   "Checkpoint",
   "Provenance",
+  "SecretRef",
 ]);
 
 function usage() {
@@ -1446,6 +1447,7 @@ function effectFamily(name) {
   if (/^(Git|git\.)/.test(normalized)) return "git";
   if (/^(Deploy|deploy\.)/.test(normalized)) return "deploy";
   if (/^(Ticket|ticket\.)/.test(normalized)) return "ticket";
+  if (/^(SecretRead|Secret|secret\.)/.test(normalized)) return "secret";
   return normalized.split(/[.(]/)[0].toLowerCase();
 }
 
@@ -1459,6 +1461,7 @@ function effectAction(name) {
   if (/^(GitCommit|git\.commit)/.test(normalized)) return "commit";
   if (/^(Deploy|deploy\.)/.test(normalized)) return "deploy";
   if (/^(Ticket|ticket\.)/.test(normalized)) return "update";
+  if (/^(SecretRead|Secret|secret\.read)/.test(normalized)) return "read";
   return null;
 }
 
@@ -1582,6 +1585,10 @@ function effectArguments(effect) {
       effect.args.remote ? { key: "remote", value: normalizeRefName(effect.args.remote) } : null,
     ].filter(Boolean);
   }
+  if (effect.family === "secret") {
+    const value = effect.args.name ?? effect.args.names ?? effect.args._0;
+    return value ? [{ key: "name", value: normalizeSecretName(value) }] : [];
+  }
   return [];
 }
 
@@ -1594,6 +1601,9 @@ function isGrantMatch(argument, grant) {
   }
   if (argument.key === "branch" || argument.key === "remote") {
     return normalizeRefName(argument.value) === normalizeRefName(grant.value);
+  }
+  if (argument.key === "name") {
+    return normalizeSecretName(argument.value) === normalizeSecretName(grant.value);
   }
   return normalizeCommand(argument.value) === normalizeCommand(grant.value);
 }
@@ -1626,6 +1636,10 @@ function normalizeCommand(value) {
 
 function normalizeRefName(value) {
   return value.trim().replace(/^refs\/heads\//, "");
+}
+
+function normalizeSecretName(value) {
+  return value.trim();
 }
 
 function unquote(value) {
