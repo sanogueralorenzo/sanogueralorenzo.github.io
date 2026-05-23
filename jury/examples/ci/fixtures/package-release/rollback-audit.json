@@ -16,10 +16,12 @@
     "artifacts": [
       "jury-package-dry-run",
       "jury-package-release-evidence",
+      "jury-package-release-replay-summary",
       "jury-pack-dry-run-record.json",
       "failed-npm-view.json",
       "downstream-failure-gate.json",
       "rollback-audit.json",
+      "jury-package-release-replay-summary.md",
       "GITHUB_STEP_SUMMARY"
     ],
     "provenance": {
@@ -50,7 +52,16 @@
             "replacement-npm-view.json",
             "replacement-downstream-gate.json",
             "replacement-patch-audit.json",
-            "archive-drift-remediation-audit.json"
+            "archive-drift-remediation-audit.json",
+            "jury-package-release-replay-summary.md"
+          ]
+        },
+        {
+          "name": "jury-package-release-replay-summary",
+          "sourceJob": "package-release-evidence-replay",
+          "retentionDays": 90,
+          "files": [
+            "jury-package-release-replay-summary.md"
           ]
         }
       ]

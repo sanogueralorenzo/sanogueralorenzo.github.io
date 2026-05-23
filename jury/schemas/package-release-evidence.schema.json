@@ -50,7 +50,7 @@
                 "required": ["name", "sourceJob", "retentionDays", "files"],
                 "properties": {
                   "name": {
-                    "enum": ["jury-package-dry-run", "jury-package-release-evidence"]
+                    "enum": ["jury-package-dry-run", "jury-package-release-evidence", "jury-package-release-replay-summary"]
                   },
                   "sourceJob": { "type": "string", "minLength": 1 },
                   "retentionDays": { "const": 90 },

@@ -17,6 +17,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Download `jury-package-release-evidence` and replay it with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>` before `dry-run-publication`.
 - [ ] Download `jury-package-release-archive-manifest` and verify it with `--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"` before `dry-run-publication`.
 - [ ] Review the `package-release-evidence-replay` `GITHUB_STEP_SUMMARY` for failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver before `dry-run-publication`.
+- [ ] Confirm `package-release-evidence-replay` uploads `jury-package-release-replay-summary` with `jury-package-release-replay-summary.md` and `retention-days: 90`.
 - [ ] If package release evidence replay fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to check `JURY_PACKAGE_RELEASE_EVIDENCE_DIR`, missing artifact files, and rollback/replacement audit schema errors before `dry-run-publication`.
 - [ ] Run `(cd jury && npm pack --dry-run --json) > jury-pack-dry-run.json` after the package manifest check.
 - [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.
@@ -31,7 +32,8 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] If downstream verification fails after publication, keep retained dry-run artifacts, mark the version failed, and ship a later patch version instead of republishing the same version.
 - [ ] For replacement patches after failed publication, record the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, replacement downstream verification pass, and failed-version deprecation result when available.
 - [ ] Promote failed and replacement release evidence from temporary CI artifacts into the release record or incident archive before the 90-day artifact expiry.
-- [ ] Record retained artifact provenance for `jury-package-dry-run` and `jury-package-release-evidence`: source workflow, run id, source revision, source job, `retentionDays`, and uploaded file list.
+- [ ] Promote `jury-package-release-replay-summary.md` from `jury-package-release-replay-summary` with the failed and replacement release archive evidence before the 90-day artifact expiry.
+- [ ] Record retained artifact provenance for `jury-package-dry-run`, `jury-package-release-evidence`, and `jury-package-release-replay-summary`: source workflow, run id, source revision, source job, `retentionDays`, and uploaded file list.
 - [ ] Confirm retained failed and replacement evidence comes from the same `jury-npm-publish.yml` workflow run and source revision before closing the release.
 - [ ] Export `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json`.
 - [ ] Confirm the retained archive manifest validates against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json).

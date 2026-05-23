@@ -21,6 +21,7 @@ const archiveEvidenceFiles = [
   "replacement-npm-view.json",
   "replacement-downstream-gate.json",
   "replacement-patch-audit.json",
+  "jury-package-release-replay-summary.md",
 ];
 const fixtureRead = await readRequiredFixtures([
   "rollback-audit.json",
@@ -31,6 +32,7 @@ const fixtureRead = await readRequiredFixtures([
   "replacement-npm-view.json",
   "replacement-downstream-gate.json",
   "archive-drift-remediation-audit.json",
+  "jury-package-release-replay-summary.md",
 ]);
 if (fixtureRead.errors.length > 0) {
   process.stderr.write(`${fixtureRead.errors.join("\n")}\n`);
@@ -83,6 +85,7 @@ process.stdout.write(`${JSON.stringify({
     "rollback-audit.json",
     "replacement-patch-audit.json",
     "archive-drift-remediation-audit.json",
+    "jury-package-release-replay-summary.md",
   ],
 }, null, 2)}\n`);
 
@@ -93,8 +96,10 @@ async function readRequiredFixtures(names) {
   for (const name of names) {
     try {
       const raw = await readFile(join(fixtureDir, name), "utf8");
-      fixtures.set(name, JSON.parse(raw));
       rawFixtures.set(name, raw);
+      if (name.endsWith(".json")) {
+        fixtures.set(name, JSON.parse(raw));
+      }
     } catch (error) {
       if (error.code === "ENOENT") {
         errors.push(`${name} is required in package release evidence directory ${fixtureDir}`);
@@ -332,10 +337,12 @@ function relationshipErrors() {
   for (const artifact of [
     "jury-package-dry-run",
     "jury-package-release-evidence",
+    "jury-package-release-replay-summary",
     "jury-pack-dry-run-record.json",
     "failed-npm-view.json",
     "downstream-failure-gate.json",
     "rollback-audit.json",
+    "jury-package-release-replay-summary.md",
     "GITHUB_STEP_SUMMARY",
   ]) {
     if (!rollback.retention?.artifacts?.includes(artifact)) {
@@ -376,6 +383,7 @@ function relationshipErrors() {
   for (const artifact of [
     "jury-package-dry-run",
     "jury-package-release-evidence",
+    "jury-package-release-replay-summary",
     "jury-pack-dry-run-record.json",
     "failed-npm-view.json",
     "downstream-failure-gate.json",
@@ -383,6 +391,7 @@ function relationshipErrors() {
     "replacement-npm-view.json",
     "replacement-downstream-gate.json",
     "replacement-patch-audit.json",
+    "jury-package-release-replay-summary.md",
     "GITHUB_STEP_SUMMARY",
   ]) {
     if (!replacement.retention?.artifacts?.includes(artifact)) {
@@ -403,6 +412,30 @@ function relationshipErrors() {
     errors.push("rollback and replacement retention provenance sourceRevision must match");
   }
   errors.push(...remediationAuditErrors());
+  errors.push(...replaySummaryErrors());
+
+  return errors;
+}
+
+function replaySummaryErrors() {
+  const errors = [];
+  const summary = fixtureRead.rawFixtures.get("jury-package-release-replay-summary.md");
+  const remediation = remediationAudit;
+  const requiredLines = [
+    "### Jury package release replay",
+    `- failedPackageVersion: ${failedRecord.packageVersion}`,
+    `- failedTarballName: ${failedRecord.tarballName}`,
+    `- replacementPackageVersion: ${replacement.replacement.packageVersion}`,
+    `- failedArchiveEvidence: ${remediation.failed.archiveEvidence.join(", ")}`,
+    `- replacementArchiveEvidence: ${remediation.replacement.archiveEvidence.join(", ")}`,
+    `- remediationApprovedBy: ${remediation.approval.approvedBy}`,
+  ];
+
+  for (const line of requiredLines) {
+    if (!summary.includes(line)) {
+      errors.push(`jury-package-release-replay-summary.md must include ${line}`);
+    }
+  }
 
   return errors;
 }
@@ -505,7 +538,9 @@ function retentionProvenanceErrors(audit, label) {
       "replacement-downstream-gate.json",
       "replacement-patch-audit.json",
       "archive-drift-remediation-audit.json",
+      "jury-package-release-replay-summary.md",
     ]],
+    ["jury-package-release-replay-summary", "package-release-evidence-replay", ["jury-package-release-replay-summary.md"]],
   ]) {
     const artifact = artifactMap.get(artifactName);
     if (!artifact) {

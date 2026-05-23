@@ -38,7 +38,7 @@ npm --prefix jury run fixtures:package-release:check
 npm --prefix jury run fixtures:package-release:drift
 ```
 
-The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, package release artifact provenance checks for retained failed and replacement evidence, retained package release evidence manifest export, schema validation, verification, archive drift checking, archive drift remediation audit records, CI handoff, and replay troubleshooting for failed and replacement release archives, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, package release artifact provenance checks for retained failed and replacement evidence, retained package release evidence manifest export, schema validation, verification, archive drift checking, archive drift remediation audit records, CI handoff, replay summary retention handoff, and replay troubleshooting for failed and replacement release archives, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -54,7 +54,11 @@ The same publication example uploads [examples/ci/fixtures/package-release/archi
 
 ## Replay Artifact Summary
 
-The replay job writes a `GITHUB_STEP_SUMMARY` section named `Jury package release replay`. It records the failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver before `dry-run-publication`.
+The replay job writes a `GITHUB_STEP_SUMMARY` section named `Jury package release replay`. It records the failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver before `dry-run-publication`. The same content is saved as `jury-package-release-replay-summary.md` and uploaded as the `jury-package-release-replay-summary` artifact with `retention-days: 90`.
+
+## Replay Summary Retention Handoff
+
+Failed and replacement release records must promote `jury-package-release-replay-summary.md` from the `jury-package-release-replay-summary` artifact with the retained `jury-package-release-evidence`, `jury-package-release-archive-manifest`, and `archive-drift-remediation-audit.json` records. The retained artifact provenance must record the `package-release-evidence-replay` source job, workflow run id, source revision, `retentionDays: 90`, and uploaded file list before closing the release or incident archive.
 
 ## Release Archive Fixture
 
@@ -114,4 +118,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention handoff for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure troubleshooting for failed and replacement release archives.
