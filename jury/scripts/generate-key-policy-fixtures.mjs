@@ -11,6 +11,11 @@ const JURY_NOW = "2026-05-23T00:00:00.000Z";
 const KEY_ID = "ci-fixture";
 const CLAIM_ID = "claim_ci_change";
 const KEY_SEED = "jury-key-policy-fixture-v1";
+const CODE_CHANGE_KEY_ID = "ci-code-change-adoption";
+const CODE_CHANGE_CLAIM_ID = "claim_checkout_ready";
+const CODE_CHANGE_REVISION = "code-change-adoption-fixture";
+const CODE_CHANGE_RETRY_NOW = "2026-05-23T00:00:00.000Z";
+const CODE_CHANGE_ACCEPT_NOW = "2026-05-23T00:00:01.000Z";
 const ROTATION_OLD_KEY_ID = "ci-old";
 const ROTATION_NEW_KEY_ID = "ci-new";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -18,28 +23,40 @@ const juryRoot = dirname(scriptDir);
 const repoRoot = dirname(juryRoot);
 const cliPath = join(juryRoot, "bin/jury.mjs");
 const fixtureDir = join(juryRoot, "examples/ci/fixtures/key-policy");
+const codeChangeFixtureDir = join(juryRoot, "examples/ci/fixtures/code-change-adoption-key-policy");
 const rotationFixtureDir = join(juryRoot, "examples/ci/fixtures/key-policy-rotation");
 const checkOnly = process.argv.includes("--check");
 
 const tmp = mkdtempSync(join(tmpdir(), "jury-key-policy-fixtures-"));
 const outDir = checkOnly ? join(tmp, "fixtures") : fixtureDir;
+const codeChangeOutDir = checkOnly ? join(tmp, "fixtures-code-change") : codeChangeFixtureDir;
 const rotationOutDir = checkOnly ? join(tmp, "fixtures-rotation") : rotationFixtureDir;
 const stateDir = join(tmp, ".jury");
+const codeChangeStateDir = join(tmp, ".jury-code-change");
+const codeChangeRetryImportDir = join(tmp, ".jury-code-change-retry-imported");
+const codeChangeAcceptImportDir = join(tmp, ".jury-code-change-accept-imported");
 const privateKeyPath = join(tmp, "ci-private.pem");
+const codeChangePrivateKeyPath = join(tmp, "ci-code-change-private.pem");
 const rotationOldPrivateKeyPath = join(tmp, "ci-old-private.pem");
 const rotationNewPrivateKeyPath = join(tmp, "ci-new-private.pem");
 
 try {
   const keyPair = createFixtureKeyPair(KEY_SEED);
+  const codeChangeKeyPair = createFixtureKeyPair("jury-code-change-adoption-key-policy-v1");
   const rotationOldKeyPair = createFixtureKeyPair("jury-key-policy-rotation-old-v1");
   const rotationNewKeyPair = createFixtureKeyPair("jury-key-policy-rotation-new-v1");
 
   mkdirSync(outDir, { recursive: true });
+  mkdirSync(codeChangeOutDir, { recursive: true });
   mkdirSync(rotationOutDir, { recursive: true });
   writeFileSync(privateKeyPath, keyPair.privateKey);
   writeFileSync(join(outDir, "ci-public.pem"), keyPair.publicKey);
   writeFileSync(join(outDir, "jury-key-policy.json"), `${JSON.stringify(keyPolicy(), null, 2)}\n`);
   writeFileSync(join(outDir, "jury-key-policy.untrusted-producer.json"), `${JSON.stringify(untrustedProducerPolicy(), null, 2)}\n`);
+  writeFileSync(codeChangePrivateKeyPath, codeChangeKeyPair.privateKey);
+  writeFileSync(join(codeChangeOutDir, "ci-code-change-public.pem"), codeChangeKeyPair.publicKey);
+  writeFileSync(join(codeChangeOutDir, "jury-key-policy.json"), `${JSON.stringify(codeChangeKeyPolicy(), null, 2)}\n`);
+  writeFileSync(join(codeChangeOutDir, "jury-key-policy.untrusted-producer.json"), `${JSON.stringify(codeChangeUntrustedProducerPolicy(), null, 2)}\n`);
   writeFileSync(rotationOldPrivateKeyPath, rotationOldKeyPair.privateKey);
   writeFileSync(rotationNewPrivateKeyPath, rotationNewKeyPair.privateKey);
   writeFileSync(join(rotationOutDir, "ci-old-public.pem"), rotationOldKeyPair.publicKey);
@@ -60,6 +77,59 @@ try {
   ]);
   runJury(["bundle", "preflight", "--bundle", join(outDir, "review-bundle.signed.json"), "--key-policy", join(outDir, "jury-key-policy.json")]);
   runJuryExpectFailure(["bundle", "preflight", "--bundle", join(outDir, "review-bundle.signed.json"), "--key-policy", join(outDir, "jury-key-policy.untrusted-producer.json")], "no trusted producer");
+  buildCodeChangeAdoptionRetryState(codeChangeStateDir);
+  runJury([
+    "bundle", "export",
+    "--state-dir", codeChangeStateDir,
+    "--claim", CODE_CHANGE_CLAIM_ID,
+    "--out", join(codeChangeOutDir, "review-bundle.retry.signed.json"),
+    "--attest-private-key", codeChangePrivateKeyPath,
+    "--attestation-key-id", CODE_CHANGE_KEY_ID,
+    "--source", "local",
+    "--revision", CODE_CHANGE_REVISION,
+  ], { JURY_NOW: CODE_CHANGE_RETRY_NOW });
+  resolveCodeChangeAdoptionState(codeChangeStateDir);
+  runJury([
+    "bundle", "export",
+    "--state-dir", codeChangeStateDir,
+    "--claim", CODE_CHANGE_CLAIM_ID,
+    "--out", join(codeChangeOutDir, "review-bundle.accept.signed.json"),
+    "--attest-private-key", codeChangePrivateKeyPath,
+    "--attestation-key-id", CODE_CHANGE_KEY_ID,
+    "--source", "local",
+    "--revision", CODE_CHANGE_REVISION,
+  ], { JURY_NOW: CODE_CHANGE_ACCEPT_NOW });
+  runJury(["bundle", "preflight", "--bundle", join(codeChangeOutDir, "review-bundle.retry.signed.json"), "--key-policy", join(codeChangeOutDir, "jury-key-policy.json")]);
+  runJury(["bundle", "preflight", "--bundle", join(codeChangeOutDir, "review-bundle.accept.signed.json"), "--key-policy", join(codeChangeOutDir, "jury-key-policy.json")]);
+  runJury([
+    "bundle", "import",
+    "--state-dir", codeChangeRetryImportDir,
+    "--bundle", join(codeChangeOutDir, "review-bundle.retry.signed.json"),
+    "--key-policy", join(codeChangeOutDir, "jury-key-policy.json"),
+    "--verdict-out", join(tmp, "imported-verdict.retry.json"),
+  ]);
+  runJuryExpectStatus([
+    "gate",
+    "--state-dir", codeChangeRetryImportDir,
+    "--claim", CODE_CHANGE_CLAIM_ID,
+    "--verdict", join(tmp, "imported-verdict.retry.json"),
+  ], 1);
+  runJury(["check", "--state-dir", codeChangeRetryImportDir, "--strict"]);
+  runJury([
+    "bundle", "import",
+    "--state-dir", codeChangeAcceptImportDir,
+    "--bundle", join(codeChangeOutDir, "review-bundle.accept.signed.json"),
+    "--key-policy", join(codeChangeOutDir, "jury-key-policy.json"),
+    "--verdict-out", join(tmp, "imported-verdict.accept.json"),
+  ]);
+  runJury([
+    "gate",
+    "--state-dir", codeChangeAcceptImportDir,
+    "--claim", CODE_CHANGE_CLAIM_ID,
+    "--verdict", join(tmp, "imported-verdict.accept.json"),
+  ]);
+  runJury(["check", "--state-dir", codeChangeAcceptImportDir, "--strict"]);
+  runJuryExpectFailure(["bundle", "preflight", "--bundle", join(codeChangeOutDir, "review-bundle.accept.signed.json"), "--key-policy", join(codeChangeOutDir, "jury-key-policy.untrusted-producer.json")], "no trusted producer");
   runJury([
     "bundle", "export",
     "--state-dir", stateDir,
@@ -91,6 +161,11 @@ try {
       assertFixtureDrift("jury-key-policy.json", outDir),
       assertFixtureDrift("jury-key-policy.untrusted-producer.json", outDir),
       assertFixtureDrift("review-bundle.signed.json", outDir),
+      assertFixtureDrift("ci-code-change-public.pem", codeChangeOutDir, codeChangeFixtureDir),
+      assertFixtureDrift("jury-key-policy.json", codeChangeOutDir, codeChangeFixtureDir),
+      assertFixtureDrift("jury-key-policy.untrusted-producer.json", codeChangeOutDir, codeChangeFixtureDir),
+      assertFixtureDrift("review-bundle.retry.signed.json", codeChangeOutDir, codeChangeFixtureDir),
+      assertFixtureDrift("review-bundle.accept.signed.json", codeChangeOutDir, codeChangeFixtureDir),
       assertFixtureDrift("ci-old-public.pem", rotationOutDir, rotationFixtureDir),
       assertFixtureDrift("ci-new-public.pem", rotationOutDir, rotationFixtureDir),
       assertFixtureDrift("jury-key-policy.rotation.json", rotationOutDir, rotationFixtureDir),
@@ -142,6 +217,44 @@ function untrustedProducerPolicy() {
         key_id: KEY_ID,
         type: "rsa-sha256",
         public_key_path: "ci-public.pem",
+        valid_from: "2026-05-22T00:00:00.000Z",
+        valid_until: "2026-05-24T00:00:00.000Z",
+      }],
+    }],
+  };
+}
+
+function codeChangeKeyPolicy() {
+  return {
+    schema_version: "jury.key_policy.v1",
+    producers: [{
+      name: "@sanogueralorenzo/jury",
+      version: "0.1.0",
+      source: "local",
+      revision_pattern: `^${CODE_CHANGE_REVISION}$`,
+      keys: [{
+        key_id: CODE_CHANGE_KEY_ID,
+        type: "rsa-sha256",
+        public_key_path: "ci-code-change-public.pem",
+        valid_from: "2026-05-22T00:00:00.000Z",
+        valid_until: "2026-05-24T00:00:00.000Z",
+      }],
+    }],
+  };
+}
+
+function codeChangeUntrustedProducerPolicy() {
+  return {
+    schema_version: "jury.key_policy.v1",
+    producers: [{
+      name: "@sanogueralorenzo/jury",
+      version: "0.1.0",
+      source: "retired-code-change-ci",
+      revision_pattern: "^retired-code-change-adoption$",
+      keys: [{
+        key_id: CODE_CHANGE_KEY_ID,
+        type: "rsa-sha256",
+        public_key_path: "ci-code-change-public.pem",
         valid_from: "2026-05-22T00:00:00.000Z",
         valid_until: "2026-05-24T00:00:00.000Z",
       }],
@@ -222,8 +335,25 @@ function buildAcceptedReviewState(targetStateDir) {
   runJury(["gate", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--verdict", join(tmp, "verdict.json")]);
 }
 
-function runJury(args) {
-  const env = { ...process.env, JURY_NOW };
+function buildCodeChangeAdoptionRetryState(targetStateDir) {
+  runJury(["init", "--state-dir", targetStateDir], { JURY_NOW: CODE_CHANGE_RETRY_NOW });
+  runJury(["claim", "create", "--state-dir", targetStateDir, "--id", CODE_CHANGE_CLAIM_ID, "--summary", "checkout code change is ready", "--scope", "jury", "--impact", "high"], { JURY_NOW: CODE_CHANGE_RETRY_NOW });
+  runJury(["evidence", "add", "--state-dir", targetStateDir, "--id", "ev_jury_tests", "--claim", CODE_CHANGE_CLAIM_ID, "--type", "command", "--command", "npm --prefix jury test", "--exit-code", "0"], { JURY_NOW: CODE_CHANGE_RETRY_NOW });
+  runJury(["critic", "run", "--state-dir", targetStateDir, "--claim", CODE_CHANGE_CLAIM_ID, "--role", "scope", "--changed-files", "jury/bin/jury.mjs,docs/checkout-notes.md"], { JURY_NOW: CODE_CHANGE_RETRY_NOW });
+  runJury(["judge", "--state-dir", targetStateDir, "--claim", CODE_CHANGE_CLAIM_ID, "--out", join(tmp, "verdict.retry.json")], { JURY_NOW: CODE_CHANGE_RETRY_NOW });
+  runJuryExpectStatus(["gate", "--state-dir", targetStateDir, "--claim", CODE_CHANGE_CLAIM_ID, "--verdict", join(tmp, "verdict.retry.json")], 1, { JURY_NOW: CODE_CHANGE_RETRY_NOW });
+}
+
+function resolveCodeChangeAdoptionState(targetStateDir) {
+  runJury(["evidence", "add", "--state-dir", targetStateDir, "--id", "ev_scope_corrected", "--claim", CODE_CHANGE_CLAIM_ID, "--type", "manual", "--summary", "changed files are limited to the jury scope", "--source", "changed-files:jury/bin/jury.mjs", "--status", "passed"], { JURY_NOW: CODE_CHANGE_ACCEPT_NOW });
+  runJury(["objection", "resolve", "--state-dir", targetStateDir, "--id", "obj_claim_checkout_ready_scope_out_of_scope_changes", "--resolution", "Removed docs/checkout-notes.md from the change set and reran scope review with only jury/bin/jury.mjs."], { JURY_NOW: CODE_CHANGE_ACCEPT_NOW });
+  runJury(["critic", "run", "--state-dir", targetStateDir, "--claim", CODE_CHANGE_CLAIM_ID, "--role", "scope", "--changed-files", "jury/bin/jury.mjs"], { JURY_NOW: CODE_CHANGE_ACCEPT_NOW });
+  runJury(["judge", "--state-dir", targetStateDir, "--claim", CODE_CHANGE_CLAIM_ID, "--out", join(tmp, "verdict.accept.json")], { JURY_NOW: CODE_CHANGE_ACCEPT_NOW });
+  runJury(["gate", "--state-dir", targetStateDir, "--claim", CODE_CHANGE_CLAIM_ID, "--verdict", join(tmp, "verdict.accept.json")], { JURY_NOW: CODE_CHANGE_ACCEPT_NOW });
+}
+
+function runJury(args, envOverrides = {}) {
+  const env = { ...process.env, JURY_NOW, ...envOverrides };
   delete env.GITHUB_REPOSITORY;
   delete env.GITHUB_SHA;
   delete env.GITHUB_WORKFLOW;
@@ -242,8 +372,16 @@ function runJury(args) {
   return result.stdout;
 }
 
-function runJuryExpectFailure(args, expectedMessage) {
-  const env = { ...process.env, JURY_NOW };
+function runJuryExpectFailure(args, expectedMessage, envOverrides = {}) {
+  const result = runJuryExpectStatus(args, 1, envOverrides);
+
+  if (!result.stdout.includes(expectedMessage)) {
+    throw new Error(`jury ${args.join(" ")} expected failure containing ${expectedMessage}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
+}
+
+function runJuryExpectStatus(args, expectedStatus, envOverrides = {}) {
+  const env = { ...process.env, JURY_NOW, ...envOverrides };
   delete env.GITHUB_REPOSITORY;
   delete env.GITHUB_SHA;
   delete env.GITHUB_WORKFLOW;
@@ -255,9 +393,11 @@ function runJuryExpectFailure(args, expectedMessage) {
     encoding: "utf8",
   });
 
-  if (result.status === 0 || !result.stdout.includes(expectedMessage)) {
-    throw new Error(`jury ${args.join(" ")} expected failure containing ${expectedMessage}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  if (result.status !== expectedStatus) {
+    throw new Error(`jury ${args.join(" ")} expected status ${expectedStatus}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   }
+
+  return result;
 }
 
 function assertFixtureDrift(filename, generatedDir, expectedDir = fixtureDir) {

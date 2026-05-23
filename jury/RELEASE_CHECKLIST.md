@@ -69,9 +69,10 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Copy [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml) when producer and consumer CI jobs need an artifact download handoff.
 - [ ] Copy [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml) into `.github/workflows/` for downstream trusted-producer verification.
 - [ ] Copy [examples/ci/jury-code-change-adoption.yml](examples/ci/jury-code-change-adoption.yml) when CI should publish signed retry and accept code-change adoption bundles for downstream verification.
-- [ ] Configure `JURY_CI_PRIVATE_KEY` and the matching public key or key policy before consuming `review-bundle.retry.signed.json` or `review-bundle.accept.signed.json` across repositories.
+- [ ] Configure `JURY_CI_PRIVATE_KEY` and a reviewed key policy before consuming `review-bundle.retry.signed.json` or `review-bundle.accept.signed.json` across repositories.
 - [ ] Compare generated outputs with [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart).
 - [ ] Verify signed bundle handoff with [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy).
+- [ ] Verify signed code-change adoption handoff with [examples/ci/fixtures/code-change-adoption-key-policy](examples/ci/fixtures/code-change-adoption-key-policy).
 - [ ] Review [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation) before rotating producer signing keys.
 - [ ] Compare package publication rollback evidence with [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release).
 - [ ] `npm --prefix jury run fixtures:key-policy:check` passes before release.
@@ -114,6 +115,12 @@ Expected fixture files:
 - [examples/ci/fixtures/key-policy/ci-public.pem](examples/ci/fixtures/key-policy/ci-public.pem)
 - [examples/ci/fixtures/key-policy/review-bundle.signed.json](examples/ci/fixtures/key-policy/review-bundle.signed.json)
 - [examples/ci/fixtures/key-policy/README.md](examples/ci/fixtures/key-policy/README.md)
+- [examples/ci/fixtures/code-change-adoption-key-policy/jury-key-policy.json](examples/ci/fixtures/code-change-adoption-key-policy/jury-key-policy.json)
+- [examples/ci/fixtures/code-change-adoption-key-policy/jury-key-policy.untrusted-producer.json](examples/ci/fixtures/code-change-adoption-key-policy/jury-key-policy.untrusted-producer.json)
+- [examples/ci/fixtures/code-change-adoption-key-policy/ci-code-change-public.pem](examples/ci/fixtures/code-change-adoption-key-policy/ci-code-change-public.pem)
+- [examples/ci/fixtures/code-change-adoption-key-policy/review-bundle.retry.signed.json](examples/ci/fixtures/code-change-adoption-key-policy/review-bundle.retry.signed.json)
+- [examples/ci/fixtures/code-change-adoption-key-policy/review-bundle.accept.signed.json](examples/ci/fixtures/code-change-adoption-key-policy/review-bundle.accept.signed.json)
+- [examples/ci/fixtures/code-change-adoption-key-policy/README.md](examples/ci/fixtures/code-change-adoption-key-policy/README.md)
 - [examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json](examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json)
 - [examples/ci/fixtures/key-policy-rotation/jury-key-policy.revoked-old.json](examples/ci/fixtures/key-policy-rotation/jury-key-policy.revoked-old.json)
 - [examples/ci/fixtures/key-policy-rotation/ci-old-public.pem](examples/ci/fixtures/key-policy-rotation/ci-old-public.pem)

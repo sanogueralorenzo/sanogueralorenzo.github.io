@@ -27,8 +27,8 @@ The same workflow paths and artifact expectations are listed in [release.json](r
 Downstream jobs can download the `jury-code-change-adoption` artifact and verify the accepted bundle before consuming the verdict:
 
 ```shell
-node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.signed.json --require-attestation true --verify-attestation-public-key ci-code-change-public.pem --expect-attestation-key-id ci-code-change-adoption
-node jury/bin/jury.mjs bundle import --state-dir .jury-code-change-downstream --bundle review-bundle.accept.signed.json --require-attestation true --verify-attestation-public-key ci-code-change-public.pem --expect-attestation-key-id ci-code-change-adoption --verdict-out downstream-verdict.accept.json
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.signed.json --key-policy jury-key-policy.json
+node jury/bin/jury.mjs bundle import --state-dir .jury-code-change-downstream --bundle review-bundle.accept.signed.json --key-policy jury-key-policy.json --verdict-out downstream-verdict.accept.json
 node jury/bin/jury.mjs gate --state-dir .jury-code-change-downstream --claim claim_checkout_ready --verdict downstream-verdict.accept.json --json > downstream-gate.accept.json
 node jury/bin/jury.mjs check --state-dir .jury-code-change-downstream --strict
 ```
@@ -37,7 +37,7 @@ The retry bundle remains available as `review-bundle.retry.signed.json` so consu
 
 ## Key Policy Fixtures
 
-[examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy) contains the signed-bundle happy path and an untrusted-producer troubleshooting policy. [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation) contains old/new key overlap and revoked-old cutover examples.
+[examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy) contains the signed-bundle happy path and an untrusted-producer troubleshooting policy. [examples/ci/fixtures/code-change-adoption-key-policy](examples/ci/fixtures/code-change-adoption-key-policy) contains signed retry and accept code-change adoption bundles plus the matching trusted-producer policy. [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation) contains old/new key overlap and revoked-old cutover examples.
 
 Run this before changing CI trust policy fixtures:
 

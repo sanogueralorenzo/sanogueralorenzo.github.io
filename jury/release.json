@@ -151,6 +151,7 @@
       "examples/ci/jury-code-change-adoption.yml",
       "examples/code-change-adoption",
       "examples/ci/fixtures/key-policy",
+      "examples/ci/fixtures/code-change-adoption-key-policy",
       "examples/ci/fixtures/package-release"
     ]
   },

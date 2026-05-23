@@ -14,6 +14,7 @@ const fixturesDir = join(repoRoot, "jury/fixtures/verdicts");
 const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
 const ciQuickstartFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/quickstart");
 const ciKeyPolicyFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy");
+const ciCodeChangeKeyPolicyFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/code-change-adoption-key-policy");
 const ciKeyPolicyRotationFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy-rotation");
 const ciPackageReleaseFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/package-release");
 const codeChangeAdoptionFixturesDir = join(repoRoot, "jury/examples/code-change-adoption");
@@ -1072,6 +1073,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("review-bundle.signed.json"));
   assert.ok(readme.includes("gate.json"));
   assert.ok(readme.includes("fixtures/key-policy"));
+  assert.ok(readme.includes("fixtures/code-change-adoption-key-policy"));
   assert.ok(readme.includes("fixtures/key-policy-rotation"));
   assert.ok(readme.includes("jury.key_policy.v1"));
   assert.ok(readme.includes("actions/upload-artifact@v4"));
@@ -1137,6 +1139,7 @@ test("CI adoption guide chooses the supported workflow paths", async () => {
     "actions/download-artifact@v4",
     "secrets.JURY_CI_PRIVATE_KEY",
     "npm --prefix jury run fixtures:key-policy:check",
+    "examples/ci/fixtures/code-change-adoption-key-policy",
   ]) {
     assert.ok(guide.includes(choice), `CI_ADOPTION.md should mention ${choice}`);
   }
@@ -1220,6 +1223,86 @@ test("key policy CI fixtures verify and import a signed review bundle", async ()
     assert.match(driftCheck.stdout, /key-policy fixtures are in sync/);
   } finally {
     await rm(stateDir, { recursive: true, force: true });
+    await rm(downstreamDir, { recursive: true, force: true });
+  }
+});
+
+test("code-change adoption key policy fixtures verify retry and accept bundles", async () => {
+  const retryStateDir = await tempState();
+  const acceptStateDir = await tempState();
+  const downstreamDir = await tempState();
+  const retryBundlePath = join(ciCodeChangeKeyPolicyFixturesDir, "review-bundle.retry.signed.json");
+  const acceptBundlePath = join(ciCodeChangeKeyPolicyFixturesDir, "review-bundle.accept.signed.json");
+  const policyPath = join(ciCodeChangeKeyPolicyFixturesDir, "jury-key-policy.json");
+  const untrustedProducerPolicyPath = join(ciCodeChangeKeyPolicyFixturesDir, "jury-key-policy.untrusted-producer.json");
+  const publicKeyPath = join(ciCodeChangeKeyPolicyFixturesDir, "ci-code-change-public.pem");
+  const readme = await readFile(join(ciCodeChangeKeyPolicyFixturesDir, "README.md"), "utf8");
+  const retryBundle = JSON.parse(await readFile(retryBundlePath, "utf8"));
+  const acceptBundle = JSON.parse(await readFile(acceptBundlePath, "utf8"));
+  const retryFixture = JSON.parse(await readFile(join(codeChangeAdoptionFixturesDir, "review-bundle.retry.json"), "utf8"));
+  const acceptFixture = JSON.parse(await readFile(join(codeChangeAdoptionFixturesDir, "review-bundle.accept.json"), "utf8"));
+  const policy = JSON.parse(await readFile(policyPath, "utf8"));
+  const untrustedProducerPolicy = JSON.parse(await readFile(untrustedProducerPolicyPath, "utf8"));
+  const publicKey = await readFile(publicKeyPath, "utf8");
+  const { attestation: retryAttestation, ...retryPayload } = retryBundle;
+  const { attestation: acceptAttestation, ...acceptPayload } = acceptBundle;
+
+  try {
+    assert.deepEqual(retryPayload, retryFixture);
+    assert.deepEqual(acceptPayload, acceptFixture);
+    assert.equal(retryAttestation.type, "rsa-sha256");
+    assert.equal(retryAttestation.key_id, "ci-code-change-adoption");
+    assert.equal(acceptAttestation.type, "rsa-sha256");
+    assert.equal(acceptAttestation.key_id, "ci-code-change-adoption");
+    assert.equal(policy.schema_version, "jury.key_policy.v1");
+    assert.equal(policy.producers[0].revision_pattern, "^code-change-adoption-fixture$");
+    assert.equal(policy.producers[0].keys[0].public_key_path, "ci-code-change-public.pem");
+    assert.equal(untrustedProducerPolicy.producers[0].source, "retired-code-change-ci");
+    assert.match(publicKey, /BEGIN PUBLIC KEY/);
+    assert.ok(readme.includes("review-bundle.retry.signed.json"));
+    assert.ok(readme.includes("review-bundle.accept.signed.json"));
+    assert.ok(readme.includes("--key-policy"));
+    assert.ok(!readme.includes("--verify-attestation-public-key"));
+    assert.ok(readme.includes("jury-trusted-bundle-verify.yml"));
+
+    const retryPreflight = await runProcess(["bundle", "preflight", "--bundle", retryBundlePath, "--key-policy", policyPath]);
+    const acceptPreflight = await runProcess(["bundle", "preflight", "--bundle", acceptBundlePath, "--key-policy", policyPath]);
+
+    assert.equal(retryPreflight.exitCode, 0, retryPreflight.stderr);
+    assert.equal(JSON.parse(retryPreflight.stdout).key_policy.considered_keys[0].status, "verified");
+    assert.equal(acceptPreflight.exitCode, 0, acceptPreflight.stderr);
+    assert.equal(JSON.parse(acceptPreflight.stdout).key_policy.considered_keys[0].status, "verified");
+
+    const retryImport = await runProcess(["bundle", "import", "--state-dir", retryStateDir, "--bundle", retryBundlePath, "--key-policy", policyPath, "--verdict-out", join(retryStateDir, "imported-verdict.retry.json")]);
+    const retryGate = await runProcess(["gate", "--state-dir", retryStateDir, "--claim", "claim_checkout_ready", "--verdict", join(retryStateDir, "imported-verdict.retry.json")]);
+    const retryCheck = await runProcess(["check", "--state-dir", retryStateDir, "--strict"]);
+
+    assert.equal(retryImport.exitCode, 0, retryImport.stderr);
+    assert.equal(retryGate.exitCode, 1, retryGate.stderr);
+    assert.equal(JSON.parse(retryGate.stdout).decision, "retry");
+    assert.equal(retryCheck.exitCode, 0, retryCheck.stderr);
+
+    const acceptImport = await runProcess(["bundle", "import", "--state-dir", acceptStateDir, "--bundle", acceptBundlePath, "--key-policy", policyPath, "--verdict-out", join(acceptStateDir, "imported-verdict.accept.json")]);
+    const acceptGate = await runProcess(["gate", "--state-dir", acceptStateDir, "--claim", "claim_checkout_ready", "--verdict", join(acceptStateDir, "imported-verdict.accept.json")]);
+    const acceptCheck = await runProcess(["check", "--state-dir", acceptStateDir, "--strict"]);
+
+    assert.equal(acceptImport.exitCode, 0, acceptImport.stderr);
+    assert.equal(acceptGate.exitCode, 0, acceptGate.stderr);
+    assert.equal(JSON.parse(acceptGate.stdout).decision, "accept");
+    assert.equal(acceptCheck.exitCode, 0, acceptCheck.stderr);
+
+    const copiedFixtureDir = join(downstreamDir, "code-change-adoption-key-policy");
+    await cp(ciCodeChangeKeyPolicyFixturesDir, copiedFixtureDir, { recursive: true });
+    const copiedPreflight = await runProcess(["bundle", "preflight", "--bundle", join(copiedFixtureDir, "review-bundle.accept.signed.json"), "--key-policy", join(copiedFixtureDir, "jury-key-policy.json")]);
+    const untrustedProducer = await runProcess(["bundle", "preflight", "--bundle", acceptBundlePath, "--key-policy", untrustedProducerPolicyPath]);
+    const untrustedProducerPayload = JSON.parse(untrustedProducer.stdout);
+
+    assert.equal(copiedPreflight.exitCode, 0, copiedPreflight.stderr);
+    assert.equal(untrustedProducer.exitCode, 1);
+    assert.match(untrustedProducerPayload.errors.join("\n"), /no trusted producer/);
+  } finally {
+    await rm(retryStateDir, { recursive: true, force: true });
+    await rm(acceptStateDir, { recursive: true, force: true });
     await rm(downstreamDir, { recursive: true, force: true });
   }
 });
@@ -4073,12 +4156,19 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/quickstart/review-bundle.json",
     "examples/ci/fixtures/quickstart/gate.json",
     "examples/ci/fixtures/key-policy",
+    "examples/ci/fixtures/code-change-adoption-key-policy",
     "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/key-policy/jury-key-policy.json",
     "examples/ci/fixtures/key-policy/jury-key-policy.untrusted-producer.json",
     "examples/ci/fixtures/key-policy/ci-public.pem",
     "examples/ci/fixtures/key-policy/review-bundle.signed.json",
     "examples/ci/fixtures/key-policy/README.md",
+    "examples/ci/fixtures/code-change-adoption-key-policy/jury-key-policy.json",
+    "examples/ci/fixtures/code-change-adoption-key-policy/jury-key-policy.untrusted-producer.json",
+    "examples/ci/fixtures/code-change-adoption-key-policy/ci-code-change-public.pem",
+    "examples/ci/fixtures/code-change-adoption-key-policy/review-bundle.retry.signed.json",
+    "examples/ci/fixtures/code-change-adoption-key-policy/review-bundle.accept.signed.json",
+    "examples/ci/fixtures/code-change-adoption-key-policy/README.md",
     "examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json",
     "examples/ci/fixtures/key-policy-rotation/jury-key-policy.revoked-old.json",
     "examples/ci/fixtures/key-policy-rotation/ci-old-public.pem",
@@ -4253,6 +4343,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/fixtures/quickstart",
     "examples/code-change-adoption",
     "examples/ci/fixtures/key-policy",
+    "examples/ci/fixtures/code-change-adoption-key-policy",
     "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/package-release",
     "examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json",
@@ -4285,6 +4376,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "npm --prefix jury test",
     "npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json",
     "npm --prefix jury run package:manifest:check",
+    "npm --prefix jury run fixtures:key-policy:check",
     "npm --prefix jury run fixtures:package-release:check",
     "npm --prefix jury run fixtures:package-release:drift",
   ]);
@@ -4319,7 +4411,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /reusable workflow that publishes signed retry and accept code-change adoption bundles for downstream verification/);
   assert.match(handoff, /Code-Change Adoption CI Workflow/);
   assert.match(handoff, /uploads `verdict\.retry\.json`, `gate\.retry\.json`, `review-bundle\.retry\.json`, `review-bundle\.retry\.signed\.json`, `verdict\.accept\.json`, `gate\.accept\.json`, `review-bundle\.accept\.json`, `review-bundle\.accept\.signed\.json`/);
-  assert.match(handoff, /bundle preflight --bundle review-bundle\.accept\.signed\.json --require-attestation true --verify-attestation-public-key/);
+  assert.match(handoff, /bundle preflight --key-policy jury-key-policy\.json/);
+  assert.match(handoff, /examples\/ci\/fixtures\/code-change-adoption-key-policy/);
+  assert.match(handoff, /ci-code-change-public\.pem/);
   assert.match(handoff, /\.jury-code-change-downstream/);
   assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
   assert.match(handoff, /package publication notes/);
@@ -4472,8 +4566,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /should require `jury-package-release-replay-summary-expiry-handoff\.json`/);
   assert.match(handoff, /requires the expiry handoff in both `retention\.artifacts` and `archiveEvidence`/);
   assert.match(handoff, /Next Hardening Step/);
-  assert.match(handoff, /key-policy-backed downstream verifier fixture for signed code-change adoption bundles/);
-  assert.match(handoff, /verify producer identity without wiring raw public-key flags/);
+  assert.match(handoff, /producer-and-consumer code-change adoption handoff workflow/);
+  assert.match(handoff, /verifies both bundles through the key policy/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

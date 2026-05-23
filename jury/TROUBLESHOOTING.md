@@ -70,6 +70,7 @@ Common missing paths:
 - `CI_ADOPTION.md`: humans cannot inspect the selected CI workflow path from the package.
 - `examples/ci/jury-trusted-bundle-verify.yml`: downstream reusable verification cannot be copied from the package.
 - `examples/ci/fixtures/key-policy`: signed-bundle trust policy examples are absent.
+- `examples/ci/fixtures/code-change-adoption-key-policy`: signed code-change adoption trust policy examples are absent.
 
 To debug a saved pack manifest without rerunning `npm pack`, replay it:
 

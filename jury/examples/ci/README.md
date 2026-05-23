@@ -49,7 +49,7 @@ jobs:
 
 The gate exits non-zero unless the verdict is `accept`. When `--claim` is present, the gate output includes unresolved blocking objections and missing fields so CI logs show the exact reason for failure. [fixtures/quickstart](fixtures/quickstart) shows the expected `verdict.json`, `review-bundle.json`, and `gate.json` outputs. `review-bundle.json` lets another job import and replay the same review state.
 
-[fixtures/key-policy](fixtures/key-policy) provides a signed review bundle, public key, and `jury.key_policy.v1` manifest for copyable trusted-producer verification in a downstream job. [jury-signed-review-gate.yml](jury-signed-review-gate.yml) signs the producer bundle with an external CI private key secret, and [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) is the reusable workflow form of the downstream handoff.
+[fixtures/key-policy](fixtures/key-policy) provides a signed review bundle, public key, and `jury.key_policy.v1` manifest for copyable trusted-producer verification in a downstream job. [fixtures/code-change-adoption-key-policy](fixtures/code-change-adoption-key-policy) provides the same key-policy handoff for signed retry and accept code-change adoption bundles. [jury-signed-review-gate.yml](jury-signed-review-gate.yml) signs the producer bundle with an external CI private key secret, and [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) is the reusable workflow form of the downstream handoff.
 
 [fixtures/key-policy-rotation](fixtures/key-policy-rotation) shows a rotation window where downstream CI trusts old and new producer keys while jobs migrate from `ci-old` to `ci-new`.
 
@@ -65,7 +65,7 @@ The workflow writes the key to `$RUNNER_TEMP`, signs with `--attest-private-key`
 
 ## Trusted Producer Handoff
 
-Copy [fixtures/key-policy](fixtures/key-policy) into the downstream job workspace when one CI job needs to verify a bundle produced by another trusted job.
+Copy [fixtures/key-policy](fixtures/key-policy) or [fixtures/code-change-adoption-key-policy](fixtures/code-change-adoption-key-policy) into the downstream job workspace when one CI job needs to verify a bundle produced by another trusted job.
 
 ```yaml
 jobs:
@@ -88,11 +88,13 @@ Regenerate the checked-in key-policy fixtures with `npm --prefix jury run fixtur
 After `actions/download-artifact@v4` restores the `jury-code-change-adoption` artifact, a downstream job can verify and gate the accepted bundle:
 
 ```shell
-node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.signed.json --require-attestation true --verify-attestation-public-key ci-code-change-public.pem --expect-attestation-key-id ci-code-change-adoption
-node jury/bin/jury.mjs bundle import --state-dir .jury-code-change-downstream --bundle review-bundle.accept.signed.json --require-attestation true --verify-attestation-public-key ci-code-change-public.pem --expect-attestation-key-id ci-code-change-adoption --verdict-out downstream-verdict.accept.json
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.signed.json --key-policy jury-key-policy.json
+node jury/bin/jury.mjs bundle import --state-dir .jury-code-change-downstream --bundle review-bundle.accept.signed.json --key-policy jury-key-policy.json --verdict-out downstream-verdict.accept.json
 node jury/bin/jury.mjs gate --state-dir .jury-code-change-downstream --claim claim_checkout_ready --verdict downstream-verdict.accept.json --json > downstream-gate.accept.json
 node jury/bin/jury.mjs check --state-dir .jury-code-change-downstream --strict
 ```
+
+[fixtures/code-change-adoption-key-policy](fixtures/code-change-adoption-key-policy) shows the checked-in public key and policy shape for this downstream handoff.
 
 ## Package Publication Check
 

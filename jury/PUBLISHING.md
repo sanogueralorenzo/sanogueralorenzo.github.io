@@ -37,6 +37,7 @@ The package must include these files before the package becomes publishable:
 - [examples/ci/jury-code-change-adoption.yml](examples/ci/jury-code-change-adoption.yml)
 - [examples/code-change-adoption](examples/code-change-adoption)
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy)
+- [examples/ci/fixtures/code-change-adoption-key-policy](examples/ci/fixtures/code-change-adoption-key-policy)
 - [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release)
 
 ## Pre-Publication Check
