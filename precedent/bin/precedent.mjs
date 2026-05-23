@@ -20,6 +20,8 @@ const SUPPORTED_EVENT_HOOKS = new Set([
   "review.after_feedback",
   "outcome.after_task",
 ]);
+const STALE_SIGNAL_THRESHOLD = 2;
+const RETIRE_SIGNAL_THRESHOLD = 4;
 const DEFAULT_CONFIG = {
   schema_version: CONFIG_SCHEMA_VERSION,
   stateDir: DEFAULT_STATE_DIR,
@@ -144,7 +146,7 @@ function parseArgs(rawArgs) {
       fail("empty flag is not valid");
     }
 
-    if (key === "json" || key === "help" || key === "dry-run" || key === "strict" || key === "promote-session-pairs") {
+    if (key === "json" || key === "help" || key === "dry-run" || key === "strict" || key === "promote-session-pairs" || key === "include-stale") {
       parsed[key] = true;
       continue;
     }
@@ -313,16 +315,26 @@ async function exportContext() {
   const locked = await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const events = await readJsonLines(join(stateDir, "events.jsonl"));
     const rankedMatches = rankPrecedents(precedents, context)
       .filter((precedent) => precedent.score >= threshold)
       .slice(0, limit);
+    const lifecycleSelected = suppressLifecycleInjections({
+      events,
+      matches: rankedMatches,
+      includeStale: args["include-stale"] === "true" || args["include-stale"] === true,
+    });
     const selected = await suppressRepeatedSessionInjections({
       stateDir,
       sessionId: args.session ?? null,
-      matches: rankedMatches,
+      matches: lifecycleSelected.matches,
       allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
     });
     const contextBlock = formatInjectionBlock(selected.matches);
+    const suppressedInjections = [
+      ...lifecycleSelected.suppressed.map(formatSuppressedInjection),
+      ...selected.suppressed.map(formatSuppressedInjection),
+    ];
     const exportEvent = {
       type: "context_export",
       observedAt: new Date().toISOString(),
@@ -337,13 +349,13 @@ async function exportContext() {
         score: match.score,
         reasons: match.matchReasons ?? [],
       })),
-      suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+      suppressedInjections,
     };
     payload = {
       schema_version: "precedent.context.v1",
       contextBlock,
       injections: selected.matches.map(formatInjection),
-      suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+      suppressedInjections,
       source: {
         command: "context",
         task,
@@ -717,17 +729,26 @@ async function contextBeforeTurnEventHook(event) {
   const locked = await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const events = await readJsonLines(join(stateDir, "events.jsonl"));
     const rankedMatches = rankPrecedents(precedents, context)
       .filter((precedent) => precedent.score >= threshold)
       .slice(0, limit);
+    const lifecycleSelected = suppressLifecycleInjections({
+      events,
+      matches: rankedMatches,
+      includeStale: event.includeStale === true,
+    });
     const selected = await suppressRepeatedSessionInjections({
       stateDir,
       sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
-      matches: rankedMatches,
+      matches: lifecycleSelected.matches,
       allowRepeat: event.allowRepeat === true,
     });
     matches = selected.matches;
-    suppressed = selected.suppressed.map(formatSuppressedInjection);
+    suppressed = [
+      ...lifecycleSelected.suppressed.map(formatSuppressedInjection),
+      ...selected.suppressed.map(formatSuppressedInjection),
+    ];
     contextBlock = formatInjectionBlock(matches);
 
     const hookEvent = {
@@ -1595,8 +1616,29 @@ function formatSuppressedInjection(match) {
   return {
     id: match.id,
     score: match.score,
-    reason: "already_injected_in_session",
+    reason: match.suppressionReason ?? "already_injected_in_session",
   };
+}
+
+function suppressLifecycleInjections({ events, matches, includeStale }) {
+  const selected = [];
+  const suppressed = [];
+
+  for (const match of matches) {
+    const lifecycle = lifecycleForPrecedent(events, match.id);
+    if (lifecycle.status === "retired") {
+      suppressed.push({ ...match, suppressionReason: "retired" });
+      continue;
+    }
+    if (lifecycle.status === "stale" && !includeStale) {
+      suppressed.push({ ...match, suppressionReason: "stale" });
+      continue;
+    }
+
+    selected.push(match);
+  }
+
+  return { matches: selected, suppressed };
 }
 
 async function suppressRepeatedSessionInjections({ stateDir, sessionId, matches, allowRepeat }) {
@@ -1737,17 +1779,67 @@ function outcomeSummaryForPrecedent(events, id) {
   const successes = outcomes.filter((event) => event.success === true);
   const failures = outcomes.filter((event) => event.success === false);
   const lastOutcome = outcomes.at(-1);
+  const lifecycle = lifecycleForPrecedent(events, id);
+  const lastSuccess = successes.at(-1);
+  const lastFailure = failures.at(-1);
 
   return {
+    status: lifecycle.status,
     injectionCount: injections.length,
     successCount: successes.length,
     failureCount: failures.length,
     suppressionCount: suppressions.length,
     guardPassCount: guardPasses.length,
     guardWarningCount: guardWarnings.length,
+    failureRate: rate(failures.length, outcomes.length),
+    guardWarningRate: rate(guardWarnings.length, guardChecks.length),
+    lastSuccessAt: lastSuccess?.receivedAt ?? lastSuccess?.observedAt ?? null,
+    lastFailureAt: lastFailure?.receivedAt ?? lastFailure?.observedAt ?? null,
     lastGuardAt: lastGuard?.observedAt ?? null,
     lastOutcomeAt: lastOutcome?.receivedAt ?? lastOutcome?.observedAt ?? null,
+    retireReasons: lifecycle.retireReasons,
   };
+}
+
+function lifecycleForPrecedent(events, id) {
+  const outcomes = events.filter((event) =>
+    event.hook === "outcome.after_task"
+    && Array.isArray(event.attributedPrecedents)
+    && event.attributedPrecedents.includes(id),
+  );
+  const successes = outcomes.filter((event) => event.success === true);
+  const failures = outcomes.filter((event) => event.success === false);
+  const guardWarnings = guardChecksForPrecedent(events, id).filter((check) => check.status === "warn");
+  const lastSuccessAt = eventTime(successes.at(-1));
+  const recentFailures = failures.filter((event) => eventTime(event) > lastSuccessAt).length;
+  const recentGuardWarnings = guardWarnings.filter((check) => eventTime(check) > lastSuccessAt).length;
+  const signalCount = recentFailures + recentGuardWarnings;
+  const retireReasons = [];
+
+  if (recentFailures > 0) {
+    retireReasons.push(`${recentFailures} attributed failure(s) since last success`);
+  }
+  if (recentGuardWarnings > 0) {
+    retireReasons.push(`${recentGuardWarnings} guard warning(s) since last success`);
+  }
+
+  if (signalCount >= RETIRE_SIGNAL_THRESHOLD) {
+    return { status: "retired", retireReasons };
+  }
+  if (signalCount >= STALE_SIGNAL_THRESHOLD) {
+    return { status: "stale", retireReasons };
+  }
+
+  return { status: "active", retireReasons: [] };
+}
+
+function eventTime(event) {
+  const timestamp = Date.parse(event?.receivedAt ?? event?.observedAt ?? "");
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function rate(numerator, denominator) {
+  return denominator > 0 ? numerator / denominator : 0;
 }
 
 function guardChecksForPrecedent(events, id) {
@@ -3724,7 +3816,7 @@ Usage:
   precedent init [--state-dir .precedent]
   precedent observe --trace trace.json [--state-dir .precedent]
   precedent observe --session session-id [--state-dir .precedent]
-  precedent context --task "add webhook handler" [--scope feature:webhooks] [--format json|markdown]
+  precedent context --task "add webhook handler" [--scope feature:webhooks] [--include-stale] [--format json|markdown]
   precedent compile [--state-dir .precedent] [--promote-session-pairs]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]

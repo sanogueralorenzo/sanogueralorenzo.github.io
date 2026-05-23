@@ -162,7 +162,8 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `compile --promote-session-pairs` scans ordinary session hook histories for a failed session followed by an analogous successful session, then generates a promoted precedent with evidence, a durable session-pair replay receipt, replay-style failure delta, injection text, and advisory guards. This path does not require a handcrafted `precedent` object in the source events.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
-- `report` also attributes session outcomes and guard checks back to injected precedents, so each precedent has use, success, failure, suppression, guard pass, and guard warning counts.
+- `report` also attributes session outcomes and guard checks back to injected precedents, so each precedent has use, success, failure, suppression, guard pass, guard warning, lifecycle status, failure-rate, guard-warning-rate, and last-success/last-failure counts.
+- Lifecycle gating keeps unsafe memory quiet: two attributed failures or guard warnings after the last success make a precedent `stale` and suppress it from `context` by default; four signals make it `retired`. Use `context --include-stale` only when intentionally auditing stale precedent. Retired precedent remains suppressed.
 
 Runtime defaults come from `.precedent/config.json` unless `PRECEDENT_CONFIG=/path/to/config.json` is set. CLI flags still win: `--state-dir` overrides `stateDir`, and `--limit` overrides `maxInjections`. Config files use `schema_version: "precedent.config.v1"` and fail fast with exact field errors when malformed.
 

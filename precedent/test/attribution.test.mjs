@@ -120,6 +120,105 @@ test("suppressed repeated injections do not count as active uses", async () => {
   }
 });
 
+test("stale precedents are suppressed until a later attributed success", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await recordAttributedOutcome(stateDir, "failure-one", false);
+    await recordAttributedOutcome(stateDir, "failure-two", false);
+
+    const staleReport = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const staleHealth = staleReport.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(staleHealth.status, "stale");
+    assert.equal(staleHealth.failureCount, 2);
+    assert.equal(staleHealth.failureRate, 1);
+    assert.ok(staleHealth.lastFailureAt);
+    assert.ok(staleHealth.retireReasons.some((reason) => reason.includes("2 attributed failure")));
+
+    const suppressed = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+    assert.deepEqual(suppressed.injections, []);
+    assert.equal(suppressed.suppressedInjections.length, 1);
+    assert.equal(suppressed.suppressedInjections[0].reason, "stale");
+
+    const included = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--include-stale",
+      "--json",
+    ]);
+    assert.equal(included.injections.length, 1);
+
+    await recordAttributedOutcome(stateDir, "recovered", true, true);
+    const activeReport = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const activeHealth = activeReport.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(activeHealth.status, "active");
+    assert.ok(activeHealth.lastSuccessAt);
+
+    const activeContext = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+    assert.equal(activeContext.injections.length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("retired precedents stay suppressed even when stale precedents are included", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await recordAttributedOutcome(stateDir, "failure-one", false);
+    await recordAttributedOutcome(stateDir, "failure-two", false);
+    await recordAttributedOutcome(stateDir, "failure-three", false, true);
+    await recordAttributedOutcome(stateDir, "failure-four", false, true);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.status, "retired");
+    assert.equal(health.failureCount, 4);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--include-stale",
+      "--json",
+    ]);
+    assert.deepEqual(context.injections, []);
+    assert.equal(context.suppressedInjections.length, 1);
+    assert.equal(context.suppressedInjections[0].reason, "retired");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   await runJson(["init", "--state-dir", stateDir, "--json"]);
   const traceOut = join(stateDir, "trace.json");
@@ -134,6 +233,29 @@ async function promoteWebhookPrecedent(stateDir) {
     "--json",
   ]);
   await runJson(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
+}
+
+async function recordAttributedOutcome(stateDir, sessionId, success, includeStale = false) {
+  await runJson([
+    "context",
+    "--state-dir",
+    stateDir,
+    "--task",
+    "add webhook handler",
+    "--scope",
+    "feature:webhooks",
+    "--session",
+    sessionId,
+    ...(includeStale ? ["--include-stale"] : []),
+    "--json",
+  ]);
+  await runJson(["hook", "--state-dir", stateDir, "--json"], {
+    schema_version: "precedent.v1",
+    hook: "outcome.after_task",
+    sessionId,
+    success,
+    notes: success ? "passed" : "failed",
+  });
 }
 
 function runJson(args, stdinJson = null) {
