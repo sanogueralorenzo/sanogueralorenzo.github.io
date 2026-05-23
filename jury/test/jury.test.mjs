@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, readFile, appendFile, cp } from "node:fs/promises";
+import { mkdtemp, rm, readFile, appendFile, cp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -612,6 +612,48 @@ test("migration doc preserves the release artifact contract", async () => {
   assert.ok(migration.includes("verdict.json"));
   assert.ok(migration.includes(".jury/*.jsonl"));
   assert.ok(migration.includes("release.json"));
+});
+
+test("release checklist links the adoption path and valid artifacts", async () => {
+  const checklistPath = join(repoRoot, "jury/RELEASE_CHECKLIST.md");
+  const checklist = await readFile(checklistPath, "utf8");
+  const readme = await readFile(join(repoRoot, "jury/README.md"), "utf8");
+  const release = JSON.parse(await readFile(releasePath, "utf8"));
+  const linkedTargets = [...checklist.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map((match) => match[1]);
+
+  for (const requiredLink of [
+    "QUICKSTART.md",
+    "examples/ci/jury-review-gate.yml",
+    "examples/ci/fixtures/quickstart",
+    "MIGRATION.md",
+    "examples/ci/fixtures/quickstart/verdict.json",
+    "examples/ci/fixtures/quickstart/review-bundle.json",
+    "examples/ci/fixtures/quickstart/gate.json",
+  ]) {
+    assert.ok(linkedTargets.includes(requiredLink), `RELEASE_CHECKLIST.md should link ${requiredLink}`);
+  }
+
+  for (const target of linkedTargets) {
+    await stat(join(dirname(checklistPath), target));
+  }
+
+  for (const artifact of ["verdict.json", "gate.json", "review-bundle.json", ".jury/*.jsonl"]) {
+    assert.ok(checklist.includes(artifact), `RELEASE_CHECKLIST.md should mention ${artifact}`);
+    assert.ok(release.ciArtifacts.includes(artifact), `release.json should list ${artifact}`);
+  }
+
+  assert.ok(readme.includes("RELEASE_CHECKLIST.md"));
+
+  const verdict = JSON.parse(await readFile(join(ciQuickstartFixturesDir, "verdict.json"), "utf8"));
+  const bundle = JSON.parse(await readFile(join(ciQuickstartFixturesDir, "review-bundle.json"), "utf8"));
+  const gate = JSON.parse(await readFile(join(ciQuickstartFixturesDir, "gate.json"), "utf8"));
+
+  assert.equal(verdict.schema_version, "jury.verdict.v1");
+  assert.equal(verdict.decision, "accept");
+  assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+  assert.equal(bundle.claim_id, "claim_ci_change");
+  assert.equal(gate.ok, true);
+  assert.equal(gate.decision, "accept");
 });
 
 function tempState() {

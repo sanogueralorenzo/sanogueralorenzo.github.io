@@ -54,6 +54,7 @@
   },
   "ciArtifacts": [
     "verdict.json",
+    "gate.json",
     "review-bundle.json",
     "jury-demo-transcript.json",
     ".jury/*.jsonl"
