@@ -1708,6 +1708,35 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[7].kind_is_nonempty, true);
   });
 
+  it("validates malformed graph records without throwing", () => {
+    const diagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      package: "fixtures.synthetic",
+      ok: true,
+      diagnostics: [],
+      nodes: [
+        null,
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(2), data: { definition: null } },
+      ],
+      edges: [
+        null,
+      ],
+    });
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_NODE_INVALID");
+    assert.equal(diagnostics[0].node_index, 0);
+    assert.equal(diagnostics[0].node_id, null);
+    assert.equal(diagnostics[0].node_kind, null);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_EDGE_INVALID");
+    assert.equal(diagnostics[1].edge_index, 0);
+    assert.equal(diagnostics[1].edge, null);
+    assert.equal(diagnostics[1].from, null);
+    assert.equal(diagnostics[1].to, null);
+  });
+
   it("validates graph edge payload diagnostics", () => {
     const diagnostics = validateTestGraph({
       nodes: [

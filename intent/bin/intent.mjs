@@ -1496,6 +1496,7 @@ function validateGraph(graph, options = {}) {
     return diagnostics;
   }
   const nodesById = new Map();
+  const graphNodes = [];
   for (const [nodeIndex, graphNode] of graph.nodes.entries()) {
     if (
       !isPlainObject(graphNode)
@@ -1600,6 +1601,7 @@ function validateGraph(graph, options = {}) {
       diagnostics.push(trustDiagnostic);
     }
     nodesById.set(graphNode.id, graphNode);
+    graphNodes.push(graphNode);
   }
   const fallbackSpan = graph.nodes[0]?.span ?? graphSpan;
   const outgoing = new Map([...nodesById.keys()].map((nodeId) => [nodeId, []]));
@@ -1609,6 +1611,7 @@ function validateGraph(graph, options = {}) {
   const incomingCompletionEdges = new Map();
   const incomingAuthorizationEdges = new Map();
   const guardTargetsByInvariant = new Map();
+  const graphEdges = [];
 
   for (const [edgeIndex, graphEdge] of graph.edges.entries()) {
     if (
@@ -1686,6 +1689,7 @@ function validateGraph(graph, options = {}) {
       diagnostics.push(memoryTargetDiagnostic);
       continue;
     }
+    graphEdges.push(graphEdge);
     outgoing.get(graphEdge.from).push(graphEdge.to);
     outgoingEdgesByNode.get(graphEdge.from).push(graphEdge);
     incomingEdgesByNode.get(graphEdge.to).push(graphEdge);
@@ -1723,7 +1727,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     const attachment = stepAttachment(graphNode);
     if (!attachment) {
       continue;
@@ -1758,7 +1762,7 @@ function validateGraph(graph, options = {}) {
 
     if (graphNode.kind === "Approval" && attachment.ownerStepId) {
       const outgoingEdges = outgoingEdgesByNode.get(graphNode.id) ?? [];
-      const approvalRequiredEffectIds = graph.nodes
+      const approvalRequiredEffectIds = graphNodes
         .filter((candidate) => {
           return candidate.kind === "Effect"
             && candidate.data?.approvalRequired === true
@@ -1785,7 +1789,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Effect") {
       continue;
     }
@@ -1804,7 +1808,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (!requiresCapabilityAuthorization(graphNode)) {
       continue;
     }
@@ -1832,7 +1836,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Capability") {
       continue;
     }
@@ -1842,7 +1846,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Context") {
       continue;
     }
@@ -1852,7 +1856,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Memory") {
       continue;
     }
@@ -1862,7 +1866,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Type") {
       continue;
     }
@@ -1872,7 +1876,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Completion") {
       continue;
     }
@@ -1883,7 +1887,7 @@ function validateGraph(graph, options = {}) {
     const guardingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "guards" && nodesById.get(graphEdge.from)?.kind === "Invariant");
     const goalId = graphNode.id.endsWith(":completion") ? graphNode.id.slice(0, -":completion".length) : null;
     const expectedGuardEdges = goalId
-      ? graph.nodes.filter((candidate) => candidate.kind === "Invariant" && candidate.id.startsWith(`${goalId}:invariant:`)).length
+      ? graphNodes.filter((candidate) => candidate.kind === "Invariant" && candidate.id.startsWith(`${goalId}:invariant:`)).length
       : guardingEdges.length;
     if (completingEdges.length !== 1 || producingEdges.length !== 1 || verifyingEdges.length < 1 || guardingEdges.length !== expectedGuardEdges) {
       diagnostics.push(error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must have incoming completes, produces, verifies, and invariant guard edges.`, graphNode.span ?? fallbackSpan, {
@@ -1898,7 +1902,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Check") {
       continue;
     }
@@ -1908,7 +1912,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Invariant") {
       continue;
     }
@@ -1921,7 +1925,7 @@ function validateGraph(graph, options = {}) {
       continue;
     }
     const guardedTargets = guardTargetsByInvariant.get(graphNode.id) ?? new Set();
-    const missingGuardTargets = invariantGuardTargetIds(graph.nodes, goalId).filter((targetId) => !guardedTargets.has(targetId));
+    const missingGuardTargets = invariantGuardTargetIds(graphNodes, goalId).filter((targetId) => !guardedTargets.has(targetId));
     if (missingGuardTargets.length > 0) {
       diagnostics.push(error("INTENT_GRAPH_GUARD_INVALID", `invariant '${graphNode.label}' must guard completion and step-scoped effect, checkpoint, and requirement nodes.`, graphNode.span ?? fallbackSpan, {
         invariant: graphNode.label,
@@ -1931,7 +1935,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Input" || graphNode.data?.scope !== "step") {
       continue;
     }
@@ -1945,7 +1949,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Input" || graphNode.data?.scope !== "goal") {
       continue;
     }
@@ -1955,7 +1959,7 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Step") {
       continue;
     }
@@ -1974,17 +1978,17 @@ function validateGraph(graph, options = {}) {
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Goal") {
       continue;
     }
-    const sequenceDiagnostic = validateGoalStepSequence(graph, nodesById, incomingEdgesByNode, graphNode, fallbackSpan);
+    const sequenceDiagnostic = validateGoalStepSequence(graphNodes, graphEdges, incomingEdgesByNode, graphNode, fallbackSpan);
     if (sequenceDiagnostic) {
       diagnostics.push(sequenceDiagnostic);
     }
   }
 
-  for (const graphNode of graph.nodes) {
+  for (const graphNode of graphNodes) {
     if (graphNode.kind !== "Goal") {
       continue;
     }
@@ -3637,8 +3641,8 @@ function validateGoalCompletionOwnership(nodesById, outgoingEdgesByNode, goalNod
   });
 }
 
-function validateGoalStepSequence(graph, nodesById, incomingEdgesByNode, goalNode, fallbackSpan) {
-  const stepNodes = graph.nodes.filter((candidate) => candidate.kind === "Step" && candidate.id.startsWith(`${goalNode.id}:step:`));
+function validateGoalStepSequence(graphNodes, graphEdges, incomingEdgesByNode, goalNode, fallbackSpan) {
+  const stepNodes = graphNodes.filter((candidate) => candidate.kind === "Step" && candidate.id.startsWith(`${goalNode.id}:step:`));
   if (stepNodes.length === 0) {
     return null;
   }
@@ -3649,7 +3653,7 @@ function validateGoalStepSequence(graph, nodesById, incomingEdgesByNode, goalNod
   const precedesEdges = [];
   const malformedPrecedesEdges = [];
 
-  for (const graphEdge of graph.edges) {
+  for (const graphEdge of graphEdges) {
     if (graphEdge.kind !== "precedes") {
       continue;
     }
@@ -3772,6 +3776,9 @@ function invariantGuardTargetIds(nodes, goalId) {
 }
 
 function edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan) {
+  if (!isPlainObject(graphEdge)) {
+    return fallbackSpan;
+  }
   return nodesById.get(graphEdge.from)?.span ?? nodesById.get(graphEdge.to)?.span ?? fallbackSpan;
 }
 

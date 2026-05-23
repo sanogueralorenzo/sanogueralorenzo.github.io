@@ -366,7 +366,8 @@ Next graph envelope validation milestone:
   `kind`, and `label`, object `span`, and object `data`; edge records must be
   objects with string `from`, `to`, and `kind`. Malformed node or edge records
   emit stable graph shape diagnostics before endpoint, kind, or semantic
-  validation.
+  validation. Later validation ignores malformed records instead of inferring
+  missing fields from them.
 - The graph JSON schema rejects empty structural strings before semantic graph
   validation, including graph node `id`, `kind`, and `label` values and edge
   `from` and `to` endpoint values.
