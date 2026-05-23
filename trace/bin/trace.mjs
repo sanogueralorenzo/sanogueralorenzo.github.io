@@ -46,6 +46,11 @@ async function main() {
     return;
   }
 
+  if (command === "check") {
+    await checkTrace();
+    return;
+  }
+
   if (command === "capture") {
     await captureEvent();
     return;
@@ -173,6 +178,44 @@ async function printStatus() {
     rawStorage: join(common, "trace", "sessions"),
     checkpointRef: CHECKPOINT_REF,
   });
+}
+
+async function checkTrace() {
+  const root = await repoRoot();
+  const files = await listMemoryFiles(root);
+  const invalidMemories = [];
+
+  for (const file of files) {
+    const content = await readFile(file, "utf8");
+    const sha = content.match(/^Commit: `([^`]+)`/m)?.[1];
+    if (!sha) {
+      invalidMemories.push({ file: relativePath(root, file), reason: "missing Commit field" });
+      continue;
+    }
+
+    const expected = memoryPathFor(root, sha);
+    if (file !== expected) {
+      invalidMemories.push({
+        file: relativePath(root, file),
+        reason: `expected ${relativePath(root, expected)}`,
+      });
+    }
+  }
+
+  const dirtyTrace = (await git(["status", "--porcelain", "-uall", "--", TRACE_DIR], { cwd: root })).split("\n").filter(Boolean);
+  const checkpointRef = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
+  const ok = invalidMemories.length === 0 && dirtyTrace.length === 0;
+  print({
+    ok,
+    memories: files.length,
+    checkpointRef: checkpointRef || null,
+    uncommitted: dirtyTrace,
+    invalidMemories,
+  });
+
+  if (!ok) {
+    process.exitCode = 1;
+  }
 }
 
 async function captureEvent() {
@@ -657,6 +700,7 @@ Usage:
   trace summary [range]
   trace pr-body [range]
   trace hook agent <event>
+  trace check
   trace status
   trace disable
 `);

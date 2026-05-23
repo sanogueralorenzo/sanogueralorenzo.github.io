@@ -90,6 +90,38 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
   }
 });
 
+test("check fails on uncommitted Trace memories and passes after committing them", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "check.txt"), "check\n");
+    await git(repo, ["add", "check.txt"]);
+    await git(repo, ["commit", "-m", "Add check file"]);
+
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "check committed trace state"]);
+    await runTrace(repo, ["record", "--validation", "node --test"]);
+
+    const dirty = await runTraceAllowFailure(repo, ["check"]);
+    assert.equal(dirty.exitCode, 1);
+    const dirtyPayload = JSON.parse(dirty.stdout);
+    assert.equal(dirtyPayload.ok, false);
+    assert.ok(dirtyPayload.uncommitted.some((entry) => entry.includes(".trace/commits/")));
+
+    await git(repo, ["add", ".trace"]);
+    await git(repo, ["commit", "-m", "Commit Trace memory"]);
+
+    const clean = await runTrace(repo, ["check"]);
+    const cleanPayload = JSON.parse(clean.stdout);
+    assert.equal(cleanPayload.ok, true);
+    assert.equal(cleanPayload.uncommitted.length, 0);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("enable installs git hooks that link commits and write post-commit memory", async () => {
   const repo = await tempRepo();
 
@@ -159,6 +191,10 @@ async function runTraceWithInput(cwd, args, input) {
   const result = await run(cwd, ["node", cliPath, ...args], fixedEnv, input);
   assert.equal(result.exitCode, 0, `${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return result;
+}
+
+async function runTraceAllowFailure(cwd, args) {
+  return run(cwd, ["node", cliPath, ...args], fixedEnv);
 }
 
 async function git(cwd, args) {
