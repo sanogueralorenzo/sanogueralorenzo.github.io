@@ -2387,13 +2387,14 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
   const [subject, author, createdAt] = (await git(["show", "-s", "--format=%s%n%an <%ae>%n%cI", sha], { cwd: root })).split("\n");
   const files = (await git(["show", "--name-only", "--format=", sha], { cwd: root })).split("\n").filter(Boolean);
   const events = sessionId ? await readSessionEvents(root, sessionId).catch(() => []) : [];
-  const prompts = events.filter((event) => event.role === "user" || event.event === "prompt").map((event) => event.message).filter(Boolean);
-  const decisions = events.filter((event) => event.event === "decision").map((event) => event.message).filter(Boolean);
-  const responses = events.filter((event) => event.event === "response" || event.role === "assistant").map((event) => event.message).filter(Boolean);
-  const tools = events.filter((event) => event.event === "tool").map((event) => event.message).filter(Boolean);
-  const validations = events.filter((event) => event.event === "validation").map((event) => event.message).filter(Boolean);
-  const risks = events.filter((event) => event.event === "risk").map((event) => event.message).filter(Boolean);
-  const notes = events.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
+  const memoryEvents = events.filter(includeInCommitMemory);
+  const prompts = memoryEvents.filter((event) => event.role === "user" || event.event === "prompt").map((event) => event.message).filter(Boolean);
+  const decisions = memoryEvents.filter((event) => event.event === "decision").map((event) => event.message).filter(Boolean);
+  const responses = memoryEvents.filter((event) => event.event === "response" || event.role === "assistant").map((event) => event.message).filter(Boolean);
+  const tools = memoryEvents.filter((event) => event.event === "tool").map((event) => event.message).filter(Boolean);
+  const validations = memoryEvents.filter((event) => event.event === "validation").map((event) => event.message).filter(Boolean);
+  const risks = memoryEvents.filter((event) => event.event === "risk").map((event) => event.message).filter(Boolean);
+  const notes = memoryEvents.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
   const summaryEvents = [...responses, ...tools, ...notes].slice(-3);
   const intent = await conciseMemoryText(root, overrides.intent ?? prompts.at(-1) ?? subject);
   const summary = await formatMemoryList(root, summaryEvents.length > 0 ? summaryEvents : [subject]);
@@ -2467,6 +2468,10 @@ ${handoff}
 `;
 
   return { markdown, rawCheckpoint };
+}
+
+function includeInCommitMemory(event) {
+  return event.source !== "trace-session";
 }
 
 async function writeCheckpointRef(root, checkpointId, payload) {

@@ -282,6 +282,7 @@ test("record distills noisy raw sessions into compact memories", async () => {
     await git(repo, ["commit", "-m", "Add noisy trace case"]);
 
     await runTrace(repo, ["init"]);
+    await runTrace(repo, ["session", "start", "noisy-session"]);
     await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "capture only the useful memory"]);
     await runTrace(repo, ["capture", "--event", "decision", "--message", "Keep the durable memory short"]);
     await runTrace(repo, ["capture", "--event", "decision", "--message", "Keep the durable memory short"]);
@@ -289,15 +290,21 @@ test("record distills noisy raw sessions into compact memories", async () => {
     for (const risk of ["risk one", "risk two", "risk three", "risk four", "risk five", "risk six", "risk seven"]) {
       await runTrace(repo, ["capture", "--event", "risk", "--message", risk]);
     }
+    await runTrace(repo, ["session", "end", "noisy-session"]);
 
-    await runTrace(repo, ["record"]);
+    const record = JSON.parse((await runTrace(repo, ["record", "--session", "noisy-session"])).stdout);
 
     const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
     assert.equal((sectionText(memory, "Decisions").match(/Keep the durable memory short/g) ?? []).length, 1);
     assert.match(memory, /long response detail .*\.{3}/);
     assert.match(memory, /2 more events omitted from this compact memory/);
     assert.doesNotMatch(memory, /risk seven/);
+    assert.doesNotMatch(memory, /session started/);
+    assert.doesNotMatch(memory, /session ended/);
     assert.match(memory, /## Handoff\n\n- Preserve the decision: Keep the durable memory short/);
+
+    const checkpoint = JSON.parse((await git(repo, ["show", `refs/trace/checkpoints:checkpoints/${record.checkpoint}.json`])).stdout);
+    assert.deepEqual(checkpoint.events.filter((event) => event.source === "trace-session").map((event) => event.message), ["session started", "session ended"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
