@@ -877,6 +877,146 @@ test("bundle asymmetric attestation verifies producer identity with a public key
   }
 });
 
+test("bundle key policy verifies trusted producers and public keys before import", async () => {
+  const sourceDir = await tempState();
+  const cwd = await tempState();
+  const importDir = join(cwd, "policy-import-state");
+  const privateKeyPath = join(cwd, "policy-private.pem");
+  const publicKeyPath = join(cwd, "policy-public.pem");
+  const wrongPublicKeyPath = join(cwd, "policy-wrong-public.pem");
+  const policyPath = join(cwd, "jury-key-policy.json");
+  const inlinePolicyPath = join(cwd, "inline-key-policy.json");
+  const overlappingPolicyPath = join(cwd, "overlapping-key-policy.json");
+  const wrongProducerPolicyPath = join(cwd, "wrong-producer-policy.json");
+  const wrongKeyPolicyPath = join(cwd, "wrong-key-policy.json");
+  const bundlePath = join(cwd, "policy-review-bundle.json");
+
+  try {
+    const pair = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    const wrongPair = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    await writeFile(privateKeyPath, pair.privateKey);
+    await writeFile(publicKeyPath, pair.publicKey);
+    await writeFile(wrongPublicKeyPath, wrongPair.publicKey);
+
+    const policy = {
+      schema_version: "jury.key_policy.v1",
+      producers: [{
+        name: "jury-ci",
+        version: "9.9.9",
+        source: "github.com/example/repo",
+        revision_pattern: "^abc[0-9]+$",
+        keys: [{
+          key_id: "ci-policy",
+          type: "rsa-sha256",
+          public_key_path: "policy-public.pem",
+        }],
+      }],
+    };
+    await writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`);
+    await writeFile(inlinePolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{
+        ...policy.producers[0],
+        keys: [{ ...policy.producers[0].keys[0], public_key_path: undefined, public_key: pair.publicKey }],
+      }],
+    }, null, 2)}\n`);
+    await writeFile(overlappingPolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [
+        {
+          ...policy.producers[0],
+          keys: [{ ...policy.producers[0].keys[0], public_key_path: "policy-wrong-public.pem" }],
+        },
+        policy.producers[0],
+      ],
+    }, null, 2)}\n`);
+    await writeFile(wrongProducerPolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{ ...policy.producers[0], source: "github.com/example/other" }],
+    }, null, 2)}\n`);
+    await writeFile(wrongKeyPolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{
+        ...policy.producers[0],
+        keys: [{ ...policy.producers[0].keys[0], public_key_path: "policy-wrong-public.pem" }],
+      }],
+    }, null, 2)}\n`);
+
+    await runJson(["init", "--state-dir", sourceDir]);
+    await runJson(["claim", "create", "--state-dir", sourceDir, "--id", "claim_policy_bundle", "--summary", "policy bundle is ready", "--scope", "jury"]);
+    await runJson(["evidence", "add", "--state-dir", sourceDir, "--id", "ev_policy_tests", "--claim", "claim_policy_bundle", "--type", "command", "--command", "npm --prefix jury test", "--exit-code", "0"]);
+    const bundle = await runJson([
+      "bundle", "export",
+      "--state-dir", sourceDir,
+      "--claim", "claim_policy_bundle",
+      "--out", bundlePath,
+      "--producer-name", "jury-ci",
+      "--producer-version", "9.9.9",
+      "--source", "github.com/example/repo",
+      "--revision", "abc123",
+      "--attest-private-key", privateKeyPath,
+      "--attestation-key-id", "ci-policy",
+    ]);
+
+    assert.equal(bundle.attestation.key_id, "ci-policy");
+
+    const trusted = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", policyPath]);
+    assert.equal(trusted.exitCode, 0, trusted.stderr);
+    assert.equal(JSON.parse(trusted.stdout).ok, true);
+
+    const inlineTrusted = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", inlinePolicyPath]);
+    assert.equal(inlineTrusted.exitCode, 0, inlineTrusted.stderr);
+    assert.equal(JSON.parse(inlineTrusted.stdout).ok, true);
+
+    const overlappingTrusted = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", overlappingPolicyPath]);
+    assert.equal(overlappingTrusted.exitCode, 0, overlappingTrusted.stderr);
+    assert.equal(JSON.parse(overlappingTrusted.stdout).ok, true);
+
+    const imported = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", policyPath]);
+    assert.equal(imported.exitCode, 0, imported.stderr);
+    assert.equal(JSON.parse(imported.stdout).ok, true);
+
+    await rm(importDir, { recursive: true, force: true });
+
+    const wrongProducerPreflight = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", wrongProducerPolicyPath]);
+    const wrongProducerPreflightPayload = JSON.parse(wrongProducerPreflight.stdout);
+
+    assert.equal(wrongProducerPreflight.exitCode, 1);
+    assert.ok(wrongProducerPreflightPayload.errors.some((error) => error.includes("key policy has no trusted producer matching")));
+
+    const wrongProducer = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", wrongProducerPolicyPath]);
+    const wrongProducerPayload = JSON.parse(wrongProducer.stdout);
+
+    assert.equal(wrongProducer.exitCode, 1);
+    assert.ok(wrongProducerPayload.errors.some((error) => error.includes("key policy has no trusted producer matching")));
+    await assertPathMissing(importDir);
+
+    const wrongKeyPreflight = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", wrongKeyPolicyPath]);
+    const wrongKeyPreflightPayload = JSON.parse(wrongKeyPreflight.stdout);
+
+    assert.equal(wrongKeyPreflight.exitCode, 1);
+    assert.ok(wrongKeyPreflightPayload.errors.includes("bundle.attestation.signature verification failed"));
+
+    const wrongKey = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", wrongKeyPolicyPath]);
+    const wrongKeyPayload = JSON.parse(wrongKey.stdout);
+
+    assert.equal(wrongKey.exitCode, 1);
+    assert.ok(wrongKeyPayload.errors.includes("bundle.attestation.signature verification failed"));
+    await assertPathMissing(importDir);
+  } finally {
+    await rm(sourceDir, { recursive: true, force: true });
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test("review bundle exports from local state and imports into fresh state", async () => {
   const sourceDir = await tempState();
   const importedDir = await tempState();
@@ -975,6 +1115,7 @@ test("exported check and verdict examples validate as portable CI artifacts", as
 
 test("review bundle schema references the stable record schemas", async () => {
   const schema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/review-bundle.schema.json"), "utf8"));
+  const keyPolicySchema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/key-policy.schema.json"), "utf8"));
   const properties = schema.properties.records.properties;
 
   assert.ok(schema.required.includes("producer"));
@@ -991,6 +1132,10 @@ test("review bundle schema references the stable record schemas", async () => {
   assert.equal(properties.objections.items.$ref, "objection.schema.json");
   assert.equal(properties.waivers.items.$ref, "waiver.schema.json");
   assert.equal(properties.verdicts.items.$ref, "verdict.schema.json");
+  assert.equal(keyPolicySchema.properties.schema_version.const, "jury.key_policy.v1");
+  assert.deepEqual(keyPolicySchema.required, ["schema_version", "producers"]);
+  assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.properties.type.const, "rsa-sha256");
+  assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.oneOf.length, 2);
 });
 
 test("migration doc preserves the release artifact contract", async () => {
@@ -1090,7 +1235,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /bundle export --attest-private-key/);
   assert.match(handoff, /bundle preflight --verify-attestation-key/);
   assert.match(handoff, /bundle preflight --verify-attestation-public-key/);
-  assert.match(handoff, /key rotation metadata/);
+  assert.match(handoff, /bundle preflight --key-policy/);
+  assert.match(handoff, /trusted producer metadata and RSA public keys/);
+  assert.match(handoff, /key validity windows and revocation metadata/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

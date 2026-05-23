@@ -43,6 +43,7 @@
     "claim": "schemas/claim.schema.json",
     "check": "schemas/check.schema.json",
     "evidence": "schemas/evidence.schema.json",
+    "keyPolicy": "schemas/key-policy.schema.json",
     "objection": "schemas/objection.schema.json",
     "reviewBundle": "schemas/review-bundle.schema.json",
     "waiver": "schemas/waiver.schema.json",

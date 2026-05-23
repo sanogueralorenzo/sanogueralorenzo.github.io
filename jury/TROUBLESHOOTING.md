@@ -31,6 +31,7 @@ node -e "const bundle=JSON.parse(require('node:fs').readFileSync('review-bundle.
 node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --expect-producer-name @sanogueralorenzo/jury --expect-producer-version 0.1.0 --expect-source local --expect-revision-pattern "^unknown$"
 node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --require-attestation true --verify-attestation-key "$JURY_BUNDLE_ATTEST_KEY"
 node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --require-attestation true --verify-attestation-public-key ci-public.pem
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --key-policy jury-key-policy.json
 ```
 
 ## Common Causes

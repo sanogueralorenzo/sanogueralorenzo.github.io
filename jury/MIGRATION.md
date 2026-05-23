@@ -59,3 +59,5 @@ Run `bundle preflight` before `bundle import` for third-party bundles. Preflight
 For stronger CI handoff, export with `--attest-key "$JURY_BUNDLE_ATTEST_KEY" --attestation-key-id ci`, then require `--require-attestation true --verify-attestation-key "$JURY_BUNDLE_ATTEST_KEY" --expect-attestation-key-id ci` during preflight and import.
 
 For public-key verification, export with `--attest-private-key ci-private.pem --attestation-key-id ci`, then verify with `--require-attestation true --verify-attestation-public-key ci-public.pem --expect-attestation-key-id ci`.
+
+For repeatable CI policy, write a `jury.key_policy.v1` manifest that lists trusted producer metadata and RSA public keys, then run `bundle preflight --bundle review-bundle.json --key-policy jury-key-policy.json` and `bundle import --bundle review-bundle.json --key-policy jury-key-policy.json`.

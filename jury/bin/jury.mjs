@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const DEFAULT_STATE_DIR = ".jury";
 const VERDICT_SCHEMA_VERSION = "jury.verdict.v1";
 const REVIEW_BUNDLE_SCHEMA_VERSION = "jury.review_bundle.v1";
+const KEY_POLICY_SCHEMA_VERSION = "jury.key_policy.v1";
 const PRODUCER_NAME = "@sanogueralorenzo/jury";
 const PRODUCER_VERSION = "0.1.0";
 const VALID_DECISIONS = new Set(["accept", "reject", "retry", "human_decision"]);
@@ -950,6 +951,7 @@ function preflightReviewBundle(bundle) {
   }
 
   errors.push(...trustPolicyErrors(bundle));
+  errors.push(...keyPolicyErrors(bundle));
   errors.push(...attestationPolicyErrors(bundle));
 
   if (errors.length > 0) {
@@ -998,6 +1000,181 @@ function trustPolicyErrors(bundle) {
   }
 
   return errors;
+}
+
+function keyPolicyErrors(bundle) {
+  const policySource = args["key-policy"] ?? process.env.JURY_BUNDLE_KEY_POLICY;
+
+  if (!policySource) {
+    return [];
+  }
+
+  const loaded = loadKeyPolicy(policySource);
+
+  if (loaded.errors.length > 0) {
+    return loaded.errors;
+  }
+
+  const errors = [];
+  const producers = loaded.policy.producers.filter((candidate) => keyPolicyProducerMatchesBundle(candidate, bundle));
+
+  if (producers.length === 0) {
+    errors.push(`key policy has no trusted producer matching ${bundlePolicyDescription(bundle)}`);
+    return errors;
+  }
+
+  if (!bundle.attestation) {
+    errors.push("bundle.attestation is required by key policy");
+    return errors;
+  }
+
+  const keys = producers.flatMap((producer) => producer.keys).filter((key) => key.key_id === bundle.attestation.key_id && key.type === bundle.attestation.type);
+
+  if (keys.length === 0) {
+    errors.push(`key policy has no trusted ${bundle.attestation.type} key ${bundle.attestation.key_id}`);
+    return errors;
+  }
+
+  let verified = false;
+
+  for (const key of keys) {
+    try {
+      verified = verifyBundleWithPublicKey(bundle, keyPolicyPublicKeyMaterial(key, loaded.dir));
+    } catch (error) {
+      errors.push(`key policy public key ${key.key_id} could not be read: ${error.message}`);
+      continue;
+    }
+
+    if (verified) {
+      break;
+    }
+  }
+
+  if (!verified) {
+    errors.push("bundle.attestation.signature verification failed");
+  }
+
+  return errors;
+}
+
+function loadKeyPolicy(source) {
+  const path = resolve(source);
+  let content;
+  let policy;
+
+  try {
+    content = readFileSync(path, "utf8");
+  } catch (error) {
+    return { errors: [`key policy ${path} could not be read: ${error.message}`] };
+  }
+
+  try {
+    policy = JSON.parse(content);
+  } catch (error) {
+    return { errors: [`key policy ${path} contains invalid JSON: ${error.message}`] };
+  }
+
+  const errors = [];
+  collectValidationError(errors, () => validateKeyPolicy(policy));
+
+  return {
+    dir: dirname(path),
+    errors: errors.map((error) => `key policy ${error}`),
+    path,
+    policy,
+  };
+}
+
+function validateKeyPolicy(policy) {
+  requireObject(policy, "key_policy");
+  requireEnum(policy.schema_version, [KEY_POLICY_SCHEMA_VERSION], "key_policy.schema_version");
+  requireArray(policy.producers, "key_policy.producers");
+
+  if (policy.producers.length === 0) {
+    fail("key_policy.producers must include at least one producer");
+  }
+
+  for (const [producerIndex, producer] of policy.producers.entries()) {
+    validateKeyPolicyProducer(producer, producerIndex);
+  }
+}
+
+function validateKeyPolicyProducer(producer, producerIndex) {
+  const field = `key_policy.producers[${producerIndex}]`;
+  requireObject(producer, field);
+  requireString(producer.name, `${field}.name`);
+  requireOptionalString(producer.version, `${field}.version`);
+  requireOptionalString(producer.source, `${field}.source`);
+  requireOptionalString(producer.revision_pattern, `${field}.revision_pattern`);
+  requireArray(producer.keys, `${field}.keys`);
+
+  if (producer.keys.length === 0) {
+    fail(`${field}.keys must include at least one key`);
+  }
+
+  if (producer.revision_pattern) {
+    try {
+      new RegExp(producer.revision_pattern);
+    } catch (error) {
+      fail(`${field}.revision_pattern is invalid: ${error.message}`);
+    }
+  }
+
+  for (const [keyIndex, key] of producer.keys.entries()) {
+    validateKeyPolicyKey(key, `${field}.keys[${keyIndex}]`);
+  }
+}
+
+function validateKeyPolicyKey(key, field) {
+  requireObject(key, field);
+  requireString(key.key_id, `${field}.key_id`);
+  requireEnum(key.type, ["rsa-sha256"], `${field}.type`);
+  requireOptionalString(key.public_key, `${field}.public_key`);
+  requireOptionalString(key.public_key_path, `${field}.public_key_path`);
+
+  if (Boolean(key.public_key) === Boolean(key.public_key_path)) {
+    fail(`${field} must set exactly one of public_key or public_key_path`);
+  }
+}
+
+function keyPolicyProducerMatchesBundle(producer, bundle) {
+  if (producer.name !== bundle.producer?.name) {
+    return false;
+  }
+
+  if (producer.version && producer.version !== bundle.producer?.version) {
+    return false;
+  }
+
+  if (producer.source && producer.source !== bundle.provenance?.source) {
+    return false;
+  }
+
+  if (producer.revision_pattern) {
+    const revision = bundle.provenance?.revision;
+    if (typeof revision !== "string" || !new RegExp(producer.revision_pattern).test(revision)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function keyPolicyPublicKeyMaterial(key, policyDir) {
+  if (key.public_key) {
+    return key.public_key;
+  }
+
+  return readFileSync(resolve(policyDir, key.public_key_path), "utf8");
+}
+
+function bundlePolicyDescription(bundle) {
+  return [
+    `producer=${bundle.producer?.name ?? "missing"}`,
+    `version=${bundle.producer?.version ?? "missing"}`,
+    `source=${bundle.provenance?.source ?? "missing"}`,
+    `revision=${bundle.provenance?.revision ?? "missing"}`,
+  ].join(" ");
 }
 
 function attestationPolicyErrors(bundle) {
@@ -1696,6 +1873,12 @@ function requireNullableString(value, field) {
   }
 }
 
+function requireOptionalString(value, field) {
+  if (value !== undefined && (typeof value !== "string" || value.length === 0)) {
+    fail(`${field} must be a non-empty string when set`);
+  }
+}
+
 function requireNumber(value, field) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     fail(`${field} must be a number`);
@@ -1740,8 +1923,8 @@ Commands:
   jury judge --claim <id> [--out verdict.json] [--require-human-approval true]
   jury gate --verdict verdict.json [--claim <id>]
   jury bundle export --claim <id> --out review-bundle.json [--attest-key secret] [--attest-private-key private.pem]
-  jury bundle preflight --bundle review-bundle.json [--require-attestation true] [--verify-attestation-key secret] [--verify-attestation-public-key public.pem] [--expect-producer-name name]
-  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json] [--require-attestation true] [--verify-attestation-key secret] [--verify-attestation-public-key public.pem]
+  jury bundle preflight --bundle review-bundle.json [--key-policy jury-key-policy.json] [--require-attestation true] [--verify-attestation-key secret] [--verify-attestation-public-key public.pem] [--expect-producer-name name]
+  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json] [--key-policy jury-key-policy.json] [--require-attestation true] [--verify-attestation-key secret] [--verify-attestation-public-key public.pem]
   jury check --strict
   jury demo code-change`);
 }

@@ -34,6 +34,10 @@ Trust policy flags on `bundle preflight` and `bundle import` let CI allow or rej
 
 Signed bundle attestations are available through `bundle export --attest-key`, `bundle export --attest-private-key`, `bundle preflight --verify-attestation-key`, `bundle preflight --verify-attestation-public-key`, and the matching `bundle import` verification flags. CI should combine attestation verification with trust policy flags before importing third-party bundles.
 
+## Key Policy Manifests
+
+`bundle preflight --key-policy` and `bundle import --key-policy` load a `jury.key_policy.v1` manifest containing trusted producer metadata and RSA public keys. Use it when CI needs one reviewed file for expected producers, source or revision constraints, key ids, and public keys.
+
 ## Next Hardening Step
 
-Add key rotation metadata so CI can accept more than one public key during producer key rollover.
+Add key validity windows and revocation metadata so CI can retire compromised or expired producer keys.

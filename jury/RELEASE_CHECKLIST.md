@@ -21,6 +21,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] `bundle preflight` uses producer trust policy flags before importing third-party bundles.
 - [ ] Internal shared-secret bundles are signed with `--attest-key` and verified with `--verify-attestation-key`.
 - [ ] Third-party or cross-job producers are signed with `--attest-private-key` and verified with `--verify-attestation-public-key`.
+- [ ] CI consumers use `--key-policy jury-key-policy.json` when producer trust and public keys need to be reviewed as one manifest.
 - [ ] `.jury/*.jsonl` exists when raw append-only audit state is needed.
 
 Expected fixture files:
