@@ -1,5 +1,7 @@
 package com.sanogueralorenzo.voice.summary.rules.post
 
+import com.sanogueralorenzo.voice.engine.VoiceEngine
+
 /**
  * Deterministic compose normalization and guardrails around model output.
  *
@@ -10,34 +12,26 @@ package com.sanogueralorenzo.voice.summary.rules.post
  *   safety/quality checks fail.
  */
 class ComposePostLlmRules {
-    private val composeInputCleanupRule = ComposeInputCleanupRule()
-    private val instructionInputCleanupRule = InstructionInputCleanupRule()
-    private val modelOutputCleanupRule = ModelOutputCleanupRule()
-    private val sentenceCapitalizationRule = SentenceCapitalizationRule()
-    private val spokenNumberOutputRule = SpokenNumberOutputRule()
-    private val outputGuardrailRule = ComposeOutputGuardrailRule()
-
     fun normalizeComposeInput(text: String): String {
-        return composeInputCleanupRule.apply(text)
+        return VoiceEngine.normalizeComposeInput(text)
     }
 
     fun normalizeInstructionInput(text: String): String {
-        return instructionInputCleanupRule.apply(text)
+        return VoiceEngine.normalizeInstructionInput(text)
     }
 
     fun cleanModelOutput(
         text: String,
         bulletMode: Boolean
     ): String {
-        val cleaned = modelOutputCleanupRule.clean(text = text, bulletMode = bulletMode)
-        if (cleaned.isBlank()) return ""
-        return normalizeComposeOutputText(cleaned)
+        return VoiceEngine.cleanModelOutput(
+            text = text,
+            bulletMode = bulletMode
+        )
     }
 
     fun normalizeComposeOutputText(text: String): String {
-        val trimmed = text.trim()
-        if (trimmed.isBlank()) return ""
-        return spokenNumberOutputRule.apply(sentenceCapitalizationRule.apply(trimmed))
+        return VoiceEngine.normalizeComposeOutputText(text)
     }
 
     fun finalizeComposeOutput(
@@ -45,8 +39,10 @@ class ComposePostLlmRules {
         modelOutput: String,
         listMode: Boolean
     ): String {
-        val original = originalText.trim()
-        val candidate = cleanModelOutput(modelOutput, bulletMode = listMode).trim()
-        return outputGuardrailRule.choose(original = original, candidate = candidate)
+        return VoiceEngine.postprocess(
+            originalText = originalText,
+            modelOutput = modelOutput,
+            listMode = listMode
+        )
     }
 }

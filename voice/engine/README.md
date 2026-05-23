@@ -19,3 +19,18 @@ Expected engine contents:
 - Built-in operations for token, span, number, correction, edit, cleanup, and guardrail behavior.
 - Conformance fixtures that every platform binding must pass.
 
+## Rust Runtime
+
+The current engine implementation is a Rust crate that exposes deterministic pre/post processing through:
+
+- `preprocess(input)`
+- `postprocess(original_text, model_output, list_mode)`
+- JNI bindings used by the Android app.
+
+Run the engine tests from the repository root:
+
+```shell
+cargo test --manifest-path voice/engine/Cargo.toml
+```
+
+Android builds compile and package the Rust JNI library through `voice/android/app/build.gradle.kts`. A local Android SDK and NDK are required; Gradle reads `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or `voice/android/local.properties`.

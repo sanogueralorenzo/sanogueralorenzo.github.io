@@ -4,6 +4,10 @@ plugins {
     alias(libs.plugins.metro)
 }
 
+val voiceEngineDir = rootProject.file("../engine")
+val generatedRustJniLibsDir = layout.buildDirectory.dir("generated/rustJniLibs")
+val generatedRustJniLibsFile = layout.buildDirectory.asFile.get().resolve("generated/rustJniLibs")
+
 android {
     namespace = "com.sanogueralorenzo.voice"
     compileSdk {
@@ -37,6 +41,43 @@ android {
         compose = true
         buildConfig = true
     }
+    sourceSets {
+        named("main") {
+            jniLibs.setSrcDirs(listOf(generatedRustJniLibsFile))
+        }
+    }
+}
+
+val buildVoiceEngineHost by tasks.registering(Exec::class) {
+    workingDir = voiceEngineDir
+    commandLine("cargo", "build", "--manifest-path", voiceEngineDir.resolve("Cargo.toml").absolutePath)
+    inputs.dir(voiceEngineDir.resolve("src"))
+    inputs.file(voiceEngineDir.resolve("Cargo.toml"))
+    outputs.dir(voiceEngineDir.resolve("target/debug"))
+}
+
+val buildVoiceEngineAndroid by tasks.registering(Exec::class) {
+    workingDir = voiceEngineDir
+    commandLine(
+        "/bin/sh",
+        voiceEngineDir.resolve("scripts/build-android.sh").absolutePath,
+        generatedRustJniLibsDir.get().asFile.absolutePath
+    )
+    inputs.dir(voiceEngineDir.resolve("src"))
+    inputs.file(voiceEngineDir.resolve("Cargo.toml"))
+    inputs.file(voiceEngineDir.resolve("scripts/build-android.sh"))
+    outputs.dir(generatedRustJniLibsDir)
+}
+
+tasks.withType<Test>().configureEach {
+    dependsOn(buildVoiceEngineHost)
+    systemProperty("java.library.path", voiceEngineDir.resolve("target/debug").absolutePath)
+}
+
+tasks.matching { task ->
+    task.name.startsWith("merge") && task.name.endsWith("JniLibFolders")
+}.configureEach {
+    dependsOn(buildVoiceEngineAndroid)
 }
 
 dependencies {

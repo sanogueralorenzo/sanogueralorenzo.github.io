@@ -10,9 +10,12 @@ The overlay positioning screen keeps the bubble visible while a non-Voice keyboa
 ./gradlew :app:installDebug
 ```
 
+The Android app depends on the shared Rust engine in `../engine` for deterministic pre/post processing. Gradle builds the JNI library during Android packaging, so local builds need Rust, the Android SDK, and an installed Android NDK.
+
 ## Reference
 
 - Package: `com.sanogueralorenzo.voice`
-- Module: `voice/app`
-- Version catalog: `voice/gradle/libs.versions.toml`
+- Module: `voice/android/app`
+- Version catalog: `voice/android/gradle/libs.versions.toml`
 - Runtime models: Moonshine ASR + LiteRT-LM rewrite/edit.
+- Text engine: `voice/engine`

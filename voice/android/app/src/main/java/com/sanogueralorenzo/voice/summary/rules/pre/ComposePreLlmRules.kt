@@ -1,5 +1,7 @@
 package com.sanogueralorenzo.voice.summary.rules.pre
 
+import com.sanogueralorenzo.voice.engine.VoiceEngine
+
 /**
  * Deterministic pre-LLM rewrite for compose input.
  *
@@ -8,20 +10,6 @@ package com.sanogueralorenzo.voice.summary.rules.pre
  * - Returns normalized text with `changed=true` and the set of rules applied.
  */
 class ComposePreLlmRules {
-    private data class TrackedRule(
-        val rule: Rule,
-        val implementation: PreLlmRule
-    )
-
-    private val rules = listOf(
-        TrackedRule(Rule.FILLER, StandaloneFillerRule()),
-        TrackedRule(Rule.ADJACENT_DUPLICATE, AdjacentDuplicateRule()),
-        TrackedRule(Rule.MINUTES_NORMALIZATION, MinutesNormalizationRule()),
-        TrackedRule(Rule.CORRECTION_TURN, CorrectionTurnRule()),
-        TrackedRule(Rule.NUMBER_WORDS_TO_DIGITS, NumberWordsToDigitsRule())
-    )
-    private val surfaceCleanupRule = SurfaceCleanupRule()
-
     data class Result(
         val text: String,
         val changed: Boolean,
@@ -37,27 +25,13 @@ class ComposePreLlmRules {
     }
 
     fun rewrite(input: String): Result {
-        val source = input.trim()
-        if (source.isBlank()) {
-            return Result(text = "", changed = false, appliedRules = emptySet())
-        }
-
-        var current = source
-        val applied = linkedSetOf<Rule>()
-
-        for (trackedRule in rules) {
-            val updated = trackedRule.implementation.apply(current)
-            if (updated != current) {
-                applied += trackedRule.rule
-                current = updated
-            }
-        }
-
-        val finalText = surfaceCleanupRule.apply(current)
+        val result = VoiceEngine.preprocess(input)
         return Result(
-            text = finalText,
-            changed = finalText != source,
-            appliedRules = applied
+            text = result.text,
+            changed = result.changed,
+            appliedRules = result.appliedRuleIds.mapNotNull { ruleId ->
+                runCatching { Rule.valueOf(ruleId) }.getOrNull()
+            }.toCollection(linkedSetOf())
         )
     }
 }
