@@ -903,9 +903,12 @@ test("agent add list remove manages local hook adapter configs", async () => {
     assert.equal(checked.agents[0].event, "tool");
     assert.equal(checked.agents[0].fixture, "examples/codex-tool-call.json");
 
-    const status = await runTrace(repo, ["status"]);
+    const status = await runTrace(repo, ["status", "--prefix", join(repo, "trace-bin")]);
     const statusPayload = JSON.parse(status.stdout);
     assert.deepEqual(statusPayload.agents.map((agent) => agent.agent), ["codex"]);
+    assert.equal(statusPayload.install.ok, true);
+    assert.equal(statusPayload.install.installed, false);
+    assert.equal(statusPayload.install.target, join(repo, "trace-bin", "trace"));
 
     await runTrace(repo, ["agent", "remove", "codex"]);
     const removed = await runTrace(repo, ["agent", "list"]);

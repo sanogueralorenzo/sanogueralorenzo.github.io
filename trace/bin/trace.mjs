@@ -283,12 +283,16 @@ async function runInstallCommand(action, values) {
 }
 
 async function printInstallStatus(values) {
+  print(await installStatusPayload(values));
+}
+
+async function installStatusPayload(values = []) {
   const prefix = args.prefix ?? positionalValues(values)[0] ?? process.env.TRACE_INSTALL_DIR ?? join(homedir(), ".local", "bin");
   const installDir = resolve(process.cwd(), prefix);
   const target = join(installDir, "trace");
   const source = fileURLToPath(import.meta.url);
   const targetStatus = await traceInstallTargetStatus(target, source);
-  print({
+  return {
     ok: true,
     installDir,
     target,
@@ -301,7 +305,7 @@ async function printInstallStatus(values) {
     installCommand: `./trace/install.sh --prefix ${shellQuote(installDir)}`,
     updateCommand: `./trace/install.sh --update --prefix ${shellQuote(installDir)}`,
     uninstallCommand: `./trace/install.sh --uninstall --prefix ${shellQuote(installDir)}`,
-  });
+  };
 }
 
 async function traceInstallTargetStatus(target, source) {
@@ -340,10 +344,12 @@ async function printStatus() {
   const configExists = await exists(join(root, TRACE_DIR, "config.json"));
   const config = await loadTraceConfig(root);
   const agents = await listAgentConfigs(root);
+  const install = await installStatusPayload();
   print({
     ok: true,
     repo: root,
     config: configExists,
+    install,
     hooks,
     agents,
     redactionRules: customRules(config).length,
