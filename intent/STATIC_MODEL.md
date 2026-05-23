@@ -462,12 +462,15 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_PRODUCE_INVALID`, and wrong final-step sequencing remains
   `INTENT_GRAPH_STEP_SEQUENCE_INVALID`.
 - Runtime graph `requires` edge payloads are the next Phase 2 static-model
-  milestone. Step-input `requires` edges from an `Input` node to its owning
-  `Step` must carry non-empty `parameter`, non-empty `type`, and a valid
-  `targetSpan`. Step-requirement `requires` edges from a step-scoped `Check`
-  node to its owning `Step` must carry non-empty `requirement`. Malformed
-  `requires` edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
-  graph output non-executable; wrong attachment endpoints remain
+  milestone. `requires` is valid only as `Input` to `Step` for step inputs or
+  step-scoped `Check` to `Step` for step requirements. Step-input `requires`
+  edges from an `Input` node to its owning `Step` must carry non-empty
+  `parameter`, non-empty `type`, and a valid `targetSpan`. Step-requirement
+  `requires` edges from a step-scoped `Check` node to its owning `Step` must
+  carry non-empty `requirement`. Malformed `requires` edge payloads emit
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable.
+  Unsupported `requires` endpoint roles emit `INTENT_GRAPH_REQUIRE_INVALID`;
+  missing attachment coverage remains
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Runtime graph goal-input supply edge contracts are the next Phase 2
   static-model milestone. Every goal-scoped `Input` node must have exactly one
@@ -481,14 +484,26 @@ Next graph envelope validation milestone:
   on `supplies`. This makes goal parameter ownership explicit in the runtime
   graph instead of relying on id strings alone.
 - Runtime graph step attachment edge payloads are the next Phase 2 static-model
-  milestone. Step-scoped `Approval` to `Step` `approves` edges and `Approval`
-  to `Effect` `approves` edges must carry non-empty `data.approval`. Step-scoped
-  `Policy` to `Step` `timeouts` and `retries` edges must carry non-empty
-  `data.policy`. `Step` to `Checkpoint` `checkpoints` edges must carry
-  non-empty `data.checkpoint`. Malformed step attachment edge payloads emit
-  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable;
-  missing or wrong step attachment edges remain
-  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+  milestone. `approves` is valid only as `Approval` to `Step` or `Approval` to
+  `Effect`, and unsupported endpoint roles emit `INTENT_GRAPH_APPROVE_INVALID`.
+  `checkpoints` is valid only as `Step` to `Checkpoint`, and unsupported endpoint
+  roles emit `INTENT_GRAPH_CHECKPOINT_EDGE_INVALID`. `timeouts` and `retries`
+  are valid only as `Policy` to `Step`, and unsupported endpoint roles emit
+  `INTENT_GRAPH_POLICY_EDGE_INVALID`. Step-scoped `Approval` to `Step`
+  `approves` edges and `Approval` to `Effect` `approves` edges must carry
+  non-empty `data.approval`. Step-scoped `Policy` to `Step` `timeouts` and
+  `retries` edges must carry non-empty `data.policy`. `Step` to `Checkpoint`
+  `checkpoints` edges must carry non-empty `data.checkpoint`. Malformed step
+  attachment edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
+  graph output non-executable; missing attachment coverage remains
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`. These generic role diagnostics are
+  separate from `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`,
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics
+  such as `INTENT_GRAPH_INPUT_INVALID`, `INTENT_GRAPH_CHECK_INVALID`,
+  `INTENT_GRAPH_APPROVAL_INVALID`, `INTENT_GRAPH_CHECKPOINT_INVALID`, and
+  `INTENT_GRAPH_POLICY_INVALID`. This prevents step attachment edges from being
+  replayed as ambiguous runtime-control edges while preserving attachment
+  coverage and payload diagnostics.
 - Runtime graph check gate edge contracts are the next Phase 2 static-model
   milestone. Every `Check` node is a runtime gate and must have exactly one
   outgoing `gates` edge to its owning `Goal`. Goal-scoped verification `Check`
@@ -1638,6 +1653,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_COMPLETE_INVALID`
 - `INTENT_GRAPH_PRODUCE_INVALID`
 - `INTENT_GRAPH_DATA_INVALID`
+- `INTENT_GRAPH_REQUIRE_INVALID`
 - `INTENT_GRAPH_INPUT_INVALID`
 - `INTENT_GRAPH_INPUT_SUPPLY_INVALID`
 - `INTENT_GRAPH_INPUT_UNBOUND`
@@ -1652,6 +1668,9 @@ Initial diagnostic families:
 - `INTENT_GRAPH_EFFECT_REQUEST_INVALID`
 - `INTENT_GRAPH_STEP_SEQUENCE_INVALID`
 - `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`
+- `INTENT_GRAPH_APPROVE_INVALID`
+- `INTENT_GRAPH_CHECKPOINT_EDGE_INVALID`
+- `INTENT_GRAPH_POLICY_EDGE_INVALID`
 - `INTENT_GRAPH_STEP_PLAN_INVALID`
 - `INTENT_GRAPH_CYCLE`
 
@@ -2148,6 +2167,11 @@ step-scoped `Approval` to `Step` `approves` edges and `Approval` to `Effect`
 `approves` edges, non-empty `data.policy` on step-scoped `Policy` to `Step`
 `timeouts` and `retries` edges, and non-empty `data.checkpoint` on `Step` to
 `Checkpoint` `checkpoints` edges.
+The generic step attachment edge roles are constrained separately: `requires` is
+valid only as `Input` to `Step` for step inputs or step-scoped `Check` to `Step`
+for step requirements; `approves` is valid only as `Approval` to `Step` or
+`Approval` to `Effect`; `checkpoints` is valid only as `Step` to `Checkpoint`;
+and `timeouts` and `retries` are valid only as `Policy` to `Step`.
 
 Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
 `from` or `to` endpoint is absent from the same graph payload, emits
@@ -2167,6 +2191,12 @@ values,
 emits
 `INTENT_GRAPH_COMPLETE_INVALID` when a `completes` edge has unsupported
 endpoint roles, emits `INTENT_GRAPH_PRODUCE_INVALID` when a `produces` edge has
+unsupported endpoint roles, emits
+`INTENT_GRAPH_REQUIRE_INVALID` when a `requires` edge has unsupported endpoint
+roles, emits `INTENT_GRAPH_APPROVE_INVALID` when an `approves` edge has
+unsupported endpoint roles, emits `INTENT_GRAPH_CHECKPOINT_EDGE_INVALID` when a
+`checkpoints` edge has unsupported endpoint roles, emits
+`INTENT_GRAPH_POLICY_EDGE_INVALID` when a `timeouts` or `retries` edge has
 unsupported endpoint roles, emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a
 `Goal` node lacks its `${goal_id}:completion` `Completion` node, lacks exactly
@@ -2272,7 +2302,14 @@ validation emits
 `requires` edge to its owning `Step`, an `Approval` lacks an `approves` edge to
 its owning `Step` or to an approval-required `Effect` in that same step, a
 `Checkpoint` lacks a `checkpoints` edge from its owning `Step`, or a `Policy`
-lacks its `timeouts` or `retries` edge to its owning `Step`.
+lacks its `timeouts` or `retries` edge to its owning `Step`. These generic role
+diagnostics are separate from `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`,
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics such
+as `INTENT_GRAPH_INPUT_INVALID`, `INTENT_GRAPH_CHECK_INVALID`,
+`INTENT_GRAPH_APPROVAL_INVALID`, `INTENT_GRAPH_CHECKPOINT_INVALID`, and
+`INTENT_GRAPH_POLICY_INVALID`. This prevents step attachment edges from being
+replayed as ambiguous runtime-control edges while preserving attachment coverage
+and payload diagnostics.
 
 The next static graph contract milestone is rejection, not repair. Static graph
 validators must reject any graph with a missing or unsupported
@@ -2437,7 +2474,9 @@ output non-executable. Unsupported `gates` and `verifies` endpoint roles emit
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
 checkpoint has one incoming `checkpoints` edge from that owning step. The
-`checkpoints` edge payload must carry non-empty `data.checkpoint`.
+`checkpoints` edge is valid only as `Step` to `Checkpoint`; unsupported endpoint
+roles emit `INTENT_GRAPH_CHECKPOINT_EDGE_INVALID`. The `checkpoints` edge payload
+must carry non-empty `data.checkpoint`.
 Checkpoint graph data must carry non-empty `data.checkpoint` and non-empty
 `data.ownerStep`; malformed checkpoint records are non-executable because graph
 validation must emit `INTENT_GRAPH_CHECKPOINT_INVALID`. Source checkpoint
@@ -2451,6 +2490,8 @@ must carry non-empty `data.approval`. When an effect in that step is authorized
 by a capability whose approval policy is `required`, a step `Approval` node
 also has an outgoing `approves` edge to that approval-required `Effect` node.
 The effect `approves` edge payload must carry non-empty `data.approval`.
+`approves` is valid only as `Approval` to `Step` or `Approval` to `Effect`;
+unsupported endpoint roles emit `INTENT_GRAPH_APPROVE_INVALID`.
 Approval labels must be non-empty after trimming; a graph with an empty
 approval label is non-executable because the checker must emit
 `INTENT_APPROVAL_INVALID`. Runtime graph validation also requires each
@@ -2463,7 +2504,9 @@ node lists timeout summaries in `data.timeouts` and retry summaries in
 `data.retries`. Each timeout policy has one outgoing `timeouts` edge to that
 owning step, and each retry policy has one outgoing `retries` edge to that
 owning step. The `timeouts` and `retries` edge payloads must carry non-empty
-`data.policy`. Runtime graph validation also requires `data.policyKind` to be
+`data.policy`. `timeouts` and `retries` are valid only as `Policy` to `Step`;
+unsupported endpoint roles emit `INTENT_GRAPH_POLICY_EDGE_INVALID`. Runtime
+graph validation also requires `data.policyKind` to be
 `timeout` or `retry`, `data.policy` to be non-empty, and `data.ownerStep` to
 be non-empty; malformed records emit `INTENT_GRAPH_POLICY_INVALID` and make
 graph output non-executable.
