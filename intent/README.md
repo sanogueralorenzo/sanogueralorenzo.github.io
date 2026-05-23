@@ -196,7 +196,11 @@ Validation expectations:
   generic target-role diagnostic is separate from effect ownership coverage:
   missing requests edges for an `Effect`, duplicate requests edges, or incoming
   requests not from the owning `Step` remain
-  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; malformed `Effect` payloads remain
+  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`. Role-valid `requests` edges must also
+  carry metadata matching the target `Effect`: requested name/expression,
+  `family`, `action`, `contractId`, `contractArguments`, `args`, `argKinds`,
+  `argSpans`, owning step `sourceSpan`, and effect `targetSpan`; mismatches
+  emit `INTENT_GRAPH_EFFECT_REQUEST_INVALID`. Malformed `Effect` payloads remain
   `INTENT_GRAPH_EFFECT_INVALID`; and malformed edge payloads remain
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when applicable. Constraining the generic
   target role prevents `requests` from becoming an ambiguous runtime-control

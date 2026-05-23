@@ -464,7 +464,11 @@ Next graph envelope validation milestone:
   generic target-role diagnostic is separate from effect ownership coverage:
   missing requests edges for an `Effect`, duplicate requests edges, or incoming
   requests not from the owning `Step` remain
-  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; malformed `Effect` payloads remain
+  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`. Role-valid `requests` edges must also
+  carry metadata matching the target `Effect`: requested name/expression,
+  `family`, `action`, `contractId`, `contractArguments`, `args`, `argKinds`,
+  `argSpans`, owning step `sourceSpan`, and effect `targetSpan`; mismatches
+  emit `INTENT_GRAPH_EFFECT_REQUEST_INVALID`. Malformed `Effect` payloads remain
   `INTENT_GRAPH_EFFECT_INVALID`; and malformed edge payloads remain
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when applicable. Constraining the generic
   target role prevents `requests` from becoming an ambiguous runtime-control
@@ -2385,7 +2389,10 @@ graph output non-executable. This generic target-role diagnostic is separate
 from `INTENT_GRAPH_EFFECT_REQUEST_INVALID`, `INTENT_GRAPH_EFFECT_INVALID`, and
 `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and prevents `requests` from becoming an
 ambiguous runtime-control edge while preserving effect-specific ownership
-diagnostics.
+diagnostics. Role-valid `requests` edges carry the requested effect
+name/expression, adapter family/action, contract metadata, arguments, argument
+kinds, argument spans, owning step `sourceSpan`, and target effect
+`targetSpan`; mismatches emit `INTENT_GRAPH_EFFECT_REQUEST_INVALID`.
 Graph validation emits `INTENT_GRAPH_GATE_INVALID` when a `gates` edge does
 not go from a `Check` node to a `Goal` node. Graph validation emits
 `INTENT_GRAPH_VERIFY_INVALID` when a `verifies` edge does not go from a
@@ -2943,7 +2950,11 @@ sequencing remains `INTENT_GRAPH_STEP_SEQUENCE_INVALID`, and unsupported
 `precedes` endpoint roles emit `INTENT_GRAPH_PRECEDE_INVALID`. Graph
 validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node
 lacks exactly one incoming `requests` edge from its owning `Step`, or when any
-incoming `requests` edge is not from that owning `Step`. `requests` edges to
+incoming `requests` edge is not from that owning `Step`. The owning `requests`
+edge must carry metadata matching the target effect's adapter call envelope,
+including name/expression, family/action, contract metadata, args, arg kinds,
+arg spans, and source/target spans. Metadata mismatches also emit
+`INTENT_GRAPH_EFFECT_REQUEST_INVALID`. `requests` edges to
 unsupported target roles instead emit `INTENT_GRAPH_REQUEST_INVALID`, making
 graph output non-executable before `requests` can become an ambiguous
 runtime-control edge.

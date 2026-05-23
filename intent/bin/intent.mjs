@@ -1359,6 +1359,22 @@ function completionCheckpoint(goal, checkpoints = completionStepCheckpoints(goal
   };
 }
 
+function requestEdgeData(step, effectUse) {
+  return {
+    name: effectUse.name,
+    expression: effectUse.expression,
+    family: effectUse.family,
+    action: effectUse.action,
+    contractId: effectContractId(effectUse),
+    contractArguments: effectContractArgumentRefs(effectUse),
+    args: effectUse.args,
+    argKinds: effectUse.argKinds,
+    argSpans: effectUse.argSpans,
+    sourceSpan: step.span,
+    targetSpan: effectUse.span,
+  };
+}
+
 function completionStepCheckpoints(goal) {
   const finalStep = goal.steps.at(-1);
   if (!finalStep) {
@@ -1731,7 +1747,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           expression: effectUse.expression,
           approvalRequired,
         }));
-        edges.push(edge(id, effectId, "requests"));
+        edges.push(edge(id, effectId, "requests", requestEdgeData(step, effectUse)));
         if (approvalRequired) {
           for (const approval of stepApprovalIds) {
             edges.push(edge(approval.id, effectId, "approves", {
@@ -2219,6 +2235,11 @@ function validateGraph(graph, options = {}) {
         request_edges: requestEdges.length,
         owner_step_request_edges: ownerStepRequestEdges.length,
       }));
+      continue;
+    }
+    const requestMetadataDiagnostic = validateGraphEffectRequestMetadata(ownerStepRequestEdges[0], ownerStep, graphNode, fallbackSpan);
+    if (requestMetadataDiagnostic) {
+      diagnostics.push(requestMetadataDiagnostic);
     }
   }
 
@@ -2956,6 +2977,76 @@ function validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, gr
     owner_goal_authorizes_edges: ownerGoalAuthorizationEdges.length,
     wrong_goal_authorizes_edges: wrongGoalAuthorizationEdges.length,
   });
+}
+
+function validateGraphEffectRequestMetadata(graphEdge, ownerStep, effectNode, fallbackSpan) {
+  const data = graphEdge.data;
+  const dataIsObject = isPlainObject(data);
+  const nameMatchesTarget = dataIsObject && data.name === effectNode.label;
+  const expressionMatchesTarget = dataIsObject && data.expression === effectNode.data?.expression;
+  const familyMatchesTarget = dataIsObject && data.family === effectNode.data?.family;
+  const actionMatchesTarget = dataIsObject && data.action === effectNode.data?.action;
+  const contractIdMatchesTarget = dataIsObject && (data.contractId ?? null) === (effectNode.data?.contractId ?? null);
+  const contractArgumentsMatchTarget = dataIsObject && contractArgumentsEqual(data.contractArguments, effectNode.data?.contractArguments ?? {});
+  const argsMatchTarget = dataIsObject && stringMapsEqual(data.args, effectNode.data?.args ?? {});
+  const argKindsMatchTarget = dataIsObject && stringMapsEqual(data.argKinds, effectNode.data?.argKinds ?? {});
+  const argSpansMatchTarget = dataIsObject && spanMapsEqual(data.argSpans, effectNode.data?.argSpans ?? {});
+  const sourceSpanMatchesStep = dataIsObject && spansEqual(data.sourceSpan, ownerStep?.span);
+  const targetSpanMatchesEffect = dataIsObject && spansEqual(data.targetSpan, effectNode.span);
+  if (
+    dataIsObject
+    && nameMatchesTarget
+    && expressionMatchesTarget
+    && familyMatchesTarget
+    && actionMatchesTarget
+    && contractIdMatchesTarget
+    && contractArgumentsMatchTarget
+    && argsMatchTarget
+    && argKindsMatchTarget
+    && argSpansMatchTarget
+    && sourceSpanMatchesStep
+    && targetSpanMatchesEffect
+  ) {
+    return null;
+  }
+  return error("INTENT_GRAPH_EFFECT_REQUEST_INVALID", `requests edge '${graphEdge.from}' to '${graphEdge.to}' must carry effect request metadata matching its owning step and target effect.`, edgeDiagnosticSpan(new Map([[ownerStep.id, ownerStep], [effectNode.id, effectNode]]), graphEdge, fallbackSpan), {
+    effect: effectNode.label,
+    effect_id: effectNode.id,
+    owner_step_id: ownerStep?.id ?? null,
+    request_edge: { from: graphEdge.from, to: graphEdge.to, kind: graphEdge.kind },
+    data_is_object: dataIsObject,
+    name_matches_target: nameMatchesTarget,
+    expression_matches_target: expressionMatchesTarget,
+    family_matches_target: familyMatchesTarget,
+    action_matches_target: actionMatchesTarget,
+    contract_id_matches_target: contractIdMatchesTarget,
+    contract_arguments_match_target: contractArgumentsMatchTarget,
+    args_match_target: argsMatchTarget,
+    arg_kinds_match_target: argKindsMatchTarget,
+    arg_spans_match_target: argSpansMatchTarget,
+    source_span_matches_step: sourceSpanMatchesStep,
+    target_span_matches_effect: targetSpanMatchesEffect,
+  });
+}
+
+function stringMapsEqual(left, right) {
+  if (!isPlainObject(left) || !isPlainObject(right)) {
+    return false;
+  }
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  return leftEntries.length === rightEntries.length
+    && leftEntries.every(([key, value]) => typeof value === "string" && right[key] === value);
+}
+
+function spanMapsEqual(left, right) {
+  if (!isPlainObject(left) || !isPlainObject(right)) {
+    return false;
+  }
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  return leftEntries.length === rightEntries.length
+    && leftEntries.every(([key, value]) => spansEqual(value, right[key]));
 }
 
 function validateGraphMemory(graphNode, graphSpan) {

@@ -363,6 +363,25 @@ function defaultGraphEdgeData(edge, data, nodesById = new Map()) {
   if (edge.kind === "produces") {
     return { type: "Synthetic", sourceSpan: testSpan(1), targetSpan: testSpan(1) };
   }
+  if (edge.kind === "requests") {
+    const sourceNode = nodesById.get(edge.from);
+    const targetNode = nodesById.get(edge.to);
+    if (sourceNode?.kind === "Step" && targetNode?.kind === "Effect") {
+      return {
+        name: targetNode.label,
+        expression: targetNode.data.expression,
+        family: targetNode.data.family,
+        action: targetNode.data.action,
+        contractId: targetNode.data.contractId ?? null,
+        contractArguments: targetNode.data.contractArguments ?? {},
+        args: targetNode.data.args ?? {},
+        argKinds: targetNode.data.argKinds ?? {},
+        argSpans: targetNode.data.argSpans ?? {},
+        sourceSpan: sourceNode.span,
+        targetSpan: targetNode.span,
+      };
+    }
+  }
   if (edge.kind === "requires" && typeof edge.from === "string" && edge.from.includes(":requirement:")) {
     return { requirement: "synthetic" };
   }
@@ -1574,6 +1593,7 @@ describe("intent static model CLI", () => {
     const kinds = new Set(graph.nodes.map((node) => node.kind));
     const fileWrite = graph.nodes.find((node) => node.kind === "Effect" && node.data.args.path === "./src/app.ts");
     const shellCheck = graph.nodes.find((node) => node.kind === "Check" && node.data.effect?.args.command === "npm test");
+    const fileWriteRequest = graph.edges.find((edge) => edge.kind === "requests" && edge.to === fileWrite?.id);
 
     assert.equal(graph.schema_version, "intent.graph.v0");
     assert.equal(graph.ok, true);
@@ -1586,6 +1606,13 @@ describe("intent static model CLI", () => {
     assert.equal(Boolean(fileWrite), true);
     assert.equal(fileWrite.data.argSpans.path.start.line, 39);
     assert.equal(fileWrite.data.argSpans.path.start.column, 24);
+    assert.equal(Boolean(fileWriteRequest), true);
+    assert.equal(fileWriteRequest.data.family, "file");
+    assert.equal(fileWriteRequest.data.action, "write");
+    assert.equal(fileWriteRequest.data.contractId, "intent.effect.file.write.v0");
+    assert.deepEqual(fileWriteRequest.data.contractArguments, { path: "path" });
+    assert.deepEqual(fileWriteRequest.data.args, fileWrite.data.args);
+    assert.equal(fileWriteRequest.data.targetSpan.start.line, 39);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.trust.zone === "trusted"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Memory" && node.data.retentionRules[0].subject.raw === "summaries"), true);
     assert.equal(Boolean(shellCheck), true);
@@ -4334,6 +4361,62 @@ describe("intent static model CLI", () => {
     assert.equal(wrongSourceDiagnostics[0].code, "INTENT_GRAPH_EFFECT_REQUEST_INVALID");
     assert.equal(wrongSourceDiagnostics[0].request_edges, 1);
     assert.equal(wrongSourceDiagnostics[0].owner_step_request_edges, 0);
+  });
+
+  it("validates graph effect request metadata diagnostics", () => {
+    const stepSpan = testSpan(2);
+    const effectSpan = testSpan(4);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: stepSpan },
+        {
+          id: "goal:demo:step:patch:effect:0",
+          kind: "Effect",
+          label: "FileWrite",
+          span: effectSpan,
+          data: {
+            family: "file",
+            action: "write",
+            contractId: "intent.effect.file.write.v0",
+            contractArguments: { path: "_0" },
+            args: { _0: "./src/app.ts" },
+            argKinds: { _0: "string" },
+            argSpans: { _0: effectSpan },
+            expression: "FileWrite(\"./src/app.ts\")",
+          },
+        },
+      ],
+      edges: [
+        {
+          from: "goal:demo:step:patch",
+          to: "goal:demo:step:patch:effect:0",
+          kind: "requests",
+          data: {
+            name: "FileWrite",
+            expression: "FileWrite(\"./src/app.ts\")",
+            family: "file",
+            action: "read",
+            contractId: "intent.effect.file.write.v0",
+            contractArguments: { path: "_0" },
+            args: { _0: "./src/app.ts" },
+            argKinds: { _0: "string" },
+            argSpans: { _0: effectSpan },
+            sourceSpan: stepSpan,
+            targetSpan: effectSpan,
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EFFECT_REQUEST_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].effect_id, "goal:demo:step:patch:effect:0");
+    assert.equal(diagnostics[0].data_is_object, true);
+    assert.equal(diagnostics[0].family_matches_target, true);
+    assert.equal(diagnostics[0].action_matches_target, false);
+    assert.equal(diagnostics[0].args_match_target, true);
+    assert.equal(diagnostics[0].arg_spans_match_target, true);
   });
 
   it("validates graph step plan diagnostics", () => {
