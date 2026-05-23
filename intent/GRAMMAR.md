@@ -209,6 +209,7 @@ http.get("https://api.example.com/status")
 git.push(branch: "main")
 git.push(remote: "origin")
 TicketUpdate(id: "CODE-123")
+Deploy(target: "staging")
 ```
 
 Inside `verify` requirements, `shell("npm test")` and
@@ -251,6 +252,14 @@ ticket update outside the declared grants emits `INTENT_CAPABILITY_DENIED`. The
 graph builder emits ticket updates as `Effect` nodes with family `ticket`,
 action `update`, and an `authorizes` edge from the matching `Capability` node
 when covered.
+
+Deploy effects use a named `target` constrained argument. A capability
+declaration such as `capability deploy { deploy target: "staging" }`
+authorizes `Deploy(target: "staging")`. Deploy targets are normalized before
+comparison. A deploy outside the declared grants emits
+`INTENT_CAPABILITY_DENIED`. The graph builder emits deploys as `Effect` nodes
+with family `deploy`, action `deploy`, and an `authorizes` edge from the
+matching `Capability` node when covered.
 
 ## Lexical Rules
 
@@ -332,6 +341,10 @@ The parser emits names and type reference strings; the checker owns binding.
   `capability ticket { update id: "..." }` grants. Ticket ids are normalized
   before comparison; if no grant covers the normalized id, the checker emits
   `INTENT_CAPABILITY_DENIED`.
+- Deploy effects bind `Deploy(target: "...")` to in-scope
+  `capability deploy { deploy target: "..." }` grants. Deploy targets are
+  normalized before comparison; if no grant covers the normalized target, the
+  checker emits `INTENT_CAPABILITY_DENIED`.
 - Shell command arguments must be literal or trusted before execution.
 - Nonliteral shell command arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.
