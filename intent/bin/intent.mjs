@@ -1338,6 +1338,10 @@ function validateGraph(graph, options = {}) {
     if (memoryDiagnostic) {
       diagnostics.push(memoryDiagnostic);
     }
+    const policyDiagnostic = validateGraphPolicy(graphNode, graphSpan);
+    if (policyDiagnostic) {
+      diagnostics.push(policyDiagnostic);
+    }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
       diagnostics.push(trustDiagnostic);
@@ -1744,6 +1748,27 @@ function isGraphRetentionRuleRecord(value) {
     && typeof value.until.raw === "string"
     && value.until.raw.trim() !== ""
     && isSupportedRetentionUntil(value.until.raw);
+}
+
+function validateGraphPolicy(graphNode, graphSpan) {
+  if (graphNode.kind !== "Policy") {
+    return null;
+  }
+  const policyKindIsValid = graphNode.data.policyKind === "timeout" || graphNode.data.policyKind === "retry";
+  const policyIsNonempty = typeof graphNode.data.policy === "string" && graphNode.data.policy.trim() !== "";
+  const ownerStepIsNonempty = typeof graphNode.data.ownerStep === "string" && graphNode.data.ownerStep.trim() !== "";
+  if (policyKindIsValid && policyIsNonempty && ownerStepIsNonempty) {
+    return null;
+  }
+  return error("INTENT_GRAPH_POLICY_INVALID", `policy '${graphNode.label}' must carry valid step execution policy data.`, graphNode.span ?? graphSpan, {
+    policy: graphNode.label,
+    policy_id: graphNode.id,
+    policy_kind: typeof graphNode.data.policyKind === "string" ? graphNode.data.policyKind : null,
+    owner_step: typeof graphNode.data.ownerStep === "string" ? graphNode.data.ownerStep : null,
+    policy_kind_is_valid: policyKindIsValid,
+    policy_is_nonempty: policyIsNonempty,
+    owner_step_is_nonempty: ownerStepIsNonempty,
+  });
 }
 
 function validateGraphNodeTrust(graphNode, graphSpan) {

@@ -120,6 +120,9 @@ function defaultGraphNodeData(kind, data) {
       ...normalizedData,
     };
   }
+  if (kind === "Policy") {
+    return { scope: "step", ownerStep: "patch", policyKind: "timeout", policy: "5m", ...normalizedData };
+  }
   if (kind === "Check" && isPlainObject(normalizedData.effect)) {
     return {
       ...normalizedData,
@@ -1531,6 +1534,33 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].retention_rules_nonempty, false);
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_MEMORY_INVALID");
     assert.deepEqual(diagnostics[2].invalid_retention_indexes, [0]);
+  });
+
+  it("validates graph step policy diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "policy:missing", kind: "Policy", label: "missing policy", span: testSpan(1), data: { policy: null } },
+        { id: "policy:bad-kind", kind: "Policy", label: "bad kind", span: testSpan(2), data: { policyKind: "budget", policy: "5m", ownerStep: "patch" } },
+        { id: "policy:blank-owner", kind: "Policy", label: "blank owner", span: testSpan(3), data: { policyKind: "retry", policy: "   ", ownerStep: "" } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_POLICY_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_POLICY_INVALID");
+    assert.equal(diagnostics[0].policy_id, "policy:missing");
+    assert.equal(diagnostics[0].policy_kind_is_valid, true);
+    assert.equal(diagnostics[0].policy_is_nonempty, false);
+    assert.equal(diagnostics[0].owner_step_is_nonempty, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_POLICY_INVALID");
+    assert.equal(diagnostics[1].policy_kind, "budget");
+    assert.equal(diagnostics[1].policy_kind_is_valid, false);
+    assert.equal(diagnostics[1].policy_is_nonempty, true);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_POLICY_INVALID");
+    assert.equal(diagnostics[2].policy_kind_is_valid, true);
+    assert.equal(diagnostics[2].policy_is_nonempty, false);
+    assert.equal(diagnostics[2].owner_step_is_nonempty, false);
   });
 
   it("validates graph step input binding diagnostics", () => {
