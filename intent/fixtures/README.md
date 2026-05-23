@@ -12,6 +12,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_trust_flow_shell_literal.intent`: trust-flow goal where `ShellExec` uses a literal command declared by shell capability.
 - `valid_web_read_wildcard.intent`: web-read goal where `WebRead` targets a subdomain covered by a wildcard web domain grant.
 - `valid_git_push_branch.intent`: git goal where `GitPush` targets a branch covered by a normalized git push branch grant.
+- `valid_git_commit_message.intent`: git goal where `GitCommit` uses a message covered by a git commit message grant.
 - `valid_deploy_target.intent`: deploy goal where `Deploy` targets an environment covered by a deploy target grant, with memory retention, verification, and invariants.
 - `valid_secret_read.intent`: secret-read goal where `SecretRead` targets a secret name covered by a secret read grant, with memory retention, verification, and invariants.
 - `valid_ticket_update.intent`: ticket-update goal where `TicketUpdate` targets a ticket id covered by a ticket update grant, with memory retention, verification, and invariants.
@@ -25,6 +26,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_missing_verification.intent`: declares mutating effects but omits the required verification gate.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
 - `invalid_git_push_branch_mismatch.intent`: declares git push access for `main` but calls `GitPush(branch: "release")`.
+- `invalid_git_commit_message_mismatch.intent`: declares git commit access for `ship fix` but calls `GitCommit(message: "release fix")`.
 - `invalid_deploy_target_outside_capability.intent`: declares deploy access for `staging` but calls `Deploy` for `production`.
 - `invalid_approval_required_missing.intent`: declares git push access for `main` with approval required but calls `GitPush(branch: "main")` without a step approval gate.
 - `invalid_file_write_outside_capability.intent`: calls `FileWrite` for a path outside the declared write grant.

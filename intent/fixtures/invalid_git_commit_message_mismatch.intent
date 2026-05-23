@@ -1,0 +1,38 @@
+package fixtures.invalid_git_commit_message_mismatch
+
+type Patch = {
+  files: List<Path>
+}
+
+type CommitResult = {
+  message: String
+}
+
+goal "reject commit message mismatch" {
+  context repo("./")
+
+  capability git {
+    commit message: "ship fix"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step prepare_fix -> Patch
+    step commit_fix(input: Patch) -> CommitResult {
+      effect GitCommit(message: "release fix")
+    }
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}
