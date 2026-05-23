@@ -1096,6 +1096,7 @@ Initial diagnostic families:
 - `INTENT_MEMORY_RETENTION_INVALID`
 - `INTENT_CHECKPOINT_INVALID`
 - `INTENT_POLICY_INVALID`
+- `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`
 - `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_NODE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
@@ -1543,13 +1544,14 @@ lacks an `approves` edge to its owning `Step` or to an approval-required
 owning `Step`, or a `Policy` lacks its `timeouts` or `retries` edge to its
 owning `Step`.
 
-The next static graph contract milestone is runtime rejection, not repair. A
-runtime must reject any graph whose schema version is unsupported, whose
-`ok` value is not `true`, whose node or edge kind is outside the supported
-sets above, whose edge endpoint does not resolve inside the same payload, or
-whose required execution, data, authorization, approval, guard, verification,
-completion, and step-attachment relationships fail graph validation. Malformed
-graphs may be emitted for diagnostics, but they are never executable contracts.
+The next static graph contract milestone is rejection, not repair. Static graph
+validators must reject any graph with a missing or unsupported
+`schema_version` or `ast_schema_version`, whose `ok` value is not `true`, whose
+node or edge kind is outside the supported sets above, whose edge endpoint does
+not resolve inside the same payload, or whose required execution, data,
+authorization, approval, guard, verification, completion, and step-attachment
+relationships fail graph validation. Malformed graphs may be emitted for
+diagnostics, but they are never executable runtime contracts.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that

@@ -88,9 +88,9 @@ Validation expectations:
   stable diagnostic codes and spans.
 - Graph JSON with `ok: false` is for tooling/debug output only and must not be
   treated as executable by a runtime.
-- Static graph runtimes must accept only their supported `schema_version` and
-  `ast_schema_version` pair. Unsupported or missing envelope versions emit
-  `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
+- Static graph validators must accept only their supported `schema_version` and
+  `ast_schema_version` pair. Missing or unsupported values for either field
+  emit `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
 - Static graph runtimes accept only the supported node and edge kinds documented
   in `STATIC_MODEL.md`; every edge `from` and `to` endpoint must resolve to a
   node id in the same payload.
