@@ -1152,8 +1152,9 @@ async function recordMemory() {
   const root = await repoRoot();
   await ensureTrace(root);
   const sha = await resolveCommit(args.commit ?? "HEAD");
-  const checkpointId = args.checkpoint ?? randomHex(12);
-  const sessionId = args.session ?? await readCurrentSession(root).catch(() => null);
+  const trailers = await traceCommitTrailers(root, sha);
+  const checkpointId = args.checkpoint ?? trailers.checkpoint ?? randomHex(12);
+  const sessionId = args.session ?? trailers.session ?? await readCurrentSession(root).catch(() => null);
   const memory = await buildMemory(root, sha, checkpointId, sessionId, {
     intent: args.intent,
     validation: args.validation,
@@ -1163,7 +1164,7 @@ async function recordMemory() {
   await mkdir(dirname(memoryPath), { recursive: true });
   await writeFile(memoryPath, memory.markdown);
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
-  print({ ok: true, commit: sha, memory: relativePath(root, memoryPath), checkpoint: checkpointId });
+  print({ ok: true, commit: sha, memory: relativePath(root, memoryPath), checkpoint: checkpointId, session: sessionId });
 }
 
 async function showMemory(commitish) {
@@ -1664,12 +1665,21 @@ async function hookPrepareCommitMsg(values) {
   await writeFile(commitMsgFile, `${current}${needsNewline}\nTrace-Checkpoint: ${checkpointId}\nTrace-Session: ${sessionId}\n`);
 }
 
+async function traceCommitTrailers(root, sha) {
+  const body = await git(["show", "-s", "--format=%B", sha], { cwd: root });
+  return {
+    checkpoint: body.match(/^Trace-Checkpoint:\s*(\S+)/m)?.[1] ?? null,
+    session: body.match(/^Trace-Session:\s*(\S+)/m)?.[1] ?? null,
+  };
+}
+
 async function hookPostCommit() {
   const root = await repoRoot();
   const pending = await readPendingCommit(root).catch(() => null);
   const sha = await resolveCommit("HEAD");
-  const sessionId = pending?.sessionId ?? await readCurrentSession(root).catch(() => null);
-  const checkpointId = pending?.checkpointId ?? randomHex(12);
+  const trailers = await traceCommitTrailers(root, sha);
+  const sessionId = pending?.sessionId ?? trailers.session ?? await readCurrentSession(root).catch(() => null);
+  const checkpointId = pending?.checkpointId ?? trailers.checkpoint ?? randomHex(12);
   const memory = await buildMemory(root, sha, checkpointId, sessionId, {});
   const memoryPath = memoryPathFor(root, sha);
   await mkdir(dirname(memoryPath), { recursive: true });

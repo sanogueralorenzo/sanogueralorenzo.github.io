@@ -205,6 +205,34 @@ test("record distills noisy raw sessions into compact memories", async () => {
   }
 });
 
+test("record reuses Trace commit trailers for checkpoint and session identity", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["capture", "--session", "manual-session", "--event", "prompt", "--role", "user", "--message", "reuse trailer session"]);
+    await writeFile(join(repo, "trailers.txt"), "trailers\n");
+    await git(repo, ["add", "trailers.txt"]);
+    await git(repo, ["commit", "-m", "Add trailer case", "-m", "Trace-Checkpoint: manual-checkpoint\nTrace-Session: manual-session"]);
+
+    const record = JSON.parse((await runTrace(repo, ["record", "--validation", "node --test"])).stdout);
+    assert.equal(record.checkpoint, "manual-checkpoint");
+    assert.equal(record.session, "manual-session");
+
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.match(memory, /Checkpoint: `manual-checkpoint`/);
+    assert.match(memory, /Session: `manual-session`/);
+    assert.match(memory, /reuse trailer session/);
+
+    const listed = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.deepEqual(listed.checkpoints.map((checkpoint) => checkpoint.checkpoint_id), ["manual-checkpoint"]);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("check fails on uncommitted Trace memories and passes after committing them", async () => {
   const repo = await tempRepo();
 
