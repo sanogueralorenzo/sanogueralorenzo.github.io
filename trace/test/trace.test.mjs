@@ -64,6 +64,10 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(decisionSearch.stdout, /\.trace\/commits\//);
     const fileSearch = await runTrace(repo, ["search", "--field", "files", "app.txt"]);
     assert.match(fileSearch.stdout, /app.txt/);
+    const handoffSearch = JSON.parse((await runTrace(repo, ["search", "--field", "handoff", "--json", "preserve"])).stdout);
+    assert.equal(handoffSearch.field, "handoff");
+    assert.equal(handoffSearch.matches, 1);
+    assert.match(handoffSearch.results[0].snippet, /Preserve the decision/);
     const riskSearch = await runTrace(repo, ["search", "--field", "risks", "reviewable"]);
     assert.equal(riskSearch.stdout, "");
 

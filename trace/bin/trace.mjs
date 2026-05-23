@@ -2856,7 +2856,7 @@ Usage:
   trace review [--all] [--json]
   trace log [--limit 20]
   trace index
-  trace search [--field decisions|files|validation|risks] [--limit 20] [--json] <query>
+  trace search [--field decisions|files|validation|risks|handoff] [--limit 20] [--json] <query>
   trace recall [query] [--files path[,path]] [--limit 5] [--json]
   trace summary [range] [--json]
   trace branch-summary [branch] [--base main] [--json]
@@ -3090,6 +3090,8 @@ function normalizeSearchField(value) {
     validation: "validation",
     risk: "risks",
     risks: "risks",
+    handoff: "handoff",
+    handoffs: "handoff",
   };
 
   if (!aliases[field]) {

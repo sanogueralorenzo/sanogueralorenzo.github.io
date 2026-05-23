@@ -75,6 +75,7 @@ trace index
 trace search "auth retry"
 trace search --field decisions "retry"
 trace search --field files "auth"
+trace search --field handoff "preserve"
 trace search --json --limit 5 "auth retry"
 trace recall "auth retry"
 trace recall --files src/auth.ts
@@ -164,7 +165,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. Branch, PR, and release text are generated views, not the canonical memory store. Add `--json` to emit the same memory-derived summary as structured data for agents and CI automation.
 
-`trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change and can search all memory text or a specific field such as `decisions`, `files`, `validation`, or `risks`. Use `--json` and `--limit` when agents need structured local search results.
+`trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change and can search all memory text or a specific field such as `decisions`, `files`, `validation`, `risks`, or `handoff`. Use `--json` and `--limit` when agents need structured local search results.
 
 `trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path plus intent, summary, decisions, validation, and risks. `trace recall --files src/auth.ts` ranks memories by affected files, plain `trace recall` uses locally changed files when available, and `--json` emits the same recall bundle as structured data.
 
