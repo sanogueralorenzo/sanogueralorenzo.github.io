@@ -1600,6 +1600,16 @@ function validateGraph(graph, options = {}) {
   }
 
   for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Context") {
+      continue;
+    }
+    const informsDiagnostic = validateGraphContextInforms(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
+    if (informsDiagnostic) {
+      diagnostics.push(informsDiagnostic);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
     if (graphNode.kind !== "Completion") {
       continue;
     }
@@ -2273,6 +2283,27 @@ function requiresCapabilityAuthorization(graphNode) {
 
 function requiresContextAuthorization(graphNode) {
   return graphNode.data?.source === "web" || graphNode.data?.source === "documents";
+}
+
+function validateGraphContextInforms(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
+  const ownerGoalId = parentNodeId(graphNode.id, ":context:");
+  const ownerGoal = ownerGoalId ? nodesById.get(ownerGoalId) : null;
+  if (ownerGoal?.kind !== "Goal") {
+    return null;
+  }
+  const outgoingEdges = outgoingEdgesByNode.get(graphNode.id) ?? [];
+  const informsEdges = outgoingEdges.filter((graphEdge) => graphEdge.kind === "informs");
+  const ownerGoalInformsEdges = informsEdges.filter((graphEdge) => graphEdge.to === ownerGoalId);
+  if (ownerGoalInformsEdges.length === 1 && informsEdges.length === ownerGoalInformsEdges.length) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CONTEXT_INFORMS_INVALID", `context '${graphNode.label}' must inform its owning goal.`, graphNode.span ?? fallbackSpan, {
+    context: graphNode.label,
+    context_id: graphNode.id,
+    owner_goal_id: ownerGoalId,
+    informs_edges: informsEdges.length,
+    owner_goal_informs_edges: ownerGoalInformsEdges.length,
+  });
 }
 
 function validateGraphCheckGate(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {

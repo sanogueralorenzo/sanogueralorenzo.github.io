@@ -2175,6 +2175,8 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:context:web", kind: "informs" },
         { from: "goal:demo", to: "goal:demo:context:documents", kind: "authorizes" },
         { from: "goal:demo:capability:0", to: "goal:demo:context:authorized", kind: "authorizes" },
+        { from: "goal:demo:context:documents", to: "goal:demo", kind: "informs" },
+        { from: "goal:demo:context:authorized", to: "goal:demo", kind: "informs" },
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_INVALID");
 
@@ -2185,6 +2187,35 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].target_id, "goal:demo:context:documents");
     assert.equal(diagnostics[1].authorizes_edges, 1);
     assert.equal(diagnostics[1].capability_authorizes_edges, 0);
+  });
+
+  it("validates graph context informs diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "goal:demo:context:missing", kind: "Context", label: "missing", span: testSpan(3) },
+        { id: "goal:demo:context:wrong", kind: "Context", label: "wrong", span: testSpan(4) },
+        { id: "goal:demo:context:duplicate", kind: "Context", label: "duplicate", span: testSpan(5) },
+      ],
+      edges: [
+        { from: "goal:demo:context:wrong", to: "goal:other", kind: "informs" },
+        { from: "goal:demo:context:duplicate", to: "goal:demo", kind: "informs" },
+        { from: "goal:demo:context:duplicate", to: "goal:other", kind: "informs" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CONTEXT_INFORMS_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].context_id, "goal:demo:context:missing");
+    assert.equal(diagnostics[0].informs_edges, 0);
+    assert.equal(diagnostics[0].owner_goal_informs_edges, 0);
+    assert.equal(diagnostics[1].context_id, "goal:demo:context:wrong");
+    assert.equal(diagnostics[1].informs_edges, 1);
+    assert.equal(diagnostics[1].owner_goal_informs_edges, 0);
+    assert.equal(diagnostics[2].context_id, "goal:demo:context:duplicate");
+    assert.equal(diagnostics[2].informs_edges, 2);
+    assert.equal(diagnostics[2].owner_goal_informs_edges, 1);
   });
 
   it("validates graph effect request diagnostics", () => {
