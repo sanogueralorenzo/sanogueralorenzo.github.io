@@ -216,6 +216,9 @@
           "$ref": "#/$defs/capability_node"
         },
         {
+          "$ref": "#/$defs/approval_node"
+        },
+        {
           "$ref": "#/$defs/memory_node"
         },
         {
@@ -448,6 +451,39 @@
       ],
       "unevaluatedProperties": false
     },
+    "approval_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Approval"
+            },
+            "data": {
+              "type": "object",
+              "required": ["scope", "ownerStep", "approval"],
+              "additionalProperties": false,
+              "properties": {
+                "scope": {
+                  "enum": ["step"]
+                },
+                "ownerStep": {
+                  "type": "string"
+                },
+                "approval": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "step_node": {
       "type": "object",
       "allOf": [
@@ -462,7 +498,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints"],
+              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints", "approvals"],
               "additionalProperties": false,
               "properties": {
                 "inputs": {
@@ -487,6 +523,12 @@
                   }
                 },
                 "checkpoints": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "approvals": {
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -714,6 +756,7 @@
         "kind": {
           "enum": [
             "authorizes",
+            "approves",
             "checkpoints",
             "completes",
             "constrains",
@@ -745,6 +788,9 @@
               "type": "string"
             },
             "checkpoint": {
+              "type": "string"
+            },
+            "approval": {
               "type": "string"
             }
           }

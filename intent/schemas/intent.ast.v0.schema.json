@@ -382,7 +382,7 @@
     },
     "step": {
       "type": "object",
-      "required": ["kind", "name", "parameters", "outputType", "effects", "requirements", "checkpoints", "span"],
+      "required": ["kind", "name", "parameters", "outputType", "effects", "requirements", "checkpoints", "approvals", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -413,6 +413,12 @@
           }
         },
         "checkpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statement"
+          }
+        },
+        "approvals": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/statement"

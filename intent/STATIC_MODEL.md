@@ -20,9 +20,11 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `MemoryRetention`: structured `retain ... until ...` rule with retained
   subject, until condition, raw text, and source span.
 - `PlanBlock`: ordered list of executable steps.
-- `StepDecl`: typed inputs, output, step-local requirements, step checkpoint
-  statements, declared effects, timeout, retry policy, checks, and body
-  expression.
+- `StepDecl`: typed inputs, output, step-local requirements, step approval
+  gates, step checkpoint statements, declared effects, timeout, retry policy,
+  checks, and body expression.
+- `StepApproval`: structured `approval ...` step-body statement with raw
+  approval text and source span.
 - `StepCheckpoint`: structured `checkpoint ...` step-body statement with raw
   checkpoint text and source span.
 - `VerifyBlock`: required or advisory completion checks.
@@ -303,6 +305,8 @@ blocking diagnostics.
   and ticket updates.
 - Parse step-body `require ...` lines as step requirements, separate from
   goal-level verification requirements.
+- Parse step-body `approval ...` lines as step approval gates owned by their
+  containing step.
 - Parse step-body `checkpoint ...` lines as step checkpoints owned by their
   containing step.
 - Enforce invariant placement, emit invariant statements as `Invariant` nodes,
@@ -319,6 +323,9 @@ blocking diagnostics.
   checkpoints, and completion gates.
 - Emit step requirements as `Check` nodes with `requires` edges into the owning
   step and `gates` edges to the owning goal.
+- Emit step approval gates as `Approval` nodes, list them on the owning `Step`
+  node data, and connect each one with an `approves` edge from that `Approval`
+  node to the owning `Step`.
 - Emit step checkpoints as `Checkpoint` nodes, list them on the owning `Step`
   node data, and connect each one with a `checkpoints` edge from that `Step`.
 - Emit each invariant statement as an `Invariant` node with `guards` edges to
@@ -414,6 +421,32 @@ Rules:
 - Step requirement checks do not create `verifies` edges to the goal
   `Completion` node. Goal-level `verify` requirements remain the only checks
   that verify completion.
+
+## Step Approvals
+
+Step bodies may contain `approval ...` lines that declare manual approval gates
+for only that step:
+
+```intent
+plan {
+  step deploy_patch(report: TestReport) -> Release {
+    approval release_manager
+    approval change_advisory_board
+  }
+}
+```
+
+Rules:
+
+- Step-body approvals are parsed into the owning `StepDecl` as step approval
+  gates.
+- Each step approval gate emits one graph `Approval` node whose span is the
+  `approval ...` line.
+- The owning `Step` node data lists approval summaries in source order.
+- The graph builder creates an `approves` edge from each approval `Approval`
+  node to the owning `Step`, so the step cannot run until approval is granted.
+- Step approval gates do not create `verifies` edges to the goal `Completion`
+  node and do not replace capability policy approval requirements.
 
 ## Step Checkpoints
 
@@ -769,8 +802,20 @@ node id. It is an intermediate contract for a local runtime.
         "inputs": [{ "name": "patch", "type": "GitDiff" }],
         "outputType": "ShellExecResult",
         "effects": ["ShellExec"],
+        "approvals": ["release_manager_review"],
         "requirements": [],
         "checkpoints": ["test_report_written"]
+      }
+    },
+    {
+      "id": "goal:ship_checkout_fix:step:run_tests:approval:0",
+      "kind": "Approval",
+      "label": "release_manager_review",
+      "span": "loc.16",
+      "data": {
+        "scope": "step",
+        "ownerStep": "run_tests",
+        "approval": "release_manager_review"
       }
     },
     {
@@ -894,6 +939,11 @@ node id. It is an intermediate contract for a local runtime.
       "kind": "authorizes"
     },
     {
+      "from": "goal:ship_checkout_fix:step:run_tests:approval:0",
+      "to": "goal:ship_checkout_fix:step:run_tests",
+      "kind": "approves"
+    },
+    {
       "from": "goal:ship_checkout_fix:step:run_tests",
       "to": "goal:ship_checkout_fix:step:run_tests:checkpoint:0",
       "kind": "checkpoints"
@@ -982,6 +1032,10 @@ not completion checks and must not create `verifies` edges to the goal
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
 checkpoint has one incoming `checkpoints` edge from that owning step.
+
+Step approval nodes are `Approval` nodes scoped to one owning step. The owning
+step node lists them in its `data.approvals` array, and each approval has one
+outgoing `approves` edge to that owning step.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.

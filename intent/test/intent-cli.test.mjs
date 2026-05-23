@@ -15,6 +15,7 @@ const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.int
 const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent", import.meta.url).pathname;
 const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.intent", import.meta.url).pathname;
 const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
+const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
@@ -164,6 +165,7 @@ describe("intent static model CLI", () => {
     const gitPushBranch = runJson(["check", VALID_GIT_PUSH_BRANCH]);
     const stepRequirements = runJson(["check", VALID_STEP_REQUIREMENTS]);
     const invariantGuardGraph = runJson(["check", VALID_INVARIANT_GUARD_GRAPH]);
+    const stepApprovalGraph = runJson(["check", VALID_STEP_APPROVAL_GRAPH]);
     const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
 
     assert.equal(codeChange.ok, true);
@@ -182,6 +184,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(stepRequirements.diagnostics, []);
     assert.equal(invariantGuardGraph.ok, true);
     assert.deepEqual(invariantGuardGraph.diagnostics, []);
+    assert.equal(stepApprovalGraph.ok, true);
+    assert.deepEqual(stepApprovalGraph.diagnostics, []);
     assert.equal(trustFlow.ok, true);
     assert.deepEqual(trustFlow.diagnostics, []);
   });
@@ -404,6 +408,19 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === effect.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === checkpoint.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === requirement.id), true);
+  });
+
+  it("emits step approvals as approval nodes and edges", () => {
+    const graph = runJson(["graph", VALID_STEP_APPROVAL_GRAPH]);
+    const approval = graph.nodes.find((node) => node.kind === "Approval" && node.data.ownerStep === "publish_patch");
+    const publishStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "publish_patch");
+
+    assert.equal(graph.ok, true);
+    assert.equal(approval.data.scope, "step");
+    assert.equal(approval.data.approval, "maintainer approves main push");
+    assert.equal(publishStep.data.approvals.includes("maintainer approves main push"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "approves" && edge.from === approval.id && edge.to === publishStep.id), true);
+    assert.equal(graph.edges.some((edge) => edge.from === approval.id && edge.kind === "verifies"), false);
   });
 
   it("validates CLI outputs against versioned schemas", () => {

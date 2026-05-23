@@ -355,6 +355,7 @@ function parseStep(header, body, file, startLine, endLine) {
   const effects = [];
   const requirements = [];
   const checkpoints = [];
+  const approvals = [];
   if (match[3]) {
     const effectOutput = match[3].trim().match(/^Effect<\s*([A-Za-z][A-Za-z0-9_.]*)/);
     if (effectOutput) {
@@ -371,6 +372,9 @@ function parseStep(header, body, file, startLine, endLine) {
     if (line.text.startsWith("checkpoint ")) {
       checkpoints.push(parseCheckpointStatement(line, file));
     }
+    if (line.text.startsWith("approval ")) {
+      approvals.push(parseApprovalStatement(line, file));
+    }
   }
   return {
     kind: "Step",
@@ -380,6 +384,7 @@ function parseStep(header, body, file, startLine, endLine) {
     effects,
     requirements,
     checkpoints,
+    approvals,
     span: span(file, startLine, 1, endLine, 1),
   };
 }
@@ -430,6 +435,10 @@ function parseRetentionRule(line, file) {
 
 function parseCheckpointStatement(line, file) {
   return statementNode("Checkpoint", unquote(line.text.slice("checkpoint ".length)), file, line.lineNumber, line.raw);
+}
+
+function parseApprovalStatement(line, file) {
+  return statementNode("Approval", unquote(line.text.slice("approval ".length)), file, line.lineNumber, line.raw);
 }
 
 function checkIntent(ast) {
@@ -722,6 +731,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         effects: step.effects.map((effect) => effect.name),
         requirements: step.requirements.map((requirement) => requirement.value),
         checkpoints: step.checkpoints.map((checkpoint) => checkpoint.value),
+        approvals: step.approvals.map((approval) => approval.value),
       }));
       edges.push(edge(goalId, id, "plans"));
       if (previousStepId) {
@@ -763,6 +773,18 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
             type: normalizeTypeRef(parameter.type),
           }));
         }
+      }
+
+      for (const [approvalIndex, approval] of step.approvals.entries()) {
+        const approvalId = `${id}:approval:${approvalIndex}`;
+        nodes.push(node(approvalId, "Approval", approval.value, approval.span, {
+          scope: "step",
+          ownerStep: step.name,
+          approval: approval.value,
+        }));
+        edges.push(edge(approvalId, id, "approves", {
+          approval: approval.value,
+        }));
       }
 
       for (const [checkpointIndex, checkpoint] of step.checkpoints.entries()) {
