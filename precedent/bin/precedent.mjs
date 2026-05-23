@@ -95,6 +95,11 @@ async function main() {
     return;
   }
 
+  if (command === "preflight") {
+    await preflightPrompt();
+    return;
+  }
+
   if (command === "warrant") {
     await issueWarrant();
     return;
@@ -2581,6 +2586,24 @@ function buildManifest(runtime, stateDir) {
     stateDir,
     "--json",
   ];
+  const preflightCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "preflight",
+    "--state-dir",
+    stateDir,
+    "--prompt-file",
+    "$PROMPT_FILE",
+    "--scope",
+    "$SCOPE",
+    "--changed-files",
+    "$CHANGED_FILES",
+    "--session",
+    "$SESSION_ID",
+    "--event-prefix",
+    "$EVENT_PREFIX",
+    "--json",
+  ];
   const warrantCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -2737,6 +2760,14 @@ function buildManifest(runtime, stateDir) {
       },
     },
     actions: {
+      "preflight.prompt": {
+        command: preflightCommand,
+        stdin: [],
+        output: ["ok", "schema_version", "prompt", "contextBlocks", "attributedPrecedents", "deliveryId", "contextBlockHash", "observation", "beforeTurn", "injectionAck"],
+        injectFrom: "prompt",
+        timeoutMs,
+        failurePolicy,
+      },
       "warrant.issue": {
         command: warrantCommand,
         stdin: [],
@@ -2843,6 +2874,21 @@ async function attachRuntime() {
     "promote-pending",
     "--state-dir",
     stateDirArg,
+    "--json",
+  ];
+  const preflightCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "preflight",
+    "--state-dir",
+    stateDirArg,
+    ...(taskSource.taskFile ? ["--prompt-file", taskSource.taskFile] : ["--prompt", taskSource.task]),
+    ...(scope ? ["--scope", scope] : []),
+    ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
+    "--session",
+    sessionId,
+    "--event-prefix",
+    "$EVENT_PREFIX",
     "--json",
   ];
 
@@ -2991,6 +3037,13 @@ async function attachRuntime() {
           messages: "$MESSAGES",
           message: "$MESSAGE",
         },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      preflight: {
+        command: preflightCommand,
+        output: ["ok", "schema_version", "prompt", "contextBlocks", "attributedPrecedents", "deliveryId", "contextBlockHash", "observation", "beforeTurn", "injectionAck"],
+        injectFrom: "prompt",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -3361,6 +3414,100 @@ async function attachRunSession() {
     idle,
     learning: outcome.learning ?? null,
   });
+}
+
+async function preflightPrompt() {
+  const stateDirArg = args["state-dir"] ?? runtimeConfig.stateDir;
+  const runtime = args.runtime ?? "generic";
+  const promptSource = await readPreflightPromptSource();
+  const scope = args.scope ?? "";
+  const changedFiles = parseListArg(args["changed-files"]);
+  const sessionIdentity = runtimeSessionIdentity({
+    runtime,
+    taskSource: {
+      task: promptSource.prompt,
+      taskFile: promptSource.promptFile,
+    },
+    scope,
+    changedFiles,
+  });
+  const sessionId = sessionIdentity.sessionId;
+  const eventPrefix = typeof args["event-prefix"] === "string" && args["event-prefix"].trim().length > 0
+    ? args["event-prefix"].trim()
+    : null;
+  const observed = await runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "conversation.observe",
+    sessionId,
+    ...eventIdField(eventPrefix ? `${eventPrefix}:conversation.observe` : null),
+    task: promptSource.prompt,
+    scope: scope || null,
+    changedFiles,
+    messages: [{
+      role: "user",
+      content: promptSource.prompt,
+    }],
+  });
+  const beforeTurn = await runPrecedentChildJson([
+    "context",
+    "--state-dir",
+    stateDirArg,
+    ...(promptSource.promptFile ? ["--task-file", promptSource.promptFile] : ["--task", promptSource.prompt]),
+    ...(scope ? ["--scope", scope] : []),
+    ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
+    "--session",
+    sessionId,
+    ...(eventPrefix ? ["--event-id", `${eventPrefix}:context.before_turn`] : []),
+    "--format",
+    "json",
+    "--json",
+  ]);
+  const injectionAck = await runAttachInjectionAck({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:context.after_inject` : null,
+    deliveryReceipt: beforeTurn.deliveryReceipt,
+    contextBlockHash: beforeTurn.contextBlockHash,
+    inserted: beforeTurn.contextBlock ? true : false,
+  });
+  const contextBlocks = uniqueStrings([
+    observed.contextBlock,
+    beforeTurn.contextBlock,
+  ].filter((block) => typeof block === "string" && block.trim().length > 0));
+  const prompt = contextBlocks.length > 0
+    ? `${contextBlocks.join("\n\n")}\n\n${promptSource.prompt}`
+    : promptSource.prompt;
+  const attributedPrecedents = beforeTurn.injections.map((injection) => injection.id);
+  const payload = {
+    ok: true,
+    schema_version: "precedent.preflight.v1",
+    runtime,
+    stateDir: stateDirArg,
+    sessionId,
+    eventPrefix,
+    identity: sessionIdentity,
+    originalPrompt: promptSource.prompt,
+    prompt,
+    contextBlocks,
+    attributedPrecedents,
+    deliveryId: beforeTurn.deliveryReceipt?.deliveryId ?? null,
+    contextBlockHash: beforeTurn.contextBlockHash,
+    observation: observed,
+    beforeTurn,
+    injectionAck,
+  };
+
+  if (args.json) {
+    print(payload);
+    return;
+  }
+
+  process.stdout.write(prompt);
 }
 
 async function runAttachDiff({
@@ -3749,6 +3896,25 @@ async function readAttachTaskSource() {
   }
 
   fail("attach requires --task <text> or --task-file <path>");
+}
+
+async function readPreflightPromptSource() {
+  if (args["prompt-file"]) {
+    const promptFile = resolve(args["prompt-file"]);
+    return {
+      prompt: await readFile(promptFile, "utf8"),
+      promptFile,
+    };
+  }
+
+  if (args.prompt) {
+    return {
+      prompt: args.prompt,
+      promptFile: null,
+    };
+  }
+
+  fail("preflight requires --prompt <text> or --prompt-file <path>");
 }
 
 function runtimeSessionIdentity({ runtime, taskSource, scope, changedFiles }) {
@@ -9517,6 +9683,7 @@ Usage:
   precedent observe --trace trace.json [--state-dir .precedent]
   precedent observe --session session-id [--state-dir .precedent]
   precedent context --task "add webhook handler" [--scope feature:webhooks] [--include-stale] [--format json|markdown]
+  precedent preflight --prompt "add webhook handler" [--scope feature:webhooks] [--session session-id] [--event-prefix id]
   precedent warrant --session session-id --event-id event-id --task "add webhook handler" [--scope feature:webhooks]
   precedent artifact --candidate candidate-id [--state-dir .precedent]
   precedent compile [--state-dir .precedent] [--promote-session-pairs]
@@ -9542,6 +9709,7 @@ Commands:
   init      Create local Precedent state.
   observe   Ingest one agent trace or recorded hook session.
   context   Export stable agent-ready precedent context.
+  preflight Prepend ordinary prompts with proved, acknowledged Precedent context.
   warrant   Issue a machine-readable edit and evidence contract for one turn.
   artifact  Render a non-injectable SKILL.md preview for a candidate.
   compile   Mine observed raw traces into candidates, optionally promoting analogous session pairs.

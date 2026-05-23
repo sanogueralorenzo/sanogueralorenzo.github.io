@@ -99,6 +99,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent artifact`: renders a non-injectable `SKILL.md` preview for a candidate.
 - `precedent inject`: returns the relevant precedent for the current task context.
 - `precedent context`: exports stable agent-ready precedent context.
+- `precedent preflight`: prepends a normal prompt with acknowledged Precedent context for runtimes that only support prompt preprocessing.
 - `precedent warrant`: issues a machine-readable edit and validation contract for one agent turn.
 - `precedent hook`: reads a passive hook event and returns an insertable context block.
 - `finalize.before_response`: gives headless runtimes a last deterministic ready/validate/repair decision before they answer.
@@ -136,6 +137,7 @@ node precedent/bin/precedent.mjs hook before-turn --task "add another webhook ha
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"context.before_turn","sessionId":"demo","eventId":"turn-001","task":"add another webhook handler"}' | node precedent/bin/precedent.mjs loop --json
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"conversation.observe","sessionId":"demo","eventId":"message-001","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"],"messages":[{"role":"user","content":"Use pnpm test:webhooks, not pnpm test. Keep edits inside features/webhooks, not features/billing."}]}' | node precedent/bin/precedent.mjs hook --json
 node precedent/bin/precedent.mjs context --session demo --event-id turn-001 --task "add another webhook handler" --scope feature:webhooks
+node precedent/bin/precedent.mjs preflight --session demo --event-prefix turn-001 --prompt "add another webhook handler" --scope feature:webhooks
 node precedent/bin/precedent.mjs warrant --session demo --event-id turn-001-warrant --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 node precedent/bin/precedent.mjs warrant --session demo --event-id turn-001-warrant --delivery-id del_abc123 --task "add another webhook handler"
 node precedent/bin/precedent.mjs artifact --candidate cand_feature_webhooks_wrong_test_command --json
@@ -165,6 +167,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `observe` is the passive hook ingesting an agent trace.
 - `inject` is the before-turn hook returning relevant precedent.
 - `context` is the preferred runtime-facing export: it returns `schema_version: "precedent.context.v1"`, an insertable `contextBlock`, a `contextBlockHash`, injection metadata, suppression metadata, non-injectable `candidateHints`, session-local `turnDirectives`, an optional `deliveryReceipt` for later attribution, and the source inputs used for ranking.
+- `preflight` is the lowest-friction prompt shim: it observes the raw user prompt, fetches before-turn context, acknowledges the inserted block with `context.after_inject`, and prints the original prompt with any `Precedent:` block prepended. In `--json` mode it also returns the `deliveryId`, `contextBlockHash`, `attributedPrecedents`, observation receipt, before-turn payload, and injection acknowledgement.
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
 - `loop` reads newline-delimited hook events from stdin and writes one JSON response per line, giving runtimes a single long-lived, runtime-agnostic event pump. Malformed lines return `{ "ok": false }` without stopping later events.
 - `conversation.observe` captures normal chat messages and extracts bounded correction signals such as "use pnpm test:webhooks, not pnpm test" and "keep edits inside features/webhooks, not features/billing" into a `Precedent correction:` context block. It also extracts trusted, session-local turn directives such as "do not edit files" or "scope all recommendations to precedent/" into a `Precedent directive:` block and `turnDirectiveReceipt`; these directives are not promoted as memory, but `context`, `warrant`, `diff.after_edit`, and `finalize.before_response` can enforce them for the current unfinished turn. It records and dedupes the message event, redacts stored secrets, and attaches a `correctionSafetyReceipt`; only trusted, scope/path-anchored, allowlisted command corrections or safe repo-relative boundary corrections can enter the context block or replay-gated candidate evidence. Untrusted, unanchored, or unsafe corrections are quarantined as non-learning session evidence.

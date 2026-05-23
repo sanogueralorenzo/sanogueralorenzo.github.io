@@ -95,6 +95,26 @@ test("manifest emits a generic runtime hook contract", async () => {
     "$CHANGED_FILES",
     "--json",
   ]);
+  assert.deepEqual(manifest.actions["preflight.prompt"].command, [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "preflight",
+    "--state-dir",
+    ".precedent",
+    "--prompt-file",
+    "$PROMPT_FILE",
+    "--scope",
+    "$SCOPE",
+    "--changed-files",
+    "$CHANGED_FILES",
+    "--session",
+    "$SESSION_ID",
+    "--event-prefix",
+    "$EVENT_PREFIX",
+    "--json",
+  ]);
+  assert.equal(manifest.actions["preflight.prompt"].injectFrom, "prompt");
+  assert.ok(manifest.actions["preflight.prompt"].output.includes("injectionAck"));
   assert.ok(manifest.actions["warrant.issue"].output.includes("warrantId"));
   assert.deepEqual(manifest.actions["promotion.trial"].output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
   assert.ok(manifest.actions["promotion.pending"].output.includes("queue"));
