@@ -369,6 +369,7 @@ async function runDoctor() {
   const dirtyTrace = await dirtyTraceFiles(root);
   const checkpoint = await checkpointAudit(root);
   const searchIndex = await searchIndexStatus(root);
+  const install = await installStatusPayload();
 
   const checks = [
     {
@@ -437,6 +438,22 @@ async function runDoctor() {
       stale: searchIndex.stale,
       error: searchIndex.error ?? null,
       rebuild: "trace index",
+    },
+    {
+      name: "install",
+      level: "warning",
+      ok: install.valid,
+      installed: install.installed,
+      valid: install.valid,
+      installDir: install.installDir,
+      target: install.target,
+      source: install.source,
+      kind: install.kind,
+      linkTarget: install.linkTarget,
+      expectedLinkTarget: install.expectedLinkTarget,
+      installCommand: install.installCommand,
+      updateCommand: install.updateCommand,
+      uninstallCommand: install.uninstallCommand,
     },
   ];
   const ok = checks.every((check) => check.ok || check.level === "warning");

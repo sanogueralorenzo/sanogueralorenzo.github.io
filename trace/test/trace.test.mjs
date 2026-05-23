@@ -464,12 +464,14 @@ test("doctor reports hook and local memory health without mutating caches", asyn
 
     await runTrace(repo, ["enable"]);
 
-    const doctor = await runTrace(repo, ["doctor"]);
+    const installDir = join(repo, "trace-bin");
+    const doctor = await runTrace(repo, ["doctor", "--prefix", installDir]);
     const payload = JSON.parse(doctor.stdout);
     const hooks = payload.checks.find((check) => check.name === "hooks");
     const dirtyTrace = payload.checks.find((check) => check.name === "dirtyTrace");
     const checkpointRef = payload.checks.find((check) => check.name === "checkpointRef");
     const searchIndex = payload.checks.find((check) => check.name === "searchIndex");
+    const install = payload.checks.find((check) => check.name === "install");
 
     assert.equal(payload.ok, true);
     assert.equal(hooks.ok, true);
@@ -479,6 +481,12 @@ test("doctor reports hook and local memory health without mutating caches", asyn
     assert.equal(checkpointRef.level, "warning");
     assert.equal(searchIndex.present, false);
     assert.equal(searchIndex.rebuild, "trace index");
+    assert.equal(install.level, "warning");
+    assert.equal(install.installed, false);
+    assert.equal(install.valid, false);
+    assert.equal(install.installDir, installDir);
+    assert.equal(install.target, join(installDir, "trace"));
+    assert.match(install.installCommand, /trace\/install\.sh --prefix /);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
