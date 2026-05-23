@@ -473,7 +473,9 @@ The parser emits names and type reference strings; the checker owns binding.
   `INTENT_GRAPH_AUTHORIZATION_INVALID`; an `Effect` node that lacks exactly one
   incoming `requests` edge from its owning `Step`, or whose incoming `requests`
   edges are not from that owning `Step`, emits
-  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; a
+  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; a `Step` node that lacks exactly one
+  incoming `plans` edge from its owning `Goal`, or whose incoming `plans` edges
+  are not from that owning `Goal`, emits `INTENT_GRAPH_STEP_PLAN_INVALID`; a
   `Completion` node without the required incoming completion, verification, or
   guard coverage emits `INTENT_GRAPH_COMPLETION_INVALID`; cyclic graph edges emit
   `INTENT_GRAPH_CYCLE`; an `Invariant` node missing its `guards` edge to
