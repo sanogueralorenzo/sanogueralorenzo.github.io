@@ -1583,6 +1583,7 @@ function effectArguments(effect) {
     return [
       effect.args.branch ? { key: "branch", value: normalizeRefName(effect.args.branch) } : null,
       effect.args.remote ? { key: "remote", value: normalizeRefName(effect.args.remote) } : null,
+      effect.args.message ? { key: "message", value: normalizeCommitMessage(effect.args.message) } : null,
     ].filter(Boolean);
   }
   if (effect.family === "deploy") {
@@ -1609,6 +1610,9 @@ function isGrantMatch(argument, grant) {
   }
   if (argument.key === "branch" || argument.key === "remote") {
     return normalizeRefName(argument.value) === normalizeRefName(grant.value);
+  }
+  if (argument.key === "message") {
+    return normalizeCommitMessage(argument.value) === normalizeCommitMessage(grant.value);
   }
   if (argument.key === "target") {
     return normalizeDeployTarget(argument.value) === normalizeDeployTarget(grant.value);
@@ -1650,6 +1654,10 @@ function normalizeCommand(value) {
 
 function normalizeRefName(value) {
   return value.trim().replace(/^refs\/heads\//, "");
+}
+
+function normalizeCommitMessage(value) {
+  return value.trim().replace(/\s+/g, " ");
 }
 
 function normalizeDeployTarget(value) {
