@@ -1499,6 +1499,7 @@ File path constraints:
   symlinks.
 - `.` and `..` segments are collapsed; paths that escape the package root are
   denied.
+- Absolute file paths are denied even when a capability grant is also absolute.
 - A capability path ending in `/**` authorizes files below that directory.
 - A capability path containing `*` supports a single path-segment wildcard.
 - A capability path without a wildcard authorizes only that exact path.

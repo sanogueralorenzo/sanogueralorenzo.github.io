@@ -39,6 +39,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_invariant_unrelated_file_write.intent`: declares file write access outside the `repo("./src")` context root while denying `unrelated_file_write`, which should fail `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - `invalid_approval_required_missing.intent`: declares git push access for `main` with approval required but calls `GitPush(branch: "main")` without a step approval gate.
 - `invalid_file_write_outside_capability.intent`: calls `FileWrite` for a path outside the declared write grant.
+- `invalid_file_write_absolute_path.intent`: calls `FileWrite` with an absolute path, which should fail `INTENT_CAPABILITY_DENIED` because file paths must stay relative to the package root.
 - `invalid_shell_exec_outside_capability.intent`: calls `ShellExec` with a command outside the declared shell grant.
 - `invalid_web_read_outside_capability.intent`: calls `WebRead` for a URL outside the declared web domain grant.
 - `invalid_secret_read_outside_capability.intent`: declares secret read access for `GITHUB_TOKEN` but calls `SecretRead` for `AWS_TOKEN`.

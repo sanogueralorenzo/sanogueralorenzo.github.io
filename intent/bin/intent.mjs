@@ -4101,7 +4101,7 @@ function isGrantMatch(argument, grant) {
 function isPathGrantMatch(value, pattern) {
   const normalizedValue = normalizePathLike(value);
   const normalizedPattern = normalizePathLike(pattern);
-  if (normalizedValue.startsWith("../") || normalizedPattern.startsWith("../")) {
+  if (!isPackageRelativePath(normalizedValue) || !isPackageRelativePath(normalizedPattern)) {
     return false;
   }
   if (normalizedPattern.endsWith("/**")) {
@@ -4113,6 +4113,10 @@ function isPathGrantMatch(value, pattern) {
     return new RegExp(`^${escaped}$`).test(normalizedValue);
   }
   return normalizedValue === normalizedPattern;
+}
+
+function isPackageRelativePath(value) {
+  return !value.startsWith("../") && !value.startsWith("/");
 }
 
 function normalizePathLike(value) {

@@ -36,6 +36,7 @@ const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
 const INVALID_APPROVAL_REQUIRED_MISSING = new URL("../fixtures/invalid_approval_required_missing.intent", import.meta.url).pathname;
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
+const INVALID_FILE_WRITE_ABSOLUTE_PATH = new URL("../fixtures/invalid_file_write_absolute_path.intent", import.meta.url).pathname;
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
 const INVALID_SECRET_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_secret_read_outside_capability.intent", import.meta.url).pathname;
 const INVALID_TICKET_UPDATE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_ticket_update_outside_capability.intent", import.meta.url).pathname;
@@ -579,6 +580,20 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].argument, "path");
     assert.equal(payload.diagnostics[0].value, "./README.md");
     assert.equal(payload.diagnostics[0].span.start.line, 27);
+    assert.equal(payload.diagnostics[0].span.start.column, 24);
+  });
+
+  it("rejects absolute file paths outside the package root", () => {
+    const result = run(["check", INVALID_FILE_WRITE_ABSOLUTE_PATH]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_DENIED");
+    assert.equal(payload.diagnostics[0].argument, "path");
+    assert.equal(payload.diagnostics[0].value, "/etc/passwd");
+    assert.deepEqual(payload.diagnostics[0].allowed, ["/**"]);
+    assert.equal(payload.diagnostics[0].span.start.line, 20);
     assert.equal(payload.diagnostics[0].span.start.column, 24);
   });
 
