@@ -144,6 +144,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
+- `report` also attributes session outcomes back to injected precedents, so each precedent has use, success, failure, and suppression counts.
 
 `observe` has a promotion gate: a candidate precedent is recorded as an event but is not injected later unless it has concrete evidence and measured replay improvement where `baseline_failures` is greater than `rerun_failures`. When a trace contains verified replay evidence, `observe` prefers the replay metrics over inline claim metrics.
 

@@ -370,6 +370,7 @@ async function explainPrecedent() {
       evidence: Array.isArray(promoted.evidence) ? promoted.evidence : [],
       matching: matchingExplanation(promoted),
       injections: injectionEventsForPrecedent(events, id),
+      outcomes: outcomeSummaryForPrecedent(events, id),
       record: promoted,
     });
     return;
@@ -739,6 +740,7 @@ async function outcomeAfterTaskEventHook(event) {
   await ensureState(stateDir);
 
   const sessionId = requireString(event.sessionId, "event.sessionId");
+  const activePrecedentIds = await activeInjectionIdsForSession(stateDir, sessionId);
   const sessionEvent = await appendSessionEvent(stateDir, {
     type: "hook_event",
     receivedAt: new Date().toISOString(),
@@ -749,6 +751,7 @@ async function outcomeAfterTaskEventHook(event) {
     retries: numberOrNull(event.retries),
     tokenEstimate: numberOrNull(event.tokenEstimate),
     notes: typeof event.notes === "string" ? event.notes : "",
+    attributedPrecedents: activePrecedentIds,
     precedent: event.precedent ?? null,
     replay: event.replay ?? null,
   });
@@ -762,6 +765,7 @@ async function outcomeAfterTaskEventHook(event) {
     status: sessionEvent.event.status,
     retries: sessionEvent.event.retries,
     tokenEstimate: sessionEvent.event.tokenEstimate,
+    attributedPrecedents: activePrecedentIds,
   });
 
   print({
@@ -775,6 +779,7 @@ async function outcomeAfterTaskEventHook(event) {
       status: sessionEvent.event.status,
       retries: sessionEvent.event.retries,
       tokenEstimate: sessionEvent.event.tokenEstimate,
+      attributedPrecedents: activePrecedentIds,
     },
   });
 }
@@ -907,6 +912,10 @@ async function reportState() {
     replays,
     events: events.length,
     artifactCounts,
+    precedentHealth: precedents.map((precedent) => ({
+      id: precedent.id,
+      ...outcomeSummaryForPrecedent(events, precedent.id),
+    })),
   });
 }
 
@@ -1210,6 +1219,47 @@ function injectionEventsForPrecedent(events, id) {
       scope: event.scope ?? null,
       changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : [],
     }));
+}
+
+function outcomeSummaryForPrecedent(events, id) {
+  const injections = injectionEventsForPrecedent(events, id);
+  const suppressions = events.filter((event) =>
+    Array.isArray(event.suppressedInjections)
+    && event.suppressedInjections.some((item) => item.id === id),
+  );
+  const outcomes = events.filter((event) =>
+    event.hook === "outcome.after_task"
+    && Array.isArray(event.attributedPrecedents)
+    && event.attributedPrecedents.includes(id),
+  );
+  const successes = outcomes.filter((event) => event.success === true);
+  const failures = outcomes.filter((event) => event.success === false);
+  const lastOutcome = outcomes.at(-1);
+
+  return {
+    injectionCount: injections.length,
+    successCount: successes.length,
+    failureCount: failures.length,
+    suppressionCount: suppressions.length,
+    lastOutcomeAt: lastOutcome?.receivedAt ?? lastOutcome?.observedAt ?? null,
+  };
+}
+
+async function activeInjectionIdsForSession(stateDir, sessionId) {
+  const events = await readSessionEvents(stateDir, sessionId);
+  const ids = [];
+
+  for (const event of events) {
+    if (event.hook === "outcome.after_task") {
+      ids.length = 0;
+    }
+
+    if (event.hook === "context.before_turn" || event.hook === "context.export") {
+      ids.push(...(Array.isArray(event.injections) ? event.injections : []));
+    }
+  }
+
+  return uniqueStrings(ids);
 }
 
 async function appendSessionEvent(stateDir, rawEvent) {
