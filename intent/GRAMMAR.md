@@ -457,11 +457,13 @@ The parser emits names and type reference strings; the checker owns binding.
   reparsing raw text.
 - Emitted graph edges are validated so both endpoints resolve to nodes in the
   same payload, each step `Input` node has exactly one incoming `data` edge,
-  and dependency and execution edge kinds are acyclic. An edge whose `from` or
-  `to` endpoint is absent from the same graph payload emits
+  every `data` edge connects a goal `Input` node or step producer to a step
+  `Input` consumer, and dependency and execution edge kinds are acyclic. An
+  edge whose `from` or `to` endpoint is absent from the same graph payload emits
   `INTENT_GRAPH_EDGE_UNRESOLVED`; a step `Input` node without exactly one
-  incoming `data` edge emits `INTENT_GRAPH_INPUT_UNBOUND`; cyclic graph edges
-  emit `INTENT_GRAPH_CYCLE`.
+  incoming `data` edge emits `INTENT_GRAPH_INPUT_UNBOUND`; a `data` edge with
+  an invalid producer or consumer emits `INTENT_GRAPH_DATA_INVALID`; cyclic
+  graph edges emit `INTENT_GRAPH_CYCLE`.
 - Graph nodes and edges record trust metadata where it helps downstream
   runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.

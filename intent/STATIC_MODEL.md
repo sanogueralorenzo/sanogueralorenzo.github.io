@@ -461,6 +461,9 @@ Every successful binding is also emitted as graph data dependency:
 - The final executable step creates a `produces` edge to the goal completion
   node. Its edge `data` may include `sourceSpan` for the final step output type
   and `targetSpan` for the goal output type.
+- Graph data-edge validation emits `INTENT_GRAPH_DATA_INVALID` when a `data`
+  edge does not connect either a goal `Input` node or step producer to a step
+  `Input` consumer.
 
 ## Effect Call Arguments
 
