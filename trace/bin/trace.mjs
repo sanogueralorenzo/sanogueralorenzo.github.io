@@ -2346,7 +2346,9 @@ async function searchMemories(query) {
     if (!terms.every((term) => lower.includes(term))) {
       continue;
     }
+    const score = searchScore(lower, terms);
     matches.push({
+      score,
       sha: entry.sha,
       file: entry.file,
       checkpoint: entry.checkpoint,
@@ -2356,7 +2358,9 @@ async function searchMemories(query) {
     });
   }
 
-  const limited = matches.slice(0, limit);
+  const limited = matches
+    .sort((left, right) => right.score - left.score || left.file.localeCompare(right.file))
+    .slice(0, limit);
   if (args.json) {
     print({
       ok: true,
@@ -2371,8 +2375,22 @@ async function searchMemories(query) {
   }
 
   for (const match of limited) {
-    process.stdout.write(`${match.sha.slice(0, 12)} ${match.file}\n${match.snippet}\n`);
+    process.stdout.write(`${match.sha.slice(0, 12)} ${match.file} score=${match.score}\n${match.snippet}\n`);
   }
+}
+
+function searchScore(searchable, terms) {
+  return terms.reduce((score, term) => score + countTermOccurrences(searchable, term), 0);
+}
+
+function countTermOccurrences(value, term) {
+  let count = 0;
+  let index = value.indexOf(term);
+  while (index !== -1) {
+    count += 1;
+    index = value.indexOf(term, index + term.length);
+  }
+  return count;
 }
 
 async function recallMemories(query) {

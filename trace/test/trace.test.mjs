@@ -282,6 +282,45 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
   }
 });
 
+test("search ranks committed memories by term frequency", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await runTrace(repo, ["init"]);
+
+    await writeFile(join(repo, "low.txt"), "low\n");
+    await git(repo, ["add", "low.txt"]);
+    await git(repo, ["commit", "-m", "Add low search memory"]);
+    await runTrace(repo, ["capture", "--session", "low-search", "--event", "prompt", "--message", "searchrank low context"]);
+    const lowRecord = JSON.parse((await runTrace(repo, ["record", "--session", "low-search", "--validation", "node --test"])).stdout);
+    await git(repo, ["add", ".trace"]);
+    await git(repo, ["commit", "-m", "Commit low Trace memory"]);
+
+    await writeFile(join(repo, "high.txt"), "high\n");
+    await git(repo, ["add", "high.txt"]);
+    await git(repo, ["commit", "-m", "Add high search memory"]);
+    await runTrace(repo, ["capture", "--session", "high-search", "--event", "prompt", "--message", "searchrank searchrank high context"]);
+    await runTrace(repo, ["capture", "--session", "high-search", "--event", "decision", "--message", "searchrank decision keeps ranking"]);
+    const highRecord = JSON.parse((await runTrace(repo, ["record", "--session", "high-search", "--validation", "searchrank validation"])).stdout);
+    await git(repo, ["add", ".trace"]);
+    await git(repo, ["commit", "-m", "Commit high Trace memory"]);
+
+    const ranked = JSON.parse((await runTrace(repo, ["search", "--json", "--limit", "2", "searchrank"])).stdout);
+    assert.equal(ranked.matches, 2);
+    assert.equal(ranked.results[0].file, highRecord.memory);
+    assert.equal(ranked.results[1].file, lowRecord.memory);
+    assert.ok(ranked.results[0].score > ranked.results[1].score);
+
+    const text = await runTrace(repo, ["search", "--limit", "1", "searchrank"]);
+    assert.match(text.stdout, /score=\d+/);
+    assert.match(text.stdout, new RegExp(highRecord.commit.slice(0, 12)));
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("record check-session blocks lifecycle-only memory", async () => {
   const repo = await tempRepo();
 
