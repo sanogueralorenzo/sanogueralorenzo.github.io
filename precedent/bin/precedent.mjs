@@ -330,9 +330,26 @@ async function exportContext() {
   };
   const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
+  const eventId = typeof args["event-id"] === "string" && args["event-id"].trim().length > 0
+    ? args["event-id"].trim()
+    : null;
   let payload = null;
   const locked = await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
+    if (args.session && eventId) {
+      const existing = await findSessionEventByEventId(stateDir, args.session, eventId);
+
+      if (existing?.event?.contextPayload) {
+        payload = {
+          ...existing.event.contextPayload,
+          recorded: false,
+          deduped: true,
+          sessionEventPath: existing.path,
+        };
+        return;
+      }
+    }
+
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
     const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     const events = await readJsonLines(join(stateDir, "events.jsonl"));
@@ -377,6 +394,7 @@ async function exportContext() {
       type: "context_export",
       observedAt: new Date().toISOString(),
       sessionId: args.session ?? null,
+      ...eventIdField(eventId),
       task,
       scope: context.scope || null,
       changedFiles: context.changedFiles,
@@ -410,15 +428,19 @@ async function exportContext() {
         limit,
         threshold,
       },
+      recorded: true,
+      deduped: false,
+      sessionEventPath: args.session ? join(stateDir, "sessions", `${safeFileName(args.session)}.jsonl`) : null,
     };
 
     await appendJsonLine(join(stateDir, "events.jsonl"), exportEvent);
     if (args.session) {
-      await appendSessionEvent(stateDir, {
+      const stored = await appendSessionEvent(stateDir, {
         type: "context_export",
         receivedAt: exportEvent.observedAt,
         hook: "context.export",
         sessionId: args.session,
+        ...eventIdField(eventId),
         task,
         scope: context.scope || null,
         changedFiles: context.changedFiles,
@@ -429,7 +451,9 @@ async function exportContext() {
         revisionBriefs: exportEvent.revisionBriefs,
         promotionTrials: exportEvent.promotionTrials,
         candidateHints: exportEvent.candidateHints,
+        contextPayload: payload,
       });
+      payload.sessionEventPath = stored.path;
     }
   }, { failOpen: true });
 
@@ -442,6 +466,9 @@ async function exportContext() {
       revisionBriefs: [],
       promotionTrials: [],
       candidateHints: [],
+      recorded: false,
+      deduped: false,
+      sessionEventPath: null,
       source: {
         command: "context",
         task,
@@ -905,6 +932,8 @@ async function beforeTurnHook() {
 async function contextBeforeTurnEventHook(event) {
   const task = requireString(event.task, "event.task");
   const stateDir = statePath();
+  const sessionId = typeof event.sessionId === "string" ? event.sessionId : null;
+  const eventId = hookEventId(event);
   const context = {
     task,
     scope: typeof event.scope === "string" ? event.scope : "",
@@ -918,9 +947,32 @@ async function contextBeforeTurnEventHook(event) {
   let promotionTrials = [];
   let candidateHints = [];
   let contextBlock = "";
+  let injections = [];
   let sessionEvent = null;
   const locked = await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
+    if (sessionId && eventId) {
+      const existing = await findSessionEventByEventId(stateDir, sessionId, eventId);
+
+      if (existing?.event?.contextPayload) {
+        const payload = existing.event.contextPayload;
+        suppressed = payload.suppressedInjections ?? [];
+        revisionBriefs = payload.revisionBriefs ?? [];
+        promotionTrials = payload.promotionTrials ?? [];
+        candidateHints = payload.candidateHints ?? [];
+        contextBlock = payload.contextBlock ?? "";
+        injections = payload.injections ?? [];
+        sessionEvent = {
+          sessionId,
+          path: existing.path,
+          event: existing.event,
+          receivedAt: existing.event.receivedAt,
+          deduped: true,
+        };
+        return;
+      }
+    }
+
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
     const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     const events = await readJsonLines(join(stateDir, "events.jsonl"));
@@ -967,7 +1019,8 @@ async function contextBeforeTurnEventHook(event) {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
       hook: event.hook,
-      sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
+      sessionId,
+      ...eventIdField(eventId),
       task,
       scope: context.scope || null,
       changedFiles: context.changedFiles,
@@ -984,15 +1037,36 @@ async function contextBeforeTurnEventHook(event) {
       promotionTrials,
       candidateHints,
     };
+    injections = matches.map(formatInjection);
+    const contextPayload = {
+      ok: true,
+      hook: event.hook,
+      sessionId,
+      injections,
+      suppressedInjections: suppressed,
+      revisionBriefs,
+      promotionTrials,
+      candidateHints,
+      contextBlock,
+    };
 
     await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
-    sessionEvent = event.sessionId
+    sessionEvent = sessionId
       ? await appendSessionEvent(stateDir, {
         ...hookEvent,
         task,
         contextBlock,
+        contextPayload,
       })
       : null;
+    if (sessionEvent?.deduped) {
+      suppressed = sessionEvent.event.contextPayload?.suppressedInjections ?? suppressed;
+      revisionBriefs = sessionEvent.event.contextPayload?.revisionBriefs ?? revisionBriefs;
+      promotionTrials = sessionEvent.event.contextPayload?.promotionTrials ?? promotionTrials;
+      candidateHints = sessionEvent.event.contextPayload?.candidateHints ?? candidateHints;
+      contextBlock = sessionEvent.event.contextPayload?.contextBlock ?? contextBlock;
+      injections = sessionEvent.event.contextPayload?.injections ?? injections;
+    }
   }, { failOpen: true });
 
   if (locked?.lockTimeout) {
@@ -1000,13 +1074,17 @@ async function contextBeforeTurnEventHook(event) {
     revisionBriefs = [];
     promotionTrials = [];
     candidateHints = [];
+    injections = [];
   }
 
   print({
     ok: true,
     hook: event.hook,
     sessionId: sessionEvent?.sessionId ?? null,
-    injections: matches.map(formatInjection),
+    recorded: !sessionEvent?.deduped,
+    deduped: Boolean(sessionEvent?.deduped),
+    sessionEventPath: sessionEvent?.path ?? null,
+    injections,
     suppressedInjections: suppressed,
     revisionBriefs,
     promotionTrials,
@@ -1617,10 +1695,12 @@ function buildManifest(runtime, stateDir) {
           "$CHANGED_FILES",
           "--session",
           "$SESSION_ID",
+          "--event-id",
+          "$EVENT_ID",
           "--format",
           "json",
         ],
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -1711,6 +1791,8 @@ async function attachRuntime() {
     ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
     "--session",
     sessionId,
+    "--event-id",
+    "$EVENT_ID",
     "--format",
     "json",
     "--json",
@@ -1757,7 +1839,8 @@ async function attachRuntime() {
     adapter: {
       beforeTurn: {
         command: beforeTurnCommand,
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source"],
+        eventId: "$EVENT_ID",
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1768,6 +1851,7 @@ async function attachRuntime() {
           schema_version: SCHEMA_VERSION,
           hook: "validation.after_run",
           sessionId,
+          eventId: "$EVENT_ID",
           command: "$COMMAND",
           exitCode: "$EXIT_CODE",
           durationMs: "$DURATION_MS",
@@ -1784,6 +1868,7 @@ async function attachRuntime() {
           schema_version: SCHEMA_VERSION,
           hook: "diff.after_edit",
           sessionId,
+          eventId: "$EVENT_ID",
           changedFiles: "$CHANGED_FILES",
           linesAdded: "$LINES_ADDED",
           linesDeleted: "$LINES_DELETED",
@@ -1800,6 +1885,7 @@ async function attachRuntime() {
           schema_version: SCHEMA_VERSION,
           hook: "review.after_feedback",
           sessionId,
+          eventId: "$EVENT_ID",
           comments: "$COMMENTS",
           changedFiles: "$CHANGED_FILES",
           reviewer: "$REVIEWER",
@@ -1813,6 +1899,7 @@ async function attachRuntime() {
           schema_version: SCHEMA_VERSION,
           hook: "outcome.after_task",
           sessionId,
+          eventId: "$EVENT_ID",
           success: "$SUCCESS",
           status: "$STATUS",
           task: taskSource.task,
@@ -1832,6 +1919,7 @@ async function attachRuntime() {
           schema_version: SCHEMA_VERSION,
           hook: "repair.before_retry",
           sessionId,
+          eventId: "$EVENT_ID",
           nextSessionId: "$NEXT_SESSION_ID",
           task: taskSource.task,
           finalMessage: "$FINAL_MESSAGE",
@@ -1840,7 +1928,7 @@ async function attachRuntime() {
           retry: "$RETRY",
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
-        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairId", "repairBlock", "repairSource", "suppressedRepairs"],
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairId", "repairBlock", "repairSource", "suppressedRepairs"],
         injectFrom: "repairBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1851,11 +1939,12 @@ async function attachRuntime() {
           schema_version: SCHEMA_VERSION,
           hook: "repair.after_retry",
           sessionId,
+          eventId: "$EVENT_ID",
           repairId: "$REPAIR_ID",
           repairSessionId: "$REPAIR_SESSION_ID",
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
-        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairReceipt", "suppressedRepairs"],
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairReceipt", "suppressedRepairs"],
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -3656,6 +3745,17 @@ function hookEventId(event) {
 
 function eventIdField(eventId) {
   return eventId ? { eventId } : {};
+}
+
+async function findSessionEventByEventId(stateDir, sessionId, eventId) {
+  if (!sessionId || !eventId) {
+    return null;
+  }
+
+  const path = join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`);
+  const event = (await readJsonLines(path)).find((item) => item.eventId === eventId);
+
+  return event ? { path, event } : null;
 }
 
 async function appendSessionEvent(stateDir, rawEvent) {

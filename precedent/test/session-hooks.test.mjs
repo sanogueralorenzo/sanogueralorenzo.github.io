@@ -297,6 +297,62 @@ test("session hooks dedupe repeated event ids", async () => {
   }
 });
 
+test("before-turn hook event ids replay original injections", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const traceOut = join(stateDir, "webhook-replay-trace.json");
+    await runPrecedent([
+      "replay",
+      "--state-dir",
+      stateDir,
+      "--case",
+      "precedent/examples/replay/webhook-case.json",
+      "--trace-out",
+      traceOut,
+      "--json",
+    ]);
+    await runPrecedent(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
+
+    const event = {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "demo",
+      eventId: "turn-1",
+      task: "add another webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/refund.ts"],
+    };
+
+    const first = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], event);
+    const retry = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], event);
+    const nextTurn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      ...event,
+      eventId: "turn-2",
+    });
+
+    assert.equal(first.recorded, true);
+    assert.equal(first.deduped, false);
+    assert.equal(first.injections.length, 1);
+    assert.equal(retry.recorded, false);
+    assert.equal(retry.deduped, true);
+    assert.deepEqual(retry.injections, first.injections);
+    assert.equal(retry.contextBlock, first.contextBlock);
+    assert.equal(nextTurn.injections.length, 0);
+    assert.equal(nextTurn.suppressedInjections[0].reason, "already_injected_in_session");
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/demo.jsonl"));
+    assert.equal(sessionEvents.filter((item) => item.eventId === "turn-1").length, 1);
+
+    const globalEvents = await readJsonLines(join(stateDir, "events.jsonl"));
+    assert.equal(globalEvents.filter((item) => item.eventId === "turn-1").length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 function runPrecedent(args, stdinJson = null) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {

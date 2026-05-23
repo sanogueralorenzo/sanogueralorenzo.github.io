@@ -126,6 +126,7 @@ node precedent/bin/precedent.mjs context --task "add another webhook handler" --
 echo '{"schema_version":"precedent.v1","hook":"context.before_turn","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"]}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
+node precedent/bin/precedent.mjs context --session demo --event-id turn-001 --task "add another webhook handler" --scope feature:webhooks
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
 node precedent/bin/precedent.mjs promotion-trial --candidate cand_webhook_replacement --baseline-command "pnpm test:webhooks" --trace-out /tmp/precedent-webhook-trial-trace.json
 node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
@@ -154,9 +155,10 @@ The prototype models the hook loop with local state in `.precedent/`:
 - Runtime adapters should pass a stable conversation id through `--thread-id`; explicit `--session` still wins, and task-derived session ids are only a demo fallback because identical tasks in separate conversations would otherwise collide.
 - `explain` returns the promotion reason, source trace or session, replay delta, evidence, matching scope and paths, and recent injection history for one precedent id.
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
+- Runtime adapters should also pass a stable per-delivery `eventId` for each hook or `context --event-id` call. When a host retries the same `eventId`, Precedent returns the original insertable result with `deduped: true` and `recorded: false` instead of recording duplicate evidence or accidentally suppressing the before-turn injection.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, fail-open policy, and promotion-trial action a runtime needs to wire Precedent in.
-- `attach` emits a session-scoped adapter contract with a before-turn command, after-validation hook command, after-diff hook command, after-outcome hook command, promotion-trial command, runtime identity metadata, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
+- `attach` emits a session-scoped adapter contract with a before-turn command, event id placeholders, after-validation hook command, after-diff hook command, after-outcome hook command, promotion-trial command, runtime identity metadata, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
 - `attach-run` is the minimal headless host shim: it runs before-turn context, executes one validation command, records validation and outcome hooks, and carries injected precedent ids into attribution automatically.
 - `review.after_feedback` records review comments as high-signal session evidence, so missed contracts can become candidates and later promoted precedents without handcrafted traces.
 - `diff.after_edit` and `validation.after_run` evaluate advisory guards only for precedents already injected into the same session. v1 supports `changed_files_within_paths` and `required_validation_command`; warnings are returned as `guardResult` plus a compact `Precedent guard:` context block and never block the underlying hook.

@@ -52,25 +52,33 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.identity.source, "task_hash_fallback");
     assert.equal(first.identity.fallback, true);
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
+    assert.equal(first.adapter.beforeTurn.eventId, "$EVENT_ID");
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
+    assert.ok(first.adapter.beforeTurn.output.includes("deduped"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
+    assert.equal(first.adapter.afterValidation.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterValidation.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
     assert.deepEqual(first.adapter.afterDiff.stdin.hook, "diff.after_edit");
+    assert.equal(first.adapter.afterDiff.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterDiff.stdin.diffSummary, "$DIFF_SUMMARY");
     assert.equal(first.adapter.afterDiff.stdin.unifiedDiff, "$UNIFIED_DIFF");
     assert.equal(first.adapter.afterDiff.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
     assert.deepEqual(first.adapter.afterReview.stdin.hook, "review.after_feedback");
+    assert.equal(first.adapter.afterReview.stdin.eventId, "$EVENT_ID");
     assert.deepEqual(first.adapter.afterReview.stdin.sessionId, first.sessionId);
     assert.deepEqual(first.adapter.afterOutcome.stdin.sessionId, first.sessionId);
+    assert.equal(first.adapter.afterOutcome.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterOutcome.stdin.task, "add webhook handler");
     assert.equal(first.adapter.afterOutcome.stdin.scope, "feature:webhooks");
     assert.deepEqual(first.adapter.afterOutcome.stdin.changedFiles, ["features/webhooks/providers/stripe.ts"]);
     assert.equal(first.adapter.afterOutcome.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
     assert.deepEqual(first.adapter.beforeRetry.stdin.hook, "repair.before_retry");
+    assert.equal(first.adapter.beforeRetry.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.beforeRetry.stdin.nextSessionId, "$NEXT_SESSION_ID");
     assert.equal(first.adapter.beforeRetry.injectFrom, "repairBlock");
     assert.deepEqual(first.adapter.afterRetry.stdin.hook, "repair.after_retry");
+    assert.equal(first.adapter.afterRetry.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterRetry.stdin.repairId, "$REPAIR_ID");
     assert.equal(first.adapter.afterRetry.stdin.repairSessionId, "$REPAIR_SESSION_ID");
     assert.deepEqual(first.adapter.promotionTrial.command, [
@@ -151,9 +159,13 @@ test("attach contract drives injection and outcome attribution", async () => {
     ]);
 
     const firstTurn = await runJsonFromCommand(adapter.adapter.beforeTurn.command);
-    const secondTurn = await runJsonFromCommand(adapter.adapter.beforeTurn.command);
+    const retriedTurn = await runJsonFromCommand(adapter.adapter.beforeTurn.command);
+    const secondTurn = await runJsonFromCommand(withEventId(adapter.adapter.beforeTurn.command, "turn-2"));
     assert.equal(firstTurn.injections.length, 1);
     assert.equal(firstTurn.injections[0].id, "prec_webhook_replay_boundary");
+    assert.equal(retriedTurn.injections.length, 1);
+    assert.equal(retriedTurn.deduped, true);
+    assert.equal(retriedTurn.recorded, false);
     assert.equal(secondTurn.injections.length, 0);
     assert.equal(secondTurn.suppressedInjections.length, 1);
 
@@ -341,6 +353,10 @@ function runJsonFromCommand(command, stdinJson = null) {
   assert.equal(command[0], "node");
   assert.equal(command[1], "precedent/bin/precedent.mjs");
   return runJson(command.slice(2), stdinJson);
+}
+
+function withEventId(command, eventId) {
+  return command.map((part) => part === "$EVENT_ID" ? eventId : part);
 }
 
 function runProcess(args, stdinJson = null) {
