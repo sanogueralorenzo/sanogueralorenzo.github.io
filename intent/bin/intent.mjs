@@ -1673,6 +1673,16 @@ function validateGraph(graph, options = {}) {
   }
 
   for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Input" || graphNode.data?.scope !== "goal") {
+      continue;
+    }
+    const supplyDiagnostic = validateGraphInputSupply(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
+    if (supplyDiagnostic) {
+      diagnostics.push(supplyDiagnostic);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
     if (graphNode.kind !== "Step") {
       continue;
     }
@@ -2303,6 +2313,27 @@ function checkOwnerGoalId(checkId) {
     return parentNodeId(ownerStepId, ":step:");
   }
   return parentNodeId(checkId, ":verify:");
+}
+
+function validateGraphInputSupply(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
+  const ownerGoalId = parentNodeId(graphNode.id, ":input:");
+  const ownerGoal = ownerGoalId ? nodesById.get(ownerGoalId) : null;
+  if (ownerGoal?.kind !== "Goal") {
+    return null;
+  }
+  const outgoingEdges = outgoingEdgesByNode.get(graphNode.id) ?? [];
+  const supplyEdges = outgoingEdges.filter((graphEdge) => graphEdge.kind === "supplies");
+  const ownerSupplyEdges = supplyEdges.filter((graphEdge) => graphEdge.to === ownerGoalId);
+  if (ownerSupplyEdges.length === 1 && supplyEdges.length === ownerSupplyEdges.length) {
+    return null;
+  }
+  return error("INTENT_GRAPH_INPUT_SUPPLY_INVALID", `goal input '${graphNode.label}' must supply its owning goal.`, graphNode.span ?? fallbackSpan, {
+    input: graphNode.label,
+    input_id: graphNode.id,
+    owner_goal_id: ownerGoalId,
+    supply_edges: supplyEdges.length,
+    owner_goal_supply_edges: ownerSupplyEdges.length,
+  });
 }
 
 function stepAttachment(graphNode) {

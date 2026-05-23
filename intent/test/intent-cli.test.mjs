@@ -1920,6 +1920,37 @@ describe("intent static model CLI", () => {
     assert.equal(duplicateDiagnostics[0].incoming_data_edges, 2);
   });
 
+  it("validates graph goal input supply diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "goal:demo:input:missing", kind: "Input", label: "missing", span: testSpan(3), data: { scope: "goal" } },
+        { id: "goal:demo:input:wrong", kind: "Input", label: "wrong", span: testSpan(4), data: { scope: "goal" } },
+        { id: "goal:demo:input:duplicate", kind: "Input", label: "duplicate", span: testSpan(5), data: { scope: "goal" } },
+        { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(6), data: { scope: "step" } },
+      ],
+      edges: [
+        { from: "goal:demo:input:wrong", to: "goal:other", kind: "supplies" },
+        { from: "goal:demo:input:duplicate", to: "goal:demo", kind: "supplies" },
+        { from: "goal:demo:input:duplicate", to: "goal:other", kind: "supplies" },
+        { from: "goal:demo:step:patch:input:input", to: "goal:demo", kind: "supplies" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_INPUT_SUPPLY_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].input_id, "goal:demo:input:missing");
+    assert.equal(diagnostics[0].supply_edges, 0);
+    assert.equal(diagnostics[0].owner_goal_supply_edges, 0);
+    assert.equal(diagnostics[1].input_id, "goal:demo:input:wrong");
+    assert.equal(diagnostics[1].supply_edges, 1);
+    assert.equal(diagnostics[1].owner_goal_supply_edges, 0);
+    assert.equal(diagnostics[2].input_id, "goal:demo:input:duplicate");
+    assert.equal(diagnostics[2].supply_edges, 2);
+    assert.equal(diagnostics[2].owner_goal_supply_edges, 1);
+  });
+
   it("validates graph data edge shape diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -1930,6 +1961,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(4), data: { scope: "step" } },
       ],
       edges: [
+        { from: "goal:demo:input:a", to: "goal:demo", kind: "supplies" },
         { from: "goal:demo", to: "goal:demo:step:patch:input:input", kind: "data", data: { parameter: "input", type: "Synthetic", sourceSpan: testSpan(1), targetSpan: testSpan(4) } },
         { from: "goal:demo:input:a", to: "goal:demo:step:patch", kind: "data", data: { parameter: "input", type: "Synthetic", sourceSpan: testSpan(2), targetSpan: testSpan(3) } },
       ],
