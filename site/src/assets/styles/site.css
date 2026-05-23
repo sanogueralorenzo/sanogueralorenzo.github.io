@@ -577,6 +577,30 @@ a {
   background: #6f9fbc;
 }
 
+.unmade-object-notice {
+  background: #e5d5bd;
+}
+
+.unmade-object-tool {
+  background: #a9b6a4;
+}
+
+.unmade-object-office {
+  background: #cfb777;
+}
+
+.unmade-object-guidebook {
+  background: #d8dedc;
+}
+
+.unmade-object-ceremony {
+  background: #b75c46;
+}
+
+.unmade-object-block {
+  background: #7da0b0;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
