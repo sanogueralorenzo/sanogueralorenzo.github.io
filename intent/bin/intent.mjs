@@ -143,6 +143,10 @@ function printJson(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
+function isPlainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function parseIntent(source, file) {
   const lines = source.split(/\r?\n/);
   sourceLineOffsets.set(path.normalize(file), computeLineOffsets(source));
@@ -1224,7 +1228,15 @@ function validateGraph(graph, options = {}) {
     return diagnostics;
   }
   const nodesById = new Map();
-  for (const graphNode of graph.nodes) {
+  for (const [nodeIndex, graphNode] of graph.nodes.entries()) {
+    if (!isPlainObject(graphNode) || typeof graphNode.id !== "string" || typeof graphNode.kind !== "string") {
+      diagnostics.push(error("INTENT_GRAPH_NODE_INVALID", `graph node must be an object with string id and kind fields.`, graphNode?.span ?? span(graph.source ?? "graph", 1, 1), {
+        node_index: nodeIndex,
+        node_id: isPlainObject(graphNode) ? graphNode.id ?? null : null,
+        node_kind: isPlainObject(graphNode) ? graphNode.kind ?? null : null,
+      }));
+      continue;
+    }
     const previousNode = nodesById.get(graphNode.id);
     if (previousNode) {
       diagnostics.push(error("INTENT_GRAPH_NODE_DUPLICATE", `graph node id '${graphNode.id}' is emitted more than once.`, graphNode.span ?? previousNode.span ?? span(graph.source ?? "graph", 1, 1), {
@@ -1254,7 +1266,16 @@ function validateGraph(graph, options = {}) {
   const incomingAuthorizationEdges = new Map();
   const guardTargetsByInvariant = new Map();
 
-  for (const graphEdge of graph.edges) {
+  for (const [edgeIndex, graphEdge] of graph.edges.entries()) {
+    if (!isPlainObject(graphEdge) || typeof graphEdge.from !== "string" || typeof graphEdge.to !== "string" || typeof graphEdge.kind !== "string") {
+      diagnostics.push(error("INTENT_GRAPH_EDGE_INVALID", `graph edge must be an object with string from, to, and kind fields.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+        edge_index: edgeIndex,
+        edge: isPlainObject(graphEdge) ? graphEdge.kind ?? null : null,
+        from: isPlainObject(graphEdge) ? graphEdge.from ?? null : null,
+        to: isPlainObject(graphEdge) ? graphEdge.to ?? null : null,
+      }));
+      continue;
+    }
     const missing = ["from", "to"].filter((endpoint) => !nodesById.has(graphEdge[endpoint]));
     if (missing.length > 0) {
       diagnostics.push(error("INTENT_GRAPH_EDGE_UNRESOLVED", `graph edge '${graphEdge.kind}' references missing endpoint '${missing.map((endpoint) => graphEdge[endpoint]).join(", ")}'.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {

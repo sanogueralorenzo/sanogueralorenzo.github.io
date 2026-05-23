@@ -1181,6 +1181,45 @@ describe("intent static model CLI", () => {
     assert.equal(malformedDiagnostics[0].edges_is_array, false);
   });
 
+  it("validates graph node and edge record diagnostics", () => {
+    const diagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      ok: true,
+      diagnostics: [],
+      nodes: [
+        "bad",
+        { id: "node:missing-kind", label: "bad", span: testSpan(2) },
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(3) },
+      ],
+      edges: [
+        "bad",
+        { from: "node:a", to: 1, kind: "requests" },
+      ],
+    });
+
+    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_NODE_INVALID");
+    assert.equal(diagnostics[0].node_index, 0);
+    assert.equal(diagnostics[0].node_id, null);
+    assert.equal(diagnostics[0].node_kind, null);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_NODE_INVALID");
+    assert.equal(diagnostics[1].node_index, 1);
+    assert.equal(diagnostics[1].node_id, "node:missing-kind");
+    assert.equal(diagnostics[1].node_kind, null);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_EDGE_INVALID");
+    assert.equal(diagnostics[2].edge_index, 0);
+    assert.equal(diagnostics[2].edge, null);
+    assert.equal(diagnostics[2].from, null);
+    assert.equal(diagnostics[2].to, null);
+    assert.equal(diagnostics[3].code, "INTENT_GRAPH_EDGE_INVALID");
+    assert.equal(diagnostics[3].edge_index, 1);
+    assert.equal(diagnostics[3].edge, "requests");
+    assert.equal(diagnostics[3].from, "node:a");
+    assert.equal(diagnostics[3].to, 1);
+  });
+
   it("validates graph node kind diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
