@@ -690,8 +690,9 @@ Next graph envelope validation milestone:
   output non-executable because runtimes must not infer executable inputs, side
   effects, gates, checkpoints, approvals, timeouts, retries, memory accesses, or
   output types. Step summary arrays for effects, requirements, checkpoints,
-  approvals, timeouts, and retries must exactly match owned child nodes in
-  source order; mismatches emit `INTENT_GRAPH_STEP_METADATA_INVALID`.
+  approvals, timeouts, retries, and memory accesses must exactly match owned
+  child nodes or memory access edges in source order; mismatches emit
+  `INTENT_GRAPH_STEP_METADATA_INVALID`.
 - Runtime Completion node metadata is part of graph validation. `Completion`
   node data must carry `outputType` as `null` or a non-empty string and
   `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when
@@ -1515,6 +1516,8 @@ Rules:
   keys emit
   `INTENT_MEMORY_KEY_UNDECLARED` at the memory access statement span.
 - The graph builder lists memory access targets on the owning `Step` node data.
+  Runtime graph validation requires that list to match the step's role-valid
+  `reads`, `writes`, and `cites` edges in source order.
 - `writes` edges go from the owning `Step` to the referenced `Memory` node.
   `reads` and `cites` edges go from the referenced `Memory` node to the owning
   `Step`.

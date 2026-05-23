@@ -202,6 +202,16 @@ function attachedStepValues(graph, step, field) {
     return incoming.filter((edge) => edge.kind === "approves" && nodesById.get(edge.from)?.kind === "Approval")
       .map((edge) => nodesById.get(edge.from)).sort(spanSort).map((node) => node.data.approval);
   }
+  if (field === "memoryAccesses") {
+    return [
+      ...incoming.filter((edge) => ["reads", "cites"].includes(edge.kind) && nodesById.get(edge.from)?.kind === "Memory"),
+      ...outgoing.filter((edge) => edge.kind === "writes" && nodesById.get(edge.to)?.kind === "Memory"),
+    ].sort((left, right) => {
+      const leftSpan = left.kind === "writes" ? left.data.sourceSpan : left.data.targetSpan;
+      const rightSpan = right.kind === "writes" ? right.data.sourceSpan : right.data.targetSpan;
+      return (leftSpan?.start?.offset ?? leftSpan?.start?.line ?? 0) - (rightSpan?.start?.offset ?? rightSpan?.start?.line ?? 0);
+    }).map((edge) => edge.data.target);
+  }
   const policyKind = field === "timeouts" ? "timeout" : "retry";
   return incoming.filter((edge) => edge.kind === field && nodesById.get(edge.from)?.kind === "Policy" && nodesById.get(edge.from)?.data.policyKind === policyKind)
     .map((edge) => nodesById.get(edge.from)).sort(spanSort).map((node) => node.data.policy);
@@ -1865,13 +1875,13 @@ describe("intent static model CLI", () => {
   });
 
   it("keeps step summary metadata aligned with owned child nodes", () => {
-    for (const fixture of [VALID_STEP_POLICY_GRAPH, VALID_STEP_APPROVAL_GRAPH, VALID_CHECKPOINT_GRAPH]) {
+    for (const fixture of [VALID_STEP_POLICY_GRAPH, VALID_STEP_APPROVAL_GRAPH, VALID_CHECKPOINT_GRAPH, VALID_MEMORY_FLOW_GRAPH]) {
       const graph = runJson(["graph", fixture]);
       const steps = graph.nodes.filter((node) => node.kind === "Step");
 
       assert.equal(graph.ok, true);
       for (const step of steps) {
-        for (const field of ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries"]) {
+        for (const field of ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"]) {
           assert.deepEqual(step.data[field], attachedStepValues(graph, step, field));
         }
       }
@@ -3357,13 +3367,15 @@ describe("intent static model CLI", () => {
           approvals: ["lead approves"],
           timeouts: ["10m"],
           retries: ["max 1"],
+          memoryAccesses: ["session.summary"],
         } },
-        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(2) },
-        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "ready", span: testSpan(3), data: { scope: "step", ownerStep: "patch", requirement: "ticket.ready" } },
-        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(4), data: { checkpoint: "before patch" } },
-        { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(5), data: { approval: "maintainer approves" } },
-        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(6), data: { policyKind: "timeout", policy: "5m" } },
-        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(7), data: { policyKind: "retry", policy: "max 2" } },
+        { id: "goal:demo:memory:0", kind: "Memory", label: "session", span: testSpan(2) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "ready", span: testSpan(4), data: { scope: "step", ownerStep: "patch", requirement: "ticket.ready" } },
+        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(5), data: { checkpoint: "before patch" } },
+        { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(6), data: { approval: "maintainer approves" } },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(7), data: { policyKind: "timeout", policy: "5m" } },
+        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(8), data: { policyKind: "retry", policy: "max 2" } },
       ],
       edges: [
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
@@ -3372,10 +3384,11 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch", kind: "approves", data: { approval: "maintainer approves" } },
         { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts", data: { policy: "5m" } },
         { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries", data: { policy: "max 2" } },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "reads", data: { access: "read", memory: "session", key: "evidence", target: "session.evidence", sourceSpan: testSpan(2), targetSpan: testSpan(9) } },
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_STEP_METADATA_INVALID");
 
-    assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.field), ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries"]);
+    assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.field), ["effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"]);
     assert.deepEqual(diagnostics[0].declared_values, ["ShellRun"]);
     assert.deepEqual(diagnostics[0].owned_values, ["FileWrite"]);
     assert.deepEqual(diagnostics[0].owned_node_ids, ["goal:demo:step:patch:effect:0"]);

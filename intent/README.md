@@ -258,6 +258,8 @@ Validation expectations:
   `data.memory`, nullable `data.key`, `data.target`, optional
   `data.retentionRef`, and source/target spans. Keyed targets must match a
   retained subject or explicit key on the referenced `Memory` node.
+  Role-valid memory access edge targets must match the owning
+  `Step.data.memoryAccesses` list in source order.
   Unsupported endpoint roles emit `INTENT_GRAPH_MEMORY_ACCESS_INVALID`, and
   malformed payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`. Keyed target
   mismatches emit `INTENT_GRAPH_MEMORY_TARGET_INVALID`.
@@ -447,8 +449,9 @@ Validation expectations:
   runtimes must not infer executable inputs, side effects, gates, checkpoints,
   approvals, timeouts, retries, memory accesses, or output types. The Step
   summary arrays for effects, requirements, checkpoints, approvals, timeouts,
-  and retries must exactly match owned child nodes in source order; mismatches
-  emit `INTENT_GRAPH_STEP_METADATA_INVALID`.
+  retries, and memory accesses must exactly match owned child nodes or memory
+  access edges in source order; mismatches emit
+  `INTENT_GRAPH_STEP_METADATA_INVALID`.
 - Graph `Completion` nodes carry runtime completion metadata. Completion node
   data must carry `outputType` as `null` or a non-empty string and
   `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when

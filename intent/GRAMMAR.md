@@ -519,8 +519,9 @@ The parser emits names and type reference strings; the checker owns binding.
   policies are listed on the owning step node data and connected by `timeouts`
   or `retries` edges from each policy node to that step.
 - Step summary arrays for effects, requirements, checkpoints, approvals,
-  timeouts, and retries must exactly match owned child nodes in source order.
-  Mismatches emit `INTENT_GRAPH_STEP_METADATA_INVALID`.
+  timeouts, retries, and memory accesses must exactly match owned child nodes
+  or memory access edges in source order. Mismatches emit
+  `INTENT_GRAPH_STEP_METADATA_INVALID`.
 - Memory blocks must contain at least one parsed `retain ... until ...`
   retention rule. Missing retention is `INTENT_MEMORY_UNSCOPED`.
 - Retention `until` values must be `goal_complete`, `goal.completed`, or a

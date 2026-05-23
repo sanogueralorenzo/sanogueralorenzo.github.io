@@ -3175,11 +3175,11 @@ function validateGraphStepMetadata(nodesById, incomingEdgesByNode, outgoingEdges
 
 function validateGraphStepMetadataField(graphNode, spec, fallbackSpan) {
   const declaredValues = graphNode.data?.[spec.field];
-  if (!isNonemptyStringArray(declaredValues) || (declaredValues.length === 0 && spec.ownedNodes.length === 0)) {
+  if (!isNonemptyStringArray(declaredValues) || (declaredValues.length === 0 && spec.ownedRecords.length === 0)) {
     return null;
   }
-  const ownedValues = spec.ownedNodes.map((ownedNode) => {
-    const value = spec.value(ownedNode);
+  const ownedValues = spec.ownedRecords.map((ownedRecord) => {
+    const value = spec.value(ownedRecord);
     return typeof value === "string" ? value : null;
   });
   if (stringArraysEqual(declaredValues, ownedValues)) {
@@ -3191,9 +3191,9 @@ function validateGraphStepMetadataField(graphNode, spec, fallbackSpan) {
     field: spec.field,
     declared_values: declaredValues,
     owned_values: ownedValues,
-    owned_node_ids: spec.ownedNodes.map((ownedNode) => ownedNode.id),
+    owned_node_ids: spec.ownedRecords.map((ownedRecord) => spec.nodeId(ownedRecord)),
     declared_count: declaredValues.length,
-    owned_count: spec.ownedNodes.length,
+    owned_count: spec.ownedRecords.length,
     mismatched_indexes: mismatchedIndexes(declaredValues, ownedValues),
   });
 }
@@ -3202,36 +3202,51 @@ function stepMetadataSpecs(nodesById, incomingEdgesByNode, outgoingEdgesByNode, 
   return [
     {
       field: "effects",
-      ownedNodes: ownedOutgoingNodes(nodesById, outgoingEdgesByNode, graphNode.id, "requests", "Effect"),
+      ownedRecords: ownedOutgoingNodes(nodesById, outgoingEdgesByNode, graphNode.id, "requests", "Effect"),
       value: (ownedNode) => ownedNode.label,
+      nodeId: (ownedNode) => ownedNode.id,
     },
     {
       field: "requirements",
-      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "requires", "Check")
+      ownedRecords: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "requires", "Check")
         .filter((ownedNode) => ownedNode.data?.scope === "step"),
       value: (ownedNode) => ownedNode.data?.requirement,
+      nodeId: (ownedNode) => ownedNode.id,
     },
     {
       field: "checkpoints",
-      ownedNodes: ownedOutgoingNodes(nodesById, outgoingEdgesByNode, graphNode.id, "checkpoints", "Checkpoint"),
+      ownedRecords: ownedOutgoingNodes(nodesById, outgoingEdgesByNode, graphNode.id, "checkpoints", "Checkpoint"),
       value: (ownedNode) => ownedNode.data?.checkpoint,
+      nodeId: (ownedNode) => ownedNode.id,
     },
     {
       field: "approvals",
-      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "approves", "Approval"),
+      ownedRecords: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "approves", "Approval"),
       value: (ownedNode) => ownedNode.data?.approval,
+      nodeId: (ownedNode) => ownedNode.id,
     },
     {
       field: "timeouts",
-      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "timeouts", "Policy")
+      ownedRecords: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "timeouts", "Policy")
         .filter((ownedNode) => ownedNode.data?.policyKind === "timeout"),
       value: (ownedNode) => ownedNode.data?.policy,
+      nodeId: (ownedNode) => ownedNode.id,
     },
     {
       field: "retries",
-      ownedNodes: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "retries", "Policy")
+      ownedRecords: ownedIncomingNodes(nodesById, incomingEdgesByNode, graphNode.id, "retries", "Policy")
         .filter((ownedNode) => ownedNode.data?.policyKind === "retry"),
       value: (ownedNode) => ownedNode.data?.policy,
+      nodeId: (ownedNode) => ownedNode.id,
+    },
+    {
+      field: "memoryAccesses",
+      ownedRecords: ownedMemoryAccessEdges(nodesById, incomingEdgesByNode, outgoingEdgesByNode, graphNode.id),
+      value: (graphEdge) => graphEdge.data?.target,
+      nodeId: (graphEdge) => {
+        const sourceNode = nodesById.get(graphEdge.from);
+        return sourceNode?.kind === "Memory" ? graphEdge.from : graphEdge.to;
+      },
     },
   ];
 }
@@ -3250,8 +3265,24 @@ function ownedIncomingNodes(nodesById, incomingEdgesByNode, stepId, edgeKind, no
     .sort(compareGraphNodesBySpan);
 }
 
+function ownedMemoryAccessEdges(nodesById, incomingEdgesByNode, outgoingEdgesByNode, stepId) {
+  const readOrCiteEdges = (incomingEdgesByNode.get(stepId) ?? [])
+    .filter((graphEdge) => ["reads", "cites"].includes(graphEdge.kind) && nodesById.get(graphEdge.from)?.kind === "Memory");
+  const writeEdges = (outgoingEdgesByNode.get(stepId) ?? [])
+    .filter((graphEdge) => graphEdge.kind === "writes" && nodesById.get(graphEdge.to)?.kind === "Memory");
+  return [...readOrCiteEdges, ...writeEdges].sort(compareGraphMemoryAccessEdgesBySpan);
+}
+
 function compareGraphNodesBySpan(left, right) {
   return spanStartOffset(left.span) - spanStartOffset(right.span);
+}
+
+function compareGraphMemoryAccessEdgesBySpan(left, right) {
+  return spanStartOffset(graphMemoryAccessSpan(left)) - spanStartOffset(graphMemoryAccessSpan(right));
+}
+
+function graphMemoryAccessSpan(graphEdge) {
+  return graphEdge.kind === "writes" ? graphEdge.data?.sourceSpan : graphEdge.data?.targetSpan;
 }
 
 function stringArraysEqual(left, right) {
