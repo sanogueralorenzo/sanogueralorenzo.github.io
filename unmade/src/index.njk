@@ -14,7 +14,7 @@ permalink: /unmade/
     <div class="hero-copy">
       <p class="kicker">Scroll archive / things that almost existed</p>
       <h1>Unmade</h1>
-      <p>Unsent messages, unbuilt projects, unfinished films, abandoned maps, unrealized inventions, alternate lives, lost plans, and private ideas that never found a surface.</p>
+      <p>Unsent words and signals, unbuilt places, products, and software, and unheld lives, relationships, roles, and futures that never found a surface.</p>
     </div>
     <figure class="hero-image">
       <img src="/unmade/assets/images/topic-contact-sheet.png" alt="Professional image grid representing the six Unmade archive topics">
@@ -23,12 +23,9 @@ permalink: /unmade/
 
   <section class="topic-grid" aria-label="Archive topics">
     {% set topics = [
-      { label: "Unsent", summary: "Notes, voice memos, postcards, and messages that never reached anyone." },
-      { label: "Unbuilt", summary: "Tools, machines, rooms, and systems that stayed in sketch form." },
-      { label: "Unchosen", summary: "Routes, invitations, offices, and futures left on the other side of a decision." },
-      { label: "Unfinished", summary: "Films, scores, guidebooks, manuals, and catalogs abandoned mid-shape." },
-      { label: "Unrecorded", summary: "Signals, dinners, ceremonies, and field logs that escaped proof." },
-      { label: "Unlived", summary: "Addresses, routines, seasons, and identities that remained possible." }
+      { label: "Unsent", summary: "Words and signals." },
+      { label: "Unbuilt", summary: "Places, products, and software." },
+      { label: "Unheld", summary: "Lives, relationships, roles, and futures." }
     ] %}
     {% for topic in topics %}
       <a class="topic-card" href="#{{ topic.label | lower }}">
