@@ -28,6 +28,17 @@
       },
       "additionalProperties": true
     },
+    "attestation": {
+      "type": "object",
+      "required": ["type", "key_id", "signed_at", "signature"],
+      "properties": {
+        "type": { "const": "hmac-sha256" },
+        "key_id": { "type": "string", "minLength": 1 },
+        "signed_at": { "type": "string", "minLength": 1 },
+        "signature": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
     "records": {
       "type": "object",
       "required": ["claims", "checks", "evidence", "objections", "waivers", "verdicts"],

@@ -32,4 +32,8 @@ Trust policy flags on `bundle preflight` and `bundle import` let CI allow or rej
 
 ## Next Hardening Step
 
-Add signed bundle attestations so CI can verify that trusted producers created `review-bundle.json` without relying only on metadata.
+Signed bundle attestations are available through `bundle export --attest-key`, `bundle preflight --verify-attestation-key`, and `bundle import --verify-attestation-key`. CI should combine attestation verification with trust policy flags before importing third-party bundles.
+
+## Next Hardening Step
+
+Add asymmetric signing support so CI can verify producer identity with public keys instead of sharing an HMAC secret across jobs.

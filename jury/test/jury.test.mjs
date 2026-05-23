@@ -278,7 +278,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
     assert.ok(guide.includes(`\`${field}\``), `TROUBLESHOOTING.md should describe gate.${field}`);
   }
 
-  for (const field of ["claim_id", "producer", "provenance", "records.claims", "records.checks", "records.evidence", "records.objections", "records.verdicts"]) {
+  for (const field of ["claim_id", "producer", "provenance", "attestation", "records.claims", "records.checks", "records.evidence", "records.objections", "records.verdicts"]) {
     assert.ok(guide.includes(`\`${field}\``), `TROUBLESHOOTING.md should describe bundle.${field}`);
   }
 
@@ -687,6 +687,79 @@ test("bundle trust policy allows expected producers and rejects mismatches befor
   }
 });
 
+test("bundle attestation signs exports and rejects bad or tampered signatures before import", async () => {
+  const sourceDir = await tempState();
+  const cwd = await tempState();
+  const importDir = join(cwd, "signed-import-state");
+  const signedBundlePath = join(cwd, "signed-review-bundle.json");
+  const tamperedBundlePath = join(cwd, "tampered-review-bundle.json");
+
+  try {
+    await runJson(["init", "--state-dir", sourceDir]);
+    await runJson(["claim", "create", "--state-dir", sourceDir, "--id", "claim_signed_bundle", "--summary", "signed bundle is ready", "--scope", "jury"]);
+    await runJson(["evidence", "add", "--state-dir", sourceDir, "--id", "ev_signed_tests", "--claim", "claim_signed_bundle", "--type", "command", "--command", "npm --prefix jury test", "--exit-code", "0"]);
+    const bundle = await runJson([
+      "bundle", "export",
+      "--state-dir", sourceDir,
+      "--claim", "claim_signed_bundle",
+      "--out", signedBundlePath,
+      "--attest-key", "shared-secret",
+      "--attestation-key-id", "ci",
+    ]);
+
+    assert.equal(bundle.attestation.type, "hmac-sha256");
+    assert.equal(bundle.attestation.key_id, "ci");
+    assert.equal(bundle.attestation.signed_at, "2026-05-23T00:00:00.000Z");
+    assert.match(bundle.attestation.signature, /^[0-9a-f]{64}$/);
+
+    const trusted = await runProcess([
+      "bundle", "preflight",
+      "--bundle", signedBundlePath,
+      "--require-attestation", "true",
+      "--verify-attestation-key", "shared-secret",
+      "--expect-attestation-key-id", "ci",
+    ]);
+
+    assert.equal(trusted.exitCode, 0, trusted.stderr);
+    assert.equal(JSON.parse(trusted.stdout).ok, true);
+
+    const imported = await runProcess([
+      "bundle", "import",
+      "--state-dir", importDir,
+      "--bundle", signedBundlePath,
+      "--require-attestation", "true",
+      "--verify-attestation-key", "shared-secret",
+      "--expect-attestation-key-id", "ci",
+    ]);
+
+    assert.equal(imported.exitCode, 0, imported.stderr);
+    assert.equal(JSON.parse(imported.stdout).ok, true);
+
+    await rm(importDir, { recursive: true, force: true });
+
+    const badKey = await runProcess(["bundle", "preflight", "--state-dir", importDir, "--bundle", signedBundlePath, "--verify-attestation-key", "wrong-secret"]);
+    const badKeyPayload = JSON.parse(badKey.stdout);
+
+    assert.equal(badKey.exitCode, 1);
+    assert.ok(badKeyPayload.errors.includes("bundle.attestation.signature verification failed"));
+    await assertPathMissing(importDir);
+
+    const tampered = JSON.parse(await readFile(signedBundlePath, "utf8"));
+    tampered.records.evidence[0].summary = "tampered evidence";
+    await writeFile(tamperedBundlePath, `${JSON.stringify(tampered, null, 2)}\n`);
+
+    const tamperedResult = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", tamperedBundlePath, "--require-attestation", "true", "--verify-attestation-key", "shared-secret"]);
+    const tamperedPayload = JSON.parse(tamperedResult.stdout);
+
+    assert.equal(tamperedResult.exitCode, 1);
+    assert.ok(tamperedPayload.errors.includes("bundle.attestation.signature verification failed"));
+    await assertPathMissing(importDir);
+  } finally {
+    await rm(sourceDir, { recursive: true, force: true });
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test("review bundle exports from local state and imports into fresh state", async () => {
   const sourceDir = await tempState();
   const importedDir = await tempState();
@@ -791,6 +864,7 @@ test("review bundle schema references the stable record schemas", async () => {
   assert.ok(schema.required.includes("provenance"));
   assert.deepEqual(schema.properties.producer.required, ["name", "version", "command"]);
   assert.deepEqual(schema.properties.provenance.required, ["source", "revision", "workflow", "run_id"]);
+  assert.deepEqual(schema.properties.attestation.required, ["type", "key_id", "signed_at", "signature"]);
   assert.equal(properties.claims.items.$ref, "claim.schema.json");
   assert.equal(properties.checks.items.$ref, "check.schema.json");
   assert.equal(properties.evidence.items.$ref, "evidence.schema.json");
@@ -892,7 +966,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /before local state is created or mutated/);
   assert.match(handoff, /producer metadata, provenance, record, cross-reference, and trust policy errors/);
   assert.match(handoff, /expected producer name, producer version, source, and revision pattern/);
-  assert.match(handoff, /signed bundle attestations/);
+  assert.match(handoff, /bundle export --attest-key/);
+  assert.match(handoff, /bundle preflight --verify-attestation-key/);
+  assert.match(handoff, /asymmetric signing support/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

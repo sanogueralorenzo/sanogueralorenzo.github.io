@@ -2,6 +2,7 @@
 
 import { mkdir, readFile, writeFile, appendFile, rm, readdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -471,6 +472,11 @@ async function exportBundle() {
     provenance: bundleProvenance(),
     records,
   });
+  const attestKey = args["attest-key"] ?? process.env.JURY_BUNDLE_ATTEST_KEY;
+
+  if (attestKey) {
+    bundle.attestation = signBundle(bundle, attestKey, args["attestation-key-id"] ?? process.env.JURY_BUNDLE_ATTEST_KEY_ID ?? "local");
+  }
 
   validateReviewBundle(bundle);
 
@@ -853,6 +859,9 @@ function validateReviewBundle(bundle) {
   requireString(bundle.claim_id, "bundle.claim_id");
   validateBundleProducer(bundle.producer);
   validateBundleProvenance(bundle.provenance);
+  if (bundle.attestation !== undefined) {
+    validateBundleAttestation(bundle.attestation);
+  }
 
   if (!bundle.records || typeof bundle.records !== "object" || Array.isArray(bundle.records)) {
     fail("bundle.records must be an object");
@@ -891,6 +900,9 @@ function preflightReviewBundle(bundle) {
   collectValidationError(errors, () => requireString(bundle.claim_id, "bundle.claim_id"));
   collectValidationError(errors, () => validateBundleProducer(bundle.producer));
   collectValidationError(errors, () => validateBundleProvenance(bundle.provenance));
+  if (bundle.attestation !== undefined) {
+    collectValidationError(errors, () => validateBundleAttestation(bundle.attestation));
+  }
 
   if (!bundle.records || typeof bundle.records !== "object" || Array.isArray(bundle.records)) {
     errors.push("bundle.records must be an object");
@@ -930,6 +942,7 @@ function preflightReviewBundle(bundle) {
   }
 
   errors.push(...trustPolicyErrors(bundle));
+  errors.push(...attestationPolicyErrors(bundle));
 
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -979,6 +992,84 @@ function trustPolicyErrors(bundle) {
   return errors;
 }
 
+function attestationPolicyErrors(bundle) {
+  const errors = [];
+  const verifyKey = args["verify-attestation-key"] ?? process.env.JURY_BUNDLE_VERIFY_KEY;
+
+  if ((args["require-attestation"] === "true" || verifyKey) && !bundle.attestation) {
+    errors.push("bundle.attestation is required");
+    return errors;
+  }
+
+  if (!bundle.attestation) {
+    return errors;
+  }
+
+  if (args["expect-attestation-key-id"] && bundle.attestation.key_id !== args["expect-attestation-key-id"]) {
+    errors.push(`bundle.attestation.key_id expected ${args["expect-attestation-key-id"]}, got ${bundle.attestation.key_id ?? "missing"}`);
+  }
+
+  if (!verifyKey) {
+    return errors;
+  }
+
+  const expected = bundleSignature(bundle, verifyKey);
+  if (!constantTimeEqual(bundle.attestation.signature, expected)) {
+    errors.push("bundle.attestation.signature verification failed");
+  }
+
+  return errors;
+}
+
+function signBundle(bundle, key, keyId) {
+  return {
+    type: "hmac-sha256",
+    key_id: keyId,
+    signed_at: now(),
+    signature: bundleSignature(bundle, key),
+  };
+}
+
+function bundleSignature(bundle, key) {
+  return createHmac("sha256", key).update(canonicalJson(unsignedBundle(bundle))).digest("hex");
+}
+
+function unsignedBundle(bundle) {
+  const { attestation, ...unsigned } = bundle;
+  return unsigned;
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(canonicalValue(value));
+}
+
+function canonicalValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalValue(value[key])]));
+  }
+
+  return value;
+}
+
+function constantTimeEqual(left, right) {
+  if (typeof left !== "string" || typeof right !== "string") {
+    return false;
+  }
+
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function bundleProducer() {
   return {
     name: args["producer-name"] ?? PRODUCER_NAME,
@@ -1009,6 +1100,14 @@ function validateBundleProvenance(provenance) {
   requireString(provenance.revision, "bundle.provenance.revision");
   requireNullableString(provenance.workflow, "bundle.provenance.workflow");
   requireNullableString(provenance.run_id, "bundle.provenance.run_id");
+}
+
+function validateBundleAttestation(attestation) {
+  requireObject(attestation, "bundle.attestation");
+  requireEnum(attestation.type, ["hmac-sha256"], "bundle.attestation.type");
+  requireString(attestation.key_id, "bundle.attestation.key_id");
+  requireString(attestation.signed_at, "bundle.attestation.signed_at");
+  requireString(attestation.signature, "bundle.attestation.signature");
 }
 
 function collectValidationError(errors, action) {
@@ -1562,9 +1661,9 @@ Commands:
   jury status --claim <id>
   jury judge --claim <id> [--out verdict.json] [--require-human-approval true]
   jury gate --verdict verdict.json [--claim <id>]
-  jury bundle export --claim <id> --out review-bundle.json
-  jury bundle preflight --bundle review-bundle.json [--expect-producer-name name] [--expect-producer-version version] [--expect-source source] [--expect-revision-pattern pattern]
-  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json] [--expect-producer-name name] [--expect-producer-version version] [--expect-source source] [--expect-revision-pattern pattern]
+  jury bundle export --claim <id> --out review-bundle.json [--attest-key secret]
+  jury bundle preflight --bundle review-bundle.json [--require-attestation true] [--verify-attestation-key secret] [--expect-producer-name name] [--expect-producer-version version] [--expect-source source] [--expect-revision-pattern pattern]
+  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json] [--require-attestation true] [--verify-attestation-key secret]
   jury check --strict
   jury demo code-change`);
 }

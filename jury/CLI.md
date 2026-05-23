@@ -76,4 +76,6 @@ node jury/bin/jury.mjs check --strict
 
 `bundle preflight` and `bundle import` accept `--expect-producer-name`, `--expect-producer-version`, `--expect-source`, and `--expect-revision-pattern` so CI can reject bundles from unexpected producers or revisions before state is mutated.
 
+`bundle export --attest-key <secret> --attestation-key-id <id>` signs the unsigned bundle payload with an `hmac-sha256` attestation. `bundle preflight` and `bundle import` accept `--require-attestation true`, `--verify-attestation-key <secret>`, and `--expect-attestation-key-id <id>` so CI can verify that metadata was produced by a holder of the shared signing key.
+
 `check --strict` reports malformed JSON, schema problems, missing claim references, missing evidence/check/objection/waiver references, cross-claim references, and verdict claim-version mismatches.

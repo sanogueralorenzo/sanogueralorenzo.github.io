@@ -18,6 +18,7 @@ Then inspect `review-bundle.json`. It is the portable state snapshot for the cla
 - `claim_id`: the claim under review.
 - `producer`: the tool name, version, and command that produced the bundle.
 - `provenance`: the source, revision, workflow, and run id attached at export time.
+- `attestation`: optional `hmac-sha256` signature metadata for verifying the bundle payload.
 - `records.claims`: claim versions and lifecycle transitions.
 - `records.checks`: required checks and their current status.
 - `records.evidence`: command, citation, manual, or tool-call evidence.
@@ -28,6 +29,7 @@ Then inspect `review-bundle.json`. It is the portable state snapshot for the cla
 node -e "const gate=JSON.parse(require('node:fs').readFileSync('gate.json','utf8')); console.log(JSON.stringify({ok:gate.ok,decision:gate.decision,reason:gate.reason,missing_fields:gate.missing_fields,unresolved_objections:gate.unresolved_objections,next_actions:gate.next_actions},null,2))"
 node -e "const bundle=JSON.parse(require('node:fs').readFileSync('review-bundle.json','utf8')); console.log(JSON.stringify({claim_id:bundle.claim_id,producer:bundle.producer,provenance:bundle.provenance,claims:bundle.records.claims.length,checks:bundle.records.checks.length,evidence:bundle.records.evidence.length,objections:bundle.records.objections.length,verdicts:bundle.records.verdicts.length},null,2))"
 node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --expect-producer-name @sanogueralorenzo/jury --expect-producer-version 0.1.0 --expect-source local --expect-revision-pattern "^unknown$"
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --require-attestation true --verify-attestation-key "$JURY_BUNDLE_ATTEST_KEY"
 ```
 
 ## Common Causes
