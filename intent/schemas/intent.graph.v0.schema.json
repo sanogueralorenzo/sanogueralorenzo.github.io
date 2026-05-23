@@ -122,6 +122,12 @@
         "raw": {
           "$ref": "#/$defs/non_empty_string"
         },
+        "contractId": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "contractArgument": {
+          "$ref": "#/$defs/non_empty_string"
+        },
         "span": {
           "$ref": "#/$defs/span"
         }

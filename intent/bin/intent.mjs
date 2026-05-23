@@ -496,7 +496,7 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
         action: null,
         name,
         constraints: lines.map((line) => line.text),
-        grants: lines.map((line) => parseCapabilityGrant(line.text, lineSpan(file, line.lineNumber, line.raw))).filter(Boolean),
+        grants: lines.map((line) => parseCapabilityGrant(name, line.text, lineSpan(file, line.lineNumber, line.raw))).filter(Boolean),
         approvalRequired: hasApprovalRequired(lines),
         span: span(file, startLine, 1, endLine, 1),
       };
@@ -664,7 +664,7 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
     action,
     name: normalized,
     constraints: [normalized],
-    grants: [parseCapabilityGrant(normalized, lineSpan(file, lineNumber, raw))].filter(Boolean),
+    grants: [parseCapabilityGrant(family, normalized, lineSpan(file, lineNumber, raw))].filter(Boolean),
     approvalRequired: /\bapproval\s*:\s*required\b|\bapproval\s+required\b/.test(normalized),
     span: lineSpan(file, lineNumber, raw),
   };
@@ -2322,7 +2322,7 @@ function validateGraphCapability(graphNode, graphSpan) {
   const grantsIsArray = Array.isArray(graphNode.data.grants);
   const invalidGrantIndexes = grantsIsArray
     ? graphNode.data.grants
-        .map((grant, grantIndex) => isGraphGrantRecord(grant) ? null : grantIndex)
+        .map((grant, grantIndex) => isGraphGrantRecord(grant, graphNode.data.family) ? null : grantIndex)
         .filter((grantIndex) => grantIndex !== null)
     : [];
   const approvalPolicyIsValid = graphNode.data.approvalPolicy === "none" || graphNode.data.approvalPolicy === "required";
@@ -2341,8 +2341,8 @@ function validateGraphCapability(graphNode, graphSpan) {
   });
 }
 
-function isGraphGrantRecord(value) {
-  return isPlainObject(value)
+function isGraphGrantRecord(value, family = null) {
+  const baseIsValid = isPlainObject(value)
     && typeof value.action === "string"
     && value.action.trim() !== ""
     && typeof value.key === "string"
@@ -2351,6 +2351,21 @@ function isGraphGrantRecord(value) {
     && typeof value.raw === "string"
     && value.raw.trim() !== ""
     && isSpan(value.span);
+  if (!baseIsValid) {
+    return false;
+  }
+  if (value.contractId === undefined && value.contractArgument === undefined) {
+    return true;
+  }
+  const contract = typeof value.contractId === "string" && value.contractId.trim() !== ""
+    ? effectContractById(value.contractId)
+    : null;
+  return Boolean(contract)
+    && typeof value.contractArgument === "string"
+    && value.contractArgument.trim() !== ""
+    && isFamilyMatch(contract.family, family)
+    && contract.action === value.action
+    && contract.arguments.some((argument) => argument.key === value.contractArgument && argument.key === value.key);
 }
 
 function validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
@@ -3620,7 +3635,21 @@ function invalidGraphGrantAuthorization(capabilityNode, targetNode, graphEdge) {
 
   const denial = getCapabilityDenial(access, [capability]);
   if (!denial) {
-    return null;
+    const contractDenial = getAuthorizationContractDenial(access, capability, graphEdge);
+    if (!contractDenial) {
+      return null;
+    }
+    return {
+      from: graphEdge.from,
+      to: graphEdge.to,
+      reason: contractDenial.reason,
+      capability_family: capability.family,
+      target_family: access.family,
+      target_action: access.action,
+      argument: contractDenial.argument,
+      value: contractDenial.value,
+      allowed: contractDenial.allowed,
+    };
   }
   return {
     from: graphEdge.from,
@@ -3635,13 +3664,53 @@ function invalidGraphGrantAuthorization(capabilityNode, targetNode, graphEdge) {
   };
 }
 
+function getAuthorizationContractDenial(access, capability, graphEdge) {
+  if (access.contractId && isPlainObject(graphEdge.data) && typeof graphEdge.data.contractId === "string" && graphEdge.data.contractId !== access.contractId) {
+    return {
+      reason: "edge_contract_mismatch",
+      argument: null,
+      value: graphEdge.data.contractId,
+      allowed: [access.contractId],
+    };
+  }
+  for (const argument of effectArguments(access)) {
+    const matchedGrant = (capability.grants ?? []).find((grant) => {
+      return grant.action === access.action
+        && grant.key === argument.key
+        && isGrantMatch(argument, grant);
+    });
+    if (!matchedGrant) continue;
+    if (access.contractId && matchedGrant.contractId && matchedGrant.contractId !== access.contractId) {
+      return {
+        reason: "grant_contract_mismatch",
+        argument: argument.key,
+        value: matchedGrant.contractId,
+        allowed: [access.contractId],
+      };
+    }
+    const edgeGrant = isPlainObject(graphEdge.data)
+      ? (graphEdge.data.grants ?? []).find((grant) => grant.argument === argument.key)
+      : null;
+    const expectedSourceArgument = access.contractArguments?.[argument.key] ?? argument.key;
+    if (edgeGrant && edgeGrant.sourceArgument !== expectedSourceArgument) {
+      return {
+        reason: "edge_argument_mismatch",
+        argument: argument.key,
+        value: edgeGrant.sourceArgument,
+        allowed: [expectedSourceArgument],
+      };
+    }
+  }
+  return null;
+}
+
 function graphCapabilityAccess(capabilityNode) {
   if (
     capabilityNode?.kind !== "Capability"
     || typeof capabilityNode.data?.family !== "string"
     || capabilityNode.data.family.trim() === ""
     || !Array.isArray(capabilityNode.data.grants)
-    || !capabilityNode.data.grants.every(isGraphGrantRecord)
+    || !capabilityNode.data.grants.every((grant) => isGraphGrantRecord(grant, capabilityNode.data.family))
   ) {
     return null;
   }
@@ -3698,6 +3767,8 @@ function graphEffectAccess(graphNode, effectData) {
     name: graphNode.label,
     family: effectData.family,
     action: effectData.action,
+    contractId: effectData.contractId ?? null,
+    contractArguments: effectData.contractArguments ?? {},
     args: effectData.args,
     argKinds: effectData.argKinds,
     argSpans: effectData.argSpans,
@@ -4020,17 +4091,12 @@ function extractTypeNames(typeRef) {
   return [...typeRef.matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)].map((match) => match[0]);
 }
 
-function parseCapabilityGrant(text, grantSpan) {
+function parseCapabilityGrant(capabilityName, text, grantSpan) {
   const trimmed = text.trim();
+  const family = capabilityFamily(capabilityName);
   const match = trimmed.match(/^([a-z][a-z0-9_]*)\s+([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"$/);
   if (match) {
-    return {
-      action: match[1],
-      key: match[2],
-      value: match[3],
-      raw: trimmed,
-      span: grantSpan,
-    };
+    return capabilityGrantRecord(family, match[1], match[2], match[3], trimmed, grantSpan);
   }
 
   const dottedCall = trimmed.match(/^[a-z][a-z0-9_]*\.([a-z][a-z0-9_]*)\((.*)\)$/);
@@ -4050,17 +4116,23 @@ function parseCapabilityGrant(text, grantSpan) {
     const value = args.paths ?? args.commands ?? args.domains ?? args.branches ?? args.remotes
       ?? args.path ?? args.command ?? args.domain ?? args.branch ?? args.remote ?? null;
     if (key && typeof value === "string") {
-      return {
-        action: dottedCall[1],
-        key,
-        value,
-        raw: trimmed,
-        span: grantSpan,
-      };
+      return capabilityGrantRecord(family, dottedCall[1], key, value, trimmed, grantSpan);
     }
   }
 
   return null;
+}
+
+function capabilityGrantRecord(family, action, key, value, raw, grantSpan) {
+  const contract = effectContractForGrant({ family, action, key });
+  return {
+    action,
+    key,
+    value,
+    raw,
+    span: grantSpan,
+    ...(contract ? { contractId: contract.id, contractArgument: key } : {}),
+  };
 }
 
 function hasApprovalRequired(lines) {
@@ -4559,6 +4631,14 @@ function contractMatchesName(contract, name) {
 function effectContractForAccess(effect) {
   return EFFECT_CONTRACTS.find((contract) => {
     return effect.family === contract.family && effect.action === contract.action;
+  }) ?? null;
+}
+
+function effectContractForGrant(grant) {
+  return EFFECT_CONTRACTS.find((contract) => {
+    return isFamilyMatch(contract.family, grant.family)
+      && contract.action === grant.action
+      && contract.arguments.some((argument) => argument.key === grant.key);
   }) ?? null;
 }
 

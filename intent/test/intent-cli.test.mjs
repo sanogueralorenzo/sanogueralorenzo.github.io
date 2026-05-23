@@ -656,15 +656,33 @@ describe("intent static model CLI", () => {
     writeFileSync(file, source, "utf8");
 
     try {
+      const ast = runJson(["parse", file]);
       const check = runJson(["check", file]);
       const graph = runJson(["graph", file]);
       const effects = graph.nodes.filter((node) => node.kind === "Effect");
+      const graphGrants = graph.nodes
+        .filter((node) => node.kind === "Capability")
+        .flatMap((capability) => capability.data.grants);
       const authorizations = effects.map((effect) => {
         return graph.edges.find((edge) => edge.kind === "authorizes" && edge.to === effect.id);
       });
+      const capabilityGrants = ast.goals[0].capabilities.flatMap((capability) => capability.grants);
 
       assert.equal(check.ok, true);
       assert.deepEqual(check.diagnostics, []);
+      assert.deepEqual(capabilityGrants.map((grant) => [grant.action, grant.key, grant.contractId, grant.contractArgument]), [
+        ["write", "path", "intent.effect.file.write.v0", "path"],
+        ["run", "command", "intent.effect.shell.run.v0", "command"],
+        ["read", "domain", "intent.effect.web.read.v0", "domain"],
+        ["push", "branch", "intent.effect.git.push.v0", "branch"],
+        ["commit", "message", "intent.effect.git.commit.v0", "message"],
+        ["read", "name", "intent.effect.secret.read.v0", "name"],
+        ["update", "id", "intent.effect.ticket.update.v0", "id"],
+        ["deploy", "target", "intent.effect.deploy.deploy.v0", "target"],
+      ]);
+      assert.deepEqual(graphGrants.map((grant) => [grant.action, grant.key, grant.contractId, grant.contractArgument]), capabilityGrants.map((grant) => {
+        return [grant.action, grant.key, grant.contractId, grant.contractArgument];
+      }));
       assert.deepEqual(effects.map((effect) => [effect.label, effect.data.family, effect.data.action]), [
         ["Effect.FileWrite", "file", "write"],
         ["WriteFile", "file", "write"],
@@ -2702,11 +2720,25 @@ describe("intent static model CLI", () => {
         { id: "capability:bad-policy", kind: "Capability", label: "bad policy", span: testSpan(2), data: { family: "file", grants: [], approvalPolicy: "sometimes" } },
         { id: "capability:blank-family", kind: "Capability", label: "blank family", span: testSpan(3), data: { family: "   ", grants: [], approvalPolicy: "required" } },
         { id: "capability:bad-grants", kind: "Capability", label: "bad grants", span: testSpan(4), data: { grants: [{ action: "", key: "path", value: "./src/**", raw: "read path: \"./src/**\"", span: testSpan(4) }, { action: "read", key: "path", value: "./src/**", raw: "" }] } },
+        {
+          id: "capability:stale-contract",
+          kind: "Capability",
+          label: "stale contract",
+          span: testSpan(5),
+          data: {
+            family: "shell",
+            grants: [{
+              ...testGrant("run", "command", "npm test", 5),
+              contractId: "intent.effect.file.write.v0",
+              contractArgument: "command",
+            }],
+          },
+        },
       ],
       edges: [],
     });
 
-    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics.length, 5);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_CAPABILITY_INVALID");
     assert.equal(diagnostics[0].capability_id, "capability:missing-policy");
     assert.equal(diagnostics[0].family_is_nonempty, true);
@@ -2723,6 +2755,8 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[3].code, "INTENT_GRAPH_CAPABILITY_INVALID");
     assert.equal(diagnostics[3].capability_id, "capability:bad-grants");
     assert.deepEqual(diagnostics[3].invalid_grant_indexes, [0, 1]);
+    assert.equal(diagnostics[4].capability_id, "capability:stale-contract");
+    assert.deepEqual(diagnostics[4].invalid_grant_indexes, [0]);
   });
 
   it("validates graph memory retention diagnostics", () => {
@@ -3593,6 +3627,64 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[3].invalid_authorizations[0].argument, "path");
     assert.equal(diagnostics[3].invalid_authorizations[0].value, "secrets/spec.md");
     assert.deepEqual(diagnostics[3].invalid_authorizations[0].allowed, ["docs/**"]);
+  });
+
+  it("rejects stale effect authorization contract edge references", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        {
+          id: "goal:demo:capability:file",
+          kind: "Capability",
+          label: "file",
+          span: testSpan(2),
+          data: {
+            family: "file",
+            grants: [{
+              ...testGrant("write", "path", "./src/**", 2),
+              contractId: "intent.effect.file.write.v0",
+              contractArgument: "path",
+            }],
+          },
+        },
+        {
+          id: "goal:demo:step:patch:effect:0",
+          kind: "Effect",
+          label: "WriteFile",
+          span: testSpan(3),
+          data: {
+            family: "file",
+            action: "write",
+            contractId: "intent.effect.file.write.v0",
+            contractArguments: { path: "_0" },
+            args: { _0: "./src/app.ts" },
+            argKinds: { _0: "string" },
+            argSpans: { _0: testSpan(3) },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo:capability:file", to: "goal:demo", kind: "authorizes" },
+        {
+          from: "goal:demo:capability:file",
+          to: "goal:demo:step:patch:effect:0",
+          kind: "authorizes",
+          data: {
+            contractId: "intent.effect.file.write.v0",
+            contractArguments: { path: "_0" },
+            grants: [{ argument: "path", sourceArgument: "path", value: "./src/app.ts" }],
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].target_id, "goal:demo:step:patch:effect:0");
+    assert.equal(diagnostics[0].invalid_authorizations[0].reason, "edge_argument_mismatch");
+    assert.equal(diagnostics[0].invalid_authorizations[0].argument, "path");
+    assert.equal(diagnostics[0].invalid_authorizations[0].value, "path");
+    assert.deepEqual(diagnostics[0].invalid_authorizations[0].allowed, ["_0"]);
   });
 
   it("validates graph context authorization diagnostics", () => {

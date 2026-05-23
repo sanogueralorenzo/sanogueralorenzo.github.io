@@ -1048,7 +1048,10 @@ Rules:
   git commit, deploy, ticket update, and secret read adapter operations. The
   registry is emitted as `intent.effect-contracts.v0`; graph effect payloads
   must reference the selected contract by stable `contractId` and record which
-  source argument alias supplied each canonical contract argument.
+  source argument alias supplied each canonical contract argument. Structured
+  capability grants that map to a known adapter contract also carry
+  `contractId` and `contractArgument`, allowing authorization checks to reject
+  stale or mismatched grant references.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -1085,6 +1088,10 @@ Rules:
   from the source call.
 - Graph `Capability` node `data.grants` entries carry the same grant-level
   `span` as the AST `CapabilityGrant`.
+- Structured AST and graph grants that cover known effect adapter contracts
+  carry `contractId` and `contractArgument`. The contract id must resolve to a
+  v0 effect contract whose family, action, and canonical argument match the
+  owning capability and grant key.
 - Diagnostics and provenance that mention allowed grants must use the
   grant-level span when a structured grant is available.
 
@@ -2622,14 +2629,17 @@ execution.
 Capability nodes carry normalized grants and any approval policy parsed from
 the capability block. A body line of `approval required` is represented as
 `data.approvalPolicy: "required"` on the `Capability` node. Each structured
-entry in `data.grants` carries the source `span` of its grant line, so
-capability authorization, diagnostics, and runtime provenance can point to the
-grant that authorized an effect or context source.
+entry in `data.grants` carries the source `span` of its grant line, plus
+`contractId` and `contractArgument` when the grant covers a known v0 effect
+contract, so capability authorization, diagnostics, and runtime provenance can
+point to the grant that authorized an effect or context source.
 Capability nodes are also runtime policy inputs. Graph validation requires
 `data.family` to be non-empty, `data.approvalPolicy` to be either `none` or
 `required`, and `data.grants` to be an array of structured grant records with
 non-empty `action`, `key`, and `raw` strings, a string `value`, and a valid
-source `span`. Malformed capability policy data emits
+source `span`. When grant contract references are present, the referenced
+contract must match the owning capability family, grant action, and grant key.
+Malformed capability policy data emits
 `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
 runtime authorization and approval enforcement must not infer missing policy.
 Every graph `Capability` node must also have exactly one outgoing

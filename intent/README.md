@@ -463,7 +463,9 @@ Validation expectations:
   stable `contractId` plus `contractArguments` references so runtimes can verify
   which adapter contract and source argument aliases were selected. Effect
   authorization edges also carry the selected contract id and matched grant
-  argument records.
+  argument records. Structured capability grants that cover known v0 effect
+  contracts carry `contractId` and `contractArgument` so stale grant references
+  are rejected during graph validation.
 - Graph `Check` nodes are runtime verification gates, not executable steps.
   They must carry a non-empty `data.requirement`; optional `data.scope` must be
   either `goal` or `step`. Step-scoped checks must also carry non-empty

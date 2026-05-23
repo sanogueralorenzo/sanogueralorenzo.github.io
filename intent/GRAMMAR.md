@@ -312,6 +312,8 @@ use fallback family/action parsing until a later adapter schema makes custom
 contracts explicit. The registry is also emitted as
 `intent.effect-contracts.v0`, and graph effect payloads reference the selected
 entry with `contractId` and canonical-to-source `contractArguments`.
+Structured capability grants that cover known adapter operations carry the same
+stable contract id plus the canonical `contractArgument`.
 
 Git commit effects use a named `message` constrained argument. The checker
 binds `GitCommit(message: "...")` and `git.commit(message: "...")` to in-scope
