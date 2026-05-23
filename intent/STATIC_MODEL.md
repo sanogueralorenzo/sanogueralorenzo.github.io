@@ -1465,6 +1465,8 @@ node id. It is an intermediate contract for a local runtime.
 Required node kinds are `Goal`, `Input`, `Context`, `Capability`, `Memory`,
 `Step`, `Effect`, `Check`, `Invariant`, `Approval`, `Checkpoint`, `Policy`, and
 `Completion`.
+Graph validation emits `INTENT_GRAPH_NODE_KIND_INVALID` when a graph node kind
+is not one of those runtime-supported Intent graph node kinds.
 
 Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
 `verifies`, `guards`, `gates`, `approves`, `checkpoints`, `timeouts`,

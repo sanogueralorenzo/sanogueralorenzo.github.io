@@ -499,7 +499,9 @@ The parser emits names and type reference strings; the checker owns binding.
   `Step`, or a `Policy` without its `timeouts` or `retries` edge to its owning
   `Step` emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`; two graph nodes with the
   same id emit `INTENT_GRAPH_NODE_DUPLICATE` because runtime edge resolution
-  requires stable unique node ids; an edge kind that is not one of the
+  requires stable unique node ids; a graph node kind that is not one of the
+  runtime-supported Intent graph node kinds emits
+  `INTENT_GRAPH_NODE_KIND_INVALID`; an edge kind that is not one of the
   runtime-supported Intent graph relationship kinds emits
   `INTENT_GRAPH_EDGE_KIND_INVALID`.
 - Graph nodes and edges record trust metadata where it helps downstream
