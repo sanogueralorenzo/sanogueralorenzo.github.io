@@ -430,10 +430,12 @@ test("key policy CI fixtures verify and import a signed review bundle", async ()
   const downstreamDir = await tempState();
   const bundlePath = join(ciKeyPolicyFixturesDir, "review-bundle.signed.json");
   const policyPath = join(ciKeyPolicyFixturesDir, "jury-key-policy.json");
+  const untrustedProducerPolicyPath = join(ciKeyPolicyFixturesDir, "jury-key-policy.untrusted-producer.json");
   const publicKeyPath = join(ciKeyPolicyFixturesDir, "ci-public.pem");
   const readme = await readFile(join(ciKeyPolicyFixturesDir, "README.md"), "utf8");
   const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
   const policy = JSON.parse(await readFile(policyPath, "utf8"));
+  const untrustedProducerPolicy = JSON.parse(await readFile(untrustedProducerPolicyPath, "utf8"));
   const publicKey = await readFile(publicKeyPath, "utf8");
 
   try {
@@ -442,9 +444,12 @@ test("key policy CI fixtures verify and import a signed review bundle", async ()
     assert.equal(bundle.attestation.key_id, "ci-fixture");
     assert.equal(policy.schema_version, "jury.key_policy.v1");
     assert.equal(policy.producers[0].keys[0].public_key_path, "ci-public.pem");
+    assert.equal(untrustedProducerPolicy.producers[0].source, "retired-ci");
+    assert.equal(untrustedProducerPolicy.producers[0].revision_pattern, "^retired$");
     assert.match(publicKey, /BEGIN PUBLIC KEY/);
     assert.ok(readme.includes("bundle preflight --bundle"));
     assert.ok(readme.includes("bundle import --state-dir"));
+    assert.ok(readme.includes("jury-key-policy.untrusted-producer.json"));
     assert.ok(readme.includes("fixtures:key-policy"));
     assert.ok(readme.includes("fixtures:key-policy:check"));
 
@@ -475,6 +480,14 @@ test("key policy CI fixtures verify and import a signed review bundle", async ()
     assert.equal(copiedPreflight.exitCode, 0, copiedPreflight.stderr);
     assert.equal(JSON.parse(copiedPreflight.stdout).key_policy.considered_keys[0].status, "verified");
     assert.equal(copiedImport.exitCode, 0, copiedImport.stderr);
+
+    const untrustedProducer = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", untrustedProducerPolicyPath]);
+    const untrustedProducerPayload = JSON.parse(untrustedProducer.stdout);
+
+    assert.equal(untrustedProducer.exitCode, 1);
+    assert.match(untrustedProducerPayload.errors.join("\n"), /no trusted producer/);
+    assert.deepEqual(untrustedProducerPayload.key_policy.matching_producers, []);
+    assert.deepEqual(untrustedProducerPayload.key_policy.considered_keys, []);
 
     const driftCheck = await runShell("npm --prefix jury run fixtures:key-policy:check", repoRoot, {
       ...fixedEnv,
@@ -584,6 +597,8 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
 
   assert.ok(readme.includes("TROUBLESHOOTING.md"));
   assert.ok(checklist.includes("TROUBLESHOOTING.md"));
+  assert.ok(guide.includes("jury-key-policy.untrusted-producer.json"));
+  assert.ok(guide.includes("key policy has no trusted producer"));
 });
 
 test("fixture verdicts cover accept, reject, retry, and human_decision gate paths", async () => {
@@ -1614,6 +1629,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/key-policy",
     "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/key-policy/jury-key-policy.json",
+    "examples/ci/fixtures/key-policy/jury-key-policy.untrusted-producer.json",
     "examples/ci/fixtures/key-policy/ci-public.pem",
     "examples/ci/fixtures/key-policy/review-bundle.signed.json",
     "examples/ci/fixtures/key-policy/README.md",
@@ -1698,6 +1714,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /bundle preflight --verify-attestation-public-key/);
   assert.match(handoff, /bundle preflight --key-policy/);
   assert.match(handoff, /trusted producer metadata and RSA public keys/);
+  assert.match(handoff, /untrusted-producer troubleshooting policy/);
   assert.match(handoff, /valid_from/);
   assert.match(handoff, /revoked_at/);
   assert.match(handoff, /CI migration overlap window/);
@@ -1707,7 +1724,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
   assert.match(handoff, /downloads the signed producer artifact/);
-  assert.match(handoff, /no longer trusts the producer metadata/);
+  assert.match(handoff, /end-to-end CI adoption guide/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

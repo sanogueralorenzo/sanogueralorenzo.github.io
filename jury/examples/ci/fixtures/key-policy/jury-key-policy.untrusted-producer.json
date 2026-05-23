@@ -1,0 +1,20 @@
+{
+  "schema_version": "jury.key_policy.v1",
+  "producers": [
+    {
+      "name": "@sanogueralorenzo/jury",
+      "version": "0.1.0",
+      "source": "retired-ci",
+      "revision_pattern": "^retired$",
+      "keys": [
+        {
+          "key_id": "ci-fixture",
+          "type": "rsa-sha256",
+          "public_key_path": "ci-public.pem",
+          "valid_from": "2026-05-22T00:00:00.000Z",
+          "valid_until": "2026-05-24T00:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}

@@ -10,7 +10,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml): two-job workflow that downloads the signed producer artifact and verifies it with the key policy.
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml): reusable downstream workflow for signed trusted-producer bundle verification.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
-- [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, and key policy manifest for trusted-producer verification.
+- [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, trusted key policy manifest, and untrusted-producer troubleshooting policy.
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
 - [MIGRATION.md](MIGRATION.md): artifact handoff and bundle replay path.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): release-readiness checklist.
@@ -45,4 +45,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a troubleshooting fixture for downloaded artifacts whose key policy no longer trusts the producer metadata.
+Add a concise end-to-end CI adoption guide that chooses between unsigned, signed, artifact handoff, and reusable downstream workflows.

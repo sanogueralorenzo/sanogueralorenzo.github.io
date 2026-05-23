@@ -39,6 +39,7 @@ try {
   writeFileSync(privateKeyPath, keyPair.privateKey);
   writeFileSync(join(outDir, "ci-public.pem"), keyPair.publicKey);
   writeFileSync(join(outDir, "jury-key-policy.json"), `${JSON.stringify(keyPolicy(), null, 2)}\n`);
+  writeFileSync(join(outDir, "jury-key-policy.untrusted-producer.json"), `${JSON.stringify(untrustedProducerPolicy(), null, 2)}\n`);
   writeFileSync(rotationOldPrivateKeyPath, rotationOldKeyPair.privateKey);
   writeFileSync(rotationNewPrivateKeyPath, rotationNewKeyPair.privateKey);
   writeFileSync(join(rotationOutDir, "ci-old-public.pem"), rotationOldKeyPair.publicKey);
@@ -58,6 +59,7 @@ try {
     "--revision", "unknown",
   ]);
   runJury(["bundle", "preflight", "--bundle", join(outDir, "review-bundle.signed.json"), "--key-policy", join(outDir, "jury-key-policy.json")]);
+  runJuryExpectFailure(["bundle", "preflight", "--bundle", join(outDir, "review-bundle.signed.json"), "--key-policy", join(outDir, "jury-key-policy.untrusted-producer.json")], "no trusted producer");
   runJury([
     "bundle", "export",
     "--state-dir", stateDir,
@@ -87,6 +89,7 @@ try {
     const hasDrift = [
       assertFixtureDrift("ci-public.pem", outDir),
       assertFixtureDrift("jury-key-policy.json", outDir),
+      assertFixtureDrift("jury-key-policy.untrusted-producer.json", outDir),
       assertFixtureDrift("review-bundle.signed.json", outDir),
       assertFixtureDrift("ci-old-public.pem", rotationOutDir, rotationFixtureDir),
       assertFixtureDrift("ci-new-public.pem", rotationOutDir, rotationFixtureDir),
@@ -116,6 +119,25 @@ function keyPolicy() {
       version: "0.1.0",
       source: "local",
       revision_pattern: "^unknown$",
+      keys: [{
+        key_id: KEY_ID,
+        type: "rsa-sha256",
+        public_key_path: "ci-public.pem",
+        valid_from: "2026-05-22T00:00:00.000Z",
+        valid_until: "2026-05-24T00:00:00.000Z",
+      }],
+    }],
+  };
+}
+
+function untrustedProducerPolicy() {
+  return {
+    schema_version: "jury.key_policy.v1",
+    producers: [{
+      name: "@sanogueralorenzo/jury",
+      version: "0.1.0",
+      source: "retired-ci",
+      revision_pattern: "^retired$",
       keys: [{
         key_id: KEY_ID,
         type: "rsa-sha256",

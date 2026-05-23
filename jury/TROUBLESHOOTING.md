@@ -40,6 +40,17 @@ node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --key-policy
 - `retry`: required evidence is missing, a required check is pending, a claim has no explicit scope, or a blocking objection is unresolved.
 - `human_decision`: the claim needs explicit approval before the system should proceed.
 - stale verdict: the claim changed after `verdict.json` was written, so the verdict no longer matches current claim state.
+- downloaded artifact no longer trusted: the signed bundle may still verify cryptographically, but `bundle preflight --key-policy` rejects it when the bundle producer `source` or `revision` no longer matches reviewed policy metadata.
+
+## Downloaded Artifact Trust Failure
+
+Use the negative key-policy fixture when a downstream job downloads `review-bundle.signed.json` successfully but the policy no longer trusts the producer metadata:
+
+```shell
+if node jury/bin/jury.mjs bundle preflight --bundle jury/examples/ci/fixtures/key-policy/review-bundle.signed.json --key-policy jury/examples/ci/fixtures/key-policy/jury-key-policy.untrusted-producer.json --json > gate.untrusted-producer.json; then exit 1; else test $? -eq 1; fi
+```
+
+Inspect `gate.untrusted-producer.json` for `key policy has no trusted producer`, then compare `bundle.provenance` with the trusted `source` and `revision_pattern` in the key policy.
 
 ## Retry Example
 

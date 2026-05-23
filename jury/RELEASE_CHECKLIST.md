@@ -39,6 +39,7 @@ Expected fixture files:
 - [examples/ci/fixtures/quickstart/review-bundle.json](examples/ci/fixtures/quickstart/review-bundle.json)
 - [examples/ci/fixtures/quickstart/gate.json](examples/ci/fixtures/quickstart/gate.json)
 - [examples/ci/fixtures/key-policy/jury-key-policy.json](examples/ci/fixtures/key-policy/jury-key-policy.json)
+- [examples/ci/fixtures/key-policy/jury-key-policy.untrusted-producer.json](examples/ci/fixtures/key-policy/jury-key-policy.untrusted-producer.json)
 - [examples/ci/fixtures/key-policy/ci-public.pem](examples/ci/fixtures/key-policy/ci-public.pem)
 - [examples/ci/fixtures/key-policy/review-bundle.signed.json](examples/ci/fixtures/key-policy/review-bundle.signed.json)
 - [examples/ci/fixtures/key-policy/README.md](examples/ci/fixtures/key-policy/README.md)
