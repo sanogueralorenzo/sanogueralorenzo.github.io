@@ -96,6 +96,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent compile --promote-session-pairs`: promotes a precedent from analogous failed and successful ordinary sessions.
 - `precedent inject`: returns the relevant precedent for the current task context.
 - `precedent context`: exports stable agent-ready precedent context.
+- `precedent warrant`: issues a machine-readable edit and validation contract for one agent turn.
 - `precedent hook`: reads a passive hook event and returns an insertable context block.
 - `precedent replay`: reruns a baseline agent task with and without injected precedent.
 - `precedent explain`: audits why a precedent was promoted or rejected.
@@ -128,6 +129,7 @@ node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-tur
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"context.before_turn","sessionId":"demo","eventId":"turn-001","task":"add another webhook handler"}' | node precedent/bin/precedent.mjs loop --json
 node precedent/bin/precedent.mjs context --session demo --event-id turn-001 --task "add another webhook handler" --scope feature:webhooks
+node precedent/bin/precedent.mjs warrant --session demo --event-id turn-001-warrant --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
 node precedent/bin/precedent.mjs promotion-trial --candidate cand_webhook_replacement --baseline-command "pnpm test:webhooks" --trace-out /tmp/precedent-webhook-trial-trace.json
 node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
@@ -159,6 +161,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
 - Runtime adapters should also pass a stable per-delivery `eventId` for each hook or `context --event-id` call. When a host retries the same `eventId`, Precedent returns the original insertable result with `deduped: true` and `recorded: false` instead of recording duplicate evidence or accidentally suppressing the before-turn injection.
 - When `context` or `context.before_turn` injects precedent with both `--session` and `--event-id`, it returns a `deliveryReceipt`. Later hooks may pass only `deliveryId` instead of manually carrying `attributedPrecedents`; Precedent resolves the injected precedent ids from its own session ledger.
+- `warrant` turns the current task, injected precedent, guards, and candidate hints into a `precedent.warrant.v1` contract with allowed paths, max edit breadth, required validation evidence, forbidden drift, source ids, and a stable `warrantId`. Later `diff.after_edit`, `validation.after_run`, and `outcome.after_task` hooks can pass `warrantId`; Precedent records whether the turn stayed satisfied, violated the edit contract, or closed without required evidence.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, fail-open policy, and promotion-trial action a runtime needs to wire Precedent in.
 - `attach` emits a session-scoped adapter contract with an ordered `lifecycle`, a before-turn command, event id placeholders, after-validation hook command, after-diff hook command, after-outcome hook command, promotion-trial command, runtime identity metadata, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
@@ -184,7 +187,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
 - `report` also attributes session outcomes, guard checks, and repair receipts back to injected precedents, so each precedent has use, success, failure, suppression, guard pass, guard warning, repair-attempt, repair-cleared, repair-still-failing, lifecycle status, failure-rate, guard-warning-rate, repair-success-rate, counterexample, and last-success/last-failure/last-repair counts. Its top-level `repairHealth` summarizes cleared, still-failing, unresolved, efficacy-suppressed, stale-by-repair, and retired-by-repair counts for runtime monitoring.
-- `report --json` includes `auditHealth` and `replayAudit`, a non-failing operator view of replay receipt verification, including missing receipts, missing artifacts, outside-state paths, hash mismatches, and metadata mismatches. It also includes `runtimeWiringHealth` for adapter drift such as task-hash fallback attach sessions, missing per-event ids, unknown delivery receipts, unclosed injected sessions, and unattributed outcomes after injections.
+- `report --json` includes `auditHealth` and `replayAudit`, a non-failing operator view of replay receipt verification, including missing receipts, missing artifacts, outside-state paths, hash mismatches, and metadata mismatches. It also includes `runtimeWiringHealth` for adapter drift such as task-hash fallback attach sessions, missing per-event ids, unknown delivery receipts, unclosed injected sessions, and unattributed outcomes after injections. Its `warrantHealth` summarizes issued, satisfied, violated, and unresolved turn contracts; `check --strict` fails warrant outcomes that are violated or unresolved.
 - `explain` includes a bounded counterexample ledger for promoted precedents. Counterexamples are attributed failed outcomes, guard warnings, unresolved repair receipts, and still-failing repair receipts, with session id, timestamp, reason, changed files, command, and repair id when available.
 - Lifecycle gating keeps unsafe memory quiet: two attributed failures, guard warnings, or still-failing repair receipts after the last success or cleared repair make a precedent `stale` and suppress it from `context` by default; four signals make it `retired`. Use `context --include-stale` only when intentionally auditing stale precedent. Retired precedent remains suppressed.
 

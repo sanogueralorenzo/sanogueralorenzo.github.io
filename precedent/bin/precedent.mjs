@@ -82,6 +82,11 @@ async function main() {
     return;
   }
 
+  if (command === "warrant") {
+    await issueWarrant();
+    return;
+  }
+
   if (command === "compile") {
     await compilePrecedents();
     return;
@@ -508,6 +513,118 @@ async function exportContext() {
   if (args.format && args.format !== "json") {
     fail(`unsupported context format: ${args.format}`);
   }
+
+  print(payload);
+}
+
+async function issueWarrant() {
+  const stateDir = statePath();
+  const sessionId = requireString(args.session, "warrant --session");
+  const eventId = requireString(args["event-id"], "warrant --event-id");
+  const task = args.task ?? (args["task-file"] ? await readFile(resolve(args["task-file"]), "utf8") : null);
+  if (!task) {
+    fail("warrant requires --task <text> or --task-file <path>");
+  }
+
+  const context = {
+    task,
+    scope: args.scope ?? "",
+    changedFiles: parseListArg(args["changed-files"]),
+  };
+  const limit = Number(args.limit ?? runtimeConfig.maxInjections);
+  const threshold = Number(args.threshold ?? 4);
+  let payload = null;
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const existing = await findSessionEventByEventId(stateDir, sessionId, eventId);
+    if (existing?.event?.warrant) {
+      payload = {
+        ...existing.event.warrant,
+        recorded: false,
+        deduped: true,
+        sessionEventPath: existing.path,
+      };
+      return;
+    }
+
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    const events = await readJsonLines(join(stateDir, "events.jsonl"));
+    const replayAuditSelected = await suppressReplayAuditInjections({
+      stateDir,
+      matches: rankPrecedents(precedents, context)
+        .filter((precedent) => precedent.score >= threshold),
+    });
+    const lifecycleSelected = suppressLifecycleInjections({
+      events,
+      matches: replayAuditSelected.matches.slice(0, limit),
+      includeStale: args["include-stale"] === "true" || args["include-stale"] === true,
+    });
+    const selected = await suppressRepeatedSessionInjections({
+      stateDir,
+      sessionId,
+      matches: lifecycleSelected.matches,
+      allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
+    });
+    const candidateHints = candidateHintsForContext({
+      candidates,
+      precedents,
+      context,
+      stateDir,
+      sessionId,
+    });
+    const issuedAt = new Date().toISOString();
+    const deliveryReceipt = deliveryReceiptFor({
+      sessionId,
+      eventId,
+      injections: selected.matches,
+      issuedAt,
+    });
+    const warrant = warrantForContext({
+      sessionId,
+      eventId,
+      issuedAt,
+      task,
+      context,
+      matches: selected.matches,
+      candidateHints,
+      deliveryReceipt,
+    });
+    const sessionEvent = await appendSessionEvent(stateDir, {
+      type: "warrant_issued",
+      receivedAt: issuedAt,
+      hook: "warrant.issue",
+      sessionId,
+      eventId,
+      task,
+      scope: context.scope || null,
+      changedFiles: context.changedFiles,
+      warrantId: warrant.warrantId,
+      warrant,
+      deliveryReceipt,
+    });
+
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "warrant_issued",
+        observedAt: sessionEvent.receivedAt,
+        sessionId,
+        eventId,
+        warrantId: warrant.warrantId,
+        status: warrant.status,
+        sourcePrecedents: warrant.sources.precedentIds,
+        sourceCandidates: warrant.sources.candidateIds,
+      });
+    }
+
+    payload = {
+      ...sessionEvent.event.warrant,
+      recorded: !sessionEvent.deduped,
+      deduped: sessionEvent.deduped,
+      sessionEventPath: sessionEvent.path,
+    };
+  });
 
   print(payload);
 }
@@ -1171,6 +1288,7 @@ async function validationAfterRunEventHook(event) {
   const eventId = hookEventId(event);
   const failureSignals = validationFailureSignals(event, exitCode);
   let guardResult = emptyGuardResult();
+  let warrantResult = null;
   let contextBlock = "";
   let sessionEvent = null;
 
@@ -1181,6 +1299,10 @@ async function validationAfterRunEventHook(event) {
       command: commandText,
       exitCode,
       failureSignals,
+    });
+    warrantResult = evaluateWarrantValidation(await findWarrant(stateDir, event.warrantId), {
+      command: commandText,
+      exitCode,
     });
     contextBlock = formatGuardContextBlock(guardResult.failed);
     sessionEvent = await appendSessionEvent(stateDir, {
@@ -1194,6 +1316,8 @@ async function validationAfterRunEventHook(event) {
       durationMs: numberOrNull(event.durationMs),
       failureSignals,
       deliveryId: stringOrNull(event.deliveryId),
+      warrantId: stringOrNull(event.warrantId),
+      warrantResult,
       stdout: typeof event.stdout === "string" ? event.stdout : "",
       stderr: typeof event.stderr === "string" ? event.stderr : "",
       guardResult,
@@ -1212,6 +1336,8 @@ async function validationAfterRunEventHook(event) {
         failureSignals,
         guardResult,
         deliveryId: stringOrNull(event.deliveryId),
+        warrantId: stringOrNull(event.warrantId),
+        warrantResult,
       });
     }
   });
@@ -1231,6 +1357,7 @@ async function validationAfterRunEventHook(event) {
       stderrPath: sessionEvent.event.stderrPath ?? null,
     },
     guardResult,
+    warrantResult,
     contextBlock,
   });
 }
@@ -1242,6 +1369,7 @@ async function diffAfterEditEventHook(event) {
   const changedFiles = diffChangedFiles(event);
   const breadthSignals = diffBreadthSignals(event, changedFiles);
   let guardResult = emptyGuardResult();
+  let warrantResult = null;
   let contextBlock = "";
   let repairPrompt = null;
   let sessionEvent = null;
@@ -1252,6 +1380,11 @@ async function diffAfterEditEventHook(event) {
     guardResult = evaluatePrecedentGuards(activePrecedents, "diff.after_edit", {
       changedFiles,
       breadthSignals,
+    });
+    warrantResult = evaluateWarrantDiff(await findWarrant(stateDir, event.warrantId), {
+      changedFiles,
+      linesAdded: numberOrNull(event.linesAdded),
+      linesDeleted: numberOrNull(event.linesDeleted),
     });
     repairPrompt = repairPromptForDiffGuard({
       guardResult,
@@ -1272,6 +1405,8 @@ async function diffAfterEditEventHook(event) {
       linesDeleted: numberOrNull(event.linesDeleted),
       breadthSignals,
       deliveryId: stringOrNull(event.deliveryId),
+      warrantId: stringOrNull(event.warrantId),
+      warrantResult,
       guardResult,
       repairPrompt,
       contextBlock,
@@ -1289,6 +1424,8 @@ async function diffAfterEditEventHook(event) {
         guardResult,
         repairPrompt,
         deliveryId: stringOrNull(event.deliveryId),
+        warrantId: stringOrNull(event.warrantId),
+        warrantResult,
       });
     }
   });
@@ -1305,6 +1442,7 @@ async function diffAfterEditEventHook(event) {
       breadthSignals,
     },
     guardResult,
+    warrantResult,
     repairPrompt,
     contextBlock,
   });
@@ -1372,10 +1510,12 @@ async function outcomeAfterTaskEventHook(event) {
   let activePrecedentIds = [];
   let sessionEvent = null;
   let learning = null;
+  let warrantStatus = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     activePrecedentIds = await attributedPrecedentIdsForSession(stateDir, sessionId, event.attributedPrecedents, event.deliveryId);
+    warrantStatus = await warrantStatusForOutcome(stateDir, event.warrantId);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -1392,6 +1532,8 @@ async function outcomeAfterTaskEventHook(event) {
       notes: typeof event.notes === "string" ? event.notes : "",
       attributedPrecedents: activePrecedentIds,
       deliveryId: stringOrNull(event.deliveryId),
+      warrantId: stringOrNull(event.warrantId),
+      warrantStatus,
       precedent: event.precedent ?? null,
       replay: event.replay ?? null,
     });
@@ -1412,6 +1554,8 @@ async function outcomeAfterTaskEventHook(event) {
         tokenEstimate: sessionEvent.event.tokenEstimate,
         attributedPrecedents: activePrecedentIds,
         deliveryId: stringOrNull(event.deliveryId),
+        warrantId: stringOrNull(event.warrantId),
+        warrantStatus,
       });
     }
 
@@ -1446,6 +1590,7 @@ async function outcomeAfterTaskEventHook(event) {
       retries: sessionEvent.event.retries,
       tokenEstimate: sessionEvent.event.tokenEstimate,
       attributedPrecedents: activePrecedentIds,
+      warrantStatus,
     },
     learning,
   });
@@ -1736,6 +1881,24 @@ function buildManifest(runtime, stateDir) {
     "$TRACE_OUT",
     "--json",
   ];
+  const warrantCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "warrant",
+    "--state-dir",
+    stateDir,
+    "--session",
+    "$SESSION_ID",
+    "--event-id",
+    "$EVENT_ID",
+    "--task-file",
+    "$TASK_FILE",
+    "--scope",
+    "$SCOPE",
+    "--changed-files",
+    "$CHANGED_FILES",
+    "--json",
+  ];
   const timeoutMs = runtimeConfig.hookTimeoutMs;
   const failurePolicy = runtimeConfig.failurePolicy;
 
@@ -1799,15 +1962,15 @@ function buildManifest(runtime, stateDir) {
       },
       "validation.after_run": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "contextBlock"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "warrantResult", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
       "diff.after_edit": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "diff", "guardResult", "repairPrompt", "contextBlock"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "diff", "guardResult", "warrantResult", "repairPrompt", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
@@ -1820,7 +1983,7 @@ function buildManifest(runtime, stateDir) {
       },
       "outcome.after_task": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "outcome"],
         timeoutMs,
         failurePolicy,
@@ -1842,6 +2005,13 @@ function buildManifest(runtime, stateDir) {
       },
     },
     actions: {
+      "warrant.issue": {
+        command: warrantCommand,
+        stdin: [],
+        output: ["schema_version", "ok", "warrantId", "sessionId", "eventId", "allowed", "requiredEvidence", "forbidden", "sources", "status", "recorded", "deduped", "sessionEventPath"],
+        timeoutMs,
+        failurePolicy,
+      },
       "promotion.trial": {
         command: promotionTrialCommand,
         stdin: [],
@@ -1897,6 +2067,21 @@ async function attachRuntime() {
     stateDirArg,
     "--json",
   ];
+  const warrantCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "warrant",
+    "--state-dir",
+    stateDirArg,
+    "--session",
+    sessionId,
+    "--event-id",
+    "$EVENT_ID",
+    ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
+    ...(scope ? ["--scope", scope] : []),
+    ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
+    "--json",
+  ];
   const promotionTrialCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -1949,6 +2134,12 @@ async function attachRuntime() {
           eventId: "$EVENT_ID",
         },
         {
+          phase: "beforeEdit",
+          action: "warrant.issue",
+          required: false,
+          eventId: "$EVENT_ID",
+        },
+        {
           phase: "afterValidation",
           hook: "validation.after_run",
           required: false,
@@ -1994,6 +2185,13 @@ async function attachRuntime() {
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
+      warrant: {
+        command: warrantCommand,
+        eventId: "$EVENT_ID",
+        output: ["schema_version", "ok", "warrantId", "allowed", "requiredEvidence", "forbidden", "sources", "status", "recorded", "deduped", "sessionEventPath"],
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
       afterValidation: {
         command: hookCommand,
         stdin: {
@@ -2002,6 +2200,7 @@ async function attachRuntime() {
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          warrantId: "$WARRANT_ID",
           command: "$COMMAND",
           exitCode: "$EXIT_CODE",
           durationMs: "$DURATION_MS",
@@ -2020,6 +2219,7 @@ async function attachRuntime() {
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          warrantId: "$WARRANT_ID",
           changedFiles: "$CHANGED_FILES",
           linesAdded: "$LINES_ADDED",
           linesDeleted: "$LINES_DELETED",
@@ -2052,6 +2252,7 @@ async function attachRuntime() {
           sessionId,
           eventId: "$EVENT_ID",
           deliveryId: "$DELIVERY_ID",
+          warrantId: "$WARRANT_ID",
           success: "$SUCCESS",
           status: "$STATUS",
           task: taskSource.task,
@@ -2323,6 +2524,7 @@ async function reportState() {
   const replays = await readReplayCount(join(stateDir, "replays"));
   const replayAudit = await replayAuditEntries(precedents, stateDir);
   const runtimeWiringHealth = await runtimeWiringHealthSummary(stateDir, events);
+  const warrantHealth = await warrantHealthSummary(stateDir);
 
   const artifactCounts = {};
   for (const precedent of precedents) {
@@ -2342,6 +2544,7 @@ async function reportState() {
     candidateHintQueue: candidateHintQueue(candidates, precedents, stateDir),
     repairHealth: repairHealthSummary(events, precedents),
     runtimeWiringHealth,
+    warrantHealth,
     precedentHealth: precedents.map((precedent) => ({
       id: precedent.id,
       ...outcomeSummaryForPrecedent(events, precedent.id),
@@ -2515,6 +2718,7 @@ async function checkState() {
   await checkPromotedPrecedents(checks, stateDir);
   await checkRepairReceipts(checks, stateDir);
   await checkRuntimeWiring(checks, stateDir, args.strict === true);
+  await checkWarrants(checks, stateDir, args.strict === true);
   await checkNoRawSecrets(checks, stateDir);
   await checkManifestBuilds(checks);
   if (args.strict) {
@@ -2964,6 +3168,89 @@ function deliveryReceiptFor({ sessionId, eventId, injections, issuedAt }) {
     issuedAt,
     expiresAt: new Date(Date.parse(issuedAt) + runtimeConfig.retentionDays * 24 * 60 * 60 * 1000).toISOString(),
   };
+}
+
+function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt }) {
+  const allowed = {
+    paths: warrantAllowedPaths(matches, context),
+    maxFiles: Number(args["max-files"] ?? 6),
+    maxLinesChanged: Number(args["max-lines-changed"] ?? 400),
+  };
+  const requiredEvidence = warrantRequiredEvidence(matches);
+  const sources = {
+    precedentIds: matches.map((match) => match.id),
+    candidateIds: candidateHints.map((hint) => hint.candidateId),
+    deliveryId: deliveryReceipt?.deliveryId ?? null,
+  };
+  const warrantId = `wrn_${stableHash({
+    sessionId,
+    eventId,
+    task,
+    scope: context.scope || null,
+    changedFiles: context.changedFiles,
+    allowed,
+    requiredEvidence,
+    sources,
+  }).slice(0, 20)}`;
+
+  return redactSecretsDeep({
+    schema_version: "precedent.warrant.v1",
+    ok: true,
+    warrantId,
+    sessionId,
+    eventId,
+    issuedAt,
+    expiresAfterHook: "outcome.after_task",
+    task,
+    scope: context.scope || null,
+    changedFiles: context.changedFiles,
+    contextBlock: formatInjectionBlock(matches),
+    allowed,
+    requiredEvidence,
+    forbidden: [
+      {
+        type: "path_escape",
+        message: allowed.paths.length > 0
+          ? `Do not modify paths outside ${allowed.paths.join(", ")}.`
+          : "Do not expand beyond the task scope without explicit evidence.",
+      },
+      ...(requiredEvidence.length > 0 ? [{
+        type: "missing_validation",
+        message: `Do not close the task without ${requiredEvidence.map((item) => item.command).join(", ")} evidence.`,
+      }] : []),
+    ],
+    sources,
+    deliveryReceipt,
+    status: "issued",
+  }).value;
+}
+
+function warrantAllowedPaths(matches, context) {
+  const guardPaths = matches.flatMap((match) => (Array.isArray(match.guards) ? match.guards : [])
+    .filter((guard) => guard.type === "changed_files_within_paths")
+    .flatMap((guard) => Array.isArray(guard.paths) ? guard.paths : []));
+  const precedentPaths = matches.flatMap((match) => Array.isArray(match.paths) ? match.paths : []);
+  const contextPaths = commonPathPrefixes(context.changedFiles ?? []);
+  const scopePaths = context.scope ? pathsForScope(context.scope) : [];
+
+  return uniqueStrings([
+    ...guardPaths,
+    ...precedentPaths,
+    ...contextPaths,
+    ...scopePaths,
+  ]).slice(0, 12);
+}
+
+function warrantRequiredEvidence(matches) {
+  const commands = uniqueStrings(matches.flatMap((match) => (Array.isArray(match.guards) ? match.guards : [])
+    .filter((guard) => guard.type === "required_validation_command" && nonEmptyString(guard.command))
+    .map((guard) => guard.command.trim())));
+
+  return commands.map((command) => ({
+    type: "validation_command",
+    command,
+    satisfiedBy: "validation.after_run",
+  }));
 }
 
 function candidateHintQueue(candidates, precedents, stateDir) {
@@ -3422,6 +3709,32 @@ function repairHealthSummary(events, precedents) {
   };
 }
 
+async function warrantHealthSummary(stateDir) {
+  const sessionEvents = (await runtimeSessionEntries(stateDir)).flatMap((entry) => entry.events);
+  const warrantEvents = sessionEvents.filter((event) => event.warrant);
+  const outcomeStatuses = sessionEvents
+    .filter((event) => event.hook === "outcome.after_task" && event.warrantStatus)
+    .map((event) => ({
+      sessionId: event.sessionId,
+      eventId: event.eventId ?? null,
+      warrantId: event.warrantStatus.warrantId,
+      status: event.warrantStatus.status,
+      violations: event.warrantStatus.violations ?? [],
+      missingEvidence: event.warrantStatus.missingEvidence ?? [],
+    }));
+  const needsAttention = outcomeStatuses.filter((item) => item.status === "violated" || item.status === "unresolved");
+
+  return {
+    issued: warrantEvents.length,
+    closed: outcomeStatuses.length,
+    satisfied: outcomeStatuses.filter((item) => item.status === "satisfied").length,
+    violated: outcomeStatuses.filter((item) => item.status === "violated").length,
+    unresolved: outcomeStatuses.filter((item) => item.status === "unresolved").length,
+    needsAttention: needsAttention.length,
+    recent: needsAttention.slice(-20),
+  };
+}
+
 async function runtimeWiringHealthSummary(stateDir, events) {
   const sessionEntries = await runtimeSessionEntries(stateDir);
   const knownDeliveryIds = new Set(sessionEntries
@@ -3612,6 +3925,131 @@ async function findDeliveryReceipt(stateDir, deliveryId) {
   }
 
   return null;
+}
+
+async function findWarrant(stateDir, warrantId) {
+  if (typeof warrantId !== "string" || warrantId.trim().length === 0) {
+    return null;
+  }
+
+  for (const entry of await runtimeSessionEntries(stateDir)) {
+    for (const event of entry.events) {
+      if (event.warrant?.warrantId === warrantId) {
+        return event.warrant;
+      }
+    }
+  }
+
+  return null;
+}
+
+function evaluateWarrantDiff(warrant, event) {
+  if (!warrant) {
+    return null;
+  }
+
+  const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : [];
+  const allowedPaths = Array.isArray(warrant.allowed?.paths) ? warrant.allowed.paths : [];
+  const outsidePaths = allowedPaths.length > 0
+    ? changedFiles.filter((file) => !allowedPaths.some((path) => pathMatchesGuardPath(file, path)))
+    : [];
+  const maxFiles = Number(warrant.allowed?.maxFiles);
+  const maxLinesChanged = Number(warrant.allowed?.maxLinesChanged);
+  const linesChanged = (Number.isFinite(event.linesAdded) ? event.linesAdded : 0)
+    + (Number.isFinite(event.linesDeleted) ? event.linesDeleted : 0);
+  const violations = [
+    ...(outsidePaths.length > 0 ? [{
+      type: "path_escape",
+      message: `Changed files outside warrant paths: ${outsidePaths.join(", ")}`,
+      evidence: outsidePaths,
+    }] : []),
+    ...(Number.isFinite(maxFiles) && changedFiles.length > maxFiles ? [{
+      type: "max_files",
+      message: `Changed ${changedFiles.length} files; warrant allows ${maxFiles}.`,
+      evidence: changedFiles,
+    }] : []),
+    ...(Number.isFinite(maxLinesChanged) && linesChanged > maxLinesChanged ? [{
+      type: "max_lines_changed",
+      message: `Changed ${linesChanged} lines; warrant allows ${maxLinesChanged}.`,
+      evidence: [`${linesChanged} lines changed`],
+    }] : []),
+  ];
+
+  return {
+    warrantId: warrant.warrantId,
+    hook: "diff.after_edit",
+    ok: violations.length === 0,
+    status: violations.length > 0 ? "violated" : "passed",
+    checked: true,
+    violations,
+    passed: violations.length === 0 ? [{
+      type: "edit_boundary",
+      message: "Diff stayed within warrant limits.",
+      evidence: changedFiles,
+    }] : [],
+  };
+}
+
+function evaluateWarrantValidation(warrant, event) {
+  if (!warrant) {
+    return null;
+  }
+
+  const required = (Array.isArray(warrant.requiredEvidence) ? warrant.requiredEvidence : [])
+    .filter((item) => item.type === "validation_command" && nonEmptyString(item.command));
+  const satisfied = required.filter((item) =>
+    String(event.command ?? "").includes(item.command) && event.exitCode === 0);
+
+  return {
+    warrantId: warrant.warrantId,
+    hook: "validation.after_run",
+    ok: satisfied.length === required.length,
+    status: required.length === 0
+      ? "not_required"
+      : satisfied.length > 0
+        ? "satisfied"
+        : "pending",
+    requiredEvidence: required,
+    satisfiedEvidence: satisfied.map((item) => ({
+      ...item,
+      evidence: `${event.command} exited ${event.exitCode}`,
+    })),
+  };
+}
+
+async function warrantStatusForOutcome(stateDir, warrantId) {
+  const warrant = await findWarrant(stateDir, warrantId);
+  if (!warrant) {
+    return null;
+  }
+
+  const relatedEvents = (await runtimeSessionEntries(stateDir))
+    .flatMap((entry) => entry.events)
+    .filter((event) => event.warrantId === warrant.warrantId);
+  const violations = relatedEvents
+    .filter((event) => event.warrantResult?.status === "violated")
+    .flatMap((event) => event.warrantResult.violations ?? []);
+  const satisfiedCommands = new Set(relatedEvents
+    .flatMap((event) => event.warrantResult?.satisfiedEvidence ?? [])
+    .map((item) => item.command)
+    .filter(Boolean));
+  const required = (Array.isArray(warrant.requiredEvidence) ? warrant.requiredEvidence : [])
+    .filter((item) => item.type === "validation_command" && nonEmptyString(item.command));
+  const missingEvidence = required.filter((item) => !satisfiedCommands.has(item.command));
+  const status = violations.length > 0
+    ? "violated"
+    : missingEvidence.length === 0
+      ? "satisfied"
+      : "unresolved";
+
+  return {
+    warrantId: warrant.warrantId,
+    status,
+    ok: status === "satisfied",
+    violations,
+    missingEvidence,
+    satisfiedEvidence: [...satisfiedCommands].map((command) => ({ type: "validation_command", command })),
+  };
 }
 
 function evaluatePrecedentGuards(precedents, hook, event) {
@@ -5676,6 +6114,21 @@ async function checkRuntimeWiring(checks, stateDir, strict) {
   });
 }
 
+async function checkWarrants(checks, stateDir, strict) {
+  const health = await warrantHealthSummary(stateDir);
+
+  checks.push({
+    ok: !strict || health.needsAttention === 0,
+    name: "warrant",
+    file: join(stateDir, "sessions"),
+    strict,
+    ...health,
+    message: strict && health.needsAttention > 0
+      ? "warrant outcome has unresolved or violated contract"
+      : undefined,
+  });
+}
+
 async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {
   const replay = precedent.replay ?? {};
   assertCheck(nonEmptyString(replay.id), checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay.id is required`);
@@ -6177,6 +6630,7 @@ Usage:
   precedent observe --trace trace.json [--state-dir .precedent]
   precedent observe --session session-id [--state-dir .precedent]
   precedent context --task "add webhook handler" [--scope feature:webhooks] [--include-stale] [--format json|markdown]
+  precedent warrant --session session-id --event-id event-id --task "add webhook handler" [--scope feature:webhooks]
   precedent compile [--state-dir .precedent] [--promote-session-pairs]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent replay --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
@@ -6198,6 +6652,7 @@ Commands:
   init      Create local Precedent state.
   observe   Ingest one agent trace or recorded hook session.
   context   Export stable agent-ready precedent context.
+  warrant   Issue a machine-readable edit and evidence contract for one turn.
   compile   Mine observed raw traces into candidates, optionally promoting analogous session pairs.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   promotion-trial Run a candidate replay and immediately observe the promotion decision.

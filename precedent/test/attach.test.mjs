@@ -53,6 +53,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.identity.fallback, true);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.phase), [
       "beforeTurn",
+      "beforeEdit",
       "afterValidation",
       "afterDiff",
       "afterReview",
@@ -62,6 +63,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     ]);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.hook), [
       "context.before_turn",
+      undefined,
       "validation.after_run",
       "diff.after_edit",
       "review.after_feedback",
@@ -74,7 +76,15 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "afterOutcome",
     ]);
     assert.equal(first.adapter.lifecycle[0].injectFrom, "contextBlock");
-    assert.equal(first.adapter.lifecycle[4].injectFrom, "repairBlock");
+    assert.equal(first.adapter.lifecycle[5].injectFrom, "repairBlock");
+    assert.deepEqual(first.adapter.warrant.command.slice(0, 5), [
+      "node",
+      "precedent/bin/precedent.mjs",
+      "warrant",
+      "--state-dir",
+      stateDir,
+    ]);
+    assert.ok(first.adapter.warrant.output.includes("warrantId"));
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.equal(first.adapter.beforeTurn.eventId, "$EVENT_ID");
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
@@ -84,10 +94,12 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
     assert.equal(first.adapter.afterValidation.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterValidation.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterValidation.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.afterValidation.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
     assert.deepEqual(first.adapter.afterDiff.stdin.hook, "diff.after_edit");
     assert.equal(first.adapter.afterDiff.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterDiff.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterDiff.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.afterDiff.stdin.diffSummary, "$DIFF_SUMMARY");
     assert.equal(first.adapter.afterDiff.stdin.unifiedDiff, "$UNIFIED_DIFF");
     assert.equal(first.adapter.afterDiff.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
@@ -97,6 +109,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterOutcome.stdin.sessionId, first.sessionId);
     assert.equal(first.adapter.afterOutcome.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterOutcome.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterOutcome.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.afterOutcome.stdin.task, "add webhook handler");
     assert.equal(first.adapter.afterOutcome.stdin.scope, "feature:webhooks");
     assert.deepEqual(first.adapter.afterOutcome.stdin.changedFiles, ["features/webhooks/providers/stripe.ts"]);
