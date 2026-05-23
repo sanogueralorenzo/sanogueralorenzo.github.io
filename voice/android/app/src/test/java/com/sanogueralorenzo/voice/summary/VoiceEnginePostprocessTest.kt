@@ -1,15 +1,13 @@
 package com.sanogueralorenzo.voice.summary
 
-import com.sanogueralorenzo.voice.summary.rules.post.ComposePostLlmRules
+import com.sanogueralorenzo.voice.engine.VoiceEngine
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class ComposePostLlmRulesTest {
-    private val policy = ComposePostLlmRules()
-
+class VoiceEnginePostprocessTest {
     @Test
     fun cleanModelOutput_capitalizesStartAndAfterConfiguredPunctuation() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "hey mia, can you buy apples. actually get milk? thanks",
             bulletMode = false
         )
@@ -19,7 +17,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_appliesCapitalizationAfterLabelCleanup() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "cleaned: hello, this is fine. maybe? yes",
             bulletMode = false
         )
@@ -29,7 +27,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_flattensBulletsAndCapitalizesResult() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "- apple\n- milk\n- avocado",
             bulletMode = false
         )
@@ -39,7 +37,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_convertsSpokenDigitSequenceWithCommasToNumber() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "the code is one, two, three",
             bulletMode = false
         )
@@ -49,7 +47,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_convertsSpokenDigitSequenceWithoutCommasToNumber() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "call one two three four five",
             bulletMode = false
         )
@@ -59,7 +57,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_convertsSpokenCardinalNumberToNumber() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "set it to three hundred twenty one",
             bulletMode = false
         )
@@ -69,7 +67,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_convertsSpokenCardinalNumberWithAndToNumber() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "set it to one hundred and five",
             bulletMode = false
         )
@@ -79,7 +77,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_convertsTwoWordCardinalNumberToNumber() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "set it to twenty one",
             bulletMode = false
         )
@@ -89,7 +87,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_doesNotConvertSingleNumberWordInProse() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "one more thing",
             bulletMode = false
         )
@@ -99,7 +97,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_doesNotConvertAmbiguousMixedSpokenNumberPhrase() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "the code is one twenty three",
             bulletMode = false
         )
@@ -109,7 +107,7 @@ class ComposePostLlmRulesTest {
 
     @Test
     fun cleanModelOutput_doesNotConvertTrailingDigitAfterCardinalPhrase() {
-        val cleaned = policy.cleanModelOutput(
+        val cleaned = VoiceEngine.cleanModelOutput(
             text = "the code is twenty one five",
             bulletMode = false
         )

@@ -4,7 +4,6 @@ import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
-import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
 import com.sanogueralorenzo.voice.summary.SummaryEngine
 
 /**
@@ -55,7 +54,6 @@ class ImeSpeechProcessorEntryPoint internal constructor(
             asrRuntimeStatusStore: AsrRuntimeStatusStore,
             preferencesRepository: PreferencesRepository,
             summaryEngine: SummaryEngine,
-            composePreLlmRules: ComposePreLlmRules,
             logTag: String = "VoiceIme"
         ): ImeSpeechProcessorEntryPoint {
             val processor = SpeechProcessor(
@@ -66,8 +64,7 @@ class ImeSpeechProcessorEntryPoint internal constructor(
                 ),
                 preLlmRulesStage = PreLlmRulesStage(
                     preferencesRepository = preferencesRepository,
-                    summaryEngine = summaryEngine,
-                    composePreLlmRules = composePreLlmRules
+                    summaryEngine = summaryEngine
                 ),
                 llmStage = LlmStage(
                     summaryEngine = summaryEngine

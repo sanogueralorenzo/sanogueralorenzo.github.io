@@ -15,8 +15,7 @@ import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.prompt.LiteRtPromptTemplates
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
-import com.sanogueralorenzo.voice.summary.rules.post.ComposePostLlmRules
-import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
+import com.sanogueralorenzo.voice.engine.VoiceEngine
 import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,9 +45,7 @@ import java.util.concurrent.atomic.AtomicReference
  * - [RewriteResult.Failure] with classified LiteRT runtime error metadata.
  */
 class SummaryEngine(
-    context: Context,
-    private val composePolicy: ComposePostLlmRules,
-    private val composePreLlmRules: ComposePreLlmRules
+    context: Context
 ) {
     private data class RewriteRequest(
         val content: String
@@ -114,7 +111,7 @@ class SummaryEngine(
         promptTemplateOverride: String? = null
     ): RewriteResult {
         val startedAt = System.currentTimeMillis()
-        val normalizedInput = composePolicy.normalizeComposeInput(text)
+        val normalizedInput = VoiceEngine.normalizeComposeInput(text)
         if (normalizedInput.isBlank()) {
             return RewriteResult.Success(
                 text = "",
@@ -147,7 +144,7 @@ class SummaryEngine(
     ): RewriteResult {
         val startedAt = System.currentTimeMillis()
         val normalizedSource = originalText.trim()
-        val normalizedInstruction = composePolicy.normalizeInstructionInput(instructionText)
+        val normalizedInstruction = VoiceEngine.normalizeInstructionInput(instructionText)
         if (normalizedSource.isBlank() || normalizedInstruction.isBlank()) {
             return RewriteResult.Success(
                 text = originalText,
@@ -213,8 +210,8 @@ class SummaryEngine(
             )
         }
 
-        val deterministicResult = composePreLlmRules.rewrite(request.content)
-        val deterministicOutput = composePolicy.normalizeComposeOutputText(deterministicResult.text)
+        val deterministicResult = VoiceEngine.preprocess(request.content)
+        val deterministicOutput = VoiceEngine.normalizeComposeOutputText(deterministicResult.text)
 
         if (!isConfiguredModelSupported() || !isModelAvailable()) {
             return RewriteResult.Success(
@@ -260,7 +257,7 @@ class SummaryEngine(
                 request = RewriteRequest(content = llmInput),
                 rewriteSystemInstruction = effectiveSystemInstruction
             )
-            val guardedOutput = composePolicy.finalizeComposeOutput(
+            val guardedOutput = VoiceEngine.postprocess(
                 originalText = llmInput,
                 modelOutput = modelOutput,
                 listMode = listMode
@@ -392,7 +389,7 @@ class SummaryEngine(
             userPrompt = userPrompt,
             timeoutMs = LiteRtRuntimeConfig.REQUEST_TIMEOUT_MS
         )
-        return composePolicy.cleanModelOutput(text = output, bulletMode = request.listMode)
+        return VoiceEngine.cleanModelOutput(text = output, bulletMode = request.listMode)
     }
 
     private suspend fun runConversation(

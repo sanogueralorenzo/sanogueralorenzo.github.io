@@ -1,8 +1,6 @@
 package com.sanogueralorenzo.voice.benchmark
 
 import android.content.Context
-import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
-import com.sanogueralorenzo.voice.summary.rules.post.ComposePostLlmRules
 import com.sanogueralorenzo.voice.summary.SummaryEngine
 import com.sanogueralorenzo.voice.summary.RewriteResult
 
@@ -13,14 +11,10 @@ interface BenchmarkGateway {
 }
 
 class LiteRtBenchmarkGateway(
-    context: Context,
-    composePolicy: ComposePostLlmRules,
-    composePreLlmRules: ComposePreLlmRules
+    context: Context
 ) : BenchmarkGateway {
     private val summarizer = SummaryEngine(
-        context = context.applicationContext,
-        composePolicy = composePolicy,
-        composePreLlmRules = composePreLlmRules
+        context = context.applicationContext
     )
 
     override fun runCompose(input: String, promptTemplateOverride: String?): RewriteResult {

@@ -213,9 +213,7 @@ class BenchmarkViewModel(
             val app = viewModelContext.app<VoiceApp>()
             val appGraph = app.appGraph
             val gateway = LiteRtBenchmarkGateway(
-                context = app.applicationContext,
-                composePolicy = appGraph.composePostLlmRules,
-                composePreLlmRules = appGraph.composePreLlmRules
+                context = app.applicationContext
             )
             return BenchmarkViewModel(
                 initialState = state,

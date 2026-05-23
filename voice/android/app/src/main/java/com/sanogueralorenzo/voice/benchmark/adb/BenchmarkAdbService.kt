@@ -252,9 +252,7 @@ class BenchmarkAdbService : Service() {
         }
 
         val gateway = LiteRtBenchmarkGateway(
-            context = applicationContext,
-            composePolicy = applicationContext.appGraph().composePostLlmRules,
-            composePreLlmRules = applicationContext.appGraph().composePreLlmRules
+            context = applicationContext
         )
         val activePromptTemplate = if (promptTemplate.isNullOrBlank()) {
             PromptTemplateStore(applicationContext).currentPromptTemplate()

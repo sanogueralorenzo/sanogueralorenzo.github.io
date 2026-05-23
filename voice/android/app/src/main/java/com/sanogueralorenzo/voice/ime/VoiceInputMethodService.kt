@@ -106,8 +106,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             ),
             preLlmRulesStage = PreLlmRulesStage(
                 preferencesRepository = preferencesRepository,
-                summaryEngine = summaryEngine,
-                composePreLlmRules = appGraphLazy.value.composePreLlmRules
+                summaryEngine = summaryEngine
             ),
             llmStage = LlmStage(
                 summaryEngine = summaryEngine

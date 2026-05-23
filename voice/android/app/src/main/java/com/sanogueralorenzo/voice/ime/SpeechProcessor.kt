@@ -6,11 +6,11 @@ import com.sanogueralorenzo.voice.asr.AsrEngine
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
+import com.sanogueralorenzo.voice.engine.VoiceEngine
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.summary.RewriteResult
 import com.sanogueralorenzo.voice.summary.SummaryEngine
 import com.sanogueralorenzo.voice.summary.rules.post.PostReplaceCapitalizationRule
-import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
 import com.sanogueralorenzo.voice.summary.rules.pre.EditInstructionRules
 
 /**
@@ -194,8 +194,7 @@ internal class AsrStage(
  */
 internal class PreLlmRulesStage(
     private val preferencesRepository: PreferencesRepository,
-    private val summaryEngine: SummaryEngine,
-    private val composePreLlmRules: ComposePreLlmRules
+    private val summaryEngine: SummaryEngine
 ) {
     fun process(
         sourceText: String,
@@ -215,9 +214,9 @@ internal class PreLlmRulesStage(
         sourceText: String,
         transcript: String
     ): PreLlmResult {
-        val deterministicResult = composePreLlmRules.rewrite(transcript)
-        val localRulesBeforeLlm = deterministicResult.appliedRules.map { rule ->
-            "compose_${rule.name.lowercase()}"
+        val deterministicResult = VoiceEngine.preprocess(transcript)
+        val localRulesBeforeLlm = deterministicResult.appliedRuleIds.map { ruleId ->
+            "compose_${ruleId.lowercase()}"
         }
         val diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
         val rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()

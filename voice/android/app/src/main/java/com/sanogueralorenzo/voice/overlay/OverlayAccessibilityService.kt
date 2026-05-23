@@ -112,7 +112,6 @@ class OverlayAccessibilityService : AccessibilityService() {
             asrRuntimeStatusStore = appGraph.asrRuntimeStatusStore,
             preferencesRepository = appGraph.preferencesRepository,
             summaryEngine = appGraph.summaryEngine,
-            composePreLlmRules = appGraph.composePreLlmRules,
             logTag = TAG
         )
     }

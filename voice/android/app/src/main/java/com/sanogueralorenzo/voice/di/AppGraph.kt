@@ -8,8 +8,6 @@ import com.sanogueralorenzo.voice.models.ModelUpdateChecker
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.theme.ThemeRepository
 import com.sanogueralorenzo.voice.setup.SetupRepository
-import com.sanogueralorenzo.voice.summary.rules.pre.ComposePreLlmRules
-import com.sanogueralorenzo.voice.summary.rules.post.ComposePostLlmRules
 import com.sanogueralorenzo.voice.summary.SummaryEngine
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
@@ -23,8 +21,6 @@ interface AppGraph {
     val themeRepository: ThemeRepository
     val asrRuntimeStatusStore: AsrRuntimeStatusStore
     val modelUpdateChecker: ModelUpdateChecker
-    val composePostLlmRules: ComposePostLlmRules
-    val composePreLlmRules: ComposePreLlmRules
     val summaryEngine: SummaryEngine
     val connectivityRepository: ConnectivityRepository
     val setupRepository: SetupRepository
@@ -33,21 +29,11 @@ interface AppGraph {
     fun provideApplicationContext(application: Application): Context = application
 
     @Provides
-    fun provideComposePostLlmRules(): ComposePostLlmRules = ComposePostLlmRules()
-
-    @Provides
-    fun provideComposePreLlmRules(): ComposePreLlmRules = ComposePreLlmRules()
-
-    @Provides
     @SingleIn(AppScope::class)
     fun provideSummaryEngine(
-        context: Context,
-        composePostLlmRules: ComposePostLlmRules,
-        composePreLlmRules: ComposePreLlmRules
+        context: Context
     ): SummaryEngine = SummaryEngine(
-        context = context,
-        composePolicy = composePostLlmRules,
-        composePreLlmRules = composePreLlmRules
+        context = context
     )
 
     @Provides
