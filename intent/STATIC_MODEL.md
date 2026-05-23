@@ -302,12 +302,12 @@ blocking diagnostics.
   capability.
 - Check simple capability constraints for file paths, shell commands, context
   source file paths, context source web domains, web/http read domains, and git
-  push branches or remotes, and secret read names.
+  push branches or remotes, secret read names, and ticket update ids.
 - Treat effects covered by a capability with `approval required` as requiring a
   step-local `approval ...` gate, and emit `INTENT_APPROVAL_MISSING` when the
   owning step has no approval gate.
 - Normalize and compare constrained resources such as paths, commands, domains,
-  branches, secret names, and approval targets.
+  branches, secret names, ticket ids, and approval targets.
 - Require verification gates for every goal and ensure they are pure assertions
   except for supported verification effects.
 - Bind verification shell requirements to declared shell run capability grants.
@@ -412,7 +412,7 @@ Rules:
 - Nested calls may be parsed as argument values, but the first capability
   milestone only checks literal file path, shell command, structured context web
   URL or domain, structured context documents path, web/http read URL or domain,
-  git push branch or remote arguments, and secret read names.
+  git push branch or remote arguments, secret read names, and ticket update ids.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -665,9 +665,10 @@ Rules:
 ## Capability Constraints
 
 The first constraint checker supports only direct string-literal matches for
-file paths, shell commands, web/http read domains, and git push branches or
-remotes. A capability authorizes an effect call when the effect family matches
-and every constrained argument is covered by the capability.
+file paths, shell commands, web/http read domains, git push branches or
+remotes, secret read names, and ticket update ids. A capability authorizes an
+effect call when the effect family matches and every constrained argument is
+covered by the capability.
 
 Context source constraints:
 
@@ -741,6 +742,20 @@ Secret read constraints:
   environment expansion, and value inspection are unsupported.
 - If no secret grant covers the normalized name, the checker emits
   `INTENT_CAPABILITY_DENIED`.
+
+Ticket update constraints:
+
+- Ticket update effects use a named `id` argument as the constrained resource.
+- `TicketUpdate(id: "...")` is valid only when an in-scope capability grants
+  `ticket update id: "..."`, written in source as
+  `capability ticket { update id: "..." }`.
+- Ticket ids are normalized by trimming leading and trailing ASCII whitespace
+  before comparison. Matching is exact after normalization; wildcards, aliases,
+  project prefixes, and lookup expansion are unsupported.
+- If no ticket grant covers the normalized id, the checker emits
+  `INTENT_CAPABILITY_DENIED`.
+- A successful ticket update binding creates an `authorizes` edge from the
+  matching `Capability` node to the `TicketUpdate` `Effect` node.
 
 Git push constraints:
 
@@ -1274,6 +1289,12 @@ Secret reads are represented as `Effect` nodes the same way as other effect
 requests. The node data records family `secret`, action `read`, the normalized
 `name` argument, and unknown trust metadata. This is a Phase 2 static-model
 coverage check only; graph output must not contain secret values.
+
+Ticket updates are represented as `Effect` nodes the same way as other effect
+requests. The node data records family `ticket`, action `update`, the
+normalized `id` argument, and the original expression. When covered, graph
+output creates an `authorizes` edge from the matching `Capability` node to the
+`TicketUpdate` `Effect` node.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.

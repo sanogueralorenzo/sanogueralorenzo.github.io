@@ -208,6 +208,7 @@ web.read(url: "https://docs.example.com/guide")
 http.get("https://api.example.com/status")
 git.push(branch: "main")
 git.push(remote: "origin")
+TicketUpdate(id: "CODE-123")
 ```
 
 Inside `verify` requirements, `shell("npm test")` and
@@ -242,6 +243,14 @@ name before comparison. A secret read outside the declared grants emits
 `INTENT_CAPABILITY_DENIED`. The graph builder emits secret reads as `Effect`
 nodes like other effects, with unknown trust because the static model does not
 inspect or propagate secret values.
+
+Ticket update effects use a named `id` constrained argument. A capability
+declaration such as `capability ticket { update id: "CODE-123" }` authorizes
+`TicketUpdate(id: "CODE-123")`. Ticket ids are normalized before comparison. A
+ticket update outside the declared grants emits `INTENT_CAPABILITY_DENIED`. The
+graph builder emits ticket updates as `Effect` nodes with family `ticket`,
+action `update`, and an `authorizes` edge from the matching `Capability` node
+when covered.
 
 ## Lexical Rules
 
@@ -318,6 +327,10 @@ The parser emits names and type reference strings; the checker owns binding.
 - Secret read effects bind `SecretRead(name: "...")` to in-scope
   `capability secret { read name: "..." }` grants. Secret names are normalized
   before comparison; if no grant covers the normalized name, the checker emits
+  `INTENT_CAPABILITY_DENIED`.
+- Ticket update effects bind `TicketUpdate(id: "...")` to in-scope
+  `capability ticket { update id: "..." }` grants. Ticket ids are normalized
+  before comparison; if no grant covers the normalized id, the checker emits
   `INTENT_CAPABILITY_DENIED`.
 - Shell command arguments must be literal or trusted before execution.
 - Nonliteral shell command arguments that are not trusted are
