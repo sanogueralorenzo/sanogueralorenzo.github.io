@@ -80,4 +80,6 @@ node jury/bin/jury.mjs check --strict
 
 `bundle preflight --key-policy jury-key-policy.json` and `bundle import --key-policy jury-key-policy.json` load a `jury.key_policy.v1` manifest with trusted producers and RSA public keys. A policy producer can set `name`, optional `version`, optional `source`, optional `revision_pattern`, and `keys` with `key_id`, `type: rsa-sha256`, and either `public_key` or `public_key_path`. Public key paths are resolved relative to the policy file. Keys can also set `valid_from`, `valid_until`, `revoked_at`, and `revoked_reason`; the signed bundle export time must be within the validity window, and revoked keys are rejected.
 
+When `--key-policy` is set, `bundle preflight` and failed `bundle import` output includes `key_policy.matching_producers` and `key_policy.considered_keys` diagnostics. Key diagnostics report producer/key indexes, key id, public-key source, validity/revocation metadata, status, and per-key errors. Considered keys are every key under matching producer entries; statuses include `not_selected`, `usable`, `verified`, `revoked`, `blocked_by_revocation`, `outside_validity`, `read_error`, and `signature_mismatch`.
+
 `check --strict` reports malformed JSON, schema problems, missing claim references, missing evidence/check/objection/waiver references, cross-claim references, and verdict claim-version mismatches.

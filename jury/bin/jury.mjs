@@ -913,9 +913,12 @@ function preflightReviewBundle(bundle) {
     collectValidationError(errors, () => validateBundleAttestation(bundle.attestation));
   }
 
+  const keyPolicy = keyPolicyCheck(bundle);
+
   if (!bundle.records || typeof bundle.records !== "object" || Array.isArray(bundle.records)) {
     errors.push("bundle.records must be an object");
-    return { ok: false, errors };
+    errors.push(...keyPolicy.errors);
+    return sortRecord({ ok: false, errors, key_policy: keyPolicy.diagnostics });
   }
 
   for (const name of STATE_RECORD_TYPES) {
@@ -951,21 +954,22 @@ function preflightReviewBundle(bundle) {
   }
 
   errors.push(...trustPolicyErrors(bundle));
-  errors.push(...keyPolicyErrors(bundle));
+  errors.push(...keyPolicy.errors);
   errors.push(...attestationPolicyErrors(bundle));
 
   if (errors.length > 0) {
-    return { ok: false, errors };
+    return sortRecord({ ok: false, errors, key_policy: keyPolicy.diagnostics });
   }
 
-  return {
+  return sortRecord({
     ok: true,
     claim_id: bundle.claim_id,
     producer: bundle.producer,
     provenance: bundle.provenance,
     records: Object.fromEntries(STATE_RECORD_TYPES.map((name) => [name, bundle.records[name].length])),
     latest_verdict_id: latestVerdictFromBundle(bundle)?.id ?? null,
-  };
+    key_policy: keyPolicy.diagnostics,
+  });
 }
 
 function trustPolicyErrors(bundle) {
@@ -1002,54 +1006,66 @@ function trustPolicyErrors(bundle) {
   return errors;
 }
 
-function keyPolicyErrors(bundle) {
+function keyPolicyCheck(bundle) {
   const policySource = args["key-policy"] ?? process.env.JURY_BUNDLE_KEY_POLICY;
 
   if (!policySource) {
-    return [];
+    return { errors: [], diagnostics: undefined };
   }
 
   const loaded = loadKeyPolicy(policySource);
+  const diagnostics = {
+    policy: resolve(policySource),
+    matching_producers: [],
+    considered_keys: [],
+  };
 
   if (loaded.errors.length > 0) {
-    return loaded.errors;
+    return { errors: loaded.errors, diagnostics };
   }
 
   const errors = [];
-  const producers = loaded.policy.producers.filter((candidate) => keyPolicyProducerMatchesBundle(candidate, bundle));
+  diagnostics.policy = loaded.path;
+  const producers = matchingKeyPolicyProducers(loaded.policy, bundle, diagnostics);
 
   if (producers.length === 0) {
     errors.push(`key policy has no trusted producer matching ${bundlePolicyDescription(bundle)}`);
-    return errors;
+    return { errors, diagnostics };
   }
 
   if (!bundle.attestation) {
     errors.push("bundle.attestation is required by key policy");
-    return errors;
+    return { errors, diagnostics };
   }
 
-  const keys = producers.flatMap((producer) => producer.keys).filter((key) => key.key_id === bundle.attestation.key_id && key.type === bundle.attestation.type);
+  const keys = matchingKeyPolicyKeys(producers, bundle, diagnostics);
 
   if (keys.length === 0) {
     errors.push(`key policy has no trusted ${bundle.attestation.type} key ${bundle.attestation.key_id}`);
-    return errors;
+    return { errors, diagnostics };
   }
 
-  const revokedKeyErrors = keys.flatMap((key) => keyPolicyRevocationErrors(key));
+  const revokedKeyErrors = keys.flatMap(({ key, diagnostic }) => keyPolicyRevocationErrors(key, diagnostic));
 
   if (revokedKeyErrors.length > 0) {
+    for (const { diagnostic } of keys) {
+      if (diagnostic.status === "matched") {
+        diagnostic.status = "blocked_by_revocation";
+      }
+    }
     errors.push(...revokedKeyErrors);
-    return errors;
+    return { errors, diagnostics };
   }
 
   const usableKeys = [];
   const keyUseErrors = [];
 
-  for (const key of keys) {
-    const errorsForKey = keyPolicyKeyUseErrors(key, bundle);
+  for (const keyMatch of keys) {
+    const errorsForKey = keyPolicyKeyUseErrors(keyMatch.key, bundle, keyMatch.diagnostic);
 
     if (errorsForKey.length === 0) {
-      usableKeys.push(key);
+      keyMatch.diagnostic.status = "usable";
+      usableKeys.push(keyMatch);
     } else {
       keyUseErrors.push(...errorsForKey);
     }
@@ -1057,29 +1073,37 @@ function keyPolicyErrors(bundle) {
 
   if (usableKeys.length === 0) {
     errors.push(...keyUseErrors);
-    return errors;
+    return { errors, diagnostics };
   }
 
   let verified = false;
 
-  for (const key of usableKeys) {
+  for (const { key, diagnostic } of usableKeys) {
+    let verifiedBundleWithKey = false;
+
     try {
-      verified = verifyBundleWithPublicKey(bundle, keyPolicyPublicKeyMaterial(key, loaded.dir));
+      verifiedBundleWithKey = verifyBundleWithPublicKey(bundle, keyPolicyPublicKeyMaterial(key, loaded.dir));
     } catch (error) {
+      diagnostic.status = "read_error";
+      diagnostic.errors.push(error.message);
       errors.push(`key policy public key ${key.key_id} could not be read: ${error.message}`);
       continue;
     }
 
-    if (verified) {
-      break;
+    if (verifiedBundleWithKey) {
+      diagnostic.status = "verified";
+      verified = true;
+      continue;
     }
+
+    diagnostic.status = "signature_mismatch";
   }
 
   if (!verified) {
     errors.push("bundle.attestation.signature verification failed");
   }
 
-  return errors;
+  return { errors, diagnostics };
 }
 
 function loadKeyPolicy(source) {
@@ -1174,6 +1198,49 @@ function validateKeyPolicyKey(key, field) {
   }
 }
 
+function matchingKeyPolicyProducers(policy, bundle, diagnostics) {
+  const matches = [];
+
+  for (const [producerIndex, producer] of policy.producers.entries()) {
+    if (!keyPolicyProducerMatchesBundle(producer, bundle)) {
+      continue;
+    }
+
+    matches.push({ producer, producerIndex });
+    diagnostics.matching_producers.push({
+      producer_index: producerIndex,
+      name: producer.name,
+      version: producer.version ?? null,
+      source: producer.source ?? null,
+      revision_pattern: producer.revision_pattern ?? null,
+      keys: producer.keys.length,
+    });
+  }
+
+  return matches;
+}
+
+function matchingKeyPolicyKeys(producers, bundle, diagnostics) {
+  const matches = [];
+
+  for (const { producer, producerIndex } of producers) {
+    for (const [keyIndex, key] of producer.keys.entries()) {
+      const diagnostic = keyPolicyKeyDiagnostic(key, producerIndex, keyIndex);
+      diagnostics.considered_keys.push(diagnostic);
+
+      if (key.key_id !== bundle.attestation.key_id || key.type !== bundle.attestation.type) {
+        diagnostic.status = "not_selected";
+        diagnostic.errors.push(`key ${key.key_id} ${key.type} does not match bundle attestation ${bundle.attestation.key_id} ${bundle.attestation.type}`);
+        continue;
+      }
+
+      matches.push({ key, diagnostic });
+    }
+  }
+
+  return matches;
+}
+
 function keyPolicyProducerMatchesBundle(producer, bundle) {
   if (producer.name !== bundle.producer?.name) {
     return false;
@@ -1205,22 +1272,42 @@ function keyPolicyPublicKeyMaterial(key, policyDir) {
   return readFileSync(resolve(policyDir, key.public_key_path), "utf8");
 }
 
-function keyPolicyRevocationErrors(key) {
+function keyPolicyKeyDiagnostic(key, producerIndex, keyIndex) {
+  return {
+    producer_index: producerIndex,
+    key_index: keyIndex,
+    key_id: key.key_id,
+    type: key.type,
+    public_key_source: key.public_key ? "inline" : key.public_key_path,
+    valid_from: key.valid_from ?? null,
+    valid_until: key.valid_until ?? null,
+    revoked_at: key.revoked_at ?? null,
+    status: "matched",
+    errors: [],
+  };
+}
+
+function keyPolicyRevocationErrors(key, diagnostic) {
   const errors = [];
 
   if (key.revoked_at) {
-    errors.push(`key policy key ${key.key_id} is revoked at ${key.revoked_at}: ${key.revoked_reason}`);
+    const error = `key policy key ${key.key_id} is revoked at ${key.revoked_at}: ${key.revoked_reason}`;
+    diagnostic.status = "revoked";
+    diagnostic.errors.push(error);
+    errors.push(error);
   }
 
   return errors;
 }
 
-function keyPolicyKeyUseErrors(key, bundle) {
+function keyPolicyKeyUseErrors(key, bundle, diagnostic) {
   const errors = [];
   const exportedAt = parseDateTime(bundle.exported_at);
 
   if (!Number.isFinite(exportedAt)) {
-    return ["bundle.exported_at must be a valid date-time for key policy"];
+    diagnostic.status = "outside_validity";
+    diagnostic.errors.push("bundle.exported_at must be a valid date-time for key policy");
+    return diagnostic.errors;
   }
 
   if (key.valid_from && exportedAt < parseDateTime(key.valid_from)) {
@@ -1229,6 +1316,11 @@ function keyPolicyKeyUseErrors(key, bundle) {
 
   if (key.valid_until && exportedAt > parseDateTime(key.valid_until)) {
     errors.push(`key policy key ${key.key_id} is not valid after ${key.valid_until}`);
+  }
+
+  if (errors.length > 0) {
+    diagnostic.status = "outside_validity";
+    diagnostic.errors.push(...errors);
   }
 
   return errors;

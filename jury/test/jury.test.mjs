@@ -889,6 +889,7 @@ test("bundle key policy verifies trusted producers and public keys before import
   const overlappingPolicyPath = join(cwd, "overlapping-key-policy.json");
   const wrongProducerPolicyPath = join(cwd, "wrong-producer-policy.json");
   const wrongKeyPolicyPath = join(cwd, "wrong-key-policy.json");
+  const noMatchingKeyPolicyPath = join(cwd, "no-matching-key-policy.json");
   const expiredPolicyPath = join(cwd, "expired-key-policy.json");
   const futurePolicyPath = join(cwd, "future-key-policy.json");
   const revokedPolicyPath = join(cwd, "revoked-key-policy.json");
@@ -956,6 +957,13 @@ test("bundle key policy verifies trusted producers and public keys before import
         keys: [{ ...policy.producers[0].keys[0], public_key_path: "policy-wrong-public.pem" }],
       }],
     }, null, 2)}\n`);
+    await writeFile(noMatchingKeyPolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{
+        ...policy.producers[0],
+        keys: [{ ...policy.producers[0].keys[0], key_id: "other-key" }],
+      }],
+    }, null, 2)}\n`);
     await writeFile(expiredPolicyPath, `${JSON.stringify({
       ...policy,
       producers: [{
@@ -1015,16 +1023,25 @@ test("bundle key policy verifies trusted producers and public keys before import
     assert.equal(bundle.attestation.key_id, "ci-policy");
 
     const trusted = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", policyPath]);
+    const trustedPayload = JSON.parse(trusted.stdout);
     assert.equal(trusted.exitCode, 0, trusted.stderr);
-    assert.equal(JSON.parse(trusted.stdout).ok, true);
+    assert.equal(trustedPayload.ok, true);
+    assert.deepEqual(trustedPayload.key_policy.matching_producers.map((producer) => producer.producer_index), [0]);
+    assert.deepEqual(trustedPayload.key_policy.considered_keys.map((key) => key.status), ["verified"]);
+    assert.equal(trustedPayload.key_policy.considered_keys[0].public_key_source, "policy-public.pem");
 
     const inlineTrusted = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", inlinePolicyPath]);
+    const inlineTrustedPayload = JSON.parse(inlineTrusted.stdout);
     assert.equal(inlineTrusted.exitCode, 0, inlineTrusted.stderr);
-    assert.equal(JSON.parse(inlineTrusted.stdout).ok, true);
+    assert.equal(inlineTrustedPayload.ok, true);
+    assert.equal(inlineTrustedPayload.key_policy.considered_keys[0].public_key_source, "inline");
 
     const overlappingTrusted = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", overlappingPolicyPath]);
+    const overlappingTrustedPayload = JSON.parse(overlappingTrusted.stdout);
     assert.equal(overlappingTrusted.exitCode, 0, overlappingTrusted.stderr);
-    assert.equal(JSON.parse(overlappingTrusted.stdout).ok, true);
+    assert.equal(overlappingTrustedPayload.ok, true);
+    assert.deepEqual(overlappingTrustedPayload.key_policy.matching_producers.map((producer) => producer.producer_index), [0, 1]);
+    assert.deepEqual(overlappingTrustedPayload.key_policy.considered_keys.map((key) => key.status), ["signature_mismatch", "verified"]);
 
     const imported = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", policyPath]);
     assert.equal(imported.exitCode, 0, imported.stderr);
@@ -1037,12 +1054,16 @@ test("bundle key policy verifies trusted producers and public keys before import
 
     assert.equal(wrongProducerPreflight.exitCode, 1);
     assert.ok(wrongProducerPreflightPayload.errors.some((error) => error.includes("key policy has no trusted producer matching")));
+    assert.deepEqual(wrongProducerPreflightPayload.key_policy.matching_producers, []);
+    assert.deepEqual(wrongProducerPreflightPayload.key_policy.considered_keys, []);
 
     const wrongProducer = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", wrongProducerPolicyPath]);
     const wrongProducerPayload = JSON.parse(wrongProducer.stdout);
 
     assert.equal(wrongProducer.exitCode, 1);
     assert.ok(wrongProducerPayload.errors.some((error) => error.includes("key policy has no trusted producer matching")));
+    assert.deepEqual(wrongProducerPayload.key_policy.matching_producers, []);
+    assert.deepEqual(wrongProducerPayload.key_policy.considered_keys, []);
     await assertPathMissing(importDir);
 
     const wrongKeyPreflight = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", wrongKeyPolicyPath]);
@@ -1050,19 +1071,29 @@ test("bundle key policy verifies trusted producers and public keys before import
 
     assert.equal(wrongKeyPreflight.exitCode, 1);
     assert.ok(wrongKeyPreflightPayload.errors.includes("bundle.attestation.signature verification failed"));
+    assert.deepEqual(wrongKeyPreflightPayload.key_policy.considered_keys.map((key) => key.status), ["signature_mismatch"]);
 
     const wrongKey = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", wrongKeyPolicyPath]);
     const wrongKeyPayload = JSON.parse(wrongKey.stdout);
 
     assert.equal(wrongKey.exitCode, 1);
     assert.ok(wrongKeyPayload.errors.includes("bundle.attestation.signature verification failed"));
+    assert.deepEqual(wrongKeyPayload.key_policy.considered_keys.map((key) => key.status), ["signature_mismatch"]);
     await assertPathMissing(importDir);
+
+    const noMatchingKey = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", noMatchingKeyPolicyPath]);
+    const noMatchingKeyPayload = JSON.parse(noMatchingKey.stdout);
+
+    assert.equal(noMatchingKey.exitCode, 1);
+    assert.ok(noMatchingKeyPayload.errors.includes("key policy has no trusted rsa-sha256 key ci-policy"));
+    assert.deepEqual(noMatchingKeyPayload.key_policy.considered_keys.map((key) => key.status), ["not_selected"]);
 
     const expired = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", expiredPolicyPath]);
     const expiredPayload = JSON.parse(expired.stdout);
 
     assert.equal(expired.exitCode, 1);
     assert.ok(expiredPayload.errors.includes("key policy key ci-policy is not valid after 2026-05-22T23:59:59.000Z"));
+    assert.deepEqual(expiredPayload.key_policy.considered_keys.map((key) => key.status), ["outside_validity"]);
 
     const tamperedSignedAt = JSON.parse(await readFile(bundlePath, "utf8"));
     tamperedSignedAt.attestation.signed_at = "2026-05-22T00:00:00.000Z";
@@ -1079,6 +1110,7 @@ test("bundle key policy verifies trusted producers and public keys before import
 
     assert.equal(expiredImport.exitCode, 1);
     assert.ok(expiredImportPayload.errors.includes("key policy key ci-policy is not valid after 2026-05-22T23:59:59.000Z"));
+    assert.deepEqual(expiredImportPayload.key_policy.considered_keys.map((key) => key.status), ["outside_validity"]);
     await assertPathMissing(importDir);
 
     const future = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", futurePolicyPath]);
@@ -1092,6 +1124,7 @@ test("bundle key policy verifies trusted producers and public keys before import
 
     assert.equal(futureImport.exitCode, 1);
     assert.ok(futureImportPayload.errors.includes("key policy key ci-policy is not valid before 2026-05-24T00:00:00.000Z"));
+    assert.deepEqual(futureImportPayload.key_policy.considered_keys.map((key) => key.status), ["outside_validity"]);
     await assertPathMissing(importDir);
 
     const revokedPreflight = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", revokedPolicyPath]);
@@ -1099,12 +1132,14 @@ test("bundle key policy verifies trusted producers and public keys before import
 
     assert.equal(revokedPreflight.exitCode, 1);
     assert.ok(revokedPreflightPayload.errors.includes("key policy key ci-policy is revoked at 2026-05-23T00:30:00.000Z: compromised producer key"));
+    assert.deepEqual(revokedPreflightPayload.key_policy.considered_keys.map((key) => key.status), ["revoked"]);
 
     const revoked = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", revokedPolicyPath]);
     const revokedPayload = JSON.parse(revoked.stdout);
 
     assert.equal(revoked.exitCode, 1);
     assert.ok(revokedPayload.errors.includes("key policy key ci-policy is revoked at 2026-05-23T00:30:00.000Z: compromised producer key"));
+    assert.deepEqual(revokedPayload.key_policy.considered_keys.map((key) => key.status), ["revoked"]);
     await assertPathMissing(importDir);
 
     const duplicateRevoked = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", duplicateRevokedPolicyPath]);
@@ -1112,6 +1147,7 @@ test("bundle key policy verifies trusted producers and public keys before import
 
     assert.equal(duplicateRevoked.exitCode, 1);
     assert.ok(duplicateRevokedPayload.errors.includes("key policy key ci-policy is revoked at 2026-05-23T00:30:00.000Z: compromised producer key"));
+    assert.deepEqual(duplicateRevokedPayload.key_policy.considered_keys.map((key) => key.status), ["revoked", "blocked_by_revocation"]);
   } finally {
     await rm(sourceDir, { recursive: true, force: true });
     await rm(cwd, { recursive: true, force: true });
@@ -1344,7 +1380,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /trusted producer metadata and RSA public keys/);
   assert.match(handoff, /valid_from/);
   assert.match(handoff, /revoked_at/);
-  assert.match(handoff, /richer policy diagnostics/);
+  assert.match(handoff, /matching producer entries/);
+  assert.match(handoff, /signature-mismatch statuses/);
+  assert.match(handoff, /reusable CI fixture/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
