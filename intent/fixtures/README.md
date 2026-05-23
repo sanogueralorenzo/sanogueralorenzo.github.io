@@ -38,6 +38,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_verify_shell_without_capability.intent`: requires `shell("npm run lint")` in verification without declaring the matching shell run grant.
 - `invalid_verify_impure_file_write.intent`: declares normal file and shell capabilities but calls `FileWrite(path: "./src/app.ts")` from `verify`, which should be rejected because verification must stay side-effect free.
 - `invalid_memory_without_retention.intent`: declares a memory block without any `retain ... until ...` retention rule.
+- `invalid_memory_retention_unknown_until.intent`: declares a parsed memory retention rule with unsupported lifecycle target `forever`, which should fail `INTENT_MEMORY_RETENTION_INVALID`.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.
 - `invalid_duplicate_step_name.intent`: declares the same step name twice in one plan.

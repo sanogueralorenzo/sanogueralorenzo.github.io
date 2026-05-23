@@ -1,0 +1,30 @@
+package fixtures.invalid_memory_retention_unknown_until
+
+type Evidence = {
+  summary: String
+}
+
+goal "reject unknown memory retention lifecycle target" {
+  context repo("./")
+
+  capability file {
+    read path: "./docs/**"
+  }
+
+  memory session {
+    retain evidence until forever
+  }
+
+  plan {
+    step collect_evidence -> Evidence
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}
