@@ -23,6 +23,7 @@ const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent"
 const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.intent", import.meta.url).pathname;
 const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
 const VALID_IMPORTS = new URL("../fixtures/valid_imports.intent", import.meta.url).pathname;
+const VALID_MEMORY_FLOW_GRAPH = new URL("../fixtures/valid_memory_flow_graph.intent", import.meta.url).pathname;
 const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph.intent", import.meta.url).pathname;
 const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.intent", import.meta.url).pathname;
 const VALID_TRUST_FLOW_SHELL_LITERAL = new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname;
@@ -47,6 +48,7 @@ const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_ver
 const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_impure_file_write.intent", import.meta.url).pathname;
 const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_without_retention.intent", import.meta.url).pathname;
 const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memory_retention_unknown_until.intent", import.meta.url).pathname;
+const INVALID_MEMORY_ACCESS_UNDECLARED = new URL("../fixtures/invalid_memory_access_undeclared.intent", import.meta.url).pathname;
 const INVALID_STEP_POLICY_BAD_TIMEOUT = new URL("../fixtures/invalid_step_policy_bad_timeout.intent", import.meta.url).pathname;
 const INVALID_CHECKPOINT_EMPTY = new URL("../fixtures/invalid_checkpoint_empty.intent", import.meta.url).pathname;
 const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.intent", import.meta.url).pathname;
@@ -189,6 +191,7 @@ function defaultGraphNodeData(kind, data) {
       approvals: [],
       timeouts: [],
       retries: [],
+      memoryAccesses: [],
       ...normalizedData,
     };
   }
@@ -244,6 +247,16 @@ function defaultGraphEdgeData(edge, data) {
   }
   if (edge.kind === "checkpoints") {
     return { checkpoint: "synthetic" };
+  }
+  if (edge.kind === "reads" || edge.kind === "writes" || edge.kind === "cites") {
+    return {
+      access: edge.kind === "writes" ? "write" : edge.kind === "cites" ? "cite" : "read",
+      memory: "session",
+      slot: "evidence",
+      target: "session.evidence",
+      sourceSpan: testSpan(1),
+      targetSpan: testSpan(1),
+    };
   }
   return undefined;
 }
@@ -431,6 +444,13 @@ describe("intent static model CLI", () => {
     assert.equal(importAst.imports[0].span.start.line, 3);
     assert.equal(importAst.imports[1].path, "examples.shared.Finding");
     assert.equal(importAst.imports[1].span.start.line, 4);
+
+    const memoryAst = runJson(["parse", VALID_MEMORY_FLOW_GRAPH]);
+    assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[0].access, "write");
+    assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[0].target, "session.evidence");
+    assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[0].span.start.line, 21);
+    assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[0].access, "read");
+    assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[1].access, "cite");
   });
 
   it("accepts valid fixtures", () => {
@@ -448,6 +468,7 @@ describe("intent static model CLI", () => {
     const stepRequirements = runJson(["check", VALID_STEP_REQUIREMENTS]);
     const invariantGuardGraph = runJson(["check", VALID_INVARIANT_GUARD_GRAPH]);
     const imports = runJson(["check", VALID_IMPORTS]);
+    const memoryFlowGraph = runJson(["check", VALID_MEMORY_FLOW_GRAPH]);
     const stepApprovalGraph = runJson(["check", VALID_STEP_APPROVAL_GRAPH]);
     const stepPolicyGraph = runJson(["check", VALID_STEP_POLICY_GRAPH]);
     const trustFlow = runJson(["check", VALID_TRUST_FLOW_SHELL_LITERAL]);
@@ -480,6 +501,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(invariantGuardGraph.diagnostics, []);
     assert.equal(imports.ok, true);
     assert.deepEqual(imports.diagnostics, []);
+    assert.equal(memoryFlowGraph.ok, true);
+    assert.deepEqual(memoryFlowGraph.diagnostics, []);
     assert.equal(stepApprovalGraph.ok, true);
     assert.deepEqual(stepApprovalGraph.diagnostics, []);
     assert.equal(stepPolicyGraph.ok, true);
@@ -761,6 +784,19 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_MEMORY_RETENTION_INVALID");
     assert.equal(payload.diagnostics[0].retention, "retain evidence until forever");
     assert.equal(payload.diagnostics[0].until, "forever");
+  });
+
+  it("rejects undeclared memory access", () => {
+    const result = run(["check", INVALID_MEMORY_ACCESS_UNDECLARED]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_MEMORY_UNDECLARED");
+    assert.equal(payload.diagnostics[0].step, "inspect");
+    assert.equal(payload.diagnostics[0].memory, "archive");
+    assert.equal(payload.diagnostics[0].access, "read");
+    assert.equal(payload.diagnostics[0].target, "archive.evidence");
   });
 
   it("rejects invalid step policy syntax", () => {
@@ -1162,6 +1198,30 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.from === timeout.id && edge.kind === "verifies"), false);
   });
 
+  it("emits memory access provenance edges", () => {
+    const graph = runJson(["graph", VALID_MEMORY_FLOW_GRAPH]);
+    const memory = graph.nodes.find((node) => node.kind === "Memory" && node.data.scope === "session");
+    const inspectStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "inspect");
+    const draftStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "draft");
+    const writeEdge = graph.edges.find((edge) => edge.kind === "writes");
+    const readEdge = graph.edges.find((edge) => edge.kind === "reads");
+    const citeEdge = graph.edges.find((edge) => edge.kind === "cites");
+
+    assert.equal(graph.ok, true);
+    assert.deepEqual(inspectStep.data.memoryAccesses, ["session.evidence"]);
+    assert.deepEqual(draftStep.data.memoryAccesses, ["session.evidence", "session.evidence"]);
+    assert.equal(writeEdge.from, inspectStep.id);
+    assert.equal(writeEdge.to, memory.id);
+    assert.equal(writeEdge.data.access, "write");
+    assert.equal(writeEdge.data.target, "session.evidence");
+    assert.equal(readEdge.from, memory.id);
+    assert.equal(readEdge.to, draftStep.id);
+    assert.equal(readEdge.data.access, "read");
+    assert.equal(citeEdge.from, memory.id);
+    assert.equal(citeEdge.to, draftStep.id);
+    assert.equal(citeEdge.data.access, "cite");
+  });
+
   it("emits only graph edges whose endpoints exist in the same payload", () => {
     const validFixtures = [
       VALID_CODE_CHANGE,
@@ -1172,6 +1232,7 @@ describe("intent static model CLI", () => {
       VALID_GIT_COMMIT_MESSAGE,
       VALID_GIT_PUSH_BRANCH,
       VALID_INVARIANT_GUARD_GRAPH,
+      VALID_MEMORY_FLOW_GRAPH,
       VALID_RESEARCH,
       VALID_SECRET_READ,
       VALID_STEP_APPROVAL_GRAPH,
@@ -1197,6 +1258,7 @@ describe("intent static model CLI", () => {
       VALID_GIT_COMMIT_MESSAGE,
       VALID_GIT_PUSH_BRANCH,
       VALID_INVARIANT_GUARD_GRAPH,
+      VALID_MEMORY_FLOW_GRAPH,
       VALID_RESEARCH,
       VALID_SECRET_READ,
       VALID_STEP_APPROVAL_GRAPH,
@@ -2005,6 +2067,41 @@ describe("intent static model CLI", () => {
     ]);
   });
 
+  it("validates graph memory access edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:memory:0", kind: "Memory", label: "session", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
+      ],
+      edges: [
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "reads" },
+        { from: "goal:demo:step:patch", to: "goal:demo:memory:0", kind: "writes" },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "cites" },
+        { from: "goal:demo:step:patch", to: "goal:demo:memory:0", kind: "reads" },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "writes" },
+        { from: "goal:demo:completion", to: "goal:demo:step:patch", kind: "cites" },
+      ],
+    });
+    const memoryDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_MEMORY_ACCESS_INVALID");
+
+    assert.equal(memoryDiagnostics.length, 3);
+    assert.equal(memoryDiagnostics[0].edge, "reads");
+    assert.equal(memoryDiagnostics[0].from_kind, "Step");
+    assert.equal(memoryDiagnostics[0].to_kind, "Memory");
+    assert.equal(memoryDiagnostics[1].edge, "writes");
+    assert.equal(memoryDiagnostics[1].from_kind, "Memory");
+    assert.equal(memoryDiagnostics[1].to_kind, "Step");
+    assert.equal(memoryDiagnostics[2].edge, "cites");
+    assert.equal(memoryDiagnostics[2].from_kind, "Completion");
+    assert.deepEqual(memoryDiagnostics[2].supported_roles, [
+      { edge: "reads", from_kind: "Memory", to_kind: "Step" },
+      { edge: "cites", from_kind: "Memory", to_kind: "Step" },
+      { edge: "writes", from_kind: "Step", to_kind: "Memory" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -2617,6 +2714,34 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[4].checkpoint_is_nonempty, false);
   });
 
+  it("validates graph memory access edge payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:memory:0", kind: "Memory", label: "session", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+      ],
+      edges: [
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "reads", data: {} },
+        { from: "goal:demo:step:patch", to: "goal:demo:memory:0", kind: "writes", data: { access: "write", memory: "", target: "session.evidence", sourceSpan: testSpan(2), targetSpan: testSpan(1) } },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "cites", data: { access: "cite", memory: "session", target: "", sourceSpan: testSpan(1), targetSpan: testSpan(2) } },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "reads", data: { access: "observe", memory: "session", target: "session.evidence", sourceSpan: testSpan(1), targetSpan: testSpan(2) } },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "reads", data: { access: "read", memory: "session", target: "session.evidence" } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+
+    assert.equal(diagnostics.length, 5);
+    assert.equal(diagnostics[0].edge, "reads");
+    assert.equal(diagnostics[0].access_is_valid, false);
+    assert.equal(diagnostics[0].memory_is_nonempty, false);
+    assert.equal(diagnostics[0].target_is_nonempty, false);
+    assert.equal(diagnostics[1].memory_is_nonempty, false);
+    assert.equal(diagnostics[2].target_is_nonempty, false);
+    assert.equal(diagnostics[3].access_is_valid, false);
+    assert.equal(diagnostics[4].source_span_is_valid, false);
+    assert.equal(diagnostics[4].target_span_is_valid, false);
+  });
+
   it("validates graph check gate diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -3176,6 +3301,7 @@ describe("intent static model CLI", () => {
     const approvalGraph = runJson(["graph", VALID_STEP_APPROVAL_GRAPH]);
     const policyGraph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
     const contextGraph = runJson(["graph", VALID_CONTEXT_TRUST_GRAPH]);
+    const memoryGraph = runJson(["graph", VALID_MEMORY_FLOW_GRAPH]);
     const secretGraph = runJson(["graph", VALID_SECRET_READ]);
     const ticketGraph = runJson(["graph", VALID_TICKET_UPDATE]);
 
@@ -3189,6 +3315,7 @@ describe("intent static model CLI", () => {
     assert.deepEqual(validateSchema(graphSchema, approvalGraph), []);
     assert.deepEqual(validateSchema(graphSchema, policyGraph), []);
     assert.deepEqual(validateSchema(graphSchema, contextGraph), []);
+    assert.deepEqual(validateSchema(graphSchema, memoryGraph), []);
     assert.deepEqual(validateSchema(graphSchema, secretGraph), []);
     assert.deepEqual(validateSchema(graphSchema, ticketGraph), []);
   });

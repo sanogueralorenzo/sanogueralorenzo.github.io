@@ -590,7 +590,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries"],
+              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses"],
               "additionalProperties": false,
               "properties": {
                 "inputs": {
@@ -643,6 +643,12 @@
                   }
                 },
                 "retries": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "memoryAccesses": {
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -905,15 +911,18 @@
             "gates",
             "guards",
             "informs",
+            "cites",
             "plans",
             "precedes",
             "produces",
+            "reads",
             "requests",
             "requires",
             "retries",
             "supplies",
             "timeouts",
-            "verifies"
+            "verifies",
+            "writes"
           ]
         },
         "data": {
@@ -938,12 +947,24 @@
             "policy": {
               "type": "string"
             },
+            "access": {
+              "enum": ["read", "write", "cite"]
+            },
+            "memory": {
+              "type": "string"
+            },
+            "slot": {
+              "type": ["string", "null"]
+            },
+            "target": {
+              "type": "string"
+            },
             "sourceSpan": {
-              "description": "For data edges, the bound producer span. For produces edges to completion, the final step output type span.",
+              "description": "For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
               "$ref": "#/$defs/span"
             },
             "targetSpan": {
-              "description": "For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span.",
+              "description": "For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span. For memory access edges, the provenance target span.",
               "$ref": "#/$defs/span"
             }
           }

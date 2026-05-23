@@ -231,6 +231,12 @@ Validation expectations:
   This prevents topology/data edges from being replayed as ambiguous
   runtime-control edges while preserving ownership, sequencing, and payload
   diagnostics.
+- Runtime graph memory access edges have constrained provenance contracts.
+  `writes` is valid only as `Step` to `Memory`, while `reads` and `cites` are
+  valid only as `Memory` to `Step`. Each edge carries `data.access`,
+  `data.memory`, nullable `data.slot`, `data.target`, and source/target spans.
+  Unsupported endpoint roles emit `INTENT_GRAPH_MEMORY_ACCESS_INVALID`, and
+  malformed payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
   milestone. The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and

@@ -181,6 +181,9 @@ memory project {
 ```
 
 Memory cannot silently widen scope. A session memory item cannot become project memory without an explicit promotion step that records provenance.
+Step-local `memory read`, `memory write`, and `memory cite` statements make
+memory provenance explicit in the execution graph instead of hiding it in step
+text.
 
 ## Verification
 
@@ -220,4 +223,3 @@ A goal is complete only when:
 - Every output has provenance.
 - No invariant is violated.
 - The final state was checkpointed.
-

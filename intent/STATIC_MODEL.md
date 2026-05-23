@@ -26,13 +26,16 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `PlanBlock`: ordered list of executable steps.
 - `StepDecl`: spanned typed inputs, output, step-local requirements, step
   approval gates, step checkpoint statements, step policy statements, declared
-  effects, checks, and body expression.
+  memory access statements, effects, checks, and body expression.
 - `StepApproval`: structured `approval ...` step-body statement with raw
   approval text and source span.
 - `StepCheckpoint`: structured `checkpoint ...` step-body statement with raw
   checkpoint text and source span.
 - `StepPolicy`: structured `timeout ...` or `retry ...` step-body statement
   with policy kind, raw policy text, and source span.
+- `MemoryAccess`: structured `memory read`, `memory write`, or `memory cite`
+  step-body statement with access kind, memory reference, optional slot, target
+  string, and source span.
 - `VerifyBlock`: required or advisory completion checks.
 - `InvariantBlock`: always-on rules evaluated across completion, effects,
   checkpoints, and step requirement checks.
@@ -402,6 +405,14 @@ Next graph envelope validation milestone:
   malformed node payloads remain `INTENT_GRAPH_TYPE_INVALID` or
   `INTENT_GRAPH_MEMORY_INVALID`. Constraining the generic role prevents
   `declares` from becoming an ambiguous catch-all edge during runtime replay.
+- Runtime graph memory access edges have constrained provenance role contracts.
+  `writes` edges are valid only from `Step` to `Memory`; `reads` and `cites`
+  edges are valid only from `Memory` to `Step`. Unsupported endpoint roles emit
+  `INTENT_GRAPH_MEMORY_ACCESS_INVALID` and make graph output non-executable.
+  Each memory access edge must carry non-empty `data.memory` and `data.target`,
+  supported `data.access`, and valid `sourceSpan` and `targetSpan` values.
+  Malformed memory access edge payloads emit
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
 - Runtime graph `authorizes` edges have a constrained role contract. An
   `authorizes` edge is valid only from `Capability` to `Goal` for capability
   ownership, or when it targets an `Effect`, `Check`, or `Context` node for
@@ -1358,6 +1369,40 @@ Rules:
   Every structured retention rule must include non-empty `raw`, `subject.raw`,
   and `until.raw` strings. Invalid graph memory lifecycle data emits
   `INTENT_GRAPH_MEMORY_INVALID` and makes graph output non-executable.
+
+## Memory Access Provenance
+
+Step bodies may contain memory access statements:
+
+```intent
+plan {
+  step inspect -> Finding {
+    memory write session.evidence
+  }
+  step draft(input: Finding) -> Report {
+    memory read session.evidence
+    memory cite session.evidence
+  }
+}
+```
+
+Rules:
+
+- `memory read <memory>[.<slot>]`, `memory write <memory>[.<slot>]`, and
+  `memory cite <memory>[.<slot>]` preserve the access kind, memory reference,
+  optional slot, target string, and source span on the owning step.
+- The referenced memory name must match either the declared memory scope or
+  explicit memory name in the same goal. Missing references emit
+  `INTENT_MEMORY_UNDECLARED` at the memory access statement span.
+- The graph builder lists memory access targets on the owning `Step` node data.
+- `writes` edges go from the owning `Step` to the referenced `Memory` node.
+  `reads` and `cites` edges go from the referenced `Memory` node to the owning
+  `Step`.
+- Memory access edges carry `data.access`, `data.memory`, nullable `data.slot`,
+  `data.target`, `sourceSpan`, and `targetSpan`. Missing or malformed payloads
+  emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
+- Unsupported memory access endpoint roles emit
+  `INTENT_GRAPH_MEMORY_ACCESS_INVALID`.
 
 ## Trust Flow
 

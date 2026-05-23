@@ -154,12 +154,16 @@ step_item  = step_require_stmt
            | step_approval_stmt
            | step_checkpoint_stmt
            | step_timeout_stmt
-           | step_retry_stmt ;
+           | step_retry_stmt
+           | step_memory_stmt ;
 step_require_stmt = "require", s, raw_expr, line_end ;
 step_approval_stmt = "approval", s, raw_expr, line_end ;
 step_checkpoint_stmt = "checkpoint", s, raw_expr, line_end ;
 step_timeout_stmt = "timeout", s, duration, line_end ;
 step_retry_stmt = "retry", s, raw_policy, line_end ;
+step_memory_stmt = "memory", s, memory_access, s, memory_ref, line_end ;
+memory_access = "read" | "write" | "cite" ;
+memory_ref = identifier, [ ".", identifier ] ;
 params     = "(", ws, [ param, { ws, ",", ws, param } ], ws, ")" ;
 param      = identifier, ws, ":", ws, type_ref ;
 type_ref   = identifier, { ws, type_suffix } ;
@@ -212,6 +216,15 @@ integer. Invalid policy syntax emits `INTENT_POLICY_INVALID` at the policy line
 span. The graph builder surfaces valid policies on the owning step node data,
 emits each statement as a `Policy` node, and creates `timeouts` or `retries`
 edges from that policy node to the owning `Step`.
+
+`memory read <memory>[.<slot>]`, `memory write <memory>[.<slot>]`, and
+`memory cite <memory>[.<slot>]` lines inside a step body are parsed as
+step-local memory access statements. The checker rejects references whose
+memory name or scope is not declared in the goal with `INTENT_MEMORY_UNDECLARED`.
+The graph builder emits `writes` edges from the owning `Step` to the `Memory`
+node, and emits `reads` or `cites` edges from the `Memory` node to the owning
+`Step`. These edges carry access metadata plus source and target spans so
+runtime provenance can distinguish memory mutation, consumption, and citation.
 
 ## Expressions
 

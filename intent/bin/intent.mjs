@@ -56,15 +56,18 @@ const GRAPH_EDGE_KINDS = new Set([
   "gates",
   "guards",
   "informs",
+  "cites",
   "plans",
   "precedes",
   "produces",
+  "reads",
   "requests",
   "requires",
   "retries",
   "supplies",
   "timeouts",
   "verifies",
+  "writes",
 ]);
 const TRUST_ZONES = new Set(["trusted", "untrusted", "unknown"]);
 
@@ -447,6 +450,7 @@ function parseStep(header, body, file, startLine, endLine) {
   const approvals = [];
   const timeouts = [];
   const retries = [];
+  const memoryAccesses = [];
   if (outputType) {
     const effectOutput = outputType.match(/^Effect<\s*([A-Za-z][A-Za-z0-9_.]*)/);
     if (effectOutput) {
@@ -472,6 +476,9 @@ function parseStep(header, body, file, startLine, endLine) {
     if (line.text.startsWith("retry ")) {
       retries.push(parsePolicyStatement("Retry", line, file, "retry "));
     }
+    if (line.text.startsWith("memory ")) {
+      memoryAccesses.push(parseMemoryAccessStatement(line, file));
+    }
   }
   return {
     kind: "Step",
@@ -485,6 +492,7 @@ function parseStep(header, body, file, startLine, endLine) {
     approvals,
     timeouts,
     retries,
+    memoryAccesses,
     span: span(file, startLine, 1, endLine, 1),
   };
 }
@@ -563,6 +571,24 @@ function parsePolicyStatement(kind, line, file, prefix) {
   return statementNode(kind, unquote(line.text.slice(prefix.length)), file, line.lineNumber, line.raw);
 }
 
+function parseMemoryAccessStatement(line, file) {
+  const value = line.text.slice("memory ".length).trim();
+  const match = value.match(/^(read|write|cite)\s+([A-Za-z][A-Za-z0-9_]*)(?:\.([A-Za-z][A-Za-z0-9_]*))?$/);
+  if (!match) {
+    throw parseError(file, line.lineNumber, line.raw, `invalid memory access '${line.text}'`);
+  }
+  const memory = match[2];
+  const slot = match[3] ?? null;
+  return {
+    kind: "MemoryAccess",
+    access: match[1],
+    memory,
+    slot,
+    target: slot ? `${memory}.${slot}` : memory,
+    span: lineSpan(file, line.lineNumber, line.raw),
+  };
+}
+
 function checkIntent(ast) {
   const diagnostics = [];
   const declaredTypes = new Map();
@@ -610,6 +636,7 @@ function checkIntent(ast) {
     validateStepPolicies(goal, diagnostics);
     validateStepCheckpoints(goal, diagnostics);
     validateStepApprovals(goal, diagnostics);
+    validateMemoryAccesses(goal, diagnostics);
     validateVerifyRequirements(goal, diagnostics);
     validateApprovalRequirements(goal, diagnostics);
 
@@ -754,11 +781,39 @@ function validateMemory(goal, diagnostics) {
   }
 }
 
+function validateMemoryAccesses(goal, diagnostics) {
+  const memoryDeclarations = memoryDeclarationsByReference(goal);
+  for (const step of goal.steps) {
+    for (const access of step.memoryAccesses) {
+      if (memoryDeclarations.has(access.memory)) {
+        continue;
+      }
+      diagnostics.push(error("INTENT_MEMORY_UNDECLARED", `step '${step.name}' references undeclared memory '${access.memory}'.`, access.span, {
+        step: step.name,
+        memory: access.memory,
+        access: access.access,
+        target: access.target,
+      }));
+    }
+  }
+}
+
 function isSupportedRetentionUntil(value) {
   const normalized = value.trim();
   return normalized === "goal_complete"
     || normalized === "goal.completed"
     || /^[1-9][0-9]*(?:s|m|h|d)$/.test(normalized);
+}
+
+function memoryDeclarationsByReference(goal) {
+  const declarations = new Map();
+  for (const [index, memory] of goal.memory.entries()) {
+    declarations.set(memory.scope, { memory, index });
+    if (memory.name) {
+      declarations.set(memory.name, { memory, index });
+    }
+  }
+  return declarations;
 }
 
 function validateGoalTypes(goal, declaredTypes, diagnostics) {
@@ -1012,6 +1067,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       edges.push(edge(id, goalId, "authorizes"));
     }
 
+    const memoryIdsByReference = new Map();
     for (const [index, memory] of goal.memory.entries()) {
       const id = `${goalId}:memory:${index}`;
       nodes.push(node(id, "Memory", memory.name ?? memory.scope, memory.span, {
@@ -1020,6 +1076,10 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         retentionRules: memory.retentionRules ?? [],
       }));
       edges.push(edge(goalId, id, "declares"));
+      memoryIdsByReference.set(memory.scope, { id, span: memory.span });
+      if (memory.name) {
+        memoryIdsByReference.set(memory.name, { id, span: memory.span });
+      }
     }
 
     let previousStepId = null;
@@ -1037,6 +1097,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         approvals: step.approvals.map((approval) => approval.value),
         timeouts: step.timeouts.map((timeout) => timeout.value),
         retries: step.retries.map((retry) => retry.value),
+        memoryAccesses: step.memoryAccesses.map((access) => access.target),
       }));
       edges.push(edge(goalId, id, "plans"));
       if (previousStepId) {
@@ -1139,6 +1200,26 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           checkpoint: checkpoint.value,
         }));
         guardTargetIds.push(checkpointId);
+      }
+
+      for (const memoryAccess of step.memoryAccesses) {
+        const memory = memoryIdsByReference.get(memoryAccess.memory);
+        if (!memory) {
+          continue;
+        }
+        const payload = {
+          access: memoryAccess.access,
+          memory: memoryAccess.memory,
+          slot: memoryAccess.slot,
+          target: memoryAccess.target,
+          sourceSpan: memoryAccess.access === "write" ? memoryAccess.span : memory.span,
+          targetSpan: memoryAccess.access === "write" ? memory.span : memoryAccess.span,
+        };
+        if (memoryAccess.access === "write") {
+          edges.push(edge(id, memory.id, "writes", payload));
+        } else {
+          edges.push(edge(memory.id, id, memoryAccess.access === "cite" ? "cites" : "reads", payload));
+        }
       }
 
       for (const [effectIndex, effectUse] of step.effects.entries()) {
@@ -2146,6 +2227,9 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     "timeouts",
     "retries",
     "checkpoints",
+    "reads",
+    "writes",
+    "cites",
   ].includes(graphEdge.kind)) {
     return null;
   }
@@ -2158,6 +2242,9 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
   const approvalIsNonempty = typeof payload.approval === "string" && payload.approval.trim() !== "";
   const policyIsNonempty = typeof payload.policy === "string" && payload.policy.trim() !== "";
   const checkpointIsNonempty = typeof payload.checkpoint === "string" && payload.checkpoint.trim() !== "";
+  const accessIsValid = payload.access === "read" || payload.access === "write" || payload.access === "cite";
+  const memoryIsNonempty = typeof payload.memory === "string" && payload.memory.trim() !== "";
+  const targetIsNonempty = typeof payload.target === "string" && payload.target.trim() !== "";
   const sourceSpanIsValid = isSpan(payload.sourceSpan);
   const targetSpanIsValid = isSpan(payload.targetSpan);
   const requiresStepInput = graphEdge.kind === "requires" && sourceNode?.kind === "Input" && targetNode?.kind === "Step";
@@ -2174,6 +2261,7 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
   const stepCheckpoints = graphEdge.kind === "checkpoints"
     && sourceNode?.kind === "Step"
     && targetNode?.kind === "Checkpoint";
+  const memoryAccess = ["reads", "writes", "cites"].includes(graphEdge.kind);
   const payloadIsValid = graphEdge.kind === "data"
     ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
     : graphEdge.kind === "produces"
@@ -2186,7 +2274,9 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
             ? approvalIsNonempty
             : policyAttachesToStep
               ? policyIsNonempty
-              : !stepCheckpoints || checkpointIsNonempty;
+              : stepCheckpoints
+                ? checkpointIsNonempty
+                : !memoryAccess || (accessIsValid && memoryIsNonempty && targetIsNonempty && sourceSpanIsValid && targetSpanIsValid);
   if (payloadIsValid) {
     return null;
   }
@@ -2200,19 +2290,25 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     approval: typeof payload.approval === "string" ? payload.approval : null,
     policy: typeof payload.policy === "string" ? payload.policy : null,
     checkpoint: typeof payload.checkpoint === "string" ? payload.checkpoint : null,
+    access: typeof payload.access === "string" ? payload.access : null,
+    memory: typeof payload.memory === "string" ? payload.memory : null,
+    target: typeof payload.target === "string" ? payload.target : null,
     parameter_is_nonempty: parameterIsNonempty,
     type_is_nonempty: typeIsNonempty,
     requirement_is_nonempty: requirementIsNonempty,
     approval_is_nonempty: approvalIsNonempty,
     policy_is_nonempty: policyIsNonempty,
     checkpoint_is_nonempty: checkpointIsNonempty,
+    access_is_valid: accessIsValid,
+    memory_is_nonempty: memoryIsNonempty,
+    target_is_nonempty: targetIsNonempty,
     source_span_is_valid: sourceSpanIsValid,
     target_span_is_valid: targetSpanIsValid,
   });
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces", "constrains", "guards", "requires", "approves", "checkpoints", "timeouts", "retries", "data", "supplies", "informs", "precedes"].includes(graphEdge.kind)) {
+  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces", "constrains", "guards", "requires", "approves", "checkpoints", "timeouts", "retries", "data", "supplies", "informs", "precedes", "reads", "writes", "cites"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
@@ -2228,6 +2324,9 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
   }
   if (graphEdge.kind === "precedes") {
     return validateGraphPrecedesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "reads" || graphEdge.kind === "writes" || graphEdge.kind === "cites") {
+    return validateGraphMemoryAccessEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
   if (graphEdge.kind === "requires") {
     return validateGraphRequiresEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
@@ -2352,6 +2451,26 @@ function validateGraphPrecedesEdgeRole(nodesById, graphEdge, sourceNode, targetN
     to_kind: targetNode?.kind ?? null,
     supported_roles: [
       { from_kind: "Step", to_kind: "Step" },
+    ],
+  });
+}
+
+function validateGraphMemoryAccessEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  const readsOrCites = (graphEdge.kind === "reads" || graphEdge.kind === "cites") && sourceNode?.kind === "Memory" && targetNode?.kind === "Step";
+  const writes = graphEdge.kind === "writes" && sourceNode?.kind === "Step" && targetNode?.kind === "Memory";
+  if (readsOrCites || writes) {
+    return null;
+  }
+  return error("INTENT_GRAPH_MEMORY_ACCESS_INVALID", `${graphEdge.kind} edge '${graphEdge.from}' to '${graphEdge.to}' must connect memory access roles.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { edge: "reads", from_kind: "Memory", to_kind: "Step" },
+      { edge: "cites", from_kind: "Memory", to_kind: "Step" },
+      { edge: "writes", from_kind: "Step", to_kind: "Memory" },
     ],
   });
 }

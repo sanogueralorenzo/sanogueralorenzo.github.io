@@ -493,7 +493,7 @@
     },
     "step": {
       "type": "object",
-      "required": ["kind", "name", "parameters", "outputType", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "span"],
+      "required": ["kind", "name", "parameters", "outputType", "effects", "requirements", "checkpoints", "approvals", "timeouts", "retries", "memoryAccesses", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -556,6 +556,37 @@
           "items": {
             "$ref": "#/$defs/statement"
           }
+        },
+        "memoryAccesses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_access"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "memory_access": {
+      "type": "object",
+      "required": ["kind", "access", "memory", "slot", "target", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "MemoryAccess"
+        },
+        "access": {
+          "enum": ["read", "write", "cite"]
+        },
+        "memory": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "slot": {
+          "$ref": "#/$defs/nullable_non_empty_string"
+        },
+        "target": {
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
