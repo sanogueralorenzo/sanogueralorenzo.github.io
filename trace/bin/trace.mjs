@@ -4421,6 +4421,7 @@ function normalizeAgentEvent(adapter, explicitEvent, payload) {
     ?? payload?.kind
     ?? payload?.hook_event_name
     ?? payload?.hookEventName
+    ?? agentPayloadEventHint(payload)
     ?? "note";
   const normalized = String(candidate).toLowerCase().replaceAll("_", "-");
 
@@ -4485,6 +4486,29 @@ function canonicalEventName(value) {
   return TRACE_EVENTS.includes(value) ? value : "note";
 }
 
+function agentPayloadEventHint(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  if (typeof payload.prompt === "string" && payload.prompt.trim()) {
+    return "prompt";
+  }
+  for (const key of ["response", "content", "output", "completion"]) {
+    if (typeof payload[key] === "string" && payload[key].trim()) {
+      return "response";
+    }
+  }
+  if (payload.tool_name || payload.toolName || payload.function_name || payload.functionName) {
+    return "tool";
+  }
+  for (const eventName of ["decision", "validation", "risk", "note"]) {
+    if (typeof payload[eventName] === "string" && payload[eventName].trim()) {
+      return eventName;
+    }
+  }
+  return null;
+}
+
 function parseOptionalJson(raw) {
   const trimmed = raw.trim();
   if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
@@ -4522,29 +4546,31 @@ function parseOptionalJsonLines(raw) {
 function normalizeAgentPayload(adapterInput, explicitEvent, payload, raw) {
   const adapter = normalizeAdapterName(adapterInput ?? payload?.adapter ?? payload?.agent ?? payload?.source);
   const eventName = normalizeAgentEvent(adapter, explicitEvent, payload);
+  const message = agentPayloadMessage(adapter, eventName, payload);
   return {
     event: eventName,
     role: payload?.role ?? inferRole(eventName),
     source: payload?.agent ?? payload?.source ?? adapter,
     adapter,
-    message: agentPayloadMessage(adapter, eventName, payload) ?? payloadFallbackMessage(payload, raw),
+    message: message ?? payloadFallbackMessage(payload, raw),
+    hasPrimaryMessage: message != null,
   };
 }
 
 function normalizeAgentPayloadEvents(adapterInput, explicitEvent, payload, raw) {
   const primary = normalizeAgentPayload(adapterInput, explicitEvent, payload, raw);
-  const events = [primary];
 
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return events;
+    return [primary];
   }
 
+  const structuredEvents = [];
   for (const eventName of TRACE_EVENTS) {
     for (const message of lifecycleFieldMessages(primary.adapter, eventName, payload)) {
       if (eventName === primary.event && message === primary.message) {
         continue;
       }
-      events.push({
+      structuredEvents.push({
         event: eventName,
         role: inferRole(eventName),
         source: primary.source,
@@ -4554,7 +4580,9 @@ function normalizeAgentPayloadEvents(adapterInput, explicitEvent, payload, raw) 
     }
   }
 
-  return events;
+  return primary.hasPrimaryMessage || structuredEvents.length === 0
+    ? [primary, ...structuredEvents]
+    : structuredEvents;
 }
 
 function lifecycleFieldMessages(adapter, eventName, payload) {
@@ -4600,7 +4628,7 @@ function agentPayloadMessage(adapter, eventName, payload) {
     return toolPayloadMessage(adapter, payload);
   }
 
-  return payloadMessage(payload);
+  return payloadMessage(payload, eventName);
 }
 
 function payloadFallbackMessage(payload, raw) {
@@ -4627,18 +4655,27 @@ function toolPayloadMessage(adapter, payload) {
   return parts.join(" ");
 }
 
-function payloadMessage(payload) {
+function payloadMessage(payload, eventName) {
   if (!payload) {
     return null;
   }
 
-  for (const key of ["message", "prompt", "text", "summary", "response", "content", "output", "completion", "decision", "validation", "risk", "note"]) {
+  const eventKeys = {
+    prompt: ["prompt"],
+    response: ["response", "content", "output", "completion"],
+    decision: ["decision"],
+    validation: ["validation"],
+    risk: ["risk"],
+    note: ["note"],
+  }[eventName] ?? [];
+
+  for (const key of ["message", "text", "summary", ...eventKeys]) {
     if (typeof payload[key] === "string" && payload[key].trim()) {
       return payload[key];
     }
   }
 
-  return JSON.stringify(payload);
+  return null;
 }
 
 function stringifyCompact(value) {

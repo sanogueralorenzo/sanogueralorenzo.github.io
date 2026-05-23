@@ -1679,6 +1679,13 @@ test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle ev
     assert.equal(shown.session, "adapter-session");
     assert.deepEqual(shown.events.map((event) => event.event), ["note", "validation"]);
 
+    const inferredPrompt = JSON.parse((await runTraceWithInput(repo, ["hook", "agent", "--adapter", "codex", "--dry-run"], JSON.stringify({
+      session_id: "inferred-session",
+      prompt: "codex prompt inferred from payload",
+    }))).stdout);
+    assert.equal(inferredPrompt.events[0].event, "prompt");
+    assert.equal(inferredPrompt.events[0].message, "codex prompt inferred from payload");
+
     const agentRecap = await runTrace(repo, ["session", "recap", "adapter-session", "--field", "agents"]);
     assert.match(agentRecap.stdout, /Field: `agents`/);
     assert.match(agentRecap.stdout, /## Agents\n\n- adapter: codex\n- adapter: claude-code\n- adapter: gemini\n- adapter: generic/);
@@ -1818,6 +1825,19 @@ test("agent hook expands structured lifecycle memory fields", async () => {
     assert.match(memory, /## Validation\n\n- npm --prefix trace test passed/);
     assert.match(memory, /## Risks\n\n- Review adapter payload mapping before release/);
     assert.match(memory, /## Handoff\n\n- Preserve the decision: Use structured fields as durable memory ingredients/);
+
+    const structuredOnly = JSON.parse((await runTraceWithInput(repo, ["hook", "agent", "--adapter", "generic"], JSON.stringify({
+      session_id: "structured-only-session",
+      decisions: ["Keep structured-only payloads concise"],
+      validations: ["npm --prefix trace test"],
+      risks: ["Avoid synthetic JSON note events"],
+    }))).stdout);
+    assert.deepEqual(structuredOnly.events.map((event) => event.event), ["decision", "validation", "risk"]);
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const structuredOnlySession = await readFile(join(repo, commonDir, "trace/sessions/structured-only-session.jsonl"), "utf8");
+    assert.doesNotMatch(structuredOnlySession, /"event":"note"/);
+    assert.doesNotMatch(structuredOnlySession, /"decisions":/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
