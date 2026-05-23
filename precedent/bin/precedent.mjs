@@ -2755,44 +2755,39 @@ async function attachRunSession() {
   ]);
   const warrantId = warrant.warrantId ?? null;
   const deliveryId = warrant.deliveryReceipt?.deliveryId ?? beforeTurn.deliveryReceipt?.deliveryId ?? null;
-  const startedAt = Date.now();
-  const validationResult = await spawnShell(validationCommand, process.cwd());
-  const durationMs = Date.now() - startedAt;
-  const validation = await runPrecedentChildJson([
-    "hook",
-    "--state-dir",
+  const validation = await runAttachValidation({
     stateDirArg,
-    "--json",
-  ], {
-    schema_version: SCHEMA_VERSION,
-    hook: "validation.after_run",
     sessionId,
-    ...eventIdField(eventPrefix ? `${eventPrefix}:validation.after_run` : null),
+    eventId: eventPrefix ? `${eventPrefix}:validation.after_run` : null,
     deliveryId,
     warrantId,
     command: redactSecrets(validationCommand).value,
-    exitCode: validationResult.exitCode,
-    durationMs,
-    stdout: validationResult.stdout,
-    stderr: validationResult.stderr,
     attributedPrecedents,
   });
-  const finalization = await runPrecedentChildJson([
-    "hook",
-    "--state-dir",
+  const initialFinalization = await runAttachFinalization({
     stateDirArg,
-    "--json",
-  ], {
-    schema_version: SCHEMA_VERSION,
-    hook: "finalize.before_response",
     sessionId,
-    ...eventIdField(eventPrefix ? `${eventPrefix}:finalize.before_response` : null),
+    eventId: eventPrefix ? `${eventPrefix}:finalize.before_response` : null,
     deliveryId,
     warrantId,
     attributedPrecedents,
   });
+  const selfHealing = await runAttachSelfHealing({
+    stateDirArg,
+    sessionId,
+    eventPrefix,
+    deliveryId,
+    warrantId,
+    attributedPrecedents,
+    finalization: initialFinalization,
+  });
+  const finalization = selfHealing.finalization ?? initialFinalization;
+  const validationResults = [
+    validation.validation,
+    ...selfHealing.validations.map((item) => item.validation),
+  ];
   const success = args.success === undefined
-    ? validationResult.exitCode === 0 && finalization.decision === "ready"
+    ? validationResults.every((item) => item.exitCode === 0) && finalization.decision === "ready"
     : hookBoolean(args.success, "attach-run.success", false);
   const outcome = await runPrecedentChildJson([
     "hook",
@@ -2811,7 +2806,7 @@ async function attachRunSession() {
     task: taskSource.task,
     scope: scope || null,
     changedFiles,
-    notes: args.notes ?? `attach-run validation exited ${validationResult.exitCode}`,
+    notes: args.notes ?? `attach-run validation exited ${validation.validation.exitCode}`,
     attributedPrecedents,
   });
   const autoPromotion = args["auto-promote"] === true
@@ -2839,11 +2834,129 @@ async function attachRunSession() {
     beforeTurn,
     warrant,
     validation,
+    selfHealing,
     finalization,
     outcome,
     autoPromotion,
     learning: outcome.learning ?? null,
   });
+}
+
+async function runAttachValidation({
+  stateDirArg,
+  sessionId,
+  eventId,
+  deliveryId,
+  warrantId,
+  command,
+  attributedPrecedents,
+}) {
+  const startedAt = Date.now();
+  const validationResult = await spawnShell(command, process.cwd());
+  const durationMs = Date.now() - startedAt;
+
+  return runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "validation.after_run",
+    sessionId,
+    ...eventIdField(eventId),
+    deliveryId,
+    warrantId,
+    command: redactSecrets(command).value,
+    exitCode: validationResult.exitCode,
+    durationMs,
+    stdout: validationResult.stdout,
+    stderr: validationResult.stderr,
+    attributedPrecedents,
+  });
+}
+
+function runAttachFinalization({ stateDirArg, sessionId, eventId, deliveryId, warrantId, attributedPrecedents }) {
+  return runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "finalize.before_response",
+    sessionId,
+    ...eventIdField(eventId),
+    deliveryId,
+    warrantId,
+    attributedPrecedents,
+  });
+}
+
+async function runAttachSelfHealing({
+  stateDirArg,
+  sessionId,
+  eventPrefix,
+  deliveryId,
+  warrantId,
+  attributedPrecedents,
+  finalization,
+}) {
+  const nextAction = finalization.nextAction ?? {};
+  if (nextAction.type !== "run_validation") {
+    return {
+      status: "not_needed",
+      validations: [],
+      finalization: null,
+    };
+  }
+
+  const commands = uniqueStrings(Array.isArray(nextAction.commands) ? nextAction.commands : []);
+  const unsafe = commands
+    .map((commandText) => ({ command: commandText, safety: replayCommandSafety(commandText) }))
+    .filter((item) => !item.safety.safe);
+  if (unsafe.length > 0) {
+    return {
+      status: "blocked_unsafe_command",
+      reason: unsafe[0].safety.reason,
+      commands,
+      blockedCommands: unsafe.map((item) => ({
+        command: item.command,
+        reason: item.safety.reason,
+      })),
+      validations: [],
+      finalization: null,
+    };
+  }
+
+  const validations = [];
+  for (const commandText of commands) {
+    validations.push(await runAttachValidation({
+      stateDirArg,
+      sessionId,
+      eventId: eventPrefix ? `${eventPrefix}:validation.after_run:self_heal:${stableHash(commandText).slice(0, 12)}` : null,
+      deliveryId,
+      warrantId,
+      command: commandText,
+      attributedPrecedents,
+    }));
+  }
+
+  const recovered = await runAttachFinalization({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:finalize.before_response:self_heal` : null,
+    deliveryId,
+    warrantId,
+    attributedPrecedents,
+  });
+
+  return {
+    status: recovered.decision === "ready" ? "recovered" : "still_blocked",
+    commands,
+    validations,
+    finalization: recovered,
+  };
 }
 
 function runPrecedentChildJson(childArgs, stdinJson = null) {
@@ -7833,7 +7946,7 @@ Commands:
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   attach    Emit a zero-touch runtime adapter contract for one session.
-  attach-run Run before-turn, warrant, validation, finalization, outcome, and optional queued promotion hooks.
+  attach-run Run before-turn, warrant, validation, self-healing finalization, outcome, and optional queued promotion hooks.
   check     Validate local Precedent state for CI.
   prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.

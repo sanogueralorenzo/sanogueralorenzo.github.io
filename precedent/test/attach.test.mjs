@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -407,18 +407,73 @@ test("attach-run retries are idempotent with an event prefix", async () => {
   }
 });
 
-test("attach-run blocks successful outcome until warrant validation is satisfied", async () => {
+test("attach-run self-heals missing warrant validation once", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
 
   try {
     await promoteWebhookPrecedent(stateDir);
+    const fakeBin = await fakePnpmBin(stateDir);
+    const args = [
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "missing-required-validation",
+      "--event-prefix",
+      "self-heal-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--json",
+    ];
+
+    const run = await runJson(args, null, { PATH: `${fakeBin}:${process.env.PATH}` });
+    const retry = await runJson(args, null, { PATH: `${fakeBin}:${process.env.PATH}` });
+
+    assert.equal(run.validation.validation.exitCode, 0);
+    assert.equal(run.selfHealing.status, "recovered");
+    assert.equal(run.selfHealing.validations.length, 1);
+    assert.equal(run.selfHealing.validations[0].validation.command, "pnpm test:webhooks");
+    assert.equal(run.selfHealing.validations[0].validation.exitCode, 0);
+    assert.equal(run.selfHealing.finalization.decision, "ready");
+    assert.equal(run.finalization.decision, "ready");
+    assert.deepEqual(run.finalization.nextAction, { type: "respond" });
+    assert.equal(run.outcome.outcome.success, true);
+    assert.equal(retry.selfHealing.validations[0].deduped, true);
+    assert.equal(retry.selfHealing.finalization.deduped, true);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/missing-required-validation.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.eventId?.startsWith("self-heal-delivery:validation.after_run:self_heal:")).length, 1);
+    assert.equal(sessionEvents.filter((event) => event.eventId === "self-heal-delivery:finalize.before_response:self_heal").length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run does not self-heal unsafe validation commands", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const precedentsPath = join(stateDir, "precedents.jsonl");
+    const precedents = await readJsonLines(precedentsPath);
+    precedents[0].guards = precedents[0].guards.map((guard) =>
+      guard.type === "required_validation_command"
+        ? { ...guard, command: "node -e process.exit(0)" }
+        : guard);
+    await writeFile(precedentsPath, `${precedents.map((precedent) => JSON.stringify(precedent)).join("\n")}\n`);
 
     const run = await runJson([
       "attach-run",
       "--state-dir",
       stateDir,
       "--session",
-      "missing-required-validation",
+      "unsafe-required-validation",
       "--task",
       "add webhook handler",
       "--scope",
@@ -432,12 +487,9 @@ test("attach-run blocks successful outcome until warrant validation is satisfied
 
     assert.equal(run.validation.validation.exitCode, 0);
     assert.equal(run.finalization.decision, "validate");
-    assert.deepEqual(run.finalization.nextAction, {
-      type: "run_validation",
-      commands: ["pnpm test:webhooks"],
-      followUpHook: "validation.after_run",
-      refinalize: true,
-    });
+    assert.equal(run.selfHealing.status, "blocked_unsafe_command");
+    assert.equal(run.selfHealing.blockedCommands[0].reason, "unsafe_shell_syntax");
+    assert.deepEqual(run.selfHealing.validations, []);
     assert.equal(run.outcome.outcome.success, false);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
@@ -585,8 +637,17 @@ async function readJsonLines(path) {
     .map((line) => JSON.parse(line));
 }
 
-function runJson(args, stdinJson = null) {
-  return runProcess(args, stdinJson).then((result) => {
+async function fakePnpmBin(stateDir) {
+  const binDir = join(stateDir, "fake-bin");
+  const pnpmPath = join(binDir, "pnpm");
+  await mkdir(binDir, { recursive: true });
+  await writeFile(pnpmPath, "#!/bin/sh\nif [ \"$1\" = \"test:webhooks\" ]; then exit 0; fi\nexit 1\n");
+  await chmod(pnpmPath, 0o755);
+  return binDir;
+}
+
+function runJson(args, stdinJson = null, env = {}) {
+  return runProcess(args, stdinJson, env).then((result) => {
     if (result.exitCode !== 0) {
       throw new Error(`precedent ${args.join(" ")} failed\n${result.stderr}`);
     }
@@ -605,10 +666,11 @@ function withEventId(command, eventId) {
   return command.map((part) => part === "$EVENT_ID" ? eventId : part);
 }
 
-function runProcess(args, stdinJson = null) {
+function runProcess(args, stdinJson = null, env = {}) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {
       cwd: repoRoot,
+      env: { ...process.env, ...env },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
