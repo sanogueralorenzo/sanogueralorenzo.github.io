@@ -1216,6 +1216,13 @@ function validateGraph(graph, options = {}) {
       diagnostic_count: Array.isArray(graph.diagnostics) ? graph.diagnostics.length : null,
     }));
   }
+  if (!Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
+    diagnostics.push(error("INTENT_GRAPH_SHAPE_INVALID", `graph envelope must include nodes and edges arrays.`, span(graph.source ?? "graph", 1, 1), {
+      nodes_is_array: Array.isArray(graph.nodes),
+      edges_is_array: Array.isArray(graph.edges),
+    }));
+    return diagnostics;
+  }
   const nodesById = new Map();
   for (const graphNode of graph.nodes) {
     const previousNode = nodesById.get(graphNode.id);

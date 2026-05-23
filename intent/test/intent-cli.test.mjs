@@ -1153,6 +1153,34 @@ describe("intent static model CLI", () => {
     assert.equal(malformedDiagnostics[0].diagnostic_count, null);
   });
 
+  it("validates graph collection shape diagnostics", () => {
+    const missingDiagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      ok: true,
+      diagnostics: [],
+    });
+    const malformedDiagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      ok: true,
+      diagnostics: [],
+      nodes: {},
+      edges: "bad",
+    });
+
+    assert.equal(missingDiagnostics.length, 1);
+    assert.equal(missingDiagnostics[0].code, "INTENT_GRAPH_SHAPE_INVALID");
+    assert.equal(missingDiagnostics[0].nodes_is_array, false);
+    assert.equal(missingDiagnostics[0].edges_is_array, false);
+    assert.equal(malformedDiagnostics.length, 1);
+    assert.equal(malformedDiagnostics[0].code, "INTENT_GRAPH_SHAPE_INVALID");
+    assert.equal(malformedDiagnostics[0].nodes_is_array, false);
+    assert.equal(malformedDiagnostics[0].edges_is_array, false);
+  });
+
   it("validates graph node kind diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
