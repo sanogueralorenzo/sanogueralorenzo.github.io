@@ -221,6 +221,9 @@ edges from that policy node to the owning `Step`.
 `memory cite <memory>[.<slot>]` lines inside a step body are parsed as
 step-local memory access statements. The checker rejects references whose
 memory name or scope is not declared in the goal with `INTENT_MEMORY_UNDECLARED`.
+When a memory access names a slot, that slot must match a retained subject in
+the referenced memory block; otherwise the checker emits
+`INTENT_MEMORY_SLOT_UNDECLARED`.
 The graph builder emits `writes` edges from the owning `Step` to the `Memory`
 node, and emits `reads` or `cites` edges from the `Memory` node to the owning
 `Step`. These edges carry access metadata plus source and target spans so

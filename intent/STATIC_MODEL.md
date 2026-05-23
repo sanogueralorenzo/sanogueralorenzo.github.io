@@ -1394,15 +1394,21 @@ Rules:
 - The referenced memory name must match either the declared memory scope or
   explicit memory name in the same goal. Missing references emit
   `INTENT_MEMORY_UNDECLARED` at the memory access statement span.
+- When a memory access includes a slot, that slot must match one of the
+  referenced memory block's retained subjects. Missing slots emit
+  `INTENT_MEMORY_SLOT_UNDECLARED` at the memory access statement span.
 - The graph builder lists memory access targets on the owning `Step` node data.
 - `writes` edges go from the owning `Step` to the referenced `Memory` node.
   `reads` and `cites` edges go from the referenced `Memory` node to the owning
   `Step`.
 - Memory access edges carry `data.access`, `data.memory`, nullable `data.slot`,
-  `data.target`, `sourceSpan`, and `targetSpan`. Missing or malformed payloads
-  emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
+  `data.target`, nullable `data.retentionRef`, `sourceSpan`, and `targetSpan`.
+  Missing or malformed payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
 - Unsupported memory access endpoint roles emit
   `INTENT_GRAPH_MEMORY_ACCESS_INVALID`.
+- Memory access graph edges with a slotted target must match a retained subject
+  on the referenced `Memory` node. Mismatches emit
+  `INTENT_GRAPH_MEMORY_TARGET_INVALID`.
 
 ## Trust Flow
 
@@ -1689,6 +1695,8 @@ Initial diagnostic families:
 - `INTENT_VERIFY_UNDECLARED`
 - `INTENT_INVARIANT_VIOLATION`
 - `INTENT_TRUST_FLOW_UNSAFE`
+- `INTENT_MEMORY_UNDECLARED`
+- `INTENT_MEMORY_SLOT_UNDECLARED`
 - `INTENT_MEMORY_UNSCOPED`
 - `INTENT_MEMORY_RETENTION_INVALID`
 - `INTENT_CHECKPOINT_INVALID`
@@ -1714,6 +1722,8 @@ Initial diagnostic families:
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
 - `INTENT_GRAPH_MEMORY_DECLARE_INVALID`
+- `INTENT_GRAPH_MEMORY_ACCESS_INVALID`
+- `INTENT_GRAPH_MEMORY_TARGET_INVALID`
 - `INTENT_GRAPH_POLICY_INVALID`
 - `INTENT_GRAPH_TYPE_INVALID`
 - `INTENT_GRAPH_TYPE_DECLARE_INVALID`

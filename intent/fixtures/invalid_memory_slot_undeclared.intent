@@ -1,0 +1,27 @@
+package fixtures.invalid_memory_key_undeclared
+
+type Report = {
+  body: String
+}
+
+goal undeclared_memory_key() -> Report {
+  context repo("./")
+
+  memory session {
+    retain summaries until goal_complete
+  }
+
+  plan {
+    step draft -> Report {
+      memory read session.evidence
+    }
+  }
+
+  verify {
+    require memory_provenance_complete
+  }
+
+  invariant {
+    deny secret_write
+  }
+}

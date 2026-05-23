@@ -785,14 +785,30 @@ function validateMemoryAccesses(goal, diagnostics) {
   const memoryDeclarations = memoryDeclarationsByReference(goal);
   for (const step of goal.steps) {
     for (const access of step.memoryAccesses) {
-      if (memoryDeclarations.has(access.memory)) {
+      const declaration = memoryDeclarations.get(access.memory);
+      if (!declaration) {
+        diagnostics.push(error("INTENT_MEMORY_UNDECLARED", `step '${step.name}' references undeclared memory '${access.memory}'.`, access.span, {
+          step: step.name,
+          memory: access.memory,
+          access: access.access,
+          target: access.target,
+        }));
         continue;
       }
-      diagnostics.push(error("INTENT_MEMORY_UNDECLARED", `step '${step.name}' references undeclared memory '${access.memory}'.`, access.span, {
+      if (!access.slot) {
+        continue;
+      }
+      const retentionSubjects = memoryRetentionSubjects(declaration.memory);
+      if (retentionSubjects.has(access.slot)) {
+        continue;
+      }
+      diagnostics.push(error("INTENT_MEMORY_SLOT_UNDECLARED", `step '${step.name}' references undeclared memory slot '${access.target}'.`, access.span, {
         step: step.name,
         memory: access.memory,
+        slot: access.slot,
         access: access.access,
         target: access.target,
+        declared_keys: [...retentionSubjects.keys()],
       }));
     }
   }
@@ -814,6 +830,16 @@ function memoryDeclarationsByReference(goal) {
     }
   }
   return declarations;
+}
+
+function memoryRetentionSubjects(memory) {
+  const subjects = new Map();
+  for (const retention of memory.retentionRules ?? []) {
+    if (retention.subject?.raw) {
+      subjects.set(retention.subject.raw, retention);
+    }
+  }
+  return subjects;
 }
 
 function validateGoalTypes(goal, declaredTypes, diagnostics) {
@@ -1076,9 +1102,9 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         retentionRules: memory.retentionRules ?? [],
       }));
       edges.push(edge(goalId, id, "declares"));
-      memoryIdsByReference.set(memory.scope, { id, span: memory.span });
+      memoryIdsByReference.set(memory.scope, { id, span: memory.span, memory });
       if (memory.name) {
-        memoryIdsByReference.set(memory.name, { id, span: memory.span });
+        memoryIdsByReference.set(memory.name, { id, span: memory.span, memory });
       }
     }
 
@@ -1207,13 +1233,15 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         if (!memory) {
           continue;
         }
+        const retention = memoryAccess.slot ? memoryRetentionSubjects(memory.memory).get(memoryAccess.slot) : null;
         const payload = {
           access: memoryAccess.access,
           memory: memoryAccess.memory,
           slot: memoryAccess.slot,
           target: memoryAccess.target,
+          retentionRef: retention?.raw ?? null,
           sourceSpan: memoryAccess.access === "write" ? memoryAccess.span : memory.span,
-          targetSpan: memoryAccess.access === "write" ? memory.span : memoryAccess.span,
+          targetSpan: memoryAccess.access === "write" ? (retention?.span ?? memory.span) : memoryAccess.span,
         };
         if (memoryAccess.access === "write") {
           edges.push(edge(id, memory.id, "writes", payload));
@@ -1567,6 +1595,11 @@ function validateGraph(graph, options = {}) {
     const edgeRoleDiagnostic = validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan);
     if (edgeRoleDiagnostic) {
       diagnostics.push(edgeRoleDiagnostic);
+      continue;
+    }
+    const memoryTargetDiagnostic = validateGraphMemoryTarget(nodesById, graphEdge, fallbackSpan);
+    if (memoryTargetDiagnostic) {
+      diagnostics.push(memoryTargetDiagnostic);
       continue;
     }
     outgoing.get(graphEdge.from).push(graphEdge.to);
@@ -2473,6 +2506,43 @@ function validateGraphMemoryAccessEdgeRole(nodesById, graphEdge, sourceNode, tar
       { edge: "writes", from_kind: "Step", to_kind: "Memory" },
     ],
   });
+}
+
+function validateGraphMemoryTarget(nodesById, graphEdge, fallbackSpan) {
+  if (!["reads", "writes", "cites"].includes(graphEdge.kind)) {
+    return null;
+  }
+  const sourceNode = nodesById.get(graphEdge.from);
+  const targetNode = nodesById.get(graphEdge.to);
+  const memoryNode = sourceNode?.kind === "Memory" ? sourceNode : targetNode?.kind === "Memory" ? targetNode : null;
+  const slot = graphEdge.data?.slot;
+  if (!memoryNode || slot === null || slot === undefined) {
+    return null;
+  }
+  const declaredSlots = graphMemoryRetentionSubjects(memoryNode);
+  if (typeof slot === "string" && declaredSlots.has(slot)) {
+    return null;
+  }
+  return error("INTENT_GRAPH_MEMORY_TARGET_INVALID", `${graphEdge.kind} edge '${graphEdge.from}' to '${graphEdge.to}' must target a retained memory slot.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    memory_id: memoryNode.id,
+    memory: graphEdge.data?.memory ?? null,
+    slot: typeof slot === "string" ? slot : null,
+    target: graphEdge.data?.target ?? null,
+    declared_keys: [...declaredSlots.keys()],
+  });
+}
+
+function graphMemoryRetentionSubjects(graphNode) {
+  const subjects = new Map();
+  for (const retention of graphNode.data?.retentionRules ?? []) {
+    if (retention?.subject?.raw) {
+      subjects.set(retention.subject.raw, retention);
+    }
+  }
+  return subjects;
 }
 
 function validateGraphRequiresEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {

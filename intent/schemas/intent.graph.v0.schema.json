@@ -959,6 +959,9 @@
             "target": {
               "type": "string"
             },
+            "retentionRef": {
+              "type": ["string", "null"]
+            },
             "sourceSpan": {
               "description": "For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
               "$ref": "#/$defs/span"
