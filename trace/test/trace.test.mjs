@@ -64,6 +64,9 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(searchJson.field, "decisions");
     assert.equal(searchJson.matches, 1);
     assert.equal(searchJson.results[0].sha.length, 40);
+    assert.match(searchJson.results[0].checkpoint, /^[0-9a-f]+$/);
+    assert.match(searchJson.results[0].session, /^[A-Za-z0-9-]+$/);
+    assert.equal(searchJson.results[0].file, payload.memory);
     assert.match(searchJson.results[0].snippet, /reviewable/);
 
     const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
@@ -73,6 +76,8 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(indexed.path, `${commonDir}/trace/index.json`);
     const index = JSON.parse(await readFile(join(repo, commonDir, "trace/index.json"), "utf8"));
     assert.equal(index.schema_version, "trace.search_index.v1");
+    assert.match(index.entries[0].checkpoint, /^[0-9a-f]+$/);
+    assert.match(index.entries[0].session, /^[A-Za-z0-9-]+$/);
     assert.equal(index.entries[0].decisions, "- Use committed Markdown for reviewable memory");
 
     const decisionSearch = await runTrace(repo, ["search", "--field", "decisions", "reviewable"]);

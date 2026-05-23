@@ -1897,7 +1897,14 @@ async function searchMemories(query) {
     if (!terms.every((term) => lower.includes(term))) {
       continue;
     }
-    matches.push({ sha: entry.sha, file: entry.file, snippet: snippet(searchable, terms[0]) });
+    matches.push({
+      sha: entry.sha,
+      file: entry.file,
+      checkpoint: entry.checkpoint,
+      session: entry.session,
+      created: entry.created,
+      snippet: snippet(searchable, terms[0]),
+    });
   }
 
   const limited = matches.slice(0, limit);
@@ -2068,6 +2075,9 @@ async function buildSearchIndex(root, files = null) {
     const entry = {
       sha,
       file: file.path,
+      checkpoint: content.match(/^Checkpoint: `([^`]+)`/m)?.[1] ?? "none",
+      session: content.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
+      created: content.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
       title: firstLine(content.replace(/^#\s*/, "")),
       intent: section(content, "Intent") ?? "",
       summary: section(content, "Summary") ?? "",
