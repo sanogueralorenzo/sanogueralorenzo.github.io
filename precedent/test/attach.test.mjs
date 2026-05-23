@@ -50,6 +50,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.runtime, "codex");
     assert.equal(first.sessionId, second.sessionId);
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
+    assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
     assert.equal(first.adapter.afterValidation.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");

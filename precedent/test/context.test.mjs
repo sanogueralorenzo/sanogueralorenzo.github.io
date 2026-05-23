@@ -132,6 +132,77 @@ test("context excludes rejected precedent", async () => {
   }
 });
 
+test("context surfaces non-injectable candidate hints", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-context-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "failed-run",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node -e \"console.error('wrong test command'); process.exit(1)\"",
+      "--json",
+    ]);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--session",
+      "next-run",
+      "--json",
+    ]);
+
+    assert.equal(context.contextBlock, "");
+    assert.deepEqual(context.injections, []);
+    assert.equal(context.candidateHints.length, 1);
+    assert.equal(context.candidateHints[0].candidateId, "cand_feature_webhooks_wrong_test_command");
+    assert.equal(context.candidateHints[0].replayRequired, true);
+    assert.deepEqual(context.candidateHints[0].failureTypes, ["wrong_test_command"]);
+    assert.deepEqual(context.candidateHints[0].sourceTraces, ["session-failed-run"]);
+    assert.equal(context.candidateHints[0].promotionTrial.readiness, "needs_rerun_command");
+    assert.ok(context.candidateHints[0].promotionTrial.command.includes("promotion-trial"));
+
+    const eventFile = join(stateDir, "before-turn.json");
+    await writeFile(eventFile, JSON.stringify({
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "hook-run",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    }));
+    const hook = await runJson(["hook", "--state-dir", stateDir, "--event-file", eventFile, "--json"]);
+    assert.equal(hook.contextBlock, "");
+    assert.deepEqual(hook.injections, []);
+    assert.equal(hook.candidateHints.length, 1);
+    assert.equal(hook.candidateHints[0].candidateId, "cand_feature_webhooks_wrong_test_command");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.candidateHintQueue.total, 1);
+    assert.equal(report.candidateHintQueue.blocked, 1);
+    assert.equal(report.candidateHintQueue.items[0].candidateId, "cand_feature_webhooks_wrong_test_command");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("context and inject suppress promoted precedents with failed replay audit", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-context-test-"));
 

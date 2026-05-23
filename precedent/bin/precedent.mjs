@@ -366,6 +366,13 @@ async function exportContext() {
       suppressed: lifecycleSelected.suppressed,
       sessionId: args.session ?? null,
     });
+    const candidateHints = candidateHintsForContext({
+      candidates,
+      precedents,
+      context,
+      stateDir,
+      sessionId: args.session ?? null,
+    });
     const exportEvent = {
       type: "context_export",
       observedAt: new Date().toISOString(),
@@ -383,6 +390,7 @@ async function exportContext() {
       suppressedInjections,
       revisionBriefs,
       promotionTrials,
+      candidateHints,
     };
     payload = {
       schema_version: "precedent.context.v1",
@@ -391,6 +399,7 @@ async function exportContext() {
       suppressedInjections,
       revisionBriefs,
       promotionTrials,
+      candidateHints,
       source: {
         command: "context",
         task,
@@ -419,6 +428,7 @@ async function exportContext() {
         suppressedInjections: exportEvent.suppressedInjections,
         revisionBriefs: exportEvent.revisionBriefs,
         promotionTrials: exportEvent.promotionTrials,
+        candidateHints: exportEvent.candidateHints,
       });
     }
   }, { failOpen: true });
@@ -431,6 +441,7 @@ async function exportContext() {
       suppressedInjections: [{ reason: "lock_timeout" }],
       revisionBriefs: [],
       promotionTrials: [],
+      candidateHints: [],
       source: {
         command: "context",
         task,
@@ -905,6 +916,7 @@ async function contextBeforeTurnEventHook(event) {
   let suppressed = [];
   let revisionBriefs = [];
   let promotionTrials = [];
+  let candidateHints = [];
   let contextBlock = "";
   let sessionEvent = null;
   const locked = await withStateLock(stateDir, async () => {
@@ -942,6 +954,13 @@ async function contextBeforeTurnEventHook(event) {
       suppressed: lifecycleSelected.suppressed,
       sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
     });
+    candidateHints = candidateHintsForContext({
+      candidates,
+      precedents,
+      context,
+      stateDir,
+      sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
+    });
     contextBlock = formatInjectionBlock(matches);
 
     const hookEvent = {
@@ -963,6 +982,7 @@ async function contextBeforeTurnEventHook(event) {
       suppressedInjections: suppressed,
       revisionBriefs,
       promotionTrials,
+      candidateHints,
     };
 
     await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
@@ -979,6 +999,7 @@ async function contextBeforeTurnEventHook(event) {
     suppressed = [{ reason: "lock_timeout" }];
     revisionBriefs = [];
     promotionTrials = [];
+    candidateHints = [];
   }
 
   print({
@@ -989,6 +1010,7 @@ async function contextBeforeTurnEventHook(event) {
     suppressedInjections: suppressed,
     revisionBriefs,
     promotionTrials,
+    candidateHints,
     contextBlock,
   });
 }
@@ -1561,7 +1583,7 @@ function buildManifest(runtime, stateDir) {
           "--format",
           "json",
         ],
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "source"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -1697,7 +1719,7 @@ async function attachRuntime() {
     adapter: {
       beforeTurn: {
         command: beforeTurnCommand,
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "source"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source"],
         injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1981,6 +2003,7 @@ async function reportState() {
     artifactCounts,
     auditHealth: replayAuditHealth(replayAudit),
     replayAudit,
+    candidateHintQueue: candidateHintQueue(candidates, precedents, stateDir),
     repairHealth: repairHealthSummary(events, precedents),
     precedentHealth: precedents.map((precedent) => ({
       id: precedent.id,
@@ -2514,6 +2537,109 @@ function promotionTrialsForContext({ candidates, context, suppressed, sessionId 
       evidence: Array.isArray(candidate.evidence) ? candidate.evidence.slice(0, 5) : [],
       acceptance: "Replay with candidate injected; promote only if rerun failures are lower than baseline failures.",
     }));
+}
+
+function candidateHintsForContext({ candidates, precedents, context, stateDir, sessionId, limit = 3 }) {
+  const promotedIds = new Set(precedents.map((precedent) => precedent.id));
+
+  return candidates
+    .filter((candidate) =>
+      candidate.status === "candidate"
+      && !promotedIds.has(candidate.id)
+      && (candidateOverlapsContext(candidate, context) || scorePrecedent(candidate, context).score > 0))
+    .map((candidate) => {
+      const match = scorePrecedent(candidate, context);
+
+      return {
+        ...candidate,
+        score: match.score,
+        matchReasons: match.reasons,
+      };
+    })
+    .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
+    .slice(0, limit)
+    .map((candidate) => formatCandidateHint(candidate, stateDir, sessionId));
+}
+
+function formatCandidateHint(candidate, stateDir, sessionId) {
+  const rerunCommand = validationCommandFromEvidence(candidate.evidence);
+  const traceOut = join(
+    stateDir,
+    "traces",
+    `promotion-trial-${safeFileName(candidate.id)}-${safeFileName(sessionId ?? "manual")}.json`,
+  );
+  const command = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "promotion-trial",
+    "--state-dir",
+    stateDir,
+    "--candidate",
+    candidate.id,
+    "--baseline-command",
+    "$BASELINE_COMMAND",
+    ...(rerunCommand ? ["--rerun-command", rerunCommand] : []),
+    "--trace-out",
+    traceOut,
+    "--json",
+  ];
+
+  return redactSecretsDeep({
+    candidateId: candidate.id,
+    status: candidate.status ?? "candidate",
+    reason: candidate.reason ?? null,
+    scope: candidate.scope ?? null,
+    paths: Array.isArray(candidate.paths) ? candidate.paths : [],
+    failureTypes: Array.isArray(candidate.failure_types) ? candidate.failure_types : [],
+    sourceTraces: Array.isArray(candidate.source_traces) ? candidate.source_traces : [],
+    evidence: Array.isArray(candidate.evidence) ? candidate.evidence.slice(0, 5) : [],
+    replayRequired: true,
+    promotionRequired: candidate.promotion_required ?? "Replay before promotion.",
+    matchReasons: candidate.matchReasons ?? [],
+    suggestedAction: "Run a promotion trial with a failing baseline command before trusting this candidate.",
+    promotionTrial: {
+      readiness: rerunCommand ? "ready_for_baseline" : "needs_rerun_command",
+      blockers: rerunCommand ? [] : ["missing successful validation evidence or --rerun-command"],
+      baselineCommand: "$BASELINE_COMMAND",
+      rerunCommand,
+      traceOut,
+      command,
+      acceptance: {
+        requiresReplay: true,
+        promoteWhen: "baseline_failures > rerun_failures",
+      },
+    },
+  }).value;
+}
+
+function candidateHintQueue(candidates, precedents, stateDir) {
+  const promotedIds = new Set(precedents.map((precedent) => precedent.id));
+  const items = candidates
+    .filter((candidate) => candidate.status === "candidate" && !promotedIds.has(candidate.id))
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((candidate) => {
+      const hint = formatCandidateHint(candidate, stateDir, "report");
+
+      return {
+        candidateId: hint.candidateId,
+        status: hint.status,
+        reason: hint.reason,
+        scope: hint.scope,
+        failureTypes: hint.failureTypes,
+        sourceTraces: hint.sourceTraces,
+        replayRequired: hint.replayRequired,
+        readiness: hint.promotionTrial.readiness,
+        blockers: hint.promotionTrial.blockers,
+        command: hint.promotionTrial.command,
+      };
+    });
+
+  return {
+    total: items.length,
+    readyForBaseline: items.filter((item) => item.readiness === "ready_for_baseline").length,
+    blocked: items.filter((item) => item.readiness !== "ready_for_baseline").length,
+    items,
+  };
 }
 
 function candidateOverlapsContext(candidate, context) {

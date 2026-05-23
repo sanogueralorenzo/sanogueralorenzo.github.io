@@ -146,7 +146,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `init` writes a versioned `.precedent/config.json` with runtime defaults for state path, injection limit, hook timeout, failure policy, retention window, redaction, and enabled hooks.
 - `observe` is the passive hook ingesting an agent trace.
 - `inject` is the before-turn hook returning relevant precedent.
-- `context` is the preferred runtime-facing export: it returns `schema_version: "precedent.context.v1"`, an insertable `contextBlock`, injection metadata, suppression metadata, and the source inputs used for ranking.
+- `context` is the preferred runtime-facing export: it returns `schema_version: "precedent.context.v1"`, an insertable `contextBlock`, injection metadata, suppression metadata, non-injectable `candidateHints`, and the source inputs used for ranking.
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
 - Every injection includes `matchReasons`, so a runtime can show why Precedent injected memory instead of treating it as opaque prompt context.
@@ -166,6 +166,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - Repair-efficacy context suppression also emits bounded `revisionBriefs`: the stale precedent id, failure summary, recent counterexamples, and criteria for a safe replacement.
 - When a later clean session succeeds after a repair-efficacy suppression, Precedent writes a non-injectable `repair_efficacy_replacement` candidate with the old precedent id in `replaces`, recent counterexample evidence, and the successful validation command. It does not supersede or promote the replacement until a replay proves improvement.
 - Overlapping future contexts with a replacement candidate emit bounded `promotionTrials`, which are machine-readable work orders for replaying and proving the replacement before promotion.
+- Matching unpromoted candidates emit bounded `candidateHints`, which are machine-readable replay work orders only; they never enter `contextBlock` and stay non-injectable until replay promotion succeeds.
 - `replay --candidate <id> --baseline-command <cmd> [--rerun-command <cmd>]` turns a candidate or promotion trial into the same verified replay trace as a handcrafted replay case. If `--rerun-command` is omitted, Precedent uses the candidate's successful-validation evidence.
 - `promotion-trial --candidate <id> --baseline-command <cmd> [--rerun-command <cmd>]` runs the candidate replay, writes the replay trace, immediately observes it, and returns the promoted or rejected decision plus replay-audit receipt.
 - Promoted precedents must carry a typed replay receipt with replay id, path, artifact SHA-256, failure counts, and baseline/rerun exit codes; `observe` and `check` reject string-only or tampered promotion evidence.
