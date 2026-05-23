@@ -1072,6 +1072,7 @@ Initial diagnostic families:
 - `INTENT_CHECKPOINT_INVALID`
 - `INTENT_POLICY_INVALID`
 - `INTENT_GRAPH_EDGE_UNRESOLVED`
+- `INTENT_GRAPH_INPUT_UNBOUND`
 - `INTENT_GRAPH_CYCLE`
 
 Errors make graph output non-executable by setting `ok: false`. Warnings and
@@ -1470,8 +1471,9 @@ completion may include `sourceSpan` for the final step output type and
 `targetSpan` for the goal output type.
 
 Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
-`from` or `to` endpoint is absent from the same graph payload, and emits
-`INTENT_GRAPH_CYCLE` for cyclic graph edges.
+`from` or `to` endpoint is absent from the same graph payload, emits
+`INTENT_GRAPH_INPUT_UNBOUND` when a step `Input` node does not have exactly one
+incoming `data` edge, and emits `INTENT_GRAPH_CYCLE` for cyclic graph edges.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
