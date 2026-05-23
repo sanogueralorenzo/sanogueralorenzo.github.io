@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, readFile, appendFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, appendFile, cp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,7 @@ const repoRoot = resolve(__dirname, "../..");
 const cliPath = join(repoRoot, "jury/bin/jury.mjs");
 const fixturesDir = join(repoRoot, "jury/fixtures/verdicts");
 const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
+const releasePath = join(repoRoot, "jury/release.json");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
 
 test("judge accepts a claim with passing evidence and no blocking objections", async () => {
@@ -408,6 +409,75 @@ test("gate reports CI-friendly consistency diagnostics for stale verdicts", asyn
   } finally {
     await rm(stateDir, { recursive: true, force: true });
   }
+});
+
+test("release metadata references existing schemas, exports, and commands", async () => {
+  const release = JSON.parse(await readFile(releasePath, "utf8"));
+  const packageJson = JSON.parse(await readFile(join(repoRoot, "jury/package.json"), "utf8"));
+
+  assert.equal(release.schema_version, "jury.release.v1");
+  assert.equal(release.name, packageJson.name);
+  assert.equal(release.version, packageJson.version);
+  assert.equal(release.cli.entrypoint, "bin/jury.mjs");
+  assert.deepEqual(release.state.files, [
+    "claims.jsonl",
+    "checks.jsonl",
+    "evidence.jsonl",
+    "objections.jsonl",
+    "waivers.jsonl",
+    "verdicts.jsonl",
+  ]);
+
+  for (const relativePath of Object.values(release.schemas)) {
+    const schema = JSON.parse(await readFile(join(repoRoot, "jury", relativePath), "utf8"));
+    assert.equal(schema.type, "object");
+    assert.ok(Array.isArray(schema.required));
+  }
+
+  for (const relativePath of Object.values(release.exports)) {
+    const artifact = JSON.parse(await readFile(join(repoRoot, "jury", relativePath), "utf8"));
+    assert.match(artifact.schema_version, /^jury\.(check|verdict)\.v1$/);
+  }
+
+  for (const commandName of ["judge", "gate", "check", "demo code-change"]) {
+    assert.ok(release.cli.commands.includes(commandName), `${commandName} must be listed`);
+  }
+});
+
+test("exported check and verdict examples validate as portable CI artifacts", async () => {
+  const stateDir = await tempState();
+  const verdictOut = join(stateDir, "verdict.json");
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    await runJson(["claim", "create", "--state-dir", stateDir, "--id", "claim_ci_change", "--summary", "pull request is ready", "--scope", "jury"]);
+    await runJson(["evidence", "add", "--state-dir", stateDir, "--id", "ev_ci_tests", "--claim", "claim_ci_change", "--type", "command", "--command", "node --test jury/test/*.test.mjs", "--exit-code", "0"]);
+    const checkExample = JSON.parse(await readFile(join(repoRoot, "jury/examples/exports/check.passed.v1.json"), "utf8"));
+    await appendFile(join(stateDir, "checks.jsonl"), `${JSON.stringify(checkExample)}\n`);
+    await cp(join(repoRoot, "jury/examples/exports/verdict.accept.v1.json"), verdictOut);
+    await appendFile(join(stateDir, "verdicts.jsonl"), `${JSON.stringify(JSON.parse(await readFile(verdictOut, "utf8")))}\n`);
+
+    const gate = await runJson(["gate", "--state-dir", stateDir, "--claim", "claim_ci_change", "--verdict", verdictOut]);
+    const check = await runJson(["check", "--state-dir", stateDir, "--strict"]);
+
+    assert.equal(gate.ok, true);
+    assert.ok(check.checks.find((item) => item.name === "state_consistency").ok);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("migration doc preserves the release artifact contract", async () => {
+  const migration = await readFile(join(repoRoot, "jury/MIGRATION.md"), "utf8");
+  const release = JSON.parse(await readFile(releasePath, "utf8"));
+
+  for (const artifact of release.ciArtifacts) {
+    assert.ok(migration.includes(artifact), `MIGRATION.md should mention ${artifact}`);
+  }
+
+  assert.ok(migration.includes("verdict.json"));
+  assert.ok(migration.includes(".jury/*.jsonl"));
+  assert.ok(migration.includes("release.json"));
 });
 
 function tempState() {

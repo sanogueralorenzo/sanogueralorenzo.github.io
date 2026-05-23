@@ -1,0 +1,56 @@
+{
+  "schema_version": "jury.release.v1",
+  "name": "@sanogueralorenzo/jury",
+  "version": "0.1.0",
+  "status": "prototype-v1",
+  "cli": {
+    "entrypoint": "bin/jury.mjs",
+    "node": ">=20",
+    "commands": [
+      "init",
+      "claim create",
+      "claim transition",
+      "check add",
+      "check update",
+      "evidence add",
+      "critic run",
+      "objection add",
+      "objection resolve",
+      "waiver add",
+      "status",
+      "judge",
+      "gate",
+      "check",
+      "demo code-change"
+    ]
+  },
+  "state": {
+    "defaultDir": ".jury",
+    "format": "append-only jsonl",
+    "files": [
+      "claims.jsonl",
+      "checks.jsonl",
+      "evidence.jsonl",
+      "objections.jsonl",
+      "waivers.jsonl",
+      "verdicts.jsonl"
+    ]
+  },
+  "schemas": {
+    "claim": "schemas/claim.schema.json",
+    "check": "schemas/check.schema.json",
+    "evidence": "schemas/evidence.schema.json",
+    "objection": "schemas/objection.schema.json",
+    "waiver": "schemas/waiver.schema.json",
+    "verdict": "schemas/verdict.schema.json"
+  },
+  "exports": {
+    "check": "examples/exports/check.passed.v1.json",
+    "verdict": "examples/exports/verdict.accept.v1.json"
+  },
+  "ciArtifacts": [
+    "verdict.json",
+    "jury-demo-transcript.json",
+    ".jury/*.jsonl"
+  ]
+}
