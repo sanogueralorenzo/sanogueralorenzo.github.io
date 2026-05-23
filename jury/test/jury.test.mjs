@@ -1345,7 +1345,9 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("archive drift remediation audit must verify the retained manifest"));
   assert.ok(guide.includes("archive drift remediation audit missing verification commands"));
   assert.ok(guide.includes("Replay Artifact Summary Failure"));
+  assert.ok(guide.includes("Replay Summary Retention Failure"));
   assert.ok(guide.includes("missing replay summary lines"));
+  assert.ok(guide.includes("replay summary retention incomplete"));
   assert.ok(guide.includes("failed package identity, replacement package identity, retained archive evidence lists, and remediation approver"));
   assert.ok(guide.includes("schema_version must equal jury.package_release_archive_manifest.v1"));
   assert.ok(guide.includes("must contain an item matching required archive evidence"));
@@ -1533,6 +1535,85 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
     const missingReplaySummaryLineCheck = await runShell(retainedCommand(replaySummaryTroubleshootingCommands[1]).replace("<summary-file>", shellQuote(replaySummaryPath)));
     assert.equal(missingReplaySummaryLineCheck.exitCode, 1);
     assert.match(missingReplaySummaryLineCheck.stderr, /missing replay summary lines: - failedTarballName: sanogueralorenzo-jury-0\.1\.0\.tgz/);
+
+    await writeFile(replaySummaryPath, [
+      "### Jury package release replay",
+      "",
+      "- failedPackageVersion: 0.1.0",
+      "- failedTarballName: sanogueralorenzo-jury-0.1.0.tgz",
+      "- replacementPackageVersion: 0.1.1",
+      "- failedArchiveEvidence: downstream-failure-gate.json, failed-npm-view.json, rollback-audit.json",
+      "- replacementArchiveEvidence: replacement-downstream-gate.json, replacement-npm-view.json, replacement-patch-audit.json",
+      "- remediationApprovedBy: release-maintainer@example.com",
+      "",
+    ].join("\n"));
+    const replaySummaryRetentionCommands = extractShellBlock(guide, "Replay Summary Retention Failure");
+    assert.deepEqual(replaySummaryRetentionCommands, [
+      'node -e \'const fs=require("node:fs"); const summaryPath=process.argv[1]; if (!fs.existsSync(summaryPath)) throw new Error("jury-package-release-replay-summary.md must be promoted before the 90-day artifact expiry"); const summary=fs.readFileSync(summaryPath,"utf8"); if (!summary.includes("### Jury package release replay")) throw new Error("jury-package-release-replay-summary.md missing Jury package release replay heading"); console.log(JSON.stringify({ok:true, summaryPath}, null, 2));\' <summary-file>',
+      'node -e \'const fs=require("node:fs"); const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const artifact=(manifest.provenance?.artifacts??[]).find((item)=>item.name==="jury-package-release-replay-summary"); const errors=[]; if (!manifest.retention?.artifacts?.includes("jury-package-release-replay-summary")) errors.push("retention.artifacts missing jury-package-release-replay-summary"); if (!manifest.retention?.artifacts?.includes("jury-package-release-replay-summary.md")) errors.push("retention.artifacts missing jury-package-release-replay-summary.md"); if (!artifact) errors.push("provenance.artifacts missing jury-package-release-replay-summary"); if (artifact?.sourceJob!=="package-release-evidence-replay") errors.push("jury-package-release-replay-summary sourceJob must be package-release-evidence-replay"); if (artifact?.retentionDays!==90) errors.push("jury-package-release-replay-summary retentionDays must be 90"); if (!artifact?.files?.includes("jury-package-release-replay-summary.md")) errors.push("jury-package-release-replay-summary files must include jury-package-release-replay-summary.md"); if (errors.length) throw new Error(`replay summary retention incomplete: ${errors.join("; ")}`); console.log(JSON.stringify({ok:true, artifact}, null, 2));\' <retained-manifest>',
+      'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const manifest=JSON.parse(fs.readFileSync(process.argv[2],"utf8")); const summary=fs.readFileSync(process.argv[3],"utf8"); const remediation=JSON.parse(fs.readFileSync(`${dir}/archive-drift-remediation-audit.json`,"utf8")); const expected=[`- failedPackageVersion: ${manifest.failed.packageVersion}`,`- failedTarballName: ${manifest.failed.tarballName}`,`- replacementPackageVersion: ${manifest.replacement.packageVersion}`,`- failedArchiveEvidence: ${remediation.failed.archiveEvidence.join(", ")}`,`- replacementArchiveEvidence: ${remediation.replacement.archiveEvidence.join(", ")}`,`- remediationApprovedBy: ${remediation.approval.approvedBy}`]; const missing=expected.filter((line)=>!summary.includes(line)); if (missing.length) throw new Error(`retained replay summary no longer matches retained archive evidence: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, checked:expected}, null, 2));\' <retained-evidence-dir> <retained-manifest> <summary-file>',
+    ]);
+    const retainedSummaryCommand = (command) => retainedCommand(command).replaceAll("<summary-file>", shellQuote(replaySummaryPath));
+    const retainedSummaryExists = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[0]));
+    assert.equal(retainedSummaryExists.exitCode, 0, retainedSummaryExists.stderr);
+    assert.equal(JSON.parse(retainedSummaryExists.stdout).ok, true);
+    const retainedSummaryProvenance = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[1]));
+    assert.equal(retainedSummaryProvenance.exitCode, 0, retainedSummaryProvenance.stderr);
+    assert.equal(JSON.parse(retainedSummaryProvenance.stdout).artifact.name, "jury-package-release-replay-summary");
+    const retainedSummaryContent = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[2]));
+    assert.equal(retainedSummaryContent.exitCode, 0, retainedSummaryContent.stderr);
+    assert.equal(JSON.parse(retainedSummaryContent.stdout).ok, true);
+
+    const missingRetainedSummary = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[0]).replace(shellQuote(replaySummaryPath), shellQuote(join(manifestReplayRoot, "missing-summary.md"))));
+    assert.equal(missingRetainedSummary.exitCode, 1);
+    assert.match(missingRetainedSummary.stderr, /jury-package-release-replay-summary\.md must be promoted before the 90-day artifact expiry/);
+
+    const missingSummaryProvenanceManifestPath = join(manifestReplayRoot, "missing-summary-provenance-manifest.json");
+    const missingSummaryProvenanceManifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
+    missingSummaryProvenanceManifest.provenance.artifacts = missingSummaryProvenanceManifest.provenance.artifacts.filter((artifact) => artifact.name !== "jury-package-release-replay-summary");
+    await writeFile(missingSummaryProvenanceManifestPath, `${JSON.stringify(missingSummaryProvenanceManifest, null, 2)}\n`);
+    const missingSummaryProvenance = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[1]).replace(shellQuote(retainedManifestPath), shellQuote(missingSummaryProvenanceManifestPath)));
+    assert.equal(missingSummaryProvenance.exitCode, 1);
+    assert.match(missingSummaryProvenance.stderr, /replay summary retention incomplete: provenance\.artifacts missing jury-package-release-replay-summary/);
+
+    const wrongSummarySourceJobManifestPath = join(manifestReplayRoot, "wrong-summary-source-job-manifest.json");
+    const wrongSummarySourceJobManifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
+    wrongSummarySourceJobManifest.provenance.artifacts.find((artifact) => artifact.name === "jury-package-release-replay-summary").sourceJob = "package-release-fixtures";
+    await writeFile(wrongSummarySourceJobManifestPath, `${JSON.stringify(wrongSummarySourceJobManifest, null, 2)}\n`);
+    const wrongSummarySourceJob = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[1]).replace(shellQuote(retainedManifestPath), shellQuote(wrongSummarySourceJobManifestPath)));
+    assert.equal(wrongSummarySourceJob.exitCode, 1);
+    assert.match(wrongSummarySourceJob.stderr, /jury-package-release-replay-summary sourceJob must be package-release-evidence-replay/);
+
+    const wrongSummaryRetentionDaysManifestPath = join(manifestReplayRoot, "wrong-summary-retention-days-manifest.json");
+    const wrongSummaryRetentionDaysManifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
+    wrongSummaryRetentionDaysManifest.provenance.artifacts.find((artifact) => artifact.name === "jury-package-release-replay-summary").retentionDays = 7;
+    await writeFile(wrongSummaryRetentionDaysManifestPath, `${JSON.stringify(wrongSummaryRetentionDaysManifest, null, 2)}\n`);
+    const wrongSummaryRetentionDays = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[1]).replace(shellQuote(retainedManifestPath), shellQuote(wrongSummaryRetentionDaysManifestPath)));
+    assert.equal(wrongSummaryRetentionDays.exitCode, 1);
+    assert.match(wrongSummaryRetentionDays.stderr, /jury-package-release-replay-summary retentionDays must be 90/);
+
+    const missingSummaryRetentionArtifactManifestPath = join(manifestReplayRoot, "missing-summary-retention-artifact-manifest.json");
+    const missingSummaryRetentionArtifactManifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
+    missingSummaryRetentionArtifactManifest.retention.artifacts = missingSummaryRetentionArtifactManifest.retention.artifacts.filter((artifact) => artifact !== "jury-package-release-replay-summary.md");
+    await writeFile(missingSummaryRetentionArtifactManifestPath, `${JSON.stringify(missingSummaryRetentionArtifactManifest, null, 2)}\n`);
+    const missingSummaryRetentionArtifact = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[1]).replace(shellQuote(retainedManifestPath), shellQuote(missingSummaryRetentionArtifactManifestPath)));
+    assert.equal(missingSummaryRetentionArtifact.exitCode, 1);
+    assert.match(missingSummaryRetentionArtifact.stderr, /retention\.artifacts missing jury-package-release-replay-summary\.md/);
+
+    await writeFile(replaySummaryPath, [
+      "### Jury package release replay",
+      "",
+      "- failedPackageVersion: 0.1.0",
+      "- failedTarballName: sanogueralorenzo-jury-0.1.0.tgz",
+      "- replacementPackageVersion: 0.1.2",
+      "- failedArchiveEvidence: downstream-failure-gate.json, failed-npm-view.json, rollback-audit.json",
+      "- replacementArchiveEvidence: replacement-downstream-gate.json, replacement-npm-view.json, replacement-patch-audit.json",
+      "- remediationApprovedBy: release-maintainer@example.com",
+      "",
+    ].join("\n"));
+    const driftedRetainedSummaryContent = await runShell(retainedSummaryCommand(replaySummaryRetentionCommands[2]));
+    assert.equal(driftedRetainedSummaryContent.exitCode, 1);
+    assert.match(driftedRetainedSummaryContent.stderr, /retained replay summary no longer matches retained archive evidence: - replacementPackageVersion: 0\.1\.1/);
 
     const manifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
     manifest.retention.artifacts = manifest.retention.artifacts.filter((artifact) => artifact !== "replacement-patch-audit.json");
@@ -1922,6 +2003,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("jury-package-release-archive-manifest"));
   assert.ok(publicationNotes.includes("jury-package-release-replay-summary"));
   assert.ok(publicationNotes.includes("jury-package-release-replay-summary.md"));
+  assert.ok(publicationNotes.includes("replay summary retention failure"));
   assert.ok(publicationNotes.includes('JURY_PACKAGE_RELEASE_MANIFEST_PATH'));
   assert.ok(publicationNotes.includes("Dry-Run Publication Record"));
   assert.ok(publicationNotes.includes("jury-pack-dry-run.json"));
@@ -3052,6 +3134,8 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("Promote failed and replacement release evidence"));
   assert.ok(checklist.includes("Promote `jury-package-release-replay-summary.md`"));
   assert.ok(checklist.includes("Record retained artifact provenance"));
+  assert.ok(checklist.includes("If replay summary retention fails"));
+  assert.ok(checklist.includes("replay summary provenance"));
   assert.ok(checklist.includes("workflow run and source revision"));
   assert.ok(checklist.includes("retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json"));
@@ -3256,12 +3340,15 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /Replay Artifact Summary Troubleshooting/);
   assert.match(handoff, /reconstruct the expected failed\/replacement archive summary from the retained evidence/);
   assert.match(handoff, /failed package identity, replacement package identity, retained archive evidence lists, or remediation approver/);
+  assert.match(handoff, /Replay Summary Retention Failure Troubleshooting/);
+  assert.match(handoff, /missing `jury-package-release-replay-summary\.md`/);
+  assert.match(handoff, /wrong `package-release-evidence-replay` source job/);
   assert.match(handoff, /JURY_PACKAGE_RELEASE_EVIDENCE_DIR/);
   assert.match(handoff, /replacement-patch-audit\.json\.checks is required/);
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure troubleshooting for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

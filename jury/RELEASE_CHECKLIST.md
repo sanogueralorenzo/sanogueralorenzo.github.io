@@ -34,6 +34,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Promote failed and replacement release evidence from temporary CI artifacts into the release record or incident archive before the 90-day artifact expiry.
 - [ ] Promote `jury-package-release-replay-summary.md` from `jury-package-release-replay-summary` with the failed and replacement release archive evidence before the 90-day artifact expiry.
 - [ ] Record retained artifact provenance for `jury-package-dry-run`, `jury-package-release-evidence`, and `jury-package-release-replay-summary`: source workflow, run id, source revision, source job, `retentionDays`, and uploaded file list.
+- [ ] If replay summary retention fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to check the promoted summary file, manifest retention artifacts, replay summary provenance, source job, `retentionDays`, and retained summary content.
 - [ ] Confirm retained failed and replacement evidence comes from the same `jury-npm-publish.yml` workflow run and source revision before closing the release.
 - [ ] Export `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json`.
 - [ ] Confirm the retained archive manifest validates against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json).
