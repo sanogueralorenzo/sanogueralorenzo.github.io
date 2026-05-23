@@ -475,7 +475,12 @@ The parser emits names and type reference strings; the checker owns binding.
   guard coverage emits `INTENT_GRAPH_COMPLETION_INVALID`; cyclic graph edges emit
   `INTENT_GRAPH_CYCLE`; an `Invariant` node missing its `guards` edge to
   `Completion` or to any `Effect`, `Checkpoint`, or step-scoped `Check` node in
-  the same goal emits `INTENT_GRAPH_GUARD_INVALID`.
+  the same goal emits `INTENT_GRAPH_GUARD_INVALID`; a step-scoped `Check`
+  without a `requires` edge to its owning `Step`, an `Approval` without an
+  `approves` edge to its owning `Step` or to an approval-required `Effect` in
+  that same step, a `Checkpoint` without a `checkpoints` edge from its owning
+  `Step`, or a `Policy` without its `timeouts` or `retries` edge to its owning
+  `Step` emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Graph nodes and edges record trust metadata where it helps downstream
   runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.

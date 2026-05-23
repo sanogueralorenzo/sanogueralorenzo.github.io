@@ -1491,6 +1491,12 @@ Graph validation emits `INTENT_GRAPH_AUTHORIZATION_INVALID` when an `Effect`
 node or verification `Check` node with `data.effect` lacks an incoming
 `authorizes` edge from a `Capability`, or when its incoming `authorizes` edge is
 not from a `Capability`.
+Graph validation emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID` when a
+step-scoped `Check` lacks a `requires` edge to its owning `Step`, an `Approval`
+lacks an `approves` edge to its owning `Step` or to an approval-required
+`Effect` in that same step, a `Checkpoint` lacks a `checkpoints` edge from its
+owning `Step`, or a `Policy` lacks its `timeouts` or `retries` edge to its
+owning `Step`.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
