@@ -86,6 +86,12 @@ line is additionally parsed into structured `retentionRules` data with a
 retained subject span and an until-condition span. `verify` accepts only
 `require`; `invariant` accepts only `deny`.
 
+Each `deny ...` line inside an `invariant` block is parsed as an invariant
+statement. The graph builder emits each invariant statement as an `Invariant`
+node and creates `guards` edges from that node to the goal completion node and
+to every effect, step checkpoint, and step requirement check in the same goal.
+This keeps always-on rules visible across side effects and recovery boundaries.
+
 Every `memory` block must include at least one `retain ... until ...` retention
 rule. A memory block without a parsed retention rule is syntactically valid, but
 the checker emits `INTENT_MEMORY_UNSCOPED` because the retained state has no
@@ -265,8 +271,9 @@ The parser emits names and type reference strings; the checker owns binding.
 - Each step input node creates a `requires` edge to its owning step.
 - Every goal emits one `completion` graph node.
 - Required `verify` checks create `verifies` edges to the completion node,
-  applicable `invariant` rules create `guards` edges, and the last step in
-  source order creates a `produces` edge.
+  applicable `invariant` rules create `guards` edges to completion and every
+  effect, checkpoint, and step requirement check in the same goal, and the last
+  step in source order creates a `produces` edge.
 
 ## Whitespace And Comments
 

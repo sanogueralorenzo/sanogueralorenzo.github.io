@@ -1,0 +1,62 @@
+package fixtures.invariant_guard_graph
+
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+type Verification = {
+  exit_code: Int
+}
+
+goal "apply invariant guarded graph change" {
+  context repo("./")
+  context ticket("CODE-987")
+
+  capability file {
+    read path: "./src/**"
+    read path: "./test/**"
+    write path: "./src/**"
+    write path: "./test/**"
+  }
+
+  capability shell {
+    run command: "npm test"
+  }
+
+  memory session {
+    retain checkpoints until goal_complete
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_request -> Finding
+    step patch_code(input: Finding) -> Patch {
+      require input.summary != ""
+      checkpoint "before guarded patch"
+      effect FileWrite(path: "./src/app.ts")
+      effect FileWrite(path: "./test/app.test.ts")
+      checkpoint "after guarded patch"
+    }
+    step verify_patch(input: Patch) -> Verification {
+      require input.files != []
+      effect ShellExec(command: "npm test")
+      checkpoint "tests verified"
+    }
+  }
+
+  verify {
+    require shell("npm test").exit_code == 0
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+    deny uncheckpointed_irreversible_effect
+  }
+}

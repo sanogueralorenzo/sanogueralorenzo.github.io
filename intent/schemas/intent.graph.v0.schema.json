@@ -684,11 +684,14 @@
             },
             "data": {
               "type": "object",
-              "required": ["assertion"],
+              "required": ["assertion", "invariant"],
               "additionalProperties": false,
               "properties": {
                 "assertion": {
                   "enum": ["Require", "Deny"]
+                },
+                "invariant": {
+                  "type": "string"
                 }
               }
             }

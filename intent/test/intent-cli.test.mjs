@@ -14,6 +14,7 @@ const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.
 const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.intent", import.meta.url).pathname;
 const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent", import.meta.url).pathname;
 const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.intent", import.meta.url).pathname;
+const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
@@ -161,6 +162,7 @@ describe("intent static model CLI", () => {
     const webReadWildcard = runJson(["check", VALID_WEB_READ_WILDCARD]);
     const gitPushBranch = runJson(["check", VALID_GIT_PUSH_BRANCH]);
     const stepRequirements = runJson(["check", VALID_STEP_REQUIREMENTS]);
+    const invariantGuardGraph = runJson(["check", VALID_INVARIANT_GUARD_GRAPH]);
     const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
 
     assert.equal(codeChange.ok, true);
@@ -177,6 +179,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(gitPushBranch.diagnostics, []);
     assert.equal(stepRequirements.ok, true);
     assert.deepEqual(stepRequirements.diagnostics, []);
+    assert.equal(invariantGuardGraph.ok, true);
+    assert.deepEqual(invariantGuardGraph.diagnostics, []);
     assert.equal(trustFlow.ok, true);
     assert.deepEqual(trustFlow.diagnostics, []);
   });
@@ -372,6 +376,20 @@ describe("intent static model CLI", () => {
     assert.equal(patchStep.data.checkpoints.includes("before patch"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "checkpoints" && edge.from === patchStep.id && edge.to === checkpoint.id), true);
     assert.equal(graph.edges.some((edge) => edge.from === checkpoint.id && edge.kind === "verifies"), false);
+  });
+
+  it("emits invariant guards to completion, effects, checkpoints, and step requirements", () => {
+    const graph = runJson(["graph", VALID_INVARIANT_GUARD_GRAPH]);
+    const invariant = graph.nodes.find((node) => node.kind === "Invariant" && node.data.invariant === "secret_write");
+    const effect = graph.nodes.find((node) => node.kind === "Effect" && node.data.family === "file");
+    const checkpoint = graph.nodes.find((node) => node.kind === "Checkpoint" && node.data.ownerStep === "patch_code");
+    const requirement = graph.nodes.find((node) => node.kind === "Check" && node.data.scope === "step");
+
+    assert.equal(graph.ok, true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to.endsWith(":completion")), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === effect.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === checkpoint.id), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === requirement.id), true);
   });
 
   it("validates CLI outputs against versioned schemas", () => {

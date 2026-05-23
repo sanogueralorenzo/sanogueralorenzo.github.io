@@ -26,7 +26,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `StepCheckpoint`: structured `checkpoint ...` step-body statement with raw
   checkpoint text and source span.
 - `VerifyBlock`: required or advisory completion checks.
-- `InvariantBlock`: always-on rules evaluated across effects and checkpoints.
+- `InvariantBlock`: always-on rules evaluated across completion, effects,
+  checkpoints, and step requirement checks.
 - `EffectDecl`: reusable typed effect signature.
 - `EffectCall`: parsed effect request with callee, arguments, source span, and
   raw text.
@@ -301,7 +302,8 @@ blocking diagnostics.
   goal-level verification requirements.
 - Parse step-body `checkpoint ...` lines as step checkpoints owned by their
   containing step.
-- Enforce invariant placement and attach invariants to the graph as guards.
+- Enforce invariant placement, emit invariant statements as `Invariant` nodes,
+  and attach those nodes to the graph as guards.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
 - Emit `INTENT_TRUST_FLOW_UNSAFE` for nonliteral shell command arguments that
@@ -316,6 +318,9 @@ blocking diagnostics.
   step and `gates` edges to the owning goal.
 - Emit step checkpoints as `Checkpoint` nodes, list them on the owning `Step`
   node data, and connect each one with a `checkpoints` edge from that `Step`.
+- Emit each invariant statement as an `Invariant` node with `guards` edges to
+  completion and to every effect, checkpoint, and step requirement check in the
+  same goal.
 - Reject execution cycles unless a future bounded-loop form declares progress.
 
 ## Step Input Binding
@@ -432,6 +437,22 @@ Rules:
   checkpoint `Checkpoint` node.
 - Step checkpoints do not create `verifies` edges to the goal `Completion`
   node and do not replace memory retention rules.
+
+## Invariant Guards
+
+Invariant blocks contain always-on `deny ...` statements. Each statement emits
+one graph `Invariant` node whose span is the `deny ...` line.
+
+Rules:
+
+- The graph builder creates a `guards` edge from each `Invariant` node to the
+  goal `Completion` node.
+- The graph builder also creates `guards` edges from each `Invariant` node to
+  every `Effect`, `Checkpoint`, and step-scoped requirement `Check` node in the
+  same goal.
+- Invariant guards do not replace capability, checkpoint, step requirement, or
+  verification edges. They make always-on rules visible wherever side effects,
+  recovery boundaries, and step-local checks can affect execution.
 
 ## Memory Retention
 
@@ -792,6 +813,16 @@ node id. It is an intermediate contract for a local runtime.
       }
     },
     {
+      "id": "goal:ship_checkout_fix:invariant:0",
+      "kind": "Invariant",
+      "label": "secrets.never_written",
+      "span": "loc.18",
+      "data": {
+        "assertion": "Deny",
+        "invariant": "secrets.never_written"
+      }
+    },
+    {
       "id": "goal:ship_checkout_fix:verify:0",
       "kind": "Check",
       "label": "run_tests.exit_code == 0",
@@ -862,6 +893,21 @@ node id. It is an intermediate contract for a local runtime.
       "kind": "requires"
     },
     {
+      "from": "goal:ship_checkout_fix:invariant:0",
+      "to": "goal:ship_checkout_fix:step:run_tests:effect:0",
+      "kind": "guards"
+    },
+    {
+      "from": "goal:ship_checkout_fix:invariant:0",
+      "to": "goal:ship_checkout_fix:step:run_tests:checkpoint:0",
+      "kind": "guards"
+    },
+    {
+      "from": "goal:ship_checkout_fix:invariant:0",
+      "to": "goal:ship_checkout_fix:step:run_tests:requirement:0",
+      "kind": "guards"
+    },
+    {
       "from": "goal:ship_checkout_fix:verify:0",
       "to": "goal:ship_checkout_fix",
       "kind": "gates"
@@ -876,6 +922,11 @@ node id. It is an intermediate contract for a local runtime.
       "to": "goal:ship_checkout_fix:completion",
       "kind": "produces",
       "data": { "type": "ShellExecResult" }
+    },
+    {
+      "from": "goal:ship_checkout_fix:invariant:0",
+      "to": "goal:ship_checkout_fix:completion",
+      "kind": "guards"
     },
     {
       "from": "goal:ship_checkout_fix",
@@ -918,7 +969,8 @@ checkpoint has one incoming `checkpoints` edge from that owning step.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.
-Invariants that apply to the goal create `guards` edges to completion. The last
+Invariants that apply to the goal create `guards` edges to completion and to
+every effect, checkpoint, and step requirement check in that goal. The last
 executable step in the plan creates a `produces` edge to completion. Completion
 is reachable only when all incoming completion edges have succeeded or remained
 unviolated.

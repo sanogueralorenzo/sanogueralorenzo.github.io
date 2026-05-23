@@ -702,6 +702,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
     let previousStepId = null;
     let lastStepId = null;
+    const guardTargetIds = [];
     for (const [index, step] of goal.steps.entries()) {
       const id = `${goalId}:step:${step.name || index}`;
       nodes.push(node(id, "Step", step.name, step.span, {
@@ -730,6 +731,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         edges.push(edge(requirementId, id, "requires", {
           requirement: requirement.value,
         }));
+        guardTargetIds.push(requirementId);
       }
 
       for (const parameter of step.parameters) {
@@ -762,6 +764,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         edges.push(edge(id, checkpointId, "checkpoints", {
           checkpoint: checkpoint.value,
         }));
+        guardTargetIds.push(checkpointId);
       }
 
       for (const [effectIndex, effectUse] of step.effects.entries()) {
@@ -775,6 +778,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           expression: effectUse.expression,
         }));
         edges.push(edge(id, effectId, "requests"));
+        guardTargetIds.push(effectId);
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
           if (isFamilyMatch(effectUse.family, capability.family) && !getCapabilityDenial(effectUse, [capability])) {
             edges.push(edge(`${goalId}:capability:${capabilityIndex}`, effectId, "authorizes"));
@@ -824,9 +828,13 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       const id = `${goalId}:invariant:${index}`;
       nodes.push(node(id, "Invariant", invariant.value, invariant.span, {
         assertion: invariant.kind,
+        invariant: invariant.value,
       }));
       edges.push(edge(id, goalId, "constrains"));
       edges.push(edge(id, completionId, "guards"));
+      for (const targetId of guardTargetIds) {
+        edges.push(edge(id, targetId, "guards"));
+      }
     }
   }
 
