@@ -278,7 +278,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
     assert.ok(guide.includes(`\`${field}\``), `TROUBLESHOOTING.md should describe gate.${field}`);
   }
 
-  for (const field of ["claim_id", "records.claims", "records.checks", "records.evidence", "records.objections", "records.verdicts"]) {
+  for (const field of ["claim_id", "producer", "provenance", "records.claims", "records.checks", "records.evidence", "records.objections", "records.verdicts"]) {
     assert.ok(guide.includes(`\`${field}\``), `TROUBLESHOOTING.md should describe bundle.${field}`);
   }
 
@@ -579,6 +579,17 @@ test("bundle preflight validates portable bundles without mutating state", async
     assert.deepEqual(payload, {
       ok: true,
       claim_id: "claim_ci_change",
+      producer: {
+        name: "@sanogueralorenzo/jury",
+        version: "0.1.0",
+        command: "bundle export",
+      },
+      provenance: {
+        source: "local",
+        revision: "unknown",
+        workflow: null,
+        run_id: null,
+      },
       records: {
         claims: 3,
         checks: 2,
@@ -604,6 +615,7 @@ test("bundle preflight and import reject invalid bundles before state mutation",
     const bundle = JSON.parse(await readFile(join(repoRoot, "jury/examples/ci/fixtures/quickstart/review-bundle.json"), "utf8"));
     bundle.records.checks.at(-1).evidence_ids = ["ev_missing"];
     bundle.records.evidence[0].claim_id = "claim_other";
+    delete bundle.provenance.revision;
     delete bundle.records.verdicts[0].reason;
     await writeFile(invalidBundlePath, `${JSON.stringify(bundle, null, 2)}\n`);
 
@@ -613,6 +625,7 @@ test("bundle preflight and import reject invalid bundles before state mutation",
 
       assert.equal(result.exitCode, 1);
       assert.equal(payload.ok, false);
+      assert.ok(payload.errors.includes("bundle.provenance.revision must be a non-empty string"));
       assert.ok(payload.errors.includes("verdict.reason must be a non-empty string"));
       assert.ok(payload.errors.includes("bundle.records.evidence contains ev_ci_tests from claim claim_other, expected claim_ci_change"));
       assert.ok(payload.errors.includes("check check_ci_tests evidence_ids references missing record ev_missing"));
@@ -637,10 +650,32 @@ test("review bundle exports from local state and imports into fresh state", asyn
     await runJson(["evidence", "add", "--state-dir", sourceDir, "--id", "ev_bundle_tests", "--claim", "claim_bundle", "--type", "command", "--command", "node --test jury/test/*.test.mjs", "--exit-code", "0"]);
     await runJson(["check", "update", "--state-dir", sourceDir, "--id", "check_bundle_tests", "--status", "passed", "--evidence", "ev_bundle_tests", "--resolution", "tests passed"]);
     const verdict = await runJson(["judge", "--state-dir", sourceDir, "--claim", "claim_bundle", "--out", verdictPath]);
-    const bundle = await runJson(["bundle", "export", "--state-dir", sourceDir, "--claim", "claim_bundle", "--out", bundlePath]);
+    const bundle = await runJson([
+      "bundle", "export",
+      "--state-dir", sourceDir,
+      "--claim", "claim_bundle",
+      "--out", bundlePath,
+      "--producer-name", "jury-ci",
+      "--producer-version", "9.9.9",
+      "--source", "github.com/example/repo",
+      "--revision", "abc123",
+      "--workflow", "jury",
+      "--run-id", "42",
+    ]);
 
     assert.equal(verdict.decision, "accept");
     assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+    assert.deepEqual(bundle.producer, {
+      name: "jury-ci",
+      version: "9.9.9",
+      command: "bundle export",
+    });
+    assert.deepEqual(bundle.provenance, {
+      source: "github.com/example/repo",
+      revision: "abc123",
+      workflow: "jury",
+      run_id: "42",
+    });
     assert.equal(bundle.records.claims.length, 1);
     assert.equal(bundle.records.checks.length, 2);
     assert.equal(bundle.records.evidence.length, 1);
@@ -661,6 +696,8 @@ test("review bundle exports from local state and imports into fresh state", asyn
       waivers: 0,
       verdicts: 1,
     });
+    assert.deepEqual(imported.producer, bundle.producer);
+    assert.deepEqual(imported.provenance, bundle.provenance);
     assert.equal(imported.verdictOut, importedVerdictPath);
     assert.equal(importedVerdict.id, verdict.id);
     assert.equal(gate.ok, true);
@@ -699,6 +736,10 @@ test("review bundle schema references the stable record schemas", async () => {
   const schema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/review-bundle.schema.json"), "utf8"));
   const properties = schema.properties.records.properties;
 
+  assert.ok(schema.required.includes("producer"));
+  assert.ok(schema.required.includes("provenance"));
+  assert.deepEqual(schema.properties.producer.required, ["name", "version", "command"]);
+  assert.deepEqual(schema.properties.provenance.required, ["source", "revision", "workflow", "run_id"]);
   assert.equal(properties.claims.items.$ref, "claim.schema.json");
   assert.equal(properties.checks.items.$ref, "check.schema.json");
   assert.equal(properties.evidence.items.$ref, "evidence.schema.json");
@@ -798,7 +839,8 @@ test("maintainer handoff references current adoption artifacts and validation co
 
   assert.match(handoff, /validates imported bundles before local state is created or mutated/);
   assert.match(handoff, /before local state is created or mutated/);
-  assert.match(handoff, /producer metadata and provenance checks/);
+  assert.match(handoff, /producer metadata, provenance, record, and cross-reference errors/);
+  assert.match(handoff, /trust policy checks/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

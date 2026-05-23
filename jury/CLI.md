@@ -41,7 +41,7 @@ node jury/bin/jury.mjs critic run --claim claim_ready --role scope --changed-fil
 node jury/bin/jury.mjs check update --id check_tests --status passed --resolution "tests passed"
 node jury/bin/jury.mjs judge --claim claim_ready --out verdict.json
 node jury/bin/jury.mjs gate --claim claim_ready --verdict verdict.json
-node jury/bin/jury.mjs bundle export --claim claim_ready --out review-bundle.json
+node jury/bin/jury.mjs bundle export --claim claim_ready --out review-bundle.json --source local --revision unknown
 node jury/bin/jury.mjs check --strict
 ```
 
@@ -60,7 +60,7 @@ node jury/bin/jury.mjs check --strict
 - `status`: prints the current claim review bundle.
 - `judge`: emits and records a verdict.
 - `gate`: exits zero only for an `accept` verdict that matches current claim state.
-- `bundle export`: writes a portable `jury.review_bundle.v1` for one claim.
+- `bundle export`: writes a portable `jury.review_bundle.v1` for one claim, including producer and provenance metadata.
 - `bundle preflight`: validates a `jury.review_bundle.v1` without creating or mutating state.
 - `bundle import`: imports a `jury.review_bundle.v1` into a state directory and can materialize its latest verdict with `--verdict-out`.
 - `check --strict`: validates JSONL files, schema files, and cross-record consistency.
@@ -71,5 +71,7 @@ node jury/bin/jury.mjs check --strict
 `gate --claim <id>` reports `missing_fields`, `unresolved_objections`, `next_actions`, and `consistency_errors` when the verdict does not match current state.
 
 `bundle preflight --bundle review-bundle.json` reports all bundle schema, record, and cross-reference errors before import. It exits non-zero for invalid bundles and does not create `.jury/` files.
+
+`bundle export` accepts `--producer-name`, `--producer-version`, `--source`, `--revision`, `--workflow`, and `--run-id` for CI provenance. Defaults come from the local CLI and GitHub Actions environment when present.
 
 `check --strict` reports malformed JSON, schema problems, missing claim references, missing evidence/check/objection/waiver references, cross-claim references, and verdict claim-version mismatches.

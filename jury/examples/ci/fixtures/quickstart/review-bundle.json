@@ -2,6 +2,17 @@
   "schema_version": "jury.review_bundle.v1",
   "exported_at": "2026-05-23T00:00:00.000Z",
   "claim_id": "claim_ci_change",
+  "producer": {
+    "name": "@sanogueralorenzo/jury",
+    "version": "0.1.0",
+    "command": "bundle export"
+  },
+  "provenance": {
+    "source": "local",
+    "revision": "unknown",
+    "workflow": null,
+    "run_id": null
+  },
   "records": {
     "claims": [
       {

@@ -42,7 +42,7 @@ node jury/bin/jury.mjs check --state-dir .jury-imported --strict
 
 - `verdict.json`: required. This is the decision record other systems should read.
 - `gate.json`: required. This is the gate result CI systems should enforce.
-- `review-bundle.json`: recommended for CI job handoff. This is a portable `jury.review_bundle.v1` snapshot of one claim and its related records.
+- `review-bundle.json`: recommended for CI job handoff. This is a portable `jury.review_bundle.v1` snapshot of one claim, its related records, producer metadata, and source provenance.
 - `.jury/claims.jsonl`: optional but useful for claim version history.
 - `.jury/checks.jsonl`: optional but useful for required-review evidence.
 - `.jury/evidence.jsonl`: optional and may contain command output; treat as potentially sensitive.
@@ -54,4 +54,4 @@ node jury/bin/jury.mjs check --state-dir .jury-imported --strict
 
 Use [release.json](release.json) to discover supported schema files, state files, export examples, and CLI commands. Consumers should reject artifacts with unknown `schema_version` values instead of guessing.
 
-Run `bundle preflight` before `bundle import` for third-party bundles. Preflight reports all bundle validation errors it can find and exits before creating or mutating `.jury/` state.
+Run `bundle preflight` before `bundle import` for third-party bundles. Preflight reports all bundle validation errors it can find and exits before creating or mutating `.jury/` state. Import consumers should inspect `producer.name`, `producer.version`, `provenance.source`, and `provenance.revision` before trusting the bundle.

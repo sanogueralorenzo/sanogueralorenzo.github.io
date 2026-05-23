@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 const DEFAULT_STATE_DIR = ".jury";
 const VERDICT_SCHEMA_VERSION = "jury.verdict.v1";
 const REVIEW_BUNDLE_SCHEMA_VERSION = "jury.review_bundle.v1";
+const PRODUCER_NAME = "@sanogueralorenzo/jury";
+const PRODUCER_VERSION = "0.1.0";
 const VALID_DECISIONS = new Set(["accept", "reject", "retry", "human_decision"]);
 const BLOCKING_SEVERITIES = new Set(["medium", "high", "critical"]);
 const STATE_RECORD_TYPES = ["claims", "checks", "evidence", "objections", "waivers", "verdicts"];
@@ -465,6 +467,8 @@ async function exportBundle() {
     schema_version: REVIEW_BUNDLE_SCHEMA_VERSION,
     exported_at: now(),
     claim_id: claimId,
+    producer: bundleProducer(),
+    provenance: bundleProvenance(),
     records,
   });
 
@@ -514,6 +518,8 @@ async function importBundle() {
   print({
     ok: true,
     claim_id: bundle.claim_id,
+    producer: bundle.producer,
+    provenance: bundle.provenance,
     imported: Object.fromEntries(STATE_RECORD_TYPES.map((name) => [name, bundle.records[name].length])),
     stateDir: dir,
     verdictOut,
@@ -845,6 +851,8 @@ function validateReviewBundle(bundle) {
   requireEnum(bundle.schema_version, [REVIEW_BUNDLE_SCHEMA_VERSION], "bundle.schema_version");
   requireString(bundle.exported_at, "bundle.exported_at");
   requireString(bundle.claim_id, "bundle.claim_id");
+  validateBundleProducer(bundle.producer);
+  validateBundleProvenance(bundle.provenance);
 
   if (!bundle.records || typeof bundle.records !== "object" || Array.isArray(bundle.records)) {
     fail("bundle.records must be an object");
@@ -881,6 +889,8 @@ function preflightReviewBundle(bundle) {
   collectValidationError(errors, () => requireEnum(bundle.schema_version, [REVIEW_BUNDLE_SCHEMA_VERSION], "bundle.schema_version"));
   collectValidationError(errors, () => requireString(bundle.exported_at, "bundle.exported_at"));
   collectValidationError(errors, () => requireString(bundle.claim_id, "bundle.claim_id"));
+  collectValidationError(errors, () => validateBundleProducer(bundle.producer));
+  collectValidationError(errors, () => validateBundleProvenance(bundle.provenance));
 
   if (!bundle.records || typeof bundle.records !== "object" || Array.isArray(bundle.records)) {
     errors.push("bundle.records must be an object");
@@ -926,9 +936,43 @@ function preflightReviewBundle(bundle) {
   return {
     ok: true,
     claim_id: bundle.claim_id,
+    producer: bundle.producer,
+    provenance: bundle.provenance,
     records: Object.fromEntries(STATE_RECORD_TYPES.map((name) => [name, bundle.records[name].length])),
     latest_verdict_id: latestVerdictFromBundle(bundle)?.id ?? null,
   };
+}
+
+function bundleProducer() {
+  return {
+    name: args["producer-name"] ?? PRODUCER_NAME,
+    version: args["producer-version"] ?? PRODUCER_VERSION,
+    command: "bundle export",
+  };
+}
+
+function bundleProvenance() {
+  return {
+    source: args.source ?? process.env.GITHUB_REPOSITORY ?? "local",
+    revision: args.revision ?? process.env.GITHUB_SHA ?? "unknown",
+    workflow: args.workflow ?? process.env.GITHUB_WORKFLOW ?? null,
+    run_id: args["run-id"] ?? process.env.GITHUB_RUN_ID ?? null,
+  };
+}
+
+function validateBundleProducer(producer) {
+  requireObject(producer, "bundle.producer");
+  requireString(producer.name, "bundle.producer.name");
+  requireString(producer.version, "bundle.producer.version");
+  requireString(producer.command, "bundle.producer.command");
+}
+
+function validateBundleProvenance(provenance) {
+  requireObject(provenance, "bundle.provenance");
+  requireString(provenance.source, "bundle.provenance.source");
+  requireString(provenance.revision, "bundle.provenance.revision");
+  requireNullableString(provenance.workflow, "bundle.provenance.workflow");
+  requireNullableString(provenance.run_id, "bundle.provenance.run_id");
 }
 
 function collectValidationError(errors, action) {
@@ -1424,6 +1468,18 @@ function requireArg(name) {
 function requireString(value, field) {
   if (typeof value !== "string" || value.length === 0) {
     fail(`${field} must be a non-empty string`);
+  }
+}
+
+function requireObject(value, field) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    fail(`${field} must be an object`);
+  }
+}
+
+function requireNullableString(value, field) {
+  if (value !== null && typeof value !== "string") {
+    fail(`${field} must be a string or null`);
   }
 }
 

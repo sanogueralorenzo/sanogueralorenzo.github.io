@@ -2,11 +2,32 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Jury Review Bundle",
   "type": "object",
-  "required": ["schema_version", "exported_at", "claim_id", "records"],
+  "required": ["schema_version", "exported_at", "claim_id", "producer", "provenance", "records"],
   "properties": {
     "schema_version": { "const": "jury.review_bundle.v1" },
     "exported_at": { "type": "string", "minLength": 1 },
     "claim_id": { "type": "string", "minLength": 1 },
+    "producer": {
+      "type": "object",
+      "required": ["name", "version", "command"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source", "revision", "workflow", "run_id"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string", "minLength": 1 },
+        "workflow": { "type": ["string", "null"] },
+        "run_id": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
     "records": {
       "type": "object",
       "required": ["claims", "checks", "evidence", "objections", "waivers", "verdicts"],
