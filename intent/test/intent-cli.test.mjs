@@ -2127,6 +2127,34 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].authorizes_edges, 0);
   });
 
+  it("validates graph context authorization diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:capability:0", kind: "Capability", label: "web", span: testSpan(2) },
+        { id: "goal:demo:context:repo", kind: "Context", label: "repo", span: testSpan(3), data: { source: "repo" } },
+        { id: "goal:demo:context:web", kind: "Context", label: "web", span: testSpan(4), data: { source: "web" } },
+        { id: "goal:demo:context:documents", kind: "Context", label: "documents", span: testSpan(5), data: { source: "documents" } },
+        { id: "goal:demo:context:authorized", kind: "Context", label: "authorized", span: testSpan(6), data: { source: "web" } },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:context:repo", kind: "informs" },
+        { from: "goal:demo", to: "goal:demo:context:web", kind: "informs" },
+        { from: "goal:demo", to: "goal:demo:context:documents", kind: "authorizes" },
+        { from: "goal:demo:capability:0", to: "goal:demo:context:authorized", kind: "authorizes" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_INVALID");
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].target_id, "goal:demo:context:web");
+    assert.equal(diagnostics[0].target_kind, "Context");
+    assert.equal(diagnostics[0].authorizes_edges, 0);
+    assert.equal(diagnostics[1].target_id, "goal:demo:context:documents");
+    assert.equal(diagnostics[1].authorizes_edges, 1);
+    assert.equal(diagnostics[1].capability_authorizes_edges, 0);
+  });
+
   it("validates graph effect request diagnostics", () => {
     const missingDiagnostics = validateTestGraph({
       source: "synthetic.intent",

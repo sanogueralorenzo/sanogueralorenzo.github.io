@@ -2256,7 +2256,13 @@ function isTrustRecord(value) {
 }
 
 function requiresCapabilityAuthorization(graphNode) {
-  return graphNode.kind === "Effect" || (graphNode.kind === "Check" && Boolean(graphNode.data?.effect));
+  return graphNode.kind === "Effect"
+    || (graphNode.kind === "Check" && Boolean(graphNode.data?.effect))
+    || (graphNode.kind === "Context" && requiresContextAuthorization(graphNode));
+}
+
+function requiresContextAuthorization(graphNode) {
+  return graphNode.data?.source === "web" || graphNode.data?.source === "documents";
 }
 
 function validateGraphCheckGate(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
