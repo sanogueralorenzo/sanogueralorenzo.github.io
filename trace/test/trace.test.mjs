@@ -1171,6 +1171,19 @@ test("documented example agent payloads are accepted by adapters", async () => {
   }
 });
 
+test("capture rejects unsupported lifecycle events", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await runTrace(repo, ["init"]);
+    const rejected = await runTraceAllowFailure(repo, ["capture", "--event", "memory", "--message", "bad event"]);
+    assert.equal(rejected.exitCode, 1);
+    assert.match(rejected.stderr, /unsupported capture event memory/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("agent hook expands structured lifecycle memory fields", async () => {
   const repo = await tempRepo();
 

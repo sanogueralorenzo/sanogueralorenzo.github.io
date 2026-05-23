@@ -1026,9 +1026,14 @@ function withoutCheckpointIntegrity(payload) {
 
 async function captureEvent() {
   const root = await repoRoot();
+  const eventName = args.event ?? "note";
+  if (!TRACE_EVENTS.includes(eventName)) {
+    fail(`unsupported capture event ${eventName}: expected ${TRACE_EVENTS.join(", ")}`);
+  }
+
   const event = await appendEvent(root, {
     sessionId: args.session,
-    event: args.event ?? "note",
+    event: eventName,
     role: args.role ?? "agent",
     message: args.message ?? await readStdin(),
     source: args.source ?? "manual",
