@@ -1194,20 +1194,23 @@ describe("intent static model CLI", () => {
     const cycleDiagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
-        { id: "node:a", kind: "Type", label: "a", span: testSpan(1) },
-        { id: "node:b", kind: "Type", label: "b", span: testSpan(2) },
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:step:b", kind: "Step", label: "b", span: testSpan(3) },
       ],
       edges: [
-        { from: "node:a", to: "node:b", kind: "precedes" },
-        { from: "node:b", to: "node:a", kind: "precedes" },
+        { from: "goal:demo", to: "goal:demo:step:a", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:step:b", kind: "plans" },
+        { from: "goal:demo:step:a", to: "goal:demo:step:b", kind: "precedes" },
+        { from: "goal:demo:step:b", to: "goal:demo:step:a", kind: "precedes" },
       ],
     });
 
     assert.equal(danglingDiagnostics[0].code, "INTENT_GRAPH_EDGE_UNRESOLVED");
     assert.equal(danglingDiagnostics[0].to, "node:missing");
     assert.deepEqual(danglingDiagnostics[0].missing_endpoints, ["to"]);
-    assert.equal(cycleDiagnostics[0].code, "INTENT_GRAPH_CYCLE");
-    assert.deepEqual(cycleDiagnostics[0].cycle, ["node:a", "node:b", "node:a"]);
+    const cycleDiagnostic = cycleDiagnostics.find((diagnostic) => diagnostic.code === "INTENT_GRAPH_CYCLE");
+    assert.deepEqual(cycleDiagnostic.cycle, ["goal:demo", "goal:demo:step:a", "goal:demo:step:b", "goal:demo:step:a"]);
   });
 
   it("validates graph duplicate node diagnostics", () => {
@@ -1897,6 +1900,75 @@ describe("intent static model CLI", () => {
     ]);
   });
 
+  it("validates graph data and topology edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "goal:demo:input:a", kind: "Input", label: "a", span: testSpan(3), data: { scope: "goal" } },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(4) },
+        { id: "goal:demo:step:verify", kind: "Step", label: "verify", span: testSpan(5) },
+        { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(6), data: { scope: "step" } },
+        { id: "goal:demo:context:repo", kind: "Context", label: "repo", span: testSpan(7) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(8) },
+      ],
+      edges: [
+        { from: "goal:demo:input:a", to: "goal:demo:step:patch:input:input", kind: "data", data: { parameter: "input", type: "Finding", sourceSpan: testSpan(3), targetSpan: testSpan(6) } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:input:input", kind: "data", data: { parameter: "input", type: "Finding", sourceSpan: testSpan(4), targetSpan: testSpan(6) } },
+        { from: "goal:demo:input:a", to: "goal:demo", kind: "supplies" },
+        { from: "goal:demo:context:repo", to: "goal:demo", kind: "informs" },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:verify", kind: "precedes" },
+        { from: "goal:demo", to: "goal:demo:step:patch:input:input", kind: "data", data: { parameter: "input", type: "Finding", sourceSpan: testSpan(1), targetSpan: testSpan(6) } },
+        { from: "goal:demo:input:a", to: "goal:demo:step:patch", kind: "data", data: { parameter: "input", type: "Finding", sourceSpan: testSpan(3), targetSpan: testSpan(4) } },
+        { from: "goal:demo:step:patch:input:input", to: "goal:demo", kind: "supplies" },
+        { from: "goal:demo:input:a", to: "goal:demo:completion", kind: "supplies" },
+        { from: "goal:demo", to: "goal:demo:context:repo", kind: "informs" },
+        { from: "goal:demo:context:repo", to: "goal:demo:completion", kind: "informs" },
+        { from: "goal:demo", to: "goal:demo:step:verify", kind: "precedes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "precedes" },
+      ],
+    });
+    const dataDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_DATA_ROLE_INVALID");
+    const supplyDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_SUPPLY_INVALID");
+    const informDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_INFORM_INVALID");
+    const precedeDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_PRECEDE_INVALID");
+
+    assert.equal(dataDiagnostics.length, 2);
+    assert.equal(dataDiagnostics[0].from_kind, "Goal");
+    assert.equal(dataDiagnostics[0].to_kind, "Input");
+    assert.equal(dataDiagnostics[1].from_kind, "Input");
+    assert.equal(dataDiagnostics[1].to_kind, "Step");
+    assert.deepEqual(dataDiagnostics[1].supported_roles, [
+      { from_kind: "Input", from_scope: "goal", to_kind: "Input", to_scope: "step" },
+      { from_kind: "Step", to_kind: "Input", to_scope: "step" },
+    ]);
+    assert.equal(supplyDiagnostics.length, 2);
+    assert.equal(supplyDiagnostics[0].from_kind, "Input");
+    assert.equal(supplyDiagnostics[0].from_scope, "step");
+    assert.equal(supplyDiagnostics[1].from_kind, "Input");
+    assert.equal(supplyDiagnostics[1].to_kind, "Completion");
+    assert.deepEqual(supplyDiagnostics[1].supported_roles, [
+      { from_kind: "Input", from_scope: "goal", to_kind: "Goal" },
+    ]);
+    assert.equal(informDiagnostics.length, 2);
+    assert.equal(informDiagnostics[0].from_kind, "Goal");
+    assert.equal(informDiagnostics[0].to_kind, "Context");
+    assert.equal(informDiagnostics[1].from_kind, "Context");
+    assert.equal(informDiagnostics[1].to_kind, "Completion");
+    assert.deepEqual(informDiagnostics[1].supported_roles, [
+      { from_kind: "Context", to_kind: "Goal" },
+    ]);
+    assert.equal(precedeDiagnostics.length, 2);
+    assert.equal(precedeDiagnostics[0].from_kind, "Goal");
+    assert.equal(precedeDiagnostics[0].to_kind, "Step");
+    assert.equal(precedeDiagnostics[1].from_kind, "Step");
+    assert.equal(precedeDiagnostics[1].to_kind, "Completion");
+    assert.deepEqual(precedeDiagnostics[1].supported_roles, [
+      { from_kind: "Step", to_kind: "Step" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -2383,10 +2455,10 @@ describe("intent static model CLI", () => {
       ],
     });
 
-    assert.equal(diagnostics[0].code, "INTENT_GRAPH_DATA_INVALID");
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_DATA_ROLE_INVALID");
     assert.equal(diagnostics[0].from_kind, "Goal");
     assert.equal(diagnostics[0].to_kind, "Input");
-    assert.equal(diagnostics[1].code, "INTENT_GRAPH_DATA_INVALID");
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_DATA_ROLE_INVALID");
     assert.equal(diagnostics[1].from_kind, "Input");
     assert.equal(diagnostics[1].to_kind, "Step");
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_INPUT_UNBOUND");

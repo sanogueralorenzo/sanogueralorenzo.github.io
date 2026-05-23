@@ -2193,11 +2193,23 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces", "constrains", "guards", "requires", "approves", "checkpoints", "timeouts", "retries"].includes(graphEdge.kind)) {
+  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces", "constrains", "guards", "requires", "approves", "checkpoints", "timeouts", "retries", "data", "supplies", "informs", "precedes"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
   const targetNode = nodesById.get(graphEdge.to);
+  if (graphEdge.kind === "data") {
+    return validateGraphDataEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "supplies") {
+    return validateGraphSuppliesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "informs") {
+    return validateGraphInformsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "precedes") {
+    return validateGraphPrecedesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
   if (graphEdge.kind === "requires") {
     return validateGraphRequiresEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
@@ -2251,6 +2263,76 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
     supported_roles: [
       { from_kind: "Type", to_kind: "Goal" },
       { from_kind: "Goal", to_kind: "Memory" },
+    ],
+  });
+}
+
+function validateGraphDataEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  const sourceIsProducer = (sourceNode?.kind === "Input" && sourceNode.data?.scope === "goal") || sourceNode?.kind === "Step";
+  const targetIsStepInput = targetNode?.kind === "Input" && targetNode.data?.scope === "step";
+  if (sourceIsProducer && targetIsStepInput) {
+    return null;
+  }
+  return error("INTENT_GRAPH_DATA_ROLE_INVALID", `data edge '${graphEdge.from}' to '${graphEdge.to}' must connect a goal input or step producer to a step input.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    from_scope: sourceNode?.data?.scope ?? null,
+    to_scope: targetNode?.data?.scope ?? null,
+    supported_roles: [
+      { from_kind: "Input", from_scope: "goal", to_kind: "Input", to_scope: "step" },
+      { from_kind: "Step", to_kind: "Input", to_scope: "step" },
+    ],
+  });
+}
+
+function validateGraphSuppliesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Input" && sourceNode.data?.scope === "goal" && targetNode?.kind === "Goal") {
+    return null;
+  }
+  return error("INTENT_GRAPH_SUPPLY_INVALID", `supplies edge '${graphEdge.from}' to '${graphEdge.to}' must connect a goal input to a Goal node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    from_scope: sourceNode?.data?.scope ?? null,
+    supported_roles: [
+      { from_kind: "Input", from_scope: "goal", to_kind: "Goal" },
+    ],
+  });
+}
+
+function validateGraphInformsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Context" && targetNode?.kind === "Goal") {
+    return null;
+  }
+  return error("INTENT_GRAPH_INFORM_INVALID", `informs edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Context node to a Goal node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Context", to_kind: "Goal" },
+    ],
+  });
+}
+
+function validateGraphPrecedesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Step" && targetNode?.kind === "Step") {
+    return null;
+  }
+  return error("INTENT_GRAPH_PRECEDE_INVALID", `precedes edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Step node to a Step node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Step", to_kind: "Step" },
     ],
   });
 }
