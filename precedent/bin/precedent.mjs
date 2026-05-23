@@ -972,7 +972,7 @@ async function outcomeAfterTaskEventHook(event) {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
-    activePrecedentIds = await activeInjectionIdsForSession(stateDir, sessionId);
+    activePrecedentIds = await attributedPrecedentIdsForOutcome(stateDir, sessionId, event.attributedPrecedents);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -1163,7 +1163,7 @@ function buildManifest(runtime, stateDir) {
       },
       "outcome.after_task": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "precedent", "replay"],
+        stdin: ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "outcome"],
         timeoutMs,
         failurePolicy,
@@ -1293,6 +1293,7 @@ async function attachRuntime() {
           retries: "$RETRIES",
           tokenEstimate: "$TOKEN_ESTIMATE",
           notes: "$NOTES",
+          attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1888,6 +1889,14 @@ async function activeInjectionIdsForSession(stateDir, sessionId) {
   }
 
   return uniqueStrings(ids);
+}
+
+async function attributedPrecedentIdsForOutcome(stateDir, sessionId, explicitIds) {
+  const knownIds = new Set((await readJsonLines(join(stateDir, "precedents.jsonl"))).map((precedent) => precedent.id));
+  return uniqueStrings([
+    ...(await activeInjectionIdsForSession(stateDir, sessionId)),
+    ...parseListArg(explicitIds),
+  ]).filter((id) => knownIds.has(id));
 }
 
 async function activePrecedentsForSession(stateDir, sessionId) {

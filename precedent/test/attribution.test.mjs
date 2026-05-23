@@ -120,6 +120,45 @@ test("suppressed repeated injections do not count as active uses", async () => {
   }
 });
 
+test("explicit attributed precedents preserve outcome attribution across sessions", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--session",
+      "loop-session",
+      "--json",
+    ]);
+    assert.equal(context.injections.length, 1);
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "loop-session-attempt-1",
+      success: true,
+      notes: "passed",
+      attributedPrecedents: context.injections.map((injection) => injection.id),
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.injectionCount, 1);
+    assert.equal(health.successCount, 1);
+    assert.equal(health.failureCount, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("stale precedents are suppressed until a later attributed success", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
 

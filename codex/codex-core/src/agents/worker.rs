@@ -127,7 +127,8 @@ struct LoopIterationResult {
 #[derive(Debug)]
 struct LoopPrecedentTurn {
     prompt: String,
-    session_id: Option<String>,
+    attempt_session_id: Option<String>,
+    injected_precedent_ids: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -135,6 +136,19 @@ struct PrecedentContextOutput {
     schema_version: String,
     #[serde(rename = "contextBlock")]
     context_block: Option<String>,
+    #[serde(default)]
+    injections: Vec<PrecedentContextInjection>,
+}
+
+#[derive(Deserialize)]
+struct PrecedentContextInjection {
+    id: String,
+}
+
+#[derive(Debug)]
+struct PrecedentContext {
+    context_block: Option<String>,
+    injected_precedent_ids: Vec<String>,
 }
 
 struct CaffeinateGuard {
@@ -217,11 +231,12 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
         let result = match run_codex_exec_iteration(&cwd, &turn.prompt, &args) {
             Ok(result) => result,
             Err(error) => {
-                if let Some(session_id) = turn.session_id.as_deref() {
+                if let Some(session_id) = turn.attempt_session_id.as_deref() {
                     record_precedent_outcome(
                         &cwd,
                         &args,
                         session_id,
+                        &turn.injected_precedent_ids,
                         &prompt,
                         &error.to_string(),
                         false,
@@ -235,12 +250,13 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
         let stop_matched =
             !args.stop_phrase.is_empty() && result.final_message.contains(&args.stop_phrase);
 
-        if let Some(session_id) = turn.session_id.as_deref() {
+        if let Some(session_id) = turn.attempt_session_id.as_deref() {
             run_and_record_precedent_validation(&cwd, &args, session_id);
             record_precedent_outcome(
                 &cwd,
                 &args,
                 session_id,
+                &turn.injected_precedent_ids,
                 &prompt,
                 &result.final_message,
                 stop_matched,
@@ -445,13 +461,19 @@ fn prepare_precedent_turn(
     if args.precedent_state_dir.is_none() {
         return LoopPrecedentTurn {
             prompt: prompt.to_string(),
-            session_id: None,
+            attempt_session_id: None,
+            injected_precedent_ids: Vec::new(),
         };
     }
 
-    let session_id = precedent_session_id(loop_run_id, iteration);
-    let prompt = match fetch_precedent_context(cwd, args, &session_id, prompt) {
-        Ok(context_block) => prompt_with_precedent_context(prompt, context_block.as_deref()),
+    let context_session_id = precedent_loop_session_id(loop_run_id);
+    let attempt_session_id = precedent_session_id(loop_run_id, iteration);
+    let mut injected_precedent_ids = Vec::new();
+    let prompt = match fetch_precedent_context(cwd, args, &context_session_id, prompt) {
+        Ok(context) => {
+            injected_precedent_ids = context.injected_precedent_ids;
+            prompt_with_precedent_context(prompt, context.context_block.as_deref())
+        }
         Err(error) => {
             eprintln!("[loop {iteration}] Precedent context unavailable: {error}");
             prompt.to_string()
@@ -460,7 +482,8 @@ fn prepare_precedent_turn(
 
     LoopPrecedentTurn {
         prompt,
-        session_id: Some(session_id),
+        attempt_session_id: Some(attempt_session_id),
+        injected_precedent_ids,
     }
 }
 
@@ -469,7 +492,7 @@ fn fetch_precedent_context(
     args: &WorkerLoopArgs,
     session_id: &str,
     prompt: &str,
-) -> Result<Option<String>> {
+) -> Result<PrecedentContext> {
     let state_dir = args
         .precedent_state_dir
         .as_ref()
@@ -527,23 +550,39 @@ fn fetch_precedent_context(
             parsed.schema_version
         );
     }
-    Ok(parsed
-        .context_block
-        .filter(|block| !block.trim().is_empty()))
+    Ok(PrecedentContext {
+        context_block: parsed
+            .context_block
+            .filter(|block| !block.trim().is_empty()),
+        injected_precedent_ids: parsed
+            .injections
+            .into_iter()
+            .map(|injection| injection.id.trim().to_string())
+            .filter(|id| !id.is_empty())
+            .collect(),
+    })
 }
 
 fn record_precedent_outcome(
     cwd: &Path,
     args: &WorkerLoopArgs,
     session_id: &str,
+    injected_precedent_ids: &[String],
     task: &str,
     final_message: &str,
     success: bool,
     status: &str,
 ) {
-    if let Err(error) =
-        try_record_precedent_outcome(cwd, args, session_id, task, final_message, success, status)
-    {
+    if let Err(error) = try_record_precedent_outcome(
+        cwd,
+        args,
+        session_id,
+        injected_precedent_ids,
+        task,
+        final_message,
+        success,
+        status,
+    ) {
         eprintln!("[precedent {session_id}] outcome unavailable: {error}");
     }
 }
@@ -642,6 +681,7 @@ fn try_record_precedent_outcome(
     cwd: &Path,
     args: &WorkerLoopArgs,
     session_id: &str,
+    injected_precedent_ids: &[String],
     task: &str,
     final_message: &str,
     success: bool,
@@ -668,6 +708,7 @@ fn try_record_precedent_outcome(
         "retries": 0,
         "tokenEstimate": null,
         "notes": final_message,
+        "attributedPrecedents": injected_precedent_ids,
     });
     let stdin = serde_json::to_string(&payload).context("failed to serialize Precedent outcome")?;
     let output = output_with_timeout(
@@ -707,6 +748,10 @@ fn prompt_with_precedent_context(prompt: &str, context_block: Option<&str>) -> S
         Some(block) => format!("{block}\n\n{prompt}"),
         None => prompt.to_string(),
     }
+}
+
+fn precedent_loop_session_id(loop_run_id: &str) -> String {
+    format!("codex-core-worker-loop-{loop_run_id}")
 }
 
 fn precedent_session_id(loop_run_id: &str, iteration: u64) -> String {
@@ -810,8 +855,9 @@ fn unique_temp_file_path(prefix: &str, extension: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::{
-        DEFAULT_PRECEDENT_VALIDATION_TIMEOUT_MS, WorkerLoopArgs, precedent_session_id,
-        prompt_with_precedent_context, resolve_loop_prompt, validate_worker_loop_args, worker_loop,
+        DEFAULT_PRECEDENT_VALIDATION_TIMEOUT_MS, WorkerLoopArgs, precedent_loop_session_id,
+        precedent_session_id, prompt_with_precedent_context, resolve_loop_prompt,
+        validate_worker_loop_args, worker_loop,
     };
     use std::env;
     use std::fs;
@@ -915,8 +961,16 @@ mod tests {
     #[test]
     fn precedent_session_ids_are_stable_and_distinct() {
         assert_eq!(
+            precedent_loop_session_id("run-1"),
+            "codex-core-worker-loop-run-1"
+        );
+        assert_eq!(
             precedent_session_id("run-1", 1),
             "codex-core-worker-loop-run-1-1"
+        );
+        assert_ne!(
+            precedent_loop_session_id("run-1"),
+            precedent_session_id("run-1", 1)
         );
         assert_ne!(
             precedent_session_id("run-1", 1),
@@ -967,7 +1021,7 @@ printf '%s' 'LOOP_DONE from fake codex' > "$out"
                 r#"#!/bin/sh
 if [ "$1" = "context" ]; then
   printf '%s\n' "$*" > '{}'
-  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Use repo lesson."}}'
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Use repo lesson.","injections":[{{"id":"prec_repo_lesson"}}]}}'
   exit 0
 fi
 if [ "$1" = "hook" ]; then
@@ -998,6 +1052,8 @@ exit 2
         let prompt = fs::read_to_string(prompt_capture).unwrap();
         assert!(prompt.starts_with("Precedent:\n- Use repo lesson.\n\nship the feature"));
         let context_args = fs::read_to_string(context_capture).unwrap();
+        assert!(context_args.contains("--session codex-core-worker-loop-"));
+        assert!(!context_args.contains("-1 --format"));
         assert!(context_args.contains("--changed-files"));
         assert!(
             context_args
@@ -1009,6 +1065,144 @@ exit 2
         assert!(hook.contains(r#""task":"ship the feature""#));
         assert!(hook.contains(r#""scope":"feature:webhooks""#));
         assert!(hook.contains(r#""changedFiles":["features/webhooks/providers/stripe.ts","features/webhooks/schema.ts"]"#));
+        assert!(hook.contains(r#""attributedPrecedents":["prec_repo_lesson"]"#));
+        assert!(hook.contains(r#""sessionId":"codex-core-worker-loop-"#));
+        assert!(hook.contains(r#"-1""#));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_suppresses_repeated_precedent_context_with_stable_loop_session() {
+        let dir = temp_test_dir("precedent-worker-stable-context");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let prompt_capture = dir.join("prompts.txt");
+        let context_sessions = dir.join("context-sessions.txt");
+        let hooks_capture = dir.join("hooks.jsonl");
+        let codex_counter = dir.join("codex-count.txt");
+        let precedent_counter = dir.join("precedent-count.txt");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            &format!(
+                r#"#!/bin/sh
+out=""
+prompt=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "exec" ]; then
+    shift
+    prompt="$1"
+    shift
+    continue
+  fi
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s\n---prompt---\n' "$prompt" >> '{}'
+count=0
+if [ -f '{}' ]; then
+  count=$(cat '{}')
+fi
+count=$((count + 1))
+printf '%s' "$count" > '{}'
+if [ "$count" -eq 1 ]; then
+  printf '%s' 'keep going' > "$out"
+else
+  printf '%s' 'LOOP_DONE from fake codex' > "$out"
+fi
+"#,
+                prompt_capture.display(),
+                codex_counter.display(),
+                codex_counter.display(),
+                codex_counter.display()
+            ),
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  session=""
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--session" ]; then
+      shift
+      session="$1"
+      shift
+      continue
+    fi
+    shift
+  done
+  printf '%s\n' "$session" >> '{}'
+  count=0
+  if [ -f '{}' ]; then
+    count=$(cat '{}')
+  fi
+  count=$((count + 1))
+  printf '%s' "$count" > '{}'
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Use repo lesson.","injections":[{{"id":"prec_repo_lesson"}}]}}'
+  else
+    printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"","injections":[],"suppressedInjections":[{{"id":"prec_repo_lesson","reason":"already_injected"}}]}}'
+  fi
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  cat >> '{}'
+  printf '\n' >> '{}'
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                context_sessions.display(),
+                precedent_counter.display(),
+                precedent_counter.display(),
+                precedent_counter.display(),
+                hooks_capture.display(),
+                hooks_capture.display()
+            ),
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.interval_seconds = 1;
+        args.max_iterations = Some(2);
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let sessions = fs::read_to_string(context_sessions).unwrap();
+        let session_lines: Vec<&str> = sessions.lines().collect();
+        assert_eq!(session_lines.len(), 2);
+        assert_eq!(session_lines[0], session_lines[1]);
+        assert!(!session_lines[0].ends_with("-1"));
+        assert!(!session_lines[0].ends_with("-2"));
+
+        let prompts = fs::read_to_string(prompt_capture).unwrap();
+        assert_eq!(prompts.matches("Precedent:\n- Use repo lesson.").count(), 1);
+        assert_eq!(prompts.matches("ship the feature").count(), 2);
+
+        let hooks = fs::read_to_string(hooks_capture).unwrap();
+        assert!(hooks.contains(r#""sessionId":"codex-core-worker-loop-"#));
+        assert!(hooks.contains(r#"-1""#));
+        assert!(hooks.contains(r#"-2""#));
+        assert_eq!(
+            hooks
+                .matches(r#""attributedPrecedents":["prec_repo_lesson"]"#)
+                .count(),
+            1
+        );
+        assert_eq!(hooks.matches(r#""attributedPrecedents":[]"#).count(), 1);
 
         let _ = fs::remove_dir_all(dir);
     }

@@ -17,7 +17,7 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.equal(manifest.hooks["context.before_turn"].failurePolicy, "fail_open");
   assert.deepEqual(manifest.hooks["review.after_feedback"].stdin, ["schema_version", "hook", "sessionId", "comments", "changedFiles", "reviewer"]);
   assert.equal(manifest.hooks["review.after_feedback"].failurePolicy, "fail_open");
-  assert.deepEqual(manifest.hooks["outcome.after_task"].stdin, ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "precedent", "replay"]);
+  assert.deepEqual(manifest.hooks["outcome.after_task"].stdin, ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"]);
   assert.deepEqual(manifest.hooks["context.before_turn"].command, [
     "node",
     "precedent/bin/precedent.mjs",
