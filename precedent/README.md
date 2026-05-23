@@ -115,6 +115,7 @@ echo '{"schema_version":"precedent.v1","hook":"context.before_turn","task":"add 
 node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
+node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs observe --session demo
 node precedent/bin/precedent.mjs report
@@ -126,6 +127,8 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `inject` is the before-turn hook returning relevant precedent.
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
+- Every injection includes `matchReasons`, so a runtime can show why Precedent injected memory instead of treating it as opaque prompt context.
+- `explain` returns promotion evidence, matching inputs, and recent injection history for one precedent id.
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
@@ -148,6 +151,24 @@ Example event hook response:
     {
       "id": "prec_webhook_provider_boundary",
       "score": 16,
+      "matchReasons": [
+        {
+          "type": "text_overlap",
+          "score": 7,
+          "terms": ["webhook", "provider", "nullable"]
+        },
+        {
+          "type": "scope_match",
+          "score": 5,
+          "scope": "feature:webhooks"
+        },
+        {
+          "type": "path_match",
+          "score": 4,
+          "file": "features/webhooks/providers/stripe.ts",
+          "path": "features/webhooks"
+        }
+      ],
       "scope": "feature:webhooks",
       "artifact": "skill",
       "injection": "For webhook changes in this repo: run pnpm test:webhooks, keep provider-specific logic inside the webhook provider boundary, and reuse existing nullable payload helpers.",

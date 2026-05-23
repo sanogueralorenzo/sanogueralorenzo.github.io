@@ -43,6 +43,11 @@ async function main() {
     return;
   }
 
+  if (command === "explain") {
+    await explainPrecedent();
+    return;
+  }
+
   if (command === "replay") {
     await replayCase();
     return;
@@ -154,6 +159,7 @@ async function observeTrace() {
     type: "trace_observed",
     observedAt,
     traceId,
+    precedentId: promoted?.id ?? rejected?.id ?? null,
     task: trace.task ?? null,
     outcome: trace.outcome ?? null,
     scope: trace.scope ?? null,
@@ -194,6 +200,7 @@ async function injectPrecedent() {
     injections: matches.map((match) => ({
       id: match.id,
       score: match.score,
+      matchReasons: match.matchReasons ?? [],
       injection: match.injection,
       sourceTrace: match.source_trace,
     })),
@@ -223,6 +230,61 @@ async function compilePrecedents() {
     traces: traces.length,
     candidates,
   });
+}
+
+async function explainPrecedent() {
+  const id = args.id;
+
+  if (!id) {
+    fail("explain requires --id <precedent_id>");
+  }
+
+  const stateDir = statePath();
+  await ensureState(stateDir);
+
+  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+  const events = await readJsonLines(join(stateDir, "events.jsonl"));
+  const traces = await readStoredTraces(join(stateDir, "traces"));
+  const promoted = precedents.find((precedent) => precedent.id === id);
+
+  if (promoted) {
+    print({
+      ok: true,
+      id,
+      promotionStatus: "promoted",
+      promotionReason: promotionReason(promoted),
+      source: sourceForPrecedent(promoted, traces),
+      replay: replayExplanation(promoted),
+      evidence: Array.isArray(promoted.evidence) ? promoted.evidence : [],
+      matching: matchingExplanation(promoted),
+      injections: injectionEventsForPrecedent(events, id),
+      record: promoted,
+    });
+    return;
+  }
+
+  const rejectedTrace = traces.find((trace) => trace.precedent?.id === id);
+  if (rejectedTrace) {
+    const candidate = normalizePrecedent(precedentFromTrace(rejectedTrace), rejectedTrace.id);
+    const assessment = assessPromotionCandidate(candidate);
+    const rejectionEvents = events.filter((event) => event.precedentId === id && event.promotionStatus === "rejected");
+
+    print({
+      ok: true,
+      id,
+      promotionStatus: "rejected",
+      promotionReason: assessment.reasons.join("; "),
+      source: sourceForTrace(rejectedTrace),
+      replay: replayExplanation(candidate),
+      evidence: Array.isArray(candidate.evidence) ? candidate.evidence : [],
+      matching: matchingExplanation(candidate),
+      injections: [],
+      rejectionEvents: rejectionEvents.slice(-5),
+    });
+    return;
+  }
+
+  fail(`unknown precedent id: ${id}`);
 }
 
 async function replayCase() {
@@ -386,6 +448,11 @@ async function beforeTurnHook() {
     changedFiles: context.changedFiles,
     threshold,
     injectedIds: matches.map((match) => match.id),
+    injectionMatches: matches.map((match) => ({
+      id: match.id,
+      score: match.score,
+      reasons: match.matchReasons ?? [],
+    })),
   };
 
   await appendJsonLine(join(stateDir, "events.jsonl"), event);
@@ -398,14 +465,7 @@ async function beforeTurnHook() {
     threshold,
     injected: matches.length > 0,
     block,
-    injections: matches.map((match) => ({
-      id: match.id,
-      score: match.score,
-      scope: match.scope,
-      artifact: match.artifact,
-      injection: match.injection,
-      sourceTrace: match.source_trace,
-    })),
+    injections: matches.map(formatInjection),
   });
 }
 
@@ -437,6 +497,11 @@ async function contextBeforeTurnEventHook(event) {
     changedFiles: context.changedFiles,
     threshold,
     injections: matches.map((match) => match.id),
+    injectionMatches: matches.map((match) => ({
+      id: match.id,
+      score: match.score,
+      reasons: match.matchReasons ?? [],
+    })),
   };
 
   await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
@@ -684,10 +749,15 @@ function precedentFromTrace(trace) {
 function rankPrecedents(precedents, context) {
   return precedents
     .filter((precedent) => precedent.promotion_status === "promoted")
-    .map((precedent) => ({
-      ...precedent,
-      score: scorePrecedent(precedent, context),
-    }))
+    .map((precedent) => {
+      const match = scorePrecedent(precedent, context);
+
+      return {
+        ...precedent,
+        score: match.score,
+        matchReasons: match.reasons,
+      };
+    })
     .filter((precedent) => precedent.score > 0)
     .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
 }
@@ -713,26 +783,51 @@ function scorePrecedent(precedent, context) {
 
   const uniqueNeedles = new Set(needles);
   let score = 0;
+  const matchedTerms = [];
 
   for (const needle of uniqueNeedles) {
     if (haystack.includes(needle)) {
       score += 1;
+      matchedTerms.push(needle);
     }
+  }
+
+  const reasons = [];
+
+  if (matchedTerms.length > 0) {
+    reasons.push({
+      type: "text_overlap",
+      score: matchedTerms.length,
+      terms: matchedTerms.slice(0, 8),
+    });
   }
 
   if (context.scope && precedent.scope === context.scope) {
     score += 5;
+    reasons.push({
+      type: "scope_match",
+      score: 5,
+      scope: precedent.scope,
+    });
   }
 
   if (Array.isArray(precedent.paths) && precedent.paths.length > 0) {
     for (const file of context.changedFiles ?? []) {
-      if (precedent.paths.some((path) => file.includes(path) || path.includes(file))) {
+      const matchedPath = precedent.paths.find((path) => file.includes(path) || path.includes(file));
+
+      if (matchedPath) {
         score += 4;
+        reasons.push({
+          type: "path_match",
+          score: 4,
+          file,
+          path: matchedPath,
+        });
       }
     }
   }
 
-  return score;
+  return { score, reasons };
 }
 
 function formatInjectionBlock(matches) {
@@ -753,11 +848,98 @@ function formatInjection(match) {
   return {
     id: match.id,
     score: match.score,
+    matchReasons: match.matchReasons ?? [],
     scope: match.scope,
     artifact: match.artifact,
     injection: match.injection,
     sourceTrace: match.source_trace,
   };
+}
+
+function promotionReason(precedent) {
+  const baselineFailures = precedent.promotion?.baseline_failures;
+  const rerunFailures = precedent.promotion?.rerun_failures;
+
+  if (Number.isFinite(baselineFailures) && Number.isFinite(rerunFailures)) {
+    return `verified replay improved from ${baselineFailures} baseline failure(s) to ${rerunFailures} rerun failure(s)`;
+  }
+
+  return "promoted with concrete evidence";
+}
+
+function sourceForPrecedent(precedent, traces) {
+  const trace = traces.find((item) => item.id === precedent.source_trace)
+    ?? traces.find((item) => item.precedent?.id === precedent.id)
+    ?? null;
+
+  if (!trace) {
+    return {
+      traceId: precedent.source_trace ?? null,
+      sessionId: null,
+      replayId: null,
+      replayPath: null,
+    };
+  }
+
+  return sourceForTrace(trace);
+}
+
+function sourceForTrace(trace) {
+  return {
+    traceId: trace.id ?? null,
+    sessionId: trace.sessionId ?? null,
+    sessionPath: trace.session?.path ?? null,
+    replayId: trace.replay?.id ?? null,
+    replayPath: trace.replay?.path ?? null,
+  };
+}
+
+function replayExplanation(precedent) {
+  const promotion = precedent.promotion ?? {};
+  const baselineFailures = promotion.baseline_failures;
+  const rerunFailures = promotion.rerun_failures;
+  const baselineExitCode = promotion.baseline_exit_code ?? null;
+  const rerunExitCode = promotion.rerun_exit_code ?? null;
+
+  return {
+    baselineFailures: Number.isFinite(baselineFailures) ? baselineFailures : null,
+    rerunFailures: Number.isFinite(rerunFailures) ? rerunFailures : null,
+    failureDelta: Number.isFinite(baselineFailures) && Number.isFinite(rerunFailures)
+      ? baselineFailures - rerunFailures
+      : null,
+    baselineExitCode,
+    rerunExitCode,
+  };
+}
+
+function matchingExplanation(precedent) {
+  return {
+    scope: precedent.scope ?? null,
+    trigger: precedent.trigger ?? null,
+    artifact: precedent.artifact ?? null,
+    paths: Array.isArray(precedent.paths) ? precedent.paths : [],
+  };
+}
+
+function injectionEventsForPrecedent(events, id) {
+  return events
+    .filter((event) => {
+      if (Array.isArray(event.injectedIds) && event.injectedIds.includes(id)) {
+        return true;
+      }
+
+      return Array.isArray(event.injections) && event.injections.includes(id);
+    })
+    .slice(-5)
+    .map((event) => ({
+      type: event.type ?? null,
+      hook: event.hook ?? "context.before_turn",
+      observedAt: event.observedAt ?? event.receivedAt ?? null,
+      sessionId: event.sessionId ?? null,
+      task: event.task ?? null,
+      scope: event.scope ?? null,
+      changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : [],
+    }));
 }
 
 async function appendSessionEvent(stateDir, rawEvent) {
@@ -1363,6 +1545,7 @@ Usage:
   precedent compile [--state-dir .precedent]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
+  precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
   precedent report [--state-dir .precedent]
@@ -1373,6 +1556,7 @@ Commands:
   compile   Mine observed raw traces into candidate precedent artifacts.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   inject    Return relevant precedent for the current task.
+  explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
   report    Summarize local precedent state.
 `);

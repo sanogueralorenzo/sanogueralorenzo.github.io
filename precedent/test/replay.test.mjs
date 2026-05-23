@@ -86,7 +86,27 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     assert.equal(afterPromotion.injected, true);
     assert.equal(afterPromotion.injections.length, 1);
     assert.equal(afterPromotion.injections[0].id, "prec_webhook_replay_boundary");
+    assert.deepEqual(afterPromotion.injections[0].matchReasons.map((reason) => reason.type), [
+      "text_overlap",
+      "scope_match",
+      "path_match",
+    ]);
+    assert.equal(afterPromotion.injections[0].matchReasons[1].scope, "feature:webhooks");
     assert.match(afterPromotion.block, /Precedent:/u);
+
+    const explained = await runPrecedent([
+      "explain",
+      "--state-dir",
+      stateDir,
+      "--id",
+      "prec_webhook_replay_boundary",
+      "--json",
+    ]);
+    assert.equal(explained.promotionStatus, "promoted");
+    assert.match(explained.promotionReason, /1 baseline failure\(s\) to 0 rerun failure\(s\)/u);
+    assert.equal(explained.matching.scope, "feature:webhooks");
+    assert.equal(explained.injections.length, 1);
+    assert.equal(explained.injections[0].task, "add another webhook handler");
 
     const report = await runPrecedent(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(report.replays, 1);
