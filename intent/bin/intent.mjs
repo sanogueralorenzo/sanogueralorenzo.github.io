@@ -162,6 +162,10 @@ function isPosition(value) {
     && value.column >= 1;
 }
 
+function graphSourceFile(graph) {
+  return typeof graph.source === "string" ? graph.source : "graph";
+}
+
 function parseIntent(source, file) {
   const lines = source.split(/\r?\n/);
   sourceLineOffsets.set(path.normalize(file), computeLineOffsets(source));
@@ -1220,23 +1224,32 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
 function validateGraph(graph, options = {}) {
   const diagnostics = [];
+  const graphSpan = span(graphSourceFile(graph), 1, 1);
   if (graph.schema_version !== GRAPH_SCHEMA_VERSION || graph.ast_schema_version !== AST_SCHEMA_VERSION) {
-    diagnostics.push(error("INTENT_GRAPH_SCHEMA_INVALID", `graph envelope uses unsupported schema version.`, span(graph.source ?? "graph", 1, 1), {
+    diagnostics.push(error("INTENT_GRAPH_SCHEMA_INVALID", `graph envelope uses unsupported schema version.`, graphSpan, {
       schema_version: graph.schema_version ?? null,
       expected_schema_version: GRAPH_SCHEMA_VERSION,
       ast_schema_version: graph.ast_schema_version ?? null,
       expected_ast_schema_version: AST_SCHEMA_VERSION,
     }));
   }
+  if (typeof graph.source !== "string" || typeof graph.package !== "string") {
+    diagnostics.push(error("INTENT_GRAPH_ENVELOPE_INVALID", `graph envelope must include string source and package fields.`, graphSpan, {
+      source_is_string: typeof graph.source === "string",
+      package_is_string: typeof graph.package === "string",
+      source: typeof graph.source === "string" ? graph.source : null,
+      package: typeof graph.package === "string" ? graph.package : null,
+    }));
+  }
   if (!options.allowNonExecutableEnvelope && (graph.ok !== true || !Array.isArray(graph.diagnostics) || graph.diagnostics.length !== 0)) {
-    diagnostics.push(error("INTENT_GRAPH_EXECUTABLE_INVALID", `graph envelope must have ok true and an empty diagnostics array.`, span(graph.source ?? "graph", 1, 1), {
+    diagnostics.push(error("INTENT_GRAPH_EXECUTABLE_INVALID", `graph envelope must have ok true and an empty diagnostics array.`, graphSpan, {
       graph_ok: graph.ok ?? null,
       diagnostics_is_array: Array.isArray(graph.diagnostics),
       diagnostic_count: Array.isArray(graph.diagnostics) ? graph.diagnostics.length : null,
     }));
   }
   if (!Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
-    diagnostics.push(error("INTENT_GRAPH_SHAPE_INVALID", `graph envelope must include nodes and edges arrays.`, span(graph.source ?? "graph", 1, 1), {
+    diagnostics.push(error("INTENT_GRAPH_SHAPE_INVALID", `graph envelope must include nodes and edges arrays.`, graphSpan, {
       nodes_is_array: Array.isArray(graph.nodes),
       edges_is_array: Array.isArray(graph.edges),
     }));
@@ -1252,7 +1265,7 @@ function validateGraph(graph, options = {}) {
       || !isSpan(graphNode.span)
       || !isPlainObject(graphNode.data)
     ) {
-      diagnostics.push(error("INTENT_GRAPH_NODE_INVALID", `graph node must be an object with string id, kind, label, span, and data fields.`, graphNode?.span ?? span(graph.source ?? "graph", 1, 1), {
+      diagnostics.push(error("INTENT_GRAPH_NODE_INVALID", `graph node must be an object with string id, kind, label, span, and data fields.`, graphNode?.span ?? graphSpan, {
         node_index: nodeIndex,
         node_id: isPlainObject(graphNode) ? graphNode.id ?? null : null,
         node_kind: isPlainObject(graphNode) ? graphNode.kind ?? null : null,
@@ -1264,7 +1277,7 @@ function validateGraph(graph, options = {}) {
     }
     const previousNode = nodesById.get(graphNode.id);
     if (previousNode) {
-      diagnostics.push(error("INTENT_GRAPH_NODE_DUPLICATE", `graph node id '${graphNode.id}' is emitted more than once.`, graphNode.span ?? previousNode.span ?? span(graph.source ?? "graph", 1, 1), {
+      diagnostics.push(error("INTENT_GRAPH_NODE_DUPLICATE", `graph node id '${graphNode.id}' is emitted more than once.`, graphNode.span ?? previousNode.span ?? graphSpan, {
         node_id: graphNode.id,
         node_kind: graphNode.kind,
         previous_node_kind: previousNode.kind,
@@ -1273,7 +1286,7 @@ function validateGraph(graph, options = {}) {
       continue;
     }
     if (!GRAPH_NODE_KINDS.has(graphNode.kind)) {
-      diagnostics.push(error("INTENT_GRAPH_NODE_KIND_INVALID", `graph node kind '${graphNode.kind}' is not supported.`, graphNode.span ?? span(graph.source ?? "graph", 1, 1), {
+      diagnostics.push(error("INTENT_GRAPH_NODE_KIND_INVALID", `graph node kind '${graphNode.kind}' is not supported.`, graphNode.span ?? graphSpan, {
         node_id: graphNode.id,
         node_kind: graphNode.kind,
         supported_node_kinds: [...GRAPH_NODE_KINDS],
@@ -1282,7 +1295,7 @@ function validateGraph(graph, options = {}) {
     }
     nodesById.set(graphNode.id, graphNode);
   }
-  const fallbackSpan = graph.nodes[0]?.span ?? span(graph.source ?? "graph", 1, 1);
+  const fallbackSpan = graph.nodes[0]?.span ?? graphSpan;
   const outgoing = new Map([...nodesById.keys()].map((nodeId) => [nodeId, []]));
   const incomingEdgesByNode = new Map([...nodesById.keys()].map((nodeId) => [nodeId, []]));
   const outgoingEdgesByNode = new Map([...nodesById.keys()].map((nodeId) => [nodeId, []]));

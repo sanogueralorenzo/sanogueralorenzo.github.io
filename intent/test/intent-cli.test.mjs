@@ -92,6 +92,7 @@ function validateTestGraph(graph) {
     schema_version: "intent.graph.v0",
     ast_schema_version: "intent.ast.v0",
     source: "synthetic.intent",
+    package: "fixtures.synthetic",
     ok: true,
     diagnostics: [],
     ...normalizedGraph,
@@ -1095,6 +1096,7 @@ describe("intent static model CLI", () => {
       schema_version: "intent.graph.v1",
       ast_schema_version: "intent.ast.v1",
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: true,
       diagnostics: [],
       nodes: [],
@@ -1102,6 +1104,7 @@ describe("intent static model CLI", () => {
     });
     const missingDiagnostics = validateGraph({
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: true,
       diagnostics: [],
       nodes: [],
@@ -1120,11 +1123,32 @@ describe("intent static model CLI", () => {
     assert.equal(missingDiagnostics[0].ast_schema_version, null);
   });
 
+  it("validates graph envelope provenance diagnostics", () => {
+    const diagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: 1,
+      package: null,
+      ok: true,
+      diagnostics: [],
+      nodes: [],
+      edges: [],
+    });
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_ENVELOPE_INVALID");
+    assert.equal(diagnostics[0].source_is_string, false);
+    assert.equal(diagnostics[0].package_is_string, false);
+    assert.equal(diagnostics[0].source, null);
+    assert.equal(diagnostics[0].package, null);
+  });
+
   it("validates graph executable envelope diagnostics", () => {
     const failedDiagnostics = validateGraph({
       schema_version: "intent.graph.v0",
       ast_schema_version: "intent.ast.v0",
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: false,
       diagnostics: [{ code: "INTENT_VERIFY_MISSING", severity: "error", message: "missing", span: testSpan(1) }],
       nodes: [],
@@ -1134,6 +1158,7 @@ describe("intent static model CLI", () => {
       schema_version: "intent.graph.v0",
       ast_schema_version: "intent.ast.v0",
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: true,
       diagnostics: [{ code: "INTENT_VERIFY_MISSING", severity: "error", message: "missing", span: testSpan(1) }],
       nodes: [],
@@ -1143,6 +1168,7 @@ describe("intent static model CLI", () => {
       schema_version: "intent.graph.v0",
       ast_schema_version: "intent.ast.v0",
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: true,
       nodes: [],
       edges: [],
@@ -1166,6 +1192,7 @@ describe("intent static model CLI", () => {
       schema_version: "intent.graph.v0",
       ast_schema_version: "intent.ast.v0",
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: true,
       diagnostics: [],
     });
@@ -1173,6 +1200,7 @@ describe("intent static model CLI", () => {
       schema_version: "intent.graph.v0",
       ast_schema_version: "intent.ast.v0",
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: true,
       diagnostics: [],
       nodes: {},
@@ -1194,6 +1222,7 @@ describe("intent static model CLI", () => {
       schema_version: "intent.graph.v0",
       ast_schema_version: "intent.ast.v0",
       source: "synthetic.intent",
+      package: "fixtures.synthetic",
       ok: true,
       diagnostics: [],
       nodes: [
