@@ -1244,6 +1244,38 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[5].to, 1);
   });
 
+  it("validates graph edge payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      nodes: [
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(1), data: {} },
+        { id: "node:b", kind: "Type", label: "b", span: testSpan(2), data: {} },
+        { id: "node:c", kind: "Type", label: "c", span: testSpan(3), data: {} },
+        { id: "node:d", kind: "Type", label: "d", span: testSpan(4), data: {} },
+      ],
+      edges: [
+        { from: "node:a", to: "node:b", kind: "declares", data: "bad" },
+        { from: "node:b", to: "node:c", kind: "declares", data: { sourceSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
+        { from: "node:c", to: "node:d", kind: "declares", data: { targetSpan: { file: "synthetic.intent", start: { line: 1, column: 1 }, end: { line: 1, column: 0 } } } },
+      ],
+    });
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+    assert.equal(diagnostics[0].edge_index, 0);
+    assert.equal(diagnostics[0].data_is_object, false);
+    assert.equal(diagnostics[0].source_span_is_valid, true);
+    assert.equal(diagnostics[0].target_span_is_valid, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+    assert.equal(diagnostics[1].edge_index, 1);
+    assert.equal(diagnostics[1].data_is_object, true);
+    assert.equal(diagnostics[1].source_span_is_valid, false);
+    assert.equal(diagnostics[1].target_span_is_valid, true);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+    assert.equal(diagnostics[2].edge_index, 2);
+    assert.equal(diagnostics[2].source_span_is_valid, true);
+    assert.equal(diagnostics[2].target_span_is_valid, false);
+  });
+
   it("validates graph node kind diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",

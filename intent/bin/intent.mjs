@@ -1301,6 +1301,22 @@ function validateGraph(graph, options = {}) {
       }));
       continue;
     }
+    const dataIsPresent = graphEdge.data !== undefined;
+    const dataIsObject = !dataIsPresent || isPlainObject(graphEdge.data);
+    const sourceSpanIsValid = !dataIsPresent || graphEdge.data.sourceSpan === undefined || isSpan(graphEdge.data.sourceSpan);
+    const targetSpanIsValid = !dataIsPresent || graphEdge.data.targetSpan === undefined || isSpan(graphEdge.data.targetSpan);
+    if (!dataIsObject || !sourceSpanIsValid || !targetSpanIsValid) {
+      diagnostics.push(error("INTENT_GRAPH_EDGE_PAYLOAD_INVALID", `graph edge data must be an object with valid sourceSpan and targetSpan values when present.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+        edge_index: edgeIndex,
+        edge: graphEdge.kind,
+        from: graphEdge.from,
+        to: graphEdge.to,
+        data_is_object: dataIsObject,
+        source_span_is_valid: sourceSpanIsValid,
+        target_span_is_valid: targetSpanIsValid,
+      }));
+      continue;
+    }
     const missing = ["from", "to"].filter((endpoint) => !nodesById.has(graphEdge[endpoint]));
     if (missing.length > 0) {
       diagnostics.push(error("INTENT_GRAPH_EDGE_UNRESOLVED", `graph edge '${graphEdge.kind}' references missing endpoint '${missing.map((endpoint) => graphEdge[endpoint]).join(", ")}'.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
