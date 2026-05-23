@@ -8,6 +8,7 @@ const AST_SCHEMA = new URL("../schemas/intent.ast.v0.schema.json", import.meta.u
 const CHECK_SCHEMA = new URL("../schemas/intent.check.v0.schema.json", import.meta.url).pathname;
 const GRAPH_SCHEMA = new URL("../schemas/intent.graph.v0.schema.json", import.meta.url).pathname;
 const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import.meta.url).pathname;
+const VALID_CHECKPOINT_GRAPH = new URL("../fixtures/valid_checkpoint_graph.intent", import.meta.url).pathname;
 const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.intent", import.meta.url).pathname;
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
 const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.intent", import.meta.url).pathname;
@@ -154,6 +155,7 @@ describe("intent static model CLI", () => {
 
   it("accepts valid fixtures", () => {
     const codeChange = runJson(["check", VALID_CODE_CHANGE]);
+    const checkpointGraph = runJson(["check", VALID_CHECKPOINT_GRAPH]);
     const dependencyGraph = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const research = runJson(["check", VALID_RESEARCH]);
     const webReadWildcard = runJson(["check", VALID_WEB_READ_WILDCARD]);
@@ -163,6 +165,8 @@ describe("intent static model CLI", () => {
 
     assert.equal(codeChange.ok, true);
     assert.deepEqual(codeChange.diagnostics, []);
+    assert.equal(checkpointGraph.ok, true);
+    assert.deepEqual(checkpointGraph.diagnostics, []);
     assert.equal(dependencyGraph.ok, true);
     assert.deepEqual(dependencyGraph.diagnostics, []);
     assert.equal(research.ok, true);
@@ -355,6 +359,19 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "requires" && edge.to.endsWith(":step:patch_code")), true);
     assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "gates" && edge.to === "goal:apply_guarded_code_change"), true);
     assert.equal(graph.edges.some((edge) => edge.from === stepRequirement.id && edge.kind === "verifies"), false);
+  });
+
+  it("emits step checkpoints as checkpoint nodes and edges", () => {
+    const graph = runJson(["graph", VALID_CHECKPOINT_GRAPH]);
+    const checkpoint = graph.nodes.find((node) => node.kind === "Checkpoint" && node.data.ownerStep === "patch_code");
+    const patchStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "patch_code");
+
+    assert.equal(graph.ok, true);
+    assert.equal(checkpoint.data.scope, "step");
+    assert.equal(checkpoint.data.checkpoint, "before patch");
+    assert.equal(patchStep.data.checkpoints.includes("before patch"), true);
+    assert.equal(graph.edges.some((edge) => edge.kind === "checkpoints" && edge.from === patchStep.id && edge.to === checkpoint.id), true);
+    assert.equal(graph.edges.some((edge) => edge.from === checkpoint.id && edge.kind === "verifies"), false);
   });
 
   it("validates CLI outputs against versioned schemas", () => {

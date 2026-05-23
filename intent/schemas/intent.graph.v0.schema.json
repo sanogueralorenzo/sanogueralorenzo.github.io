@@ -231,6 +231,9 @@
           "$ref": "#/$defs/check_node"
         },
         {
+          "$ref": "#/$defs/checkpoint_node"
+        },
+        {
           "$ref": "#/$defs/invariant_node"
         }
       ]
@@ -459,7 +462,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["inputs", "outputType", "effects", "requirements"],
+              "required": ["inputs", "outputType", "effects", "requirements", "checkpoints"],
               "additionalProperties": false,
               "properties": {
                 "inputs": {
@@ -478,6 +481,12 @@
                   }
                 },
                 "requirements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "checkpoints": {
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -628,6 +637,39 @@
       ],
       "unevaluatedProperties": false
     },
+    "checkpoint_node": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/base_node"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "Checkpoint"
+            },
+            "data": {
+              "type": "object",
+              "required": ["scope", "ownerStep", "checkpoint"],
+              "additionalProperties": false,
+              "properties": {
+                "scope": {
+                  "enum": ["step"]
+                },
+                "ownerStep": {
+                  "type": "string"
+                },
+                "checkpoint": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "invariant_node": {
       "type": "object",
       "allOf": [
@@ -669,6 +711,7 @@
         "kind": {
           "enum": [
             "authorizes",
+            "checkpoints",
             "completes",
             "constrains",
             "data",
@@ -696,6 +739,9 @@
               "type": ["string", "null"]
             },
             "requirement": {
+              "type": "string"
+            },
+            "checkpoint": {
               "type": "string"
             }
           }

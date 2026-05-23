@@ -354,6 +354,7 @@ function parseStep(header, body, file, startLine, endLine) {
   }
   const effects = [];
   const requirements = [];
+  const checkpoints = [];
   if (match[3]) {
     const effectOutput = match[3].trim().match(/^Effect<\s*([A-Za-z][A-Za-z0-9_.]*)/);
     if (effectOutput) {
@@ -367,6 +368,9 @@ function parseStep(header, body, file, startLine, endLine) {
     if (line.text.startsWith("require ")) {
       requirements.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
     }
+    if (line.text.startsWith("checkpoint ")) {
+      checkpoints.push(parseCheckpointStatement(line, file));
+    }
   }
   return {
     kind: "Step",
@@ -375,6 +379,7 @@ function parseStep(header, body, file, startLine, endLine) {
     outputType: match[3] ? match[3].trim() : null,
     effects,
     requirements,
+    checkpoints,
     span: span(file, startLine, 1, endLine, 1),
   };
 }
@@ -421,6 +426,10 @@ function parseRetentionRule(line, file) {
     raw: line.text,
     span: lineSpan(file, line.lineNumber, line.raw),
   };
+}
+
+function parseCheckpointStatement(line, file) {
+  return statementNode("Checkpoint", unquote(line.text.slice("checkpoint ".length)), file, line.lineNumber, line.raw);
 }
 
 function checkIntent(ast) {
@@ -700,6 +709,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         outputType: step.outputType,
         effects: step.effects.map((effect) => effect.name),
         requirements: step.requirements.map((requirement) => requirement.value),
+        checkpoints: step.checkpoints.map((checkpoint) => checkpoint.value),
       }));
       edges.push(edge(goalId, id, "plans"));
       if (previousStepId) {
@@ -740,6 +750,18 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
             type: normalizeTypeRef(parameter.type),
           }));
         }
+      }
+
+      for (const [checkpointIndex, checkpoint] of step.checkpoints.entries()) {
+        const checkpointId = `${id}:checkpoint:${checkpointIndex}`;
+        nodes.push(node(checkpointId, "Checkpoint", checkpoint.value, checkpoint.span, {
+          scope: "step",
+          ownerStep: step.name,
+          checkpoint: checkpoint.value,
+        }));
+        edges.push(edge(id, checkpointId, "checkpoints", {
+          checkpoint: checkpoint.value,
+        }));
       }
 
       for (const [effectIndex, effectUse] of step.effects.entries()) {
@@ -1314,6 +1336,13 @@ function normalizeCommand(value) {
 
 function normalizeRefName(value) {
   return value.trim().replace(/^refs\/heads\//, "");
+}
+
+function unquote(value) {
+  const trimmed = value.trim();
+  return trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length >= 2
+    ? trimmed.slice(1, -1)
+    : trimmed;
 }
 
 function domainFromUrl(value) {

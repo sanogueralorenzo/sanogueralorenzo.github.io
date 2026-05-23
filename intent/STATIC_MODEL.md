@@ -20,8 +20,11 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `MemoryRetention`: structured `retain ... until ...` rule with retained
   subject, until condition, raw text, and source span.
 - `PlanBlock`: ordered list of executable steps.
-- `StepDecl`: typed inputs, output, step-local requirements, declared effects,
-  timeout, retry policy, checks, and body expression.
+- `StepDecl`: typed inputs, output, step-local requirements, step checkpoint
+  statements, declared effects, timeout, retry policy, checks, and body
+  expression.
+- `StepCheckpoint`: structured `checkpoint ...` step-body statement with raw
+  checkpoint text and source span.
 - `VerifyBlock`: required or advisory completion checks.
 - `InvariantBlock`: always-on rules evaluated across effects and checkpoints.
 - `EffectDecl`: reusable typed effect signature.
@@ -296,6 +299,8 @@ blocking diagnostics.
 - Bind verification shell requirements to declared shell run capability grants.
 - Parse step-body `require ...` lines as step requirements, separate from
   goal-level verification requirements.
+- Parse step-body `checkpoint ...` lines as step checkpoints owned by their
+  containing step.
 - Enforce invariant placement and attach invariants to the graph as guards.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
@@ -309,6 +314,8 @@ blocking diagnostics.
   checkpoints, and completion gates.
 - Emit step requirements as `Check` nodes with `requires` edges into the owning
   step and `gates` edges to the owning goal.
+- Emit step checkpoints as `Checkpoint` nodes, list them on the owning `Step`
+  node data, and connect each one with a `checkpoints` edge from that `Step`.
 - Reject execution cycles unless a future bounded-loop form declares progress.
 
 ## Step Input Binding
@@ -399,6 +406,32 @@ Rules:
 - Step requirement checks do not create `verifies` edges to the goal
   `Completion` node. Goal-level `verify` requirements remain the only checks
   that verify completion.
+
+## Step Checkpoints
+
+Step bodies may contain `checkpoint ...` lines that declare recoverable state
+or progress markers for only that step:
+
+```intent
+plan {
+  step run_tests(patch: GitDiff) -> TestReport {
+    checkpoint patch_applied
+    checkpoint test_report_written
+  }
+}
+```
+
+Rules:
+
+- Step-body checkpoints are parsed into the owning `StepDecl` as step
+  checkpoint statements.
+- Each step checkpoint emits one graph `Checkpoint` node whose span is the
+  `checkpoint ...` line.
+- The owning `Step` node data lists checkpoint summaries in source order.
+- The graph builder creates a `checkpoints` edge from the owning `Step` to each
+  checkpoint `Checkpoint` node.
+- Step checkpoints do not create `verifies` edges to the goal `Completion`
+  node and do not replace memory retention rules.
 
 ## Memory Retention
 
@@ -698,7 +731,20 @@ node id. It is an intermediate contract for a local runtime.
       "data": {
         "inputs": [{ "name": "patch", "type": "GitDiff" }],
         "outputType": "ShellExecResult",
-        "effects": ["ShellExec"]
+        "effects": ["ShellExec"],
+        "requirements": [],
+        "checkpoints": ["test_report_written"]
+      }
+    },
+    {
+      "id": "goal:ship_checkout_fix:step:run_tests:checkpoint:0",
+      "kind": "Checkpoint",
+      "label": "test_report_written",
+      "span": "loc.16",
+      "data": {
+        "scope": "step",
+        "ownerStep": "run_tests",
+        "checkpoint": "test_report_written"
       }
     },
     {
@@ -801,6 +847,11 @@ node id. It is an intermediate contract for a local runtime.
       "kind": "authorizes"
     },
     {
+      "from": "goal:ship_checkout_fix:step:run_tests",
+      "to": "goal:ship_checkout_fix:step:run_tests:checkpoint:0",
+      "kind": "checkpoints"
+    },
+    {
       "from": "goal:ship_checkout_fix:step:run_tests:requirement:0",
       "to": "goal:ship_checkout_fix",
       "kind": "gates"
@@ -860,6 +911,10 @@ Step requirement nodes are `Check` nodes scoped to one owning step. They create
 `requires` edges into that step and `gates` edges to the owning goal. They are
 not completion checks and must not create `verifies` edges to the goal
 `Completion` node.
+
+Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
+owning step node lists them in its `data.checkpoints` array, and each
+checkpoint has one incoming `checkpoints` edge from that owning step.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.
