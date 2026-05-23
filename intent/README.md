@@ -269,13 +269,15 @@ Validation expectations:
   provenance payloads or required provenance with no citations emit
   `INTENT_GRAPH_COMPLETION_INVALID`.
 - Completion checkpoint policy is enforced by the checker and graph contract.
-  `require final_state_checkpointed`, `require checkpointed_final_state`, or
-  `deny uncheckpointed_irreversible_effect` requires the final
-  completion-producing step to declare at least one `checkpoint ...` statement.
-  Missing checkpoint coverage emits `INTENT_CHECKPOINT_MISSING`. Completion
-  node `data.checkpoint` records the triggering requirements, invariants, and
-  final-step checkpoints; malformed checkpoint payloads or required checkpoint
-  metadata with no checkpoint records emit `INTENT_GRAPH_COMPLETION_INVALID`.
+  `require final_state_checkpointed` and `require checkpointed_final_state`
+  require the final completion-producing step to declare at least one
+  `checkpoint ...` statement. `deny uncheckpointed_irreversible_effect`
+  separately requires each irreversible effect to have a later checkpoint in
+  goal source order. Missing checkpoint coverage emits
+  `INTENT_CHECKPOINT_MISSING`. Completion node `data.checkpoint` records the
+  triggering final-state requirements and final-step checkpoints; malformed
+  checkpoint payloads or required checkpoint metadata with no checkpoint
+  records emit `INTENT_GRAPH_COMPLETION_INVALID`.
 - Runtime graph `produces` and `requires` edge payloads are typed contracts.
   The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and

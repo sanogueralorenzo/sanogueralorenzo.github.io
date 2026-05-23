@@ -16,6 +16,7 @@ goal "deploy granted target" {
   }
 
   memory session {
+    retain checkpoints until goal_complete
     retain summaries until goal_complete
     retain evidence until 30d
   }
@@ -24,6 +25,7 @@ goal "deploy granted target" {
     step inspect_deploy_target -> DeployContext
     step deploy_release(input: DeployContext) -> DeployResult {
       effect Deploy(target: "staging")
+      checkpoint "deploy requested"
     }
   }
 
@@ -33,5 +35,6 @@ goal "deploy granted target" {
 
   invariant {
     deny production_deploy
+    deny uncheckpointed_irreversible_effect
   }
 }

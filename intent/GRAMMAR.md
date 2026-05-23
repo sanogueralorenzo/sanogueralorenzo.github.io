@@ -244,11 +244,12 @@ completion-producing step must contain at least one `memory cite ...`
 statement. Missing final-step citation coverage emits
 `INTENT_PROVENANCE_MISSING`.
 
-When a goal requires `final_state_checkpointed`, requires
-`checkpointed_final_state`, or denies `uncheckpointed_irreversible_effect`, the
-final completion-producing step must contain at least one `checkpoint ...`
-statement. Missing final-step checkpoint coverage emits
-`INTENT_CHECKPOINT_MISSING`.
+When a goal requires `final_state_checkpointed` or
+`checkpointed_final_state`, the final completion-producing step must contain at
+least one `checkpoint ...` statement. When a goal denies
+`uncheckpointed_irreversible_effect`, every irreversible effect must be
+followed by a non-empty `checkpoint ...` later in goal source order. Missing
+checkpoint coverage emits `INTENT_CHECKPOINT_MISSING`.
 
 ## Expressions
 

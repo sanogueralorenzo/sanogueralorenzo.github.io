@@ -24,6 +24,7 @@ goal incident_response(incident: IncidentRef) -> IncidentOutcome {
   }
 
   memory session {
+    retain checkpoints until goal_complete
     retain incident_state until goal_complete
     retain evidence until 30d
   }
@@ -41,6 +42,7 @@ goal incident_response(incident: IncidentRef) -> IncidentOutcome {
     }
     step close_or_escalate(input: MitigationResult) -> IncidentOutcome {
       effect TicketUpdate(id: "INC-123")
+      checkpoint "incident outcome recorded"
     }
   }
 
@@ -50,5 +52,6 @@ goal incident_response(incident: IncidentRef) -> IncidentOutcome {
 
   invariant {
     deny production_deploy
+    deny uncheckpointed_irreversible_effect
   }
 }

@@ -23,6 +23,7 @@ const VALID_SECRET_READ = new URL("../fixtures/valid_secret_read.intent", import
 const VALID_TICKET_UPDATE = new URL("../fixtures/valid_ticket_update.intent", import.meta.url).pathname;
 const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.intent", import.meta.url).pathname;
 const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent", import.meta.url).pathname;
+const VALID_IRREVERSIBLE_CHECKPOINT_COVERAGE = new URL("../fixtures/valid_irreversible_checkpoint_coverage.intent", import.meta.url).pathname;
 const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.intent", import.meta.url).pathname;
 const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
 const VALID_IMPORTS = new URL("../fixtures/valid_imports.intent", import.meta.url).pathname;
@@ -64,6 +65,8 @@ const INVALID_MEMORY_ACCESS_UNDECLARED = new URL("../fixtures/invalid_memory_acc
 const INVALID_MEMORY_KEY_UNDECLARED = new URL("../fixtures/invalid_memory_key_undeclared.intent", import.meta.url).pathname;
 const INVALID_PROVENANCE_MISSING = new URL("../fixtures/invalid_provenance_missing.intent", import.meta.url).pathname;
 const INVALID_COMPLETION_CHECKPOINT_MISSING = new URL("../fixtures/invalid_completion_checkpoint_missing.intent", import.meta.url).pathname;
+const INVALID_UNCHECKPOINTED_IRREVERSIBLE_EFFECT = new URL("../fixtures/invalid_uncheckpointed_irreversible_effect.intent", import.meta.url).pathname;
+const INVALID_IRREVERSIBLE_CHECKPOINT_BEFORE_EFFECT = new URL("../fixtures/invalid_irreversible_checkpoint_before_effect.intent", import.meta.url).pathname;
 const INVALID_STEP_POLICY_BAD_TIMEOUT = new URL("../fixtures/invalid_step_policy_bad_timeout.intent", import.meta.url).pathname;
 const INVALID_CHECKPOINT_EMPTY = new URL("../fixtures/invalid_checkpoint_empty.intent", import.meta.url).pathname;
 const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.intent", import.meta.url).pathname;
@@ -816,6 +819,7 @@ describe("intent static model CLI", () => {
     const ticketUpdate = runJson(["check", VALID_TICKET_UPDATE]);
     const webReadWildcard = runJson(["check", VALID_WEB_READ_WILDCARD]);
     const gitPushBranch = runJson(["check", VALID_GIT_PUSH_BRANCH]);
+    const irreversibleCheckpointCoverage = runJson(["check", VALID_IRREVERSIBLE_CHECKPOINT_COVERAGE]);
     const stepRequirements = runJson(["check", VALID_STEP_REQUIREMENTS]);
     const invariantGuardGraph = runJson(["check", VALID_INVARIANT_GUARD_GRAPH]);
     const imports = runJson(["check", VALID_IMPORTS]);
@@ -846,6 +850,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(webReadWildcard.diagnostics, []);
     assert.equal(gitPushBranch.ok, true);
     assert.deepEqual(gitPushBranch.diagnostics, []);
+    assert.equal(irreversibleCheckpointCoverage.ok, true);
+    assert.deepEqual(irreversibleCheckpointCoverage.diagnostics, []);
     assert.equal(stepRequirements.ok, true);
     assert.deepEqual(stepRequirements.diagnostics, []);
     assert.equal(invariantGuardGraph.ok, true);
@@ -1270,8 +1276,38 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_CHECKPOINT_MISSING");
     assert.equal(payload.diagnostics[0].step, "draft_report");
     assert.deepEqual(payload.diagnostics[0].requirements, ["final_state_checkpointed"]);
-    assert.deepEqual(payload.diagnostics[0].invariants, ["uncheckpointed_irreversible_effect"]);
+    assert.deepEqual(payload.diagnostics[0].invariants, []);
     assert.equal(payload.diagnostics[0].checkpoints, 0);
+  });
+
+  it("rejects irreversible effects without a following checkpoint", () => {
+    const result = run(["check", INVALID_UNCHECKPOINTED_IRREVERSIBLE_EFFECT]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CHECKPOINT_MISSING");
+    assert.equal(payload.diagnostics[0].step, "publish_release");
+    assert.equal(payload.diagnostics[0].invariant, "uncheckpointed_irreversible_effect");
+    assert.equal(payload.diagnostics[0].effect, "GitPush");
+    assert.equal(payload.diagnostics[0].family, "git");
+    assert.equal(payload.diagnostics[0].action, "push");
+    assert.equal(payload.diagnostics[0].contract_id, "intent.effect.git.push.v0");
+    assert.equal(payload.diagnostics[0].checkpoint_coverage, "source_order_after_effect");
+    assert.equal(payload.diagnostics[0].checkpoints_after_effect, 0);
+  });
+
+  it("rejects checkpoints that appear before irreversible effects", () => {
+    const result = run(["check", INVALID_IRREVERSIBLE_CHECKPOINT_BEFORE_EFFECT]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CHECKPOINT_MISSING");
+    assert.equal(payload.diagnostics[0].step, "publish_release");
+    assert.equal(payload.diagnostics[0].effect, "GitPush");
+    assert.equal(payload.diagnostics[0].checkpoint_coverage, "source_order_after_effect");
+    assert.equal(payload.diagnostics[0].checkpoints_after_effect, 0);
   });
 
   it("rejects invalid step policy syntax", () => {

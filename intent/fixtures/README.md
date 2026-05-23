@@ -11,11 +11,12 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_research.intent`: research goal with declared source, claim, and report types, web and local document context, read-only capabilities, plan steps, final-step citation provenance, citation verification, and invariants.
 - `valid_trust_flow_shell_literal.intent`: trust-flow goal where `ShellExec` uses a literal command declared by shell capability.
 - `valid_web_read_wildcard.intent`: web-read goal where `WebRead` targets a subdomain covered by a wildcard web domain grant and cites retained evidence before completion.
-- `valid_git_push_branch.intent`: git goal where `GitPush` targets a branch covered by a normalized git push branch grant.
+- `valid_git_push_branch.intent`: git goal where `GitPush` targets a branch covered by a normalized git push branch grant and is followed by a checkpoint required by `deny uncheckpointed_irreversible_effect`.
 - `valid_git_commit_message.intent`: git goal where `GitCommit` uses a message covered by a git commit message grant.
-- `valid_deploy_target.intent`: deploy goal where `Deploy` targets an environment covered by a deploy target grant, with memory retention, verification, and `deny production_deploy` invariants.
+- `valid_deploy_target.intent`: deploy goal where `Deploy` targets an environment covered by a deploy target grant, with memory retention, checkpointed deploy coverage, verification, and invariants.
 - `valid_secret_read.intent`: secret-read goal where `SecretRead` targets a secret name covered by a secret read grant, with memory retention, verification, and invariants.
-- `valid_ticket_update.intent`: ticket-update goal where `TicketUpdate` targets a ticket id covered by a ticket update grant, with memory retention, verification, and invariants.
+- `valid_ticket_update.intent`: ticket-update goal where `TicketUpdate` targets a ticket id covered by a ticket update grant, with memory retention, checkpointed ticket coverage, verification, and invariants.
+- `valid_irreversible_checkpoint_coverage.intent`: source-order checkpoint fixture where one later checkpoint covers multiple irreversible file, shell, and git commit effects.
 - `valid_step_requirements.intent`: code-change goal with step-local `require ...` guards before effects, normal file and shell capabilities, memory retention, verification, and invariants.
 - `valid_invariant_guard_graph.intent`: code-change goal with required and denied invariant rules intended to guard multiple graph targets, including file and shell effects plus step checkpoints, with normal capabilities, checkpoint memory retention, plan steps, and verification.
 - `valid_imports.intent`: import-focused parser fixture that preserves package and symbol import declarations with source spans while keeping imported names out of checker scope.
@@ -53,6 +54,8 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_memory_key_undeclared.intent`: references a memory key that is not declared by the memory block's retained subjects or explicit keys, which should fail `INTENT_MEMORY_KEY_UNDECLARED`.
 - `invalid_provenance_missing.intent`: requires cited completion output without a final-step `memory cite`, which should fail `INTENT_PROVENANCE_MISSING`.
 - `invalid_completion_checkpoint_missing.intent`: requires final-state checkpointing without a final-step `checkpoint ...`, which should fail `INTENT_CHECKPOINT_MISSING`.
+- `invalid_uncheckpointed_irreversible_effect.intent`: denies uncheckpointed irreversible effects but leaves `GitPush` without any later checkpoint, which should fail `INTENT_CHECKPOINT_MISSING`.
+- `invalid_irreversible_checkpoint_before_effect.intent`: declares a checkpoint before `GitPush` but no checkpoint after it, which should fail source-order checkpoint coverage with `INTENT_CHECKPOINT_MISSING`.
 - `invalid_checkpoint_empty.intent`: declares an empty step checkpoint label, which should fail `INTENT_CHECKPOINT_INVALID`.
 - `invalid_approval_empty.intent`: declares an empty step approval label, which should fail `INTENT_APPROVAL_INVALID` once approval validation is enforced.
 - `invalid_step_policy_bad_timeout.intent`: declares a step timeout policy with unsupported duration `soon`, which should fail `INTENT_POLICY_INVALID` once policy validation is enforced.

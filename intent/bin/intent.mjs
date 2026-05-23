@@ -74,7 +74,8 @@ const TRUST_ZONES = new Set(["trusted", "untrusted", "unknown"]);
 const COMPLETION_PROVENANCE_REQUIREMENTS = new Set(["all_outputs_cited", "memory_provenance_complete"]);
 const COMPLETION_PROVENANCE_INVARIANTS = new Set(["uncited_external_claim"]);
 const COMPLETION_CHECKPOINT_REQUIREMENTS = new Set(["final_state_checkpointed", "checkpointed_final_state"]);
-const COMPLETION_CHECKPOINT_INVARIANTS = new Set(["uncheckpointed_irreversible_effect"]);
+const COMPLETION_CHECKPOINT_INVARIANTS = new Set([]);
+const IRREVERSIBLE_EFFECTS = new Set(["deploy:deploy", "file:write", "git:commit", "git:push", "shell:run", "ticket:update"]);
 const EFFECT_CONTRACTS = [
   {
     id: "intent.effect.file.read.v0",
@@ -844,6 +845,7 @@ function checkIntent(ast) {
     validateVerifyRequirements(goal, diagnostics);
     validateCompletionProvenance(goal, diagnostics);
     validateCompletionCheckpoint(goal, diagnostics);
+    validateIrreversibleEffectCheckpoints(goal, diagnostics);
     validateApprovalRequirements(goal, diagnostics);
 
     const capabilities = goal.capabilities.map((capability) => capability.family);
@@ -1350,6 +1352,100 @@ function completionStepCheckpoints(goal) {
     step: finalStep.name,
     span: checkpoint.span,
   }));
+}
+
+function validateIrreversibleEffectCheckpoints(goal, diagnostics) {
+  const invariant = goal.invariants.find((candidate) => {
+    return candidate.kind === "Deny" && candidate.value.trim() === "uncheckpointed_irreversible_effect";
+  });
+  if (!invariant) {
+    return;
+  }
+  for (const step of goal.steps) {
+    for (const effect of step.effects) {
+      if (!isIrreversibleEffect(effect)) {
+        continue;
+      }
+      const checkpoints = checkpointsAfterEffect(goal, step, effect);
+      if (checkpoints.length > 0) {
+        continue;
+      }
+      diagnostics.push(error("INTENT_CHECKPOINT_MISSING", `effect '${effect.name}' is irreversible and must be followed by a checkpoint because invariant '${invariant.value}' is denied.`, effect.span, {
+        goal: goal.name,
+        step: step.name,
+        invariant: invariant.value,
+        effect: effect.name,
+        family: effect.family,
+        action: effect.action,
+        contract_id: effectContractId(effect),
+        effect_span: effect.span,
+        invariant_span: invariant.span,
+        checkpoint_coverage: "source_order_after_effect",
+        checkpoints_after_effect: checkpoints.length,
+      }));
+    }
+  }
+}
+
+function checkpointsAfterEffect(goal, step, effect) {
+  const events = orderedCheckpointEvents(goal);
+  const effectPosition = eventPosition(goal, step, effect);
+  return events.filter((event) => {
+    return event.kind === "checkpoint"
+      && isEventAfter(event, effectPosition)
+      && event.value.value.trim() !== "";
+  });
+}
+
+function orderedCheckpointEvents(goal) {
+  return goal.steps
+    .flatMap((step, stepIndex) => {
+      return [
+        ...step.effects.map((effect) => ({ kind: "effect", value: effect, step, stepIndex, span: effect.span })),
+        ...step.checkpoints.map((checkpoint) => ({ kind: "checkpoint", value: checkpoint, step, stepIndex, span: checkpoint.span })),
+      ];
+    })
+    .sort(compareEvents);
+}
+
+function eventPosition(goal, step, value) {
+  return {
+    step,
+    stepIndex: goal.steps.indexOf(step),
+    span: value.span,
+  };
+}
+
+function compareEvents(left, right) {
+  if (left.stepIndex !== right.stepIndex) {
+    return left.stepIndex - right.stepIndex;
+  }
+  return spanStartOffset(left.span) - spanStartOffset(right.span);
+}
+
+function isEventAfter(candidate, reference) {
+  if (candidate.stepIndex !== reference.stepIndex) {
+    return candidate.stepIndex > reference.stepIndex;
+  }
+  return spanStartsAfter(candidate.span, reference.span);
+}
+
+function isIrreversibleEffect(effect) {
+  return IRREVERSIBLE_EFFECTS.has(`${effect.family}:${effect.action}`);
+}
+
+function spanStartOffset(value) {
+  return value?.start?.offset ?? ((value?.start?.line ?? 0) * 100000 + (value?.start?.column ?? 0));
+}
+
+function spanStartsAfter(candidate, reference) {
+  if (candidate?.start?.offset !== undefined && reference?.end?.offset !== undefined) {
+    return candidate.start.offset > reference.end.offset;
+  }
+  if (candidate?.start?.line !== reference?.end?.line) {
+    return candidate?.start?.line > reference?.end?.line;
+  }
+  return candidate?.start?.column > reference?.end?.column;
 }
 
 function buildGraph(ast, diagnostics = checkIntent(ast)) {

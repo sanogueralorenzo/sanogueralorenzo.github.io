@@ -1,0 +1,50 @@
+package fixtures.valid_irreversible_checkpoint_coverage
+
+type Finding = {
+  summary: String
+}
+
+type ReleaseChange = {
+  files: List<Path>
+}
+
+goal "cover irreversible effects with checkpoint" {
+  context repo("./")
+
+  capability file {
+    write path: "./src/**"
+  }
+
+  capability shell {
+    run command: "npm test"
+  }
+
+  capability git {
+    commit message: "ship checkpointed change"
+  }
+
+  memory session {
+    retain checkpoints until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_release -> Finding
+    step apply_release(input: Finding) -> ReleaseChange {
+      effect FileWrite(path: "./src/app.ts")
+      effect ShellExec(command: "npm test")
+      effect GitCommit(message: "ship checkpointed change")
+      checkpoint "irreversible release effects recorded"
+    }
+  }
+
+  verify {
+    require shell("npm test").exit_code == 0
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+    deny uncheckpointed_irreversible_effect
+  }
+}

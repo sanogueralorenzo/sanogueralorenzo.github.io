@@ -16,6 +16,7 @@ goal "update granted ticket" {
   }
 
   memory session {
+    retain checkpoints until goal_complete
     retain summaries until goal_complete
     retain evidence until 30d
   }
@@ -24,6 +25,7 @@ goal "update granted ticket" {
     step inspect_ticket -> TicketContext
     step update_ticket(input: TicketContext) -> TicketUpdateResult {
       effect TicketUpdate(id: "CODE-123")
+      checkpoint "ticket update recorded"
     }
   }
 
@@ -33,5 +35,6 @@ goal "update granted ticket" {
 
   invariant {
     deny unrelated_ticket_update
+    deny uncheckpointed_irreversible_effect
   }
 }

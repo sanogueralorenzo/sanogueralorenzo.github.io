@@ -73,5 +73,6 @@ goal "apply approval gated change" {
     deny secret_write
     deny unrelated_file_write
     deny unapproved_sensitive_effect
+    deny uncheckpointed_irreversible_effect
   }
 }

@@ -224,6 +224,7 @@ A goal is complete only when:
   uncited external claims, the final step must cite retained memory evidence.
 - No invariant is violated.
 - The final state was checkpointed; when the goal requires
-  `final_state_checkpointed`, requires `checkpointed_final_state`, or denies
-  `uncheckpointed_irreversible_effect`, the final step must declare a
-  checkpoint that can act as the resume boundary.
+  `final_state_checkpointed` or requires `checkpointed_final_state`, the final
+  step must declare a checkpoint that can act as the resume boundary. When the
+  goal denies `uncheckpointed_irreversible_effect`, every irreversible effect
+  must be followed by a checkpoint before completion.

@@ -21,6 +21,7 @@ goal deployment_approval(release: ReleaseCandidate) -> DeploymentResult {
 
   memory session {
     retain approvals until goal_complete
+    retain checkpoints until goal_complete
     retain evidence until 30d
   }
 
@@ -46,5 +47,6 @@ goal deployment_approval(release: ReleaseCandidate) -> DeploymentResult {
 
   invariant {
     deny production_deploy
+    deny uncheckpointed_irreversible_effect
   }
 }

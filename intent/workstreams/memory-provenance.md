@@ -287,7 +287,8 @@ Checkpoint contents:
 
 Rules:
 
-- Every irreversible effect must be checkpointed before the next irreversible effect.
+- Every irreversible effect must be checkpointed after it runs and before the
+  next irreversible effect or completion.
 - Resuming from a checkpoint must not repeat a completed effect unless the effect declares idempotency.
 - Checkpoints inherit retention from the widest memory value they include.
 - Erasure can make a checkpoint partial or invalid; the runtime must report that before resume.

@@ -21,7 +21,8 @@ This roadmap turns the language concept into an implementable project.
 
 - Execute graph steps through local adapters.
 - Support shell, file, web-read, and human-approval adapters first.
-- Persist checkpoints after every completed step and before every irreversible effect.
+- Persist checkpoints after every completed step and after every irreversible
+  effect before completion or another irreversible effect.
 - Record provenance for commands, file reads, file writes, approvals, and final outputs.
 
 ## Phase 4: Trust And Memory

@@ -21,11 +21,12 @@ The full example set is covered by `node --test intent/test/*.test.mjs`.
 - `research_synthesis.intent`: a cited research workflow with web and document
   sources, read-only capabilities, retained evidence, and citation-focused
   verification.
-- `incident_response.intent`: an incident triage workflow with ticket updates,
-  runbook context, approval-gated mitigation, and production-deploy denial.
-- `deployment_approval.intent`: a release approval workflow with retained
-  approval evidence, ticket updates, approval-gated deployment, and deployment
+- `incident_response.intent`: an incident triage workflow with checkpointed
+  ticket updates, runbook context, approval-gated mitigation, and deploy
   invariants.
+- `deployment_approval.intent`: a release approval workflow with retained
+  approval evidence, checkpointed ticket and deploy effects, approval-gated
+  deployment, and deployment invariants.
 
 These examples intentionally stay inside the v0 grammar. Richer syntax such as
 conditionals, adapter-specific records, policy expressions, and nested calls is

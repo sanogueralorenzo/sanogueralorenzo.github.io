@@ -1,4 +1,4 @@
-package fixtures.valid_git_push_branch
+package fixtures.invalid_irreversible_checkpoint_before_effect
 
 type Patch = {
   files: List<Path>
@@ -8,7 +8,7 @@ type GitRef = {
   name: String
 }
 
-goal "push granted branch" {
+goal "reject checkpoint before irreversible effect" {
   context repo("./")
 
   capability git {
@@ -17,15 +17,16 @@ goal "push granted branch" {
 
   memory session {
     retain checkpoints until goal_complete
-    retain summaries until goal_complete
     retain evidence until 30d
   }
 
   plan {
-    step prepare_release -> Patch
-    step push_release(input: Patch) -> GitRef {
-      effect GitPush(branch: "refs/heads/main")
-      checkpoint "push requested"
+    step prepare_release -> Patch {
+      checkpoint "release prepared"
+    }
+    step publish_release(input: Patch) -> GitRef {
+      checkpoint "before push"
+      effect GitPush(branch: "main")
     }
   }
 
@@ -34,8 +35,6 @@ goal "push granted branch" {
   }
 
   invariant {
-    deny secret_write
-    deny unrelated_file_write
     deny uncheckpointed_irreversible_effect
   }
 }

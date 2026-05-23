@@ -28,6 +28,6 @@ goal missing_completion_checkpoint() -> Report {
   }
 
   invariant {
-    deny uncheckpointed_irreversible_effect
+    deny unrelated_file_write
   }
 }

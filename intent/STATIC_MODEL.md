@@ -425,11 +425,13 @@ Next graph envelope validation milestone:
   and graph validation rejects malformed completion provenance or required
   provenance with no citations using `INTENT_GRAPH_COMPLETION_INVALID`.
 - Completion checkpoint policy is enforced before graph execution. A goal with
-  `require final_state_checkpointed`, `require checkpointed_final_state`, or
-  `deny uncheckpointed_irreversible_effect` must have at least one
-  `checkpoint ...` statement on the final completion-producing step. Missing
-  final-step checkpoint coverage emits `INTENT_CHECKPOINT_MISSING`. The graph
-  builder copies those triggers and final-step checkpoint records into
+  `require final_state_checkpointed` or `require checkpointed_final_state` must
+  have at least one `checkpoint ...` statement on the final
+  completion-producing step. Missing final-step checkpoint coverage emits
+  `INTENT_CHECKPOINT_MISSING`. `deny uncheckpointed_irreversible_effect`
+  separately requires each irreversible effect to have a later non-empty
+  checkpoint in goal source order. The graph builder copies final-state
+  checkpoint triggers and final-step checkpoint records into
   `Completion.data.checkpoint`, and graph validation rejects malformed
   completion checkpoint metadata or required checkpoint metadata with no
   checkpoint records using `INTENT_GRAPH_COMPLETION_INVALID`.
@@ -1526,11 +1528,18 @@ Rules:
   `provenance.requirements`, `provenance.invariants`, and
   `provenance.citations`. Required provenance with an empty citation list, or
   malformed provenance records, emits `INTENT_GRAPH_COMPLETION_INVALID`.
-- `require final_state_checkpointed`, `require checkpointed_final_state`, and
-  `deny uncheckpointed_irreversible_effect` are completion checkpoint
-  triggers. The final step must include at least one `checkpoint ...` statement
-  so runtime resume can restart from a named final-state boundary. Missing
-  coverage emits `INTENT_CHECKPOINT_MISSING`.
+- `require final_state_checkpointed` and `require checkpointed_final_state` are
+  completion checkpoint triggers. The final step must include at least one
+  `checkpoint ...` statement so runtime resume can restart from a named
+  final-state boundary. Missing coverage emits `INTENT_CHECKPOINT_MISSING`.
+- `deny uncheckpointed_irreversible_effect` requires every irreversible effect
+  to be followed by a non-empty `checkpoint ...` later in the goal source
+  order. In v0, irreversible effects are `FileWrite`, `ShellExec`, `GitCommit`,
+  `GitPush`, `Deploy`, and `TicketUpdate`; `FileRead`, `WebRead`, and
+  `SecretRead` are not checkpoint-covered irreversible effects. A checkpoint
+  before the effect does not count, while one later checkpoint may cover
+  multiple prior irreversible effects. Missing source-order coverage emits
+  `INTENT_CHECKPOINT_MISSING` at the effect span.
 - Graph `Completion` node data includes `checkpoint.required`,
   `checkpoint.requirements`, `checkpoint.invariants`, and
   `checkpoint.checkpoints`. Required checkpoint metadata with an empty
