@@ -374,6 +374,44 @@ test("check validates normal candidate ledger entries", async () => {
   }
 });
 
+test("check rejects malformed candidate replay plans", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await writeCandidateTrace(stateDir, "session-failed-replay-plan");
+    await writeFile(join(stateDir, "candidates.jsonl"), `${JSON.stringify({
+      id: "cand_feature_webhooks_wrong_test_command",
+      status: "candidate",
+      scope: "feature:webhooks",
+      trigger: "task resembles: add webhook handler",
+      lesson: "use the narrow validation command captured by this feature slice",
+      artifact: "skill",
+      paths: ["features/webhooks"],
+      source_traces: ["session-failed-replay-plan"],
+      failure_types: ["wrong_test_command"],
+      evidence: ["failure: command failed: pnpm test"],
+      injection: "Before editing feature:webhooks, use the captured narrow validation command.",
+      replayPlan: {
+        baseline: {
+          command: "",
+          exitCode: 0,
+        },
+      },
+      promotion_required: "Replay before promotion.",
+    })}\n`);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.ok(payload.checks.some((check) => check.name === "candidate_ledger" && check.ok === false && check.message.includes("replayPlan.baseline.command")));
+    assert.ok(payload.checks.some((check) => check.name === "candidate_ledger" && check.ok === false && check.message.includes("failing command")));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("check validates replacement candidate evidence and target", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

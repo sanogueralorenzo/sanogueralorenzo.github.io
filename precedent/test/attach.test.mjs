@@ -96,6 +96,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.afterValidation.stdin.deliveryId, "$DELIVERY_ID");
     assert.equal(first.adapter.afterValidation.stdin.warrantId, "$WARRANT_ID");
     assert.equal(first.adapter.afterValidation.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
+    assert.ok(first.adapter.afterValidation.output.includes("promotionTrials"));
     assert.deepEqual(first.adapter.afterDiff.stdin.hook, "diff.after_edit");
     assert.equal(first.adapter.afterDiff.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterDiff.stdin.deliveryId, "$DELIVERY_ID");

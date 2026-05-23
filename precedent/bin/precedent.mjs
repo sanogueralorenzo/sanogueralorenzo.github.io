@@ -1339,11 +1339,24 @@ async function validationAfterRunEventHook(event) {
   let guardResult = emptyGuardResult();
   let warrantResult = null;
   let contextBlock = "";
+  let promotionTrials = [];
   let sessionEvent = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents, event.deliveryId);
+    const priorSessionEvents = await readSessionEvents(stateDir, sessionId);
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    promotionTrials = promotionTrialsForValidation({
+      candidates,
+      precedents,
+      context: contextFromSessionEvents(priorSessionEvents, event),
+      sessionId,
+      commandText,
+      exitCode,
+      stateDir,
+    });
     guardResult = evaluatePrecedentGuards(activePrecedents, "validation.after_run", {
       command: commandText,
       exitCode,
@@ -1370,8 +1383,12 @@ async function validationAfterRunEventHook(event) {
       stdout: typeof event.stdout === "string" ? event.stdout : "",
       stderr: typeof event.stderr === "string" ? event.stderr : "",
       guardResult,
+      promotionTrials,
       contextBlock,
     });
+    if (sessionEvent.deduped) {
+      promotionTrials = Array.isArray(sessionEvent.event.promotionTrials) ? sessionEvent.event.promotionTrials : promotionTrials;
+    }
 
     if (!sessionEvent.deduped) {
       await appendJsonLine(join(stateDir, "events.jsonl"), {
@@ -1384,6 +1401,7 @@ async function validationAfterRunEventHook(event) {
         exitCode,
         failureSignals,
         guardResult,
+        promotionTrials,
         deliveryId: stringOrNull(event.deliveryId),
         warrantId: stringOrNull(event.warrantId),
         warrantResult,
@@ -1407,6 +1425,7 @@ async function validationAfterRunEventHook(event) {
     },
     guardResult,
     warrantResult,
+    promotionTrials,
     contextBlock,
   });
 }
@@ -2012,7 +2031,7 @@ function buildManifest(runtime, stateDir) {
       "validation.after_run": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "warrantResult", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "warrantResult", "promotionTrials", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
@@ -2243,6 +2262,7 @@ async function attachRuntime() {
       },
       afterValidation: {
         command: hookCommand,
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "warrantResult", "promotionTrials", "contextBlock"],
         stdin: {
           schema_version: SCHEMA_VERSION,
           hook: "validation.after_run",
@@ -2866,6 +2886,7 @@ function compileTraceCandidates(trace) {
     failure_types: failureTypes,
     evidence,
     injection: injectionForFailureTypes(failureTypes, scope),
+    replayPlan: replayPlanFromTrace(trace),
     promotion_required: "Replay the task with this candidate injected, then promote only with concrete evidence and baseline_failures > rerun_failures.",
   }];
 }
@@ -3132,6 +3153,91 @@ function promotionTrialsForContext({ candidates, context, suppressed, sessionId 
     }));
 }
 
+function promotionTrialsForValidation({ candidates, precedents, context, sessionId, commandText, exitCode, stateDir }) {
+  if (exitCode !== 0) {
+    return [];
+  }
+
+  const promotedIds = new Set(precedents.map((precedent) => precedent.id));
+  return candidates
+    .filter((candidate) =>
+      candidate.status === "candidate"
+      && !promotedIds.has(candidate.id)
+      && candidateReplayBaseline(candidate)
+      && candidateOverlapsContext(candidate, context))
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .slice(0, 3)
+    .map((candidate) => validationPromotionTrialForCandidate({
+      candidate,
+      context,
+      sessionId,
+      commandText,
+      stateDir,
+    }));
+}
+
+function validationPromotionTrialForCandidate({ candidate, context, sessionId, commandText, stateDir }) {
+  const baseline = candidateReplayBaseline(candidate);
+  const traceOut = join(
+    stateDir,
+    "traces",
+    `promotion-trial-${safeFileName(candidate.id)}-${safeFileName(sessionId ?? "validation")}.json`,
+  );
+  const command = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "promotion-trial",
+    "--state-dir",
+    stateDir,
+    "--candidate",
+    candidate.id,
+    "--baseline-command",
+    baseline.command,
+    "--rerun-command",
+    commandText,
+    "--trace-out",
+    traceOut,
+    "--json",
+  ];
+
+  return redactSecretsDeep({
+    id: `trial_${safeFileName(candidate.id)}_${stableHash({
+      sessionId,
+      commandText,
+      scope: context.scope,
+      changedFiles: context.changedFiles,
+    }).slice(0, 12)}`,
+    candidateId: candidate.id,
+    reason: "successful_validation_matches_candidate",
+    replayRequired: true,
+    injectable: false,
+    autoExecute: false,
+    baselineCommand: baseline.command,
+    baselineExitCode: baseline.exitCode,
+    baselineSourceTrace: baseline.sourceTrace ?? null,
+    baselineSourceSession: baseline.sourceSession ?? null,
+    rerunCommand: commandText,
+    validationCommand: commandText,
+    traceOut,
+    command,
+    acceptance: "Run the promotion trial and inject only if replay promotion produces a verified precedent.",
+  }).value;
+}
+
+function candidateReplayBaseline(candidate) {
+  const baseline = candidate.replayPlan?.baseline;
+  if (!baseline || typeof baseline.command !== "string" || baseline.command.trim().length === 0) {
+    return null;
+  }
+
+  return {
+    command: baseline.command.trim(),
+    exitCode: Number.isFinite(baseline.exitCode) ? baseline.exitCode : null,
+    sourceTrace: typeof baseline.sourceTrace === "string" ? baseline.sourceTrace : null,
+    sourceSession: typeof baseline.sourceSession === "string" ? baseline.sourceSession : null,
+  };
+}
+
 function candidateHintsForContext({ candidates, precedents, context, stateDir, sessionId, limit = 3 }) {
   const promotedIds = new Set(precedents.map((precedent) => precedent.id));
 
@@ -3155,6 +3261,7 @@ function candidateHintsForContext({ candidates, precedents, context, stateDir, s
 }
 
 function formatCandidateHint(candidate, stateDir, sessionId) {
+  const baseline = candidateReplayBaseline(candidate);
   const rerunCommand = validationCommandFromEvidence(candidate.evidence);
   const artifact = artifactDescriptor(candidate, stateDir);
   const traceOut = join(
@@ -3171,7 +3278,7 @@ function formatCandidateHint(candidate, stateDir, sessionId) {
     "--candidate",
     candidate.id,
     "--baseline-command",
-    "$BASELINE_COMMAND",
+    baseline?.command ?? "$BASELINE_COMMAND",
     ...(rerunCommand ? ["--rerun-command", rerunCommand] : []),
     "--trace-out",
     traceOut,
@@ -3197,10 +3304,15 @@ function formatCandidateHint(candidate, stateDir, sessionId) {
       injectable: false,
       status: "preview",
     },
+    replayPlan: candidate.replayPlan ?? null,
     promotionTrial: {
-      readiness: rerunCommand ? "ready_for_baseline" : "needs_rerun_command",
-      blockers: rerunCommand ? [] : ["missing successful validation evidence or --rerun-command"],
-      baselineCommand: "$BASELINE_COMMAND",
+      readiness: baseline?.command && rerunCommand ? "ready" : baseline?.command ? "needs_rerun_command" : "needs_baseline_command",
+      blockers: [
+        ...(baseline?.command ? [] : ["missing failed baseline validation evidence or --baseline-command"]),
+        ...(rerunCommand ? [] : ["missing successful validation evidence or --rerun-command"]),
+      ],
+      baselineCommand: baseline?.command ?? "$BASELINE_COMMAND",
+      baselineExitCode: baseline?.exitCode ?? null,
       rerunCommand,
       traceOut,
       command,
@@ -3417,8 +3529,9 @@ function candidateHintQueue(candidates, precedents, stateDir) {
 
   return {
     total: items.length,
-    readyForBaseline: items.filter((item) => item.readiness === "ready_for_baseline").length,
-    blocked: items.filter((item) => item.readiness !== "ready_for_baseline").length,
+    readyForReplay: items.filter((item) => item.readiness === "ready").length,
+    readyForBaseline: items.filter((item) => item.readiness !== "needs_baseline_command").length,
+    blocked: items.filter((item) => item.readiness !== "ready").length,
     artifactPreviews: items.filter((item) => item.artifact?.path).length,
     items,
   };
@@ -4724,6 +4837,31 @@ async function readSessionEvents(stateDir, sessionId) {
   return readJsonLines(join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`));
 }
 
+function contextFromSessionEvents(events, fallbackEvent = {}) {
+  const contextTurns = events.filter((event) => event.hook === "context.before_turn" || event.hook === "context.export");
+  const diffs = events.filter((event) => event.hook === "diff.after_edit");
+  const reviews = events.filter((event) => event.hook === "review.after_feedback");
+  const outcomes = events.filter((event) => event.hook === "outcome.after_task");
+  const lastContextTurn = contextTurns.at(-1) ?? {};
+  const lastOutcome = outcomes.at(-1) ?? {};
+
+  return {
+    task: nonEmptyString(lastOutcome.task)
+      ? lastOutcome.task
+      : (lastContextTurn.task ?? fallbackEvent.task ?? ""),
+    scope: nonEmptyString(lastOutcome.scope)
+      ? lastOutcome.scope
+      : (lastContextTurn.scope ?? fallbackEvent.scope ?? ""),
+    changedFiles: uniqueStrings([
+      ...contextTurns.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+      ...diffs.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+      ...reviews.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+      ...outcomes.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+      ...(Array.isArray(fallbackEvent.changedFiles) ? fallbackEvent.changedFiles : parseListArg(fallbackEvent.changedFiles)),
+    ]),
+  };
+}
+
 async function traceFromSession(stateDir, sessionId) {
   const sessionFile = join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`);
   const events = await readJsonLines(sessionFile);
@@ -5517,6 +5655,25 @@ function mergeCandidateRecord(existing, candidate) {
       ...(Array.isArray(existing.evidence) ? existing.evidence : []),
       ...(Array.isArray(candidate.evidence) ? candidate.evidence : []),
     ]),
+    replayPlan: mergeReplayPlan(existing.replayPlan, candidate.replayPlan),
+  };
+}
+
+function mergeReplayPlan(existing, next) {
+  if (!existing) {
+    return next;
+  }
+  if (!next) {
+    return existing;
+  }
+
+  return {
+    ...existing,
+    ...next,
+    baseline: {
+      ...(existing.baseline ?? {}),
+      ...(next.baseline ?? {}),
+    },
   };
 }
 
@@ -5720,6 +5877,42 @@ function collectTraceEvidence(trace) {
   }
 
   return evidence;
+}
+
+function replayPlanFromTrace(trace) {
+  const validation = trace.hooks?.["validation.after_run"];
+  if (!validation?.command) {
+    return null;
+  }
+
+  const exitCode = exitCodeFromValidationResult(validation.result);
+  if (!Number.isFinite(exitCode) || exitCode === 0) {
+    return null;
+  }
+
+  return redactSecretsDeep({
+    baseline: {
+      command: validation.command,
+      exitCode,
+      sourceTrace: trace.id ?? null,
+      sourceSession: trace.sessionId ?? null,
+      evidence: validation.evidence ?? null,
+    },
+    rerun: null,
+    promotion: {
+      required: true,
+      acceptance: "Promote only after replay proves baseline_failures > rerun_failures.",
+    },
+  }).value;
+}
+
+function exitCodeFromValidationResult(result) {
+  if (typeof result !== "string") {
+    return null;
+  }
+
+  const match = result.match(/\bexit\s+(-?\d+)\b/u);
+  return match ? Number(match[1]) : null;
 }
 
 function triggerForTrace(trace) {
@@ -6198,6 +6391,7 @@ async function checkCandidateLedger(checks, stateDir) {
     assertCheck(candidate.promotion === undefined, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} must not include promotion metrics before replay`);
     assertCheck(Array.isArray(candidate.source_traces) && candidate.source_traces.length > 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} source_traces are required`);
     assertCheck(Array.isArray(candidate.evidence) && candidate.evidence.length > 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} evidence is required`);
+    checkCandidateReplayPlan(candidate, checks, file);
 
     if (Array.isArray(candidate.source_traces)) {
       for (const traceId of candidate.source_traces) {
@@ -6219,6 +6413,28 @@ async function checkCandidateLedger(checks, stateDir) {
     checks.push({ ok: true, name: "candidate_ledger", file, checked: candidates.length });
   } else if (checks.length === before) {
     checks.push({ ok: true, name: "candidate_ledger", file, checked: candidates.length });
+  }
+}
+
+function checkCandidateReplayPlan(candidate, checks, file) {
+  if (candidate.replayPlan === undefined || candidate.replayPlan === null) {
+    return;
+  }
+
+  const replayPlan = candidate.replayPlan;
+  assertCheck(typeof replayPlan === "object" && !Array.isArray(replayPlan), checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} replayPlan must be an object`);
+  const baseline = replayPlan?.baseline;
+  assertCheck(typeof baseline === "object" && baseline !== null && !Array.isArray(baseline), checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} replayPlan.baseline is required`);
+  assertCheck(typeof baseline?.command === "string" && baseline.command.trim().length > 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} replayPlan.baseline.command is required`);
+  assertCheck(Number.isFinite(baseline?.exitCode), checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} replayPlan.baseline.exitCode is required`);
+  if (Number.isFinite(baseline?.exitCode)) {
+    assertCheck(baseline.exitCode !== 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} replayPlan baseline must be a failing command`);
+  }
+  if (baseline?.sourceTrace !== undefined && baseline.sourceTrace !== null) {
+    assertCheck(typeof baseline.sourceTrace === "string" && baseline.sourceTrace.length > 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} replayPlan.baseline.sourceTrace must be a string`);
+  }
+  if (baseline?.sourceSession !== undefined && baseline.sourceSession !== null) {
+    assertCheck(typeof baseline.sourceSession === "string" && baseline.sourceSession.length > 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} replayPlan.baseline.sourceSession must be a string`);
   }
 }
 
