@@ -149,6 +149,12 @@ Validation expectations:
   `source`, and an optional non-empty `argument`. Malformed trust metadata
   emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
   runtime trust sinks must not infer missing or malformed trust.
+- Graph `Capability` nodes are runtime policy inputs. They must carry valid
+  approval-policy data: `data.family` must be non-empty,
+  `data.approvalPolicy` must be either `none` or `required`, and `data.grants`
+  must be an array. Malformed capability policy data emits
+  `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
+  runtime authorization and approval enforcement must not infer missing policy.
 - A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,
   cycles, missing authorization or approval edges, or invalid completion gates is
   malformed and must be rejected before execution.

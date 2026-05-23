@@ -1628,13 +1628,14 @@ validators must reject any graph with a missing or unsupported
 `source` or `package` provenance, whose `ok` value is not `true`, whose
 schema-level structural strings are empty, whose runtime structural strings are
 blank after trimming, whose node or edge kind is outside the supported sets
-above, whose edge endpoint does not resolve inside the same payload, or whose
-required execution, data, authorization, approval, guard, verification,
-completion, and step-attachment relationships fail graph validation. Blank
-envelope provenance emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection,
-node, or edge semantic validation so graph ids, diagnostics, and
-package-scoped runtime contracts keep stable origins. Malformed graphs may be
-emitted for diagnostics, but they are never executable runtime contracts.
+above, whose edge endpoint does not resolve inside the same payload, whose
+`Capability` nodes omit valid runtime approval-policy data, or whose required
+execution, data, authorization, approval, guard, verification, completion, and
+step-attachment relationships fail graph validation. Blank envelope provenance
+emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge
+semantic validation so graph ids, diagnostics, and package-scoped runtime
+contracts keep stable origins. Malformed graphs may be emitted for diagnostics,
+but they are never executable runtime contracts.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
@@ -1667,6 +1668,12 @@ the capability block. A body line of `approval required` is represented as
 entry in `data.grants` carries the source `span` of its grant line, so
 capability authorization, diagnostics, and runtime provenance can point to the
 grant that authorized an effect or context source.
+Capability nodes are also runtime policy inputs. Graph validation requires
+`data.family` to be non-empty, `data.approvalPolicy` to be either `none` or
+`required`, and `data.grants` to be an array. Malformed capability policy data
+emits `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable
+because runtime authorization and approval enforcement must not infer missing
+policy.
 
 Step requirement nodes are `Check` nodes scoped to one owning step. They create
 `requires` edges into that step and `gates` edges to the owning goal. They are
