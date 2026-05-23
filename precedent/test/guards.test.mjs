@@ -72,6 +72,48 @@ test("validation.after_run executes active required command guards", async () =>
   }
 });
 
+test("report surfaces guard pass and warning health", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-guards-test-"));
+
+  try {
+    await promoteAndInjectWebhookPrecedent(stateDir, "demo");
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "demo",
+      changedFiles: ["features/billing/refunds.ts"],
+    });
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "demo",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+
+    assert.equal(health.guardWarningCount, 1);
+    assert.equal(health.guardPassCount, 1);
+    assert.ok(health.lastGuardAt);
+
+    const explained = await runJson([
+      "explain",
+      "--state-dir",
+      stateDir,
+      "--id",
+      "prec_webhook_replay_boundary",
+      "--json",
+    ]);
+    assert.equal(explained.outcomes.guardWarningCount, 1);
+    assert.equal(explained.outcomes.guardPassCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("guards are ignored until their precedent is injected", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-guards-test-"));
 

@@ -121,6 +121,61 @@ test("successful outcome does not promote a later failure", async () => {
   }
 });
 
+test("string false outcome does not auto-promote", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await recordFailedSession(stateDir);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "string-false-session",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/github.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "string-false-session",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "string-false-session",
+      success: "false",
+    });
+
+    assert.equal(outcome.outcome.success, false);
+    assert.equal(outcome.outcome.status, "failure");
+    assert.equal(outcome.learning.promotionStatus, "not_promoted");
+    assert.deepEqual(outcome.learning.promotedIds, undefined);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.deepEqual(precedents, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("string true outcome can auto-promote", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await recordFailedSession(stateDir);
+    const outcome = await recordSuccessfulSession(stateDir, "true");
+
+    assert.equal(outcome.outcome.success, true);
+    assert.equal(outcome.outcome.status, "success");
+    assert.deepEqual(outcome.learning.promotedIds, ["prec_feature_webhooks_wrong_test_command_wrong_repo_slice"]);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("noisy successful session cannot promote itself", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
 
@@ -272,7 +327,7 @@ async function recordFailedSession(stateDir) {
   });
 }
 
-async function recordSuccessfulSession(stateDir) {
+async function recordSuccessfulSession(stateDir, success = true) {
   await hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "context.before_turn",
@@ -299,8 +354,7 @@ async function recordSuccessfulSession(stateDir) {
     schema_version: "precedent.v1",
     hook: "outcome.after_task",
     sessionId: "success-session",
-    success: true,
-    status: "success",
+    success,
     notes: "passed with narrow validation",
   });
 }

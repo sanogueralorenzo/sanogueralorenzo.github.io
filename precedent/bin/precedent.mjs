@@ -890,6 +890,8 @@ async function diffAfterEditEventHook(event) {
 async function outcomeAfterTaskEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
+  const success = hookBoolean(event.success, "event.success", false);
+  const status = typeof event.status === "string" ? event.status : (success ? "success" : "failure");
   let activePrecedentIds = [];
   let sessionEvent = null;
   let learning = null;
@@ -902,8 +904,8 @@ async function outcomeAfterTaskEventHook(event) {
       receivedAt: new Date().toISOString(),
       hook: event.hook,
       sessionId,
-      success: Boolean(event.success),
-      status: typeof event.status === "string" ? event.status : (event.success ? "success" : "failure"),
+      success,
+      status,
       retries: numberOrNull(event.retries),
       tokenEstimate: numberOrNull(event.tokenEstimate),
       notes: typeof event.notes === "string" ? event.notes : "",
@@ -1638,6 +1640,10 @@ function outcomeSummaryForPrecedent(events, id) {
     Array.isArray(event.suppressedInjections)
     && event.suppressedInjections.some((item) => item.id === id),
   );
+  const guardChecks = guardChecksForPrecedent(events, id);
+  const guardPasses = guardChecks.filter((check) => check.status === "pass");
+  const guardWarnings = guardChecks.filter((check) => check.status === "warn");
+  const lastGuard = guardChecks.at(-1);
   const outcomes = events.filter((event) =>
     event.hook === "outcome.after_task"
     && Array.isArray(event.attributedPrecedents)
@@ -1652,8 +1658,41 @@ function outcomeSummaryForPrecedent(events, id) {
     successCount: successes.length,
     failureCount: failures.length,
     suppressionCount: suppressions.length,
+    guardPassCount: guardPasses.length,
+    guardWarningCount: guardWarnings.length,
+    lastGuardAt: lastGuard?.observedAt ?? null,
     lastOutcomeAt: lastOutcome?.receivedAt ?? lastOutcome?.observedAt ?? null,
   };
+}
+
+function guardChecksForPrecedent(events, id) {
+  return events
+    .flatMap((event) => {
+      const observedAt = event.receivedAt ?? event.observedAt ?? null;
+      const hook = event.hook ?? null;
+      const guardResult = event.guardResult ?? {};
+
+      return [
+        ...guardChecksWithStatus(guardResult.passed, "pass", observedAt, hook),
+        ...guardChecksWithStatus(guardResult.failed, "warn", observedAt, hook),
+        ...guardChecksWithStatus(guardResult.pending, "unknown", observedAt, hook),
+        ...guardChecksWithStatus(guardResult.skipped, "unknown", observedAt, hook),
+      ];
+    })
+    .filter((check) => check.precedentId === id);
+}
+
+function guardChecksWithStatus(checks, status, observedAt, hook) {
+  if (!Array.isArray(checks)) {
+    return [];
+  }
+
+  return checks.map((check) => ({
+    ...check,
+    status: check.status ?? status,
+    observedAt,
+    hook,
+  }));
 }
 
 async function activeInjectionIdsForSession(stateDir, sessionId) {
@@ -2301,6 +2340,26 @@ function numberOrNull(value) {
 
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function hookBoolean(value, name, defaultValue) {
+  if (value === undefined || value === null || value === "") {
+    return defaultValue;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  fail(`${name} must be a boolean or "true"/"false"`);
 }
 
 function parseListArg(value) {
