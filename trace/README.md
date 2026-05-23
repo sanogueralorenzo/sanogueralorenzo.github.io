@@ -74,6 +74,7 @@ trace checkpoint push origin --dry-run
 trace checkpoint cleanup --sessions-before-days 14 --keep 100
 trace redact add codename 'PROJECT-[A-Z]+'
 trace redact list
+trace doctor
 trace check
 trace ci main..HEAD
 ```
@@ -103,6 +104,7 @@ node trace/bin/trace.mjs checkpoint push origin --dry-run
 node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14 --keep 100
 node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
 node trace/bin/trace.mjs redact list
+node trace/bin/trace.mjs doctor
 node trace/bin/trace.mjs check
 node trace/bin/trace.mjs ci main..HEAD
 ```
@@ -120,6 +122,8 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 `trace summary <range>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. PR and release text are generated views, not the canonical memory store.
 
 `trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change and can search all memory text or a specific field such as `decisions`, `files`, `validation`, or `risks`.
+
+`trace doctor` audits the local Trace installation in one read-only command: config, hooks, adapter specs, committed memory shape, uncommitted Trace files, checkpoint ref integrity, and search index freshness. Missing or stale rebuildable caches are warnings, while broken hooks, malformed memory files, malformed adapter configs, and checkpoint integrity errors fail the command.
 
 Agent integrations can use first-class adapters or the generic hook endpoint:
 

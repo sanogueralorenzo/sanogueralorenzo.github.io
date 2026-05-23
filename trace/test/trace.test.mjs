@@ -179,6 +179,43 @@ test("check fails on uncommitted Trace memories and passes after committing them
   }
 });
 
+test("doctor reports hook and local memory health without mutating caches", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await runTrace(repo, ["init"]);
+
+    const missingHooks = await runTraceAllowFailure(repo, ["doctor"]);
+    assert.equal(missingHooks.exitCode, 1);
+    const missingPayload = JSON.parse(missingHooks.stdout);
+    const missingHookCheck = missingPayload.checks.find((check) => check.name === "hooks");
+    assert.equal(missingPayload.ok, false);
+    assert.equal(missingHookCheck.ok, false);
+    assert.equal(missingHookCheck.prepareCommitMsg, false);
+    assert.equal(missingHookCheck.postCommit, false);
+
+    await runTrace(repo, ["enable"]);
+
+    const doctor = await runTrace(repo, ["doctor"]);
+    const payload = JSON.parse(doctor.stdout);
+    const hooks = payload.checks.find((check) => check.name === "hooks");
+    const dirtyTrace = payload.checks.find((check) => check.name === "dirtyTrace");
+    const checkpointRef = payload.checks.find((check) => check.name === "checkpointRef");
+    const searchIndex = payload.checks.find((check) => check.name === "searchIndex");
+
+    assert.equal(payload.ok, true);
+    assert.equal(hooks.ok, true);
+    assert.equal(dirtyTrace.level, "warning");
+    assert.ok(dirtyTrace.uncommitted.some((entry) => entry.includes(".trace/config.json")));
+    assert.equal(checkpointRef.present, false);
+    assert.equal(checkpointRef.level, "warning");
+    assert.equal(searchIndex.present, false);
+    assert.equal(searchIndex.rebuild, "trace index");
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("ci checks memory coverage while skipping trace-only memory commits", async () => {
   const repo = await tempRepo();
 

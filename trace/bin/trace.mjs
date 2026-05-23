@@ -51,6 +51,11 @@ async function main() {
     return;
   }
 
+  if (command === "doctor") {
+    await runDoctor();
+    return;
+  }
+
   if (command === "check") {
     await checkTrace();
     return;
@@ -202,8 +207,7 @@ async function disableRepo() {
 async function printStatus() {
   const root = await repoRoot();
   const common = await gitCommonDir(root);
-  const prepareHook = await fileIncludes(join(await gitHooksDir(), "prepare-commit-msg"), HOOK_START);
-  const postHook = await fileIncludes(join(await gitHooksDir(), "post-commit"), HOOK_START);
+  const hooks = await traceHookStatus(root);
   const configExists = await exists(join(root, TRACE_DIR, "config.json"));
   const config = await loadTraceConfig(root);
   const agents = await listAgentConfigs(root);
@@ -211,10 +215,7 @@ async function printStatus() {
     ok: true,
     repo: root,
     config: configExists,
-    hooks: {
-      prepareCommitMsg: prepareHook,
-      postCommit: postHook,
-    },
+    hooks,
     agents,
     redactionRules: customRules(config).length,
     rawStorage: join(common, "trace", "sessions"),
@@ -222,29 +223,89 @@ async function printStatus() {
   });
 }
 
+async function runDoctor() {
+  const root = await repoRoot();
+  const config = await configStatus(root);
+  const hooks = await traceHookStatus(root);
+  const agents = await listAgentConfigs(root);
+  const invalidAgents = agents.filter((agent) => !agent.valid);
+  const memories = await auditMemoryFiles(root);
+  const dirtyTrace = await dirtyTraceFiles(root);
+  const checkpoint = await checkpointAudit(root);
+  const searchIndex = await searchIndexStatus(root);
+
+  const checks = [
+    {
+      name: "config",
+      level: "error",
+      ok: config.ok,
+      path: `${TRACE_DIR}/config.json`,
+      schema: config.schema,
+      error: config.error ?? null,
+    },
+    {
+      name: "hooks",
+      level: "error",
+      ok: hooks.prepareCommitMsg && hooks.postCommit,
+      prepareCommitMsg: hooks.prepareCommitMsg,
+      postCommit: hooks.postCommit,
+    },
+    {
+      name: "agents",
+      level: "error",
+      ok: invalidAgents.length === 0,
+      count: agents.length,
+      agents,
+      invalidAgents,
+    },
+    {
+      name: "memories",
+      level: "error",
+      ok: memories.invalidMemories.length === 0,
+      count: memories.files.length,
+      invalidMemories: memories.invalidMemories,
+    },
+    {
+      name: "dirtyTrace",
+      level: "warning",
+      ok: dirtyTrace.length === 0,
+      uncommitted: dirtyTrace,
+    },
+    {
+      name: "checkpointRef",
+      level: checkpoint.errors.length > 0 ? "error" : "warning",
+      ok: checkpoint.present && checkpoint.errors.length === 0,
+      ref: checkpoint.ref,
+      present: checkpoint.present,
+      commit: checkpoint.commit,
+      checked: checkpoint.checked,
+      errors: checkpoint.errors,
+    },
+    {
+      name: "searchIndex",
+      level: "warning",
+      ok: searchIndex.present && !searchIndex.stale && !searchIndex.error,
+      path: searchIndex.path,
+      present: searchIndex.present,
+      entries: searchIndex.entries,
+      files: searchIndex.files,
+      stale: searchIndex.stale,
+      error: searchIndex.error ?? null,
+      rebuild: "trace index",
+    },
+  ];
+  const ok = checks.every((check) => check.ok || check.level === "warning");
+  print({ ok, repo: root, checks });
+
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
 async function checkTrace() {
   const root = await repoRoot();
-  const files = await listMemoryFiles(root);
-  const invalidMemories = [];
-
-  for (const file of files) {
-    const content = await readFile(file, "utf8");
-    const sha = content.match(/^Commit: `([^`]+)`/m)?.[1];
-    if (!sha) {
-      invalidMemories.push({ file: relativePath(root, file), reason: "missing Commit field" });
-      continue;
-    }
-
-    const expected = memoryPathFor(root, sha);
-    if (file !== expected) {
-      invalidMemories.push({
-        file: relativePath(root, file),
-        reason: `expected ${relativePath(root, expected)}`,
-      });
-    }
-  }
-
-  const dirtyTrace = (await git(["status", "--porcelain", "-uall", "--", TRACE_DIR], { cwd: root })).split("\n").filter(Boolean);
+  const { files, invalidMemories } = await auditMemoryFiles(root);
+  const dirtyTrace = await dirtyTraceFiles(root);
   const checkpointRef = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
   const ok = invalidMemories.length === 0 && dirtyTrace.length === 0;
   print({
@@ -332,6 +393,26 @@ async function listCheckpoints() {
 
 async function verifyCheckpoints() {
   const root = await repoRoot();
+  const audit = await checkpointAudit(root);
+  const ok = audit.errors.length === 0;
+  print({
+    ok,
+    ref: audit.ref,
+    present: audit.present,
+    checked: audit.checked,
+    errors: audit.errors,
+  });
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function checkpointAudit(root) {
+  const commit = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
+  if (!commit) {
+    return { ref: CHECKPOINT_REF, present: false, commit: null, checked: 0, errors: [] };
+  }
+
   const checkpoints = await readCheckpointPayloads(root);
   const errors = [];
 
@@ -364,11 +445,7 @@ async function verifyCheckpoints() {
     }
   }
 
-  const ok = errors.length === 0;
-  print({ ok, ref: CHECKPOINT_REF, checked: checkpoints.length, errors });
-  if (!ok) {
-    process.exitCode = 1;
-  }
+  return { ref: CHECKPOINT_REF, present: true, commit, checked: checkpoints.length, errors };
 }
 
 async function syncCheckpointRef(action, remote) {
@@ -1129,6 +1206,24 @@ async function ensureTrace(root) {
   }
 }
 
+async function configStatus(root) {
+  const path = join(root, TRACE_DIR, "config.json");
+  if (!await exists(path)) {
+    return { ok: false, schema: null, error: "missing config" };
+  }
+
+  try {
+    const config = JSON.parse(await readFile(path, "utf8"));
+    return {
+      ok: config.schema_version === CONFIG_VERSION,
+      schema: config.schema_version ?? null,
+      error: config.schema_version === CONFIG_VERSION ? null : `unsupported schema ${config.schema_version ?? "none"}`,
+    };
+  } catch (error) {
+    return { ok: false, schema: null, error: error.message };
+  }
+}
+
 async function loadTraceConfig(root) {
   const path = join(root, TRACE_DIR, "config.json");
   if (!await exists(path)) {
@@ -1168,6 +1263,34 @@ async function listMemoryFiles(root) {
   const files = [];
   await walk(dir, files);
   return files.filter((file) => file.endsWith(".md"));
+}
+
+async function auditMemoryFiles(root) {
+  const files = await listMemoryFiles(root);
+  const invalidMemories = [];
+
+  for (const file of files) {
+    const content = await readFile(file, "utf8");
+    const sha = content.match(/^Commit: `([^`]+)`/m)?.[1];
+    if (!sha) {
+      invalidMemories.push({ file: relativePath(root, file), reason: "missing Commit field" });
+      continue;
+    }
+
+    const expected = memoryPathFor(root, sha);
+    if (file !== expected) {
+      invalidMemories.push({
+        file: relativePath(root, file),
+        reason: `expected ${relativePath(root, expected)}`,
+      });
+    }
+  }
+
+  return { files, invalidMemories };
+}
+
+async function dirtyTraceFiles(root) {
+  return (await git(["status", "--porcelain", "-uall", "--", TRACE_DIR], { cwd: root })).split("\n").filter(Boolean);
 }
 
 async function memoryFingerprints(root) {
@@ -1283,10 +1406,54 @@ async function searchIndexPath(root) {
   return join(await gitCommonDir(root), "trace", "index.json");
 }
 
+async function searchIndexStatus(root) {
+  const path = await searchIndexPath(root);
+  const currentFiles = await memoryFingerprints(root);
+  const content = await readFile(path, "utf8").catch(() => null);
+  if (content == null) {
+    return {
+      path: relativePath(root, path),
+      present: false,
+      entries: 0,
+      files: currentFiles.length,
+      stale: currentFiles.length > 0,
+    };
+  }
+
+  try {
+    const existing = JSON.parse(content);
+    const stale = existing.schema_version !== "trace.search_index.v1" || !sameFingerprints(existing.files, currentFiles);
+    return {
+      path: relativePath(root, path),
+      present: true,
+      entries: Array.isArray(existing.entries) ? existing.entries.length : 0,
+      files: currentFiles.length,
+      stale,
+    };
+  } catch (error) {
+    return {
+      path: relativePath(root, path),
+      present: true,
+      entries: 0,
+      files: currentFiles.length,
+      stale: true,
+      error: error.message,
+    };
+  }
+}
+
 async function gitHooksDir() {
   const root = await repoRoot();
   const hooks = await git(["rev-parse", "--git-path", "hooks"], { cwd: root });
   return resolve(root, hooks);
+}
+
+async function traceHookStatus() {
+  const hooksDir = await gitHooksDir();
+  return {
+    prepareCommitMsg: await fileIncludes(join(hooksDir, "prepare-commit-msg"), HOOK_START),
+    postCommit: await fileIncludes(join(hooksDir, "post-commit"), HOOK_START),
+  };
 }
 
 async function gitCommonDir(root) {
@@ -1394,6 +1561,7 @@ Usage:
   trace pr-body [range]
   trace release-notes [range]
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
+  trace doctor
   trace check
   trace status
   trace disable
