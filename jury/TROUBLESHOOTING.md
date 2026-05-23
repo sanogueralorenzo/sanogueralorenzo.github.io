@@ -91,6 +91,8 @@ npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verificat
 
 Do not rerun `npm publish` for the same `packageVersion`. Fix the downstream verification issue, bump the package version, rerun the full release checklist, and publish a new patch version.
 
+Before closing the incident, attach replacement patch evidence from [PUBLISHING.md](PUBLISHING.md). The evidence must include the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, downstream verification pass for the replacement, and the failed-version deprecation result when registry policy allows it.
+
 ## Downloaded Artifact Trust Failure
 
 Use the negative key-policy fixture when a downstream job downloads `review-bundle.signed.json` successfully but the policy no longer trusts the producer metadata:

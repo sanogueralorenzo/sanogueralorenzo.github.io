@@ -771,6 +771,11 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("npm deprecate @sanogueralorenzo/jury@<packageVersion>"));
   assert.ok(guide.includes("Do not rerun `npm publish` for the same `packageVersion`"));
   assert.ok(guide.includes("publish a new patch version"));
+  assert.ok(guide.includes("replacement patch evidence"));
+  assert.ok(guide.includes("replacement `packageVersion`"));
+  assert.ok(guide.includes("replacement `dist.tarball`"));
+  assert.ok(guide.includes("downstream verification pass for the replacement"));
+  assert.ok(guide.includes("failed-version deprecation result"));
   assert.ok(guide.includes("Package Manifest Failure"));
   assert.ok(guide.includes("npm --prefix jury run package:manifest:check"));
   assert.ok(guide.includes("--pack-manifest npm-pack.json"));
@@ -1158,11 +1163,16 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("dry_run_reviewer"));
   assert.ok(publicationNotes.includes("Post-Publication Comparison"));
   assert.ok(publicationNotes.includes("Rollback After Downstream Verification Failure"));
+  assert.ok(publicationNotes.includes("Replacement Patch Evidence"));
   assert.ok(publicationNotes.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
   assert.ok(publicationNotes.includes("npm deprecate @sanogueralorenzo/jury@<packageVersion>"));
+  assert.ok(publicationNotes.includes("npm view @sanogueralorenzo/jury@<replacementPackageVersion> version dist.tarball --json > replacement-npm-view.json"));
   assert.ok(publicationNotes.includes("Do not rerun publication for the same version"));
   assert.ok(publicationNotes.includes("ship a new patch version"));
   assert.ok(publicationNotes.includes("dist.tarball"));
+  assert.ok(publicationNotes.includes("replacement `dist.tarball`"));
+  assert.ok(publicationNotes.includes("replacement downstream verification pass"));
+  assert.ok(publicationNotes.includes("failed-version deprecation result"));
   assert.ok(publicationNotes.includes("must end with the retained `tarballName`"));
   assert.ok(publicationNotes.includes("packageVersion"));
   assert.ok(publicationNotes.includes("tarballName"));
@@ -1191,6 +1201,10 @@ test("release metadata references existing schemas, exports, and commands", asyn
     "npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json",
     'npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verification failed; use a later patch release."',
   ]);
+  const replacementCommands = extractShellBlock(publicationNotes, "Replacement Patch Evidence");
+  assert.equal(replacementCommands[0], "npm view @sanogueralorenzo/jury@<replacementPackageVersion> version dist.tarball --json > replacement-npm-view.json");
+  assert.match(replacementCommands[1], /replacement version must differ from failed packageVersion/);
+  assert.match(replacementCommands[1], /replacement tarball must differ from failed tarballName/);
   const comparisonDir = await tempState();
   try {
     await writeFile(join(comparisonDir, "jury-pack-dry-run-record.json"), JSON.stringify({
@@ -1205,6 +1219,37 @@ test("release metadata references existing schemas, exports, and commands", asyn
     });
   } finally {
     await rm(comparisonDir, { recursive: true, force: true });
+  }
+  const replacementDir = await tempState();
+  try {
+    await writeFile(join(replacementDir, "jury-pack-dry-run-record.json"), JSON.stringify({
+      packageVersion: "0.1.0",
+      tarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+    }));
+    await writeFile(join(replacementDir, "replacement-npm-view.json"), JSON.stringify({
+      version: "0.1.1",
+      dist: {
+        tarball: "https://registry.npmjs.org/@sanogueralorenzo/jury/-/sanogueralorenzo-jury-0.1.1.tgz",
+      },
+    }));
+    const replacementRecord = await runShell(replacementCommands[1], replacementDir);
+    assert.equal(replacementRecord.exitCode, 0, replacementRecord.stderr);
+    assert.deepEqual(JSON.parse(replacementRecord.stdout), {
+      failedPackageVersion: "0.1.0",
+      failedTarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+      replacementPackageVersion: "0.1.1",
+      replacementTarball: "https://registry.npmjs.org/@sanogueralorenzo/jury/-/sanogueralorenzo-jury-0.1.1.tgz",
+    });
+
+    await writeFile(join(replacementDir, "replacement-npm-view.json"), JSON.stringify({
+      version: "0.1.0",
+      "dist.tarball": "https://registry.npmjs.org/@sanogueralorenzo/jury/-/sanogueralorenzo-jury-0.1.0.tgz",
+    }));
+    const staleReplacement = await runShell(replacementCommands[1], replacementDir);
+    assert.equal(staleReplacement.exitCode, 1);
+    assert.match(staleReplacement.stderr, /replacement version must differ from failed packageVersion/);
+  } finally {
+    await rm(replacementDir, { recursive: true, force: true });
   }
 
   for (const relativePath of release.packagePublication.requiredFiles) {
@@ -2091,6 +2136,10 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
   assert.ok(checklist.includes("downstream verification fails after publication"));
   assert.ok(checklist.includes("ship a later patch version"));
+  assert.ok(checklist.includes("replacement `packageVersion`"));
+  assert.ok(checklist.includes("replacement `dist.tarball`"));
+  assert.ok(checklist.includes("replacement downstream verification pass"));
+  assert.ok(checklist.includes("failed-version deprecation result"));
   assert.ok(checklist.includes("packageVersion"));
   assert.ok(checklist.includes("tarballName"));
   assert.ok(checklist.includes("reviewedBy"));
@@ -2194,6 +2243,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /dry-run artifact retention expectations/);
   assert.match(handoff, /post-publication package metadata comparison guidance/);
   assert.match(handoff, /downstream verification rollback notes/);
+  assert.match(handoff, /replacement patch supersedence evidence/);
   assert.match(handoff, /dry-run publication summary output/);
   assert.match(handoff, /dry-run package summary reviewer audit notes/);
   assert.match(handoff, /stale dry-run artifact troubleshooting/);
@@ -2204,7 +2254,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /replacement patch supersedes a failed npm publication/);
+  assert.match(handoff, /package release evidence fixture examples for rollback and replacement patch audits/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

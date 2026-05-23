@@ -94,6 +94,17 @@ npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json
 npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verification failed; use a later patch release."
 ```
 
+### Replacement Patch Evidence
+
+Before closing the failed release, prove the replacement patch supersedes the failed publication. Save npm metadata for the replacement and compare it with the retained failed dry-run record:
+
+```shell
+npm view @sanogueralorenzo/jury@<replacementPackageVersion> version dist.tarball --json > replacement-npm-view.json
+node -e 'const fs=require("node:fs"); const failed=JSON.parse(fs.readFileSync("jury-pack-dry-run-record.json","utf8")); const replacement=JSON.parse(fs.readFileSync("replacement-npm-view.json","utf8")); const replacementTarball=typeof replacement["dist.tarball"]==="string" ? replacement["dist.tarball"] : replacement.dist?.tarball; if (!replacement.version) throw new Error("replacement version missing"); if (!replacementTarball) throw new Error("replacement dist.tarball missing"); if (replacement.version === failed.packageVersion) throw new Error("replacement version must differ from failed packageVersion"); if (replacementTarball.endsWith(failed.tarballName)) throw new Error("replacement tarball must differ from failed tarballName"); console.log(JSON.stringify({failedPackageVersion: failed.packageVersion, failedTarballName: failed.tarballName, replacementPackageVersion: replacement.version, replacementTarball}, null, 2));'
+```
+
+Keep that output with the replacement downstream verification pass, the failed-version deprecation result when available, and the retained failed `jury-package-dry-run` artifact. The evidence bundle is complete only when it records the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, downstream verifier pass, and whether the failed version was deprecated.
+
 ## npm Credentials and Provenance
 
 Before enabling publication, create `secrets.NPM_TOKEN` as an npm token limited to publishing `@sanogueralorenzo/jury`. The workflow maps that secret to `NODE_AUTH_TOKEN` only in the final publish step, after `needs: package-manifest` has passed and the downloaded dry-run record has verified. Keep package-manifest and dry-run-publication jobs token-free.
