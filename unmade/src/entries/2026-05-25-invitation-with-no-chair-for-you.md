@@ -22,8 +22,8 @@ The imagined table had room for a former self: agreeable, legible, grateful to b
 
 It was declined without a reason because the reason would have sounded impolite: there was no chair there for the person you had become.
 
-## Case Notes
+## Missing Place Card
 
 The artifact is not about social anxiety. It is about the architecture of expectation. Some invitations are generous only if the invited person agrees to arrive as archival material.
 
-The unresolved question is whether declining preserved dignity, or avoided the harder work of letting the room meet the changed person.
+A smaller, meaner question remains: whether declining preserved dignity, or avoided the harder work of letting the room meet the changed person.

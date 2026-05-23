@@ -22,8 +22,8 @@ The rejected plan was full of sensible details: lower rent, shorter walks, kinde
 
 It was rejected without drama because some lives are dangerous precisely when they look harmless.
 
-## Case Notes
+## Comfortable Exit
 
 The case resists the romance of difficulty. The rejected future may have been wise, comfortable, even generous. Its threat was not misery but smoothness.
 
-The unresolved question is whether growth sometimes requires refusing a life that would have treated you well.
+The refusal is not heroic. It is closer to embarrassment: some futures are kind enough to make a person suspicious of what they would have to stop becoming.

@@ -18,3 +18,10 @@ The board would erase formulas, diagrams, dates, and tidy conclusions. It would 
 
 It was never built because schools already have enough memory for performance. Curiosity remains harder to archive.
 
+## Eraser Dust
+
+The question stayed because nobody wanted to erase it first. By the end of the day, it had gathered arrows, half-answers, initials, and one correction written smaller than the rest.
+
+A blackboard is a temporary surface by design. That is why the persistence felt rude. The room had been built for lessons to vanish cleanly after use, and this one refused the schedule.
+
+The board was cleaned eventually. The chalk dust entered the tray with everything else, which is not the same as being answered.

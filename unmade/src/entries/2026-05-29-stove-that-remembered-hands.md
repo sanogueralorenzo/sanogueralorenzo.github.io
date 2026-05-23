@@ -18,3 +18,10 @@ The stove would not store recipes. It would store gestures: how long a hand hove
 
 The prototype was abandoned when the inheritance became uncomfortable. Some knowledge survives because nobody has to name it.
 
+## Test Kitchen
+
+The prototype notes are full of verbs: hover, shake, lower, wait, lift. The engineers wanted clean actions. The cooks kept producing exceptions. One person turned the knob too early because that was how her father did it. Another tapped the pan twice before salting and could not explain why.
+
+The stove made everyone nervous when it began recognizing confidence. Not identity, exactly. Something worse: inherited timing.
+
+The abandoned question is practical and intimate at once. If a machine can preserve technique, can it also preserve the silence around how that technique was learned?

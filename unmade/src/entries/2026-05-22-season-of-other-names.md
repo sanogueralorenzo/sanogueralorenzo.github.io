@@ -22,8 +22,8 @@ The alternate name appeared first as a signature exercise, then as a label for a
 
 The calendar did not fail. It stayed soft, which is what some futures do when they are never asked to become dates.
 
-## Case Notes
+## Name Weather
 
 The artifact is filed under Unlived because it does not describe a fantasy. It describes an administrative possibility: the person who might have emerged if paperwork, place, and habit had aligned differently.
 
-The unresolved question is whether identity is chosen once, or rehearsed privately until one rehearsal becomes public.
+A smaller, meaner question remains: whether identity is chosen once, or rehearsed privately until one rehearsal becomes public.

@@ -22,8 +22,8 @@ The missing chair would have learned shallow breathing, uneven weight, the small
 
 The product never existed, but the label made it feel recalled from a future where comfort had become diagnostic.
 
-## Case Notes
+## Upholstery Test
 
 The label is filed as Unbuilt because it is a fragment of industrial tenderness: a consumer object imagined at the uneasy border between care and surveillance.
 
-The unresolved question is whether a responsive chair would dignify distress, or quietly train people to outsource the recognition of their own bodies.
+The chair would have noticed sooner than most people. That is either care, or the beginning of forgetting how to recognize oneself without equipment.

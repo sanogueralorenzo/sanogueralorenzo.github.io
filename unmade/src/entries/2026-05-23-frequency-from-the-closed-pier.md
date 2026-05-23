@@ -22,8 +22,8 @@ By the time the recorder arrived, the entrance was fenced and the posted notice 
 
 The missing sound is now inseparable from the refusal to trespass.
 
-## Case Notes
+## Signal Check
 
 The field record is not empty. It captures the ethics of access. The absent pier becomes audible through everything that prevented contact with it.
 
-The unresolved question is whether documentation requires reaching the intended subject, or whether the failed approach sometimes tells the truer story.
+The recording never proves it reached anyone. That may be the point: the failed approach says more about the pier than a clean reply would have.

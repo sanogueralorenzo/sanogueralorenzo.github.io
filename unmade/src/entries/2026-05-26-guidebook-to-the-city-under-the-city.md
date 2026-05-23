@@ -24,8 +24,8 @@ The tone changed halfway through chapter four. Sentences became evasive. Directi
 
 It stopped when description began to feel like betrayal. Some maps are completed by refusing to publish the route.
 
-## Case Notes
+## Sublevel Errata
 
 The guidebook is unfinished because its accuracy became dangerous. To describe the city under the city was to make it available to people who had not earned its trust.
 
-The unresolved question is whether an archive can honor hidden infrastructure without becoming another instrument of extraction.
+What still bothers the record is this: whether an archive can honor hidden infrastructure without becoming another instrument of extraction.

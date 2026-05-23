@@ -22,8 +22,8 @@ The recording restarted once after the speaker realized they sounded like they w
 
 It was never sent because the hallway would have made it strange. Some companionship only survives while unnamed.
 
-## Case Notes
+## Ceiling Audio
 
 The memo is filed under Unsent because the tenderness was real and the address was impossible. It turns a neighbor into evidence of shared time without asking the neighbor to participate.
 
-The unresolved question is whether gratitude can become a burden when delivered to someone who only meant to walk across a room.
+The memo knows thanks can be a demand in disguise. The upstairs neighbor may have offered rhythm; the recording tries not to turn that into debt.

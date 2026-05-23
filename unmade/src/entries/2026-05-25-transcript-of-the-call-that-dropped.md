@@ -22,8 +22,8 @@ The first reconstruction was confident. The second admitted uncertainty. The thi
 
 What was going to be said is now impossible to separate from the failure that protected it.
 
-## Case Notes
+## Dead Air
 
 The transcript exposes how quickly memory becomes editorial. Every attempt to restore the dropped words made them more authored, less trustworthy, and more desired.
 
-The unresolved question is whether the failed connection prevented a truth, or saved it from being reduced to a sentence.
+The last page leaves this open: whether the failed connection prevented a truth, or saved it from being reduced to a sentence.

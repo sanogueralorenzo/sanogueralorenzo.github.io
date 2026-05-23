@@ -22,8 +22,8 @@ Then the draft changed direction. It stopped explaining the apartment and began 
 
 The message was never left behind. It was folded into the lease folder and carried out with everything else, which made it less like a goodbye and more like evidence.
 
-## Case Notes
+## Lease Folder
 
 The strange thing about the draft is how little it says about people. Almost every sentence turns toward surfaces: paint, glass, tile, the small geography of ordinary use. The apartment is not personified, exactly. It is treated as a witness with no legal standing.
 
-What remains unresolved is whether the note was meant to comfort the next tenant, thank the room, or prove that the years inside it had really happened.
+What stays open is simpler and worse: the note may have been for no person at all, only for the room that had already received it.

@@ -18,3 +18,10 @@ The machine would scan residue, staple patterns, heat marks, missing folder weig
 
 It was never built because its best output was accusation. Some systems ask to preserve records; this one asked who benefited from their disappearance.
 
+## Intake Slot
+
+The machine's intake was designed for absence. Empty sleeves, discolored folders, staple holes, mismatched page counts, dust-free rectangles on shelves. Evidence of evidence.
+
+That is why the project was killed. It did not recover documents. It embarrassed the systems that had learned to operate around their disappearance. A normal archive asks what exists. This machine asked who got comfortable after something stopped existing.
+
+Its most useful output would have been a list of rooms where people suddenly became careful with language.

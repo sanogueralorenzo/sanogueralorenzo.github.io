@@ -18,3 +18,10 @@ The lamp would read distance, posture, and the hush that arrives before a person
 
 It stayed theoretical because infrastructure is rarely allowed to be tender. Cities prefer light that proves control.
 
+## Maintenance Report
+
+The report described a failing bulb. Residents described something else. The light dimmed at the wrong times: just before a confession, during a handoff, once when two people stood below it and decided not to continue together.
+
+A technician replaced the lamp and wrote resolved. That word has too much confidence for what happened there.
+
+The unbuilt version of the story would have kept the old fixture and admitted a civic need for partial darkness. Cities pretend to value safety, but they also depend on corners where people can change their minds.

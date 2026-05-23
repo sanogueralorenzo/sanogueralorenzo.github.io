@@ -24,8 +24,8 @@ The alarm was designed never to ring. It would raise a small flag inside the cas
 
 It was never built because the mechanism was too literal and the feeling was already accurate.
 
-## Case Notes
+## Unvisited Hours
 
 The diagram treats neglect as measurable, which makes the project both useful and morally suspect. A room forgotten for six months would become data. A closed studio would become a statistic. A spare bedroom would become a graph of avoidance.
 
-The unresolved question is whether measurement is a rescue attempt, or just a more elegant way to avoid opening the door.
+The diagram leaves a bad taste on purpose. Counting neglect might rescue a room, or it might become another reason to leave the door shut.

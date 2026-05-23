@@ -18,3 +18,10 @@ There were no pictures, no reservation, no receipt, no saved menu. Only the memo
 
 The dinner may have mattered because nothing documented it. Some evenings become real by avoiding proof.
 
+## Table Memory
+
+The seating chart is reconstructed from chores. The person nearest the sink handled plates. The person nearest the door kept half-turning toward the hallway. Someone sat where the light was bad and did not complain, which says more than it should.
+
+No menu survives because the meal was not restaurant-shaped. It was assembled from what was already there: rice, something reheated, a salad made too late, the good bowl used for no reason anyone named.
+
+The dinner refuses the archive's usual bargain. There is nothing to show, and still the room feels rearranged by it.

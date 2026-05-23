@@ -24,8 +24,8 @@ Rain entered the margins before music did. A note beside the second staff instru
 
 The score stopped when notation became too clean for the material. The window kept composing after the page gave up.
 
-## Case Notes
+## Open Window Score
 
 The score is unfinished because it could not decide whether it was music or listening practice. Its most precise marks describe sounds no performer controls.
 
-The unresolved question is whether composition can include the world without turning the world into a prop.
+The score depends on the room staying porous. Close the window and it dies; leave it open too theatrically and the world becomes decoration.

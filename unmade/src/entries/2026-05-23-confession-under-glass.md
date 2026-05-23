@@ -22,8 +22,8 @@ Then the page was folded once and became an object instead of an event. It was p
 
 Some truths do not disappear. They wait, protected by weak materials, asking whether being preserved is a form of cowardice or care.
 
-## Case Notes
+## Display Case
 
 The object is strange because it rejects the usual fate of confession. It is neither spoken nor destroyed. The glass implies importance, but the missing recipient makes that importance unstable.
 
-The unresolved question is not whether the confession was true. It is whether truth can become self-protective when it never has to meet the person it names.
+The last page leaves this open: not whether the confession was true. It is whether truth can become self-protective when it never has to meet the person it names.

@@ -22,8 +22,8 @@ The drawers were organized by ending type. Mutual, implied, postponed, inherited
 
 Nobody staffed it. That was either the reason it failed or the most accurate thing about it.
 
-## Case Notes
+## Waiting Number
 
 The office is categorized as Unchosen because it represents a life where closure becomes administrative. The appeal is obvious. So is the danger.
 
-The unresolved question is whether official endings would free people, or simply create another room where unfinished feeling waits for its number to be called.
+Its danger is administrative kindness. Give every unfinished thing a number and people may mistake waiting neatly for being released.

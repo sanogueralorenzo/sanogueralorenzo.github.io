@@ -22,8 +22,8 @@ The library would have become the first anchor. Then the corner store with the n
 
 It remained unlived, but not empty. It kept the shape of a person who would have become local there.
 
-## Case Notes
+## Block Association
 
 The neighborhood is filed as Unlived because it did not remain abstract. It had errands, weather, shortcuts, and the beginnings of loyalty.
 
-The unresolved question is whether place changes identity through meaning, or simply through the routes it convinces a body to repeat.
+The harder question sits here: whether place changes identity through meaning, or simply through the routes it convinces a body to repeat.

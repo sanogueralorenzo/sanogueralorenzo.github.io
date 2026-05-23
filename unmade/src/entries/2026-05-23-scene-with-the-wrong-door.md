@@ -22,8 +22,8 @@ The fragment has no monster and no explanation. Its fear comes from the characte
 
 It remains unfinished because the rule was stronger than the story, and sometimes a rule is only interesting until it asks for consequences.
 
-## Case Notes
+## Door Continuity
 
 The pages show a writer more committed to architecture than plot. The doors are numbered; the characters are not. The script knows where everyone exits but refuses to say what any exit costs.
 
-The unresolved question is whether the missing continuation would reveal the rule, or whether explanation would destroy the only thing the scene understands.
+A continuation might have solved the wrong problem. The door works because nobody explains why it was there.

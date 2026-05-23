@@ -18,3 +18,10 @@ Week one assigned a spoon, a window, a paragraph, and a street corner. Week two 
 
 The syllabus stopped at grading. Any rubric for attention became another distraction dressed as seriousness.
 
+## Attendance Policy
+
+The syllabus began with a joke: attendance is required, especially when absent. It was crossed out, then restored, then crossed out again. That may be the most honest part of the document.
+
+The course wanted to teach attention without turning attention into another performance. No participation points. No productivity language. No moralizing about phones. Just practice in staying with one difficult thing after the easy exits present themselves.
+
+It stopped at grading because the minute attention became measurable, the course started teaching obedience instead.

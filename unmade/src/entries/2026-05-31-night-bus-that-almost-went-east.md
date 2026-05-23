@@ -18,3 +18,10 @@ The bus was idling under fluorescent light, pointed toward neighborhoods that lo
 
 It left without you. For several minutes, the exhaust felt like evidence that another version had managed to depart.
 
+## Timetable
+
+The eastbound bus was not romantic. Fluorescent interior, tired driver, a route number half-scraped from the sign. Its offer was better than romance: leave now, cheaply, without requiring anyone to bless the departure.
+
+The ticket was never bought. Still, the schedule was checked three more times that night, which is its own kind of boarding.
+
+The artifact makes a plain accusation. Sometimes the life not taken was available for six dollars and a walk to the stop.

@@ -18,3 +18,10 @@ The recorder failed at minute four. After that, the room sharpened. Pens moved d
 
 The lecture survives as misquotation, which may be how teaching becomes personal.
 
+## Borrowed Notes
+
+After the recorder failed, the lecture split into several unofficial versions. One student wrote down the jokes. One kept only the definitions. One remembered a sentence the lecturer may not have said because it arrived exactly when they needed it.
+
+That is the problem with unrecorded teaching. It becomes personal before anyone can check it for accuracy.
+
+The missing audio did not destroy the lecture. It removed the alibi that understanding could be postponed.

@@ -18,3 +18,10 @@ The seat offered no glamour. It offered agenda packets, careful phrasing, room-t
 
 It was declined because the cost looked small enough to be dangerous.
 
+## Seating Chart
+
+The window seat looked harmless on the room diagram. It had bad acoustics, a view of the side street, and enough distance from the chair to make dissent feel slightly delayed. That delay may have been the whole job.
+
+The appointment was never accepted. The refusal note is missing, but the draft agenda remains, with one line circled: public comment limited to three minutes. Someone had already imagined the discomfort of sitting there and lending their name to procedure.
+
+The unlived role is not glamorous. It is a small civic life in which showing up might have mattered, or might only have made compromise look broader than it was.

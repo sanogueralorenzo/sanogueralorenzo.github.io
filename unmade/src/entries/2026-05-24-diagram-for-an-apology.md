@@ -22,8 +22,8 @@ The apology became less direct every time the drawing became more beautiful. Rec
 
 By the end, the apology had become architecture. The only honest line was the one without an arrow.
 
-## Case Notes
+## Draft Geometry
 
 The diagram is filed under Unsent because its core failure is not design but delivery. It contains effort, fear, intelligence, and control, all arranged to delay a sentence that should have remained small.
 
-The unresolved question is whether preparation can become a moral substitute for action, especially when the preparation looks disciplined enough to admire.
+A smaller, meaner question remains: whether preparation can become a moral substitute for action, especially when the preparation looks disciplined enough to admire.

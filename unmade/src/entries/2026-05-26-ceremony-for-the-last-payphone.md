@@ -22,8 +22,8 @@ The program included a moment of silence for public anonymity. Anyone could stan
 
 By the time someone thought to record it, the phone had already been taken away. The dial tone became historical without permission.
 
-## Case Notes
+## Coin Return
 
 The ceremony is Unrecorded because its object disappeared before grief knew what to call itself. It mourns not technology, but a public ritual of contact that did not require a personal device or a permanent identity.
 
-The unresolved question is whether convenience quietly abolished forms of privacy we only notice after the hardware is gone.
+The ceremony is sentimental only if privacy was never practical. A coin call let a person vanish for three minutes without becoming data.

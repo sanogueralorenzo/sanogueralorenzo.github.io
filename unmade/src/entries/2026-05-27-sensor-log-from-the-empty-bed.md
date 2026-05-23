@@ -22,8 +22,8 @@ The first explanation was calibration drift. The second was fabric compression. 
 
 No export was saved. The evidence remained inside the device, indistinguishable from error until someone needed it to mean more.
 
-## Case Notes
+## Bedside Log
 
 The log is Unrecorded because its evidence existed only inside a proprietary summary, then vanished behind an update. The haunting, if it was one, depended on a terms-of-service agreement.
 
-The unresolved question is whether deletion returned the bed to ordinary emptiness, or only removed the one language in which its emptiness had begun to speak.
+What still bothers the record is this: whether deletion returned the bed to ordinary emptiness, or only removed the one language in which its emptiness had begun to speak.

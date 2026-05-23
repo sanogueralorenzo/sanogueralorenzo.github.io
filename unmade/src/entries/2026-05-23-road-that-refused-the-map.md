@@ -22,8 +22,8 @@ The map was annotated with practical tenderness: where to buy fruit before the d
 
 Nothing dramatic prevented the trip. It simply lost priority to ordinary life, which is how many adventures vanish: not by refusal, but by calendar pressure.
 
-## Case Notes
+## Survey Trouble
 
 The route matters because it was built against efficiency. Its purpose was not arrival but friction: smaller roads, longer meals, weather close enough to inconvenience the plan.
 
-The unresolved question is whether the abandoned road was a missed escape or a rehearsal for admitting that escape was not the real desire.
+The harder question sits here: whether the abandoned road was a missed escape or a rehearsal for admitting that escape was not the real desire.

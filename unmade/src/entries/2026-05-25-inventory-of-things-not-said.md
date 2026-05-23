@@ -22,8 +22,8 @@ Six items repeated under different dates. One line had been written in pencil, e
 
 A life can become crowded with words that should have been cheap to spend.
 
-## Case Notes
+## Counted Silence
 
 The inventory is not a diary; it is closer to a warehouse ledger. Its categories are emotional but its method is bureaucratic, which makes the withheld sentences feel less private and more like goods trapped in storage.
 
-The unresolved question is whether counting the unsaid prepares it for release, or simply gives silence a better filing system.
+The inventory is useful only until it becomes comfortable. A silence with item numbers is still silence.

@@ -22,8 +22,8 @@ Each pin had a listening instruction rather than a title. Stand under the pharma
 
 The map has no audio. Only pins where the recordings should have been, which may be the more honest archive.
 
-## Case Notes
+## Sound Index
 
 The map treats listening as a civic act, not a technical one. It suggests that places are partly made of sounds too small to become landmarks and too temporary to receive names.
 
-The unresolved question is whether the archive failed because nothing was captured, or succeeded because it left the city unpossessed.
+What still bothers the record is this: whether the archive failed because nothing was captured, or succeeded because it left the city unpossessed.

@@ -18,3 +18,10 @@ The signal was improvised from a desk lamp, a cracked extension cord, and the ol
 
 No reply was logged. The roof kept the event as temperature, not record.
 
+## Light Test
+
+The signal used a desk lamp because the roof had no proper equipment and because proper equipment would have made the whole thing ridiculous. Improvisation kept it almost believable.
+
+Three flashes, pause, two flashes, long pause. The code had no agreed recipient. That was either its weakness or its mercy. A signal aimed too precisely can be ignored; a vague one can survive as atmosphere.
+
+No reply came. The city remained full of lit windows, which is a cruel condition for anyone trying to believe in messages.

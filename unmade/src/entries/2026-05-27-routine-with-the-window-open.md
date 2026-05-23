@@ -22,8 +22,8 @@ The checklist failed because the phone was closer than the window, and because o
 
 It never became real, but it stayed near the edge of possibility, waiting for a morning that did not negotiate.
 
-## Case Notes
+## Morning Adjustment
 
 The routine is Unlived because it is a complete life in miniature. It contains a philosophy of attention, a relationship to weather, and a refusal to let the day be assigned by notification.
 
-The unresolved question is whether a person changes by choosing a new life, or by moving one object closer than another.
+The routine argues for smaller evidence. A life may turn because a cup moved six inches and stayed there.

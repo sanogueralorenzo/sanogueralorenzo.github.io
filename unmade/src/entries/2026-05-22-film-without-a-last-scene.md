@@ -22,8 +22,8 @@ The final scene kept turning false as soon as it was written. In one version, so
 
 So the film remained a corridor. Strong entrance, good light, no door that deserved to close.
 
-## Case Notes
+## Editing Room
 
 The stills show a finished visual language: sodium light, green plastic chairs, chrome circles, a vending machine reflected in glass. Nothing about the fragment feels casual except its refusal to end.
 
-The unresolved question is whether the missing scene is a failure of craft or the only honest part of the film.
+The edit still has one clean problem: an ending would have finished the film, but it might also have lied about what the laundromat knew.

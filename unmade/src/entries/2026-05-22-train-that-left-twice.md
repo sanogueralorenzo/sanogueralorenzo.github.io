@@ -22,7 +22,7 @@ The train left once on the schedule and once in imagination. The first departure
 
 The ticket expired into evidence. Not regret exactly, but proof that a decision can remain visible long after the path closes.
 
-## Case Notes
+## Platform Record
 
 The artifact matters because it was not destroyed. Most unused tickets disappear into bins, drawers, or laundry. This one stayed close enough to become a portable border crossing.
 

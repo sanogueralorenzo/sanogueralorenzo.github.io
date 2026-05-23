@@ -18,3 +18,10 @@ The observatory would not chase stars. It would examine fog banks, marine layers
 
 It remained unbuilt because nobody wanted to fund an instrument for nearness. Distance still sounds more scientific.
 
+## Instrument Room
+
+The telescope was drawn sideways because the sky in this project was not above anyone. It was at window height, collecting around traffic lights, loading docks, and the shoulders of people waiting for buses in wet coats.
+
+The best drawing shows a viewing bench, a humidity wall, and a visitor note asking people not to call the work poetic. That note helps. It makes the observatory less precious and more stubborn. The point was to study what grandeur misses when it keeps looking up.
+
+The proposal fails in a very human way: it wants funding for nearness, and nearness has always had trouble sounding important in a budget meeting.

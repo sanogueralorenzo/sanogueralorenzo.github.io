@@ -18,3 +18,10 @@ The class met on Thursdays in a room near the stairs. The syllabus promised prac
 
 It was not taken because leaving still seemed like something other people needed to learn.
 
+## Course Description
+
+The class had no prerequisites, though everyone pretended otherwise. Students arrived with different theories: leave early, leave politely, leave only when replaced, leave with proof that staying had become impossible.
+
+The first assignment was to exit a room without explaining yourself. Most failed by apologizing in the doorway.
+
+The course was never offered because the institution could not decide whether leaving was a skill, a threat, or a subject best learned off campus.

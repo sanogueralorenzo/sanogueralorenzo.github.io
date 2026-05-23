@@ -18,3 +18,10 @@ The room had microphones installed but disconnected. This changed the quality of
 
 No minutes were taken. The hearing left only consequences, which may be the most institutional kind of evidence.
 
+## Room Tone
+
+The disconnected microphones changed the room before anyone admitted they were off. People leaned forward. Paper moved more loudly. A cough had jurisdiction for a second, then disappeared without record.
+
+The hearing probably became more honest and less useful. Institutions like speech best when it can be filed, searched, quoted, and used later by people who were not there. This room forced presence back into the proceedings.
+
+What is missing is not audio. It is the comfort of being able to prove how careful everyone sounded.

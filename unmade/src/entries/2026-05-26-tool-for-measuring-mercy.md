@@ -22,8 +22,8 @@ The instructions warned that anger, shame, and performance could interfere with 
 
 It could not be built because its measurement would change the thing measured, which may be true of all serious tools.
 
-## Case Notes
+## Calibration Problem
 
 The instrument is filed as Unbuilt because it exposes a category error. Mercy is often discussed as a virtue, but this object imagines it as a measurable remainder.
 
-The unresolved question is whether quantifying mercy would make it more accountable, or destroy the very uncertainty that allows it to exist.
+A calibrated mercy might be easier to defend in public and harder to recognize in private. The tool never solved that contradiction.

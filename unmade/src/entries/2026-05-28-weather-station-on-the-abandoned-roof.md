@@ -18,3 +18,10 @@ The station was meant to measure useless precision: wind over one building, rain
 
 No readings survived. The roof kept experiencing weather without producing proof, which is how most of the world continues.
 
+## Blank Readings
+
+The station log has seven rows prepared in advance. Temperature, pressure, wind, rain, visibility, notes. The notes column is the most embarrassing part because it assumes a person will climb the stairs every day and write something down.
+
+Nobody did. Or someone did once and decided the roof was better without being converted into evidence. The abandoned stand left a clean square in the dirt, which is the closest thing the project has to a measurement.
+
+Maybe that is enough. A roof does not need a record to have weather. It only needs exposure.

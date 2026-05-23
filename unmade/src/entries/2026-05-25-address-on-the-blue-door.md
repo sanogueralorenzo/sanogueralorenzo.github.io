@@ -22,8 +22,8 @@ The rent was calculated three ways. The commute was walked virtually. A grocery 
 
 No lease was signed. Still, for a while, every plan quietly measured itself against the person who might have learned that door by hand.
 
-## Case Notes
+## Doorplate Error
 
 The address is filed as Unlived because it had crossed the threshold from option into rehearsal. It was no longer a property. It was a daily routine in draft form.
 
-The unresolved question is whether not moving there prevented disappointment, or prevented the slower discovery that the imagined self could not be leased.
+The harder question sits here: whether not moving there prevented disappointment, or prevented the slower discovery that the imagined self could not be leased.

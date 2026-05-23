@@ -22,8 +22,8 @@ One troubleshooting step advised users not to describe the images aloud until th
 
 It stopped at the liability section. The manufacturer could explain a malfunction, but not why every image looked remembered.
 
-## Case Notes
+## Sleep Mode
 
 The manual is Unfinished because instruction failed exactly where instruction was needed most. It could tell users how to reset the device, but not how to interpret intimacy produced by hardware.
 
-The unresolved question is whether an unexplained image belongs to the machine, the owner, the manufacturer, or the person who feels accused by seeing it.
+The last page leaves this open: whether an unexplained image belongs to the machine, the owner, the manufacturer, or the person who feels accused by seeing it.

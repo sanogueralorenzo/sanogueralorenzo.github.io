@@ -22,8 +22,8 @@ The prototype never progressed beyond cardboard, but the cardboard was handled l
 
 It stayed on paper because the best part was not the mechanism. It was the idea that wonder could be made portable without being made smaller.
 
-## Case Notes
+## Lens Dust
 
 The planetarium is filed as an invention, but it behaves more like a repair. It answers a civic wound: skies erased by light, childhood orientation replaced by weather apps, the universe made available as data but unavailable as a ceiling.
 
-The unresolved question is whether restoration can be mechanical without becoming nostalgic theater.
+The hard line to draw is between repair and performance: at what point does giving the stars back become a show about loss instead of a working sky?

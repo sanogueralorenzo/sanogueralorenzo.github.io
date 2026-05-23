@@ -24,8 +24,8 @@ The shot list treats the impossible as a technical problem. Aperture for old pai
 
 No camera could take it. The photograph survives as a demand for a machine that would not respect before and after.
 
-## Case Notes
+## Exposure Note
 
 The artifact is classed as Unrecorded because the desired record exceeds the tools of recording. A normal photograph protects time by choosing one instant. This proposed image would remove that protection.
 
-The unresolved question is whether any room could survive being seen all at once.
+The last page leaves this open: whether any room could survive being seen all at once.

@@ -22,8 +22,8 @@ Its only possible audience would be accidental: someone opening a door, someone 
 
 The stairwell was locked the week before. No audience was lost because no audience had been invited, which made the cancellation feel strangely complete.
 
-## Case Notes
+## Stairwell Acoustics
 
 The performance tests whether art can remain public without declaring itself. Its cancellation is almost part of the piece: an inaccessible stairwell preserving an action about unnoticed passage.
 
-The unresolved question is whether secrecy protected the work or prevented it from becoming accountable to anyone beyond its own elegance.
+The stairwell gave the work privacy, but privacy can flatter a performance. Nobody there could ask whether the quiet was earned.

@@ -18,3 +18,10 @@ The role would have been ceremonial and dangerous. The witness would not vote, a
 
 It remained unlived because institutions prefer witnesses who can be converted into paperwork.
 
+## Job Description
+
+The role had a badge, a chair against the wall, and no authority to interrupt. The witness would attend meetings where everyone knew the public version had already been written elsewhere.
+
+It sounds useless until you imagine the room without them. Some lies are easier when nobody has to watch themselves lie. The unasked witness was meant to make that ease slightly more expensive.
+
+The role remained unlived because institutions prefer accountability with forms attached. A person sitting quietly in the corner is harder to process.

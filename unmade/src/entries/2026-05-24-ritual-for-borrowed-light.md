@@ -22,8 +22,8 @@ The instructions insisted on modesty. No promises. No advice unless asked for tw
 
 It was never formalized because the useful version already happens quietly between people who know when not to call it magic.
 
-## Case Notes
+## Borrowed Flame
 
 The artifact is classed as Unbuilt because it is less an event than a social technology: a repeatable structure for carrying what someone else cannot carry alone.
 
-The unresolved question is whether naming such care makes it stronger, or makes it too self-conscious to survive.
+What still bothers the record is this: whether naming such care makes it stronger, or makes it too self-conscious to survive.

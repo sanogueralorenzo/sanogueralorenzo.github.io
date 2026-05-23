@@ -24,8 +24,8 @@ Early sketches included settings for comfort, grounding, and sleep. All three we
 
 The prototype stayed unmade because care is difficult to mechanize without making it embarrassing, but the need remained precise.
 
-## Case Notes
+## Soft Mechanism
 
 The object is filed as Unbuilt because it sits at a difficult edge: not medical enough to prescribe, not sentimental enough to dismiss, not alive enough to replace anyone.
 
-The unresolved question is whether designed comfort can remain humble, or whether every device eventually claims more authority than grief should grant it.
+The harder question sits here: whether designed comfort can remain humble, or whether every device eventually claims more authority than grief should grant it.

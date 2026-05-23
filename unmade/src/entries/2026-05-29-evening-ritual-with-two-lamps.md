@@ -18,3 +18,10 @@ The ritual was simple: one lamp for the practical day, one for the remaining sel
 
 It never became habit because the day kept leaking past its boundary. The lamps stayed ordinary.
 
+## Switches
+
+The lamps were not special. That was the point. One had a stiff switch and practical light. The other made the room warmer than it deserved. The proposed rule was almost childish: when the first lamp goes off, the useful self is dismissed.
+
+The ritual failed because stopping is harder than beginning. Messages kept arriving. Dishes stayed visible. The body kept treating quiet as an interval before more work.
+
+A better version may have needed less discipline and more furniture. Put the phone farther away. Put the chair closer to the lamp. Let the room make one decision on your behalf.

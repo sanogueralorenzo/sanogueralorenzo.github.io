@@ -22,8 +22,8 @@ The name appeared first in passwords, then on saved shipping forms, then on one 
 
 It was not false. It was unused, which may be the more precise category.
 
-## Case Notes
+## Alias Ledger
 
 The artifact is not about reinvention as spectacle. It is about the quieter administrative ways a person tests whether another self could survive contact with ordinary systems.
 
-The unresolved question is whether the second name failed to become real, or succeeded by remaining available when the first one became too narrow.
+What still bothers the record is this: whether the second name failed to become real, or succeeded by remaining available when the first one became too narrow.

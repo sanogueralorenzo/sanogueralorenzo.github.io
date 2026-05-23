@@ -22,8 +22,8 @@ The benches stayed, the paving stayed, the fountain stayed dry. People still cro
 
 No one posted it. The center had moved elsewhere without filing paperwork.
 
-## Case Notes
+## Municipal Paper
 
 The notice is classed as Unsent because its failure is civic rather than private. It was drafted for a public that had already adjusted to absence.
 
-The unresolved question is whether institutions owe a formal announcement when a place dies socially but remains physically maintained.
+A smaller, meaner question remains: whether institutions owe a formal announcement when a place dies socially but remains physically maintained.

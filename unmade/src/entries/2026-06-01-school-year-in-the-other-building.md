@@ -18,3 +18,10 @@ The other building had blue lockers, a library with low windows, and a staircase
 
 The transfer never happened. Still, some days carried the faint accusation of halls you did not learn.
 
+## Orientation Packet
+
+The packet listed bell times, locker rules, lunch zones, and a map with arrows too cheerful to trust. It made the other building look manageable, which is how all institutions introduce themselves.
+
+What the packet could not show was the body knowledge: where to slow down, which stairwell smelled like wet coats, which teacher's door stayed open after dismissal, which hallway made solitude look normal.
+
+The school year remained unentered. Even so, it kept a claim on the imagination, the way alternate routines do when they had enough detail to become muscle memory.

@@ -18,3 +18,10 @@ The policy tried to be fair: one opening per person, no substitutions, no holdin
 
 It failed at enforcement. Every clause became cruel as soon as the door was imagined from the wrong side.
 
+## Revision History
+
+The first draft was too literal. Emergency exits, archival rooms, ceremony chambers, server closets. By the third revision, everyone understood the policy was about chances, not doors.
+
+The language became procedural because that is how fear survives review. Request window. Access event. Irreversible threshold. A whole bureaucracy built to avoid saying: you may only do this once, and you may not know that until after.
+
+The unfinished policy leaves a nasty little problem. Some doors should warn you. Others only become doors because they do not.

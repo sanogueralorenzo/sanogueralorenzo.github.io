@@ -22,8 +22,8 @@ The team argued over whether the device should vibrate, glow, lock, or shame. Th
 
 It failed at the prototype stage because the product's best feature was refusing to become a product.
 
-## Case Notes
+## Refund Terms
 
 The failed product is interesting because its ethics undermine its business model. A successful version would make itself unnecessary. A profitable version would have to keep the wound open.
 
-The unresolved question is whether liberation can be sold without becoming another subscription to the problem.
+The prototype cannot get around its own sales pitch. Selling freedom from lost hours risks billing the user for the same wound twice.
