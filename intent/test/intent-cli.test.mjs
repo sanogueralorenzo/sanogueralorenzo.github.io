@@ -39,6 +39,7 @@ const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_ver
 const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_impure_file_write.intent", import.meta.url).pathname;
 const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_without_retention.intent", import.meta.url).pathname;
 const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memory_retention_unknown_until.intent", import.meta.url).pathname;
+const INVALID_STEP_POLICY_BAD_TIMEOUT = new URL("../fixtures/invalid_step_policy_bad_timeout.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
@@ -428,6 +429,18 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_MEMORY_RETENTION_INVALID");
     assert.equal(payload.diagnostics[0].retention, "retain evidence until forever");
     assert.equal(payload.diagnostics[0].until, "forever");
+  });
+
+  it("rejects invalid step policy syntax", () => {
+    const result = run(["check", INVALID_STEP_POLICY_BAD_TIMEOUT]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_POLICY_INVALID");
+    assert.equal(payload.diagnostics[0].step, "patch_code");
+    assert.equal(payload.diagnostics[0].policyKind, "timeout");
+    assert.equal(payload.diagnostics[0].policy, "soon");
   });
 
   it("rejects unresolved type references", () => {

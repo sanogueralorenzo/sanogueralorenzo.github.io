@@ -1,0 +1,67 @@
+package fixtures.invalid_step_policy_bad_timeout
+
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+type VerifiedPatch = {
+  patch: Patch
+}
+
+goal "reject invalid timeout policy" {
+  context repo("./")
+  context ticket("CODE-790")
+
+  capability file {
+    read path: "./src/**"
+    read path: "./test/**"
+    write path: "./src/**"
+    write path: "./test/**"
+  }
+
+  capability shell {
+    run command: "npm test"
+    run command: "npm run typecheck"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+    retain policies until goal_complete
+  }
+
+  plan {
+    step inspect_request -> Finding
+    step patch_code(input: Finding) -> Patch {
+      require input.summary != ""
+      timeout soon
+      retry max 2
+      effect FileWrite(path: "./src/app.ts")
+      effect FileWrite(path: "./test/app.test.ts")
+      checkpoint "invalid timeout policy fixture written"
+    }
+    step verify_patch(input: Patch) -> VerifiedPatch {
+      require input.files != []
+      timeout 5m
+      retry max 2
+      effect ShellExec(command: "npm test")
+      effect ShellExec(command: "npm run typecheck")
+    }
+  }
+
+  verify {
+    require shell("npm test").exit_code == 0
+    require shell("npm run typecheck").exit_code == 0
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+    deny unbounded_effect_execution
+  }
+}

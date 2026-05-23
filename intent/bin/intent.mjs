@@ -516,6 +516,7 @@ function checkIntent(ast) {
 
     validateGoalTypes(goal, declaredTypes, diagnostics);
     validateStepBindings(goal, diagnostics);
+    validateStepPolicies(goal, diagnostics);
     validateVerifyRequirements(goal, diagnostics);
     validateApprovalRequirements(goal, diagnostics);
 
@@ -710,6 +711,37 @@ function validateStepBindings(goal, diagnostics) {
       availableTypes.add(outputType);
     }
   }
+}
+
+function validateStepPolicies(goal, diagnostics) {
+  for (const step of goal.steps) {
+    for (const timeout of step.timeouts) {
+      if (!isSupportedPolicyDuration(timeout.value)) {
+        diagnostics.push(error("INTENT_POLICY_INVALID", `step '${step.name}' has invalid timeout policy '${timeout.value}'.`, timeout.span, {
+          step: step.name,
+          policyKind: "timeout",
+          policy: timeout.value,
+        }));
+      }
+    }
+    for (const retry of step.retries) {
+      if (!isSupportedRetryPolicy(retry.value)) {
+        diagnostics.push(error("INTENT_POLICY_INVALID", `step '${step.name}' has invalid retry policy '${retry.value}'.`, retry.span, {
+          step: step.name,
+          policyKind: "retry",
+          policy: retry.value,
+        }));
+      }
+    }
+  }
+}
+
+function isSupportedPolicyDuration(value) {
+  return /^[1-9][0-9]*(?:s|m|h|d)$/.test(value.trim());
+}
+
+function isSupportedRetryPolicy(value) {
+  return /^max\s+[1-9][0-9]*$/.test(value.trim());
 }
 
 function validateVerifyRequirements(goal, diagnostics) {
