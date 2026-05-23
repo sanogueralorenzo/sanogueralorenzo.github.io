@@ -233,6 +233,15 @@ Validation expectations:
   declared structural or alias body. Malformed Type node payloads emit
   `INTENT_GRAPH_TYPE_INVALID` and make graph output non-executable because
   runtimes must not infer structural or alias type bodies.
+- Runtime type availability edge contracts are the next Phase 2 static-model
+  milestone. `Type` nodes are package/file-scoped runtime type metadata visible
+  to every `Goal` in the graph. Every `Type` node must have exactly one
+  outgoing `declares` edge to each `Goal` node. Missing, duplicate, or non-Goal
+  `declares` targets from a `Type` node emit
+  `INTENT_GRAPH_TYPE_DECLARE_INVALID` and make graph output non-executable;
+  malformed Type node data remains `INTENT_GRAPH_TYPE_INVALID`. This makes type
+  availability explicit for runtime validation and graph replay instead of
+  relying only on package/global lookup.
 - Graph `Goal` nodes carry runtime requested-work metadata. Goal node data must
   carry `title` as `null` or a non-empty string, `parameters` as an array of
   valid parameter records with non-empty `name` and `type` strings and valid
