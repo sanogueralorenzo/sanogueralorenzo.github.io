@@ -1233,10 +1233,17 @@ function validateGraph(graph, options = {}) {
       expected_ast_schema_version: AST_SCHEMA_VERSION,
     }));
   }
-  if (typeof graph.source !== "string" || typeof graph.package !== "string") {
-    diagnostics.push(error("INTENT_GRAPH_ENVELOPE_INVALID", `graph envelope must include string source and package fields.`, graphSpan, {
+  if (
+    typeof graph.source !== "string"
+    || typeof graph.package !== "string"
+    || graph.source.trim() === ""
+    || graph.package.trim() === ""
+  ) {
+    diagnostics.push(error("INTENT_GRAPH_ENVELOPE_INVALID", `graph envelope must include non-empty string source and package fields.`, graphSpan, {
       source_is_string: typeof graph.source === "string",
       package_is_string: typeof graph.package === "string",
+      source_is_nonempty: typeof graph.source === "string" && graph.source.trim() !== "",
+      package_is_nonempty: typeof graph.package === "string" && graph.package.trim() !== "",
       source: typeof graph.source === "string" ? graph.source : null,
       package: typeof graph.package === "string" ? graph.package : null,
     }));

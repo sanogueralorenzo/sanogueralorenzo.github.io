@@ -1137,13 +1137,33 @@ describe("intent static model CLI", () => {
       nodes: [],
       edges: [],
     });
+    const blankDiagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "   ",
+      package: "",
+      ok: true,
+      diagnostics: [],
+      nodes: [],
+      edges: [],
+    });
 
     assert.equal(diagnostics.length, 1);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_ENVELOPE_INVALID");
     assert.equal(diagnostics[0].source_is_string, false);
     assert.equal(diagnostics[0].package_is_string, false);
+    assert.equal(diagnostics[0].source_is_nonempty, false);
+    assert.equal(diagnostics[0].package_is_nonempty, false);
     assert.equal(diagnostics[0].source, null);
     assert.equal(diagnostics[0].package, null);
+    assert.equal(blankDiagnostics.length, 1);
+    assert.equal(blankDiagnostics[0].code, "INTENT_GRAPH_ENVELOPE_INVALID");
+    assert.equal(blankDiagnostics[0].source_is_string, true);
+    assert.equal(blankDiagnostics[0].package_is_string, true);
+    assert.equal(blankDiagnostics[0].source_is_nonempty, false);
+    assert.equal(blankDiagnostics[0].package_is_nonempty, false);
+    assert.equal(blankDiagnostics[0].source, "   ");
+    assert.equal(blankDiagnostics[0].package, "");
   });
 
   it("validates graph executable envelope diagnostics", () => {
