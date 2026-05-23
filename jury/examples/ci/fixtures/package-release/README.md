@@ -20,3 +20,13 @@ The failed version is not republished. The audit records the deprecation command
 - [replacement-downstream-gate.json](replacement-downstream-gate.json): the downstream Jury acceptance for the replacement.
 
 The replacement evidence is complete only when the replacement `packageVersion` differs from the failed `packageVersion`, the replacement `dist.tarball` does not end with the failed `tarballName`, downstream verification passes, and the failed-version deprecation result is recorded when available.
+
+## Validation
+
+Run the fixture check after changing these files:
+
+```shell
+npm --prefix jury run fixtures:package-release:check
+```
+
+The command validates `rollback-audit.json` and `replacement-patch-audit.json` against [../../../../schemas/package-release-evidence.schema.json](../../../../schemas/package-release-evidence.schema.json), then checks the fixture relationships that prove the replacement patch supersedes the failed publication.

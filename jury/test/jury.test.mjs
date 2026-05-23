@@ -708,6 +708,7 @@ test("key policy rotation fixtures accept old and new keys during overlap", asyn
 test("package release evidence fixtures cover rollback and replacement audits", async () => {
   const readFixture = (name) => readFile(join(ciPackageReleaseFixturesDir, name), "utf8").then(JSON.parse);
   const readme = await readFile(join(ciPackageReleaseFixturesDir, "README.md"), "utf8");
+  const linkedTargets = [...readme.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map((match) => match[1]);
   const dryRunRecord = await readFixture("jury-pack-dry-run-record.json");
   const failedNpmView = await readFixture("failed-npm-view.json");
   const failedGate = await readFixture("downstream-failure-gate.json");
@@ -720,7 +721,11 @@ test("package release evidence fixtures cover rollback and replacement audits", 
 
   assert.ok(readme.includes("rollback-audit.json"));
   assert.ok(readme.includes("replacement-patch-audit.json"));
+  assert.ok(readme.includes("npm --prefix jury run fixtures:package-release:check"));
   assert.ok(readme.includes("downstream verification passes"));
+  for (const target of linkedTargets) {
+    await stat(join(ciPackageReleaseFixturesDir, target));
+  }
   assert.equal(rollbackAudit.schema_version, "jury.package_release_evidence.v1");
   assert.equal(rollbackAudit.audit_type, "failed-publication-rollback");
   assert.equal(replacementAudit.schema_version, "jury.package_release_evidence.v1");
@@ -754,6 +759,29 @@ test("package release evidence fixtures cover rollback and replacement audits", 
     replacementPackageVersion: "0.1.1",
     replacementTarball: "https://registry.npmjs.org/@sanogueralorenzo/jury/-/sanogueralorenzo-jury-0.1.1.tgz",
   });
+
+  const fixtureCheck = await runShell("npm --prefix jury run fixtures:package-release:check");
+  assert.equal(fixtureCheck.exitCode, 0, fixtureCheck.stderr);
+  const fixtureCheckPayload = JSON.parse(fixtureCheck.stdout.slice(fixtureCheck.stdout.indexOf("{")));
+  assert.equal(fixtureCheckPayload.ok, true);
+  assert.equal(fixtureCheckPayload.schema, "schemas/package-release-evidence.schema.json");
+  assert.deepEqual(fixtureCheckPayload.fixtures, ["rollback-audit.json", "replacement-patch-audit.json"]);
+
+  const invalidDir = await tempState();
+  try {
+    const copiedFixtureDir = join(invalidDir, "package-release");
+    await cp(ciPackageReleaseFixturesDir, copiedFixtureDir, { recursive: true });
+    const invalidReplacementAuditPath = join(copiedFixtureDir, "replacement-patch-audit.json");
+    const invalidReplacementAudit = JSON.parse(await readFile(invalidReplacementAuditPath, "utf8"));
+    delete invalidReplacementAudit.checks;
+    await writeFile(invalidReplacementAuditPath, `${JSON.stringify(invalidReplacementAudit, null, 2)}\n`);
+
+    const invalidFixtureCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(copiedFixtureDir)}`);
+    assert.equal(invalidFixtureCheck.exitCode, 1);
+    assert.match(invalidFixtureCheck.stderr, /replacement-patch-audit\.json\.checks is required/);
+  } finally {
+    await rm(invalidDir, { recursive: true, force: true });
+  }
 });
 
 test("troubleshooting failure examples stay executable", async () => {
@@ -1131,6 +1159,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.equal(release.version, packageJson.version);
   assert.equal(packageJson.private, true);
   assert.equal(packageJson.scripts["package:manifest:check"], "node scripts/check-package-manifest.mjs");
+  assert.equal(packageJson.scripts["fixtures:package-release:check"], "node scripts/validate-package-release-fixtures.mjs");
   assert.equal(release.cli.entrypoint, "bin/jury.mjs");
   assert.deepEqual(release.state.files, [
     "claims.jsonl",
@@ -1204,6 +1233,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes(release.packagePublication.releaseWorkflow));
   assert.ok(publicationNotes.includes(release.packagePublication.manifestCheckCommand));
   assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
+  assert.ok(publicationNotes.includes("npm --prefix jury run fixtures:package-release:check"));
   assert.ok(publicationNotes.includes("Dry-Run Publication Record"));
   assert.ok(publicationNotes.includes("jury-pack-dry-run.json"));
   assert.ok(publicationNotes.includes("jury-pack-dry-run-record.json"));
@@ -2083,6 +2113,7 @@ test("exported check and verdict examples validate as portable CI artifacts", as
 test("review bundle schema references the stable record schemas", async () => {
   const schema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/review-bundle.schema.json"), "utf8"));
   const keyPolicySchema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/key-policy.schema.json"), "utf8"));
+  const packageReleaseEvidenceSchema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/package-release-evidence.schema.json"), "utf8"));
   const properties = schema.properties.records.properties;
 
   assert.ok(schema.required.includes("producer"));
@@ -2107,6 +2138,14 @@ test("review bundle schema references the stable record schemas", async () => {
   assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.properties.revoked_at.format, "date-time");
   assert.deepEqual(keyPolicySchema.properties.producers.items.properties.keys.items.dependentRequired, { revoked_at: ["revoked_reason"] });
   assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.oneOf.length, 2);
+  assert.equal(packageReleaseEvidenceSchema.properties.schema_version.const, "jury.package_release_evidence.v1");
+  assert.deepEqual(packageReleaseEvidenceSchema.required, ["schema_version", "audit_type", "package", "failed"]);
+  assert.deepEqual(packageReleaseEvidenceSchema.properties.audit_type.enum, ["failed-publication-rollback", "replacement-patch-supersedence"]);
+  assert.deepEqual(packageReleaseEvidenceSchema.properties.failed.required, ["packageVersion", "tarballName", "dryRunRecord", "npmView"]);
+  assert.deepEqual(packageReleaseEvidenceSchema.properties.deprecation.required, ["attempted", "allowed", "command", "result"]);
+  assert.deepEqual(packageReleaseEvidenceSchema.properties.replacement.required, ["packageVersion", "npmView", "distTarball", "downstreamGate"]);
+  assert.equal(packageReleaseEvidenceSchema.properties.checks.minItems, 1);
+  assert.equal(packageReleaseEvidenceSchema.allOf.length, 2);
 });
 
 test("migration doc preserves the release artifact contract", async () => {
@@ -2172,6 +2211,8 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/package-release/replacement-npm-view.json",
     "examples/ci/fixtures/package-release/replacement-downstream-gate.json",
     "examples/ci/fixtures/package-release/replacement-patch-audit.json",
+    "schemas/package-release-evidence.schema.json",
+    "scripts/validate-package-release-fixtures.mjs",
   ]) {
     assert.ok(linkedTargets.includes(requiredLink), `RELEASE_CHECKLIST.md should link ${requiredLink}`);
   }
@@ -2202,6 +2243,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("replacement downstream verification pass"));
   assert.ok(checklist.includes("failed-version deprecation result"));
   assert.ok(checklist.includes("package publication rollback evidence"));
+  assert.ok(checklist.includes("fixtures:package-release:check"));
   assert.ok(checklist.includes("packageVersion"));
   assert.ok(checklist.includes("tarballName"));
   assert.ok(checklist.includes("reviewedBy"));
@@ -2254,6 +2296,8 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/fixtures/key-policy",
     "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/package-release",
+    "schemas/package-release-evidence.schema.json",
+    "scripts/validate-package-release-fixtures.mjs",
     "MIGRATION.md",
     "RELEASE_CHECKLIST.md",
     "PUBLISHING.md",
@@ -2272,6 +2316,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "npm --prefix jury test",
     "npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json",
     "npm --prefix jury run package:manifest:check",
+    "npm --prefix jury run fixtures:package-release:check",
   ]);
 
   for (const artifact of ["verdict.json", "gate.json", "review-bundle.json"]) {
@@ -2309,6 +2354,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /downstream verification rollback notes/);
   assert.match(handoff, /replacement patch supersedence evidence/);
   assert.match(handoff, /package release evidence fixture examples/);
+  assert.match(handoff, /package release evidence schema validation/);
+  assert.match(handoff, /JSON schema contract for package release evidence audit files/);
   assert.match(handoff, /dry-run publication summary output/);
   assert.match(handoff, /dry-run package summary reviewer audit notes/);
   assert.match(handoff, /stale dry-run artifact troubleshooting/);
@@ -2319,7 +2366,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /schema validation for package release evidence audit fixtures/);
+  assert.match(handoff, /CI workflow guidance for running package release evidence fixture checks before publication/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

@@ -16,6 +16,8 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, trusted key policy manifest, and untrusted-producer troubleshooting policy.
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
 - [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release): local package release evidence examples for failed publication rollback and replacement patch supersedence audits.
+- [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json): JSON schema contract for package release evidence audit files.
+- [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs): local schema and relationship check for the package release evidence fixtures.
 - [MIGRATION.md](MIGRATION.md): artifact handoff and bundle replay path.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): release-readiness checklist.
 - [PUBLISHING.md](PUBLISHING.md): package publication notes for preserving the CI adoption metadata contract.
@@ -30,9 +32,10 @@ Run these from the repository root before handing Jury to another maintainer:
 npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 npm --prefix jury run package:manifest:check
+npm --prefix jury run fixtures:package-release:check
 ```
 
-The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -52,4 +55,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add schema validation for package release evidence audit fixtures.
+Add CI workflow guidance for running package release evidence fixture checks before publication.

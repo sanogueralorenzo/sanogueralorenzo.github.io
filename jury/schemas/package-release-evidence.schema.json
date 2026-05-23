@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jury Package Release Evidence",
+  "type": "object",
+  "required": ["schema_version", "audit_type", "package", "failed"],
+  "properties": {
+    "schema_version": { "const": "jury.package_release_evidence.v1" },
+    "audit_type": {
+      "enum": ["failed-publication-rollback", "replacement-patch-supersedence"]
+    },
+    "package": { "type": "string", "minLength": 1 },
+    "failed": {
+      "type": "object",
+      "required": ["packageVersion", "tarballName", "dryRunRecord", "npmView"],
+      "properties": {
+        "packageVersion": { "type": "string", "minLength": 1 },
+        "tarballName": { "type": "string", "pattern": "\\.tgz$" },
+        "dryRunRecord": { "type": "string", "minLength": 1 },
+        "npmView": { "type": "string", "minLength": 1 },
+        "downstreamGate": { "type": "string", "minLength": 1 },
+        "deprecationEvidence": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "deprecation": {
+      "type": "object",
+      "required": ["attempted", "allowed", "command", "result"],
+      "properties": {
+        "attempted": { "type": "boolean" },
+        "allowed": { "type": "boolean" },
+        "command": { "type": "string", "minLength": 1 },
+        "result": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "requiredNextAudit": { "type": "string", "minLength": 1 },
+    "replacement": {
+      "type": "object",
+      "required": ["packageVersion", "npmView", "distTarball", "downstreamGate"],
+      "properties": {
+        "packageVersion": { "type": "string", "minLength": 1 },
+        "npmView": { "type": "string", "minLength": 1 },
+        "distTarball": { "type": "string", "minLength": 1 },
+        "downstreamGate": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "audit_type": { "const": "failed-publication-rollback" } },
+        "required": ["audit_type"]
+      },
+      "then": {
+        "required": ["deprecation", "requiredNextAudit"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "audit_type": { "const": "replacement-patch-supersedence" } },
+        "required": ["audit_type"]
+      },
+      "then": {
+        "required": ["replacement", "checks"]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

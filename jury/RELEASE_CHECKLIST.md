@@ -35,6 +35,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Review [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation) before rotating producer signing keys.
 - [ ] Compare package publication rollback evidence with [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release).
 - [ ] `npm --prefix jury run fixtures:key-policy:check` passes before release.
+- [ ] `npm --prefix jury run fixtures:package-release:check` passes before release.
 - [ ] Follow [MIGRATION.md](MIGRATION.md) when handing artifacts between jobs.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI emits `reject`, `retry`, `human_decision`, or a package manifest failure.
 - [ ] Read [MAINTAINER_HANDOFF.md](MAINTAINER_HANDOFF.md) before transferring ownership.
@@ -80,6 +81,8 @@ Expected fixture files:
 - [examples/ci/fixtures/package-release/replacement-npm-view.json](examples/ci/fixtures/package-release/replacement-npm-view.json)
 - [examples/ci/fixtures/package-release/replacement-downstream-gate.json](examples/ci/fixtures/package-release/replacement-downstream-gate.json)
 - [examples/ci/fixtures/package-release/replacement-patch-audit.json](examples/ci/fixtures/package-release/replacement-patch-audit.json)
+- [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json)
+- [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs)
 
 ## Validation
 
@@ -87,6 +90,7 @@ Expected fixture files:
 npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-release-readiness --json
 npm --prefix jury run package:manifest:check
+npm --prefix jury run fixtures:package-release:check
 ```
 
 The release is ready when the quickstart, workflow, fixture sync tests, migration path, tarball manifest check, and strict check all pass against the same artifact contract.

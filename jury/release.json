@@ -45,6 +45,7 @@
     "evidence": "schemas/evidence.schema.json",
     "keyPolicy": "schemas/key-policy.schema.json",
     "objection": "schemas/objection.schema.json",
+    "packageReleaseEvidence": "schemas/package-release-evidence.schema.json",
     "reviewBundle": "schemas/review-bundle.schema.json",
     "waiver": "schemas/waiver.schema.json",
     "verdict": "schemas/verdict.schema.json"
@@ -120,6 +121,7 @@
       "README.md",
       "bin/jury.mjs",
       "scripts/check-package-manifest.mjs",
+      "scripts/validate-package-release-fixtures.mjs",
       "schemas",
       "examples/ci/jury-package-manifest-check.yml",
       "examples/ci/jury-npm-publish.yml",
