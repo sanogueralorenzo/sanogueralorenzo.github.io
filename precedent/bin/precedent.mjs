@@ -627,7 +627,7 @@ async function issueWarrant() {
       if (deliveryReceipt.sessionId !== sessionId) {
         fail(`warrant --delivery-id session mismatch: ${deliveryReceipt.sessionId} !== ${sessionId}`);
       }
-      deliveryAck = await findContextInjectionAck(stateDir, explicitDeliveryId);
+      deliveryAck = await findContextInjectionAck(stateDir, explicitDeliveryId, sessionId);
       if (deliveryAck?.status !== "accepted") {
         fail(`warrant --delivery-id is not accepted by context.after_inject: ${deliveryAck?.status ?? "missing_ack"}`);
       }
@@ -1307,7 +1307,7 @@ async function latestPendingContextDelivery(stateDir, sessionId) {
 
   const events = await readSessionEvents(stateDir, sessionId);
   const contextEvents = events
-    .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export")
+    .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export" || event.hook === "conversation.before_turn")
     .filter((event) => {
       const receipt = event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null;
       const block = event.contextBlock ?? event.contextPayload?.contextBlock ?? "";
@@ -1317,7 +1317,7 @@ async function latestPendingContextDelivery(stateDir, sessionId) {
 
   for (const event of contextEvents.reverse()) {
     const receipt = event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null;
-    const ack = await findContextInjectionAck(stateDir, receipt.deliveryId);
+    const ack = await findContextInjectionAck(stateDir, receipt.deliveryId, sessionId);
     if (ack?.status === "accepted") {
       continue;
     }
@@ -2111,6 +2111,7 @@ async function contextAfterInjectEventHook(event) {
     injectionAck = contextInjectionAckFor({
       deliveryId,
       receipt,
+      sessionId,
       inserted,
       contextBlockHash: receivedHash,
       reason: stringOrNull(event.reason),
@@ -6897,6 +6898,7 @@ async function runtimeWiringHealthSummary(stateDir, events) {
   const unackedDeliveries = [];
   const mismatchedInjectionAcks = [];
   const rejectedInjectionAcks = [];
+  const crossSessionInjectionAcks = [];
 
   for (const entry of sessionEntries) {
     const hookEvents = entry.events.filter((event) => typeof event.hook === "string");
@@ -6921,6 +6923,15 @@ async function runtimeWiringHealthSummary(stateDir, events) {
           sessionId: entry.sessionId,
           hook: event.hook,
           deliveryId: event.deliveryId,
+        });
+      }
+
+      if (event.contextInjectionAck?.status === "session_mismatch") {
+        crossSessionInjectionAcks.push({
+          sessionId: entry.sessionId,
+          deliveryId: event.contextInjectionAck.deliveryId,
+          expectedSessionId: event.contextInjectionAck.expectedSessionId ?? null,
+          ackSessionId: event.contextInjectionAck.ackSessionId ?? event.contextInjectionAck.sessionId ?? event.sessionId ?? null,
         });
       }
     }
@@ -6976,6 +6987,7 @@ async function runtimeWiringHealthSummary(stateDir, events) {
     unackedDeliveries: unackedDeliveries.length,
     mismatchedInjectionAcks: mismatchedInjectionAcks.length,
     rejectedInjectionAcks: rejectedInjectionAcks.length,
+    crossSessionInjectionAcks: crossSessionInjectionAcks.length,
     needsAttention: uniqueStrings(fallbackAttachments).length
       + missingEventIds.length
       + uniqueStrings(unclosedInjectedSessions).length
@@ -6983,7 +6995,8 @@ async function runtimeWiringHealthSummary(stateDir, events) {
       + unknownDeliveryIds.length
       + unackedDeliveries.length
       + mismatchedInjectionAcks.length
-      + rejectedInjectionAcks.length,
+      + rejectedInjectionAcks.length
+      + crossSessionInjectionAcks.length,
     details: {
       fallbackAttachments: uniqueStrings(fallbackAttachments),
       missingEventIds: missingEventIds.slice(0, 20),
@@ -6993,6 +7006,7 @@ async function runtimeWiringHealthSummary(stateDir, events) {
       unackedDeliveries: unackedDeliveries.slice(0, 20),
       mismatchedInjectionAcks: mismatchedInjectionAcks.slice(0, 20),
       rejectedInjectionAcks: rejectedInjectionAcks.slice(0, 20),
+      crossSessionInjectionAcks: crossSessionInjectionAcks.slice(0, 20),
     },
   };
 }
@@ -7107,7 +7121,7 @@ async function precedentIdsForDelivery(stateDir, deliveryId) {
   }
 
   const receipt = await findDeliveryReceipt(stateDir, deliveryId.trim());
-  const ack = receipt ? await findContextInjectionAck(stateDir, deliveryId.trim()) : null;
+  const ack = receipt ? await findContextInjectionAck(stateDir, deliveryId.trim(), receipt.sessionId) : null;
   return ack?.status === "accepted" && Array.isArray(receipt?.injectedPrecedentIds) ? receipt.injectedPrecedentIds : [];
 }
 
@@ -7124,15 +7138,17 @@ async function findDeliveryReceipt(stateDir, deliveryId) {
   return null;
 }
 
-async function findContextInjectionAck(stateDir, deliveryId) {
+async function findContextInjectionAck(stateDir, deliveryId, sessionId = null) {
   if (!nonEmptyString(deliveryId)) {
     return null;
   }
 
+  const expectedSessionId = nonEmptyString(sessionId) ? sessionId : null;
   for (const entry of await runtimeSessionEntries(stateDir)) {
     const ack = entry.events
       .filter((event) =>
         event.hook === "context.after_inject"
+        && (!expectedSessionId || event.sessionId === expectedSessionId)
         && event.contextInjectionAck?.deliveryId === deliveryId)
       .map((event) => event.contextInjectionAck)
       .at(-1);
@@ -7187,20 +7203,26 @@ function precedentsForDeliveryReceipt(precedents, receipt) {
   return matches;
 }
 
-function contextInjectionAckFor({ deliveryId, receipt, inserted, contextBlockHash: receivedHash, reason }) {
+function contextInjectionAckFor({ deliveryId, receipt, sessionId, inserted, contextBlockHash: receivedHash, reason }) {
   const expectedHash = receipt?.contextBlockHash ?? null;
+  const expectedSessionId = receipt?.sessionId ?? null;
   const status = !receipt
     ? "missing_delivery"
-    : inserted !== true
-      ? "rejected"
-      : receivedHash !== expectedHash
-        ? "mismatch"
-        : "accepted";
+    : expectedSessionId !== sessionId
+      ? "session_mismatch"
+      : inserted !== true
+        ? "rejected"
+        : receivedHash !== expectedHash
+          ? "mismatch"
+          : "accepted";
 
   return {
     deliveryId,
     status,
     ok: status === "accepted",
+    sessionId,
+    ackSessionId: sessionId,
+    expectedSessionId,
     inserted,
     expectedContextBlockHash: expectedHash,
     contextBlockHash: receivedHash,
@@ -10768,7 +10790,8 @@ async function checkRuntimeWiring(checks, stateDir, strict) {
     + health.unknownDeliveryIds
     + health.unackedDeliveries
     + health.mismatchedInjectionAcks
-    + health.rejectedInjectionAcks;
+    + health.rejectedInjectionAcks
+    + health.crossSessionInjectionAcks;
 
   checks.push({
     ok: !strict || strictFailures === 0,

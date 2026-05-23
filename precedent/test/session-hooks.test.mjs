@@ -420,6 +420,19 @@ test("conversation observe emits an acknowledged delivery receipt for insertable
     assert.equal(observed.deliveryReceipt.contextBlockHash, observed.contextBlockHash);
     assert.deepEqual(observed.deliveryReceipt.injectedPrecedentIds, []);
 
+    const wrongSessionAck = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "other-session",
+      eventId: "message-1:wrong-session-ack",
+      deliveryId: observed.deliveryReceipt.deliveryId,
+      contextBlockHash: observed.contextBlockHash,
+      inserted: true,
+    });
+    assert.equal(wrongSessionAck.contextInjectionAck.status, "session_mismatch");
+    assert.equal(wrongSessionAck.contextInjectionAck.expectedSessionId, "observe-delivery");
+    assert.equal(wrongSessionAck.contextInjectionAck.ackSessionId, "other-session");
+
     const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",
       hook: "context.after_inject",
@@ -1054,6 +1067,11 @@ test("conversation before-turn observes messages and returns one ackable context
     assert.equal(sessionEvents.length, 1);
     assert.equal(sessionEvents[0].hook, "conversation.before_turn");
     assert.equal(sessionEvents[0].eventId, "turn-1");
+
+    const resumed = await runPrecedent(["resume", "--state-dir", stateDir, "--session", "composite", "--json"]);
+    assert.equal(resumed.source, "pending_delivery");
+    assert.equal(resumed.pendingDelivery.deliveryId, turn.deliveryReceipt.deliveryId);
+    assert.equal(resumed.contextBlock, turn.contextBlock);
 
     const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",

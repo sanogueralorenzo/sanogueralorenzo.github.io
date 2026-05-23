@@ -364,6 +364,52 @@ test("strict check surfaces context injection acknowledgement drift", async () =
   }
 });
 
+test("strict check surfaces cross-session context injection acknowledgements", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "ack-owner",
+      eventId: "turn-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+    const wrongAck = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "ack-other",
+      eventId: "ack-1",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      contextBlockHash: beforeTurn.contextBlockHash,
+      inserted: true,
+    });
+
+    assert.equal(wrongAck.contextInjectionAck.status, "session_mismatch");
+    assert.equal(wrongAck.contextInjectionAck.expectedSessionId, "ack-owner");
+    assert.equal(wrongAck.contextInjectionAck.ackSessionId, "ack-other");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const runtimeCheck = payload.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(report.runtimeWiringHealth.crossSessionInjectionAcks, 1);
+    assert.equal(report.runtimeWiringHealth.details.crossSessionInjectionAcks[0].deliveryId, beforeTurn.deliveryReceipt.deliveryId);
+    assert.equal(report.runtimeWiringHealth.details.crossSessionInjectionAcks[0].expectedSessionId, "ack-owner");
+    assert.equal(report.runtimeWiringHealth.details.crossSessionInjectionAcks[0].ackSessionId, "ack-other");
+    assert.equal(result.exitCode, 1);
+    assert.equal(runtimeCheck.ok, false);
+    assert.equal(runtimeCheck.crossSessionInjectionAcks, 1);
+    assert.equal(runtimeCheck.unackedDeliveries, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("strict check requires acknowledgement for conversation observe context deliveries", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

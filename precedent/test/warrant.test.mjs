@@ -231,6 +231,63 @@ test("warrant rejects mismatched delivery acknowledgements", async () => {
   }
 });
 
+test("warrant rejects cross-session delivery acknowledgements", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "delivery-ack-owner",
+      "--event-id",
+      "turn-1-context",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    const wrongAck = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "delivery-ack-other",
+      eventId: "ack-1",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      contextBlockHash: beforeTurn.contextBlockHash,
+      inserted: true,
+    });
+    const result = await runProcess([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "delivery-ack-owner",
+      "--event-id",
+      "turn-1-warrant",
+      "--delivery-id",
+      beforeTurn.deliveryReceipt.deliveryId,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    assert.equal(wrongAck.contextInjectionAck.status, "session_mismatch");
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /missing_ack/u);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("warrant rejects delivery receipts from another session", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
 
