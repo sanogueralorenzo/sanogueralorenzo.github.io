@@ -1182,6 +1182,11 @@ async function runAgentCommand(action, values) {
 }
 
 async function addAgent(name) {
+  if (name === "all") {
+    await addAllAgents();
+    return;
+  }
+
   const agentName = normalizeAgentName(name);
   const root = await repoRoot();
   await ensureTrace(root);
@@ -1192,12 +1197,42 @@ async function addAgent(name) {
   print({ ok: true, agent: agentName, config: relativePath(root, file), command: config.command });
 }
 
+async function addAllAgents() {
+  const root = await repoRoot();
+  await ensureTrace(root);
+  const agents = [];
+  for (const agentName of SUPPORTED_AGENTS) {
+    const config = agentConfig(agentName);
+    const file = agentConfigPath(root, agentName);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
+    agents.push({ agent: agentName, config: relativePath(root, file), command: config.command });
+  }
+  print({ ok: true, agents });
+}
+
 async function removeAgent(name) {
+  if (name === "all") {
+    await removeAllAgents();
+    return;
+  }
+
   const agentName = normalizeAgentName(name);
   const root = await repoRoot();
   const file = agentConfigPath(root, agentName);
   await rm(file, { force: true });
   print({ ok: true, agent: agentName, removed: relativePath(root, file) });
+}
+
+async function removeAllAgents() {
+  const root = await repoRoot();
+  const removed = [];
+  for (const agentName of SUPPORTED_AGENTS) {
+    const file = agentConfigPath(root, agentName);
+    await rm(file, { force: true });
+    removed.push({ agent: agentName, removed: relativePath(root, file) });
+  }
+  print({ ok: true, removed });
 }
 
 function normalizeAgentName(name) {
@@ -2514,9 +2549,9 @@ Usage:
   trace session list
   trace session current
   trace session show <session> [--limit 20]
-  trace agent add <codex|claude-code|gemini|generic>
+  trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list
-  trace agent remove <codex|claude-code|gemini|generic>
+  trace agent remove <codex|claude-code|gemini|generic|all>
   trace checkpoint list
   trace checkpoint status [remote]
   trace checkpoint verify

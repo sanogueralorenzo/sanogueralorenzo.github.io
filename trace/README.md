@@ -54,6 +54,7 @@ The current CLI is intentionally small and local-first:
 ./trace/install.sh --uninstall
 trace init
 trace enable
+trace agent add all
 trace agent add codex
 trace agent add claude-code
 trace agent add gemini
@@ -101,6 +102,7 @@ From a checkout, the same commands can be run without installing:
 ```shell
 node trace/bin/trace.mjs init
 node trace/bin/trace.mjs enable
+node trace/bin/trace.mjs agent add all
 node trace/bin/trace.mjs agent add codex
 node trace/bin/trace.mjs agent add claude-code
 node trace/bin/trace.mjs agent add gemini
@@ -184,7 +186,7 @@ See `trace/examples/` for complete local workflows covering adapter capture, com
 
 `trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, and `--uninstall` removes it.
 
-`trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create small local adapter specs under `.trace/agents/`. The specs document the command an agent integration should call:
+`trace agent add all` creates local adapter specs for every supported first-class adapter. `trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create a single spec under `.trace/agents/`. The specs document the command an agent integration should call:
 
 ```shell
 trace hook agent --adapter codex

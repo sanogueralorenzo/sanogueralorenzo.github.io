@@ -813,6 +813,17 @@ test("agent add list remove manages local hook adapter configs", async () => {
     const gemini = JSON.parse((await runTrace(repo, ["agent", "add", "gemini"])).stdout);
     assert.equal(gemini.agent, "gemini");
     assert.equal(gemini.command, "trace hook agent --adapter gemini");
+
+    const all = JSON.parse((await runTrace(repo, ["agent", "add", "all"])).stdout);
+    assert.deepEqual(all.agents.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
+
+    const allListed = JSON.parse((await runTrace(repo, ["agent", "list"])).stdout);
+    assert.deepEqual(allListed.agents.map((agent) => agent.agent), ["claude-code", "codex", "gemini", "generic"]);
+    assert.equal(allListed.agents.every((agent) => agent.valid), true);
+
+    const removedAll = JSON.parse((await runTrace(repo, ["agent", "remove", "all"])).stdout);
+    assert.deepEqual(removedAll.removed.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
+    assert.deepEqual(JSON.parse((await runTrace(repo, ["agent", "list"])).stdout).agents, []);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
