@@ -79,6 +79,7 @@ trace pr-body main..HEAD
 trace release-notes v1.0.0..HEAD
 trace pr-body main..HEAD --json
 trace checkpoint list
+trace checkpoint status origin
 trace checkpoint verify
 trace checkpoint push origin --dry-run
 trace checkpoint export --output trace-checkpoints.json
@@ -123,6 +124,7 @@ node trace/bin/trace.mjs pr-body main..HEAD
 node trace/bin/trace.mjs release-notes v1.0.0..HEAD
 node trace/bin/trace.mjs pr-body main..HEAD --json
 node trace/bin/trace.mjs checkpoint list
+node trace/bin/trace.mjs checkpoint status origin
 node trace/bin/trace.mjs checkpoint verify
 node trace/bin/trace.mjs checkpoint push origin --dry-run
 node trace/bin/trace.mjs checkpoint export --output trace-checkpoints.json
@@ -189,6 +191,7 @@ This keeps the first version agent-agnostic while making the hook contract expli
 Checkpoint commands keep the raw side of Trace explicit:
 
 - `trace checkpoint list` shows checkpoint payloads stored on `refs/trace/checkpoints`.
+- `trace checkpoint status <remote>` compares the local checkpoint ref with a remote ref and prints the exact push/fetch commands needed to sync it.
 - `trace checkpoint verify` checks checkpoint payload shape, commit reachability, and stored SHA-256 integrity metadata.
 - `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref.
 - `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service.

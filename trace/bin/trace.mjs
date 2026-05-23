@@ -448,6 +448,11 @@ async function runCheckpointCommand(action, values) {
     return;
   }
 
+  if (action === "status") {
+    await checkpointStatus(values[0] ?? args.remote ?? "origin");
+    return;
+  }
+
   if (action === "verify") {
     await verifyCheckpoints();
     return;
@@ -501,6 +506,54 @@ async function verifyCheckpoints() {
   if (!ok) {
     process.exitCode = 1;
   }
+}
+
+async function checkpointStatus(remote) {
+  const root = await repoRoot();
+  const localCommit = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
+  const remoteCommit = await remoteCheckpointCommit(root, remote);
+  const distance = await checkpointDistance(root, localCommit, remoteCommit);
+  print({
+    ok: true,
+    ref: CHECKPOINT_REF,
+    remote,
+    localPresent: Boolean(localCommit),
+    localCommit: localCommit || null,
+    remotePresent: Boolean(remoteCommit),
+    remoteCommit: remoteCommit || null,
+    inSync: Boolean(localCommit && remoteCommit && localCommit === remoteCommit),
+    ahead: distance?.ahead ?? null,
+    behind: distance?.behind ?? null,
+    pushCommand: `git push ${remote} ${CHECKPOINT_REF}:${CHECKPOINT_REF}`,
+    fetchCommand: `git fetch ${remote} ${CHECKPOINT_REF}:${CHECKPOINT_REF}`,
+  });
+}
+
+async function remoteCheckpointCommit(root, remote) {
+  const output = await git(["ls-remote", remote, CHECKPOINT_REF], { cwd: root, allowFailure: true });
+  return output.split(/\s+/)[0] || "";
+}
+
+async function checkpointDistance(root, localCommit, remoteCommit) {
+  if (!localCommit || !remoteCommit) {
+    return null;
+  }
+
+  const remoteObject = await git(["rev-parse", "--verify", `${remoteCommit}^{commit}`], { cwd: root, allowFailure: true });
+  if (!remoteObject && localCommit !== remoteCommit) {
+    return null;
+  }
+
+  const ahead = localCommit === remoteCommit
+    ? "0"
+    : await git(["rev-list", "--count", `${remoteCommit}..${localCommit}`], { cwd: root, allowFailure: true });
+  const behind = localCommit === remoteCommit
+    ? "0"
+    : await git(["rev-list", "--count", `${localCommit}..${remoteCommit}`], { cwd: root, allowFailure: true });
+  return {
+    ahead: ahead === "" ? null : Number.parseInt(ahead, 10),
+    behind: behind === "" ? null : Number.parseInt(behind, 10),
+  };
 }
 
 async function checkpointAudit(root) {
@@ -2392,6 +2445,7 @@ Usage:
   trace agent list
   trace agent remove <codex|claude-code|gemini|generic>
   trace checkpoint list
+  trace checkpoint status [remote]
   trace checkpoint verify
   trace checkpoint push [remote] [--dry-run]
   trace checkpoint fetch [remote] [--dry-run]

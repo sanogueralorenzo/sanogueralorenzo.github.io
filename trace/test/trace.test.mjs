@@ -610,6 +610,23 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     const restored = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
     assert.deepEqual(restored.checkpoints.map((checkpoint) => checkpoint.checkpoint_id), ["checkpoint-a", "checkpoint-b"]);
 
+    const bareRemote = join(repo, "checkpoint-origin.git");
+    await git(repo, ["init", "--bare", bareRemote]);
+    await git(repo, ["remote", "add", "origin", bareRemote]);
+    const missingRemoteStatus = JSON.parse((await runTrace(repo, ["checkpoint", "status", "origin"])).stdout);
+    assert.equal(missingRemoteStatus.localPresent, true);
+    assert.equal(missingRemoteStatus.remotePresent, false);
+    assert.equal(missingRemoteStatus.inSync, false);
+    assert.equal(missingRemoteStatus.pushCommand, "git push origin refs/trace/checkpoints:refs/trace/checkpoints");
+
+    await runTrace(repo, ["checkpoint", "push", "origin"]);
+    const syncedStatus = JSON.parse((await runTrace(repo, ["checkpoint", "status", "origin"])).stdout);
+    assert.equal(syncedStatus.localPresent, true);
+    assert.equal(syncedStatus.remotePresent, true);
+    assert.equal(syncedStatus.inSync, true);
+    assert.equal(syncedStatus.ahead, 0);
+    assert.equal(syncedStatus.behind, 0);
+
     const push = JSON.parse((await runTrace(repo, ["checkpoint", "push", "origin", "--dry-run"])).stdout);
     assert.equal(push.command, "git push origin refs/trace/checkpoints:refs/trace/checkpoints");
 
