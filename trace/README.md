@@ -110,6 +110,7 @@ trace redact audit
 trace doctor
 trace check
 trace check --checkpoints
+trace check --strict-memory
 trace coverage main..HEAD
 trace ci main..HEAD --agents --checkpoints
 trace ci main..HEAD --strict-memory
@@ -171,6 +172,7 @@ node trace/bin/trace.mjs redact list
 node trace/bin/trace.mjs redact audit
 node trace/bin/trace.mjs doctor
 node trace/bin/trace.mjs check
+node trace/bin/trace.mjs check --strict-memory
 node trace/bin/trace.mjs coverage main..HEAD
 node trace/bin/trace.mjs ci main..HEAD
 node trace/bin/trace.mjs ci main..HEAD --strict-memory
@@ -180,7 +182,7 @@ node trace/bin/trace.mjs ci main..HEAD --strict-memory
 
 This keeps the project tree focused on reviewable memories while raw checkpoint data stays outside the normal branch history unless someone explicitly pushes the Trace ref.
 
-Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace review` shows the pending memory review queue with checkpoint/session identity, intent, summary, decisions, affected files, validation, risks, and future-agent handoff before those files are committed. `trace check` fails when Trace memory files are uncommitted, use an unsupported schema, point at a commit that is not reachable, are stored at the wrong commit-derived path, are missing checkpoint/session metadata, or are missing required sections, which makes that handoff explicit instead of silently pretending the memory is already durable. Add `--checkpoints` to also require a present, valid checkpoint ref with payloads for committed memories.
+Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace review` shows the pending memory review queue with checkpoint/session identity, intent, summary, decisions, affected files, validation, risks, and future-agent handoff before those files are committed. `trace check` fails when Trace memory files are uncommitted, use an unsupported schema, point at a commit that is not reachable, are stored at the wrong commit-derived path, are missing checkpoint/session metadata, or are missing required sections, which makes that handoff explicit instead of silently pretending the memory is already durable. Add `--checkpoints` to also require a present, valid checkpoint ref with payloads for committed memories, and `--strict-memory` to require committed memories to contain intent, decision, and validation signals.
 
 `trace record` and the post-commit hook distill raw session events into compact commit memory. When a commit already has `Trace-Checkpoint` or `Trace-Session` trailers, `trace record` reuses those identities so manual recording stays aligned with hook-created commits. Repeated events are deduplicated, local session lifecycle notes are kept in the raw checkpoint but excluded from the reviewable summary, long entries are truncated, noisy sections are capped with an explicit omitted-events line, and a short `Handoff` section is derived from the visible decision, validation, risks, and changed files so future agents know what to preserve or recheck while the full checkpoint remains available on the Trace ref. Use `trace record --dry-run` to preview the exact Markdown memory without writing `.trace/commits/` or updating `refs/trace/checkpoints`, `trace record --check-session` to fail before writing when the selected session only contains local lifecycle notes, and `trace record --check-session --strict` when the session must include intent, decision, and validation signals.
 

@@ -473,7 +473,11 @@ async function checkTrace() {
   const checkpointIntegrity = args.checkpoints
     ? await checkpointIntegrityReport(root, await memoryTargetsForFiles(root, files))
     : null;
-  const ok = invalidMemories.length === 0 && dirtyTrace.length === 0 && (checkpointIntegrity?.ok ?? true);
+  const memoryQuality = args["strict-memory"] ? await strictMemoryQualityReport(root, await memoryTargetsForFiles(root, files)) : null;
+  const ok = invalidMemories.length === 0
+    && dirtyTrace.length === 0
+    && (checkpointIntegrity?.ok ?? true)
+    && (memoryQuality?.ok ?? true);
   print({
     ok,
     memories: files.length,
@@ -481,6 +485,7 @@ async function checkTrace() {
     uncommitted: dirtyTrace,
     invalidMemories,
     checkpointIntegrity,
+    memoryQuality,
   });
 
   if (!ok) {
@@ -3428,7 +3433,7 @@ Usage:
   trace hook pre-commit
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
   trace doctor
-  trace check [--checkpoints]
+  trace check [--checkpoints] [--strict-memory]
   trace status
   trace disable
 `);

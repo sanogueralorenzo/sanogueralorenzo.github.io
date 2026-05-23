@@ -504,6 +504,15 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.equal(cleanPayload.ok, true);
     assert.equal(cleanPayload.uncommitted.length, 0);
     assert.equal(cleanPayload.checkpointIntegrity, null);
+    assert.equal(cleanPayload.memoryQuality, null);
+
+    const strictMemory = await runTraceAllowFailure(repo, ["check", "--strict-memory"]);
+    assert.equal(strictMemory.exitCode, 1);
+    const strictMemoryPayload = JSON.parse(strictMemory.stdout);
+    assert.equal(strictMemoryPayload.ok, false);
+    assert.equal(strictMemoryPayload.memoryQuality.ok, false);
+    assert.equal(strictMemoryPayload.memoryQuality.checked, 1);
+    assert.ok(strictMemoryPayload.memoryQuality.findings.some((finding) => finding.reason === "missing decision signal"));
 
     const cleanWithCheckpoints = JSON.parse((await runTrace(repo, ["check", "--checkpoints"])).stdout);
     assert.equal(cleanWithCheckpoints.ok, true);
