@@ -3346,6 +3346,7 @@ async function hookPostCommit() {
   await mkdir(dirname(memoryPath), { recursive: true });
   await writeFile(memoryPath, memory.markdown);
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
+  await endRecordedSession(root, sessionId);
   await rm(await pendingCommitPath(root), { force: true });
 }
 

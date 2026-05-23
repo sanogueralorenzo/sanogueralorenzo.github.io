@@ -2078,6 +2078,15 @@ test("enable installs git hooks that link commits and write post-commit memory",
     const sha = (await git(repo, ["rev-parse", "HEAD"])).stdout.trim();
     const memory = await readFile(join(repo, ".trace/commits", sha.slice(0, 2), `${sha}.md`), "utf8");
     assert.match(memory, /hook captured intent/);
+    assert.doesNotMatch(memory, /session recorded/);
+    const sessionId = body.stdout.match(/^Trace-Session:\s*(\S+)/m)?.[1];
+    assert.ok(sessionId);
+
+    const currentAfterHook = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
+    assert.equal(currentAfterHook.current, null);
+    const hookSession = JSON.parse((await runTrace(repo, ["session", "show", sessionId])).stdout);
+    assert.equal(hookSession.events.at(-1).source, "trace-record");
+    assert.equal(hookSession.events.at(-1).message, "session recorded");
 
     const status = await runTrace(repo, ["status"]);
     const payload = JSON.parse(status.stdout);
