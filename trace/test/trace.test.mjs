@@ -39,6 +39,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(dryRun.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
     assert.equal(dryRun.sessionCheck.ok, true);
     assert.match(dryRun.markdown, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
+    assert.equal(dryRun.memoryPreview.schema_version, "trace.record_memory_preview.v1");
     assert.equal(dryRun.memoryPreview.intent, "remember why app text exists");
     assert.deepEqual(dryRun.memoryPreview.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(dryRun.memoryPreview.validation, ["node --test"]);
@@ -54,6 +55,9 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(payload.ok, true);
     assert.match(payload.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
     assert.equal(payload.sessionCheck.ok, true);
+    assert.equal(payload.memoryPreview.schema_version, "trace.record_memory_preview.v1");
+    assert.equal(payload.memoryPreview.intent, "remember why app text exists");
+    assert.deepEqual(payload.memoryPreview.validation, ["node --test"]);
 
     const strictMemoryCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--strict-memory"])).stdout);
     assert.equal(strictMemoryCi.ok, true);

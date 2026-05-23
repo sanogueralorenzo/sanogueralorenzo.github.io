@@ -2244,7 +2244,7 @@ async function recordMemory() {
       checkpoint: checkpointId,
       session: sessionId,
       markdown: memory.markdown,
-      memoryPreview: memoryRecord(memory.markdown),
+      memoryPreview: recordMemoryPreview(memory.markdown),
     };
     if (sessionReport) {
       output.sessionCheck = sessionReport;
@@ -2256,7 +2256,14 @@ async function recordMemory() {
   await mkdir(dirname(memoryPath), { recursive: true });
   await writeFile(memoryPath, memory.markdown);
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
-  const output = { ok: true, commit: sha, memory: relativePath(root, memoryPath), checkpoint: checkpointId, session: sessionId };
+  const output = {
+    ok: true,
+    commit: sha,
+    memory: relativePath(root, memoryPath),
+    checkpoint: checkpointId,
+    session: sessionId,
+    memoryPreview: recordMemoryPreview(memory.markdown),
+  };
   if (sessionReport) {
     output.sessionCheck = sessionReport;
   }
@@ -2429,6 +2436,13 @@ function memoryLogRecord(root, file, content, mtimeMs) {
     checkpoint: content.match(/^Checkpoint: `([^`]+)`/m)?.[1] ?? "none",
     session: content.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
     mtimeMs,
+  };
+}
+
+function recordMemoryPreview(markdown) {
+  return {
+    schema_version: "trace.record_memory_preview.v1",
+    ...memoryRecord(markdown),
   };
 }
 
