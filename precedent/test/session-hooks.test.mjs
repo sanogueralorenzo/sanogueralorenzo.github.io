@@ -173,6 +173,76 @@ test("session before-turn hooks suppress repeated injections", async () => {
   }
 });
 
+test("conversation observe turns user corrections into replay-gated candidate evidence", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const correctionEvent = {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "demo",
+      eventId: "message-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{
+        role: "user",
+        content: "Use pnpm test:webhooks, not pnpm test. Token ghp_1234567890abcdef1234567890abcdef1234",
+      }],
+    };
+    const correction = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], correctionEvent);
+    const retry = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], correctionEvent);
+
+    assert.equal(correction.recorded, true);
+    assert.equal(retry.recorded, false);
+    assert.equal(retry.deduped, true);
+    assert.deepEqual(correction.observation.correctionSignals, [{
+      type: "command_correction",
+      expected: "pnpm test:webhooks",
+      actual: "pnpm test",
+      source: "user",
+    }]);
+    assert.equal(correction.contextBlock, "Precedent correction:\n- Use pnpm test:webhooks instead of pnpm test.");
+
+    await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "demo",
+      command: "pnpm test",
+      exitCode: 1,
+      stderr: "wrong package test failed",
+    });
+    const outcome = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "demo",
+      success: false,
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      notes: "User corrected the validation command.",
+    });
+
+    assert.equal(outcome.learning.status, "candidate");
+    assert.deepEqual(outcome.learning.candidateIds, ["cand_feature_webhooks_wrong_test_command"]);
+
+    const trace = JSON.parse(await readFile(join(stateDir, "traces/session-demo.json"), "utf8"));
+    assert.deepEqual(trace.hooks["conversation.observe"].correctionSignals, correction.observation.correctionSignals);
+    assert.ok(trace.failures.some((failure) => failure.includes("user corrected pnpm test to pnpm test:webhooks")));
+    assert.ok(trace.session.events[0].messages[0].content.includes("[REDACTED:github_token]"));
+    assert.equal(trace.session.events[0].messages[0].content.includes("ghp_1234567890"), false);
+
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    assert.equal(candidates[0].id, "cand_feature_webhooks_wrong_test_command");
+    assert.equal(candidates[0].replayPlan.baseline.command, "pnpm test");
+    assert.ok(candidates[0].evidence.includes("conversation-correction: use pnpm test:webhooks instead of pnpm test"));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("context hook suppresses repeated injections within one session", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
 

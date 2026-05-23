@@ -52,6 +52,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.identity.source, "task_hash_fallback");
     assert.equal(first.identity.fallback, true);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.phase), [
+      "conversationObserve",
       "beforeTurn",
       "beforeEdit",
       "afterValidation",
@@ -63,6 +64,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "afterOutcome",
     ]);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.hook), [
+      "conversation.observe",
       "context.before_turn",
       undefined,
       "validation.after_run",
@@ -79,8 +81,9 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "afterOutcome",
     ]);
     assert.equal(first.adapter.lifecycle[0].injectFrom, "contextBlock");
-    assert.equal(first.adapter.lifecycle[5].injectFrom, "repairBlock");
-    assert.equal(first.adapter.lifecycle[7].injectFrom, "contextBlock");
+    assert.equal(first.adapter.lifecycle[1].injectFrom, "contextBlock");
+    assert.equal(first.adapter.lifecycle[6].injectFrom, "repairBlock");
+    assert.equal(first.adapter.lifecycle[8].injectFrom, "contextBlock");
     assert.deepEqual(first.adapter.warrant.command.slice(0, 5), [
       "node",
       "precedent/bin/precedent.mjs",
@@ -95,6 +98,10 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.ok(first.adapter.beforeTurn.output.includes("deliveryReceipt"));
     assert.ok(first.adapter.beforeTurn.output.includes("deduped"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
+    assert.deepEqual(first.adapter.conversationObserve.stdin.hook, "conversation.observe");
+    assert.equal(first.adapter.conversationObserve.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.conversationObserve.stdin.messages, "$MESSAGES");
+    assert.equal(first.adapter.conversationObserve.injectFrom, "contextBlock");
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
     assert.equal(first.adapter.afterValidation.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterValidation.stdin.deliveryId, "$DELIVERY_ID");

@@ -131,6 +131,7 @@ echo '{"schema_version":"precedent.v1","hook":"context.before_turn","task":"add 
 node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"context.before_turn","sessionId":"demo","eventId":"turn-001","task":"add another webhook handler"}' | node precedent/bin/precedent.mjs loop --json
+printf '%s\n' '{"schema_version":"precedent.v1","hook":"conversation.observe","sessionId":"demo","eventId":"message-001","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"],"messages":[{"role":"user","content":"Use pnpm test:webhooks, not pnpm test."}]}' | node precedent/bin/precedent.mjs hook --json
 node precedent/bin/precedent.mjs context --session demo --event-id turn-001 --task "add another webhook handler" --scope feature:webhooks
 node precedent/bin/precedent.mjs warrant --session demo --event-id turn-001-warrant --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 node precedent/bin/precedent.mjs artifact --candidate cand_feature_webhooks_wrong_test_command --json
@@ -159,6 +160,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `context` is the preferred runtime-facing export: it returns `schema_version: "precedent.context.v1"`, an insertable `contextBlock`, injection metadata, suppression metadata, non-injectable `candidateHints`, an optional `deliveryReceipt` for later attribution, and the source inputs used for ranking.
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
 - `loop` reads newline-delimited hook events from stdin and writes one JSON response per line, giving runtimes a single long-lived, runtime-agnostic event pump. Malformed lines return `{ "ok": false }` without stopping later events.
+- `conversation.observe` captures normal chat messages and extracts bounded correction signals such as "use pnpm test:webhooks, not pnpm test" into a `Precedent correction:` context block. It records and dedupes the message event, redacts stored secrets, and feeds those corrections into session traces as replay-gated candidate evidence rather than injectable memory.
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
 - Every injection includes `matchReasons`, so a runtime can show why Precedent injected memory instead of treating it as opaque prompt context.
 - Session hooks suppress a precedent after it has already been injected once in the same session; pass `"allowRepeat": true` only when a runtime intentionally wants repeated context.
@@ -218,6 +220,7 @@ Minimal config:
     "enabled": true
   },
   "enabledHooks": [
+    "conversation.observe",
     "context.before_turn",
     "validation.after_run",
     "diff.after_edit",

@@ -14,6 +14,7 @@ const SUPPORTED_GUARD_TYPES = new Set([
   "required_validation_command",
 ]);
 const SUPPORTED_EVENT_HOOKS = new Set([
+  "conversation.observe",
   "context.before_turn",
   "validation.after_run",
   "diff.after_edit",
@@ -1204,6 +1205,10 @@ async function dispatchHookEvent(rawEvent) {
     return capturePrintedPayload(() => contextBeforeTurnEventHook(event));
   }
 
+  if (hook === "conversation.observe") {
+    return capturePrintedPayload(() => conversationObserveEventHook(event));
+  }
+
   if (hook === "validation.after_run") {
     return capturePrintedPayload(() => validationAfterRunEventHook(event));
   }
@@ -1619,6 +1624,62 @@ async function validationAfterRunEventHook(event) {
     warrantResult,
     promotionTrials,
     contextBlock,
+  });
+}
+
+async function conversationObserveEventHook(event) {
+  const stateDir = statePath();
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
+  const messages = conversationMessages(event);
+  const correctionSignals = conversationCorrectionSignals(messages);
+  const contextBlock = formatCorrectionContextBlock(correctionSignals);
+  let sessionEvent = null;
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId,
+      ...eventIdField(eventId),
+      task: typeof event.task === "string" ? event.task : null,
+      scope: typeof event.scope === "string" ? event.scope : null,
+      changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles),
+      messages,
+      correctionSignals,
+      contextBlock,
+    });
+
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        ...eventIdField(eventId),
+        task: sessionEvent.event.task,
+        scope: sessionEvent.event.scope,
+        changedFiles: sessionEvent.event.changedFiles,
+        correctionSignals: sessionEvent.event.correctionSignals,
+        contextBlock: sessionEvent.event.contextBlock,
+      });
+    }
+  });
+
+  print({
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
+    sessionEventPath: sessionEvent.path,
+    observation: {
+      messages: sessionEvent.event.messages,
+      correctionSignals: sessionEvent.event.correctionSignals,
+    },
+    contextBlock: sessionEvent.event.contextBlock,
   });
 }
 
@@ -2302,6 +2363,14 @@ function buildManifest(runtime, stateDir) {
         timeoutMs,
         failurePolicy,
       },
+      "conversation.observe": {
+        command: hookCommand,
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "contextBlock"],
+        injectFrom: "contextBlock",
+        timeoutMs,
+        failurePolicy,
+      },
       "validation.after_run": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
@@ -2492,6 +2561,13 @@ async function attachRuntime() {
     adapter: {
       lifecycle: [
         {
+          phase: "conversationObserve",
+          hook: "conversation.observe",
+          required: false,
+          injectFrom: "contextBlock",
+          eventId: "$EVENT_ID",
+        },
+        {
           phase: "beforeTurn",
           hook: "context.before_turn",
           required: true,
@@ -2554,6 +2630,24 @@ async function attachRuntime() {
         eventId: "$EVENT_ID",
         output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      conversationObserve: {
+        command: hookCommand,
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "contextBlock"],
+        injectFrom: "contextBlock",
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "conversation.observe",
+          sessionId,
+          eventId: "$EVENT_ID",
+          task: taskSource.task,
+          scope: scope || null,
+          changedFiles,
+          messages: "$MESSAGES",
+          message: "$MESSAGE",
+        },
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -5706,6 +5800,7 @@ async function readSessionEvents(stateDir, sessionId) {
 
 function contextFromSessionEvents(events, fallbackEvent = {}) {
   const contextTurns = events.filter((event) => event.hook === "context.before_turn" || event.hook === "context.export");
+  const observations = events.filter((event) => event.hook === "conversation.observe");
   const diffs = events.filter((event) => event.hook === "diff.after_edit");
   const reviews = events.filter((event) => event.hook === "review.after_feedback");
   const outcomes = events.filter((event) => event.hook === "outcome.after_task");
@@ -5721,6 +5816,7 @@ function contextFromSessionEvents(events, fallbackEvent = {}) {
       : (lastContextTurn.scope ?? fallbackEvent.scope ?? ""),
     changedFiles: uniqueStrings([
       ...contextTurns.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+      ...observations.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
       ...diffs.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
       ...reviews.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
       ...outcomes.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
@@ -5738,6 +5834,7 @@ async function traceFromSession(stateDir, sessionId) {
   }
 
   const contextTurns = events.filter((event) => event.hook === "context.before_turn" || event.hook === "context.export");
+  const observations = events.filter((event) => event.hook === "conversation.observe");
   const validations = events.filter((event) => event.hook === "validation.after_run");
   const diffs = events.filter((event) => event.hook === "diff.after_edit");
   const reviews = events.filter((event) => event.hook === "review.after_feedback");
@@ -5749,6 +5846,7 @@ async function traceFromSession(stateDir, sessionId) {
   const lastOutcome = outcomes.at(-1) ?? {};
   const changedFiles = uniqueStrings([
     ...contextTurns.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+    ...observations.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
     ...diffs.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
     ...reviews.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
     ...outcomes.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
@@ -5768,10 +5866,13 @@ async function traceFromSession(stateDir, sessionId) {
   const reviewFailures = reviews
     .flatMap((event) => Array.isArray(event.comments) ? event.comments : [])
     .map((comment) => `review: ${comment}`);
+  const observationFailures = observations
+    .flatMap((event) => Array.isArray(event.correctionSignals) ? event.correctionSignals : [])
+    .map(formatCorrectionFailureForTrace);
   const guardFailures = events
     .flatMap((event) => Array.isArray(event.guardResult?.failed) ? event.guardResult.failed : [])
     .map(formatGuardFailureForTrace);
-  const failures = [...validationFailures, ...diffFailures, ...reviewFailures, ...guardFailures, ...outcomeFailures];
+  const failures = [...validationFailures, ...diffFailures, ...reviewFailures, ...observationFailures, ...guardFailures, ...outcomeFailures];
   const failedValidation = validations.find((event) => event.exitCode !== 0);
   const validationEvidence = failedValidation
     ? {
@@ -5790,6 +5891,12 @@ async function traceFromSession(stateDir, sessionId) {
       changedFiles: uniqueStrings(reviews.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : [])),
     }
     : null;
+  const observationEvidence = observations.length > 0
+    ? {
+      correctionSignals: observations.flatMap((event) => Array.isArray(event.correctionSignals) ? event.correctionSignals : []),
+      changedFiles: uniqueStrings(observations.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : [])),
+    }
+    : null;
 
   return {
     schema_version: SCHEMA_VERSION,
@@ -5801,6 +5908,7 @@ async function traceFromSession(stateDir, sessionId) {
     changedFiles,
     failures,
     hooks: {
+      ...(observationEvidence ? { "conversation.observe": observationEvidence } : {}),
       ...(validationEvidence ? { "validation.after_run": validationEvidence } : {}),
       ...(reviewEvidence ? { "review.after_feedback": reviewEvidence } : {}),
     },
@@ -5825,6 +5933,8 @@ function sessionTraceEvent(event) {
     scope: event.scope ?? null,
     changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : [],
     comments: Array.isArray(event.comments) ? event.comments : [],
+    messages: Array.isArray(event.messages) ? event.messages : [],
+    correctionSignals: Array.isArray(event.correctionSignals) ? event.correctionSignals : [],
     command: event.command ?? null,
     exitCode: Number.isFinite(event.exitCode) ? event.exitCode : null,
     success: typeof event.success === "boolean" ? event.success : null,
@@ -5833,6 +5943,7 @@ function sessionTraceEvent(event) {
     guardResult: event.guardResult ?? null,
     suppressedInjections: Array.isArray(event.suppressedInjections) ? event.suppressedInjections : [],
     promotionTrials: Array.isArray(event.promotionTrials) ? event.promotionTrials : [],
+    contextBlock: event.contextBlock ?? "",
     stdoutSummary: event.stdoutSummary ?? null,
     stderrSummary: event.stderrSummary ?? null,
   };
@@ -6294,6 +6405,14 @@ function formatGuardFailureForTrace(guard) {
   return `guard warning: ${guard.message}`;
 }
 
+function formatCorrectionFailureForTrace(signal) {
+  if (signal.type === "command_correction") {
+    return `wrong test command: user corrected ${signal.actual} to ${signal.expected}`;
+  }
+
+  return `conversation correction: ${signal.message ?? signal.type ?? "unknown"}`;
+}
+
 function validationFailureSignals(event, exitCode) {
   return uniqueStrings([
     ...(Array.isArray(event.failureSignals) ? event.failureSignals : parseListArg(event.failureSignals)),
@@ -6388,6 +6507,80 @@ function reviewComments(event) {
   }
 
   return [];
+}
+
+function conversationMessages(event) {
+  const rawMessages = Array.isArray(event.messages)
+    ? event.messages
+    : [event.message ?? event.content].filter((value) => value !== undefined && value !== null);
+  const messages = rawMessages
+    .map((message) => {
+      if (typeof message === "string") {
+        return {
+          role: "user",
+          content: message.trim(),
+        };
+      }
+
+      return {
+        role: typeof message?.role === "string" && message.role.trim().length > 0 ? message.role.trim() : "unknown",
+        content: typeof message?.content === "string" ? message.content.trim() : "",
+      };
+    })
+    .filter((message) => message.content.length > 0);
+
+  if (messages.length === 0) {
+    fail("conversation.observe requires messages, message, or content");
+  }
+
+  return messages;
+}
+
+function conversationCorrectionSignals(messages) {
+  const signals = [];
+
+  for (const message of messages) {
+    const content = message.content.replace(/\s+/gu, " ").trim();
+    for (const match of content.matchAll(/\buse\s+([^.;\n]+?)\s*,?\s+not\s+([^.;\n]+)/giu)) {
+      signals.push(commandCorrectionSignal(match[1], match[2], message.role));
+    }
+    for (const match of content.matchAll(/\buse\s+([^.;\n]+?)\s+instead\s+of\s+([^.;\n]+)/giu)) {
+      signals.push(commandCorrectionSignal(match[1], match[2], message.role));
+    }
+    for (const match of content.matchAll(/\b(?:do not|don't)\s+use\s+([^.;\n]+?)[,;]\s*use\s+([^.;\n]+)/giu)) {
+      signals.push(commandCorrectionSignal(match[2], match[1], message.role));
+    }
+  }
+
+  return uniqueBy(signals.filter((signal) => signal.expected && signal.actual), (signal) => `${signal.type}:${signal.expected}:${signal.actual}`);
+}
+
+function commandCorrectionSignal(expected, actual, role) {
+  return {
+    type: "command_correction",
+    expected: cleanCorrectionCommand(expected),
+    actual: cleanCorrectionCommand(actual),
+    source: role,
+  };
+}
+
+function cleanCorrectionCommand(value) {
+  return String(value)
+    .replace(/^["'`]+|["'`]+$/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function formatCorrectionContextBlock(signals) {
+  const commandCorrections = signals.filter((signal) => signal.type === "command_correction");
+  if (commandCorrections.length === 0) {
+    return "";
+  }
+
+  return [
+    "Precedent correction:",
+    ...commandCorrections.slice(0, 3).map((signal) => `- Use ${signal.expected} instead of ${signal.actual}.`),
+  ].join("\n");
 }
 
 function parseListArg(value) {
@@ -6748,6 +6941,13 @@ function collectTraceEvidence(trace) {
   const validation = trace.hooks?.["validation.after_run"];
   if (validation?.command || validation?.result || validation?.evidence) {
     evidence.push(`validation: ${[validation.command, validation.result, validation.evidence].filter(Boolean).join(" - ")}`);
+  }
+
+  const observation = trace.hooks?.["conversation.observe"];
+  for (const signal of Array.isArray(observation?.correctionSignals) ? observation.correctionSignals : []) {
+    if (signal.type === "command_correction") {
+      evidence.push(`conversation-correction: use ${signal.expected} instead of ${signal.actual}`);
+    }
   }
 
   const review = trace.hooks?.["review.after_feedback"];

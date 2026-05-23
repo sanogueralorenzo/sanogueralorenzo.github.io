@@ -20,6 +20,7 @@ test("init creates deterministic versioned runtime config", async () => {
     assert.ok(initialized.files.includes(join(stateDir, "config.json")));
     assert.deepEqual(config, {
       enabledHooks: [
+        "conversation.observe",
         "context.before_turn",
         "validation.after_run",
         "diff.after_edit",
