@@ -56,6 +56,16 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const riskSearch = await runTrace(repo, ["search", "--field", "risks", "reviewable"]);
     assert.equal(riskSearch.stdout, "");
 
+    const recall = await runTrace(repo, ["recall", "reviewable", "--limit", "1"]);
+    assert.match(recall.stdout, /Trace Recall/);
+    assert.match(recall.stdout, /Matches: 1/);
+    assert.match(recall.stdout, /Use committed Markdown for reviewable memory/);
+    assert.match(recall.stdout, /node --test/);
+
+    const fileRecall = await runTrace(repo, ["recall", "--files", "app.txt"]);
+    assert.match(fileRecall.stdout, /Files: `app.txt`/);
+    assert.match(fileRecall.stdout, /remember why app text exists/);
+
     const summary = await runTrace(repo, ["summary", "HEAD"]);
     assert.match(summary.stdout, /Trace Summary/);
     assert.match(summary.stdout, /remember why app text exists/);

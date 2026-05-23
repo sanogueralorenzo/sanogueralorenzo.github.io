@@ -111,6 +111,11 @@ async function main() {
     return;
   }
 
+  if (command === "recall" || command === "context") {
+    await recallMemories([subcommand, ...positionalValues(rawArgs)].filter(Boolean).join(" "));
+    return;
+  }
+
   if (command === "summary") {
     await summarizeRange(subcommand ?? args.range ?? defaultSummaryRange());
     return;
@@ -887,6 +892,97 @@ async function searchMemories(query) {
   }
 }
 
+async function recallMemories(query) {
+  const root = await repoRoot();
+  const explicitFiles = splitList(args.files ?? args.file);
+  const changedFiles = query.trim() || explicitFiles.length > 0 ? [] : await changedFilesForRecall(root);
+  const files = explicitFiles.length > 0 ? explicitFiles : changedFiles;
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const limit = parsePositiveInteger(args.limit ?? "5", "--limit");
+
+  if (terms.length === 0 && files.length === 0) {
+    fail("recall query, --files, or local file changes are required");
+  }
+
+  const index = await loadSearchIndex(root);
+  const matches = rankRecallEntries(index.entries, terms, files).slice(0, limit);
+  const lines = ["# Trace Recall", ""];
+  if (query.trim()) {
+    lines.push(`Query: \`${query.trim()}\``);
+  }
+  if (files.length > 0) {
+    lines.push(`Files: ${files.map((file) => `\`${file}\``).join(", ")}`);
+  }
+  lines.push(`Matches: ${matches.length}`, "");
+
+  if (matches.length === 0) {
+    lines.push("No Trace memories matched.", "");
+  }
+
+  for (const match of matches) {
+    const entry = match.entry;
+    lines.push(`## ${entry.sha.slice(0, 12)} ${recallTitle(entry)}`, "");
+    lines.push(`Memory: \`${entry.file}\``);
+    lines.push(`Score: ${match.score}`);
+    appendRecallSection(lines, "Intent", entry.intent);
+    appendRecallSection(lines, "Summary", entry.summary);
+    appendRecallSection(lines, "Decisions", entry.decisions);
+    appendRecallSection(lines, "Validation", entry.validation);
+    appendRecallSection(lines, "Risks", entry.risks);
+    lines.push("");
+  }
+
+  process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+}
+
+async function changedFilesForRecall(root) {
+  const output = await git(["diff", "--name-only", "HEAD"], { cwd: root, allowFailure: true });
+  return output.split("\n").map((file) => file.trim()).filter(Boolean);
+}
+
+function rankRecallEntries(entries, terms, files) {
+  const normalizedFiles = files.map((file) => file.toLowerCase());
+  const matches = [];
+
+  for (const entry of entries) {
+    const searchable = `${entry.text}\n${entry.files}\n${entry.file}`.toLowerCase();
+    let score = 0;
+
+    for (const term of terms) {
+      if (searchable.includes(term)) {
+        score += 3;
+      }
+    }
+
+    for (const file of normalizedFiles) {
+      const basename = file.split("/").pop();
+      if (searchable.includes(file)) {
+        score += 8;
+      } else if (basename && searchable.includes(basename)) {
+        score += 4;
+      }
+    }
+
+    if (score > 0) {
+      matches.push({ score, entry });
+    }
+  }
+
+  return matches.sort((left, right) => right.score - left.score || left.entry.file.localeCompare(right.entry.file));
+}
+
+function appendRecallSection(lines, name, value) {
+  const content = String(value ?? "").trim();
+  if (!content || content === "- Not recorded.") {
+    return;
+  }
+  lines.push("", `### ${name}`, "", content);
+}
+
+function recallTitle(entry) {
+  return entry.title.replace(new RegExp(`^${escapeRegExp(entry.sha.slice(0, 12))}\\s+`), "");
+}
+
 async function rebuildSearchIndex() {
   const root = await repoRoot();
   const index = await buildSearchIndex(root);
@@ -1618,6 +1714,7 @@ Usage:
   trace log [--limit 20]
   trace index
   trace search [--field decisions|files|validation|risks] <query>
+  trace recall [query] [--files path[,path]] [--limit 5]
   trace summary [range]
   trace branch-summary [branch] [--base main]
   trace pr-body [range]
@@ -1670,6 +1767,18 @@ function relativePath(root, path) {
 
 function firstLine(value) {
   return value.split("\n").find(Boolean) ?? "";
+}
+
+function splitList(value) {
+  return String(value ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+
+function parsePositiveInteger(value, label) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    fail(`${label} must be a positive integer`);
+  }
+  return parsed;
 }
 
 function section(markdown, name) {
