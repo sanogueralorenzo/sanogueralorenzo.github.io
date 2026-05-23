@@ -441,6 +441,18 @@ Next graph envelope validation milestone:
   malformed trust metadata remains `INTENT_GRAPH_TRUST_INVALID`. This makes
   external context source access explicit in the runtime graph instead of
   relying only on source checker results.
+- Runtime context ownership edge contracts are the next Phase 2 static-model
+  milestone. Every `Context` node must have exactly one outgoing `informs` edge
+  to its owning `Goal`. This ownership edge is separate from external context
+  authorization: `web` and `documents` Context nodes still require incoming
+  Capability `authorizes` edges, while `repo` Context nodes do not. Malformed,
+  missing, or extra context `informs` edges emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output
+  non-executable; malformed Context node data remains
+  `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
+  `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
+  remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
+  explicit in the runtime graph instead of relying on id strings alone.
 - Runtime Type node metadata is part of graph validation. `Type` node data must
   carry `definition` as `null` or a non-empty string
   representing the declared structural or alias body. Malformed Type node
@@ -900,6 +912,16 @@ Rules:
   context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes external
   context source access explicit in the runtime graph instead of relying only on
   source checker results.
+- Every graph `Context` node must have exactly one outgoing `informs` edge to
+  its owning `Goal`. This ownership edge is separate from external context
+  authorization: `web` and `documents` Context nodes still require incoming
+  Capability `authorizes` edges, while `repo` Context nodes do not. Malformed,
+  missing, or extra context `informs` edges emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`. Malformed Context node data remains
+  `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
+  `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
+  remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
+  explicit in the runtime graph instead of relying on id strings alone.
 
 ## Step Requirements
 
@@ -1438,6 +1460,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_DIAGNOSTIC_INVALID`
 - `INTENT_GRAPH_TRUST_INVALID`
 - `INTENT_GRAPH_CONTEXT_INVALID`
+- `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`
 - `INTENT_GRAPH_EFFECT_INVALID`
 - `INTENT_GRAPH_CHECK_INVALID`
 - `INTENT_GRAPH_CHECK_GATE_INVALID`
@@ -1941,6 +1964,12 @@ with `data.source` equal to `web` or `documents` lacks one or more incoming
 `authorizes` edges from `Capability` nodes, or when any required incoming
 `authorizes` edge is not from a `Capability`. `repo` Context nodes remain
 local/trusted and do not require graph authorization edges.
+Graph validation emits `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` when a `Context`
+node lacks exactly one outgoing `informs` edge to its owning `Goal`, or when
+any outgoing `informs` edge targets another node. This ownership edge is
+separate from external context authorization: `web` and `documents` Context
+nodes still require incoming Capability `authorizes` edges, while `repo`
+Context nodes do not.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
@@ -2024,11 +2053,15 @@ the graph non-executable. Runtime `Context` nodes with `data.source` equal to
 `Capability` nodes. Malformed, missing, or non-Capability authorization edges
 for those external context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID` and
 make the graph non-executable. `repo` Context nodes remain local/trusted and do
-not require graph authorization edges. Web context nodes and browser/page state
-use untrusted external trust metadata. Runtime validation requires every
-`Context` node trust record to carry zone `trusted`, `untrusted`, or `unknown`,
-a non-empty `source`, and an optional non-empty `argument`; malformed trust
-records emit `INTENT_GRAPH_TRUST_INVALID`.
+not require graph authorization edges. Every `Context` node must also have
+exactly one outgoing `informs` edge to its owning `Goal`. Malformed, missing, or
+extra context `informs` edges emit `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and
+make the graph non-executable. This ownership edge is separate from external
+context authorization. Web context nodes and browser/page state use untrusted
+external trust metadata. Runtime validation requires every `Context` node trust
+record to carry zone `trusted`, `untrusted`, or `unknown`, a non-empty `source`,
+and an optional non-empty `argument`; malformed trust records emit
+`INTENT_GRAPH_TRUST_INVALID`.
 
 Effect nodes carry normalized runtime adapter call data: `family`, `action`,
 `args`, `argKinds`, `argSpans`, `expression`, `approvalRequired`, and trust

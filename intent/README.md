@@ -216,6 +216,18 @@ Validation expectations:
   malformed trust metadata remains `INTENT_GRAPH_TRUST_INVALID`. This makes
   external context source access explicit in the runtime graph instead of
   relying only on source checker results.
+- Runtime context ownership edge contracts are the next Phase 2 static-model
+  milestone. Every `Context` node must have exactly one outgoing `informs` edge
+  to its owning `Goal`. This ownership edge is separate from external context
+  authorization: `web` and `documents` Context nodes still require incoming
+  Capability `authorizes` edges, while `repo` Context nodes do not. Malformed,
+  missing, or extra context `informs` edges emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output
+  non-executable; malformed Context node data remains
+  `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
+  `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
+  remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
+  explicit in the runtime graph instead of relying on id strings alone.
 - Graph `Type` nodes are runtime type metadata. Type node
   data must carry `definition` as `null` or a non-empty string representing the
   declared structural or alias body. Malformed Type node payloads emit
