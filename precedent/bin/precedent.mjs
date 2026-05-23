@@ -214,8 +214,9 @@ async function observeTrace() {
     if (trace.precedent) {
       const candidate = normalizePrecedent(precedentFromTrace(trace), traceId);
       const assessment = assessPromotionCandidate(candidate);
+      const replayAudit = assessment.ok ? await replayAuditEntry(candidate, stateDir) : null;
 
-      if (assessment.ok) {
+      if (assessment.ok && replayAudit.status === "verified") {
         const promotion = await upsertPromotedPrecedent(stateDir, candidate, observedAt);
 
         promoted = promotion.precedent;
@@ -223,7 +224,12 @@ async function observeTrace() {
       } else {
         rejected = {
           id: candidate.id,
-          reasons: assessment.reasons,
+          reasons: [
+            ...assessment.reasons,
+            ...(replayAudit && replayAudit.status !== "verified"
+              ? [`replay audit ${replayAudit.status}: ${replayAudit.messages.join("; ")}`]
+              : []),
+          ],
         };
         promotionAction = "rejected";
       }

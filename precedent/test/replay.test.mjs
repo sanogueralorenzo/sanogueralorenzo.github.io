@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -166,7 +167,17 @@ test("observing an improved precedent id updates the existing ledger record", as
     ]);
 
     const betterTrace = JSON.parse(await readFile(traceOut, "utf8"));
+    const betterReplayPath = join(stateDir, "replays/webhook-replay-better/replay.json");
+    const betterReplay = JSON.parse(await readFile(join(stateDir, "replays/webhook-replay-improves/replay.json"), "utf8"));
+    betterReplay.id = "webhook-replay-better";
+    betterReplay.promotion.baseline_failures = 2;
+    await mkdir(dirname(betterReplayPath), { recursive: true });
+    const betterReplayContent = `${JSON.stringify(betterReplay, null, 2)}\n`;
+    await writeFile(betterReplayPath, betterReplayContent);
     betterTrace.id = "webhook-replay-better";
+    betterTrace.replay.id = "webhook-replay-better";
+    betterTrace.replay.path = betterReplayPath;
+    betterTrace.replay.artifact_sha256 = createHash("sha256").update(betterReplayContent).digest("hex");
     betterTrace.replay.promotion.baseline_failures = 2;
     betterTrace.precedent.evidence.push("replay: second baseline failure avoided");
     const betterTraceOut = join(stateDir, "webhook-replay-better-trace.json");
@@ -331,6 +342,50 @@ test("replay without improvement is observed but not promoted", async () => {
       "--json",
     ]);
     assert.deepEqual(inject.injections, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("observe rejects replay traces when the replay artifact is tampered", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const traceOut = join(stateDir, "tampered-replay-trace.json");
+    const replay = await runPrecedent([
+      "replay",
+      "--state-dir",
+      stateDir,
+      "--case",
+      "precedent/examples/replay/webhook-case.json",
+      "--trace-out",
+      traceOut,
+      "--json",
+    ]);
+    await writeFile(replay.replayPath, `${JSON.stringify({
+      ...replay.replay,
+      promotion: {
+        ...replay.replay.promotion,
+        baseline_failures: 9,
+      },
+    }, null, 2)}\n`);
+
+    const observed = await runPrecedent([
+      "observe",
+      "--state-dir",
+      stateDir,
+      "--trace",
+      traceOut,
+      "--json",
+    ]);
+
+    assert.equal(observed.observed.promotionStatus, "rejected");
+    assert.equal(observed.promoted, null);
+    assert.ok(observed.rejected.reasons.some((reason) => reason.includes("replay audit hash_mismatch")));
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.deepEqual(precedents, []);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
