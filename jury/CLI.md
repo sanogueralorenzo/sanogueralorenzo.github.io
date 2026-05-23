@@ -41,6 +41,7 @@ node jury/bin/jury.mjs critic run --claim claim_ready --role scope --changed-fil
 node jury/bin/jury.mjs check update --id check_tests --status passed --resolution "tests passed"
 node jury/bin/jury.mjs judge --claim claim_ready --out verdict.json
 node jury/bin/jury.mjs gate --claim claim_ready --verdict verdict.json
+node jury/bin/jury.mjs bundle export --claim claim_ready --out review-bundle.json
 node jury/bin/jury.mjs check --strict
 ```
 
@@ -59,6 +60,8 @@ node jury/bin/jury.mjs check --strict
 - `status`: prints the current claim review bundle.
 - `judge`: emits and records a verdict.
 - `gate`: exits zero only for an `accept` verdict that matches current claim state.
+- `bundle export`: writes a portable `jury.review_bundle.v1` for one claim.
+- `bundle import`: imports a `jury.review_bundle.v1` into a state directory and can materialize its latest verdict with `--verdict-out`.
 - `check --strict`: validates JSONL files, schema files, and cross-record consistency.
 - `demo code-change`: creates a failing-then-passing code-change transcript plus an accepted final verdict.
 

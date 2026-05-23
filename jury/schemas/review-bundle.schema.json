@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jury Review Bundle",
+  "type": "object",
+  "required": ["schema_version", "exported_at", "claim_id", "records"],
+  "properties": {
+    "schema_version": { "const": "jury.review_bundle.v1" },
+    "exported_at": { "type": "string", "minLength": 1 },
+    "claim_id": { "type": "string", "minLength": 1 },
+    "records": {
+      "type": "object",
+      "required": ["claims", "checks", "evidence", "objections", "waivers", "verdicts"],
+      "properties": {
+        "claims": { "type": "array", "items": { "$ref": "claim.schema.json" } },
+        "checks": { "type": "array", "items": { "$ref": "check.schema.json" } },
+        "evidence": { "type": "array", "items": { "$ref": "evidence.schema.json" } },
+        "objections": { "type": "array", "items": { "$ref": "objection.schema.json" } },
+        "waivers": { "type": "array", "items": { "$ref": "waiver.schema.json" } },
+        "verdicts": { "type": "array", "items": { "$ref": "verdict.schema.json" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

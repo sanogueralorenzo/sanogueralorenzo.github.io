@@ -14,16 +14,30 @@ node jury/bin/jury.mjs evidence add --state-dir .jury --claim claim_ci_change --
 node jury/bin/jury.mjs check update --state-dir .jury --id check_ci_tests --status passed --resolution "Jury tests passed"
 node jury/bin/jury.mjs judge --state-dir .jury --claim claim_ci_change --out verdict.json
 node jury/bin/jury.mjs gate --state-dir .jury --claim claim_ci_change --verdict verdict.json
+node jury/bin/jury.mjs bundle export --state-dir .jury --claim claim_ci_change --out review-bundle.json
 node jury/bin/jury.mjs check --state-dir .jury --strict
 ```
 
 2. Upload `verdict.json` as the required gate artifact.
-3. Upload `.jury/*.jsonl` when reviewers need the full audit trail.
-4. Upload `jury-demo-transcript.json` only for demos or examples.
+3. Upload `review-bundle.json` when another job or system needs to recreate the local review state.
+4. Upload `.jury/*.jsonl` when reviewers need the raw append-only audit trail.
+5. Upload `jury-demo-transcript.json` only for demos or examples.
+
+## Round Trip
+
+To consume a shared bundle in a fresh job:
+
+```shell
+node jury/bin/jury.mjs init --state-dir .jury-imported
+node jury/bin/jury.mjs bundle import --state-dir .jury-imported --bundle review-bundle.json --verdict-out imported-verdict.json
+node jury/bin/jury.mjs gate --state-dir .jury-imported --claim claim_ci_change --verdict imported-verdict.json
+node jury/bin/jury.mjs check --state-dir .jury-imported --strict
+```
 
 ## Recommended Artifact Contract
 
 - `verdict.json`: required. This is the decision record other systems should read.
+- `review-bundle.json`: recommended for CI job handoff. This is a portable `jury.review_bundle.v1` snapshot of one claim and its related records.
 - `.jury/claims.jsonl`: optional but useful for claim version history.
 - `.jury/checks.jsonl`: optional but useful for required-review evidence.
 - `.jury/evidence.jsonl`: optional and may contain command output; treat as potentially sensitive.

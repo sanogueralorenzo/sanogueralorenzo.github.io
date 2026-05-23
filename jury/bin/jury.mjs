@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 
 const DEFAULT_STATE_DIR = ".jury";
 const VERDICT_SCHEMA_VERSION = "jury.verdict.v1";
+const REVIEW_BUNDLE_SCHEMA_VERSION = "jury.review_bundle.v1";
 const VALID_DECISIONS = new Set(["accept", "reject", "retry", "human_decision"]);
 const BLOCKING_SEVERITIES = new Set(["medium", "high", "critical"]);
+const STATE_RECORD_TYPES = ["claims", "checks", "evidence", "objections", "waivers", "verdicts"];
 const CLAIM_STATUSES = ["draft", "submitted", "screening", "in_review", "revision_required", "ready_for_judgment", "decided", "archived"];
 const CHECK_STATUSES = ["pending", "passed", "failed", "waived", "not_applicable"];
 const ALLOWED_CLAIM_TRANSITIONS = new Map([
@@ -98,6 +100,16 @@ async function main() {
 
   if (command === "gate") {
     await gateVerdict();
+    return;
+  }
+
+  if (command === "bundle" && subcommand === "export") {
+    await exportBundle();
+    return;
+  }
+
+  if (command === "bundle" && subcommand === "import") {
+    await importBundle();
     return;
   }
 
@@ -439,12 +451,70 @@ async function gateVerdict() {
   print({ ok: true, decision: verdict.decision, reason: verdict.reason, ...details });
 }
 
+async function exportBundle() {
+  const dir = stateDir();
+  await ensureState(dir);
+  const claimId = requireArg("claim");
+  const records = await recordsForClaim(dir, claimId);
+  const bundle = sortRecord({
+    schema_version: REVIEW_BUNDLE_SCHEMA_VERSION,
+    exported_at: now(),
+    claim_id: claimId,
+    records,
+  });
+
+  validateReviewBundle(bundle);
+
+  if (args.out) {
+    await writeFile(resolve(args.out), `${JSON.stringify(bundle, null, 2)}\n`);
+  }
+
+  print(bundle);
+}
+
+async function importBundle() {
+  const dir = stateDir();
+  await ensureState(dir);
+  const path = resolve(requireArg("bundle"));
+  const bundle = parseJson(await readFile(path, "utf8"), path);
+
+  validateReviewBundle(bundle);
+
+  for (const name of STATE_RECORD_TYPES) {
+    for (const record of bundle.records[name]) {
+      validateRecord(name, record);
+      await appendJsonl(fileFor(dir, name), record);
+    }
+  }
+
+  let verdictOut = null;
+
+  if (args["verdict-out"]) {
+    const latestVerdict = latestVerdictFromBundle(bundle);
+
+    if (!latestVerdict) {
+      fail("bundle import --verdict-out requires at least one verdict record");
+    }
+
+    verdictOut = resolve(args["verdict-out"]);
+    await writeFile(verdictOut, `${JSON.stringify(latestVerdict, null, 2)}\n`);
+  }
+
+  print({
+    ok: true,
+    claim_id: bundle.claim_id,
+    imported: Object.fromEntries(STATE_RECORD_TYPES.map((name) => [name, bundle.records[name].length])),
+    stateDir: dir,
+    verdictOut,
+  });
+}
+
 async function checkState() {
   const dir = stateDir();
   await ensureState(dir);
   const checks = [];
 
-  for (const name of ["claims", "checks", "evidence", "objections", "waivers", "verdicts"]) {
+  for (const name of STATE_RECORD_TYPES) {
     try {
       const records = await withValidationErrors(() => readJsonl(fileFor(dir, name)));
       for (const record of records) {
@@ -713,6 +783,59 @@ async function checkStateConsistency(dir) {
   }
 }
 
+async function recordsForClaim(dir, claimId) {
+  const claims = (await readJsonl(fileFor(dir, "claims"))).filter((item) => item.id === claimId).sort(byVersionThenUpdatedAt);
+
+  if (claims.length === 0) {
+    fail(`unknown claim: ${claimId}`);
+  }
+
+  const byClaim = {};
+
+  for (const name of ["checks", "evidence", "objections", "waivers", "verdicts"]) {
+    byClaim[name] = (await readJsonl(fileFor(dir, name))).filter((item) => item.claim_id === claimId).sort(byId);
+  }
+
+  return {
+    claims,
+    checks: byClaim.checks,
+    evidence: byClaim.evidence,
+    objections: byClaim.objections,
+    waivers: byClaim.waivers,
+    verdicts: byClaim.verdicts,
+  };
+}
+
+function validateReviewBundle(bundle) {
+  requireEnum(bundle.schema_version, [REVIEW_BUNDLE_SCHEMA_VERSION], "bundle.schema_version");
+  requireString(bundle.exported_at, "bundle.exported_at");
+  requireString(bundle.claim_id, "bundle.claim_id");
+
+  if (!bundle.records || typeof bundle.records !== "object" || Array.isArray(bundle.records)) {
+    fail("bundle.records must be an object");
+  }
+
+  for (const name of STATE_RECORD_TYPES) {
+    requireArray(bundle.records[name], `bundle.records.${name}`);
+
+    for (const record of bundle.records[name]) {
+      validateRecord(name, record);
+
+      if (name === "claims") {
+        if (record.id !== bundle.claim_id) {
+          fail(`bundle.records.claims contains claim ${record.id}, expected ${bundle.claim_id}`);
+        }
+      } else if (record.claim_id !== bundle.claim_id) {
+        fail(`bundle.records.${name} contains ${record.id} from claim ${record.claim_id}, expected ${bundle.claim_id}`);
+      }
+    }
+  }
+
+  if (bundle.records.claims.length === 0) {
+    fail("bundle.records.claims must include at least one claim record");
+  }
+}
+
 function assertKnownClaim(errors, recordType, recordId, claimId, claims) {
   if (!claims.has(claimId)) {
     errors.push(`${recordType} ${recordId} references missing claim ${claimId}`);
@@ -730,6 +853,12 @@ function crossClaimReferences(field, claimId, ids, records) {
     .map((id) => records.get(id))
     .filter((record) => record && record.claim_id !== claimId)
     .map((record) => `${field} references ${record.id} from claim ${record.claim_id}`);
+}
+
+function latestVerdictFromBundle(bundle) {
+  return [...bundle.records.verdicts].sort((left, right) => (
+    String(left.decided_at).localeCompare(String(right.decided_at)) || left.id.localeCompare(right.id)
+  )).at(-1) ?? null;
 }
 
 async function withValidationErrors(action) {
@@ -1100,7 +1229,7 @@ function stateDir() {
 }
 
 function stateFiles(dir) {
-  return ["claims", "checks", "evidence", "objections", "waivers", "verdicts"].map((name) => fileFor(dir, name));
+  return STATE_RECORD_TYPES.map((name) => fileFor(dir, name));
 }
 
 function schemaDir() {
@@ -1174,6 +1303,10 @@ function byId(left, right) {
   return left.id.localeCompare(right.id);
 }
 
+function byVersionThenUpdatedAt(left, right) {
+  return left.version - right.version || String(left.updated_at).localeCompare(String(right.updated_at));
+}
+
 function requireArg(name) {
   const value = args[name];
   if (!value) fail(`missing required --${name}`);
@@ -1229,6 +1362,8 @@ Commands:
   jury status --claim <id>
   jury judge --claim <id> [--out verdict.json] [--require-human-approval true]
   jury gate --verdict verdict.json [--claim <id>]
+  jury bundle export --claim <id> --out review-bundle.json
+  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json]
   jury check --strict
   jury demo code-change`);
 }

@@ -20,6 +20,8 @@
       "status",
       "judge",
       "gate",
+      "bundle export",
+      "bundle import",
       "check",
       "demo code-change"
     ]
@@ -41,15 +43,18 @@
     "check": "schemas/check.schema.json",
     "evidence": "schemas/evidence.schema.json",
     "objection": "schemas/objection.schema.json",
+    "reviewBundle": "schemas/review-bundle.schema.json",
     "waiver": "schemas/waiver.schema.json",
     "verdict": "schemas/verdict.schema.json"
   },
   "exports": {
     "check": "examples/exports/check.passed.v1.json",
+    "reviewBundle": "examples/exports/review-bundle.accept.v1.json",
     "verdict": "examples/exports/verdict.accept.v1.json"
   },
   "ciArtifacts": [
     "verdict.json",
+    "review-bundle.json",
     "jury-demo-transcript.json",
     ".jury/*.jsonl"
   ]

@@ -149,15 +149,19 @@ test("documented core flow commands stay in sync with CLI behavior", async () =>
 
     const commands = match[1].split("\n").filter((line) => line.startsWith("node jury/bin/jury.mjs "));
     const verdictPath = join(cwd, "verdict.json");
+    const bundlePath = join(cwd, "review-bundle.json");
 
     for (const command of commands) {
-      const result = await runShell(materializeDocCommand(command, stateDir, verdictPath), repoRoot);
+      const result = await runShell(materializeDocCommand(command, stateDir, verdictPath, bundlePath), repoRoot);
 
       assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
     }
 
     const verdict = JSON.parse(await readFile(verdictPath, "utf8"));
+    const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
     assert.equal(verdict.decision, "accept");
+    assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+    assert.equal(bundle.claim_id, "claim_ready");
   } finally {
     await rm(stateDir, { recursive: true, force: true });
     await rm(cwd, { recursive: true, force: true });
@@ -436,11 +440,60 @@ test("release metadata references existing schemas, exports, and commands", asyn
 
   for (const relativePath of Object.values(release.exports)) {
     const artifact = JSON.parse(await readFile(join(repoRoot, "jury", relativePath), "utf8"));
-    assert.match(artifact.schema_version, /^jury\.(check|verdict)\.v1$/);
+    assert.match(artifact.schema_version, /^jury\.(check|verdict|review_bundle)\.v1$/);
   }
 
-  for (const commandName of ["judge", "gate", "check", "demo code-change"]) {
+  for (const commandName of ["judge", "gate", "bundle export", "bundle import", "check", "demo code-change"]) {
     assert.ok(release.cli.commands.includes(commandName), `${commandName} must be listed`);
+  }
+});
+
+test("review bundle exports from local state and imports into fresh state", async () => {
+  const sourceDir = await tempState();
+  const importedDir = await tempState();
+  const cwd = await tempState();
+  const verdictPath = join(cwd, "verdict.json");
+  const bundlePath = join(cwd, "review-bundle.json");
+
+  try {
+    await runJson(["init", "--state-dir", sourceDir]);
+    await runJson(["claim", "create", "--state-dir", sourceDir, "--id", "claim_bundle", "--summary", "bundle claim is ready", "--scope", "jury", "--impact", "high"]);
+    await runJson(["check", "add", "--state-dir", sourceDir, "--id", "check_bundle_tests", "--claim", "claim_bundle", "--type", "verifier", "--summary", "tests must pass"]);
+    await runJson(["evidence", "add", "--state-dir", sourceDir, "--id", "ev_bundle_tests", "--claim", "claim_bundle", "--type", "command", "--command", "node --test jury/test/*.test.mjs", "--exit-code", "0"]);
+    await runJson(["check", "update", "--state-dir", sourceDir, "--id", "check_bundle_tests", "--status", "passed", "--evidence", "ev_bundle_tests", "--resolution", "tests passed"]);
+    const verdict = await runJson(["judge", "--state-dir", sourceDir, "--claim", "claim_bundle", "--out", verdictPath]);
+    const bundle = await runJson(["bundle", "export", "--state-dir", sourceDir, "--claim", "claim_bundle", "--out", bundlePath]);
+
+    assert.equal(verdict.decision, "accept");
+    assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+    assert.equal(bundle.records.claims.length, 1);
+    assert.equal(bundle.records.checks.length, 2);
+    assert.equal(bundle.records.evidence.length, 1);
+    assert.equal(bundle.records.verdicts.length, 1);
+
+    await runJson(["init", "--state-dir", importedDir]);
+    const importedVerdictPath = join(cwd, "imported-verdict.json");
+    const imported = await runJson(["bundle", "import", "--state-dir", importedDir, "--bundle", bundlePath, "--verdict-out", importedVerdictPath]);
+    const importedVerdict = JSON.parse(await readFile(importedVerdictPath, "utf8"));
+    const gate = await runJson(["gate", "--state-dir", importedDir, "--claim", "claim_bundle", "--verdict", importedVerdictPath]);
+    const check = await runJson(["check", "--state-dir", importedDir, "--strict"]);
+
+    assert.deepEqual(imported.imported, {
+      claims: 1,
+      checks: 2,
+      evidence: 1,
+      objections: 0,
+      waivers: 0,
+      verdicts: 1,
+    });
+    assert.equal(imported.verdictOut, importedVerdictPath);
+    assert.equal(importedVerdict.id, verdict.id);
+    assert.equal(gate.ok, true);
+    assert.ok(check.checks.find((item) => item.name === "state_consistency").ok);
+  } finally {
+    await rm(sourceDir, { recursive: true, force: true });
+    await rm(importedDir, { recursive: true, force: true });
+    await rm(cwd, { recursive: true, force: true });
   }
 });
 
@@ -465,6 +518,18 @@ test("exported check and verdict examples validate as portable CI artifacts", as
   } finally {
     await rm(stateDir, { recursive: true, force: true });
   }
+});
+
+test("review bundle schema references the stable record schemas", async () => {
+  const schema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/review-bundle.schema.json"), "utf8"));
+  const properties = schema.properties.records.properties;
+
+  assert.equal(properties.claims.items.$ref, "claim.schema.json");
+  assert.equal(properties.checks.items.$ref, "check.schema.json");
+  assert.equal(properties.evidence.items.$ref, "evidence.schema.json");
+  assert.equal(properties.objections.items.$ref, "objection.schema.json");
+  assert.equal(properties.waivers.items.$ref, "waiver.schema.json");
+  assert.equal(properties.verdicts.items.$ref, "verdict.schema.json");
 });
 
 test("migration doc preserves the release artifact contract", async () => {
@@ -521,6 +586,7 @@ function materializeDocCommand(command, stateDir, verdictPath) {
 
   materialized = materialized.replace("--out verdict.json", `--out ${shellQuote(verdictPath)}`);
   materialized = materialized.replace("--verdict verdict.json", `--verdict ${shellQuote(verdictPath)}`);
+  materialized = materialized.replace("--out review-bundle.json", `--out ${shellQuote(join(dirname(verdictPath), "review-bundle.json"))}`);
 
   if (!materialized.includes("--state-dir ")) {
     materialized += ` --state-dir ${shellQuote(stateDir)}`;
