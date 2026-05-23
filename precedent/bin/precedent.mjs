@@ -95,6 +95,11 @@ async function main() {
     return;
   }
 
+  if (command === "promotion-trial") {
+    await runPromotionTrial();
+    return;
+  }
+
   if (command === "hook") {
     await runHook();
     return;
@@ -200,6 +205,15 @@ async function observeTrace() {
   const rawTrace = args.session
     ? await traceFromSession(stateDir, args.session)
     : parseJson(await readFile(resolve(args.trace), "utf8"), args.trace);
+  const observed = await observeTraceRecord({ stateDir, rawTrace });
+
+  print({
+    ok: true,
+    ...observed,
+  });
+}
+
+async function observeTraceRecord({ stateDir, rawTrace }) {
   const redaction = redactSecretsDeep(rawTrace);
   const trace = redaction.value;
   assertSchemaVersion(trace, "trace");
@@ -208,6 +222,7 @@ async function observeTrace() {
   let promoted = null;
   let rejected = null;
   let promotionAction = "none";
+  let event = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
@@ -235,7 +250,7 @@ async function observeTrace() {
       }
     }
 
-    const event = {
+    event = {
       type: "trace_observed",
       observedAt,
       traceId,
@@ -254,27 +269,11 @@ async function observeTrace() {
     await appendJsonLine(join(stateDir, "events.jsonl"), event);
   });
 
-  const event = {
-    type: "trace_observed",
-    observedAt,
-    traceId,
-    precedentId: promoted?.id ?? rejected?.id ?? null,
-    task: trace.task ?? null,
-    outcome: trace.outcome ?? null,
-    scope: trace.scope ?? null,
-    failures: Array.isArray(trace.failures) ? trace.failures : [],
-    promotionStatus: promoted ? "promoted" : trace.precedent ? "rejected" : "none",
-    promotionAction,
-    promotionReasons: rejected?.reasons ?? [],
-    redactions: redaction.counts,
-  };
-
-  print({
-    ok: true,
+  return {
     observed: event,
     promoted,
     rejected,
-  });
+  };
 }
 
 async function injectPrecedent() {
@@ -547,6 +546,45 @@ async function explainPrecedent() {
 
 async function replayCase() {
   const stateDir = statePath();
+  const replayResult = await executeReplayCase({
+    stateDir,
+    traceOut: args["trace-out"] ? resolve(args["trace-out"]) : null,
+  });
+
+  print({
+    ok: true,
+    ...replayResult,
+  });
+}
+
+async function runPromotionTrial() {
+  const stateDir = statePath();
+
+  if (args.case) {
+    fail("promotion-trial accepts --candidate <id>, not --case");
+  }
+
+  if (!args.candidate) {
+    fail("promotion-trial requires --candidate <id>");
+  }
+
+  const traceOut = args["trace-out"]
+    ? resolve(args["trace-out"])
+    : join(stateDir, "traces", `promotion-trial-${safeFileName(args.candidate)}-${Date.now()}.json`);
+  const replayResult = await executeReplayCase({ stateDir, traceOut });
+  const observed = await observeTraceRecord({ stateDir, rawTrace: replayResult.trace });
+  const replayAudit = observed.promoted ? await replayAuditEntry(observed.promoted, stateDir) : null;
+
+  print({
+    ok: true,
+    candidateId: args.candidate,
+    ...replayResult,
+    ...observed,
+    replayAudit,
+  });
+}
+
+async function executeReplayCase({ stateDir, traceOut = null }) {
   const {
     rawReplayCase,
     replayCase,
@@ -609,8 +647,8 @@ async function replayCase() {
 
     await writeFileAtomic(replayPath, replayContent);
 
-    if (args["trace-out"]) {
-      tracePath = resolve(args["trace-out"]);
+    if (traceOut) {
+      tracePath = resolve(traceOut);
       await mkdir(dirname(tracePath), { recursive: true });
       await writeFileAtomic(tracePath, `${JSON.stringify(trace, null, 2)}\n`);
     }
@@ -628,13 +666,12 @@ async function replayCase() {
     });
   });
 
-  print({
-    ok: true,
+  return {
     replay,
     replayPath,
     tracePath,
     trace,
-  });
+  };
 }
 
 async function loadReplayCaseInput(stateDir) {
@@ -1468,6 +1505,20 @@ async function printManifest() {
 
 function buildManifest(runtime, stateDir) {
   const hookCommand = ["node", "precedent/bin/precedent.mjs", "hook", "--state-dir", stateDir, "--json"];
+  const promotionTrialCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "promotion-trial",
+    "--state-dir",
+    stateDir,
+    "--candidate",
+    "$CANDIDATE_ID",
+    "--baseline-command",
+    "$BASELINE_COMMAND",
+    "--trace-out",
+    "$TRACE_OUT",
+    "--json",
+  ];
   const timeoutMs = runtimeConfig.hookTimeoutMs;
   const failurePolicy = runtimeConfig.failurePolicy;
 
@@ -1554,6 +1605,15 @@ function buildManifest(runtime, stateDir) {
         failurePolicy,
       },
     },
+    actions: {
+      "promotion.trial": {
+        command: promotionTrialCommand,
+        stdin: [],
+        output: ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"],
+        timeoutMs,
+        failurePolicy,
+      },
+    },
   };
 }
 
@@ -1597,6 +1657,20 @@ async function attachRuntime() {
     "hook",
     "--state-dir",
     stateDirArg,
+    "--json",
+  ];
+  const promotionTrialCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "promotion-trial",
+    "--state-dir",
+    stateDirArg,
+    "--candidate",
+    "$CANDIDATE_ID",
+    "--baseline-command",
+    "$BASELINE_COMMAND",
+    "--trace-out",
+    "$TRACE_OUT",
     "--json",
   ];
 
@@ -1717,6 +1791,12 @@ async function attachRuntime() {
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
         output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairReceipt", "suppressedRepairs"],
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      promotionTrial: {
+        command: promotionTrialCommand,
+        output: ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"],
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -5287,6 +5367,7 @@ Usage:
   precedent compile [--state-dir .precedent] [--promote-session-pairs]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent replay --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
+  precedent promotion-trial --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
@@ -5304,6 +5385,7 @@ Commands:
   context   Export stable agent-ready precedent context.
   compile   Mine observed raw traces into candidates, optionally promoting analogous session pairs.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
+  promotion-trial Run a candidate replay and immediately observe the promotion decision.
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.

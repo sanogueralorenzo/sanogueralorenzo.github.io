@@ -70,6 +70,21 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterRetry.stdin.hook, "repair.after_retry");
     assert.equal(first.adapter.afterRetry.stdin.repairId, "$REPAIR_ID");
     assert.equal(first.adapter.afterRetry.stdin.repairSessionId, "$REPAIR_SESSION_ID");
+    assert.deepEqual(first.adapter.promotionTrial.command, [
+      "node",
+      "precedent/bin/precedent.mjs",
+      "promotion-trial",
+      "--state-dir",
+      stateDir,
+      "--candidate",
+      "$CANDIDATE_ID",
+      "--baseline-command",
+      "$BASELINE_COMMAND",
+      "--trace-out",
+      "$TRACE_OUT",
+      "--json",
+    ]);
+    assert.deepEqual(first.adapter.promotionTrial.output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

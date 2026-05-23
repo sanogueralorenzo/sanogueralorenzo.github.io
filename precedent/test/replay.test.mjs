@@ -347,6 +347,122 @@ test("replay without improvement is observed but not promoted", async () => {
   }
 });
 
+test("promotion-trial replays and observes a ledger candidate in one command", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+    await writeFile(join(stateDir, "candidates.jsonl"), `${JSON.stringify({
+      id: "cand_webhook_trial",
+      status: "candidate",
+      scope: "feature:webhooks",
+      trigger: "add another webhook handler",
+      lesson: "Use the trial webhook boundary from the successful repair session.",
+      artifact: "skill",
+      paths: ["features/webhooks"],
+      source_traces: ["session-success"],
+      failure_types: ["repair_efficacy_replacement"],
+      evidence: ["successful validation: node -e \"process.exit(0)\" exited 0"],
+      injection: "Use the trial webhook repair boundary before editing webhook handlers.",
+      promotion_required: "Replay before promotion.",
+    })}\n`);
+
+    const traceOut = join(stateDir, "candidate-trial-trace.json");
+    const trial = await runPrecedent([
+      "promotion-trial",
+      "--state-dir",
+      stateDir,
+      "--candidate",
+      "cand_webhook_trial",
+      "--baseline-command",
+      "node -e \"process.exit(1)\"",
+      "--trace-out",
+      traceOut,
+      "--json",
+    ]);
+
+    assert.equal(trial.candidateId, "cand_webhook_trial");
+    assert.equal(trial.replay.candidateId, "cand_webhook_trial");
+    assert.equal(trial.replay.improved, true);
+    assert.equal(trial.tracePath, traceOut);
+    assert.equal(trial.observed.promotionStatus, "promoted");
+    assert.equal(trial.promoted.id, "cand_webhook_trial");
+    assert.equal(trial.rejected, null);
+    assert.equal(trial.replayAudit.status, "verified");
+
+    const injected = await runPrecedent([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add another webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/provider.ts",
+      "--json",
+    ]);
+    assert.equal(injected.injections[0].id, "cand_webhook_trial");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("promotion-trial records non-improving candidates without injection", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+    await writeFile(join(stateDir, "candidates.jsonl"), `${JSON.stringify({
+      id: "cand_webhook_flat_trial",
+      status: "candidate",
+      scope: "feature:webhooks",
+      trigger: "add another webhook handler",
+      lesson: "Use the flat trial webhook boundary.",
+      artifact: "skill",
+      paths: ["features/webhooks"],
+      source_traces: ["session-success"],
+      failure_types: ["repair_efficacy_replacement"],
+      evidence: ["successful validation: node -e \"process.exit(0)\" exited 0"],
+      injection: "Use the flat trial webhook repair boundary.",
+      promotion_required: "Replay before promotion.",
+    })}\n`);
+
+    const trial = await runPrecedent([
+      "promotion-trial",
+      "--state-dir",
+      stateDir,
+      "--candidate",
+      "cand_webhook_flat_trial",
+      "--baseline-command",
+      "node -e \"process.exit(0)\"",
+      "--json",
+    ]);
+
+    assert.equal(trial.replay.improved, false);
+    assert.equal(trial.observed.promotionStatus, "rejected");
+    assert.equal(trial.promoted, null);
+    assert.equal(trial.replayAudit, null);
+    assert.deepEqual(trial.rejected.reasons, [
+      "precedent.promotion must show baseline_failures greater than rerun_failures",
+    ]);
+
+    const context = await runPrecedent([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add another webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+    assert.deepEqual(context.injections, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("observe rejects replay traces when the replay artifact is tampered", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-test-"));
 
