@@ -999,6 +999,80 @@ test("before-turn hook event ids replay original injections", async () => {
   }
 });
 
+test("conversation before-turn observes messages and returns one ackable context delivery", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const traceOut = join(stateDir, "webhook-replay-trace.json");
+    await runPrecedent([
+      "replay",
+      "--state-dir",
+      stateDir,
+      "--case",
+      "precedent/examples/replay/webhook-case.json",
+      "--trace-out",
+      traceOut,
+      "--json",
+    ]);
+    await runPrecedent(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
+
+    const event = {
+      schema_version: "precedent.v1",
+      hook: "conversation.before_turn",
+      sessionId: "composite",
+      eventId: "turn-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{
+        role: "user",
+        content: "Use pnpm test:webhooks, not pnpm test. Keep edits inside features/webhooks.",
+      }],
+    };
+    const turn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], event);
+    const retry = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], event);
+
+    assert.equal(turn.schema_version, "precedent.conversation_before_turn.v1");
+    assert.equal(turn.recorded, true);
+    assert.equal(retry.recorded, false);
+    assert.equal(retry.deduped, true);
+    assert.equal(turn.observation.acceptedCorrectionSignals.length, 1);
+    assert.equal(turn.beforeTurn.injections.length, 1);
+    assert.equal(turn.injections.length, 1);
+    assert.match(turn.contextBlock, /Precedent correction:/u);
+    assert.match(turn.contextBlock, /Precedent:/u);
+    assert.equal(turn.deliveryReceipt.sessionId, "composite");
+    assert.equal(turn.deliveryReceipt.eventId, "turn-1");
+    assert.equal(turn.deliveryReceipt.contextBlockHash, turn.contextBlockHash);
+    assert.deepEqual(turn.deliveryReceipt.injectedPrecedentIds, ["prec_webhook_replay_boundary"]);
+    assert.deepEqual(turn.attributedPrecedents, ["prec_webhook_replay_boundary"]);
+    assert.equal(retry.deliveryReceipt.deliveryId, turn.deliveryReceipt.deliveryId);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/composite.jsonl"));
+    assert.equal(sessionEvents.length, 1);
+    assert.equal(sessionEvents[0].hook, "conversation.before_turn");
+    assert.equal(sessionEvents[0].eventId, "turn-1");
+
+    const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "composite",
+      eventId: "turn-1:context.after_inject",
+      deliveryId: turn.deliveryReceipt.deliveryId,
+      contextBlockHash: turn.contextBlockHash,
+      inserted: true,
+    });
+    assert.equal(ack.contextInjectionAck.status, "accepted");
+
+    const strict = await runPrecedent(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    assert.equal(strict.ok, true);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 function runPrecedent(args, stdinJson = null) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {

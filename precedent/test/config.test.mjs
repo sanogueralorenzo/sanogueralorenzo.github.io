@@ -21,6 +21,7 @@ test("init creates deterministic versioned runtime config", async () => {
     assert.deepEqual(config, {
       enabledHooks: [
         "conversation.observe",
+        "conversation.before_turn",
         "context.before_turn",
         "context.after_inject",
         "validation.after_run",

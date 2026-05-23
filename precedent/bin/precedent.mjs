@@ -15,6 +15,7 @@ const SUPPORTED_GUARD_TYPES = new Set([
 ]);
 const SUPPORTED_EVENT_HOOKS = new Set([
   "conversation.observe",
+  "conversation.before_turn",
   "context.before_turn",
   "context.after_inject",
   "validation.after_run",
@@ -35,6 +36,7 @@ const NEXT_ACTION_LEASE_MS = 5 * 60 * 1000;
 const NEXT_ACTION_MAX_ATTEMPTS = 2;
 const FINALIZATION_TRIGGER_HOOKS = new Set([
   "context.before_turn",
+  "conversation.before_turn",
   "warrant.issue",
   "validation.after_run",
   "diff.after_edit",
@@ -1755,6 +1757,10 @@ async function dispatchHookEvent(rawEvent) {
     return capturePrintedPayload(() => conversationObserveEventHook(event));
   }
 
+  if (hook === "conversation.before_turn") {
+    return capturePrintedPayload(() => conversationBeforeTurnEventHook(event));
+  }
+
   if (hook === "validation.after_run") {
     return capturePrintedPayload(() => validationAfterRunEventHook(event));
   }
@@ -2377,6 +2383,250 @@ async function conversationObserveEventHook(event) {
     contextBlock: sessionEvent.event.contextBlock,
     contextBlockHash: sessionEvent.event.contextBlockHash,
     deliveryReceipt: sessionEvent.event.deliveryReceipt,
+  });
+}
+
+async function conversationBeforeTurnEventHook(event) {
+  const stateDir = statePath();
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
+  const messages = conversationMessages(event);
+  const task = conversationTask(event, messages);
+  const scope = typeof event.scope === "string" ? event.scope : "";
+  const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
+  const limit = Number(args.limit ?? event.limit ?? runtimeConfig.maxInjections);
+  const threshold = Number(args.threshold ?? event.threshold ?? 4);
+  const observedAt = new Date().toISOString();
+  const correctionSignals = conversationCorrectionSignals(messages);
+  const assumptionSignals = conversationAssumptionSignals(messages);
+  const assumptionResolutionSignals = conversationAssumptionResolutionSignals(messages);
+  const turnDirectiveSignals = conversationTurnDirectiveSignals(messages);
+  const correctionSafetyReceipt = correctionSafetyReceiptFor({
+    event,
+    messages,
+    correctionSignals,
+    changedFiles,
+  });
+  const assumptionReceipt = assumptionReceiptFor(assumptionSignals);
+  const assumptionResolutionReceipt = assumptionResolutionReceiptFor(assumptionResolutionSignals);
+  const turnDirectiveReceipt = turnDirectiveReceiptFor({ messages, turnDirectiveSignals });
+  const acceptedCorrectionSignals = correctionSafetyReceipt.status === "accepted" ? correctionSignals : [];
+  const acceptedAssumptionSignals = assumptionReceipt.status === "accepted" ? assumptionSignals : [];
+  const acceptedAssumptionResolutions = assumptionResolutionReceipt.status === "accepted" ? assumptionResolutionSignals : [];
+  const acceptedTurnDirectives = turnDirectiveReceipt.status === "accepted" ? turnDirectiveSignals : [];
+  const observationContextBlock = [
+    formatCorrectionContextBlock(acceptedCorrectionSignals),
+    formatAssumptionContextBlock(acceptedAssumptionSignals),
+    formatTurnDirectiveContextBlock(directiveSummary(acceptedTurnDirectives)),
+  ].filter(Boolean).join("\n");
+  let payload = null;
+  let sessionEvent = null;
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    if (sessionId && eventId) {
+      const existing = await findSessionEventByEventId(stateDir, sessionId, eventId);
+      if (existing?.event?.conversationBeforeTurnPayload) {
+        payload = existing.event.conversationBeforeTurnPayload;
+        sessionEvent = {
+          sessionId,
+          path: existing.path,
+          event: existing.event,
+          receivedAt: existing.event.receivedAt,
+          deduped: true,
+        };
+        return;
+      }
+    }
+
+    const context = { task, scope, changedFiles };
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    const events = await readJsonLines(join(stateDir, "events.jsonl"));
+    const priorSessionEvents = await readSessionEvents(stateDir, sessionId);
+    const observationEvent = {
+      hook: event.hook,
+      eventId,
+      task,
+      scope: scope || null,
+      changedFiles,
+      messages,
+      correctionSignals,
+      acceptedCorrectionSignals,
+      correctionSafetyReceipt,
+      assumptionSignals,
+      acceptedAssumptionSignals,
+      assumptionReceipt,
+      assumptionResolutionSignals,
+      acceptedAssumptionResolutions,
+      assumptionResolutionReceipt,
+      turnDirectiveSignals,
+      acceptedTurnDirectives,
+      turnDirectiveReceipt,
+    };
+    const activeSessionEvents = eventsSinceLastOutcome([...priorSessionEvents, observationEvent]);
+    const rankedMatches = rankPrecedents(precedents, context)
+      .filter((precedent) => precedent.score >= threshold);
+    const replayAuditSelected = await suppressReplayAuditInjections({
+      stateDir,
+      matches: rankedMatches,
+    });
+    const lifecycleSelected = suppressLifecycleInjections({
+      events,
+      matches: replayAuditSelected.matches.slice(0, limit),
+      includeStale: event.includeStale === true,
+    });
+    const applicabilitySelected = suppressApplicabilityInjections(lifecycleSelected.matches);
+    const selected = await suppressRepeatedSessionInjections({
+      stateDir,
+      sessionId,
+      matches: applicabilitySelected.matches,
+      allowRepeat: event.allowRepeat === true,
+    });
+    const matches = selected.matches;
+    const suppressedInjections = [
+      ...replayAuditSelected.suppressed.map(formatSuppressedInjection),
+      ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
+      ...applicabilitySelected.suppressed.map(formatSuppressedInjection),
+      ...selected.suppressed.map(formatSuppressedInjection),
+    ];
+    const revisionBriefs = revisionBriefsForSuppressed(events, lifecycleSelected.suppressed);
+    const promotionTrials = promotionTrialsForContext({
+      candidates,
+      context,
+      suppressed: lifecycleSelected.suppressed,
+      sessionId,
+    });
+    const candidateHints = candidateHintsForContext({
+      candidates,
+      precedents,
+      context,
+      stateDir,
+      sessionId,
+    });
+    const turnDirectives = directiveSummary(activeSessionEvents
+      .filter((item) => isConversationObservationEvent(item) && item.turnDirectiveReceipt?.status === "accepted")
+      .flatMap((item) => Array.isArray(item.acceptedTurnDirectives) ? item.acceptedTurnDirectives : []));
+    const beforeTurnContextBlock = formatRuntimeContextBlock(matches, turnDirectives, activeAssumptionState(activeSessionEvents));
+    const contextBlocks = uniqueStrings([observationContextBlock, beforeTurnContextBlock].filter((block) => block.trim().length > 0));
+    const contextBlock = contextBlocks.join("\n\n");
+    const contextHash = contextBlockHash(contextBlock);
+    const deliveryReceipt = deliveryReceiptFor({
+      sessionId,
+      eventId,
+      injections: matches,
+      contextBlock,
+      issuedAt: observedAt,
+    });
+    const injections = matches.map(formatInjection);
+    const observation = {
+      messages,
+      correctionSignals,
+      acceptedCorrectionSignals,
+      correctionSafetyReceipt,
+      assumptionSignals,
+      acceptedAssumptionSignals,
+      assumptionReceipt,
+      assumptionResolutionSignals,
+      acceptedAssumptionResolutions,
+      assumptionResolutionReceipt,
+      turnDirectiveSignals,
+      acceptedTurnDirectives,
+      turnDirectiveReceipt,
+    };
+    const beforeTurn = {
+      injections,
+      suppressedInjections,
+      revisionBriefs,
+      promotionTrials,
+      candidateHints,
+      turnDirectives,
+      contextBlock: beforeTurnContextBlock,
+      contextBlockHash: contextBlockHash(beforeTurnContextBlock),
+    };
+    payload = {
+      ok: true,
+      schema_version: "precedent.conversation_before_turn.v1",
+      hook: event.hook,
+      sessionId,
+      observation,
+      correctionSafetyReceipt,
+      assumptionReceipt,
+      assumptionResolutionReceipt,
+      turnDirectiveReceipt,
+      beforeTurn,
+      injections,
+      suppressedInjections,
+      revisionBriefs,
+      promotionTrials,
+      candidateHints,
+      turnDirectives,
+      contextBlocks,
+      contextBlock,
+      contextBlockHash: contextHash,
+      deliveryReceipt,
+      attributedPrecedents: deliveryReceipt?.injectedPrecedentIds ?? matches.map((match) => match.id),
+    };
+    const hookEvent = {
+      type: "hook_event",
+      receivedAt: observedAt,
+      hook: event.hook,
+      sessionId,
+      ...eventIdField(eventId),
+      task,
+      scope: scope || null,
+      changedFiles,
+      threshold,
+      allowRepeat: event.allowRepeat === true,
+      messages,
+      correctionSignals,
+      acceptedCorrectionSignals,
+      correctionSafetyReceipt,
+      assumptionSignals,
+      acceptedAssumptionSignals,
+      assumptionReceipt,
+      assumptionResolutionSignals,
+      acceptedAssumptionResolutions,
+      assumptionResolutionReceipt,
+      turnDirectiveSignals,
+      acceptedTurnDirectives,
+      turnDirectiveReceipt,
+      injections: matches.map((match) => match.id),
+      injectionMatches: matches.map((match) => ({
+        id: match.id,
+        score: match.score,
+        reasons: match.matchReasons ?? [],
+      })),
+      suppressedInjections,
+      revisionBriefs,
+      promotionTrials,
+      candidateHints,
+      turnDirectives,
+      contextBlocks,
+      contextBlock,
+      contextBlockHash: contextHash,
+      deliveryReceipt,
+      contextPayload: {
+        ...payload,
+        recorded: true,
+        deduped: false,
+        sessionEventPath: null,
+      },
+      conversationBeforeTurnPayload: payload,
+    };
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
+    sessionEvent = await appendSessionEvent(stateDir, hookEvent);
+    if (sessionEvent.deduped) {
+      payload = sessionEvent.event.conversationBeforeTurnPayload ?? payload;
+    }
+  });
+
+  print({
+    ...payload,
+    recorded: !sessionEvent?.deduped,
+    deduped: Boolean(sessionEvent?.deduped),
+    sessionEventPath: sessionEvent?.path ?? null,
   });
 }
 
@@ -3298,6 +3548,14 @@ function buildManifest(runtime, stateDir) {
         timeoutMs,
         failurePolicy,
       },
+      "conversation.before_turn": {
+        command: hookCommand,
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message", "limit", "threshold", "allowRepeat", "includeStale"],
+        output: ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "attributedPrecedents"],
+        injectFrom: "contextBlock",
+        timeoutMs,
+        failurePolicy,
+      },
       "validation.after_run": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
@@ -3464,6 +3722,7 @@ async function attachRuntime() {
     stateDirArg,
     "--json",
   ];
+  const conversationBeforeTurnOutput = ["ok", "schema_version", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "beforeTurn", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "contextBlocks", "contextBlock", "contextBlockHash", "deliveryReceipt", "attributedPrecedents"];
   const warrantCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -3565,6 +3824,13 @@ async function attachRuntime() {
     adapter: {
       lifecycle: [
         {
+          phase: "conversationBeforeTurn",
+          hook: "conversation.before_turn",
+          required: false,
+          injectFrom: "contextBlock",
+          eventId: "$EVENT_ID",
+        },
+        {
           phase: "conversationObserve",
           hook: "conversation.observe",
           required: false,
@@ -3646,6 +3912,24 @@ async function attachRuntime() {
         eventId: "$EVENT_ID",
         output: ["schema_version", "contextBlock", "contextBlockHash", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      conversationBeforeTurn: {
+        command: hookCommand,
+        output: conversationBeforeTurnOutput,
+        injectFrom: "contextBlock",
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "conversation.before_turn",
+          sessionId,
+          eventId: "$EVENT_ID",
+          task: taskSource.task,
+          scope: scope || null,
+          changedFiles,
+          messages: "$MESSAGES",
+          message: "$MESSAGE",
+        },
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -6549,7 +6833,7 @@ function finalizationComplianceForOutcome(sessionEvents, claimedSuccess) {
 
 function finalizationTriggerEvent(event) {
   return FINALIZATION_TRIGGER_HOOKS.has(event.hook)
-    || (event.hook === "conversation.observe" && (
+    || (isConversationObservationEvent(event) && (
       (Array.isArray(event.acceptedAssumptionSignals) && event.acceptedAssumptionSignals.length > 0)
       || (Array.isArray(event.acceptedAssumptionResolutions) && event.acceptedAssumptionResolutions.length > 0)
     ));
@@ -6619,7 +6903,7 @@ async function runtimeWiringHealthSummary(stateDir, events) {
     const injectedEvents = hookEvents.filter((event) => Array.isArray(event.injections) && event.injections.length > 0);
     const outcomeEvents = hookEvents.filter((event) => event.hook === "outcome.after_task");
     const contextDeliveries = hookEvents
-      .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export" || event.hook === "conversation.observe")
+      .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export" || isConversationObservationEvent(event))
       .map((event) => event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null)
       .filter((receipt) => receipt?.deliveryId && receipt.contextBlockHash);
     const ackEvents = hookEvents.filter((event) => event.hook === "context.after_inject" && event.contextInjectionAck);
@@ -7246,7 +7530,7 @@ function activeAssumptionState(events) {
   const invalidated = [];
 
   for (const event of events) {
-    if (event.hook !== "conversation.observe") {
+    if (!isConversationObservationEvent(event)) {
       continue;
     }
 
@@ -8013,6 +8297,10 @@ function eventIdField(eventId) {
   return eventId ? { eventId } : {};
 }
 
+function isConversationObservationEvent(event) {
+  return event?.hook === "conversation.observe" || event?.hook === "conversation.before_turn";
+}
+
 function repairSessionArg() {
   const value = args["repair-session-id"] ?? args["repair-session"];
   return typeof value === "string" && value.trim().length > 0
@@ -8091,7 +8379,7 @@ async function readSessionEvents(stateDir, sessionId) {
 
 function contextFromSessionEvents(events, fallbackEvent = {}) {
   const contextTurns = events.filter((event) => event.hook === "context.before_turn" || event.hook === "context.export");
-  const observations = events.filter((event) => event.hook === "conversation.observe");
+  const observations = events.filter(isConversationObservationEvent);
   const diffs = events.filter((event) => event.hook === "diff.after_edit");
   const reviews = events.filter((event) => event.hook === "review.after_feedback");
   const outcomes = events.filter((event) => event.hook === "outcome.after_task");
@@ -8125,7 +8413,7 @@ async function traceFromSession(stateDir, sessionId) {
   }
 
   const contextTurns = events.filter((event) => event.hook === "context.before_turn" || event.hook === "context.export");
-  const observations = events.filter((event) => event.hook === "conversation.observe");
+  const observations = events.filter(isConversationObservationEvent);
   const validations = events.filter((event) => event.hook === "validation.after_run");
   const diffs = events.filter((event) => event.hook === "diff.after_edit");
   const reviews = events.filter((event) => event.hook === "review.after_feedback");
@@ -8855,6 +9143,19 @@ function conversationMessages(event) {
   return messages;
 }
 
+function conversationTask(event, messages) {
+  if (typeof event.task === "string" && event.task.trim().length > 0) {
+    return event.task.trim();
+  }
+
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+  if (latestUserMessage) {
+    return latestUserMessage.content;
+  }
+
+  return messages.map((message) => message.content).join("\n");
+}
+
 function conversationCorrectionSignals(messages) {
   const signals = [];
 
@@ -9357,7 +9658,7 @@ async function activeTurnDirectivesForSession(stateDir, sessionId) {
 
   const events = await readSessionEvents(stateDir, sessionId);
   return directiveSummary(eventsSinceLastOutcome(events)
-    .filter((event) => event.hook === "conversation.observe" && event.turnDirectiveReceipt?.status === "accepted")
+    .filter((event) => isConversationObservationEvent(event) && event.turnDirectiveReceipt?.status === "accepted")
     .flatMap((event) => Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : []));
 }
 
@@ -10425,7 +10726,7 @@ async function checkCorrectionSafety(checks, stateDir, strict) {
       continue;
     }
 
-    for (const event of events.filter((item) => item.hook === "conversation.observe")) {
+    for (const event of events.filter(isConversationObservationEvent)) {
       const signals = Array.isArray(event.correctionSignals) ? event.correctionSignals : [];
       if (signals.length === 0) {
         continue;

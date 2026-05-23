@@ -52,6 +52,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.identity.source, "task_hash_fallback");
     assert.equal(first.identity.fallback, true);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.phase), [
+      "conversationBeforeTurn",
       "conversationObserve",
       "beforeTurn",
       "afterInject",
@@ -66,6 +67,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "afterIdle",
     ]);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.hook), [
+      "conversation.before_turn",
       "conversation.observe",
       "context.before_turn",
       "context.after_inject",
@@ -86,8 +88,9 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     ]);
     assert.equal(first.adapter.lifecycle[0].injectFrom, "contextBlock");
     assert.equal(first.adapter.lifecycle[1].injectFrom, "contextBlock");
-    assert.equal(first.adapter.lifecycle[7].injectFrom, "repairBlock");
-    assert.equal(first.adapter.lifecycle[9].injectFrom, "contextBlock");
+    assert.equal(first.adapter.lifecycle[2].injectFrom, "contextBlock");
+    assert.equal(first.adapter.lifecycle[8].injectFrom, "repairBlock");
+    assert.equal(first.adapter.lifecycle[10].injectFrom, "contextBlock");
     assert.deepEqual(first.adapter.warrant.command.slice(0, 5), [
       "node",
       "precedent/bin/precedent.mjs",
@@ -111,6 +114,15 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.afterInject.stdin.inserted, "$INSERTED");
     assert.ok(first.adapter.afterInject.output.includes("contextInjectionAck"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
+    assert.deepEqual(first.adapter.conversationBeforeTurn.stdin.hook, "conversation.before_turn");
+    assert.equal(first.adapter.conversationBeforeTurn.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.conversationBeforeTurn.stdin.messages, "$MESSAGES");
+    assert.equal(first.adapter.conversationBeforeTurn.injectFrom, "contextBlock");
+    assert.ok(first.adapter.conversationBeforeTurn.output.includes("observation"));
+    assert.ok(first.adapter.conversationBeforeTurn.output.includes("beforeTurn"));
+    assert.ok(first.adapter.conversationBeforeTurn.output.includes("contextBlocks"));
+    assert.ok(first.adapter.conversationBeforeTurn.output.includes("deliveryReceipt"));
+    assert.ok(first.adapter.conversationBeforeTurn.output.includes("attributedPrecedents"));
     assert.deepEqual(first.adapter.conversationObserve.stdin.hook, "conversation.observe");
     assert.equal(first.adapter.conversationObserve.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.conversationObserve.stdin.messages, "$MESSAGES");
