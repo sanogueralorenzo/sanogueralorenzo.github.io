@@ -31,9 +31,9 @@ node jury/bin/jury.mjs check --state-dir .jury --strict
 To consume a shared bundle in a fresh job:
 
 ```shell
-node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --expect-producer-name @sanogueralorenzo/jury --expect-producer-version 0.1.0 --expect-source local --expect-revision-pattern "^unknown$"
 node jury/bin/jury.mjs init --state-dir .jury-imported
-node jury/bin/jury.mjs bundle import --state-dir .jury-imported --bundle review-bundle.json --verdict-out imported-verdict.json
+node jury/bin/jury.mjs bundle import --state-dir .jury-imported --bundle review-bundle.json --verdict-out imported-verdict.json --expect-producer-name @sanogueralorenzo/jury --expect-producer-version 0.1.0 --expect-source local --expect-revision-pattern "^unknown$"
 node jury/bin/jury.mjs gate --state-dir .jury-imported --claim claim_ci_change --verdict imported-verdict.json
 node jury/bin/jury.mjs check --state-dir .jury-imported --strict
 ```
@@ -54,4 +54,4 @@ node jury/bin/jury.mjs check --state-dir .jury-imported --strict
 
 Use [release.json](release.json) to discover supported schema files, state files, export examples, and CLI commands. Consumers should reject artifacts with unknown `schema_version` values instead of guessing.
 
-Run `bundle preflight` before `bundle import` for third-party bundles. Preflight reports all bundle validation errors it can find and exits before creating or mutating `.jury/` state. Import consumers should inspect `producer.name`, `producer.version`, `provenance.source`, and `provenance.revision` before trusting the bundle.
+Run `bundle preflight` before `bundle import` for third-party bundles. Preflight reports all bundle validation errors it can find and exits before creating or mutating `.jury/` state. Import consumers should enforce `--expect-producer-name`, `--expect-producer-version`, `--expect-source`, and `--expect-revision-pattern` before trusting the bundle.

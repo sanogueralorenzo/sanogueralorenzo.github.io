@@ -70,8 +70,10 @@ node jury/bin/jury.mjs check --strict
 
 `gate --claim <id>` reports `missing_fields`, `unresolved_objections`, `next_actions`, and `consistency_errors` when the verdict does not match current state.
 
-`bundle preflight --bundle review-bundle.json` reports all bundle schema, record, and cross-reference errors before import. It exits non-zero for invalid bundles and does not create `.jury/` files.
+`bundle preflight --bundle review-bundle.json` reports all bundle schema, record, cross-reference, and trust policy errors before import. It exits non-zero for invalid or untrusted bundles and does not create `.jury/` files.
 
 `bundle export` accepts `--producer-name`, `--producer-version`, `--source`, `--revision`, `--workflow`, and `--run-id` for CI provenance. Defaults come from the local CLI and GitHub Actions environment when present.
+
+`bundle preflight` and `bundle import` accept `--expect-producer-name`, `--expect-producer-version`, `--expect-source`, and `--expect-revision-pattern` so CI can reject bundles from unexpected producers or revisions before state is mutated.
 
 `check --strict` reports malformed JSON, schema problems, missing claim references, missing evidence/check/objection/waiver references, cross-claim references, and verdict claim-version mismatches.

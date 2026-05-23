@@ -929,6 +929,8 @@ function preflightReviewBundle(bundle) {
     errors.push(...consistencyErrorsForRecords(bundle.records));
   }
 
+  errors.push(...trustPolicyErrors(bundle));
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }
@@ -941,6 +943,40 @@ function preflightReviewBundle(bundle) {
     records: Object.fromEntries(STATE_RECORD_TYPES.map((name) => [name, bundle.records[name].length])),
     latest_verdict_id: latestVerdictFromBundle(bundle)?.id ?? null,
   };
+}
+
+function trustPolicyErrors(bundle) {
+  const errors = [];
+
+  if (args["expect-producer-name"] && bundle.producer?.name !== args["expect-producer-name"]) {
+    errors.push(`bundle.producer.name expected ${args["expect-producer-name"]}, got ${bundle.producer?.name ?? "missing"}`);
+  }
+
+  if (args["expect-producer-version"] && bundle.producer?.version !== args["expect-producer-version"]) {
+    errors.push(`bundle.producer.version expected ${args["expect-producer-version"]}, got ${bundle.producer?.version ?? "missing"}`);
+  }
+
+  if (args["expect-source"] && bundle.provenance?.source !== args["expect-source"]) {
+    errors.push(`bundle.provenance.source expected ${args["expect-source"]}, got ${bundle.provenance?.source ?? "missing"}`);
+  }
+
+  if (args["expect-revision-pattern"]) {
+    let pattern;
+
+    try {
+      pattern = new RegExp(args["expect-revision-pattern"]);
+    } catch (error) {
+      errors.push(`bundle.provenance.revision pattern is invalid: ${error.message}`);
+      return errors;
+    }
+
+    const revision = bundle.provenance?.revision;
+    if (typeof revision !== "string" || !pattern.test(revision)) {
+      errors.push(`bundle.provenance.revision must match ${args["expect-revision-pattern"]}, got ${revision ?? "missing"}`);
+    }
+  }
+
+  return errors;
 }
 
 function bundleProducer() {
@@ -1527,8 +1563,8 @@ Commands:
   jury judge --claim <id> [--out verdict.json] [--require-human-approval true]
   jury gate --verdict verdict.json [--claim <id>]
   jury bundle export --claim <id> --out review-bundle.json
-  jury bundle preflight --bundle review-bundle.json
-  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json]
+  jury bundle preflight --bundle review-bundle.json [--expect-producer-name name] [--expect-producer-version version] [--expect-source source] [--expect-revision-pattern pattern]
+  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json] [--expect-producer-name name] [--expect-producer-version version] [--expect-source source] [--expect-revision-pattern pattern]
   jury check --strict
   jury demo code-change`);
 }

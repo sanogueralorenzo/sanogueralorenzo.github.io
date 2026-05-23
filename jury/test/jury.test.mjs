@@ -636,6 +636,57 @@ test("bundle preflight and import reject invalid bundles before state mutation",
   }
 });
 
+test("bundle trust policy allows expected producers and rejects mismatches before import", async () => {
+  const cwd = await tempState();
+  const stateDir = join(cwd, "trusted-import-state");
+  const bundlePath = join(repoRoot, "jury/examples/ci/fixtures/quickstart/review-bundle.json");
+  const trustPolicy = [
+    "--expect-producer-name", "@sanogueralorenzo/jury",
+    "--expect-producer-version", "0.1.0",
+    "--expect-source", "local",
+    "--expect-revision-pattern", "^unknown$",
+  ];
+
+  try {
+    const allowed = await runProcess(["bundle", "preflight", "--state-dir", stateDir, "--bundle", bundlePath, ...trustPolicy]);
+    const allowedPayload = JSON.parse(allowed.stdout);
+
+    assert.equal(allowed.exitCode, 0);
+    assert.equal(allowedPayload.ok, true);
+    await assertPathMissing(stateDir);
+
+    const imported = await runProcess(["bundle", "import", "--state-dir", stateDir, "--bundle", bundlePath, ...trustPolicy]);
+    const importedPayload = JSON.parse(imported.stdout);
+
+    assert.equal(imported.exitCode, 0);
+    assert.equal(importedPayload.ok, true);
+    assert.equal(importedPayload.producer.name, "@sanogueralorenzo/jury");
+
+    await rm(stateDir, { recursive: true, force: true });
+
+    const rejected = await runProcess([
+      "bundle", "import",
+      "--state-dir", stateDir,
+      "--bundle", bundlePath,
+      "--expect-producer-name", "other-producer",
+      "--expect-producer-version", "9.9.9",
+      "--expect-source", "github.com/example/repo",
+      "--expect-revision-pattern", "^[0-9a-f]{40}$",
+    ]);
+    const rejectedPayload = JSON.parse(rejected.stdout);
+
+    assert.equal(rejected.exitCode, 1);
+    assert.equal(rejectedPayload.ok, false);
+    assert.ok(rejectedPayload.errors.includes("bundle.producer.name expected other-producer, got @sanogueralorenzo/jury"));
+    assert.ok(rejectedPayload.errors.includes("bundle.producer.version expected 9.9.9, got 0.1.0"));
+    assert.ok(rejectedPayload.errors.includes("bundle.provenance.source expected github.com/example/repo, got local"));
+    assert.ok(rejectedPayload.errors.includes("bundle.provenance.revision must match ^[0-9a-f]{40}$, got unknown"));
+    await assertPathMissing(stateDir);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test("review bundle exports from local state and imports into fresh state", async () => {
   const sourceDir = await tempState();
   const importedDir = await tempState();
@@ -839,8 +890,9 @@ test("maintainer handoff references current adoption artifacts and validation co
 
   assert.match(handoff, /validates imported bundles before local state is created or mutated/);
   assert.match(handoff, /before local state is created or mutated/);
-  assert.match(handoff, /producer metadata, provenance, record, and cross-reference errors/);
-  assert.match(handoff, /trust policy checks/);
+  assert.match(handoff, /producer metadata, provenance, record, cross-reference, and trust policy errors/);
+  assert.match(handoff, /expected producer name, producer version, source, and revision pattern/);
+  assert.match(handoff, /signed bundle attestations/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

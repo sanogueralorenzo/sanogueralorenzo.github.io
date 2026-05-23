@@ -18,6 +18,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] `review-bundle.json` includes `producer` and `provenance` with a source revision.
 - [ ] `gate.json` exists and has `ok: true`.
 - [ ] `node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json` passes before import.
+- [ ] `bundle preflight` uses producer trust policy flags before importing third-party bundles.
 - [ ] `.jury/*.jsonl` exists when raw append-only audit state is needed.
 
 Expected fixture files:

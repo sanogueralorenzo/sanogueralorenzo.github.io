@@ -24,8 +24,12 @@ The test suite covers the quickstart, GitHub Actions workflow commands, fixture 
 
 ## Current Hardening Step
 
-`bundle preflight --bundle review-bundle.json` validates imported bundles before local state is created or mutated. It reports bundle schema, producer metadata, provenance, record, and cross-reference errors so CI consumers can reject third-party artifacts before `bundle import`.
+`bundle preflight --bundle review-bundle.json` validates imported bundles before local state is created or mutated. It reports bundle schema, producer metadata, provenance, record, cross-reference, and trust policy errors so CI consumers can reject third-party artifacts before `bundle import`.
+
+## Trust Policy
+
+Trust policy flags on `bundle preflight` and `bundle import` let CI allow or reject bundles by expected producer name, producer version, source, and revision pattern.
 
 ## Next Hardening Step
 
-Add trust policy checks for `review-bundle.json` producers so CI can allow or reject bundles by expected producer name, version, source, and revision pattern.
+Add signed bundle attestations so CI can verify that trusted producers created `review-bundle.json` without relying only on metadata.
