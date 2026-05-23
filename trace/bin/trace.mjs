@@ -469,18 +469,34 @@ async function checkTrace() {
   const { files, invalidMemories } = await auditMemoryFiles(root);
   const dirtyTrace = await dirtyTraceFiles(root);
   const checkpointRef = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
-  const ok = invalidMemories.length === 0 && dirtyTrace.length === 0;
+  const checkpointIntegrity = args.checkpoints
+    ? await checkpointIntegrityReport(root, await memoryTargetsForFiles(root, files))
+    : null;
+  const ok = invalidMemories.length === 0 && dirtyTrace.length === 0 && (checkpointIntegrity?.ok ?? true);
   print({
     ok,
     memories: files.length,
     checkpointRef: checkpointRef || null,
     uncommitted: dirtyTrace,
     invalidMemories,
+    checkpointIntegrity,
   });
 
   if (!ok) {
     process.exitCode = 1;
   }
+}
+
+async function memoryTargetsForFiles(root, files) {
+  const memories = [];
+  for (const file of files) {
+    const content = await readFile(file, "utf8");
+    const commit = content.match(/^Commit: `([^`]+)`/m)?.[1];
+    if (commit) {
+      memories.push({ commit, memory: relativePath(root, file) });
+    }
+  }
+  return memories;
 }
 
 async function runCiCheck(range) {
@@ -2986,7 +3002,7 @@ Usage:
   trace hook pre-commit
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
   trace doctor
-  trace check
+  trace check [--checkpoints]
   trace status
   trace disable
 `);

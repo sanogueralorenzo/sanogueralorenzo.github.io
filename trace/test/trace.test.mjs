@@ -377,6 +377,22 @@ test("check fails on uncommitted Trace memories and passes after committing them
     const cleanPayload = JSON.parse(clean.stdout);
     assert.equal(cleanPayload.ok, true);
     assert.equal(cleanPayload.uncommitted.length, 0);
+    assert.equal(cleanPayload.checkpointIntegrity, null);
+
+    const cleanWithCheckpoints = JSON.parse((await runTrace(repo, ["check", "--checkpoints"])).stdout);
+    assert.equal(cleanWithCheckpoints.ok, true);
+    assert.equal(cleanWithCheckpoints.checkpointIntegrity.ok, true);
+    assert.equal(cleanWithCheckpoints.checkpointIntegrity.present, true);
+    assert.equal(cleanWithCheckpoints.checkpointIntegrity.linkedMemories, 1);
+
+    await runTrace(repo, ["checkpoint", "cleanup", "--keep", "0"]);
+    const missingCheckpointData = await runTraceAllowFailure(repo, ["check", "--checkpoints"]);
+    assert.equal(missingCheckpointData.exitCode, 1);
+    const missingCheckpointReport = JSON.parse(missingCheckpointData.stdout);
+    assert.equal(missingCheckpointReport.ok, false);
+    assert.equal(missingCheckpointReport.checkpointIntegrity.ok, false);
+    assert.equal(missingCheckpointReport.checkpointIntegrity.present, true);
+    assert.ok(missingCheckpointReport.checkpointIntegrity.errors.some((entry) => entry.error.includes("missing checkpoint payload")));
 
     const pendingReview = await runTrace(repo, ["review"]);
     assert.match(pendingReview.stdout, /No pending Trace memories found/);
