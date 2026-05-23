@@ -105,6 +105,25 @@
       }
     ]
   },
+  "packagePublication": {
+    "notes": "PUBLISHING.md",
+    "packDryRunCommand": "cd jury && npm pack --dry-run --json",
+    "requiredFiles": [
+      "package.json",
+      "PUBLISHING.md",
+      "release.json",
+      "CI_ADOPTION.md",
+      "MIGRATION.md",
+      "README.md",
+      "bin/jury.mjs",
+      "schemas",
+      "examples/ci/jury-review-gate.yml",
+      "examples/ci/jury-signed-review-gate.yml",
+      "examples/ci/jury-signed-artifact-handoff.yml",
+      "examples/ci/jury-trusted-bundle-verify.yml",
+      "examples/ci/fixtures/key-policy"
+    ]
+  },
   "ciArtifacts": [
     "verdict.json",
     "gate.json",

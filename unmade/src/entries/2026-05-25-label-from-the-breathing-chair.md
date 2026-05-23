@@ -10,11 +10,20 @@ status: prototype label
 visual: label
 mark: "B"
 trace: Model number, warning text, and one comfort setting nobody could name.
-question: Should furniture know before people do?
+materials: Tyvek label, heat-transfer ink, pressure sensor diagram, fabric swatch, and a warning triangle cut from the failed spec sheet.
+provenance: Saved from a prototype binder whose actual chair drawings were missing.
+question: Should furniture be allowed to know distress before the person sitting in it can say anything true?
 permalink: /unmade/label-from-the-breathing-chair/
 ---
 
-The label was more complete than the chair: serial number, material notes, cleaning instructions, a warning not to override the pressure sensors during emotional distress.
+The label was more complete than the chair: serial number, material notes, cleaning instructions, a warning not to override the pressure sensors during emotional distress. It described lumbar support, upholstery care, firmware updates, and a comfort setting translated only as stay.
+
+The missing chair would have learned shallow breathing, uneven weight, the small collapse that happens before a person admits they are no longer fine. It promised no cure. It promised to adjust without asking for confession.
 
 The product never existed, but the label made it feel recalled from a future where comfort had become diagnostic.
 
+## Case Notes
+
+The label is filed as Unbuilt because it is a fragment of industrial tenderness: a consumer object imagined at the uneasy border between care and surveillance.
+
+The unresolved question is whether a responsive chair would dignify distress, or quietly train people to outsource the recognition of their own bodies.
