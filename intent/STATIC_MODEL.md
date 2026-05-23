@@ -53,6 +53,9 @@ goal body, outside known blocks such as `context`, `capability`, `memory`,
 `plan`, `verify`, and `invariant`, emit `INTENT_UNSUPPORTED_SYNTAX` at the raw
 statement span.
 
+A syntactically valid source with package, imports, or type declarations but no
+goal emits `INTENT_GOAL_MISSING` at the source span.
+
 ## Type Declarations And Built-ins
 
 The first checker prototype supports file-local, top-level type declarations.
@@ -314,6 +317,8 @@ blocking diagnostics.
 - Reject duplicate type names in the file, duplicate goal names in the file,
   duplicate goal input names in a goal, duplicate step names in a goal, and
   duplicate step input names in a step.
+- Reject files with no goal declarations with `INTENT_GOAL_MISSING` at the
+  source span.
 - Reject unsupported parsed raw goal statements with
   `INTENT_UNSUPPORTED_SYNTAX` at the statement span.
 - Duplicate goal and step parameter diagnostics should use the duplicate
@@ -1013,6 +1018,7 @@ Diagnostics are structured and stable enough for editor and CI use.
 Initial diagnostic families:
 
 - `INTENT_PARSE_ERROR`
+- `INTENT_GOAL_MISSING`
 - `INTENT_UNSUPPORTED_SYNTAX`
 - `INTENT_NAME_UNRESOLVED`
 - `INTENT_NAME_DUPLICATE`

@@ -1,0 +1,5 @@
+package fixtures.invalid_goal_missing
+
+type Finding = {
+  summary: String
+}
