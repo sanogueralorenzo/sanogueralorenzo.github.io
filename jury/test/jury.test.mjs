@@ -1310,6 +1310,9 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("archive drift remediation audit must record approving maintainer"));
   assert.ok(guide.includes("archive drift remediation audit must verify the retained manifest"));
   assert.ok(guide.includes("archive drift remediation audit missing verification commands"));
+  assert.ok(guide.includes("Replay Artifact Summary Failure"));
+  assert.ok(guide.includes("missing replay summary lines"));
+  assert.ok(guide.includes("failed package identity, replacement package identity, retained archive evidence lists, and remediation approver"));
   assert.ok(guide.includes("schema_version must equal jury.package_release_archive_manifest.v1"));
   assert.ok(guide.includes("must contain an item matching required archive evidence"));
   assert.ok(guide.includes("missing retained archive evidence"));
@@ -1459,6 +1462,43 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
     assert.equal(missingVerificationCommandCheck.exitCode, 1);
     assert.match(missingVerificationCommandCheck.stderr, /archive drift remediation audit missing verification commands: --verify-manifest/);
     await writeFile(remediationAuditPath, `${JSON.stringify(remediationAudit, null, 2)}\n`);
+
+    const replaySummaryTroubleshootingCommands = extractShellBlock(guide, "Replay Artifact Summary Failure");
+    assert.deepEqual(replaySummaryTroubleshootingCommands, [
+      'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const manifest=JSON.parse(fs.readFileSync(process.argv[2],"utf8")); const remediation=JSON.parse(fs.readFileSync(`${dir}/archive-drift-remediation-audit.json`,"utf8")); const summary={failedPackageVersion:manifest.failed?.packageVersion,failedTarballName:manifest.failed?.tarballName,replacementPackageVersion:manifest.replacement?.packageVersion,failedArchiveEvidence:remediation.failed?.archiveEvidence,replacementArchiveEvidence:remediation.replacement?.archiveEvidence,remediationApprovedBy:remediation.approval?.approvedBy}; console.log(JSON.stringify(summary,null,2)); if (!summary.failedPackageVersion || !summary.failedTarballName || !summary.replacementPackageVersion || !summary.remediationApprovedBy) process.exit(1);\' <retained-evidence-dir> <retained-manifest>',
+      'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const manifest=JSON.parse(fs.readFileSync(process.argv[2],"utf8")); const summary=fs.readFileSync(process.argv[3],"utf8"); const remediation=JSON.parse(fs.readFileSync(`${dir}/archive-drift-remediation-audit.json`,"utf8")); const required=[`- failedPackageVersion: ${manifest.failed.packageVersion}`,`- failedTarballName: ${manifest.failed.tarballName}`,`- replacementPackageVersion: ${manifest.replacement.packageVersion}`,`- failedArchiveEvidence: ${remediation.failed.archiveEvidence.join(", ")}`,`- replacementArchiveEvidence: ${remediation.replacement.archiveEvidence.join(", ")}`,`- remediationApprovedBy: ${remediation.approval.approvedBy}`]; const missing=required.filter((line)=>!summary.includes(line)); if (missing.length) throw new Error(`missing replay summary lines: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, checked:required}, null, 2));\' <retained-evidence-dir> <retained-manifest> <summary-file>',
+    ]);
+    const replaySummarySource = await runShell(retainedCommand(replaySummaryTroubleshootingCommands[0]));
+    assert.equal(replaySummarySource.exitCode, 0, replaySummarySource.stderr);
+    assert.deepEqual(JSON.parse(replaySummarySource.stdout), {
+      failedPackageVersion: "0.1.0",
+      failedTarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+      replacementPackageVersion: "0.1.1",
+      failedArchiveEvidence: ["downstream-failure-gate.json", "failed-npm-view.json", "rollback-audit.json"],
+      replacementArchiveEvidence: ["replacement-downstream-gate.json", "replacement-npm-view.json", "replacement-patch-audit.json"],
+      remediationApprovedBy: "release-maintainer@example.com",
+    });
+
+    const replaySummaryPath = join(manifestReplayRoot, "package-release-replay-summary.md");
+    await writeFile(replaySummaryPath, [
+      "### Jury package release replay",
+      "",
+      "- failedPackageVersion: 0.1.0",
+      "- failedTarballName: sanogueralorenzo-jury-0.1.0.tgz",
+      "- replacementPackageVersion: 0.1.1",
+      "- failedArchiveEvidence: downstream-failure-gate.json, failed-npm-view.json, rollback-audit.json",
+      "- replacementArchiveEvidence: replacement-downstream-gate.json, replacement-npm-view.json, replacement-patch-audit.json",
+      "- remediationApprovedBy: release-maintainer@example.com",
+      "",
+    ].join("\n"));
+    const replaySummaryCheck = await runShell(retainedCommand(replaySummaryTroubleshootingCommands[1]).replace("<summary-file>", shellQuote(replaySummaryPath)));
+    assert.equal(replaySummaryCheck.exitCode, 0, replaySummaryCheck.stderr);
+    assert.equal(JSON.parse(replaySummaryCheck.stdout).ok, true);
+
+    await writeFile(replaySummaryPath, "- failedPackageVersion: 0.1.0\n");
+    const missingReplaySummaryLineCheck = await runShell(retainedCommand(replaySummaryTroubleshootingCommands[1]).replace("<summary-file>", shellQuote(replaySummaryPath)));
+    assert.equal(missingReplaySummaryLineCheck.exitCode, 1);
+    assert.match(missingReplaySummaryLineCheck.stderr, /missing replay summary lines: - failedTarballName: sanogueralorenzo-jury-0\.1\.0\.tgz/);
 
     const manifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
     manifest.retention.artifacts = manifest.retention.artifacts.filter((artifact) => artifact !== "replacement-patch-audit.json");
@@ -1883,6 +1923,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("rollback and replacement audit examples"));
   assert.ok(publicationNotes.includes("package-release-evidence-replay"));
   assert.ok(publicationNotes.includes("failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver"));
+  assert.ok(publicationNotes.includes("replay artifact summary failure"));
   assert.ok(publicationNotes.includes("--fixture-dir"));
   assert.ok(publicationNotes.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(publicationNotes.includes("dry_run_reviewer"));
@@ -3157,12 +3198,15 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /Remediation Audit Replay Troubleshooting/);
   assert.match(handoff, /executable examples for missing `approvedBy` and missing verification commands/);
   assert.match(handoff, /replay rejects the approval or command evidence required before replacing a retained manifest/);
+  assert.match(handoff, /Replay Artifact Summary Troubleshooting/);
+  assert.match(handoff, /reconstruct the expected failed\/replacement archive summary from the retained evidence/);
+  assert.match(handoff, /failed package identity, replacement package identity, retained archive evidence lists, or remediation approver/);
   assert.match(handoff, /JURY_PACKAGE_RELEASE_EVIDENCE_DIR/);
   assert.match(handoff, /replacement-patch-audit\.json\.checks is required/);
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary failure troubleshooting for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention handoff for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

@@ -124,6 +124,17 @@ node -e 'const fs=require("node:fs"); const audit=JSON.parse(fs.readFileSync(`${
 
 If approval is missing, keep the release or incident record open until a maintainer records who approved the restored evidence and manifest replacement. If verification commands are missing, rerun manifest replay, archive evidence digest verification, dry-run identity verification, manifest regeneration with diff review, and `fixtures:package-release:drift` before closing the remediation audit.
 
+## Replay Artifact Summary Failure
+
+Use this when `package-release-evidence-replay` passes but its `GITHUB_STEP_SUMMARY` is missing the failed or replacement release archive evidence details. Rebuild the expected summary from the retained evidence and manifest, then compare the saved summary output:
+
+```shell
+node -e 'const fs=require("node:fs"); const dir=process.argv[1]; const manifest=JSON.parse(fs.readFileSync(process.argv[2],"utf8")); const remediation=JSON.parse(fs.readFileSync(`${dir}/archive-drift-remediation-audit.json`,"utf8")); const summary={failedPackageVersion:manifest.failed?.packageVersion,failedTarballName:manifest.failed?.tarballName,replacementPackageVersion:manifest.replacement?.packageVersion,failedArchiveEvidence:remediation.failed?.archiveEvidence,replacementArchiveEvidence:remediation.replacement?.archiveEvidence,remediationApprovedBy:remediation.approval?.approvedBy}; console.log(JSON.stringify(summary,null,2)); if (!summary.failedPackageVersion || !summary.failedTarballName || !summary.replacementPackageVersion || !summary.remediationApprovedBy) process.exit(1);' <retained-evidence-dir> <retained-manifest>
+node -e 'const fs=require("node:fs"); const dir=process.argv[1]; const manifest=JSON.parse(fs.readFileSync(process.argv[2],"utf8")); const summary=fs.readFileSync(process.argv[3],"utf8"); const remediation=JSON.parse(fs.readFileSync(`${dir}/archive-drift-remediation-audit.json`,"utf8")); const required=[`- failedPackageVersion: ${manifest.failed.packageVersion}`,`- failedTarballName: ${manifest.failed.tarballName}`,`- replacementPackageVersion: ${manifest.replacement.packageVersion}`,`- failedArchiveEvidence: ${remediation.failed.archiveEvidence.join(", ")}`,`- replacementArchiveEvidence: ${remediation.replacement.archiveEvidence.join(", ")}`,`- remediationApprovedBy: ${remediation.approval.approvedBy}`]; const missing=required.filter((line)=>!summary.includes(line)); if (missing.length) throw new Error(`missing replay summary lines: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, checked:required}, null, 2));' <retained-evidence-dir> <retained-manifest> <summary-file>
+```
+
+If the reconstructed JSON is missing a value, fix the retained manifest or `archive-drift-remediation-audit.json` before trusting the replay. If the summary comparison reports missing lines, rerun `package-release-evidence-replay` from the same downloaded artifacts so the failed package identity, replacement package identity, retained archive evidence lists, and remediation approver are visible before `dry-run-publication`.
+
 ## Dry-Run Publication Artifact Failure
 
 Use this when the npm publish workflow fails before credentials are exposed with `packageVersion did not match` or `tarballName did not match`. The downloaded `jury-package-dry-run` artifact must contain `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` from the same `dry-run-publication` job that followed the package manifest check.

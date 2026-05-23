@@ -92,6 +92,10 @@ Package release evidence replay troubleshooting now covers `package-release-evid
 
 Remediation audit replay troubleshooting now includes executable examples for missing `approvedBy` and missing verification commands. Use them when `archive-drift-remediation-audit.json` is present but replay rejects the approval or command evidence required before replacing a retained manifest.
 
+## Replay Artifact Summary Troubleshooting
+
+Replay artifact summary troubleshooting now includes executable examples that reconstruct the expected failed/replacement archive summary from the retained evidence and compare it with the saved `GITHUB_STEP_SUMMARY` output. Use them when the replay job passes but the release page does not show the failed package identity, replacement package identity, retained archive evidence lists, or remediation approver.
+
 ## Bundle Preflight
 
 `bundle preflight --bundle review-bundle.json` validates imported bundles before local state is created or mutated. It reports bundle schema, producer metadata, provenance, record, cross-reference, and trust policy errors so CI consumers can reject third-party artifacts before `bundle import`.
@@ -110,4 +114,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary failure troubleshooting for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention handoff for failed and replacement release archives.
