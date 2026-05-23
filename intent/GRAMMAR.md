@@ -456,7 +456,10 @@ The parser emits names and type reference strings; the checker owns binding.
   `retentionRules` lifecycle data so runtimes can enforce retention without
   reparsing raw text.
 - Emitted graph edges are validated so both endpoints resolve to nodes in the
-  same payload, and dependency and execution edge kinds are acyclic.
+  same payload, and dependency and execution edge kinds are acyclic. An edge
+  whose `from` or `to` endpoint is absent from the same graph payload emits
+  `INTENT_GRAPH_EDGE_UNRESOLVED`; cyclic graph edges emit
+  `INTENT_GRAPH_CYCLE`.
 - Graph nodes and edges record trust metadata where it helps downstream
   runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.
