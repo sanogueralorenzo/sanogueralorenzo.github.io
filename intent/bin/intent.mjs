@@ -26,6 +26,22 @@ const BUILTIN_TYPES = new Set([
   "Provenance",
   "SecretRef",
 ]);
+const GRAPH_NODE_KINDS = new Set([
+  "Approval",
+  "Capability",
+  "Check",
+  "Checkpoint",
+  "Completion",
+  "Context",
+  "Effect",
+  "Goal",
+  "Input",
+  "Invariant",
+  "Memory",
+  "Policy",
+  "Step",
+  "Type",
+]);
 const GRAPH_EDGE_KINDS = new Set([
   "authorizes",
   "approves",
@@ -1191,6 +1207,14 @@ function validateGraph(graph) {
         node_kind: graphNode.kind,
         previous_node_kind: previousNode.kind,
         previous_span: previousNode.span,
+      }));
+      continue;
+    }
+    if (!GRAPH_NODE_KINDS.has(graphNode.kind)) {
+      diagnostics.push(error("INTENT_GRAPH_NODE_KIND_INVALID", `graph node kind '${graphNode.kind}' is not supported.`, graphNode.span ?? span(graph.source ?? "graph", 1, 1), {
+        node_id: graphNode.id,
+        node_kind: graphNode.kind,
+        supported_node_kinds: [...GRAPH_NODE_KINDS],
       }));
       continue;
     }

@@ -1026,14 +1026,14 @@ describe("intent static model CLI", () => {
   it("validates graph endpoint and cycle diagnostics", () => {
     const danglingDiagnostics = validateGraph({
       source: "synthetic.intent",
-      nodes: [{ id: "node:a", span: testSpan(1) }],
+      nodes: [{ id: "node:a", kind: "Type", label: "a", span: testSpan(1) }],
       edges: [{ from: "node:a", to: "node:missing", kind: "requests" }],
     });
     const cycleDiagnostics = validateGraph({
       source: "synthetic.intent",
       nodes: [
-        { id: "node:a", span: testSpan(1) },
-        { id: "node:b", span: testSpan(2) },
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(1) },
+        { id: "node:b", kind: "Type", label: "b", span: testSpan(2) },
       ],
       edges: [
         { from: "node:a", to: "node:b", kind: "requests" },
@@ -1065,6 +1065,22 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].previous_node_kind, "Type");
     assert.equal(diagnostics[0].previous_span.start.line, 1);
     assert.equal(diagnostics[0].span.start.line, 2);
+  });
+
+  it("validates graph node kind diagnostics", () => {
+    const diagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "node:widget", kind: "Widget", label: "widget", span: testSpan(1) },
+      ],
+      edges: [],
+    });
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_NODE_KIND_INVALID");
+    assert.equal(diagnostics[0].node_id, "node:widget");
+    assert.equal(diagnostics[0].node_kind, "Widget");
+    assert.equal(diagnostics[0].supported_node_kinds.includes("Goal"), true);
   });
 
   it("validates graph edge kind diagnostics", () => {
