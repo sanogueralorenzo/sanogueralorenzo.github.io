@@ -287,8 +287,12 @@ a node id emitted in the same payload and requires emitted graphs to be acyclic
 over dependency and execution edge kinds. Graph validation also emits
 `INTENT_GRAPH_STEP_PLAN_INVALID` when a `Step` node lacks exactly one incoming
 `plans` edge from its owning `Goal`, or when incoming `plans` edges are not from
-that owning `Goal`. The graph command may emit `ok: false` with diagnostics for
-inspection, but runtimes must treat that graph as non-executable.
+that owning `Goal`. Graph validation emits
+`INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with multiple `Step` nodes does
+not have exactly one linear `precedes` chain across those steps, or when the
+`Step` producing `Completion` is not the tail step of that chain. The graph
+command may emit `ok: false` with diagnostics for inspection, but runtimes must
+treat that graph as non-executable.
 
 ## Contract Validation
 
@@ -1496,6 +1500,10 @@ not from a `Capability`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
+Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
+multiple `Step` nodes does not have exactly one linear `precedes` chain across
+those steps, or when the `Step` producing `Completion` is not the tail step of
+that chain.
 Graph validation emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID` when a
 step-scoped `Check` lacks a `requires` edge to its owning `Step`, an `Approval`
 lacks an `approves` edge to its owning `Step` or to an approval-required
