@@ -123,6 +123,9 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Policy") {
     return { scope: "step", ownerStep: "patch", policyKind: "timeout", policy: "5m", ...normalizedData };
   }
+  if (kind === "Approval") {
+    return { scope: "step", ownerStep: "patch", approval: "maintainer", ...normalizedData };
+  }
   if (kind === "Check" && isPlainObject(normalizedData.effect)) {
     return {
       ...normalizedData,
@@ -1561,6 +1564,32 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].policy_kind_is_valid, true);
     assert.equal(diagnostics[2].policy_is_nonempty, false);
     assert.equal(diagnostics[2].owner_step_is_nonempty, false);
+  });
+
+  it("validates graph step approval diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "approval:missing", kind: "Approval", label: "missing approval", span: testSpan(1), data: { approval: null } },
+        { id: "approval:blank-owner", kind: "Approval", label: "blank owner", span: testSpan(2), data: { approval: "maintainer", ownerStep: "" } },
+        { id: "approval:blank-gate", kind: "Approval", label: "blank gate", span: testSpan(3), data: { approval: "   ", ownerStep: "patch" } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_APPROVAL_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_APPROVAL_INVALID");
+    assert.equal(diagnostics[0].approval_id, "approval:missing");
+    assert.equal(diagnostics[0].approval_is_nonempty, false);
+    assert.equal(diagnostics[0].owner_step_is_nonempty, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_APPROVAL_INVALID");
+    assert.equal(diagnostics[1].approval_gate, "maintainer");
+    assert.equal(diagnostics[1].approval_is_nonempty, true);
+    assert.equal(diagnostics[1].owner_step_is_nonempty, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_APPROVAL_INVALID");
+    assert.equal(diagnostics[2].approval_gate, "   ");
+    assert.equal(diagnostics[2].approval_is_nonempty, false);
+    assert.equal(diagnostics[2].owner_step_is_nonempty, true);
   });
 
   it("validates graph step input binding diagnostics", () => {

@@ -1342,6 +1342,10 @@ function validateGraph(graph, options = {}) {
     if (policyDiagnostic) {
       diagnostics.push(policyDiagnostic);
     }
+    const approvalDiagnostic = validateGraphApproval(graphNode, graphSpan);
+    if (approvalDiagnostic) {
+      diagnostics.push(approvalDiagnostic);
+    }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
       diagnostics.push(trustDiagnostic);
@@ -1767,6 +1771,25 @@ function validateGraphPolicy(graphNode, graphSpan) {
     owner_step: typeof graphNode.data.ownerStep === "string" ? graphNode.data.ownerStep : null,
     policy_kind_is_valid: policyKindIsValid,
     policy_is_nonempty: policyIsNonempty,
+    owner_step_is_nonempty: ownerStepIsNonempty,
+  });
+}
+
+function validateGraphApproval(graphNode, graphSpan) {
+  if (graphNode.kind !== "Approval") {
+    return null;
+  }
+  const approvalIsNonempty = typeof graphNode.data.approval === "string" && graphNode.data.approval.trim() !== "";
+  const ownerStepIsNonempty = typeof graphNode.data.ownerStep === "string" && graphNode.data.ownerStep.trim() !== "";
+  if (approvalIsNonempty && ownerStepIsNonempty) {
+    return null;
+  }
+  return error("INTENT_GRAPH_APPROVAL_INVALID", `approval '${graphNode.label}' must carry valid step approval gate data.`, graphNode.span ?? graphSpan, {
+    approval: graphNode.label,
+    approval_id: graphNode.id,
+    approval_gate: typeof graphNode.data.approval === "string" ? graphNode.data.approval : null,
+    owner_step: typeof graphNode.data.ownerStep === "string" ? graphNode.data.ownerStep : null,
+    approval_is_nonempty: approvalIsNonempty,
     owner_step_is_nonempty: ownerStepIsNonempty,
   });
 }
