@@ -64,3 +64,4 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.
 - `invalid_duplicate_step_name.intent`: declares the same step name twice in one plan.
 - `invalid_trust_flow_untrusted_shell_input.intent`: feeds a value produced from web context into `ShellExec(command: input)`.
+- `invalid_trust_flow_untrusted_effect_sinks.intent`: feeds a value produced from web context into constrained effect sink arguments such as file write paths, secret names, ticket ids, deploy targets, git branches, and git commit messages.

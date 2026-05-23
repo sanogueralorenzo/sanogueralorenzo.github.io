@@ -47,6 +47,7 @@ const INVALID_INVARIANT_PRODUCTION_DEPLOY = new URL("../fixtures/invalid_invaria
 const INVALID_INVARIANT_SECRET_WRITE = new URL("../fixtures/invalid_invariant_secret_write.intent", import.meta.url).pathname;
 const INVALID_INVARIANT_UNRELATED_FILE_WRITE = new URL("../fixtures/invalid_invariant_unrelated_file_write.intent", import.meta.url).pathname;
 const INVALID_GIT_COMMIT_MESSAGE_MISMATCH = new URL("../fixtures/invalid_git_commit_message_mismatch.intent", import.meta.url).pathname;
+const INVALID_TRUST_FLOW_UNTRUSTED_EFFECT_SINKS = new URL("../fixtures/invalid_trust_flow_untrusted_effect_sinks.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
 const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_impure_file_write.intent", import.meta.url).pathname;
@@ -800,6 +801,41 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics.length, 1);
   });
 
+  it("rejects nonliteral constrained effect sink arguments as unsafe trust flow", () => {
+    const result = run(["check", INVALID_TRUST_FLOW_UNTRUSTED_EFFECT_SINKS]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.deepEqual(payload.diagnostics.map((diagnostic) => diagnostic.code), [
+      "INTENT_TRUST_FLOW_UNSAFE",
+      "INTENT_TRUST_FLOW_UNSAFE",
+      "INTENT_TRUST_FLOW_UNSAFE",
+      "INTENT_TRUST_FLOW_UNSAFE",
+      "INTENT_TRUST_FLOW_UNSAFE",
+      "INTENT_TRUST_FLOW_UNSAFE",
+    ]);
+    assert.deepEqual(payload.diagnostics.map((diagnostic) => diagnostic.argument), [
+      "path",
+      "name",
+      "id",
+      "target",
+      "branch",
+      "message",
+    ]);
+    assert.deepEqual(payload.diagnostics.map((diagnostic) => diagnostic.value), [
+      "input",
+      "input",
+      "input",
+      "input",
+      "input",
+      "input",
+    ]);
+    assert(payload.diagnostics.every((diagnostic) => diagnostic.trust === "untrusted"));
+    assert.equal(payload.diagnostics[0].span.start.line, 49);
+    assert.equal(payload.diagnostics[0].span.start.column, 24);
+  });
+
   it("rejects verification shell commands without matching capability grants", () => {
     const result = run(["check", INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY]);
     const payload = JSON.parse(result.stdout);
@@ -1257,7 +1293,7 @@ describe("intent static model CLI", () => {
     assert.equal(secretEffect.data.family, "secret");
     assert.equal(secretEffect.data.action, "read");
     assert.equal(secretEffect.data.args.name, "GITHUB_TOKEN");
-    assert.equal(secretEffect.data.trust.zone, "unknown");
+    assert.equal(secretEffect.data.trust.zone, "trusted");
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === secretEffect.id), true);
   });
 

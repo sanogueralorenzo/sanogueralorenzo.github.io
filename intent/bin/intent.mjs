@@ -4339,21 +4339,43 @@ function getCapabilityDenial(effect, capabilities) {
 }
 
 function getTrustFlowDiagnostic(effect) {
-  if (effect.family !== "shell") {
+  const sink = trustSinkArgument(effect);
+  if (!sink) {
     return null;
   }
-  const commandKey = effect.args.command ? "command" : effect.args._0 ? "_0" : null;
-  if (!commandKey) {
-    return null;
-  }
-  if (effect.argKinds?.[commandKey] === "string") {
+  if (effectArgumentKind(effect, sink.key) === "string") {
     return null;
   }
   return {
-    message: `effect '${effect.name}' uses nonliteral shell command '${effect.args[commandKey]}'.`,
-    argument: commandKey === "_0" ? "command" : commandKey,
-    value: effect.args[commandKey],
+    message: `effect '${effect.name}' uses nonliteral ${sink.description} '${sink.value}'.`,
+    argument: sink.key,
+    value: sink.value,
     trust: "untrusted",
+  };
+}
+
+function trustSinkArgument(effect) {
+  const sinks = [
+    { family: "shell", action: "run", key: "command", description: "shell command" },
+    { family: "file", action: "write", key: "path", description: "file write path" },
+    { family: "secret", action: "read", key: "name", description: "secret name" },
+    { family: "ticket", action: "update", key: "id", description: "ticket id" },
+    { family: "deploy", action: "deploy", key: "target", description: "deploy target" },
+    { family: "git", action: "push", key: "branch", description: "git branch" },
+    { family: "git", action: "push", key: "remote", description: "git remote" },
+    { family: "git", action: "commit", key: "message", description: "git commit message" },
+  ];
+  const sink = sinks.find((candidate) => {
+    return effect.family === candidate.family
+      && effect.action === candidate.action
+      && effectArgumentRawValue(effect, candidate.key) !== null;
+  });
+  if (!sink) {
+    return null;
+  }
+  return {
+    ...sink,
+    value: effectArgumentRawValue(effect, sink.key),
   };
 }
 
@@ -4431,17 +4453,15 @@ function isPathUnderRepoRoots(value, repoRoots) {
 }
 
 function effectTrust(effect) {
-  if (effect.family !== "shell") {
+  const sink = trustSinkArgument(effect);
+  if (!sink) {
     return { zone: "unknown", source: "effect" };
   }
-  const commandKey = effect.args.command ? "command" : effect.args._0 ? "_0" : null;
-  if (!commandKey) {
-    return { zone: "unknown", source: "missing_command" };
+  const kind = effectArgumentKind(effect, sink.key);
+  if (kind === "string") {
+    return { zone: "trusted", source: "literal", argument: sink.key };
   }
-  if (effect.argKinds?.[commandKey] === "string") {
-    return { zone: "trusted", source: "literal", argument: "command" };
-  }
-  return { zone: "untrusted", source: effect.argKinds?.[commandKey] ?? "unknown", argument: "command" };
+  return { zone: "untrusted", source: kind ?? "unknown", argument: sink.key };
 }
 
 function effectArgument(effect) {
@@ -4473,6 +4493,29 @@ function effectArgumentSpan(effect, argument) {
     }
   }
   return effect.span;
+}
+
+function effectArgumentKind(effect, key) {
+  return effectArgumentAliasValues(effect.argKinds ?? {}, key).find(Boolean) ?? null;
+}
+
+function effectArgumentRawValue(effect, key) {
+  return effectArgumentAliasValues(effect.args ?? {}, key).find((value) => typeof value === "string") ?? null;
+}
+
+function effectArgumentAliasValues(values, key) {
+  const aliases = {
+    path: ["path", "paths", "_0"],
+    command: ["command", "commands", "_0"],
+    domain: ["domain", "domains", "url", "urls", "_0"],
+    branch: ["branch", "branches", "_0"],
+    remote: ["remote", "remotes", "_0"],
+    message: ["message", "_0"],
+    target: ["target", "environment", "env", "_0"],
+    name: ["name", "names", "_0"],
+    id: ["id", "_0"],
+  };
+  return (aliases[key] ?? [key]).map((alias) => values[alias]);
 }
 
 function effectArguments(effect) {

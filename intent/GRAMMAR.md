@@ -288,11 +288,12 @@ currently `shell("...")` and `shell(command: "...")`. Side-effect calls inside
 `verify`, including file writes, git commits, git pushes, web or HTTP reads,
 deploys, and ticket updates, are invalid and emit `INTENT_VERIFY_IMPURE`.
 
-Shell command arguments are trust-sensitive in the first checker prototype. A
-shell command argument must be either a string literal or a value already marked
-trusted by the checker. Nonliteral shell command expressions that are not
-trusted produce `INTENT_TRUST_FLOW_UNSAFE` rather than being treated as an
-opaque command string.
+Constrained effect sink arguments are trust-sensitive in the first checker
+prototype. A shell command, file write path, secret name, ticket id, deploy
+target, git push ref, or git commit message must be either a string literal or
+a value already marked trusted by the checker. Nonliteral constrained sink
+expressions that are not trusted produce `INTENT_TRUST_FLOW_UNSAFE` rather
+than being treated as opaque trusted strings.
 
 Git commit effects use a named `message` constrained argument. The checker
 binds `GitCommit(message: "...")` and `git.commit(message: "...")` to in-scope
@@ -426,8 +427,10 @@ The parser emits names and type reference strings; the checker owns binding.
   `capability deploy { deploy target: "..." }` grants. Deploy targets are
   normalized before comparison; if no grant covers the normalized target, the
   checker emits `INTENT_CAPABILITY_DENIED`.
-- Shell command arguments must be literal or trusted before execution.
-- Nonliteral shell command arguments that are not trusted are
+- Shell command, file write path, secret name, ticket id, deploy target, git
+  push ref, and git commit message arguments must be literal or trusted before
+  execution.
+- Nonliteral constrained sink arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.
 - Capability blocks may contain `approval required`. Any effect authorized by
   that capability requires a step-local `approval ...` gate; missing approval is

@@ -867,8 +867,8 @@ blocking diagnostics.
   `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - Reject unsafe trust flows, including untrusted data flowing into executable
   commands, write targets, secrets, or approval decisions without policy.
-- Emit `INTENT_TRUST_FLOW_UNSAFE` for nonliteral shell command arguments that
-  are not already trusted by the checker.
+- Emit `INTENT_TRUST_FLOW_UNSAFE` for nonliteral constrained sink arguments
+  that are not already trusted by the checker.
 - Require memory and checkpoint state to be scoped, serializable, and assigned a
   retention lifecycle.
 - Emit `INTENT_MEMORY_UNSCOPED` when a memory block has no parsed
@@ -1465,9 +1465,9 @@ Rules:
 
 ## Trust Flow
 
-The first trust-flow checker is intentionally narrow. It tracks only the trust
-state needed to prevent untrusted web-derived values from becoming executable
-shell commands.
+The first trust-flow checker tracks the trust state needed to prevent
+untrusted web-derived values from becoming executable commands or constrained
+effect sink selectors.
 
 Trust zones:
 
@@ -1488,9 +1488,11 @@ Rules:
 - A value derived from any untrusted input remains untrusted unless a future
   policy or verifier explicitly upgrades it.
 - Shell command arguments are executable trust sinks.
-- A shell command argument is accepted when it is a string literal or when the
-  checker can prove the argument value is trusted.
-- A nonliteral shell command argument that is not trusted emits
+- File write paths, secret names, ticket ids, deploy targets, git push refs,
+  and git commit messages are constrained effect sink selectors.
+- A constrained sink argument is accepted when it is a string literal or when
+  the checker can prove the argument value is trusted.
+- A nonliteral constrained sink argument that is not trusted emits
   `INTENT_TRUST_FLOW_UNSAFE` at the argument span and makes graph output
   non-executable with `ok: false`.
 
@@ -1544,6 +1546,8 @@ Shell command constraints:
   parsing, environment mutation, and command prefixes are unsupported.
 - Nonliteral shell command arguments must resolve to trusted values. Untrusted
   or unknown nonliteral command arguments emit `INTENT_TRUST_FLOW_UNSAFE`.
+- The same trust requirement applies to constrained file write paths, secret
+  names, ticket ids, deploy targets, git push refs, and git commit messages.
 
 Web/http read constraints:
 

@@ -1,0 +1,75 @@
+package fixtures.invalid_trust_flow_untrusted_effect_sinks
+
+type WebInput = {
+  value: String
+}
+
+type SinkResult = {
+  accepted: Bool
+}
+
+goal "reject untrusted effect sink inputs" {
+  context web("https://example.com/**")
+
+  capability web {
+    read domain: "example.com"
+  }
+
+  capability file {
+    write path: "./src/**"
+  }
+
+  capability secret {
+    read name: "GITHUB_TOKEN"
+  }
+
+  capability ticket {
+    update id: "CODE-123"
+  }
+
+  capability deploy {
+    deploy target: "staging"
+  }
+
+  capability git {
+    push branch: "main"
+    commit message: "ship fix"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step read_web_input -> WebInput {
+      effect WebRead(url: "https://example.com/input")
+    }
+    step write_untrusted_path(input: WebInput) -> SinkResult {
+      effect FileWrite(path: input)
+    }
+    step read_untrusted_secret(input: WebInput) -> SinkResult {
+      effect SecretRead(name: input)
+    }
+    step update_untrusted_ticket(input: WebInput) -> SinkResult {
+      effect TicketUpdate(id: input)
+    }
+    step deploy_untrusted_target(input: WebInput) -> SinkResult {
+      effect Deploy(target: input)
+    }
+    step push_untrusted_branch(input: WebInput) -> SinkResult {
+      effect GitPush(branch: input)
+    }
+    step commit_untrusted_message(input: WebInput) -> SinkResult {
+      effect GitCommit(message: input)
+    }
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny untrusted_content_to_effect_sinks
+  }
+}
