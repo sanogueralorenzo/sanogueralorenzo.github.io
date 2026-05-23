@@ -13,6 +13,10 @@ type RuntimeConfig = {
   allowedChatIds: Set<string> | null;
   defaultApprovalDecision: ApprovalDecision;
   userHome: string;
+  precedent: {
+    enabled: boolean;
+    stateDir?: string;
+  };
 };
 
 export function loadRuntimeConfig(): RuntimeConfig {
@@ -28,7 +32,11 @@ export function loadRuntimeConfig(): RuntimeConfig {
     bindingFile,
     allowedChatIds: parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS),
     defaultApprovalDecision: "decline",
-    userHome
+    userHome,
+    precedent: {
+      enabled: process.env.PRECEDENT_ENABLED === "1" || process.env.PRECEDENT_ENABLED === "true",
+      stateDir: process.env.PRECEDENT_STATE_DIR
+    }
   };
 }
 

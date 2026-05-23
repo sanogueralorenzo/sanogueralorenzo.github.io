@@ -57,6 +57,8 @@ help     Print this help output.
 - `CODEX_CORE_BIN` (optional session CLI override; defaults to `codex-core`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
+- `PRECEDENT_ENABLED=1` (optional) injects replay-verified Precedent context into bound Codex turns.
+- `PRECEDENT_STATE_DIR` (optional, defaults to `.precedent`)
 - Node dependencies installed in `codex-remote` (`npm install`)
 
 ### App Server Protocol Types
@@ -87,6 +89,7 @@ help     Print this help output.
 - During a running turn, the bot does not emit intermediate turn transcript items.
 - At turn completion, it sends only the final assistant turn answer.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.
+- When `PRECEDENT_ENABLED=1`, Codex Remote calls Precedent with the bound Codex thread id before each normal turn. Only `contextBlock` is prepended to the prompt; `candidateHints` and `promotionTrials` remain telemetry and are never injected as instructions.
 
 ### Thread Delete Behavior
 

@@ -11,6 +11,7 @@ import { BindingStore } from "../adapters/binding-store.js";
 import { formatFailure } from "../bot/messages.js";
 import { PromptContext } from "../bot/context.js";
 import { sendTextChunks } from "../shared/telegram-text.js";
+import { PrecedentBridge } from "./precedent-bridge.js";
 
 type ConversationOptions = {
   cwd: string;
@@ -38,6 +39,7 @@ type PromptRunnerDeps = {
   getConversationOptions: () => ConversationOptions;
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
   requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
+  precedentBridge?: PrecedentBridge;
 };
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
@@ -47,8 +49,23 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     const runtimeOptions: PromptTurnRuntimeOptions = {
       approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
     };
-    const finalizeTurn = async (turn: TimedTurnLike): Promise<void> => {
-      await replyFromTimedTurn(turn, finalOutputRelay);
+    const precedentBridge = deps.precedentBridge;
+    const finalizeTurn = async (
+      turn: TimedTurnLike,
+      precedent: PreparedPrecedentTurn | null
+    ): Promise<void> => {
+      await replyFromTimedTurn(turn, finalOutputRelay, async (response) => {
+        if (precedentBridge && precedent) {
+          await precedentBridge.afterTurn({
+            cwd: precedent.cwd,
+            threadId: precedent.threadId,
+            task: text,
+            response,
+            success: true,
+            attributedPrecedents: precedent.attributedPrecedents,
+          });
+        }
+      });
     };
 
     try {
@@ -63,7 +80,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           await deps.bindChatToThread(chatId, initialized.threadId);
           deps.pendingNewSessionChats.delete(chatId);
           deps.clearPendingNewSessionCwd(chatId);
-          await finalizeTurn(initialized);
+          await finalizeTurn(initialized, null);
           return;
         }
 
@@ -72,8 +89,9 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       }
 
       try {
-        const turn = await sendMessageWithTimeoutContinuation(threadId, text, runtimeOptions);
-        await finalizeTurn(turn);
+        const precedent = await preparePrecedentTurn(threadId, text);
+        const turn = await sendMessageWithTimeoutContinuation(threadId, precedent.text, runtimeOptions);
+        await finalizeTurn(turn, precedent);
         return;
       } catch (error) {
         if (!isNoRolloutFoundError(error)) {
@@ -82,8 +100,9 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       }
 
       try {
-        const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, text, runtimeOptions);
-        await finalizeTurn(firstTurn);
+        const precedent = await preparePrecedentTurn(threadId, text);
+        const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, precedent.text, runtimeOptions);
+        await finalizeTurn(firstTurn, precedent);
         return;
       } catch {
         await recoverFromUnavailableThread(chatId, text, runtimeOptions, finalOutputRelay);
@@ -95,13 +114,46 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     }
   }
 
-  async function replyFromTimedTurn(turn: TimedTurnLike, finalOutputRelay: FinalOutputRelay): Promise<void> {
+  async function preparePrecedentTurn(threadId: string, text: string): Promise<PreparedPrecedentTurn> {
+    const options = deps.getConversationOptions();
+    if (!deps.precedentBridge) {
+      return {
+        cwd: options.cwd,
+        threadId,
+        text,
+        attributedPrecedents: [],
+      };
+    }
+
+    const beforeTurn = await deps.precedentBridge.beforeTurn({
+      cwd: options.cwd,
+      threadId,
+      task: text,
+    });
+
+    return {
+      cwd: options.cwd,
+      threadId,
+      text: beforeTurn.task,
+      attributedPrecedents: beforeTurn.attributedPrecedents,
+    };
+  }
+
+  async function replyFromTimedTurn(
+    turn: TimedTurnLike,
+    finalOutputRelay: FinalOutputRelay,
+    afterResponse: (response: string) => Promise<void>
+  ): Promise<void> {
     if (turn.status === "completed") {
       await finalOutputRelay.send(turn.response);
+      await afterResponse(turn.response);
       return;
     }
 
-    finalOutputRelay.queue(turn.completion);
+    finalOutputRelay.queue(turn.completion.then(async (completion) => {
+      await afterResponse(completion.response);
+      return completion;
+    }));
   }
 
   async function recoverFromUnavailableThread(
@@ -137,6 +189,13 @@ function isNoRolloutFoundError(error: unknown): boolean {
 type FinalOutputRelay = {
   send: (response: string) => Promise<void>;
   queue: (completion: Promise<{ response: string }>) => void;
+};
+
+type PreparedPrecedentTurn = {
+  cwd: string;
+  threadId: string;
+  text: string;
+  attributedPrecedents: string[];
 };
 
 const EMPTY_CODEX_RESPONSE = "(Empty Codex response)";

@@ -8,6 +8,7 @@ import { quickActionsKeyboard } from "./bot/keyboards.js";
 import { HELP_TEXT, formatFailure } from "./bot/messages.js";
 import { withActionErrorBoundary, withChatLock } from "./bot/middleware.js";
 import { getConversationOptionsFromEnv, loadRuntimeConfig } from "./config.js";
+import { createPrecedentBridge } from "./services/precedent-bridge.js";
 import { createPromptRunner } from "./services/prompt-runner.js";
 import { ListedFolderChoice, ListedThread, createThreadActions } from "./services/thread-actions.js";
 import { createVoiceService } from "./services/voice.js";
@@ -19,7 +20,8 @@ const {
   codexHome,
   defaultApprovalDecision,
   allowedChatIds,
-  userHome
+  userHome,
+  precedent
 } = runtimeConfig;
 
 const store = new BindingStore(bindingFile);
@@ -64,7 +66,8 @@ const promptRunner = createPromptRunner({
   },
   getConversationOptions: () => getConversationOptionsFromEnv(userHome),
   bindChatToThread,
-  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram
+  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram,
+  precedentBridge: createPrecedentBridge(precedent)
 });
 
 const voiceService = createVoiceService({
