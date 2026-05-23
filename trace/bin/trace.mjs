@@ -524,7 +524,7 @@ async function runDoctor() {
     },
   ];
   const ok = checks.every((check) => check.ok || check.level === "warning");
-  print({ ok, repo: root, checks });
+  print({ ok, schema_version: "trace.doctor.v1", repo: root, checks });
 
   if (!ok) {
     process.exitCode = 1;
@@ -546,6 +546,7 @@ async function checkTrace() {
     && (memoryQuality?.ok ?? true);
   print({
     ok,
+    schema_version: "trace.check.v1",
     memories: files.length,
     checkpointRef: checkpointRef || null,
     uncommitted: dirtyTrace,
@@ -629,6 +630,7 @@ async function buildCoverageReport(root, range, options = {}) {
   const memoryTotal = coveredMemories.length + missingMemories.length;
   return {
     ok,
+    schema_version: "trace.coverage.v1",
     range,
     checked: commits.length,
     covered: coveredMemories.length,

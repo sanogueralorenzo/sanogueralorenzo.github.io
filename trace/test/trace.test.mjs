@@ -729,6 +729,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.equal(dirty.exitCode, 1);
     const dirtyPayload = JSON.parse(dirty.stdout);
     assert.equal(dirtyPayload.ok, false);
+    assert.equal(dirtyPayload.schema_version, "trace.check.v1");
     assert.ok(dirtyPayload.uncommitted.some((entry) => entry.includes(".trace/commits/")));
 
     await git(repo, ["add", ".trace"]);
@@ -737,6 +738,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
     const clean = await runTrace(repo, ["check"]);
     const cleanPayload = JSON.parse(clean.stdout);
     assert.equal(cleanPayload.ok, true);
+    assert.equal(cleanPayload.schema_version, "trace.check.v1");
     assert.equal(cleanPayload.uncommitted.length, 0);
     assert.equal(cleanPayload.checkpointIntegrity, null);
     assert.equal(cleanPayload.memoryQuality, null);
@@ -745,6 +747,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.equal(strictMemory.exitCode, 1);
     const strictMemoryPayload = JSON.parse(strictMemory.stdout);
     assert.equal(strictMemoryPayload.ok, false);
+    assert.equal(strictMemoryPayload.schema_version, "trace.check.v1");
     assert.equal(strictMemoryPayload.memoryQuality.ok, false);
     assert.equal(strictMemoryPayload.memoryQuality.checked, 1);
     assert.ok(strictMemoryPayload.memoryQuality.findings.some((finding) => finding.reason === "missing decision signal"));
@@ -753,6 +756,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
     const strictDoctor = await runTraceAllowFailure(repo, ["doctor", "--strict-memory"]);
     assert.equal(strictDoctor.exitCode, 1);
     const strictDoctorPayload = JSON.parse(strictDoctor.stdout);
+    assert.equal(strictDoctorPayload.schema_version, "trace.doctor.v1");
     const doctorMemoryQuality = strictDoctorPayload.checks.find((check) => check.name === "memoryQuality");
     assert.equal(doctorMemoryQuality.level, "error");
     assert.equal(doctorMemoryQuality.ok, false);
@@ -760,6 +764,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
 
     const cleanWithCheckpoints = JSON.parse((await runTrace(repo, ["check", "--checkpoints"])).stdout);
     assert.equal(cleanWithCheckpoints.ok, true);
+    assert.equal(cleanWithCheckpoints.schema_version, "trace.check.v1");
     assert.equal(cleanWithCheckpoints.checkpointIntegrity.ok, true);
     assert.equal(cleanWithCheckpoints.checkpointIntegrity.present, true);
     assert.equal(cleanWithCheckpoints.checkpointIntegrity.linkedMemories, 1);
@@ -769,6 +774,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.equal(missingCheckpointData.exitCode, 1);
     const missingCheckpointReport = JSON.parse(missingCheckpointData.stdout);
     assert.equal(missingCheckpointReport.ok, false);
+    assert.equal(missingCheckpointReport.schema_version, "trace.check.v1");
     assert.equal(missingCheckpointReport.checkpointIntegrity.ok, false);
     assert.equal(missingCheckpointReport.checkpointIntegrity.present, true);
     assert.ok(missingCheckpointReport.checkpointIntegrity.errors.some((entry) => entry.error.includes("missing checkpoint payload")));
@@ -776,6 +782,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
     const doctorMissingCheckpoint = await runTraceAllowFailure(repo, ["doctor"]);
     assert.equal(doctorMissingCheckpoint.exitCode, 1);
     const doctorMissingCheckpointReport = JSON.parse(doctorMissingCheckpoint.stdout);
+    assert.equal(doctorMissingCheckpointReport.schema_version, "trace.doctor.v1");
     const doctorCheckpointRef = doctorMissingCheckpointReport.checks.find((check) => check.name === "checkpointRef");
     assert.equal(doctorCheckpointRef.level, "error");
     assert.equal(doctorCheckpointRef.present, true);
@@ -810,6 +817,7 @@ test("check rejects malformed committed memory files", async () => {
     const checked = await runTraceAllowFailure(repo, ["check"]);
     assert.equal(checked.exitCode, 1);
     const payload = JSON.parse(checked.stdout);
+    assert.equal(payload.schema_version, "trace.check.v1");
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "unsupported schema trace.memory.v0"));
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Checkpoint field"));
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Session field"));
@@ -896,6 +904,7 @@ test("doctor reports hook and local memory health without mutating caches", asyn
     const missingHooks = await runTraceAllowFailure(repo, ["doctor"]);
     assert.equal(missingHooks.exitCode, 1);
     const missingPayload = JSON.parse(missingHooks.stdout);
+    assert.equal(missingPayload.schema_version, "trace.doctor.v1");
     const missingHookCheck = missingPayload.checks.find((check) => check.name === "hooks");
     assert.equal(missingPayload.ok, false);
     assert.equal(missingHookCheck.ok, false);
@@ -908,6 +917,7 @@ test("doctor reports hook and local memory health without mutating caches", asyn
     const installDir = join(repo, "trace-bin");
     const doctor = await runTrace(repo, ["doctor", "--prefix", installDir]);
     const payload = JSON.parse(doctor.stdout);
+    assert.equal(payload.schema_version, "trace.doctor.v1");
     const hooks = payload.checks.find((check) => check.name === "hooks");
     const dirtyTrace = payload.checks.find((check) => check.name === "dirtyTrace");
     const checkpointRef = payload.checks.find((check) => check.name === "checkpointRef");
@@ -931,6 +941,7 @@ test("doctor reports hook and local memory health without mutating caches", asyn
 
     const strictDoctor = await runTrace(repo, ["doctor", "--strict-memory", "--prefix", installDir]);
     const strictPayload = JSON.parse(strictDoctor.stdout);
+    assert.equal(strictPayload.schema_version, "trace.doctor.v1");
     const memoryQuality = strictPayload.checks.find((check) => check.name === "memoryQuality");
     assert.equal(strictPayload.ok, true);
     assert.equal(memoryQuality.ok, true);
@@ -955,6 +966,7 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(missing.exitCode, 1);
     const missingPayload = JSON.parse(missing.stdout);
     assert.equal(missingPayload.ok, false);
+    assert.equal(missingPayload.schema_version, "trace.coverage.v1");
     assert.equal(missingPayload.checked, 1);
     assert.equal(missingPayload.missingMemories.length, 1);
     assert.match(missingPayload.missingMemories[0].expected, /^\.trace\/commits\/[0-9a-f]{2}\//);
@@ -962,6 +974,7 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     const coverage = await runTrace(repo, ["coverage", "HEAD"]);
     const coveragePayload = JSON.parse(coverage.stdout);
     assert.equal(coveragePayload.ok, false);
+    assert.equal(coveragePayload.schema_version, "trace.coverage.v1");
     assert.equal(coveragePayload.covered, 0);
     assert.equal(coveragePayload.missing, 1);
     assert.equal(coveragePayload.commits[0].status, "missing");
@@ -974,6 +987,7 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     const covered = await runTrace(repo, ["ci", "HEAD"]);
     const coveredPayload = JSON.parse(covered.stdout);
     assert.equal(coveredPayload.ok, true);
+    assert.equal(coveredPayload.schema_version, "trace.coverage.v1");
     assert.equal(coveredPayload.checked, 2);
     assert.equal(coveredPayload.covered, 1);
     assert.equal(coveredPayload.skipped, 1);
@@ -990,12 +1004,14 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(strictMemory.exitCode, 1);
     const strictMemoryPayload = JSON.parse(strictMemory.stdout);
     assert.equal(strictMemoryPayload.ok, false);
+    assert.equal(strictMemoryPayload.schema_version, "trace.coverage.v1");
     assert.equal(strictMemoryPayload.memoryQuality.ok, false);
     assert.equal(strictMemoryPayload.memoryQuality.checked, 1);
     assert.ok(strictMemoryPayload.memoryQuality.findings.some((finding) => finding.reason === "missing decision signal"));
 
     const withCheckpoints = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--checkpoints"])).stdout);
     assert.equal(withCheckpoints.ok, true);
+    assert.equal(withCheckpoints.schema_version, "trace.coverage.v1");
     assert.equal(withCheckpoints.checkpointIntegrity.ok, true);
     assert.equal(withCheckpoints.checkpointIntegrity.present, true);
     assert.equal(withCheckpoints.checkpointIntegrity.checked, 1);
@@ -1003,6 +1019,7 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
 
     const coverageWithCheckpoints = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--checkpoints"])).stdout);
     assert.equal(coverageWithCheckpoints.ok, true);
+    assert.equal(coverageWithCheckpoints.schema_version, "trace.coverage.v1");
     assert.equal(coverageWithCheckpoints.checkpointIntegrity.ok, true);
     assert.equal(coverageWithCheckpoints.checkpointIntegrity.linkedMemories, 1);
 
@@ -1010,39 +1027,46 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(missingAgents.exitCode, 1);
     const missingAgentsPayload = JSON.parse(missingAgents.stdout);
     assert.equal(missingAgentsPayload.ok, false);
+    assert.equal(missingAgentsPayload.schema_version, "trace.coverage.v1");
     assert.equal(missingAgentsPayload.covered, 1);
     assert.equal(missingAgentsPayload.agentContracts.ok, false);
     assert.ok(missingAgentsPayload.agentContracts.agents.some((agent) => agent.errors.some((error) => error.includes("missing adapter config"))));
 
     const coverageWithMissingAgents = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--agents"])).stdout);
     assert.equal(coverageWithMissingAgents.ok, false);
+    assert.equal(coverageWithMissingAgents.schema_version, "trace.coverage.v1");
     assert.equal(coverageWithMissingAgents.agentContracts.ok, false);
 
     await runTrace(repo, ["agent", "add", "all"]);
     const withAgents = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--agents"])).stdout);
     assert.equal(withAgents.ok, true);
+    assert.equal(withAgents.schema_version, "trace.coverage.v1");
     assert.equal(withAgents.agentContracts.ok, true);
     assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
     assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.event), ["tool", "prompt", "response", "validation"]);
 
     const coverageWithAgents = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--agents", "--checkpoints"])).stdout);
     assert.equal(coverageWithAgents.ok, true);
+    assert.equal(coverageWithAgents.schema_version, "trace.coverage.v1");
     assert.equal(coverageWithAgents.agentContracts.ok, true);
     assert.equal(coverageWithAgents.checkpointIntegrity.ok, true);
 
     const fullCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--agents", "--checkpoints"])).stdout);
     assert.equal(fullCi.ok, true);
+    assert.equal(fullCi.schema_version, "trace.coverage.v1");
     assert.equal(fullCi.agentContracts.ok, true);
     assert.equal(fullCi.checkpointIntegrity.ok, true);
 
     await runTrace(repo, ["checkpoint", "cleanup", "--keep", "0"]);
     const coverageMissingCheckpointData = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--checkpoints"])).stdout);
     assert.equal(coverageMissingCheckpointData.ok, false);
+    assert.equal(coverageMissingCheckpointData.schema_version, "trace.coverage.v1");
     assert.equal(coverageMissingCheckpointData.checkpointIntegrity.ok, false);
     const missingCheckpointData = await runTraceAllowFailure(repo, ["ci", "HEAD", "--checkpoints"]);
     assert.equal(missingCheckpointData.exitCode, 1);
     const missingCheckpointPayloadReport = JSON.parse(missingCheckpointData.stdout);
     assert.equal(missingCheckpointPayloadReport.ok, false);
+    assert.equal(missingCheckpointPayloadReport.schema_version, "trace.coverage.v1");
     assert.equal(missingCheckpointPayloadReport.checkpointIntegrity.ok, false);
     assert.equal(missingCheckpointPayloadReport.checkpointIntegrity.present, true);
     assert.equal(missingCheckpointPayloadReport.checkpointIntegrity.linkedMemories, 1);
@@ -1053,6 +1077,7 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(missingCheckpoint.exitCode, 1);
     const missingCheckpointPayload = JSON.parse(missingCheckpoint.stdout);
     assert.equal(missingCheckpointPayload.ok, false);
+    assert.equal(missingCheckpointPayload.schema_version, "trace.coverage.v1");
     assert.equal(missingCheckpointPayload.checkpointIntegrity.ok, false);
     assert.equal(missingCheckpointPayload.checkpointIntegrity.present, false);
   } finally {
