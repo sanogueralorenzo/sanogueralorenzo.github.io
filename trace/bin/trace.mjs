@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { access, chmod, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
@@ -339,7 +339,7 @@ async function verifyCheckpoints() {
       continue;
     }
 
-    for (const field of ["schema_version", "checkpoint_id", "commit", "created_at"]) {
+    for (const field of ["schema_version", "checkpoint_id", "commit", "created_at", "integrity"]) {
       if (!payload[field]) {
         errors.push({ path, error: `missing ${field}` });
       }
@@ -354,6 +354,11 @@ async function verifyCheckpoints() {
       if (!commit) {
         errors.push({ path, error: `missing commit ${payload.commit}` });
       }
+    }
+
+    const integrityError = verifyCheckpointIntegrity(payload);
+    if (integrityError) {
+      errors.push({ path, error: integrityError });
     }
   }
 
@@ -386,6 +391,10 @@ async function cleanupCheckpoints() {
   if (!Number.isInteger(days) || days < 0) {
     fail("--sessions-before-days must be a non-negative integer");
   }
+  const checkpointKeep = args.keep == null ? null : Number.parseInt(args.keep, 10);
+  if (checkpointKeep != null && (!Number.isInteger(checkpointKeep) || checkpointKeep < 0)) {
+    fail("--keep must be a non-negative integer");
+  }
 
   const sessionsDir = join(await gitCommonDir(root), "trace", "sessions");
   const removed = [];
@@ -404,7 +413,10 @@ async function cleanupCheckpoints() {
     }
   }
 
-  print({ ok: true, sessionsBeforeDays: days, removed });
+  const checkpoints = checkpointKeep == null
+    ? { keep: null, retained: null, removed: [] }
+    : await cleanupCheckpointRef(root, checkpointKeep);
+  print({ ok: true, sessionsBeforeDays: days, removed, checkpoints });
 }
 
 async function readCheckpointPayloads(root) {
@@ -418,13 +430,71 @@ async function readCheckpointPayloads(root) {
   for (const path of paths.filter((entry) => entry.startsWith("checkpoints/") && entry.endsWith(".json"))) {
     try {
       const raw = await git(["show", `${CHECKPOINT_REF}:${path}`], { cwd: root });
-      checkpoints.push({ path, payload: JSON.parse(raw) });
+      checkpoints.push({ path, raw, payload: JSON.parse(raw) });
     } catch (error) {
       checkpoints.push({ path, payload: null, error: error.message });
     }
   }
 
   return checkpoints;
+}
+
+async function cleanupCheckpointRef(root, keep) {
+  const checkpoints = await readCheckpointPayloads(root);
+  if (checkpoints.length <= keep) {
+    return { keep, retained: checkpoints.length, removed: [] };
+  }
+
+  const sorted = checkpoints
+    .filter(({ payload }) => payload)
+    .sort((left, right) => checkpointSortKey(right).localeCompare(checkpointSortKey(left)));
+  const retainedPaths = new Set(sorted.slice(0, keep).map(({ path }) => path));
+  const retained = checkpoints.filter(({ path, payload }) => !payload || retainedPaths.has(path));
+  const removed = checkpoints
+    .filter(({ path, payload }) => payload && !retainedPaths.has(path))
+    .map(({ path }) => path)
+    .sort();
+
+  if (removed.length > 0) {
+    await writeCheckpointTree(root, retained, `Trace checkpoint cleanup keep ${keep}`);
+  }
+
+  return { keep, retained: retained.length, removed };
+}
+
+async function writeCheckpointTree(root, checkpoints, message) {
+  const common = await gitCommonDir(root);
+  const scratch = join(common, "trace", "tmp", `tree-${process.pid}-${randomHex(8)}`);
+  const indexPath = join(scratch, "index");
+  await mkdir(scratch, { recursive: true });
+
+  const env = { ...process.env, GIT_INDEX_FILE: indexPath };
+  await git(["read-tree", "--empty"], { cwd: root, env });
+
+  for (const checkpoint of checkpoints) {
+    if (!checkpoint.raw && !checkpoint.payload) {
+      continue;
+    }
+    const file = join(scratch, checkpoint.path.replaceAll("/", "-"));
+    const raw = checkpoint.raw ?? `${JSON.stringify(checkpoint.payload, null, 2)}\n`;
+    await writeFile(file, raw.endsWith("\n") ? raw : `${raw}\n`);
+    const blob = await git(["hash-object", "-w", file], { cwd: root, env });
+    await git(["update-index", "--add", "--cacheinfo", `100644,${blob},${checkpoint.path}`], { cwd: root, env });
+  }
+
+  const newTree = await git(["write-tree"], { cwd: root, env });
+  const parent = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
+  const commitArgs = ["commit-tree", newTree, "-m", message];
+  if (parent) {
+    commitArgs.splice(2, 0, "-p", parent);
+  }
+  const commit = await git(commitArgs, { cwd: root, env });
+  await git(["update-ref", CHECKPOINT_REF, commit], { cwd: root });
+  await rm(scratch, { recursive: true, force: true });
+}
+
+function checkpointSortKey(checkpoint) {
+  return `${checkpoint.payload?.created_at ?? ""}\n${checkpoint.path}`;
 }
 
 function checkpointSummary(payload) {
@@ -435,7 +505,44 @@ function checkpointSummary(payload) {
     created_at: payload.created_at,
     files: Array.isArray(payload.files) ? payload.files.length : 0,
     events: Array.isArray(payload.events) ? payload.events.length : 0,
+    integrity: verifyCheckpointIntegrity(payload) == null,
   };
+}
+
+function withCheckpointIntegrity(payload) {
+  return {
+    ...withoutCheckpointIntegrity(payload),
+    integrity: {
+      algorithm: "sha256",
+      payload_sha256: checkpointPayloadHash(payload),
+    },
+  };
+}
+
+function verifyCheckpointIntegrity(payload) {
+  if (!payload?.integrity) {
+    return "missing integrity";
+  }
+
+  if (payload.integrity.algorithm !== "sha256") {
+    return `unsupported integrity algorithm ${payload.integrity.algorithm ?? "none"}`;
+  }
+
+  const expected = checkpointPayloadHash(payload);
+  if (payload.integrity.payload_sha256 !== expected) {
+    return "checkpoint integrity mismatch";
+  }
+
+  return null;
+}
+
+function checkpointPayloadHash(payload) {
+  return createHash("sha256").update(stableJson(withoutCheckpointIntegrity(payload))).digest("hex");
+}
+
+function withoutCheckpointIntegrity(payload) {
+  const { integrity, ...rest } = payload ?? {};
+  return rest;
 }
 
 async function captureEvent() {
@@ -959,7 +1066,7 @@ async function writeCheckpointRef(root, checkpointId, payload) {
   await mkdir(scratch, { recursive: true });
   const payloadPath = join(scratch, `${checkpointId}.json`);
   const indexPath = join(scratch, `index-${process.pid}-${checkpointId}`);
-  await writeFile(payloadPath, `${JSON.stringify(payload, null, 2)}\n`);
+  await writeFile(payloadPath, `${JSON.stringify(withCheckpointIntegrity(payload), null, 2)}\n`);
 
   const env = { ...process.env, GIT_INDEX_FILE: indexPath };
   const parent = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
@@ -1271,7 +1378,7 @@ Usage:
   trace checkpoint verify
   trace checkpoint push [remote] [--dry-run]
   trace checkpoint fetch [remote] [--dry-run]
-  trace checkpoint cleanup [--sessions-before-days 14]
+  trace checkpoint cleanup [--sessions-before-days 14] [--keep 100]
   trace redact add <label> <regex>
   trace redact list
   trace redact remove <label>
@@ -1406,6 +1513,18 @@ function normalizeSearchField(value) {
 
 function searchFieldText(entry, field) {
   return String(entry[field] ?? "");
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJson(entry)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
+  }
+
+  return JSON.stringify(value);
 }
 
 function sameFingerprints(left, right) {

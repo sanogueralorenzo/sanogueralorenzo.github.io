@@ -218,7 +218,7 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
 
     await runTrace(repo, ["init"]);
     await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "checkpoint ref controls"]);
-    const record = JSON.parse((await runTrace(repo, ["record", "--validation", "node --test"])).stdout);
+    const record = JSON.parse((await runTrace(repo, ["record", "--checkpoint", "checkpoint-a", "--validation", "node --test"])).stdout);
 
     const listed = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
     assert.equal(listed.ok, true);
@@ -226,11 +226,48 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     assert.equal(listed.checkpoints.length, 1);
     assert.equal(listed.checkpoints[0].checkpoint_id, record.checkpoint);
     assert.equal(listed.checkpoints[0].events, 1);
+    assert.equal(listed.checkpoints[0].integrity, true);
 
     const verified = JSON.parse((await runTrace(repo, ["checkpoint", "verify"])).stdout);
     assert.equal(verified.ok, true);
     assert.equal(verified.checked, 1);
     assert.deepEqual(verified.errors, []);
+
+    const checkpointPath = `checkpoints/${record.checkpoint}.json`;
+    const rawCheckpoint = JSON.parse((await git(repo, ["show", `refs/trace/checkpoints:${checkpointPath}`])).stdout);
+    assert.equal(rawCheckpoint.integrity.algorithm, "sha256");
+    assert.match(rawCheckpoint.integrity.payload_sha256, /^[0-9a-f]{64}$/);
+
+    rawCheckpoint.subject = "tampered checkpoint";
+    const tamperedPath = join(repo, "tampered-checkpoint.json");
+    const tamperIndex = join(repo, "tamper-index");
+    const tamperEnv = { GIT_INDEX_FILE: tamperIndex };
+    await writeFile(tamperedPath, `${JSON.stringify(rawCheckpoint, null, 2)}\n`);
+    await gitWithEnv(repo, ["read-tree", "refs/trace/checkpoints^{tree}"], tamperEnv);
+    const tamperedBlob = (await git(repo, ["hash-object", "-w", tamperedPath])).stdout.trim();
+    await gitWithEnv(repo, ["update-index", "--add", "--cacheinfo", `100644,${tamperedBlob},${checkpointPath}`], tamperEnv);
+    const tamperedTree = (await gitWithEnv(repo, ["write-tree"], tamperEnv)).stdout.trim();
+    const checkpointHead = (await git(repo, ["rev-parse", "refs/trace/checkpoints"])).stdout.trim();
+    const tamperedCommit = (await gitWithEnv(repo, ["commit-tree", tamperedTree, "-p", checkpointHead, "-m", "Tamper checkpoint"], tamperEnv)).stdout.trim();
+    await git(repo, ["update-ref", "refs/trace/checkpoints", tamperedCommit]);
+
+    const tamperedVerify = await runTraceAllowFailure(repo, ["checkpoint", "verify"]);
+    assert.equal(tamperedVerify.exitCode, 1);
+    const tamperedPayload = JSON.parse(tamperedVerify.stdout);
+    assert.equal(tamperedPayload.ok, false);
+    assert.ok(tamperedPayload.errors.some((entry) => entry.error === "checkpoint integrity mismatch"));
+
+    await git(repo, ["update-ref", "refs/trace/checkpoints", checkpointHead]);
+
+    await writeFile(join(repo, "checkpoint-2.txt"), "checkpoint 2\n");
+    await git(repo, ["add", "checkpoint-2.txt"]);
+    await git(repo, ["commit", "-m", "Add second checkpoint file"]);
+    await runTrace(repo, ["capture", "--event", "decision", "--message", "checkpoint retention keeps the newest payload"]);
+    const secondRecord = JSON.parse((await runTrace(repo, ["record", "--checkpoint", "checkpoint-b", "--validation", "node --test"])).stdout);
+    assert.equal(secondRecord.checkpoint, "checkpoint-b");
+
+    const beforeCleanup = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.equal(beforeCleanup.checkpoints.length, 2);
 
     const push = JSON.parse((await runTrace(repo, ["checkpoint", "push", "origin", "--dry-run"])).stdout);
     assert.equal(push.command, "git push origin refs/trace/checkpoints:refs/trace/checkpoints");
@@ -243,10 +280,15 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     const sessionFile = join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`);
     assert.match(await readFile(sessionFile, "utf8"), /checkpoint ref controls/);
 
-    const cleanup = JSON.parse((await runTrace(repo, ["checkpoint", "cleanup", "--sessions-before-days", "0"])).stdout);
+    const cleanup = JSON.parse((await runTrace(repo, ["checkpoint", "cleanup", "--sessions-before-days", "0", "--keep", "1"])).stdout);
     assert.equal(cleanup.ok, true);
     assert.equal(cleanup.sessionsBeforeDays, 0);
     assert.ok(cleanup.removed.some((entry) => entry.endsWith(`${sessionId}.jsonl`)));
+    assert.deepEqual(cleanup.checkpoints.removed, ["checkpoints/checkpoint-a.json"]);
+    assert.equal(cleanup.checkpoints.retained, 1);
+
+    const afterCleanup = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.deepEqual(afterCleanup.checkpoints.map((checkpoint) => checkpoint.checkpoint_id), ["checkpoint-b"]);
 
     const ref = await git(repo, ["rev-parse", "--verify", "refs/trace/checkpoints"]);
     assert.match(ref.stdout.trim(), /^[0-9a-f]{40}$/);
@@ -514,6 +556,12 @@ async function runTraceAllowFailure(cwd, args) {
 
 async function git(cwd, args) {
   const result = await run(cwd, ["git", ...args], fixedEnv);
+  assert.equal(result.exitCode, 0, `git ${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return result;
+}
+
+async function gitWithEnv(cwd, args, env) {
+  const result = await run(cwd, ["git", ...args], { ...fixedEnv, ...env });
   assert.equal(result.exitCode, 0, `git ${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return result;
 }
