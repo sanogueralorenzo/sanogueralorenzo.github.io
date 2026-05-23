@@ -334,10 +334,12 @@ Next graph envelope validation milestone:
   `intent.ast.v0`.
 - An unsupported or missing envelope version emits the stable diagnostic code
   `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
-- Executable graph payloads must include string `source` and `package` fields
-  before runtime validation continues. Missing or non-string envelope
-  provenance emits `INTENT_GRAPH_SHAPE_INVALID` so diagnostics, provenance, and
-  package-scoped graph ids have stable origins.
+- Executable graph payloads must include non-empty `source` and `package`
+  provenance strings after trimming before runtime validation continues.
+  Missing, non-string, or blank envelope provenance emits
+  `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge semantic
+  validation because diagnostics, provenance, graph ids, and package-scoped
+  runtime contracts need stable origins.
 - Executable graph payloads must include `nodes` and `edges` arrays. Missing
   or non-array collections emit `INTENT_GRAPH_SHAPE_INVALID`.
 - Executable graph payloads must contain object node records with string `id`,
@@ -1615,14 +1617,17 @@ owning `Step`.
 
 The next static graph contract milestone is rejection, not repair. Static graph
 validators must reject any graph with a missing or unsupported
-`schema_version` or `ast_schema_version`, missing or non-string `source` or
-`package`, whose `ok` value is not `true`, whose schema-level structural strings
-are empty, whose runtime structural strings are blank after trimming, whose node
-or edge kind is outside the supported sets above, whose edge endpoint does not
-resolve inside the same payload, or whose required execution, data,
-authorization, approval, guard, verification, completion, and step-attachment
-relationships fail graph validation. Malformed graphs may be emitted for
-diagnostics, but they are never executable runtime contracts.
+`schema_version` or `ast_schema_version`, missing, non-string, or blank
+`source` or `package` provenance, whose `ok` value is not `true`, whose
+schema-level structural strings are empty, whose runtime structural strings are
+blank after trimming, whose node or edge kind is outside the supported sets
+above, whose edge endpoint does not resolve inside the same payload, or whose
+required execution, data, authorization, approval, guard, verification,
+completion, and step-attachment relationships fail graph validation. Blank
+envelope provenance emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection,
+node, or edge semantic validation so graph ids, diagnostics, and
+package-scoped runtime contracts keep stable origins. Malformed graphs may be
+emitted for diagnostics, but they are never executable runtime contracts.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that

@@ -112,10 +112,12 @@ Validation expectations:
 - Static graph validators must accept only their supported `schema_version` and
   `ast_schema_version` pair. Missing or unsupported values for either field
   emit `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
-- Executable graph payloads must include string `source` and `package` fields
-  before runtime validation continues. Missing or non-string envelope
-  provenance emits `INTENT_GRAPH_SHAPE_INVALID` so diagnostics, provenance, and
-  package-scoped graph ids have stable origins.
+- Executable graph payloads must include non-empty `source` and `package`
+  provenance strings after trimming before runtime validation continues.
+  Missing, non-string, or blank envelope provenance emits
+  `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge semantic
+  validation because diagnostics, provenance, graph ids, and package-scoped
+  runtime contracts need stable origins.
 - Static graph runtimes accept only the supported node and edge kinds documented
   in `STATIC_MODEL.md`; every edge `from` and `to` endpoint must resolve to a
   node id in the same payload.
