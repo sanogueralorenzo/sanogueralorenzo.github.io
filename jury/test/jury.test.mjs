@@ -245,28 +245,62 @@ test("code-change adoption fixture produces portable retry and accept evidence",
 
 test("code-change adoption reusable workflow publishes retry and accept bundles", { skip: skipNestedCiAdoptionTests }, async () => {
   const checkout = await copyJuryCheckout();
+  const secretDir = await tempState();
 
   try {
     const workflow = await readFile(join(checkout, "jury/examples/ci/jury-code-change-adoption.yml"), "utf8");
     const testCommand = extractWorkflowSingleLineRun(workflow, "Run Jury tests");
+    const writeKeyCommands = extractWorkflowRunBlock(workflow, "Write Jury code-change signing key");
     const commands = extractWorkflowRunBlock(workflow, "Build Jury code-change adoption fixture");
+    const cleanupCommand = extractWorkflowSingleLineRun(workflow, "Remove Jury code-change signing key");
     const uploadPaths = extractWorkflowUploadPaths(workflow);
+    const pair = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    const privateKeyPath = join(secretDir, "jury-code-change-private.pem");
+    const publicKeyPath = join(secretDir, "jury-code-change-public.pem");
+    const env = {
+      ...nestedCiAdoptionEnv(),
+      JURY_STATE_DIR: ".jury-code-change",
+      JURY_CI_PRIVATE_KEY: pair.privateKey,
+      JURY_PRIVATE_KEY_PATH: privateKeyPath,
+      JURY_ATTESTATION_KEY_ID: "ci-code-change-adoption",
+    };
+
+    await writeFile(publicKeyPath, pair.publicKey);
 
     assert.deepEqual(new Set(uploadPaths), new Set([
       "verdict.retry.json",
       "gate.retry.json",
       "review-bundle.retry.json",
+      "review-bundle.retry.signed.json",
       "verdict.accept.json",
       "gate.accept.json",
       "review-bundle.accept.json",
+      "review-bundle.accept.signed.json",
       "${{ inputs.state-dir }}/*.jsonl",
     ]));
+    assert.ok(workflow.includes("secrets.JURY_CI_PRIVATE_KEY"));
+    assert.ok(workflow.includes("${{ runner.temp }}/jury-code-change-private.pem"));
+    assert.ok(workflow.includes("--attest-private-key \"$JURY_PRIVATE_KEY_PATH\""));
+    assert.ok(workflow.includes("review-bundle.retry.signed.json"));
+    assert.ok(workflow.includes("review-bundle.accept.signed.json"));
+    assert.ok(workflow.includes("if: always()"));
+    assert.ok(!workflow.includes("BEGIN PRIVATE KEY"));
 
-    const testResult = await runShell(testCommand, checkout, nestedCiAdoptionEnv());
+    const testResult = await runShell(testCommand, checkout, env);
     assert.equal(testResult.exitCode, 0, `${testCommand}\nstdout:\n${testResult.stdout}\nstderr:\n${testResult.stderr}`);
 
+    for (const command of writeKeyCommands) {
+      const result = await runShell(command, checkout, env);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
     for (const command of commands) {
-      const result = await runShell(command, checkout, { ...fixedEnv, JURY_STATE_DIR: ".jury-code-change" });
+      const result = await runShell(command, checkout, env);
 
       assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
     }
@@ -278,8 +312,28 @@ test("code-change adoption reusable workflow publishes retry and accept bundles"
       assert.deepEqual(generated, expected, `${filename} should match code-change adoption fixture`);
     }
 
+    const retryBundle = JSON.parse(await readFile(join(checkout, "review-bundle.retry.json"), "utf8"));
     const acceptedBundle = JSON.parse(await readFile(join(checkout, "review-bundle.accept.json"), "utf8"));
+    const signedRetryBundle = JSON.parse(await readFile(join(checkout, "review-bundle.retry.signed.json"), "utf8"));
+    const signedAcceptedBundle = JSON.parse(await readFile(join(checkout, "review-bundle.accept.signed.json"), "utf8"));
+    const { attestation: signedRetryAttestation, ...signedRetryPayload } = signedRetryBundle;
+    const { attestation: signedAcceptedAttestation, ...signedAcceptedPayload } = signedAcceptedBundle;
+
     assert.equal(acceptedBundle.records.verdicts.find((item) => item.id === "verdict_claim_checkout_ready_accept").decision, "accept");
+    assert.deepEqual(signedRetryPayload, retryBundle);
+    assert.deepEqual(signedAcceptedPayload, acceptedBundle);
+    assert.equal(signedRetryAttestation.type, "rsa-sha256");
+    assert.equal(signedRetryAttestation.key_id, "ci-code-change-adoption");
+    assert.equal(signedAcceptedAttestation.type, "rsa-sha256");
+    assert.equal(signedAcceptedAttestation.key_id, "ci-code-change-adoption");
+
+    const signedRetryVerify = await runShell(`node jury/bin/jury.mjs bundle preflight --bundle review-bundle.retry.signed.json --require-attestation true --verify-attestation-public-key ${shellQuote(publicKeyPath)} --expect-attestation-key-id ci-code-change-adoption`, checkout, fixedEnv);
+    const signedAcceptVerify = await runShell(`node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.signed.json --require-attestation true --verify-attestation-public-key ${shellQuote(publicKeyPath)} --expect-attestation-key-id ci-code-change-adoption`, checkout, fixedEnv);
+
+    assert.equal(signedRetryVerify.exitCode, 0, signedRetryVerify.stderr);
+    assert.equal(JSON.parse(signedRetryVerify.stdout).ok, true);
+    assert.equal(signedAcceptVerify.exitCode, 0, signedAcceptVerify.stderr);
+    assert.equal(JSON.parse(signedAcceptVerify.stdout).ok, true);
 
     const downstreamImport = await runProcess([
       "bundle", "import",
@@ -299,8 +353,54 @@ test("code-change adoption reusable workflow publishes retry and accept bundles"
     assert.equal(downstreamGate.exitCode, 0, downstreamGate.stderr);
     assert.equal(JSON.parse(downstreamGate.stdout).decision, "accept");
     assert.equal(downstreamCheck.exitCode, 0, downstreamCheck.stderr);
+
+    const signedRetryDownstreamImport = await runProcess([
+      "bundle", "import",
+      "--state-dir", join(checkout, ".jury-code-change-signed-retry-downstream"),
+      "--bundle", join(checkout, "review-bundle.retry.signed.json"),
+      "--require-attestation", "true",
+      "--verify-attestation-public-key", publicKeyPath,
+      "--expect-attestation-key-id", "ci-code-change-adoption",
+      "--verdict-out", join(checkout, "downstream-verdict.retry.signed.json"),
+    ], checkout);
+    const signedRetryDownstreamGate = await runProcess([
+      "gate",
+      "--state-dir", join(checkout, ".jury-code-change-signed-retry-downstream"),
+      "--claim", "claim_checkout_ready",
+      "--verdict", join(checkout, "downstream-verdict.retry.signed.json"),
+    ], checkout);
+    const signedRetryDownstreamCheck = await runProcess(["check", "--state-dir", join(checkout, ".jury-code-change-signed-retry-downstream"), "--strict"], checkout);
+    const signedDownstreamImport = await runProcess([
+      "bundle", "import",
+      "--state-dir", join(checkout, ".jury-code-change-signed-downstream"),
+      "--bundle", join(checkout, "review-bundle.accept.signed.json"),
+      "--require-attestation", "true",
+      "--verify-attestation-public-key", publicKeyPath,
+      "--expect-attestation-key-id", "ci-code-change-adoption",
+      "--verdict-out", join(checkout, "downstream-verdict.accept.signed.json"),
+    ], checkout);
+    const signedDownstreamGate = await runProcess([
+      "gate",
+      "--state-dir", join(checkout, ".jury-code-change-signed-downstream"),
+      "--claim", "claim_checkout_ready",
+      "--verdict", join(checkout, "downstream-verdict.accept.signed.json"),
+    ], checkout);
+    const signedDownstreamCheck = await runProcess(["check", "--state-dir", join(checkout, ".jury-code-change-signed-downstream"), "--strict"], checkout);
+    const cleanup = await runShell(cleanupCommand, checkout, env);
+
+    assert.equal(signedRetryDownstreamImport.exitCode, 0, signedRetryDownstreamImport.stderr);
+    assert.equal(signedRetryDownstreamGate.exitCode, 1, signedRetryDownstreamGate.stderr);
+    assert.equal(JSON.parse(signedRetryDownstreamGate.stdout).decision, "retry");
+    assert.equal(signedRetryDownstreamCheck.exitCode, 0, signedRetryDownstreamCheck.stderr);
+    assert.equal(signedDownstreamImport.exitCode, 0, signedDownstreamImport.stderr);
+    assert.equal(signedDownstreamGate.exitCode, 0, signedDownstreamGate.stderr);
+    assert.equal(JSON.parse(signedDownstreamGate.stdout).decision, "accept");
+    assert.equal(signedDownstreamCheck.exitCode, 0, signedDownstreamCheck.stderr);
+    assert.equal(cleanup.exitCode, 0, cleanup.stderr);
+    await assertPathMissing(privateKeyPath);
   } finally {
     await rm(checkout, { recursive: true, force: true });
+    await rm(secretDir, { recursive: true, force: true });
   }
 });
 
@@ -4216,10 +4316,10 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
   assert.match(handoff, /downloads the signed producer artifact/);
-  assert.match(handoff, /reusable workflow that publishes retry and accept code-change adoption bundles for downstream verification/);
+  assert.match(handoff, /reusable workflow that publishes signed retry and accept code-change adoption bundles for downstream verification/);
   assert.match(handoff, /Code-Change Adoption CI Workflow/);
-  assert.match(handoff, /uploads `verdict\.retry\.json`, `gate\.retry\.json`, `review-bundle\.retry\.json`, `verdict\.accept\.json`, `gate\.accept\.json`, `review-bundle\.accept\.json`/);
-  assert.match(handoff, /bundle preflight --bundle review-bundle\.accept\.json/);
+  assert.match(handoff, /uploads `verdict\.retry\.json`, `gate\.retry\.json`, `review-bundle\.retry\.json`, `review-bundle\.retry\.signed\.json`, `verdict\.accept\.json`, `gate\.accept\.json`, `review-bundle\.accept\.json`, `review-bundle\.accept\.signed\.json`/);
+  assert.match(handoff, /bundle preflight --bundle review-bundle\.accept\.signed\.json --require-attestation true --verify-attestation-public-key/);
   assert.match(handoff, /\.jury-code-change-downstream/);
   assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
   assert.match(handoff, /package publication notes/);
@@ -4372,8 +4472,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /should require `jury-package-release-replay-summary-expiry-handoff\.json`/);
   assert.match(handoff, /requires the expiry handoff in both `retention\.artifacts` and `archiveEvidence`/);
   assert.match(handoff, /Next Hardening Step/);
-  assert.match(handoff, /signed code-change adoption producer coverage/);
-  assert.match(handoff, /attestable retry and accept bundles/);
+  assert.match(handoff, /key-policy-backed downstream verifier fixture for signed code-change adoption bundles/);
+  assert.match(handoff, /verify producer identity without wiring raw public-key flags/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

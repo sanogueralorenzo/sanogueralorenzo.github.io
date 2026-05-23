@@ -9,6 +9,12 @@ on:
       artifact-name:
         type: string
         default: jury-code-change-adoption
+      attestation-key-id:
+        type: string
+        default: ci-code-change-adoption
+    secrets:
+      JURY_CI_PRIVATE_KEY:
+        required: true
 
 jobs:
   code-change-adoption:
@@ -20,11 +26,21 @@ jobs:
           node-version: 20
       - name: Run Jury tests
         run: npm --prefix jury test
+      - name: Write Jury code-change signing key
+        env:
+          JURY_CI_PRIVATE_KEY: ${{ secrets.JURY_CI_PRIVATE_KEY }}
+          JURY_PRIVATE_KEY_PATH: ${{ runner.temp }}/jury-code-change-private.pem
+        run: |
+          test -n "$JURY_CI_PRIVATE_KEY"
+          printf '%s\n' "$JURY_CI_PRIVATE_KEY" > "$JURY_PRIVATE_KEY_PATH"
+          chmod 600 "$JURY_PRIVATE_KEY_PATH"
       - name: Build Jury code-change adoption fixture
         env:
           JURY_STATE_DIR: ${{ inputs.state-dir }}
+          JURY_PRIVATE_KEY_PATH: ${{ runner.temp }}/jury-code-change-private.pem
+          JURY_ATTESTATION_KEY_ID: ${{ inputs.attestation-key-id }}
         run: |
-          rm -rf "$JURY_STATE_DIR" verdict.retry.json gate.retry.json review-bundle.retry.json verdict.accept.json gate.accept.json review-bundle.accept.json
+          rm -rf "$JURY_STATE_DIR" verdict.retry.json gate.retry.json review-bundle.retry.json review-bundle.retry.signed.json verdict.accept.json gate.accept.json review-bundle.accept.json review-bundle.accept.signed.json
           JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs init --state-dir "$JURY_STATE_DIR"
           JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs claim create --state-dir "$JURY_STATE_DIR" --id claim_checkout_ready --summary "checkout code change is ready" --scope jury --impact high
           JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs evidence add --state-dir "$JURY_STATE_DIR" --id ev_jury_tests --claim claim_checkout_ready --type command --command "npm --prefix jury test" --exit-code 0
@@ -32,15 +48,24 @@ jobs:
           JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs judge --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --out verdict.retry.json
           JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs gate --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --verdict verdict.retry.json --json > gate.retry.json || test "$?" -eq 1
           JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs bundle export --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --out review-bundle.retry.json --source local --revision code-change-adoption-fixture
+          JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs bundle export --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --out review-bundle.retry.signed.json --source local --revision code-change-adoption-fixture --attest-private-key "$JURY_PRIVATE_KEY_PATH" --attestation-key-id "$JURY_ATTESTATION_KEY_ID"
           JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs bundle preflight --bundle review-bundle.retry.json
+          JURY_NOW=2026-05-23T00:00:00.000Z node jury/bin/jury.mjs bundle preflight --bundle review-bundle.retry.signed.json --require-attestation true
           JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs evidence add --state-dir "$JURY_STATE_DIR" --id ev_scope_corrected --claim claim_checkout_ready --type manual --summary "changed files are limited to the jury scope" --source "changed-files:jury/bin/jury.mjs" --status passed
           JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs objection resolve --state-dir "$JURY_STATE_DIR" --id obj_claim_checkout_ready_scope_out_of_scope_changes --resolution "Removed docs/checkout-notes.md from the change set and reran scope review with only jury/bin/jury.mjs."
           JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs critic run --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --role scope --changed-files jury/bin/jury.mjs
           JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs judge --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --out verdict.accept.json
           JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs gate --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --verdict verdict.accept.json --json > gate.accept.json
           JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs bundle export --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --out review-bundle.accept.json --source local --revision code-change-adoption-fixture
+          JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs bundle export --state-dir "$JURY_STATE_DIR" --claim claim_checkout_ready --out review-bundle.accept.signed.json --source local --revision code-change-adoption-fixture --attest-private-key "$JURY_PRIVATE_KEY_PATH" --attestation-key-id "$JURY_ATTESTATION_KEY_ID"
           JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.json
+          JURY_NOW=2026-05-23T00:00:01.000Z node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.signed.json --require-attestation true
           node jury/bin/jury.mjs check --state-dir "$JURY_STATE_DIR" --strict
+      - name: Remove Jury code-change signing key
+        if: always()
+        env:
+          JURY_PRIVATE_KEY_PATH: ${{ runner.temp }}/jury-code-change-private.pem
+        run: rm -f "$JURY_PRIVATE_KEY_PATH"
       - name: Upload Jury code-change adoption artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -49,7 +74,9 @@ jobs:
             verdict.retry.json
             gate.retry.json
             review-bundle.retry.json
+            review-bundle.retry.signed.json
             verdict.accept.json
             gate.accept.json
             review-bundle.accept.json
+            review-bundle.accept.signed.json
             ${{ inputs.state-dir }}/*.jsonl

@@ -68,7 +68,8 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Copy [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml) when the producer must sign `review-bundle.signed.json` with `secrets.JURY_CI_PRIVATE_KEY`.
 - [ ] Copy [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml) when producer and consumer CI jobs need an artifact download handoff.
 - [ ] Copy [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml) into `.github/workflows/` for downstream trusted-producer verification.
-- [ ] Copy [examples/ci/jury-code-change-adoption.yml](examples/ci/jury-code-change-adoption.yml) when CI should publish retry and accept code-change adoption bundles for downstream verification.
+- [ ] Copy [examples/ci/jury-code-change-adoption.yml](examples/ci/jury-code-change-adoption.yml) when CI should publish signed retry and accept code-change adoption bundles for downstream verification.
+- [ ] Configure `JURY_CI_PRIVATE_KEY` and the matching public key or key policy before consuming `review-bundle.retry.signed.json` or `review-bundle.accept.signed.json` across repositories.
 - [ ] Compare generated outputs with [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart).
 - [ ] Verify signed bundle handoff with [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy).
 - [ ] Review [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation) before rotating producer signing keys.

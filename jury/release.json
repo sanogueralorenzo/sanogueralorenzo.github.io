@@ -110,14 +110,16 @@
       {
         "variant": "reusable-code-change-adoption",
         "path": "examples/ci/jury-code-change-adoption.yml",
-        "trustBoundary": "reusable code-change fixture artifact publication",
+        "trustBoundary": "signed reusable code-change fixture artifact publication",
         "artifacts": [
           "verdict.retry.json",
           "gate.retry.json",
           "review-bundle.retry.json",
+          "review-bundle.retry.signed.json",
           "verdict.accept.json",
           "gate.accept.json",
           "review-bundle.accept.json",
+          "review-bundle.accept.signed.json",
           "${{ inputs.state-dir }}/*.jsonl"
         ]
       }
