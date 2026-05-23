@@ -1344,6 +1344,10 @@ function validateGraph(graph, options = {}) {
     if (completionDiagnostic) {
       diagnostics.push(completionDiagnostic);
     }
+    const invariantDiagnostic = validateGraphInvariant(graphNode, graphSpan);
+    if (invariantDiagnostic) {
+      diagnostics.push(invariantDiagnostic);
+    }
     const capabilityDiagnostic = validateGraphCapability(graphNode, graphSpan);
     if (capabilityDiagnostic) {
       diagnostics.push(capabilityDiagnostic);
@@ -1794,6 +1798,24 @@ function validateGraphCompletion(graphNode, graphSpan) {
     completion_id: graphNode.id,
     output_type_is_valid: outputTypeIsValid,
     output_type_span_is_valid: outputTypeSpanIsValid,
+  });
+}
+
+function validateGraphInvariant(graphNode, graphSpan) {
+  if (graphNode.kind !== "Invariant") {
+    return null;
+  }
+  const assertionIsValid = graphNode.data.assertion === "Require" || graphNode.data.assertion === "Deny";
+  const invariantIsNonempty = typeof graphNode.data.invariant === "string" && graphNode.data.invariant.trim() !== "";
+  if (assertionIsValid && invariantIsNonempty) {
+    return null;
+  }
+  return error("INTENT_GRAPH_INVARIANT_INVALID", `invariant '${graphNode.label}' must carry valid assertion data.`, graphNode.span ?? graphSpan, {
+    invariant: graphNode.label,
+    invariant_id: graphNode.id,
+    assertion: typeof graphNode.data.assertion === "string" ? graphNode.data.assertion : null,
+    assertion_is_valid: assertionIsValid,
+    invariant_is_nonempty: invariantIsNonempty,
   });
 }
 

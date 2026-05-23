@@ -142,6 +142,9 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Completion") {
     return { outputType: null, outputTypeSpan: null, ...normalizedData };
   }
+  if (kind === "Invariant") {
+    return { assertion: "Deny", invariant: "synthetic", ...normalizedData };
+  }
   if (kind === "Memory") {
     return {
       scope: "session",
@@ -2212,6 +2215,28 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].completion_id, "goal:other:completion");
     assert.equal(diagnostics[1].output_type_is_valid, true);
     assert.equal(diagnostics[1].output_type_span_is_valid, false);
+  });
+
+  it("validates graph invariant payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:invariant:0", kind: "Invariant", label: "bad assertion", span: testSpan(1), data: { assertion: "Block", invariant: "secret_write" } },
+        { id: "goal:demo:invariant:1", kind: "Invariant", label: "blank invariant", span: testSpan(2), data: { invariant: "" } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_INVARIANT_INVALID");
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_INVARIANT_INVALID");
+    assert.equal(diagnostics[0].invariant_id, "goal:demo:invariant:0");
+    assert.equal(diagnostics[0].assertion, "Block");
+    assert.equal(diagnostics[0].assertion_is_valid, false);
+    assert.equal(diagnostics[0].invariant_is_nonempty, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_INVARIANT_INVALID");
+    assert.equal(diagnostics[1].invariant_id, "goal:demo:invariant:1");
+    assert.equal(diagnostics[1].assertion_is_valid, true);
+    assert.equal(diagnostics[1].invariant_is_nonempty, false);
   });
 
   it("validates graph invariant guard diagnostics", () => {
