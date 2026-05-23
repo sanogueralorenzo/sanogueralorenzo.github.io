@@ -112,9 +112,50 @@ test("demo code-change writes an accepted verdict file", async () => {
     const result = await runProcess(["demo", "code-change", "--state-dir", stateDir], cwd);
     const payload = JSON.parse(result.stdout);
     const verdict = JSON.parse(await readFile(join(cwd, "verdict.json"), "utf8"));
+    const transcript = JSON.parse(await readFile(join(cwd, "jury-demo-transcript.json"), "utf8"));
 
     assert.equal(result.exitCode, 0);
     assert.equal(payload.ok, true);
+    assert.equal(payload.retryVerdict.decision, "retry");
+    assert.equal(verdict.decision, "accept");
+    assert.deepEqual(transcript.map((step) => step.step), [
+      "claim_created",
+      "check_created",
+      "evidence_collected",
+      "objection_opened",
+      "first_verdict",
+      "objection_resolved",
+      "check_passed",
+      "final_verdict",
+    ]);
+    assert.equal(transcript.find((step) => step.step === "first_verdict").decision, "retry");
+    assert.equal(transcript.find((step) => step.step === "final_verdict").decision, "accept");
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("documented core flow commands stay in sync with CLI behavior", async () => {
+  const stateDir = await tempState();
+  const cwd = await tempState();
+
+  try {
+    const cliDoc = await readFile(join(repoRoot, "jury/CLI.md"), "utf8");
+    const match = cliDoc.match(/## Core Flow\n\n```shell\n([\s\S]*?)\n```/);
+
+    assert.ok(match, "CLI.md must contain a Core Flow shell block");
+
+    const commands = match[1].split("\n").filter((line) => line.startsWith("node jury/bin/jury.mjs "));
+    const verdictPath = join(cwd, "verdict.json");
+
+    for (const command of commands) {
+      const result = await runShell(materializeDocCommand(command, stateDir, verdictPath), repoRoot);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    const verdict = JSON.parse(await readFile(verdictPath, "utf8"));
     assert.equal(verdict.decision, "accept");
   } finally {
     await rm(stateDir, { recursive: true, force: true });
@@ -403,4 +444,45 @@ function runProcess(args, cwd = repoRoot) {
       resolveProcess({ exitCode, stdout, stderr });
     });
   });
+}
+
+function materializeDocCommand(command, stateDir, verdictPath) {
+  let materialized = command;
+
+  materialized = materialized.replace("--out verdict.json", `--out ${shellQuote(verdictPath)}`);
+  materialized = materialized.replace("--verdict verdict.json", `--verdict ${shellQuote(verdictPath)}`);
+
+  if (!materialized.includes("--state-dir ")) {
+    materialized += ` --state-dir ${shellQuote(stateDir)}`;
+  }
+
+  materialized += " --json";
+  return materialized;
+}
+
+function runShell(command, cwd = repoRoot) {
+  return new Promise((resolveProcess) => {
+    const child = spawn(command, {
+      cwd,
+      env: fixedEnv,
+      shell: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("close", (exitCode) => {
+      resolveProcess({ exitCode, stdout, stderr });
+    });
+  });
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
 }

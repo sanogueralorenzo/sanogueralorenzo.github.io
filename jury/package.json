@@ -1,0 +1,14 @@
+{
+  "name": "@sanogueralorenzo/jury",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "jury": "./bin/jury.mjs"
+  },
+  "scripts": {
+    "check": "node bin/jury.mjs check --strict",
+    "demo": "node bin/jury.mjs demo code-change",
+    "test": "node --test test/*.test.mjs"
+  }
+}

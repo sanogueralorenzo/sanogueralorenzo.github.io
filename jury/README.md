@@ -180,6 +180,8 @@ node jury/bin/jury.mjs check --strict
 node jury/bin/jury.mjs demo code-change
 ```
 
+From `jury/`, `npm test`, `npm run demo`, and `npm run check` wrap the same local CLI.
+
 The prototype stores local state in `.jury/` as append-only JSONL files for claims, checks, evidence, objections, waivers, and verdicts. `.jury/` is local runtime state and is not committed.
 
 `claim transition` enforces the lifecycle in `SPEC.md`. `check add` and `check update` create durable review conditions that affect verdicts. `critic run` currently supports deterministic `tests`, `security`, and `scope` roles. `check --strict` validates local JSONL state plus the schema files in `jury/schemas/`. `gate` exits zero only for `accept` verdicts and, when passed `--claim`, reports missing fields and unresolved blocking objections from current state.

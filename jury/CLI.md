@@ -8,6 +8,24 @@ node jury/bin/jury.mjs <command> [flags]
 
 Use `--state-dir <path>` to keep review state outside the default `.jury/` directory. Use `--json` for machine-readable output.
 
+## Local Scripts
+
+From `jury/`:
+
+```shell
+npm test
+npm run demo
+npm run check
+```
+
+The package is private and has no runtime dependencies. To install a local `jury` command while developing:
+
+```shell
+cd jury
+npm link
+jury help
+```
+
 ## Core Flow
 
 ```shell
@@ -16,7 +34,7 @@ node jury/bin/jury.mjs claim create --id claim_ready --summary "change is ready"
 node jury/bin/jury.mjs claim transition --claim claim_ready --status screening
 node jury/bin/jury.mjs claim transition --claim claim_ready --status in_review
 node jury/bin/jury.mjs check add --id check_tests --claim claim_ready --type verifier --summary "tests must pass"
-node jury/bin/jury.mjs evidence add --claim claim_ready --type command --run "node --test jury/test/*.test.mjs"
+node jury/bin/jury.mjs evidence add --claim claim_ready --type command --command "node --test jury/test/*.test.mjs" --exit-code 0
 node jury/bin/jury.mjs critic run --claim claim_ready --role tests
 node jury/bin/jury.mjs critic run --claim claim_ready --role security
 node jury/bin/jury.mjs critic run --claim claim_ready --role scope --changed-files jury/bin/jury.mjs,jury/test/jury.test.mjs
@@ -42,7 +60,7 @@ node jury/bin/jury.mjs check --strict
 - `judge`: emits and records a verdict.
 - `gate`: exits zero only for an `accept` verdict that matches current claim state.
 - `check --strict`: validates JSONL files, schema files, and cross-record consistency.
-- `demo code-change`: creates a sample accepted code-change verdict.
+- `demo code-change`: creates a failing-then-passing code-change transcript plus an accepted final verdict.
 
 ## Diagnostics
 

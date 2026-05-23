@@ -747,6 +747,7 @@ async function demoCodeChange() {
   const dir = stateDir();
   await rm(dir, { force: true, recursive: true });
   await ensureState(dir);
+  const transcript = [];
   const claim = await createRecord(fileFor(dir, "claims"), {
     schema_version: "jury.claim.v1",
     id: "claim_checkout_ready",
@@ -759,6 +760,24 @@ async function demoCodeChange() {
     created_at: now(),
     updated_at: now(),
   }, validateClaim);
+  transcript.push({ step: "claim_created", claim_id: claim.id, status: claim.status });
+
+  const pendingCheck = await createRecord(fileFor(dir, "checks"), {
+    schema_version: "jury.check.v1",
+    id: "check_tests_required",
+    claim_id: claim.id,
+    type: "verifier",
+    required: true,
+    status: "pending",
+    assigned_to: "verifier:demo",
+    summary: "test command must pass",
+    evidence_ids: [],
+    resolution: null,
+    created_at: now(),
+    updated_at: now(),
+  }, validateCheck);
+  transcript.push({ step: "check_created", check_id: pendingCheck.id, status: pendingCheck.status });
+
   await createRecord(fileFor(dir, "evidence"), {
     schema_version: "jury.evidence.v1",
     id: "ev_npm_test",
@@ -773,20 +792,8 @@ async function demoCodeChange() {
     stderr: "",
     collected_at: now(),
   }, validateEvidence);
-  await createRecord(fileFor(dir, "checks"), {
-    schema_version: "jury.check.v1",
-    id: "check_tests_required",
-    claim_id: claim.id,
-    type: "verifier",
-    required: true,
-    status: "passed",
-    assigned_to: "verifier:demo",
-    summary: "test command must pass",
-    evidence_ids: ["ev_npm_test"],
-    resolution: "npm test passed",
-    created_at: now(),
-    updated_at: now(),
-  }, validateCheck);
+  transcript.push({ step: "evidence_collected", evidence_id: "ev_npm_test", status: "passed" });
+
   const objection = await createRecord(fileFor(dir, "objections"), {
     schema_version: "jury.objection.v1",
     id: "obj_missing_regression_test",
@@ -800,12 +807,44 @@ async function demoCodeChange() {
     created_at: now(),
     updated_at: now(),
   }, validateObjection);
+  transcript.push({ step: "objection_opened", objection_id: objection.id, severity: objection.severity });
+
+  const retryReview = await reviewForClaim(dir, claim.id);
+  const retryDecision = decide(retryReview, false);
+  const retryVerdict = await createRecord(fileFor(dir, "verdicts"), {
+    schema_version: VERDICT_SCHEMA_VERSION,
+    id: "verdict_checkout_ready_retry",
+    claim_id: claim.id,
+    claim_version: claim.version,
+    decision: retryDecision.decision,
+    reason: retryDecision.reason,
+    next_actions: retryDecision.next_actions,
+    evidence_ids: retryReview.evidence.map((item) => item.id).sort(),
+    objection_ids: retryReview.objections.map((item) => item.id).sort(),
+    waiver_ids: [],
+    check_ids: retryReview.checks.map((item) => item.id).sort(),
+    decided_by: "judge:demo",
+    decided_at: now(),
+  }, validateVerdict);
+  transcript.push({ step: "first_verdict", verdict_id: retryVerdict.id, decision: retryVerdict.decision, next_actions: retryVerdict.next_actions });
+
   await createRecord(fileFor(dir, "objections"), {
     ...objection,
     status: "resolved",
     resolution: "added regression test",
     updated_at: now(),
   }, validateObjection);
+  transcript.push({ step: "objection_resolved", objection_id: objection.id });
+
+  await createRecord(fileFor(dir, "checks"), {
+    ...pendingCheck,
+    status: "passed",
+    evidence_ids: ["ev_npm_test"],
+    resolution: "npm test passed",
+    updated_at: now(),
+  }, validateCheck);
+  transcript.push({ step: "check_passed", check_id: pendingCheck.id });
+
   const review = await reviewForClaim(dir, claim.id);
   const decision = decide(review, false);
   const verdict = await createRecord(fileFor(dir, "verdicts"), {
@@ -823,8 +862,11 @@ async function demoCodeChange() {
     decided_by: "judge:demo",
     decided_at: now(),
   }, validateVerdict);
+  transcript.push({ step: "final_verdict", verdict_id: verdict.id, decision: verdict.decision });
+
   await writeFile("verdict.json", `${JSON.stringify(verdict, null, 2)}\n`);
-  print({ ok: true, claim, verdict, stateDir: dir, verdictFile: "verdict.json" });
+  await writeFile("jury-demo-transcript.json", `${JSON.stringify(transcript, null, 2)}\n`);
+  print({ ok: true, claim, retryVerdict, verdict, transcript, stateDir: dir, verdictFile: "verdict.json", transcriptFile: "jury-demo-transcript.json" });
 }
 
 async function reviewForClaim(dir, claimId) {
