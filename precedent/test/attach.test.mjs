@@ -405,7 +405,7 @@ test("attach-run failed validation creates a replay-gated learning candidate", a
       "--changed-files",
       "features/webhooks/providers/stripe.ts",
       "--validation-command",
-      "node -e \"console.error('wrong test command'); process.exit(1)\"",
+      "node --check precedent/examples/missing-safe-baseline.mjs",
       "--json",
     ]);
 
@@ -443,7 +443,7 @@ test("attach-run auto-promotes queued validation replay plans", async () => {
       "--changed-files",
       "features/webhooks/providers/stripe.ts",
       "--validation-command",
-      "node -e \"console.error('wrong test command'); process.exit(1)\"",
+      "node --check precedent/examples/missing-safe-baseline.mjs",
       "--json",
     ]);
 
@@ -462,7 +462,7 @@ test("attach-run auto-promotes queued validation replay plans", async () => {
       "--changed-files",
       "features/webhooks/providers/stripe.ts",
       "--validation-command",
-      "node -e \"process.exit(0)\"",
+      "node --check precedent/bin/precedent.mjs",
       "--auto-promote",
       "--json",
     ]);

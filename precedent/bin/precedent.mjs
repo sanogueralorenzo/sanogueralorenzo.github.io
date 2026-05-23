@@ -824,11 +824,23 @@ async function promotePendingTrials() {
   const events = await readJsonLines(join(stateDir, "events.jsonl"));
   const queue = promotionTrialQueue(events);
   const pending = queue.items
-    .filter((item) => item.status === "ready")
+    .filter((item) => item.status === "ready" || item.status === "blocked")
     .slice(0, limit);
   const results = [];
 
   for (const item of pending) {
+    const safety = replayTrialExecutionSafety(item);
+    if (!safety.safe) {
+      results.push({
+        trialId: item.trialId,
+        candidateId: item.candidateId,
+        status: "blocked",
+        reason: safety.reason,
+        blockers: safety.blockers,
+      });
+      continue;
+    }
+
     if (dryRun) {
       results.push({
         trialId: item.trialId,
@@ -901,6 +913,27 @@ async function promotePendingTrials() {
     results,
     queue: promotionTrialQueue(afterEvents),
   });
+}
+
+function replayTrialExecutionSafety(item) {
+  const blockers = [];
+  if (item.autoExecute !== true) {
+    blockers.push("auto_execute_not_enabled");
+  }
+  const baseline = replayCommandSafety(item.baselineCommand);
+  if (!baseline.safe) {
+    blockers.push(`baseline_${baseline.reason}`);
+  }
+  const rerun = replayCommandSafety(item.rerunCommand);
+  if (!rerun.safe) {
+    blockers.push(`rerun_${rerun.reason}`);
+  }
+
+  return {
+    safe: blockers.length === 0,
+    reason: blockers[0] ?? null,
+    blockers,
+  };
 }
 
 async function executeReplayCase({ stateDir, traceOut = null }) {
@@ -2784,6 +2817,8 @@ function promotionTrialQueue(events) {
         reason: trial.reason ?? null,
         baselineCommand: trial.baselineCommand ?? null,
         rerunCommand: trial.rerunCommand ?? null,
+        autoExecute: trial.autoExecute === true,
+        autoExecuteBlockers: Array.isArray(trial.autoExecuteBlockers) ? trial.autoExecuteBlockers : [],
         traceOut: trial.traceOut ?? null,
         command: trial.command,
       });
@@ -2800,11 +2835,15 @@ function promotionTrialQueue(events) {
           ? "failed"
           : startedIds.has(item.trialId)
             ? "running"
-            : "ready";
+            : replayTrialExecutionSafety(item).safe
+              ? "ready"
+              : "blocked";
+      const safety = replayTrialExecutionSafety(item);
 
       return {
         ...item,
         status,
+        blockers: status === "blocked" ? safety.blockers : [],
         promotedId: terminal?.promotedId ?? null,
         rejectedId: terminal?.rejectedId ?? null,
         replayAuditStatus: terminal?.replayAuditStatus ?? null,
@@ -2815,6 +2854,7 @@ function promotionTrialQueue(events) {
   return {
     total: items.length,
     ready: items.filter((item) => item.status === "ready").length,
+    blocked: items.filter((item) => item.status === "blocked").length,
     running: items.filter((item) => item.status === "running").length,
     completed: items.filter((item) => item.status === "completed").length,
     failed: items.filter((item) => item.status === "failed").length,
@@ -3377,6 +3417,7 @@ function promotionTrialsForValidation({ candidates, precedents, context, session
 
 function validationPromotionTrialForCandidate({ candidate, context, sessionId, commandText, stateDir }) {
   const baseline = candidateReplayBaseline(candidate);
+  const executionSafety = replayCommandPairSafety(baseline.command, commandText);
   const traceOut = join(
     stateDir,
     "traces",
@@ -3410,7 +3451,8 @@ function validationPromotionTrialForCandidate({ candidate, context, sessionId, c
     reason: "successful_validation_matches_candidate",
     replayRequired: true,
     injectable: false,
-    autoExecute: false,
+    autoExecute: executionSafety.safe,
+    autoExecuteBlockers: executionSafety.blockers,
     baselineCommand: baseline.command,
     baselineExitCode: baseline.exitCode,
     baselineSourceTrace: baseline.sourceTrace ?? null,
@@ -3421,6 +3463,44 @@ function validationPromotionTrialForCandidate({ candidate, context, sessionId, c
     command,
     acceptance: "Run the promotion trial and inject only if replay promotion produces a verified precedent.",
   }).value;
+}
+
+function replayCommandPairSafety(baselineCommand, rerunCommand) {
+  const blockers = [];
+  const baseline = replayCommandSafety(baselineCommand);
+  if (!baseline.safe) {
+    blockers.push(`baseline_${baseline.reason}`);
+  }
+  const rerun = replayCommandSafety(rerunCommand);
+  if (!rerun.safe) {
+    blockers.push(`rerun_${rerun.reason}`);
+  }
+
+  return {
+    safe: blockers.length === 0,
+    blockers,
+  };
+}
+
+function replayCommandSafety(command) {
+  if (typeof command !== "string" || command.trim().length === 0) {
+    return { safe: false, reason: "missing_command" };
+  }
+
+  const trimmed = command.trim();
+  if (/[;&|<>`$\\\n\r"'()]/u.test(trimmed)) {
+    return { safe: false, reason: "unsafe_shell_syntax" };
+  }
+
+  if (/^node\s+--check\s+[A-Za-z0-9_./-]+(?:\s+[A-Za-z0-9_./:=@-]+)*$/u.test(trimmed)) {
+    return { safe: true, reason: null };
+  }
+
+  if (/^(?:pnpm|npm|yarn)\s+(?:test(?::[A-Za-z0-9_.-]+)?|run\s+test(?::[A-Za-z0-9_.-]+)?)(?:\s+--\s*[A-Za-z0-9_./:=@-]+)*$/u.test(trimmed)) {
+    return { safe: true, reason: null };
+  }
+
+  return { safe: false, reason: "not_allowlisted" };
 }
 
 function candidateReplayBaseline(candidate) {

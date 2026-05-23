@@ -138,6 +138,52 @@ test("passing validation does not route non-matching candidate replay plans", as
   }
 });
 
+test("promote-pending blocks non-allowlisted replay commands", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-plan-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await recordFailedSession(stateDir, "failed", "node -e \"process.exit(1)\"");
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "failed",
+      success: false,
+      status: "failure",
+      notes: "agent used the wrong test command",
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "passing",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+    const validation = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "passing",
+      command: "node -e \"process.exit(0)\"",
+      exitCode: 0,
+    });
+
+    assert.equal(validation.promotionTrials.length, 1);
+    assert.equal(validation.promotionTrials[0].autoExecute, false);
+    assert.ok(validation.promotionTrials[0].autoExecuteBlockers.includes("baseline_unsafe_shell_syntax"));
+
+    const pending = await runJson(["promote-pending", "--state-dir", stateDir, "--json"]);
+    assert.equal(pending.processed, 1);
+    assert.equal(pending.results[0].status, "blocked");
+    assert.equal(pending.queue.blocked, 1);
+
+    const events = await readJsonLines(join(stateDir, "events.jsonl"));
+    assert.equal(events.some((event) => event.type === "promotion_trial_started"), false);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function recordFailedSession(stateDir, sessionId, command) {
   await hook(stateDir, {
     schema_version: "precedent.v1",
