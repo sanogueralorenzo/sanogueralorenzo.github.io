@@ -59,6 +59,8 @@
             { "contains": { "const": "jury-package-release-replay-summary" } },
             { "contains": { "const": "rollback-audit.json" } },
             { "contains": { "const": "replacement-patch-audit.json" } },
+            { "contains": { "const": "archive-drift-remediation-audit.json" } },
+            { "contains": { "const": "archive-drift-remediation-audit-handoff.json" } },
             { "contains": { "const": "jury-package-release-replay-summary-diagnostics.json" } },
             { "contains": { "const": "jury-package-release-replay-summary-diagnostics-retention-handoff.json" } }
           ]
@@ -129,7 +131,7 @@
     },
     "archiveEvidence": {
       "type": "array",
-      "minItems": 10,
+      "minItems": 12,
       "allOf": [
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-pack-dry-run-record.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "failed-npm-view.json" } } } },
@@ -138,6 +140,8 @@
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-npm-view.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-downstream-gate.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-patch-audit.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "archive-drift-remediation-audit.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "archive-drift-remediation-audit-handoff.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary.md" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary-diagnostics.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary-diagnostics-retention-handoff.json" } } } }

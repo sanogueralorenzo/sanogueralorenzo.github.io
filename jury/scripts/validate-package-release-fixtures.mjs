@@ -10,12 +10,14 @@ const fixtureDir = args.fixtureDir ?? join(packageRoot, "examples/ci/fixtures/pa
 const evidenceSchemaPath = join(packageRoot, "schemas/package-release-evidence.schema.json");
 const archiveManifestSchemaPath = join(packageRoot, "schemas/package-release-archive-manifest.schema.json");
 const remediationAuditSchemaPath = join(packageRoot, "schemas/package-release-remediation-audit.schema.json");
+const remediationAuditHandoffSchemaPath = join(packageRoot, "schemas/package-release-remediation-audit-handoff.schema.json");
 const replaySummaryDiagnosticsSchemaPath = join(packageRoot, "schemas/package-release-replay-summary-diagnostics.schema.json");
 const replaySummaryDiagnosticsRetentionHandoffSchemaPath = join(packageRoot, "schemas/package-release-replay-summary-diagnostics-retention-handoff.schema.json");
 const replaySummaryExpiryHandoffSchemaPath = join(packageRoot, "schemas/package-release-replay-summary-expiry-handoff.schema.json");
 const evidenceSchema = await readJson(evidenceSchemaPath);
 const archiveManifestSchema = await readJson(archiveManifestSchemaPath);
 const remediationAuditSchema = await readJson(remediationAuditSchemaPath);
+const remediationAuditHandoffSchema = await readJson(remediationAuditHandoffSchemaPath);
 const replaySummaryDiagnosticsSchema = await readJson(replaySummaryDiagnosticsSchemaPath);
 const replaySummaryDiagnosticsRetentionHandoffSchema = await readJson(replaySummaryDiagnosticsRetentionHandoffSchemaPath);
 const replaySummaryExpiryHandoffSchema = await readJson(replaySummaryExpiryHandoffSchemaPath);
@@ -27,6 +29,8 @@ const archiveEvidenceFiles = [
   "replacement-npm-view.json",
   "replacement-downstream-gate.json",
   "replacement-patch-audit.json",
+  "archive-drift-remediation-audit.json",
+  "archive-drift-remediation-audit-handoff.json",
   "jury-package-release-replay-summary.md",
   "jury-package-release-replay-summary-diagnostics.json",
   "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
@@ -40,6 +44,7 @@ const fixtureRead = await readRequiredFixtures([
   "replacement-npm-view.json",
   "replacement-downstream-gate.json",
   "archive-drift-remediation-audit.json",
+  "archive-drift-remediation-audit-handoff.json",
   "jury-package-release-replay-summary.md",
   "jury-package-release-replay-summary-diagnostics.json",
   "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
@@ -57,6 +62,7 @@ const failedGate = fixtureRead.fixtures.get("downstream-failure-gate.json");
 const replacementNpmView = fixtureRead.fixtures.get("replacement-npm-view.json");
 const replacementGate = fixtureRead.fixtures.get("replacement-downstream-gate.json");
 const remediationAudit = fixtureRead.fixtures.get("archive-drift-remediation-audit.json");
+const remediationAuditHandoff = fixtureRead.fixtures.get("archive-drift-remediation-audit-handoff.json");
 const replaySummaryDiagnostics = fixtureRead.fixtures.get("jury-package-release-replay-summary-diagnostics.json");
 const replaySummaryDiagnosticsRetentionHandoff = fixtureRead.fixtures.get("jury-package-release-replay-summary-diagnostics-retention-handoff.json");
 const replaySummaryExpiryHandoff = fixtureRead.fixtures.get("jury-package-release-replay-summary-expiry-handoff.json");
@@ -68,6 +74,7 @@ const errors = [
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", rollback, "rollback-audit.json"),
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", replacement, "replacement-patch-audit.json"),
   ...schemaDocumentErrors(remediationAuditSchema, "jury.package_release_remediation_audit.v1", remediationAudit, "archive-drift-remediation-audit.json"),
+  ...schemaDocumentErrors(remediationAuditHandoffSchema, "jury.package_release_remediation_audit_handoff.v1", remediationAuditHandoff, "archive-drift-remediation-audit-handoff.json"),
   ...schemaDocumentErrors(replaySummaryDiagnosticsSchema, "jury.package_release_replay_summary_diagnostics.v1", replaySummaryDiagnostics, "jury-package-release-replay-summary-diagnostics.json"),
   ...schemaDocumentErrors(replaySummaryDiagnosticsRetentionHandoffSchema, "jury.package_release_replay_summary_diagnostics_retention_handoff.v1", replaySummaryDiagnosticsRetentionHandoff, "jury-package-release-replay-summary-diagnostics-retention-handoff.json"),
   ...schemaDocumentErrors(replaySummaryExpiryHandoffSchema, "jury.package_release_replay_summary_expiry_handoff.v1", replaySummaryExpiryHandoff, "jury-package-release-replay-summary-expiry-handoff.json"),
@@ -95,6 +102,7 @@ process.stdout.write(`${JSON.stringify({
   schema: "schemas/package-release-evidence.schema.json",
   archiveManifestSchema: "schemas/package-release-archive-manifest.schema.json",
   remediationAuditSchema: "schemas/package-release-remediation-audit.schema.json",
+  remediationAuditHandoffSchema: "schemas/package-release-remediation-audit-handoff.schema.json",
   replaySummaryDiagnosticsSchema: "schemas/package-release-replay-summary-diagnostics.schema.json",
   replaySummaryDiagnosticsRetentionHandoffSchema: "schemas/package-release-replay-summary-diagnostics-retention-handoff.schema.json",
   replaySummaryExpiryHandoffSchema: "schemas/package-release-replay-summary-expiry-handoff.schema.json",
@@ -105,6 +113,7 @@ process.stdout.write(`${JSON.stringify({
     "rollback-audit.json",
     "replacement-patch-audit.json",
     "archive-drift-remediation-audit.json",
+    "archive-drift-remediation-audit-handoff.json",
     "jury-package-release-replay-summary.md",
     "jury-package-release-replay-summary-diagnostics.json",
     "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
@@ -368,6 +377,8 @@ function relationshipErrors() {
     "jury-package-release-replay-summary.md",
     "jury-package-release-replay-summary-diagnostics.json",
     "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    "archive-drift-remediation-audit.json",
+    "archive-drift-remediation-audit-handoff.json",
     "GITHUB_STEP_SUMMARY",
   ]) {
     if (!rollback.retention?.artifacts?.includes(artifact)) {
@@ -419,6 +430,8 @@ function relationshipErrors() {
     "jury-package-release-replay-summary.md",
     "jury-package-release-replay-summary-diagnostics.json",
     "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    "archive-drift-remediation-audit.json",
+    "archive-drift-remediation-audit-handoff.json",
     "GITHUB_STEP_SUMMARY",
   ]) {
     if (!replacement.retention?.artifacts?.includes(artifact)) {
@@ -439,6 +452,7 @@ function relationshipErrors() {
     errors.push("rollback and replacement retention provenance sourceRevision must match");
   }
   errors.push(...remediationAuditErrors());
+  errors.push(...remediationAuditHandoffErrors());
   errors.push(...replaySummaryErrors());
   errors.push(...replaySummaryDiagnosticsErrors());
   errors.push(...replaySummaryDiagnosticsRetentionHandoffErrors());
@@ -478,6 +492,52 @@ function replaySummaryDiagnosticsRetentionHandoffErrors() {
   }
   if (!replaySummaryArtifact?.files?.includes("jury-package-release-replay-summary-diagnostics-retention-handoff.json")) {
     errors.push("replay summary diagnostics retention handoff must be listed in replay summary artifact provenance files");
+  }
+
+  return errors;
+}
+
+function remediationAuditHandoffErrors() {
+  const errors = [];
+  const driftEvidence = (remediationAudit.drift?.evidence ?? []).map((record) => record.path);
+  const restoredEvidence = (remediationAudit.remediation?.restoredEvidence ?? []).map((record) => record.path);
+  const verificationCommands = remediationAudit.verification?.commands ?? [];
+
+  if (remediationAuditHandoff.failedPackageVersion !== failedRecord.packageVersion) {
+    errors.push("archive drift remediation audit handoff failedPackageVersion must match dry-run record");
+  }
+  if (remediationAuditHandoff.failedTarballName !== failedRecord.tarballName) {
+    errors.push("archive drift remediation audit handoff failedTarballName must match dry-run record");
+  }
+  if (remediationAuditHandoff.replacementPackageVersion !== replacement.replacement.packageVersion) {
+    errors.push("archive drift remediation audit handoff replacementPackageVersion must match replacement audit");
+  }
+  if (!arraysEqual(remediationAuditHandoff.driftEvidence, driftEvidence)) {
+    errors.push("archive drift remediation audit handoff driftEvidence must match remediation audit drift evidence");
+  }
+  if (!arraysEqual(remediationAuditHandoff.restoredEvidence, restoredEvidence)) {
+    errors.push("archive drift remediation audit handoff restoredEvidence must match remediation audit restored evidence");
+  }
+  if (!arraysEqual(remediationAuditHandoff.verificationCommands, verificationCommands)) {
+    errors.push("archive drift remediation audit handoff verificationCommands must match remediation audit verification commands");
+  }
+  if (remediationAuditHandoff.manifestRegenerated !== remediationAudit.remediation?.regeneratedManifest) {
+    errors.push("archive drift remediation audit handoff manifestRegenerated must match remediation audit regenerated manifest");
+  }
+  if (remediationAuditHandoff.diffReviewed !== remediationAudit.remediation?.diffReviewed) {
+    errors.push("archive drift remediation audit handoff diffReviewed must match remediation audit diff review");
+  }
+  if (remediationAuditHandoff.runId !== rollback.retention?.provenance?.runId) {
+    errors.push("archive drift remediation audit handoff runId must match retained artifact provenance");
+  }
+  if (remediationAuditHandoff.sourceRevision !== rollback.retention?.provenance?.sourceRevision) {
+    errors.push("archive drift remediation audit handoff sourceRevision must match retained artifact provenance");
+  }
+  if (remediationAuditHandoff.reviewedBy !== remediationAudit.approval?.approvedBy) {
+    errors.push("archive drift remediation audit handoff reviewedBy must match remediation approver");
+  }
+  if (remediationAuditHandoff.approvedAt !== remediationAudit.approval?.approvedAt) {
+    errors.push("archive drift remediation audit handoff approvedAt must match remediation approval time");
   }
 
   return errors;
@@ -657,6 +717,7 @@ function retentionProvenanceErrors(audit, label) {
       "replacement-downstream-gate.json",
       "replacement-patch-audit.json",
       "archive-drift-remediation-audit.json",
+      "archive-drift-remediation-audit-handoff.json",
       "jury-package-release-replay-summary.md",
       "jury-package-release-replay-summary-diagnostics.json",
       "jury-package-release-replay-summary-diagnostics-retention-handoff.json",

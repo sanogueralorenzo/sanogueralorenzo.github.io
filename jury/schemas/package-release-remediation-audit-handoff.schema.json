@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jury Package Release Remediation Audit Handoff",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "reason",
+    "sourceAudit",
+    "sourceManifest",
+    "retainedWith",
+    "failedPackageVersion",
+    "failedTarballName",
+    "replacementPackageVersion",
+    "driftEvidence",
+    "restoredEvidence",
+    "verificationCommands",
+    "manifestRegenerated",
+    "diffReviewed",
+    "runId",
+    "sourceRevision",
+    "reviewedBy",
+    "approvedAt"
+  ],
+  "properties": {
+    "schema_version": { "const": "jury.package_release_remediation_audit_handoff.v1" },
+    "reason": { "const": "archive-drift-remediation-audit retained with failed and replacement release archives" },
+    "sourceAudit": { "const": "archive-drift-remediation-audit.json" },
+    "sourceManifest": { "const": "retained-package-release-evidence-manifest.json" },
+    "retainedWith": {
+      "type": "array",
+      "minItems": 5,
+      "allOf": [
+        { "contains": { "const": "archive-drift-remediation-audit.json" } },
+        { "contains": { "const": "rollback-audit.json" } },
+        { "contains": { "const": "replacement-patch-audit.json" } },
+        { "contains": { "const": "retained-package-release-evidence-manifest.json" } },
+        { "contains": { "const": "jury-package-release-replay-summary-diagnostics-retention-handoff.json" } }
+      ],
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "failedPackageVersion": { "type": "string", "minLength": 1 },
+    "failedTarballName": { "type": "string", "pattern": "\\.tgz$" },
+    "replacementPackageVersion": { "type": "string", "minLength": 1 },
+    "driftEvidence": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "restoredEvidence": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "verificationCommands": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "manifestRegenerated": { "const": "retained-package-release-evidence-manifest.json" },
+    "diffReviewed": { "const": true },
+    "runId": { "type": "string", "minLength": 1 },
+    "sourceRevision": { "type": "string", "minLength": 1 },
+    "reviewedBy": { "type": "string", "minLength": 1 },
+    "approvedAt": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": "jury.package_release_remediation_audit_handoff.v1",
+  "reason": "archive-drift-remediation-audit retained with failed and replacement release archives",
+  "sourceAudit": "archive-drift-remediation-audit.json",
+  "sourceManifest": "retained-package-release-evidence-manifest.json",
+  "retainedWith": [
+    "archive-drift-remediation-audit.json",
+    "rollback-audit.json",
+    "replacement-patch-audit.json",
+    "retained-package-release-evidence-manifest.json",
+    "jury-package-release-replay-summary-diagnostics-retention-handoff.json"
+  ],
+  "failedPackageVersion": "0.1.0",
+  "failedTarballName": "sanogueralorenzo-jury-0.1.0.tgz",
+  "replacementPackageVersion": "0.1.1",
+  "driftEvidence": [
+    "downstream-failure-gate.json",
+    "replacement-downstream-gate.json"
+  ],
+  "restoredEvidence": [
+    "downstream-failure-gate.json",
+    "replacement-downstream-gate.json"
+  ],
+  "verificationCommands": [
+    "npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest <retained-manifest>",
+    "node -e '<archiveEvidence SHA-256 helper>' <retained-evidence-dir> <retained-manifest>",
+    "node -e '<dry-run identity helper>' <retained-evidence-dir> <retained-manifest>",
+    "tmp=\"$(mktemp -d)\" && npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out \"$tmp/retained-package-release-evidence-manifest.json\" && diff -u <retained-manifest> \"$tmp/retained-package-release-evidence-manifest.json\"; rc=$?; rm -rf \"$tmp\"; exit $rc",
+    "npm --prefix jury run fixtures:package-release:drift"
+  ],
+  "manifestRegenerated": "retained-package-release-evidence-manifest.json",
+  "diffReviewed": true,
+  "runId": "example-release-run-1001",
+  "sourceRevision": "example-release-revision",
+  "reviewedBy": "release-maintainer@example.com",
+  "approvedAt": "2026-05-23T00:00:00.000Z"
+}
