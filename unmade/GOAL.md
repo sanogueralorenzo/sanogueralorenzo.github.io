@@ -2,11 +2,13 @@
 
 ## Current Focus
 
-The public skeleton is in place: a scrollable archive at `/unmade/`, reusable full case pages, and eleven entry batches spanning every section.
+Unmade is being moved into a standalone Eleventy site that lives entirely in `/unmade`.
+
+The standalone skeleton is in place with its own package files, Eleventy config, source folder, layouts, styles, archive page, reusable case-page template, image asset path, and migrated entries. The first migrated quality pass expanded six original entries across the archive with richer artifact details, provenance, longer case stories, and sharper unresolved questions.
 
 ## Expansion Loop
 
-After the skeleton is stable, keep adding small batches of new entries from mixed sections:
+Before adding new entries, keep upgrading the migrated entries in small quality-focused batches:
 
 - Unsent
 - Unbuilt
@@ -15,8 +17,8 @@ After the skeleton is stable, keep adding small batches of new entries from mixe
 - Unrecorded
 - Unlived
 
-Each batch should keep the archive navigable, add at least one memorable artifact, and run the narrowest relevant site validation.
+Each batch should improve existing entries in place, add or wire at least one generated image asset when useful, keep the archive navigable, and run the narrowest relevant validation from `/unmade`.
 
 ## Next Expansion Focus
 
-Add a twelfth randomized batch that feels medical and tender: one unsent diagnosis letter, one unbuilt recovery instrument, one unchosen treatment room, one unfinished care protocol, one unrecorded waiting room, and one unlived convalescence.
+Upgrade the next six migrated entries from the second batch with deeper artifact evidence, more developed case notes, and at least one new generated image tied to a specific case page. Do not create new entries until the migrated archive has received a stronger quality pass.

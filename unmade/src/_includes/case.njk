@@ -1,0 +1,62 @@
+---
+layout: base.njk
+---
+<main class="case-page">
+  <nav class="topbar" aria-label="Unmade navigation">
+    <a class="wordmark" href="/unmade/">Unmade</a>
+    <a class="home-link" href="/unmade/#archive">Archive</a>
+  </nav>
+
+  <article class="case-file">
+    <header class="case-header">
+      <p class="kicker">{{ category }} / {{ status }}</p>
+      <h1>{{ title }}</h1>
+      <p>{{ excerpt }}</p>
+    </header>
+
+    <section class="artifact-panel" aria-label="Artifact details">
+      <div class="artifact-visual artifact-{{ visual }}">
+        {% if image %}
+          <img src="{{ image }}" alt="{{ imageAlt or title }}">
+        {% else %}
+          <span>{{ mark }}</span>
+        {% endif %}
+      </div>
+
+      <dl class="case-notes">
+        <div>
+          <dt>Category</dt>
+          <dd>{{ category }}</dd>
+        </div>
+        <div>
+          <dt>State</dt>
+          <dd>{{ status }}</dd>
+        </div>
+        <div>
+          <dt>Trace</dt>
+          <dd>{{ trace }}</dd>
+        </div>
+        {% if materials %}
+          <div>
+            <dt>Materials</dt>
+            <dd>{{ materials }}</dd>
+          </div>
+        {% endif %}
+        {% if provenance %}
+          <div>
+            <dt>Provenance</dt>
+            <dd>{{ provenance }}</dd>
+          </div>
+        {% endif %}
+        <div>
+          <dt>Question</dt>
+          <dd>{{ question }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="case-body prose">
+      {{ content | safe }}
+    </section>
+  </article>
+</main>

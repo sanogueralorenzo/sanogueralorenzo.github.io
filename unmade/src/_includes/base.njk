@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {% set metaDescription = description or excerpt or "A scrollable archive of things that almost existed." %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>{% if title %}{{ title }} | {% endif %}Unmade</title>
+    <meta name="description" content="{{ metaDescription }}">
+    <meta property="og:title" content="{% if title %}{{ title }} | {% endif %}Unmade">
+    <meta property="og:description" content="{{ metaDescription }}">
+    <meta property="og:type" content="{% if title %}article{% else %}website{% endif %}">
+    <link rel="stylesheet" href="/unmade/assets/styles/unmade.css">
+  </head>
+  <body>
+    {{ content | safe }}
+  </body>
+</html>
