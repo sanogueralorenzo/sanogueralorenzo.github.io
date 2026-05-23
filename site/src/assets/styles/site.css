@@ -625,6 +625,30 @@ a {
   background: #c9b56f;
 }
 
+.unmade-object-postcard {
+  background: #eadac4;
+}
+
+.unmade-object-observatory {
+  background: #9fb5b8;
+}
+
+.unmade-object-bridge {
+  background: #c7aa68;
+}
+
+.unmade-object-atlas {
+  background: #e3dfd4;
+}
+
+.unmade-object-weather-station {
+  background: #819f91;
+}
+
+.unmade-object-coast {
+  background: #6f9fbc;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
