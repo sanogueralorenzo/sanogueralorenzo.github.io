@@ -1653,6 +1653,7 @@ async function checkState() {
   await checkJsonFilesInDir(checks, join(stateDir, "traces"), "trace", (value, file) => {
     assertCheck(value?.schema_version === SCHEMA_VERSION, checks, "trace_schema", file, "trace.schema_version is invalid");
   });
+  await checkCandidateLedger(checks, stateDir);
   await checkJsonLinesInDir(checks, join(stateDir, "sessions"), "session");
   await checkReplayArtifacts(checks, join(stateDir, "replays"));
   await checkPromotedPrecedents(checks, stateDir);
@@ -4271,6 +4272,55 @@ async function checkPromotedPrecedents(checks, stateDir) {
 
   if (!checks.some((check) => check.name === "promoted_precedent" && !check.ok)) {
     checks.push({ ok: true, name: "promoted_precedent", file: join(stateDir, "precedents.jsonl") });
+  }
+}
+
+async function checkCandidateLedger(checks, stateDir) {
+  const file = join(stateDir, "candidates.jsonl");
+  let candidates = [];
+  let precedents = [];
+  let traces = [];
+  try {
+    candidates = await readJsonLinesForCheck(file);
+    precedents = await readJsonLinesForCheck(join(stateDir, "precedents.jsonl"));
+    traces = await readStoredTraces(join(stateDir, "traces"));
+  } catch (error) {
+    checks.push({ ok: false, name: "candidate_ledger", file, message: error.message });
+    return;
+  }
+
+  const before = checks.length;
+  const promotedIds = new Set(precedents.filter((precedent) => precedent.promotion_status === "promoted").map((precedent) => precedent.id));
+  const traceIds = new Set(traces.map((trace) => trace.id));
+
+  for (const candidate of candidates) {
+    assertCheck(typeof candidate.id === "string" && candidate.id.length > 0, checks, "candidate_ledger", file, "candidate.id is required");
+    assertCheck(candidate.status === "candidate", checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} status must be candidate`);
+    assertCheck(candidate.promotion_status !== "promoted", checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} must not be promoted without replay`);
+    assertCheck(candidate.promotion === undefined, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} must not include promotion metrics before replay`);
+    assertCheck(Array.isArray(candidate.source_traces) && candidate.source_traces.length > 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} source_traces are required`);
+    assertCheck(Array.isArray(candidate.evidence) && candidate.evidence.length > 0, checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} evidence is required`);
+
+    if (Array.isArray(candidate.source_traces)) {
+      for (const traceId of candidate.source_traces) {
+        assertCheck(traceIds.has(traceId), checks, "candidate_ledger", file, `candidate ${candidate.id ?? "(missing)"} source trace ${traceId} is missing`);
+      }
+    }
+
+    if (candidate.reason === "repair_efficacy_replacement") {
+      assertCheck(Array.isArray(candidate.replaces) && candidate.replaces.length === 1, checks, "candidate_ledger", file, `replacement candidate ${candidate.id ?? "(missing)"} must replace exactly one precedent`);
+      const replacedId = Array.isArray(candidate.replaces) ? candidate.replaces[0] : null;
+      assertCheck(promotedIds.has(replacedId), checks, "candidate_ledger", file, `replacement candidate ${candidate.id ?? "(missing)"} replaces unknown promoted precedent ${replacedId ?? "(missing)"}`);
+      const evidence = Array.isArray(candidate.evidence) ? candidate.evidence : [];
+      assertCheck(evidence.some((item) => /^repair counterexamples: [1-9]/u.test(item)), checks, "candidate_ledger", file, `replacement candidate ${candidate.id ?? "(missing)"} needs counterexample evidence`);
+      assertCheck(evidence.some((item) => /^successful validation: .+ exited 0$/u.test(item)), checks, "candidate_ledger", file, `replacement candidate ${candidate.id ?? "(missing)"} needs successful validation evidence`);
+    }
+  }
+
+  if (!checks.some((check) => check.name === "candidate_ledger" && !check.ok)) {
+    checks.push({ ok: true, name: "candidate_ledger", file, checked: candidates.length });
+  } else if (checks.length === before) {
+    checks.push({ ok: true, name: "candidate_ledger", file, checked: candidates.length });
   }
 }
 

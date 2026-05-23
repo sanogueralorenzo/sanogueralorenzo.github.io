@@ -161,6 +161,111 @@ test("check validates promoted precedent replay receipts", async () => {
   }
 });
 
+test("check validates normal candidate ledger entries", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "failed-candidate",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "failed-candidate",
+      command: "pnpm test",
+      exitCode: 1,
+      stderr: "wrong test command",
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "failed-candidate",
+      success: false,
+      status: "failure",
+      notes: "wrong test command",
+    });
+
+    const result = await runJson(["check", "--state-dir", stateDir, "--json"]);
+
+    assert.equal(result.ok, true);
+    assert.ok(result.checks.some((check) => check.name === "candidate_ledger" && check.ok === true && check.checked === 1));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("check validates replacement candidate evidence and target", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await writeCandidateTrace(stateDir, "session-replacement");
+    await appendFile(join(stateDir, "candidates.jsonl"), `${JSON.stringify(replacementCandidate({
+      id: "cand_replace_prec_webhook_replay_boundary_demo",
+      replaces: ["prec_webhook_replay_boundary"],
+      source_traces: ["session-replacement"],
+    }))}\n`);
+
+    const result = await runJson(["check", "--state-dir", stateDir, "--json"]);
+
+    assert.equal(result.ok, true);
+    assert.ok(result.checks.some((check) => check.name === "candidate_ledger" && check.ok === true && check.checked === 1));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("check fails replacement candidates without replacement evidence", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await writeCandidateTrace(stateDir, "session-replacement");
+    await appendFile(join(stateDir, "candidates.jsonl"), `${JSON.stringify(replacementCandidate({
+      id: "cand_replace_bad",
+      replaces: ["prec_webhook_replay_boundary"],
+      source_traces: ["session-replacement"],
+      evidence: ["repair counterexamples: 2"],
+    }))}\n`);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.ok(payload.checks.some((check) => check.name === "candidate_ledger" && check.message.includes("successful validation evidence")));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("check fails replacement candidates with unknown targets or traces", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await appendFile(join(stateDir, "candidates.jsonl"), `${JSON.stringify(replacementCandidate({
+      id: "cand_replace_unknown",
+      replaces: ["prec_missing"],
+      source_traces: ["session-missing"],
+    }))}\n`);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.ok(payload.checks.some((check) => check.name === "candidate_ledger" && check.message.includes("source trace session-missing is missing")));
+    assert.ok(payload.checks.some((check) => check.name === "candidate_ledger" && check.message.includes("replaces unknown promoted precedent prec_missing")));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   await runJson(["init", "--state-dir", stateDir, "--json"]);
   const traceOut = join(stateDir, "trace.json");
@@ -175,6 +280,36 @@ async function promoteWebhookPrecedent(stateDir) {
     "--json",
   ]);
   await runJson(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
+}
+
+async function writeCandidateTrace(stateDir, id) {
+  await writeFile(join(stateDir, "traces", `${id}.json`), `${JSON.stringify({
+    schema_version: "precedent.v1",
+    id,
+    sessionId: id.replace(/^session-/u, ""),
+    outcome: "success",
+    failures: [],
+    changedFiles: ["features/webhooks/providers/stripe.ts"],
+  })}\n`);
+}
+
+function replacementCandidate(overrides) {
+  return {
+    id: "cand_replace_prec_webhook_replay_boundary_demo",
+    status: "candidate",
+    reason: "repair_efficacy_replacement",
+    replaces: ["prec_webhook_replay_boundary"],
+    scope: "feature:webhooks",
+    source_traces: ["session-replacement"],
+    failure_types: ["repair_efficacy_replacement"],
+    evidence: [
+      "repair counterexamples: 2",
+      "successful validation: pnpm test:webhooks exited 0",
+    ],
+    injection: "Prefer the validated replacement.",
+    promotion_required: "Replay before promotion.",
+    ...overrides,
+  };
 }
 
 function runJson(args) {
