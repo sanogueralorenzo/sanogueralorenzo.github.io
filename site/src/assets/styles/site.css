@@ -697,6 +697,30 @@ a {
   background: #789cad;
 }
 
+.unmade-object-phone {
+  background: #d8d0c6;
+}
+
+.unmade-object-streetlight {
+  background: #c9b56f;
+}
+
+.unmade-object-bus {
+  background: #789cad;
+}
+
+.unmade-object-alley {
+  background: #8fa59e;
+}
+
+.unmade-object-rooftop {
+  background: #b75c46;
+}
+
+.unmade-object-apartment {
+  background: #e6dccd;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
