@@ -20,13 +20,27 @@
     }
   },
   "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_non_empty_string": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "span": {
       "type": "object",
       "required": ["file", "start", "end"],
       "additionalProperties": false,
       "properties": {
         "file": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "start": {
           "$ref": "#/$defs/position"
@@ -63,10 +77,10 @@
           "enum": ["error"]
         },
         "code": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "message": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -75,46 +89,46 @@
           "$ref": "#/$defs/span"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "type": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "step": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "parameter": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "memory": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "scope": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "retention": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "effect": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "family": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "action": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/nullable_non_empty_string"
         },
         "required_family": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "declared_capabilities": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/non_empty_string"
           }
         },
         "argument": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "value": {
           "type": "string"
@@ -122,7 +136,7 @@
         "allowed": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/non_empty_string"
           }
         }
       },

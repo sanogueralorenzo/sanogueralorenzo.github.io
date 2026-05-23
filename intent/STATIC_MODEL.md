@@ -154,20 +154,19 @@ meaningful.
 
 For `intent.ast.v0`, schema-level non-empty strings include top-level `source`,
 every span `file`, package names, type names, goal names, step names, parameter
-names and parameter types when present, context source/value/expression fields,
-trust source labels, raw block names and headers, statement kinds and values,
+names and parameter types when present, context source fields, trust source
+labels, raw block names and headers, statement kinds,
 capability family/name/constraint strings, capability actions when present,
-grant `action`, `key`, `value`, and `raw` strings, memory scope/retention/body
-strings, retention `raw` text, retention subject and `until` raw text when
-present, effect names, effect families, effect actions when present, effect
-argument values, argument kinds, and effect expressions.
+grant `action`, `key`, and `raw` strings, memory scope/retention/body strings,
+retention `raw` text, retention subject and `until` raw text when present,
+effect names, effect families, effect actions when present, and effect
+expressions.
 
 For `intent.check.v0`, schema-level non-empty strings include diagnostic
 `code`, `message`, every diagnostic span `file`, and optional diagnostic
 metadata strings such as `name`, `type`, `step`, `parameter`, `memory`, `scope`,
 `retention`, `effect`, `family`, `action`, `required_family`, `argument`,
-`value`, `allowed`, and `declared_capabilities` entries when those fields are
-present.
+`allowed`, and `declared_capabilities` entries when those fields are present.
 
 Nullable descriptive fields remain nullable where the schema explicitly allows
 them. Examples include goal titles, output types, output type spans, optional

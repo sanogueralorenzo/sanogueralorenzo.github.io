@@ -90,9 +90,9 @@ Validation expectations:
 - AST and check schemas reject empty structural strings before downstream tools
   consume the payload. That includes AST `source` and span `file` values,
   package, type, goal, step, and parameter identifiers, capability and effect
-  structural names, grant action/key/value/raw fields, diagnostic `code` and
+  structural names, grant action/key/raw fields, diagnostic `code` and
   `message` fields, diagnostic span files, and string metadata that names a
-  path, resource, effect, family, action, scope, parameter, or step.
+  resource field, effect, family, action, scope, parameter, or step.
 - Nullable descriptive fields remain nullable where the contract explicitly
   allows them, including goal titles, output types and output type spans,
   optional capability/effect actions, memory names, type definitions, and

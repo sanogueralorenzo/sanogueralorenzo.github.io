@@ -10,7 +10,7 @@
       "const": "intent.ast.v0"
     },
     "source": {
-      "type": "string"
+      "$ref": "#/$defs/non_empty_string"
     },
     "package": {
       "$ref": "#/$defs/package"
@@ -32,13 +32,27 @@
     }
   },
   "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_non_empty_string": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "span": {
       "type": "object",
       "required": ["file", "start", "end"],
       "additionalProperties": false,
       "properties": {
         "file": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "start": {
           "$ref": "#/$defs/position"
@@ -73,10 +87,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "type": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/nullable_non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -92,7 +106,7 @@
           "const": "Package"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "implicit": {
           "type": "boolean"
@@ -111,7 +125,7 @@
           "const": "Type"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "definition": {
           "type": ["string", "null"]
@@ -144,7 +158,7 @@
           "const": "Goal"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "title": {
           "type": ["string", "null"]
@@ -156,7 +170,7 @@
           }
         },
         "outputType": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/nullable_non_empty_string"
         },
         "outputTypeSpan": {
           "oneOf": [
@@ -228,7 +242,7 @@
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "value": {
           "type": "string"
@@ -250,7 +264,7 @@
           "type": "string"
         },
         "source": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "args": {
           "type": "object",
@@ -290,7 +304,7 @@
           "enum": ["trusted", "untrusted", "unknown"]
         },
         "source": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         }
       }
     },
@@ -303,10 +317,10 @@
           "const": "Block"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "header": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -322,18 +336,18 @@
           "const": "Capability"
         },
         "family": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "action": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/nullable_non_empty_string"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "constraints": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/non_empty_string"
           }
         },
         "grants": {
@@ -356,16 +370,16 @@
       "additionalProperties": false,
       "properties": {
         "action": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "key": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "value": {
           "type": "string"
         },
         "raw": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -381,15 +395,15 @@
           "const": "Memory"
         },
         "scope": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "name": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/nullable_non_empty_string"
         },
         "retention": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/non_empty_string"
           }
         },
         "retentionRules": {
@@ -401,7 +415,7 @@
         "statements": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/non_empty_string"
           }
         },
         "span": {
@@ -435,7 +449,7 @@
           ]
         },
         "raw": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -448,7 +462,7 @@
       "additionalProperties": false,
       "properties": {
         "raw": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -464,7 +478,7 @@
           "const": "Step"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "parameters": {
           "type": "array",
@@ -473,7 +487,7 @@
           }
         },
         "outputType": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/nullable_non_empty_string"
         },
         "outputTypeSpan": {
           "oneOf": [
@@ -535,13 +549,13 @@
           "const": "EffectUse"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "family": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "action": {
-          "type": ["string", "null"]
+          "$ref": "#/$defs/nullable_non_empty_string"
         },
         "args": {
           "type": "object",
@@ -562,7 +576,7 @@
           }
         },
         "expression": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"

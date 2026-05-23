@@ -1795,4 +1795,54 @@ describe("intent static model CLI", () => {
     assert(baseNodeErrors.includes("$defs.base_node.kind length must be >= 1"));
     assert(baseNodeErrors.includes("$defs.base_node.label length must be >= 1"));
   });
+
+  it("rejects empty structural AST and check strings in schemas", () => {
+    const astSchema = readJson(AST_SCHEMA);
+    const checkSchema = readJson(CHECK_SCHEMA);
+    const ast = {
+      schema_version: "intent.ast.v0",
+      source: "",
+      package: {
+        kind: "Package",
+        name: "",
+        span: testSpan(1),
+      },
+      types: [],
+      goals: [],
+      span: { ...testSpan(1), file: "" },
+    };
+    const parameterErrors = [];
+    const check = {
+      schema_version: "intent.check.v0",
+      ok: false,
+      diagnostics: [
+        {
+          severity: "error",
+          code: "",
+          message: "",
+          span: { ...testSpan(1), file: "" },
+          action: "",
+        },
+      ],
+    };
+    const astErrors = validateSchema(astSchema, ast);
+    const checkErrors = validateSchema(checkSchema, check);
+    validateAgainst(
+      astSchema.$defs.parameter,
+      { name: "", type: "", span: testSpan(2) },
+      astSchema,
+      "$defs.parameter",
+      parameterErrors,
+    );
+
+    assert(astErrors.includes("$.source length must be >= 1"));
+    assert(astErrors.includes("$.package.name length must be >= 1"));
+    assert(astErrors.includes("$.span.file length must be >= 1"));
+    assert(parameterErrors.includes("$defs.parameter.name length must be >= 1"));
+    assert(parameterErrors.includes("$defs.parameter.type must match exactly one schema, matched 0"));
+    assert(checkErrors.includes("$.diagnostics[0].code length must be >= 1"));
+    assert(checkErrors.includes("$.diagnostics[0].message length must be >= 1"));
+    assert(checkErrors.includes("$.diagnostics[0].span.file length must be >= 1"));
+    assert(checkErrors.includes("$.diagnostics[0].action must match exactly one schema, matched 0"));
+  });
 });
