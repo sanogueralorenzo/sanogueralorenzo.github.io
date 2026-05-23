@@ -318,6 +318,7 @@ async function exportContext() {
   const locked = await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     const events = await readJsonLines(join(stateDir, "events.jsonl"));
     const rankedMatches = rankPrecedents(precedents, context)
       .filter((precedent) => precedent.score >= threshold)
@@ -339,6 +340,12 @@ async function exportContext() {
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
     const revisionBriefs = revisionBriefsForSuppressed(events, lifecycleSelected.suppressed);
+    const promotionTrials = promotionTrialsForContext({
+      candidates,
+      context,
+      suppressed: lifecycleSelected.suppressed,
+      sessionId: args.session ?? null,
+    });
     const exportEvent = {
       type: "context_export",
       observedAt: new Date().toISOString(),
@@ -355,6 +362,7 @@ async function exportContext() {
       })),
       suppressedInjections,
       revisionBriefs,
+      promotionTrials,
     };
     payload = {
       schema_version: "precedent.context.v1",
@@ -362,6 +370,7 @@ async function exportContext() {
       injections: selected.matches.map(formatInjection),
       suppressedInjections,
       revisionBriefs,
+      promotionTrials,
       source: {
         command: "context",
         task,
@@ -389,6 +398,7 @@ async function exportContext() {
         injectionMatches: exportEvent.injectionMatches,
         suppressedInjections: exportEvent.suppressedInjections,
         revisionBriefs: exportEvent.revisionBriefs,
+        promotionTrials: exportEvent.promotionTrials,
       });
     }
   }, { failOpen: true });
@@ -400,6 +410,7 @@ async function exportContext() {
       injections: [],
       suppressedInjections: [{ reason: "lock_timeout" }],
       revisionBriefs: [],
+      promotionTrials: [],
       source: {
         command: "context",
         task,
@@ -744,11 +755,13 @@ async function contextBeforeTurnEventHook(event) {
   let matches = [];
   let suppressed = [];
   let revisionBriefs = [];
+  let promotionTrials = [];
   let contextBlock = "";
   let sessionEvent = null;
   const locked = await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     const events = await readJsonLines(join(stateDir, "events.jsonl"));
     const rankedMatches = rankPrecedents(precedents, context)
       .filter((precedent) => precedent.score >= threshold)
@@ -770,6 +783,12 @@ async function contextBeforeTurnEventHook(event) {
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
     revisionBriefs = revisionBriefsForSuppressed(events, lifecycleSelected.suppressed);
+    promotionTrials = promotionTrialsForContext({
+      candidates,
+      context,
+      suppressed: lifecycleSelected.suppressed,
+      sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
+    });
     contextBlock = formatInjectionBlock(matches);
 
     const hookEvent = {
@@ -790,6 +809,7 @@ async function contextBeforeTurnEventHook(event) {
       })),
       suppressedInjections: suppressed,
       revisionBriefs,
+      promotionTrials,
     };
 
     await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
@@ -805,6 +825,7 @@ async function contextBeforeTurnEventHook(event) {
   if (locked?.lockTimeout) {
     suppressed = [{ reason: "lock_timeout" }];
     revisionBriefs = [];
+    promotionTrials = [];
   }
 
   print({
@@ -814,6 +835,7 @@ async function contextBeforeTurnEventHook(event) {
     injections: matches.map(formatInjection),
     suppressedInjections: suppressed,
     revisionBriefs,
+    promotionTrials,
     contextBlock,
   });
 }
@@ -1372,7 +1394,7 @@ function buildManifest(runtime, stateDir) {
           "--format",
           "json",
         ],
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "source"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "source"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -1485,7 +1507,7 @@ async function attachRuntime() {
     adapter: {
       beforeTurn: {
         command: beforeTurnCommand,
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "source"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "source"],
         injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1949,6 +1971,55 @@ function counterexampleSummary(counterexamples) {
     .join(", ") || "no counterexamples";
 }
 
+function promotionTrialsForContext({ candidates, context, suppressed, sessionId }) {
+  const suppressedRepairIds = new Set(
+    suppressed
+      .filter((match) => ["stale_repair_efficacy", "retired_repair_efficacy"].includes(match.suppressionReason))
+      .map((match) => match.id),
+  );
+  if (suppressedRepairIds.size === 0) {
+    return [];
+  }
+
+  return candidates
+    .filter((candidate) =>
+      candidate.reason === "repair_efficacy_replacement"
+      && candidate.status === "candidate"
+      && Array.isArray(candidate.replaces)
+      && candidate.replaces.some((id) => suppressedRepairIds.has(id))
+      && candidateOverlapsContext(candidate, context))
+    .slice(0, 3)
+    .map((candidate) => ({
+      id: `trial_${safeFileName(candidate.id)}_${safeFileName(sessionId ?? stableHash(context).slice(0, 8))}`,
+      candidateId: candidate.id,
+      replaces: candidate.replaces,
+      reason: "verify_repair_efficacy_replacement",
+      validationCommand: validationCommandFromEvidence(candidate.evidence),
+      evidence: Array.isArray(candidate.evidence) ? candidate.evidence.slice(0, 5) : [],
+      acceptance: "Replay with candidate injected; promote only if rerun failures are lower than baseline failures.",
+    }));
+}
+
+function candidateOverlapsContext(candidate, context) {
+  if (candidate.scope && context.scope && candidate.scope === context.scope) {
+    return true;
+  }
+
+  const candidatePrefixes = new Set([
+    ...commonPathPrefixes(candidate.paths ?? []),
+    ...(Array.isArray(candidate.paths) ? candidate.paths : []),
+  ]);
+  return commonPathPrefixes(context.changedFiles ?? [])
+    .some((prefix) => candidatePrefixes.has(prefix));
+}
+
+function validationCommandFromEvidence(evidence) {
+  const validationEvidence = Array.isArray(evidence)
+    ? evidence.find((item) => /^successful validation: .+ exited 0$/u.test(item))
+    : null;
+  return validationEvidence?.replace(/^successful validation: /u, "").replace(/ exited 0$/u, "") ?? null;
+}
+
 function suppressLifecycleInjections({ events, matches, includeStale }) {
   const selected = [];
   const suppressed = [];
@@ -2110,6 +2181,10 @@ function outcomeSummaryForPrecedent(events, id) {
     Array.isArray(event.revisionBriefs)
     && event.revisionBriefs.some((item) => item.id === id),
   ).length;
+  const promotionTrialCount = events.filter((event) =>
+    Array.isArray(event.promotionTrials)
+    && event.promotionTrials.some((item) => Array.isArray(item.replaces) && item.replaces.includes(id)),
+  ).length;
   const guardChecks = guardChecksForPrecedent(events, id);
   const guardPasses = guardChecks.filter((check) => check.status === "pass");
   const guardWarnings = guardChecks.filter((check) => check.status === "warn");
@@ -2142,6 +2217,7 @@ function outcomeSummaryForPrecedent(events, id) {
     failureCount: failures.length,
     suppressionCount: suppressions.length,
     revisionBriefCount,
+    promotionTrialCount,
     guardPassCount: guardPasses.length,
     guardWarningCount: guardWarnings.length,
     repairAttemptCount: repairReceipts.length,
@@ -2986,6 +3062,7 @@ function sessionTraceEvent(event) {
     failureSignals: Array.isArray(event.failureSignals) ? event.failureSignals : [],
     guardResult: event.guardResult ?? null,
     suppressedInjections: Array.isArray(event.suppressedInjections) ? event.suppressedInjections : [],
+    promotionTrials: Array.isArray(event.promotionTrials) ? event.promotionTrials : [],
     stdoutSummary: event.stdoutSummary ?? null,
     stderrSummary: event.stderrSummary ?? null,
   };

@@ -384,6 +384,25 @@ test("successful session after repair-efficacy suppression creates replacement c
     assert.equal(candidate.reason, "repair_efficacy_replacement");
     assert.ok(candidate.evidence.some((item) => item.includes("repair counterexamples")));
     assert.ok(candidate.evidence.some((item) => item.includes("successful validation: pnpm test:webhooks exited 0")));
+
+    const trialContext = await contextForWebhook(stateDir, { session: "trial-session" });
+    assert.equal(trialContext.promotionTrials.length, 1);
+    assert.equal(trialContext.promotionTrials[0].candidateId, candidateId);
+    assert.deepEqual(trialContext.promotionTrials[0].replaces, ["prec_webhook_replay_boundary"]);
+    assert.equal(trialContext.promotionTrials[0].reason, "verify_repair_efficacy_replacement");
+    assert.equal(trialContext.promotionTrials[0].validationCommand, "pnpm test:webhooks");
+
+    const unrelatedTrialContext = await contextForWebhook(stateDir, {
+      session: "unrelated-trial-session",
+      scope: "feature:billing",
+      changedFile: "features/billing/refunds.ts",
+      threshold: 1,
+    });
+    assert.deepEqual(unrelatedTrialContext.promotionTrials, []);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.promotionTrialCount, 1);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
