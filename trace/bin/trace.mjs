@@ -1417,14 +1417,14 @@ async function startSession(requestedSessionId) {
     source: "trace-session",
     message: "session started",
   });
-  print({ ok: true, session: sessionId, path: relativePath(root, file), event: event.event });
+  print({ ok: true, schema_version: "trace.session_start.v1", session: sessionId, path: relativePath(root, file), event: event.event });
 }
 
 async function endSession(expectedSessionId) {
   const root = await repoRoot();
   const current = await readCurrentSession(root).catch(() => null);
   if (!current) {
-    print({ ok: true, ended: null, current: null });
+    print({ ok: true, schema_version: "trace.session_end.v1", ended: null, current: null });
     return;
   }
 
@@ -1440,17 +1440,17 @@ async function endSession(expectedSessionId) {
     message: "session ended",
   });
   await rm(await currentSessionPath(root), { force: true });
-  print({ ok: true, ended: current, current: null, event: event.event });
+  print({ ok: true, schema_version: "trace.session_end.v1", ended: current, current: null, event: event.event });
 }
 
 async function listSessions() {
   const root = await repoRoot();
-  print({ ok: true, current: await readCurrentSession(root).catch(() => null), sessions: await sessionSummaries(root) });
+  print({ ok: true, schema_version: "trace.session_list.v1", current: await readCurrentSession(root).catch(() => null), sessions: await sessionSummaries(root) });
 }
 
 async function showCurrentSession() {
   const root = await repoRoot();
-  print({ ok: true, current: await readCurrentSession(root).catch(() => null) });
+  print({ ok: true, schema_version: "trace.session_current.v1", current: await readCurrentSession(root).catch(() => null) });
 }
 
 async function showSession(sessionId) {
@@ -1463,6 +1463,7 @@ async function showSession(sessionId) {
   const limit = args.limit == null ? events.length : parsePositiveInteger(args.limit, "--limit");
   print({
     ok: true,
+    schema_version: "trace.session_detail.v1",
     session: sessionId,
     path: relativePath(root, await sessionPath(root, sessionId)),
     events: events.slice(Math.max(0, events.length - limit)),
