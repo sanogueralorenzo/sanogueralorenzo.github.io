@@ -1951,6 +1951,9 @@ async function recallMemories(query) {
         score,
         sha: entry.sha,
         file: entry.file,
+        checkpoint: entry.checkpoint,
+        session: entry.session,
+        created: entry.created,
         title: recallTitle(entry),
         intent: entry.intent,
         summary: entry.summary,
@@ -1980,6 +1983,8 @@ async function recallMemories(query) {
     const entry = match.entry;
     lines.push(`## ${entry.sha.slice(0, 12)} ${recallTitle(entry)}`, "");
     lines.push(`Memory: \`${entry.file}\``);
+    lines.push(`Checkpoint: \`${entry.checkpoint}\``);
+    lines.push(`Session: \`${entry.session}\``);
     lines.push(`Score: ${match.score}`);
     appendRecallSection(lines, "Intent", entry.intent);
     appendRecallSection(lines, "Summary", entry.summary);

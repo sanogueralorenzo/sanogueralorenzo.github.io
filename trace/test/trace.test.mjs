@@ -94,6 +94,8 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const recall = await runTrace(repo, ["recall", "reviewable", "--limit", "1"]);
     assert.match(recall.stdout, /Trace Recall/);
     assert.match(recall.stdout, /Matches: 1/);
+    assert.match(recall.stdout, /Checkpoint: `[0-9a-f]+`/);
+    assert.match(recall.stdout, /Session: `[A-Za-z0-9-]+`/);
     assert.match(recall.stdout, /Use committed Markdown for reviewable memory/);
     assert.match(recall.stdout, /node --test/);
 
@@ -102,6 +104,9 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(recallJson.query, "reviewable");
     assert.equal(recallJson.matches, 1);
     assert.equal(recallJson.results[0].score, 3);
+    assert.equal(recallJson.results[0].file, payload.memory);
+    assert.match(recallJson.results[0].checkpoint, /^[0-9a-f]+$/);
+    assert.match(recallJson.results[0].session, /^[A-Za-z0-9-]+$/);
     assert.match(recallJson.results[0].decisions, /Use committed Markdown/);
     assert.match(recallJson.results[0].validation, /node --test/);
     assert.match(recallJson.results[0].handoff, /Preserve the decision/);
