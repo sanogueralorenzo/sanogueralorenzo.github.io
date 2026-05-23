@@ -365,6 +365,7 @@ async function recordFailedSession(stateDir) {
     schema_version: "precedent.v1",
     hook: "context.before_turn",
     sessionId: "failed-session",
+    eventId: "failed-context",
     task: "add webhook handler",
     scope: "feature:webhooks",
     changedFiles: ["features/webhooks/providers/stripe.ts"],
@@ -373,6 +374,7 @@ async function recordFailedSession(stateDir) {
     schema_version: "precedent.v1",
     hook: "diff.after_edit",
     sessionId: "failed-session",
+    eventId: "failed-diff",
     changedFiles: ["features/billing/refunds.ts"],
     breadthSignals: ["wrong repo slice"],
   });
@@ -380,6 +382,7 @@ async function recordFailedSession(stateDir) {
     schema_version: "precedent.v1",
     hook: "validation.after_run",
     sessionId: "failed-session",
+    eventId: "failed-validation",
     command: "pnpm test",
     exitCode: 1,
     stderr: "wrong test command",
@@ -388,6 +391,7 @@ async function recordFailedSession(stateDir) {
     schema_version: "precedent.v1",
     hook: "outcome.after_task",
     sessionId: "failed-session",
+    eventId: "failed-outcome",
     success: false,
     status: "failure",
     notes: "edited outside webhook boundary and ran the wrong test command",
@@ -399,6 +403,7 @@ async function recordSuccessfulSession(stateDir, success = true) {
     schema_version: "precedent.v1",
     hook: "context.before_turn",
     sessionId: "success-session",
+    eventId: "success-context",
     task: "add webhook handler",
     scope: "feature:webhooks",
     changedFiles: ["features/webhooks/providers/github.ts"],
@@ -407,12 +412,14 @@ async function recordSuccessfulSession(stateDir, success = true) {
     schema_version: "precedent.v1",
     hook: "diff.after_edit",
     sessionId: "success-session",
+    eventId: "success-diff",
     changedFiles: ["features/webhooks/providers/github.ts"],
   });
   await hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "validation.after_run",
     sessionId: "success-session",
+    eventId: "success-validation",
     command: "pnpm test:webhooks",
     exitCode: 0,
     stdout: "passed",
@@ -421,11 +428,13 @@ async function recordSuccessfulSession(stateDir, success = true) {
     schema_version: "precedent.v1",
     hook: "finalize.before_response",
     sessionId: "success-session",
+    eventId: "success-finalize",
   });
   return hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "outcome.after_task",
     sessionId: "success-session",
+    eventId: "success-outcome",
     success,
     notes: "passed with narrow validation",
   });

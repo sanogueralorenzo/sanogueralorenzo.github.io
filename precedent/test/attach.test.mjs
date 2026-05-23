@@ -1082,6 +1082,8 @@ test("attach-run auto-promotes queued validation replay plans", async () => {
       stateDir,
       "--session",
       "failed-run",
+      "--event-prefix",
+      "failed-delivery",
       "--task",
       "add webhook handler",
       "--scope",

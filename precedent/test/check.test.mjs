@@ -273,9 +273,43 @@ test("report surfaces unknown delivery receipt wiring", async () => {
     });
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const runtimeCheck = payload.checks.find((check) => check.name === "runtime_wiring");
 
     assert.equal(report.runtimeWiringHealth.unknownDeliveryIds, 1);
     assert.equal(report.runtimeWiringHealth.details.unknownDeliveryIds[0].deliveryId, "del_missing");
+    assert.equal(result.exitCode, 1);
+    assert.equal(runtimeCheck.ok, false);
+    assert.equal(runtimeCheck.unknownDeliveryIds, 1);
+    assert.equal(runtimeCheck.details.unknownDeliveryIds[0].deliveryId, "del_missing");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("strict check fails session hooks without stable event ids", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "missing-event-id",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const runtimeCheck = payload.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(result.exitCode, 1);
+    assert.equal(runtimeCheck.ok, false);
+    assert.equal(runtimeCheck.missingEventIds, 1);
+    assert.equal(runtimeCheck.details.missingEventIds[0].sessionId, "missing-event-id");
+    assert.equal(runtimeCheck.details.missingEventIds[0].hook, "validation.after_run");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

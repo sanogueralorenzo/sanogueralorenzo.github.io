@@ -43,7 +43,7 @@ test("concurrent context calls preserve one session injection", async () => {
 
   try {
     await promoteWebhookPrecedent(stateDir);
-    const contexts = await Promise.all(Array.from({ length: 6 }, () => runJson([
+    const contexts = await Promise.all(Array.from({ length: 6 }, (_unused, index) => runJson([
       "context",
       "--state-dir",
       stateDir,
@@ -55,15 +55,27 @@ test("concurrent context calls preserve one session injection", async () => {
       "features/webhooks/providers/stripe.ts",
       "--session",
       "demo",
+      "--event-id",
+      `turn-${index}`,
       "--json",
     ])));
 
     assert.equal(contexts.filter((result) => result.injections.length === 1).length, 1);
     assert.equal(contexts.filter((result) => result.suppressedInjections.length === 1).length, 5);
+    const delivered = contexts.find((result) => result.deliveryReceipt);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "demo",
+      eventId: "ack-1",
+      deliveryId: delivered.deliveryReceipt.deliveryId,
+      contextBlockHash: delivered.contextBlockHash,
+      inserted: true,
+    });
 
     const sessionEvents = await readJsonLines(join(stateDir, "sessions/demo.jsonl"));
-    assert.equal(sessionEvents.length, 6);
-    assert.equal(sessionEvents.filter((event) => event.injections.length === 1).length, 1);
+    assert.equal(sessionEvents.length, 7);
+    assert.equal(sessionEvents.filter((event) => (event.injections ?? []).length === 1).length, 1);
 
     const check = await runJson(["check", "--state-dir", stateDir, "--strict", "--json"]);
     assert.equal(check.ok, true);
@@ -71,6 +83,10 @@ test("concurrent context calls preserve one session injection", async () => {
     await rm(stateDir, { force: true, recursive: true });
   }
 });
+
+function hook(stateDir, event) {
+  return runJsonWithInput(["hook", "--state-dir", stateDir, "--json"], event);
+}
 
 test("strict check fails on leftover state lock or atomic temp file", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-lock-test-"));
@@ -128,11 +144,21 @@ function runJson(args) {
   });
 }
 
-function runProcess(args) {
+function runJsonWithInput(args, stdinJson) {
+  return runProcess(args, stdinJson).then((result) => {
+    if (result.exitCode !== 0) {
+      throw new Error(`precedent ${args.join(" ")} failed\n${result.stderr}`);
+    }
+
+    return JSON.parse(result.stdout);
+  });
+}
+
+function runProcess(args, stdinJson = null) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {
       cwd: repoRoot,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
     let stderr = "";
@@ -153,5 +179,11 @@ function runProcess(args) {
         stderr,
       });
     });
+
+    if (stdinJson) {
+      child.stdin.end(`${JSON.stringify(stdinJson)}\n`);
+    } else {
+      child.stdin.end();
+    }
   });
 }

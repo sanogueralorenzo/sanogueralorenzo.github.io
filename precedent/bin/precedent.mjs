@@ -10113,6 +10113,8 @@ async function checkRuntimeWiring(checks, stateDir, strict) {
   const health = await runtimeWiringHealthSummary(stateDir, events);
   const fallbackSessions = health.details.fallbackAttachments;
   const strictFailures = fallbackSessions.length
+    + health.missingEventIds
+    + health.unknownDeliveryIds
     + health.unackedDeliveries
     + health.mismatchedInjectionAcks
     + health.rejectedInjectionAcks;
@@ -10126,7 +10128,7 @@ async function checkRuntimeWiring(checks, stateDir, strict) {
     message: strict && fallbackSessions.length > 0
       ? "runtime attach used task_hash_fallback identity; pass --session or --thread-id"
       : strict && strictFailures > 0
-        ? "runtime wiring has injection acknowledgement issues"
+        ? "runtime wiring has missing event ids, unknown delivery ids, or injection acknowledgement issues"
       : undefined,
   });
 }
