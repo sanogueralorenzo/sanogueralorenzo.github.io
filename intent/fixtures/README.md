@@ -12,6 +12,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_trust_flow_shell_literal.intent`: trust-flow goal where `ShellExec` uses a literal command declared by shell capability.
 - `valid_web_read_wildcard.intent`: web-read goal where `WebRead` targets a subdomain covered by a wildcard web domain grant.
 - `valid_git_push_branch.intent`: git goal where `GitPush` targets a branch covered by a normalized git push branch grant.
+- `valid_secret_read.intent`: secret-read goal where `SecretRead` targets a secret name covered by a secret read grant, with memory retention, verification, and invariants.
 - `valid_step_requirements.intent`: code-change goal with step-local `require ...` guards before effects, normal file and shell capabilities, memory retention, verification, and invariants.
 - `valid_invariant_guard_graph.intent`: code-change goal with invariant rules intended to guard multiple graph targets, including file and shell effects plus step checkpoints, with normal capabilities, checkpoint memory retention, plan steps, and verification.
 - `valid_step_approval_graph.intent`: code-change goal with step body `approval ...` lines before sensitive file-write and git-push effects, normal file, shell, and git capabilities, approval memory retention, verification, and invariants.
@@ -26,6 +27,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_file_write_outside_capability.intent`: calls `FileWrite` for a path outside the declared write grant.
 - `invalid_shell_exec_outside_capability.intent`: calls `ShellExec` with a command outside the declared shell grant.
 - `invalid_web_read_outside_capability.intent`: calls `WebRead` for a URL outside the declared web domain grant.
+- `invalid_secret_read_outside_capability.intent`: declares secret read access for `GITHUB_TOKEN` but calls `SecretRead` for `AWS_TOKEN`.
 - `invalid_context_source_outside_capability.intent`: declares a web context source outside the declared web read grant.
 - `invalid_verify_shell_without_capability.intent`: requires `shell("npm run lint")` in verification without declaring the matching shell run grant.
 - `invalid_verify_impure_file_write.intent`: declares normal file and shell capabilities but calls `FileWrite(path: "./src/app.ts")` from `verify`, which should be rejected because verification must stay side-effect free.
