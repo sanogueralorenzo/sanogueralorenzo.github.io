@@ -54,6 +54,7 @@ jobs:
             jury/examples/ci/fixtures/package-release/replacement-patch-audit.json
             jury/examples/ci/fixtures/package-release/archive-drift-remediation-audit.json
             jury/examples/ci/fixtures/package-release/jury-package-release-replay-summary.md
+            jury/examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics.json
             jury/examples/ci/fixtures/package-release/jury-package-release-replay-summary-expiry-handoff.json
       - name: Upload Jury package release archive manifest
         uses: actions/upload-artifact@v4
@@ -97,6 +98,14 @@ jobs:
           JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_PATH: ../jury-package-release-replay-summary.md
         run: |
           (cd jury && node -e 'const fs=require("node:fs"); const evidenceDir=process.env.JURY_PACKAGE_RELEASE_EVIDENCE_DIR; const manifestPath=process.env.JURY_PACKAGE_RELEASE_MANIFEST_PATH; const summaryPath=process.env.JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_PATH; const manifest=JSON.parse(fs.readFileSync(manifestPath,"utf8")); const remediation=JSON.parse(fs.readFileSync(`${evidenceDir}/archive-drift-remediation-audit.json`,"utf8")); const failedEvidence=remediation.failed.archiveEvidence.join(", "); const replacementEvidence=remediation.replacement.archiveEvidence.join(", "); const summary=`### Jury package release replay\n\n- failedPackageVersion: ${manifest.failed.packageVersion}\n- failedTarballName: ${manifest.failed.tarballName}\n- replacementPackageVersion: ${manifest.replacement.packageVersion}\n- failedArchiveEvidence: ${failedEvidence}\n- replacementArchiveEvidence: ${replacementEvidence}\n- remediationApprovedBy: ${remediation.approval.approvedBy}\n`; if (summaryPath) fs.writeFileSync(summaryPath, summary); if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary); else console.log(summary);')
+      - name: Diagnose Jury package release replay summary
+        env:
+          JURY_PACKAGE_RELEASE_EVIDENCE_DIR: ../package-release-evidence
+          JURY_PACKAGE_RELEASE_MANIFEST_PATH: ../package-release-manifest/retained-package-release-evidence-manifest.json
+          JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_PATH: ../jury-package-release-replay-summary.md
+          JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_PATH: ../jury-package-release-replay-summary-diagnostics.json
+        run: |
+          (cd jury && node -e 'const fs=require("node:fs"); const evidenceDir=process.env.JURY_PACKAGE_RELEASE_EVIDENCE_DIR; const manifestPath=process.env.JURY_PACKAGE_RELEASE_MANIFEST_PATH; const summaryPath=process.env.JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_PATH; const diagnosticsPath=process.env.JURY_PACKAGE_RELEASE_REPLAY_SUMMARY_DIAGNOSTICS_PATH; const manifest=JSON.parse(fs.readFileSync(manifestPath,"utf8")); const remediation=JSON.parse(fs.readFileSync(`${evidenceDir}/archive-drift-remediation-audit.json`,"utf8")); const summary=fs.readFileSync(summaryPath,"utf8"); const checkedLines=["### Jury package release replay",`- failedPackageVersion: ${manifest.failed.packageVersion}`,`- failedTarballName: ${manifest.failed.tarballName}`,`- replacementPackageVersion: ${manifest.replacement.packageVersion}`,`- failedArchiveEvidence: ${remediation.failed.archiveEvidence.join(", ")}`,`- replacementArchiveEvidence: ${remediation.replacement.archiveEvidence.join(", ")}`,`- remediationApprovedBy: ${remediation.approval.approvedBy}`]; const missing=checkedLines.filter((line)=>!summary.includes(line)); if (missing.length) throw new Error(`replay summary diagnostics missing lines: ${missing.join(", ")}`); const diagnostics={schema_version:"jury.package_release_replay_summary_diagnostics.v1",sourceJob:"package-release-evidence-replay",summaryArtifact:"jury-package-release-replay-summary",summaryFile:"jury-package-release-replay-summary.md",failedPackageVersion:manifest.failed.packageVersion,failedTarballName:manifest.failed.tarballName,replacementPackageVersion:manifest.replacement.packageVersion,failedArchiveEvidence:remediation.failed.archiveEvidence,replacementArchiveEvidence:remediation.replacement.archiveEvidence,remediationApprovedBy:remediation.approval.approvedBy,checkedLines}; fs.writeFileSync(diagnosticsPath, `${JSON.stringify(diagnostics,null,2)}\n`); console.log(JSON.stringify({ok:true, diagnosticsPath}, null, 2));')
       - name: Upload Jury package release replay summary
         uses: actions/upload-artifact@v4
         with:
@@ -105,6 +114,7 @@ jobs:
           if-no-files-found: error
           path: |
             jury-package-release-replay-summary.md
+            jury-package-release-replay-summary-diagnostics.json
 
   dry-run-publication:
     runs-on: ubuntu-latest

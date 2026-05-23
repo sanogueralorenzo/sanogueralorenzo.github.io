@@ -58,7 +58,8 @@
             { "contains": { "const": "jury-package-release-evidence" } },
             { "contains": { "const": "jury-package-release-replay-summary" } },
             { "contains": { "const": "rollback-audit.json" } },
-            { "contains": { "const": "replacement-patch-audit.json" } }
+            { "contains": { "const": "replacement-patch-audit.json" } },
+            { "contains": { "const": "jury-package-release-replay-summary-diagnostics.json" } }
           ]
         }
       },
@@ -127,7 +128,7 @@
     },
     "archiveEvidence": {
       "type": "array",
-      "minItems": 8,
+      "minItems": 9,
       "allOf": [
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-pack-dry-run-record.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "failed-npm-view.json" } } } },
@@ -136,7 +137,8 @@
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-npm-view.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-downstream-gate.json" } } } },
         { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-patch-audit.json" } } } },
-        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary.md" } } } }
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary.md" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-package-release-replay-summary-diagnostics.json" } } } }
       ],
       "items": {
         "type": "object",

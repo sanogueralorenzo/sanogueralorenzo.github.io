@@ -35,6 +35,7 @@
       "downstream-failure-gate.json",
       "rollback-audit.json",
       "jury-package-release-replay-summary.md",
+      "jury-package-release-replay-summary-diagnostics.json",
       "GITHUB_STEP_SUMMARY",
       "replacement-npm-view.json",
       "replacement-downstream-gate.json",
@@ -70,7 +71,8 @@
           "replacement-downstream-gate.json",
           "replacement-patch-audit.json",
           "archive-drift-remediation-audit.json",
-          "jury-package-release-replay-summary.md"
+          "jury-package-release-replay-summary.md",
+          "jury-package-release-replay-summary-diagnostics.json"
         ]
       },
       {
@@ -78,7 +80,8 @@
         "sourceJob": "package-release-evidence-replay",
         "retentionDays": 90,
         "files": [
-          "jury-package-release-replay-summary.md"
+          "jury-package-release-replay-summary.md",
+          "jury-package-release-replay-summary-diagnostics.json"
         ]
       }
     ]
@@ -98,7 +101,7 @@
     },
     {
       "path": "rollback-audit.json",
-      "sha256": "sha256:abecf43cb1fbd56b0955c3d403f064509db47c198827a2d6921070327bc506e6"
+      "sha256": "sha256:ff29528687423dab8dddaec0705d357577c7e6f3eb1d39bd0d886cb808dac4f0"
     },
     {
       "path": "replacement-npm-view.json",
@@ -110,11 +113,15 @@
     },
     {
       "path": "replacement-patch-audit.json",
-      "sha256": "sha256:15894e0e8fa86d0b99644dffb51dc088c34d0566355664f714a2a478e7468121"
+      "sha256": "sha256:95cf5d27e17541e335b152b285416f58f9acd0be0e07a902a2abc49c9c25c187"
     },
     {
       "path": "jury-package-release-replay-summary.md",
       "sha256": "sha256:66ef94dd3513c21c79f5aeca2362a4bc312fe9955fd47e188b1f2cd37edf258f"
+    },
+    {
+      "path": "jury-package-release-replay-summary-diagnostics.json",
+      "sha256": "sha256:9872fa21227f9a1d272d4168583b6b0061c36bcf4631bbe35ef095c9b6480d9e"
     }
   ]
 }

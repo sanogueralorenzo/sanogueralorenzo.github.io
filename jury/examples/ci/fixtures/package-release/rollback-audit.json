@@ -22,6 +22,7 @@
       "downstream-failure-gate.json",
       "rollback-audit.json",
       "jury-package-release-replay-summary.md",
+      "jury-package-release-replay-summary-diagnostics.json",
       "GITHUB_STEP_SUMMARY"
     ],
     "provenance": {
@@ -53,7 +54,8 @@
             "replacement-downstream-gate.json",
             "replacement-patch-audit.json",
             "archive-drift-remediation-audit.json",
-            "jury-package-release-replay-summary.md"
+            "jury-package-release-replay-summary.md",
+            "jury-package-release-replay-summary-diagnostics.json"
           ]
         },
         {
@@ -61,7 +63,8 @@
           "sourceJob": "package-release-evidence-replay",
           "retentionDays": 90,
           "files": [
-            "jury-package-release-replay-summary.md"
+            "jury-package-release-replay-summary.md",
+            "jury-package-release-replay-summary-diagnostics.json"
           ]
         }
       ]

@@ -56,6 +56,10 @@ The same publication example uploads [examples/ci/fixtures/package-release/archi
 
 The replay job writes a `GITHUB_STEP_SUMMARY` section named `Jury package release replay`. It records the failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver before `dry-run-publication`. The same content is saved as `jury-package-release-replay-summary.md` and uploaded as the `jury-package-release-replay-summary` artifact with `retention-days: 90`.
 
+## Replay Summary CI Workflow Diagnostics
+
+The replay job also writes `jury-package-release-replay-summary-diagnostics.json` with `jury.package_release_replay_summary_diagnostics.v1`. The diagnostics record captures the `package-release-evidence-replay` source job, summary artifact name, summary file name, failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, remediation approver, and checked summary lines. The fixture validator loads [schemas/package-release-replay-summary-diagnostics.schema.json](schemas/package-release-replay-summary-diagnostics.schema.json) and checks [examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics.json](examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics.json) so CI workflow summary diagnostics stay tied to failed and replacement release archives.
+
 ## Replay Summary Retention Handoff
 
 Failed and replacement release records must promote `jury-package-release-replay-summary.md` from the `jury-package-release-replay-summary` artifact with the retained `jury-package-release-evidence`, `jury-package-release-archive-manifest`, and `archive-drift-remediation-audit.json` records. The retained artifact provenance must record the `package-release-evidence-replay` source job, workflow run id, source revision, `retentionDays: 90`, and uploaded file list before closing the release or incident archive.
@@ -100,6 +104,10 @@ Remediation audit replay troubleshooting now includes executable examples for mi
 
 Replay artifact summary troubleshooting now includes executable examples that reconstruct the expected failed/replacement archive summary from the retained evidence and compare it with the saved `GITHUB_STEP_SUMMARY` output. Use them when the replay job passes but the release page does not show the failed package identity, replacement package identity, retained archive evidence lists, or remediation approver.
 
+## Replay Summary CI Workflow Diagnostics Troubleshooting
+
+Replay summary CI workflow diagnostics troubleshooting now includes executable examples that validate the diagnostics JSON shape and compare it with the retained manifest, remediation audit, and saved summary file. Use them when `jury-package-release-replay-summary-diagnostics.json` is missing, malformed, or no longer proves the failed and replacement archive evidence behind the workflow summary.
+
 ## Replay Summary Retention Failure Troubleshooting
 
 Replay summary retention failure troubleshooting now covers missing `jury-package-release-replay-summary.md`, missing `jury-package-release-replay-summary` manifest retention/provenance, wrong `package-release-evidence-replay` source job, wrong `retentionDays: 90`, and retained summary content drift from failed and replacement release archive evidence. Use it when the replay summary artifact expired before promotion or when the release record no longer proves summary retention.
@@ -130,4 +138,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics retention handoff for failed and replacement release archives.
