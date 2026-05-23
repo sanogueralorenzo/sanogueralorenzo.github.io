@@ -222,7 +222,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run", "all", "agents", "checkpoints"].includes(key)) {
+    if (["json", "help", "dry-run", "check-session", "all", "agents", "checkpoints"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -1996,6 +1996,10 @@ async function recordMemory() {
   const trailers = await traceCommitTrailers(root, sha);
   const checkpointId = args.checkpoint ?? trailers.checkpoint ?? randomHex(12);
   const sessionId = args.session ?? trailers.session ?? await readCurrentSession(root).catch(() => null);
+  const sessionReport = args["check-session"] ? await recordSessionCheck(root, sessionId) : null;
+  if (sessionReport === false) {
+    return;
+  }
   const memory = await buildMemory(root, sha, checkpointId, sessionId, {
     intent: args.intent,
     validation: args.validation,
@@ -2003,7 +2007,7 @@ async function recordMemory() {
   });
   const memoryPath = memoryPathFor(root, sha);
   if (args["dry-run"]) {
-    print({
+    const output = {
       ok: true,
       dryRun: true,
       commit: sha,
@@ -2011,14 +2015,38 @@ async function recordMemory() {
       checkpoint: checkpointId,
       session: sessionId,
       markdown: memory.markdown,
-    });
+    };
+    if (sessionReport) {
+      output.sessionCheck = sessionReport;
+    }
+    print(output);
     return;
   }
 
   await mkdir(dirname(memoryPath), { recursive: true });
   await writeFile(memoryPath, memory.markdown);
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
-  print({ ok: true, commit: sha, memory: relativePath(root, memoryPath), checkpoint: checkpointId, session: sessionId });
+  const output = { ok: true, commit: sha, memory: relativePath(root, memoryPath), checkpoint: checkpointId, session: sessionId };
+  if (sessionReport) {
+    output.sessionCheck = sessionReport;
+  }
+  print(output);
+}
+
+async function recordSessionCheck(root, sessionId) {
+  if (!sessionId) {
+    fail("record --check-session requires a session id or current session");
+  }
+
+  const events = await readSessionEvents(root, sessionId).catch((error) => fail(`session ${sessionId} not found or unreadable: ${error.message}`));
+  const report = await sessionCheck(root, sessionId, events);
+  if (!report.ok) {
+    print(report);
+    process.exitCode = 1;
+    return false;
+  }
+
+  return report;
 }
 
 async function showMemory(commitish) {
@@ -3355,7 +3383,7 @@ Usage:
   trace redact remove <label>
   trace coverage [range]
   trace ci [range] [--agents] [--checkpoints]
-  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--dry-run]
+  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--dry-run]
   trace show [commit] [--json]
   trace review [--all] [--json]
   trace log [--limit 20] [--json]

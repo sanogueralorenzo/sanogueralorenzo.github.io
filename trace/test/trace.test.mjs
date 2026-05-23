@@ -25,21 +25,23 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     await runTrace(repo, ["capture", "--event", "tool", "--message", "git commit wrote app.txt"]);
     await runTrace(repo, ["capture", "--event", "decision", "--message", "Use committed Markdown for reviewable memory"]);
 
-    const dryRun = JSON.parse((await runTrace(repo, ["record", "--dry-run", "--validation", "node --test"])).stdout);
+    const dryRun = JSON.parse((await runTrace(repo, ["record", "--dry-run", "--check-session", "--validation", "node --test"])).stdout);
     assert.equal(dryRun.ok, true);
     assert.equal(dryRun.dryRun, true);
     assert.match(dryRun.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
+    assert.equal(dryRun.sessionCheck.ok, true);
     assert.match(dryRun.markdown, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
     const missingDryRunMemory = await runTraceAllowFailure(repo, ["show", "HEAD"]);
     assert.equal(missingDryRunMemory.exitCode, 1);
     const missingDryRunCheckpoint = await run(repo, ["git", "rev-parse", "--verify", "refs/trace/checkpoints"], fixedEnv);
     assert.notEqual(missingDryRunCheckpoint.exitCode, 0);
 
-    const record = await runTrace(repo, ["record", "--validation", "node --test"]);
+    const record = await runTrace(repo, ["record", "--check-session", "--validation", "node --test"]);
     const payload = JSON.parse(record.stdout);
 
     assert.equal(payload.ok, true);
     assert.match(payload.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
+    assert.equal(payload.sessionCheck.ok, true);
 
     const show = await runTrace(repo, ["show", "HEAD"]);
     assert.match(show.stdout, /remember why app text exists/);
@@ -253,6 +255,36 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
     assert.match(prBody.stdout, /## Handoff\n\n- Preserve the decision: Keep raw checkpoint data outside the project tree/);
     assert.match(prBody.stdout, /token=REDACTED/);
     assert.doesNotMatch(prBody.stdout, /super-secret-token/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("record check-session blocks lifecycle-only memory", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "empty-session.txt"), "empty\n");
+    await git(repo, ["add", "empty-session.txt"]);
+    await git(repo, ["commit", "-m", "Add empty session target"]);
+
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["session", "start", "lifecycle-only"]);
+
+    const blocked = await runTraceAllowFailure(repo, ["record", "--check-session", "--dry-run", "--session", "lifecycle-only"]);
+    assert.equal(blocked.exitCode, 1);
+    const payload = JSON.parse(blocked.stdout);
+    assert.equal(payload.schema_version, "trace.session_check.v1");
+    assert.equal(payload.ok, false);
+    assert.equal(payload.commitMemoryEvents, 0);
+    assert.equal(payload.checks.find((check) => check.name === "commitMemoryEvents").level, "error");
+
+    const missingMemory = await runTraceAllowFailure(repo, ["show", "HEAD"]);
+    assert.equal(missingMemory.exitCode, 1);
+    const missingCheckpoint = await run(repo, ["git", "rev-parse", "--verify", "refs/trace/checkpoints"], fixedEnv);
+    assert.notEqual(missingCheckpoint.exitCode, 0);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
