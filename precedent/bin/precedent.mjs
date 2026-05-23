@@ -21,6 +21,7 @@ const SUPPORTED_EVENT_HOOKS = new Set([
   "review.after_feedback",
   "finalize.before_response",
   "outcome.after_task",
+  "orchestration.after_idle",
   "repair.before_retry",
   "repair.after_retry",
 ]);
@@ -829,11 +830,23 @@ async function runPromotionTrial() {
 
 async function promotePendingTrials() {
   const stateDir = statePath();
+  print(await runPendingPromotionTrials({
+    stateDir,
+    dryRun: args["dry-run"] === true,
+    limit: Number(args.limit ?? 3),
+    leaseMs: Number(args["lease-ms"] ?? PROMOTION_TRIAL_LEASE_MS),
+    maxAttempts: Number(args["max-attempts"] ?? PROMOTION_TRIAL_MAX_ATTEMPTS),
+  }));
+}
+
+async function runPendingPromotionTrials({
+  stateDir,
+  dryRun = false,
+  limit = 3,
+  leaseMs = PROMOTION_TRIAL_LEASE_MS,
+  maxAttempts = PROMOTION_TRIAL_MAX_ATTEMPTS,
+}) {
   await ensureState(stateDir);
-  const dryRun = args["dry-run"] === true;
-  const limit = Number(args.limit ?? 3);
-  const leaseMs = Number(args["lease-ms"] ?? PROMOTION_TRIAL_LEASE_MS);
-  const maxAttempts = Number(args["max-attempts"] ?? PROMOTION_TRIAL_MAX_ATTEMPTS);
   const now = new Date();
   const claims = await claimPendingPromotionTrials({
     stateDir,
@@ -920,7 +933,7 @@ async function promotePendingTrials() {
   }
 
   const afterEvents = dryRun ? claims.events : await readJsonLines(join(stateDir, "events.jsonl"));
-  print({
+  return {
     ok: results.every((result) => result.status !== "failed"),
     schema_version: "precedent.promote_pending.v1",
     dryRun,
@@ -930,7 +943,7 @@ async function promotePendingTrials() {
     processed: results.length,
     results,
     queue: promotionTrialQueue(afterEvents, { now: new Date(), maxAttempts }),
-  });
+  };
 }
 
 async function claimPendingPromotionTrials({ stateDir, dryRun, limit, leaseMs, maxAttempts, now }) {
@@ -1227,6 +1240,10 @@ async function dispatchHookEvent(rawEvent) {
 
   if (hook === "outcome.after_task") {
     return capturePrintedPayload(() => outcomeAfterTaskEventHook(event));
+  }
+
+  if (hook === "orchestration.after_idle") {
+    return capturePrintedPayload(() => orchestrationAfterIdleEventHook(event));
   }
 
   if (hook === "repair.before_retry") {
@@ -2006,6 +2023,97 @@ async function outcomeAfterTaskEventHook(event) {
   });
 }
 
+async function orchestrationAfterIdleEventHook(event) {
+  const stateDir = statePath();
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
+  let sessionEvent = null;
+  let idle = null;
+
+  try {
+    const locked = await withStateLock(stateDir, async () => {
+      await ensureState(stateDir);
+      if (eventId) {
+        const existing = await findSessionEventByEventId(stateDir, sessionId, eventId);
+        if (existing?.event?.hook === event.hook) {
+          idle = existing.event.idle ?? null;
+          sessionEvent = {
+            sessionId,
+            path: existing.path,
+            event: existing.event,
+            receivedAt: existing.event.receivedAt,
+            deduped: true,
+          };
+        }
+      }
+    }, { failOpen: true });
+
+    if (locked?.lockTimeout) {
+      idle = {
+        status: "unavailable",
+        reason: "lock_timeout",
+        promotion: null,
+      };
+    }
+
+    if (!sessionEvent && idle?.status !== "unavailable") {
+      const promotion = await runPendingPromotionTrials({
+        stateDir,
+        dryRun: hookBoolean(event.dryRun, "event.dryRun", false),
+        limit: Number(event.limit ?? 3),
+        leaseMs: Number(event.leaseMs ?? PROMOTION_TRIAL_LEASE_MS),
+        maxAttempts: Number(event.maxAttempts ?? PROMOTION_TRIAL_MAX_ATTEMPTS),
+      });
+      idle = {
+        status: promotion.ok ? "drained" : "failed",
+        reason: promotion.ok ? null : "promotion_failed",
+        promotion,
+      };
+
+      await withStateLock(stateDir, async () => {
+        await ensureState(stateDir);
+        sessionEvent = await appendSessionEvent(stateDir, {
+          type: "hook_event",
+          receivedAt: new Date().toISOString(),
+          hook: event.hook,
+          sessionId,
+          ...eventIdField(eventId),
+          idle,
+        });
+
+        if (!sessionEvent.deduped) {
+          await appendJsonLine(join(stateDir, "events.jsonl"), {
+            type: "hook_event",
+            receivedAt: sessionEvent.receivedAt,
+            hook: event.hook,
+            sessionId,
+            ...eventIdField(eventId),
+            idle: idleSummary(idle),
+          });
+        }
+      }, { failOpen: true });
+    }
+  } catch (error) {
+    idle = {
+      status: "unavailable",
+      reason: "idle_orchestration_unavailable",
+      message: error.message,
+      promotion: null,
+    };
+  }
+
+  print({
+    schema_version: "precedent.orchestration.v1",
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: Boolean(sessionEvent) && !sessionEvent.deduped,
+    deduped: Boolean(sessionEvent?.deduped),
+    sessionEventPath: sessionEvent?.path ?? null,
+    idle,
+  });
+}
+
 async function repairBeforeRetryEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
@@ -2439,6 +2547,13 @@ function buildManifest(runtime, stateDir) {
         timeoutMs,
         failurePolicy,
       },
+      "orchestration.after_idle": {
+        command: hookCommand,
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "limit", "dryRun"],
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "idle"],
+        timeoutMs,
+        failurePolicy,
+      },
       "repair.before_retry": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"],
@@ -2656,6 +2771,12 @@ async function attachRuntime() {
           required: true,
           eventId: "$EVENT_ID",
         },
+        {
+          phase: "afterIdle",
+          hook: "orchestration.after_idle",
+          required: false,
+          eventId: "$EVENT_ID",
+        },
       ],
       beforeTurn: {
         command: beforeTurnCommand,
@@ -2778,6 +2899,20 @@ async function attachRuntime() {
           notes: "$NOTES",
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      afterIdle: {
+        command: hookCommand,
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "orchestration.after_idle",
+          sessionId,
+          eventId: "$EVENT_ID",
+          limit: "$LIMIT",
+          dryRun: "$DRY_RUN",
+        },
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "idle"],
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -2982,6 +3117,11 @@ async function attachRunSession() {
       "--json",
     ])
     : null;
+  const idle = await runAttachIdle({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:orchestration.after_idle` : null,
+  });
 
   print({
     ok: true,
@@ -3006,6 +3146,7 @@ async function attachRunSession() {
     outcome,
     repairReceipt,
     autoPromotion,
+    idle,
     learning: outcome.learning ?? null,
   });
 }
@@ -3170,6 +3311,20 @@ function runAttachRepairReceipt({
     repairSessionId,
     suppressedRepairs: receipt.suppressedRepairs ?? [],
   }));
+}
+
+function runAttachIdle({ stateDirArg, sessionId, eventId }) {
+  return runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "orchestration.after_idle",
+    sessionId,
+    ...eventIdField(eventId),
+  });
 }
 
 async function runAttachSelfHealing({
@@ -5874,6 +6029,25 @@ function repairBlockForFailedOutcome(event) {
   }
   lines.push("- Repair: Address the failed outcome before continuing.");
   return lines.join("\n");
+}
+
+function idleSummary(idle) {
+  const promotion = idle?.promotion ?? null;
+  return {
+    status: idle?.status ?? "unknown",
+    reason: idle?.reason ?? null,
+    promotionProcessed: Number.isFinite(promotion?.processed) ? promotion.processed : 0,
+    promotionQueue: promotion?.queue
+      ? {
+        total: promotion.queue.total,
+        ready: promotion.queue.ready,
+        blocked: promotion.queue.blocked,
+        running: promotion.queue.running,
+        completed: promotion.queue.completed,
+        failed: promotion.queue.failed,
+      }
+      : null,
+  };
 }
 
 function hasFailedGuards(event) {

@@ -62,6 +62,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "afterRetry",
       "beforeResponse",
       "afterOutcome",
+      "afterIdle",
     ]);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.hook), [
       "conversation.observe",
@@ -74,6 +75,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "repair.after_retry",
       "finalize.before_response",
       "outcome.after_task",
+      "orchestration.after_idle",
     ]);
     assert.deepEqual(first.adapter.lifecycle.filter((phase) => phase.required).map((phase) => phase.phase), [
       "beforeTurn",
@@ -127,6 +129,10 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.afterOutcome.stdin.scope, "feature:webhooks");
     assert.deepEqual(first.adapter.afterOutcome.stdin.changedFiles, ["features/webhooks/providers/stripe.ts"]);
     assert.equal(first.adapter.afterOutcome.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
+    assert.deepEqual(first.adapter.afterIdle.stdin.hook, "orchestration.after_idle");
+    assert.equal(first.adapter.afterIdle.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.afterIdle.stdin.limit, "$LIMIT");
+    assert.ok(first.adapter.afterIdle.output.includes("idle"));
     assert.deepEqual(first.adapter.beforeRetry.stdin.hook, "repair.before_retry");
     assert.equal(first.adapter.beforeRetry.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.beforeRetry.stdin.nextSessionId, "$NEXT_SESSION_ID");
@@ -810,6 +816,7 @@ test("attach-run auto-promotes queued validation replay plans", async () => {
     assert.equal(run.autoPromotion.processed, 1);
     assert.equal(run.autoPromotion.results[0].status, "promoted");
     assert.equal(run.autoPromotion.queue.completed, 1);
+    assert.equal(run.idle.idle.promotion.processed, 0);
 
     const retry = await runJson(["promote-pending", "--state-dir", stateDir, "--json"]);
     assert.equal(retry.processed, 0);
@@ -833,6 +840,64 @@ test("attach-run auto-promotes queued validation replay plans", async () => {
     assert.equal(report.promotionTrialQueue.completed, 1);
     const check = await runJson(["check", "--state-dir", stateDir, "--strict", "--json"]);
     assert.equal(check.ok, true);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run drains queued validation replay plans on idle", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+
+    await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "failed-idle-run",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node --check precedent/examples/missing-safe-baseline.mjs",
+      "--json",
+    ]);
+
+    const run = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "success-idle-run",
+      "--event-prefix",
+      "success-idle-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--json",
+    ]);
+
+    assert.equal(run.autoPromotion, null);
+    assert.equal(run.idle.idle.status, "drained");
+    assert.equal(run.idle.idle.promotion.processed, 1);
+    assert.equal(run.idle.idle.promotion.results[0].status, "promoted");
+    assert.equal(run.idle.idle.promotion.queue.completed, 1);
+
+    const retry = await runJson(["promote-pending", "--state-dir", stateDir, "--json"]);
+    assert.equal(retry.processed, 0);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/success-idle-run.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.eventId === "success-idle-delivery:orchestration.after_idle").length, 1);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

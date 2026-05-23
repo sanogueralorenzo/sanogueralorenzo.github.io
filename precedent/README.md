@@ -40,6 +40,7 @@ Precedent runs as a set of passive hooks around a coding agent:
 - `validation.after_run`: records tests, typechecks, linters, command failures, and runtime evidence.
 - `review.after_feedback`: converts review comments into structured failure modes.
 - `outcome.after_task`: decides whether the trace should create, update, or retire precedent.
+- `orchestration.after_idle`: drains bounded autonomous work, such as replay-gated promotion trials, after a turn goes idle.
 - `repair.before_retry` / `repair.after_retry`: injects a focused repair prompt before retry work, then records whether the retry cleared or repeated the failure.
 
 The hook layer should be quiet by default. It should not flood the conversation with memory. It should inject one or two high-confidence precedents when they are likely to change the outcome.
@@ -102,6 +103,7 @@ Build a local CLI first, then a GitHub app:
 - `finalize.before_response`: gives headless runtimes a last deterministic ready/validate/repair decision before they answer.
 - `precedent replay`: reruns a baseline agent task with and without injected precedent.
 - `precedent promote-pending`: runs queued replay work orders from ordinary validation hooks.
+- `orchestration.after_idle`: runs the safe queued promotion drain as a passive idle hook.
 - `precedent explain`: audits why a precedent was promoted or rejected.
 - `precedent run`: wraps a validation command and records the result as a session hook.
 - `precedent manifest`: emits the machine-readable hook contract for an agent runtime.
@@ -141,6 +143,7 @@ node precedent/bin/precedent.mjs promote-pending --json
 node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"finalize.before_response","sessionId":"demo","eventId":"finalize-001"}' | node precedent/bin/precedent.mjs hook
+printf '%s\n' '{"schema_version":"precedent.v1","hook":"orchestration.after_idle","sessionId":"demo","eventId":"idle-001"}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs manifest --runtime generic
 node precedent/bin/precedent.mjs attach --runtime codex --thread-id codex-thread-123 --task "add another webhook handler" --scope feature:webhooks
@@ -174,10 +177,11 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `context`, `inject`, `warrant`, and candidate hints require an `applicabilityReceipt` with a hard current-turn scope or path anchor before memory can influence the runtime; text-only overlap is reported as `applicability_unanchored` and never enters `contextBlock`, `deliveryReceipt`, warrant sources, or candidate hints.
 - `warrant` turns the current task, injected precedent, guards, and candidate hints into a `precedent.warrant.v1` contract with allowed paths, max edit breadth, required validation evidence, forbidden drift, source ids, and a stable `warrantId`. Later `diff.after_edit`, `validation.after_run`, and `outcome.after_task` hooks can pass `warrantId`; Precedent records whether the turn stayed satisfied, violated the edit contract, or closed without required evidence.
 - `finalize.before_response` is the headless finish gate: it inspects the session warrant, diff, validation, and guard receipts and returns `decision: "ready"`, `"validate"`, or `"repair"` plus machine-readable `nextAction` and a compact `contextBlock` when the runtime must run validation or repair before sending its final response.
+- `orchestration.after_idle` is the headless idle drain: it records a deduped idle receipt and runs the existing `promote-pending` queue, so safe replay-gated promotion trials can complete without a human or an explicit CLI call. It never bypasses candidate replay, command allowlists, leases, attempt budgets, or replay receipt verification.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, fail-open policy, and promotion-trial action a runtime needs to wire Precedent in.
 - `attach` emits a session-scoped adapter contract with an ordered `lifecycle`, a before-turn command, event id placeholders, after-validation hook command, after-diff hook command, before-response finalization hook, after-outcome hook command, promotion-trial command, runtime identity metadata, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
-- `attach-run` is the minimal headless host shim: it runs before-turn context, issues a warrant, executes one validation command, can record an optional diff via `--diff-changed-files`, records validation, finalization, and outcome hooks, and carries injected precedent ids into attribution automatically. When finalization returns a safe `run_validation` `nextAction`, `attach-run` performs one bounded self-healing validation pass, records the recovery hooks, refinalizes, and bases outcome success on the recovered decision. When finalization returns `repair_retry`, it calls `repair.before_retry` and returns a bounded `selfRepair` handoff block for the next agent turn. A later retry run can pass `--repair-id <id> --repair-session-id <session>` to automatically call `repair.after_retry` after outcome evidence exists, recording whether the prior repair cleared or still failed. Pass `--event-prefix <id>` when the host may retry the same delivery; Precedent derives stable per-phase event ids for before-turn, warrant, validation, diff, finalization, recovery validation, recovery finalization, repair handoff, repair receipt, and outcome so the retry stays idempotent. Pass `--auto-promote` to run queued promotion trials after the session records validation and outcome evidence.
+- `attach-run` is the minimal headless host shim: it runs before-turn context, issues a warrant, executes one validation command, can record an optional diff via `--diff-changed-files`, records validation, finalization, and outcome hooks, and carries injected precedent ids into attribution automatically. When finalization returns a safe `run_validation` `nextAction`, `attach-run` performs one bounded self-healing validation pass, records the recovery hooks, refinalizes, and bases outcome success on the recovered decision. When finalization returns `repair_retry`, it calls `repair.before_retry` and returns a bounded `selfRepair` handoff block for the next agent turn. A later retry run can pass `--repair-id <id> --repair-session-id <session>` to automatically call `repair.after_retry` after outcome evidence exists, recording whether the prior repair cleared or still failed. Each run finishes with `orchestration.after_idle`, allowing safe queued promotion trials to drain automatically after outcome evidence exists. Pass `--event-prefix <id>` when the host may retry the same delivery; Precedent derives stable per-phase event ids for before-turn, warrant, validation, diff, finalization, recovery validation, recovery finalization, repair handoff, repair receipt, idle drain, and outcome so the retry stays idempotent. Pass `--auto-promote` to preserve the older explicit queued-promotion drain before the idle hook runs.
 - `review.after_feedback` records review comments as high-signal session evidence, so missed contracts can become candidates and later promoted precedents without handcrafted traces.
 - `diff.after_edit` and `validation.after_run` evaluate advisory guards only for precedents already injected into the same session. v1 supports `changed_files_within_paths` and `required_validation_command`; warnings are returned as `guardResult` plus a compact `Precedent guard:` context block and never block the underlying hook.
 - `outcome.after_task` now closes the headless capture loop: it snapshots the session into `.precedent/traces/session-<id>.json`, upserts deterministic candidates into `.precedent/candidates.jsonl` when failures or guard warnings exist, and returns a `learning` object. It preserves task, scope, and changed-file identity from either `context.before_turn`, `context --session`, or the outcome payload. When a clean successful session follows an analogous failed session in the same non-empty scope or overlapping path, it automatically promotes a replay-style precedent; otherwise candidates remain non-injectable until existing replay promotion gates create a promoted precedent.
@@ -227,7 +231,9 @@ Minimal config:
     "validation.after_run",
     "diff.after_edit",
     "review.after_feedback",
+    "finalize.before_response",
     "outcome.after_task",
+    "orchestration.after_idle",
     "repair.before_retry",
     "repair.after_retry"
   ]
