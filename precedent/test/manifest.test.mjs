@@ -154,8 +154,31 @@ test("manifest emits a generic runtime hook contract", async () => {
     "$EVENT_PREFIX",
     "--json",
   ]);
+  assert.deepEqual(manifest.actions["session.resume"].command, [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "resume",
+    "--state-dir",
+    ".precedent",
+    "--session",
+    "$SESSION_ID",
+    "--thread-id",
+    "$THREAD_ID",
+    "--task-file",
+    "$TASK_FILE",
+    "--scope",
+    "$SCOPE",
+    "--changed-files",
+    "$CHANGED_FILES",
+    "--event-prefix",
+    "$EVENT_PREFIX",
+    "--json",
+  ]);
   assert.equal(manifest.actions["preflight.prompt"].injectFrom, "prompt");
+  assert.equal(manifest.actions["session.resume"].injectFrom, "contextBlock");
   assert.ok(manifest.actions["preflight.prompt"].output.includes("injectionAck"));
+  assert.ok(manifest.actions["session.resume"].output.includes("pendingDelivery"));
+  assert.ok(manifest.actions["session.resume"].output.includes("recommendedAction"));
   assert.ok(manifest.actions["warrant.issue"].output.includes("warrantId"));
   assert.deepEqual(manifest.actions["promotion.trial"].output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
   assert.ok(manifest.actions["promotion.pending"].output.includes("queue"));
@@ -198,6 +221,7 @@ test("manifest reflects state dir and codex runtime", async () => {
   assert.equal(manifest.transports.loop.command[4], "/tmp/precedent-manifest");
   assert.equal(manifest.actions["promotion.trial"].command[4], "/tmp/precedent-manifest");
   assert.equal(manifest.actions["promotion.pending"].command[4], "/tmp/precedent-manifest");
+  assert.equal(manifest.actions["session.resume"].command[4], "/tmp/precedent-manifest");
   assert.deepEqual(manifest.hooks["validation.after_run"].command, [
     "node",
     "precedent/bin/precedent.mjs",

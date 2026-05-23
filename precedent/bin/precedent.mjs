@@ -142,6 +142,11 @@ async function main() {
     return;
   }
 
+  if (command === "resume") {
+    await resumeSession();
+    return;
+  }
+
   if (command === "hook") {
     await runHook();
     return;
@@ -1149,6 +1154,217 @@ async function completeNextActionFinalization({ stateDir, action, runId, evidenc
     recorded: !sessionEvent.deduped,
     deduped: sessionEvent.deduped,
   };
+}
+
+async function resumeSession() {
+  const stateDirArg = args["state-dir"] ?? runtimeConfig.stateDir;
+  const stateDir = statePath();
+  const runtime = args.runtime ?? "generic";
+  const taskSource = await readOptionalTaskSource();
+  const scope = args.scope ?? "";
+  const changedFiles = parseListArg(args["changed-files"]);
+  const sessionId = resumeSessionId({ runtime, taskSource, scope, changedFiles });
+  const eventPrefix = stringOrNull(args["event-prefix"]);
+  const eventId = stringOrNull(args["event-id"])
+    ?? (eventPrefix ? `${eventPrefix}:context.before_turn` : null);
+
+  await ensureState(stateDir);
+
+  const pendingDelivery = await latestPendingContextDelivery(stateDir, sessionId);
+  const turnDirectives = await activeTurnDirectivesForSession(stateDir, sessionId);
+  const nextActions = nextActionQueue(await readJsonLines(join(stateDir, "next_actions.jsonl")))
+    .items
+    .filter((item) => item.sessionId === sessionId);
+  const pendingRepair = await attachPendingRepairTarget({
+    stateDirArg,
+    sessionId,
+    eventId: null,
+  });
+  let beforeTurn = null;
+  let source = "existing_state";
+
+  if (pendingDelivery) {
+    source = "pending_delivery";
+  } else if (taskSource.task) {
+    beforeTurn = await runPrecedentChildJson([
+      "context",
+      "--state-dir",
+      stateDirArg,
+      ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
+      ...(scope ? ["--scope", scope] : []),
+      ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
+      "--session",
+      sessionId,
+      ...(eventId ? ["--event-id", eventId] : []),
+      "--format",
+      "json",
+      "--json",
+    ]);
+    source = "fresh_before_turn";
+  }
+
+  const contextBlock = pendingDelivery?.contextBlock ?? beforeTurn?.contextBlock ?? "";
+  const deliveryReceipt = pendingDelivery?.deliveryReceipt ?? beforeTurn?.deliveryReceipt ?? null;
+  const contextHash = pendingDelivery?.contextBlockHash ?? beforeTurn?.contextBlockHash ?? contextBlockHash(contextBlock);
+  const recommendedAction = resumeRecommendedAction({
+    pendingDelivery,
+    beforeTurn,
+    pendingRepair,
+    nextActions,
+  });
+
+  print({
+    ok: true,
+    schema_version: "precedent.session_resume.v1",
+    runtime,
+    stateDir: stateDirArg,
+    sessionId,
+    identity: resumeIdentity({ runtime, sessionId }),
+    source,
+    pendingDelivery,
+    pendingRepair,
+    nextActions,
+    turnDirectives,
+    contextBlock,
+    contextBlockHash: contextHash,
+    deliveryReceipt,
+    beforeTurn,
+    recommendedAction,
+  });
+}
+
+async function readOptionalTaskSource() {
+  if (args.task || args["task-file"]) {
+    return readAttachTaskSource();
+  }
+
+  return {
+    task: null,
+    taskFile: null,
+  };
+}
+
+function resumeSessionId({ runtime, taskSource, scope, changedFiles }) {
+  if (args.session) {
+    return safeFileName(args.session);
+  }
+
+  if (args["thread-id"]) {
+    return safeFileName(stableSessionId({
+      runtime,
+      cwd: process.cwd(),
+      threadId: args["thread-id"],
+    }));
+  }
+
+  if (taskSource.task) {
+    return safeFileName(stableSessionId({
+      runtime,
+      task: taskSource.task,
+      taskFile: taskSource.taskFile,
+      scope,
+      changedFiles,
+    }));
+  }
+
+  fail("resume requires --session, --thread-id, or --task");
+}
+
+function resumeIdentity({ runtime, sessionId }) {
+  if (args.session) {
+    return {
+      sessionId,
+      source: "explicit_session",
+      threadId: args["thread-id"] ?? null,
+      fallback: false,
+    };
+  }
+
+  if (args["thread-id"]) {
+    return {
+      sessionId,
+      source: "thread_id",
+      threadId: args["thread-id"],
+      fallback: false,
+    };
+  }
+
+  return {
+    sessionId,
+    source: "task_hash_fallback",
+    threadId: null,
+    fallback: true,
+  };
+}
+
+async function latestPendingContextDelivery(stateDir, sessionId) {
+  if (!nonEmptyString(sessionId)) {
+    return null;
+  }
+
+  const events = await readSessionEvents(stateDir, sessionId);
+  const contextEvents = events
+    .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export")
+    .filter((event) => {
+      const receipt = event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null;
+      const block = event.contextBlock ?? event.contextPayload?.contextBlock ?? "";
+      return receipt?.deliveryId && block.trim().length > 0;
+    })
+    .sort((left, right) => eventTime(left) - eventTime(right));
+
+  for (const event of contextEvents.reverse()) {
+    const receipt = event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null;
+    const ack = await findContextInjectionAck(stateDir, receipt.deliveryId);
+    if (ack?.status === "accepted") {
+      continue;
+    }
+
+    const contextBlockText = event.contextBlock ?? event.contextPayload?.contextBlock ?? "";
+    return {
+      deliveryId: receipt.deliveryId,
+      eventId: receipt.eventId ?? event.eventId ?? null,
+      hook: event.hook,
+      contextBlock: contextBlockText,
+      contextBlockHash: receipt.contextBlockHash ?? contextBlockHash(contextBlockText),
+      deliveryReceipt: receipt,
+      ackStatus: ack?.status ?? "missing_ack",
+    };
+  }
+
+  return null;
+}
+
+function resumeRecommendedAction({ pendingDelivery, beforeTurn, pendingRepair, nextActions }) {
+  if (pendingDelivery || beforeTurn?.contextBlock) {
+    return {
+      type: "inject_context",
+      injectFrom: "contextBlock",
+      deliveryId: (pendingDelivery?.deliveryReceipt ?? beforeTurn?.deliveryReceipt)?.deliveryId ?? null,
+      followUpHook: "context.after_inject",
+    };
+  }
+
+  if (pendingRepair) {
+    return {
+      type: "inject_repair",
+      injectFrom: "repairBlock",
+      repairId: pendingRepair.repairId,
+      repairSessionId: pendingRepair.repairSessionId,
+      followUpHook: "repair.after_retry",
+    };
+  }
+
+  const actionable = nextActions.find((item) => item.status === "ready" || item.status === "running") ?? null;
+  if (actionable) {
+    return {
+      type: "next_action",
+      id: actionable.id,
+      status: actionable.status,
+      actionType: actionable.actionType,
+    };
+  }
+
+  return { type: "respond" };
 }
 
 async function runPendingPromotionTrials({
@@ -2923,6 +3139,26 @@ function buildManifest(runtime, stateDir) {
     "$EVENT_PREFIX",
     "--json",
   ];
+  const sessionResumeCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "resume",
+    "--state-dir",
+    stateDir,
+    "--session",
+    "$SESSION_ID",
+    "--thread-id",
+    "$THREAD_ID",
+    "--task-file",
+    "$TASK_FILE",
+    "--scope",
+    "$SCOPE",
+    "--changed-files",
+    "$CHANGED_FILES",
+    "--event-prefix",
+    "$EVENT_PREFIX",
+    "--json",
+  ];
   const warrantCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -3087,6 +3323,14 @@ function buildManifest(runtime, stateDir) {
         timeoutMs,
         failurePolicy,
       },
+      "session.resume": {
+        command: sessionResumeCommand,
+        stdin: [],
+        output: ["ok", "schema_version", "sessionId", "identity", "source", "pendingDelivery", "pendingRepair", "nextActions", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt", "beforeTurn", "recommendedAction"],
+        injectFrom: "contextBlock",
+        timeoutMs,
+        failurePolicy,
+      },
       "warrant.issue": {
         command: warrantCommand,
         stdin: [],
@@ -3227,6 +3471,22 @@ async function attachRuntime() {
     ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
     "--session",
     sessionId,
+    "--event-prefix",
+    "$EVENT_PREFIX",
+    "--json",
+  ];
+  const resumeCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "resume",
+    "--state-dir",
+    stateDirArg,
+    "--session",
+    sessionId,
+    ...(args["thread-id"] ? ["--thread-id", args["thread-id"]] : []),
+    ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
+    ...(scope ? ["--scope", scope] : []),
+    ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
     "--event-prefix",
     "$EVENT_PREFIX",
     "--json",
@@ -3384,6 +3644,13 @@ async function attachRuntime() {
         command: preflightCommand,
         output: ["ok", "schema_version", "prompt", "contextBlocks", "attributedPrecedents", "deliveryId", "contextBlockHash", "observation", "beforeTurn", "injectionAck"],
         injectFrom: "prompt",
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      resume: {
+        command: resumeCommand,
+        output: ["ok", "schema_version", "sessionId", "identity", "source", "pendingDelivery", "pendingRepair", "nextActions", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt", "beforeTurn", "recommendedAction"],
+        injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -10500,6 +10767,7 @@ Usage:
   precedent promotion-trial --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
   precedent promote-pending [--state-dir .precedent] [--dry-run]
   precedent next-action --claim|--complete|--fail [--id next_action_id] [--run-id run_id]
+  precedent resume [--session session-id|--thread-id thread-id] [--task "text"] [--event-prefix id]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
@@ -10526,6 +10794,7 @@ Commands:
   promotion-trial Run a candidate replay and immediately observe the promotion decision.
   promote-pending Run queued promotion trial work orders emitted by validation hooks.
   next-action Claim, complete, or fail a queued runtime next action.
+  resume    Rehydrate a runtime session with pending context, repair, and next-action work.
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, including the before-response finalization gate.

@@ -126,6 +126,16 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     ]);
     assert.equal(first.adapter.preflight.injectFrom, "prompt");
     assert.ok(first.adapter.preflight.output.includes("injectionAck"));
+    assert.deepEqual(first.adapter.resume.command.slice(0, 5), [
+      "node",
+      "precedent/bin/precedent.mjs",
+      "resume",
+      "--state-dir",
+      stateDir,
+    ]);
+    assert.equal(first.adapter.resume.injectFrom, "contextBlock");
+    assert.ok(first.adapter.resume.output.includes("pendingDelivery"));
+    assert.ok(first.adapter.resume.output.includes("recommendedAction"));
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
     assert.equal(first.adapter.afterValidation.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterValidation.stdin.deliveryId, "$DELIVERY_ID");
@@ -305,6 +315,73 @@ test("attach contract drives injection and outcome attribution", async () => {
     const health = report.precedentHealth.find((entry) => entry.id === "prec_webhook_replay_boundary");
     assert.equal(health.injectionCount, 1);
     assert.equal(health.successCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("session resume replays unacknowledged context and preserves directives", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const taskFile = join(stateDir, "task.txt");
+    await writeFile(taskFile, "add webhook handler");
+    const adapter = await runJson([
+      "attach",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "resume-demo",
+      "--task-file",
+      taskFile,
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    await runJsonFromCommand(adapter.adapter.conversationObserve.command, {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: adapter.sessionId,
+      eventId: "resume-observe",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      message: "Keep edits inside precedent/",
+    });
+
+    const firstResume = await runJsonFromCommand(withEventPrefix(adapter.adapter.resume.command, "resume-1"));
+    const repeatedResume = await runJsonFromCommand(withEventPrefix(adapter.adapter.resume.command, "resume-2"));
+
+    assert.equal(firstResume.source, "fresh_before_turn");
+    assert.equal(firstResume.beforeTurn.injections[0].id, "prec_webhook_replay_boundary");
+    assert.match(firstResume.contextBlock, /Precedent:/u);
+    assert.match(firstResume.contextBlock, /Keep this turn inside precedent/u);
+    assert.equal(firstResume.turnDirectives.allowedPaths[0], "precedent");
+    assert.equal(firstResume.recommendedAction.type, "inject_context");
+    assert.equal(repeatedResume.source, "pending_delivery");
+    assert.equal(repeatedResume.pendingDelivery.deliveryId, firstResume.deliveryReceipt.deliveryId);
+    assert.equal(repeatedResume.contextBlock, firstResume.contextBlock);
+
+    await runJsonFromCommand(adapter.adapter.afterInject.command, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: adapter.sessionId,
+      eventId: "resume-ack",
+      deliveryId: firstResume.deliveryReceipt.deliveryId,
+      contextBlockHash: firstResume.contextBlockHash,
+      inserted: true,
+    });
+
+    const afterAck = await runJsonFromCommand(withEventPrefix(adapter.adapter.resume.command, "resume-3"));
+
+    assert.equal(afterAck.source, "fresh_before_turn");
+    assert.equal(afterAck.pendingDelivery, null);
+    assert.equal(afterAck.beforeTurn.injections.length, 0);
+    assert.equal(afterAck.turnDirectives.allowedPaths[0], "precedent");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -1180,6 +1257,10 @@ function runJsonFromCommand(command, stdinJson = null) {
 
 function withEventId(command, eventId) {
   return command.map((part) => part === "$EVENT_ID" ? eventId : part);
+}
+
+function withEventPrefix(command, eventPrefix) {
+  return command.map((part) => part === "$EVENT_PREFIX" ? eventPrefix : part);
 }
 
 function runProcess(args, stdinJson = null, env = {}) {
