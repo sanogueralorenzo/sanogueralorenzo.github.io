@@ -881,20 +881,12 @@ async function showCheckpoint(checkpointId) {
 
 async function checkpointStatus(remote) {
   const root = await repoRoot();
-  const localCommit = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
-  const remoteCommit = await remoteCheckpointCommit(root, remote);
-  const distance = await checkpointDistance(root, localCommit, remoteCommit);
+  const status = await checkpointSyncStatus(root, remote);
   print({
     ok: true,
     ref: CHECKPOINT_REF,
     remote,
-    localPresent: Boolean(localCommit),
-    localCommit: localCommit || null,
-    remotePresent: Boolean(remoteCommit),
-    remoteCommit: remoteCommit || null,
-    inSync: Boolean(localCommit && remoteCommit && localCommit === remoteCommit),
-    ahead: distance?.ahead ?? null,
-    behind: distance?.behind ?? null,
+    ...status,
     pushCommand: `git push ${remote} ${CHECKPOINT_REF}:${CHECKPOINT_REF}`,
     fetchCommand: `git fetch ${remote} ${CHECKPOINT_REF}:${CHECKPOINT_REF}`,
   });
@@ -974,14 +966,50 @@ async function syncCheckpointRef(action, remote) {
   const gitArgs = action === "push"
     ? ["push", remote, `${CHECKPOINT_REF}:${CHECKPOINT_REF}`]
     : ["fetch", remote, `${CHECKPOINT_REF}:${CHECKPOINT_REF}`];
+  const before = await checkpointSyncStatus(root, remote);
 
   if (dryRun) {
-    print({ ok: true, dryRun: true, command: `git ${gitArgs.join(" ")}` });
+    print({
+      ok: true,
+      schema_version: "trace.checkpoint_sync.v1",
+      action,
+      dryRun: true,
+      ref: CHECKPOINT_REF,
+      remote,
+      command: `git ${gitArgs.join(" ")}`,
+      before,
+      after: before,
+    });
     return;
   }
 
   await git(gitArgs, { cwd: root });
-  print({ ok: true, command: `git ${gitArgs.join(" ")}` });
+  print({
+    ok: true,
+    schema_version: "trace.checkpoint_sync.v1",
+    action,
+    dryRun: false,
+    ref: CHECKPOINT_REF,
+    remote,
+    command: `git ${gitArgs.join(" ")}`,
+    before,
+    after: await checkpointSyncStatus(root, remote),
+  });
+}
+
+async function checkpointSyncStatus(root, remote) {
+  const localCommit = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
+  const remoteCommit = await remoteCheckpointCommit(root, remote);
+  const distance = await checkpointDistance(root, localCommit, remoteCommit);
+  return {
+    localPresent: Boolean(localCommit),
+    localCommit: localCommit || null,
+    remotePresent: Boolean(remoteCommit),
+    remoteCommit: remoteCommit || null,
+    inSync: Boolean(localCommit && remoteCommit && localCommit === remoteCommit),
+    ahead: distance?.ahead ?? null,
+    behind: distance?.behind ?? null,
+  };
 }
 
 async function exportCheckpointBundle(values) {

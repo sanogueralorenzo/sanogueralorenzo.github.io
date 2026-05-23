@@ -1234,7 +1234,13 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     assert.equal(missingRemoteStatus.inSync, false);
     assert.equal(missingRemoteStatus.pushCommand, "git push origin refs/trace/checkpoints:refs/trace/checkpoints");
 
-    await runTrace(repo, ["checkpoint", "push", "origin"]);
+    const pushed = JSON.parse((await runTrace(repo, ["checkpoint", "push", "origin"])).stdout);
+    assert.equal(pushed.schema_version, "trace.checkpoint_sync.v1");
+    assert.equal(pushed.action, "push");
+    assert.equal(pushed.dryRun, false);
+    assert.equal(pushed.before.localPresent, true);
+    assert.equal(pushed.before.remotePresent, false);
+    assert.equal(pushed.after.inSync, true);
     const syncedStatus = JSON.parse((await runTrace(repo, ["checkpoint", "status", "origin"])).stdout);
     assert.equal(syncedStatus.localPresent, true);
     assert.equal(syncedStatus.remotePresent, true);
@@ -1243,10 +1249,20 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     assert.equal(syncedStatus.behind, 0);
 
     const push = JSON.parse((await runTrace(repo, ["checkpoint", "push", "origin", "--dry-run"])).stdout);
+    assert.equal(push.schema_version, "trace.checkpoint_sync.v1");
+    assert.equal(push.action, "push");
+    assert.equal(push.dryRun, true);
     assert.equal(push.command, "git push origin refs/trace/checkpoints:refs/trace/checkpoints");
+    assert.equal(push.before.inSync, true);
+    assert.equal(push.after.inSync, true);
 
     const fetch = JSON.parse((await runTrace(repo, ["checkpoint", "fetch", "origin", "--dry-run"])).stdout);
+    assert.equal(fetch.schema_version, "trace.checkpoint_sync.v1");
+    assert.equal(fetch.action, "fetch");
+    assert.equal(fetch.dryRun, true);
     assert.equal(fetch.command, "git fetch origin refs/trace/checkpoints:refs/trace/checkpoints");
+    assert.equal(fetch.before.inSync, true);
+    assert.equal(fetch.after.inSync, true);
 
     const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
     const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
