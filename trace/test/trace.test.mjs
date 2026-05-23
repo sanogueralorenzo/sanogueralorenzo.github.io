@@ -190,6 +190,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(sessionRecap.stdout, /Trace Session Recap/);
     assert.match(sessionRecap.stdout, /Commit Memory Events: 4/);
     assert.match(sessionRecap.stdout, /## Decisions\n\n- Use committed Markdown for reviewable memory/);
+    assert.match(sessionRecap.stdout, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
 
     const sessionRecapJson = JSON.parse((await runTrace(repo, ["session", "recap", payload.session, "--json"])).stdout);
     assert.equal(sessionRecapJson.schema_version, "trace.session_recap.v1");
@@ -198,6 +199,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(sessionRecapJson.commitMemoryEvents, 4);
     assert.deepEqual(sessionRecapJson.sections.prompts, ["remember why app text exists"]);
     assert.deepEqual(sessionRecapJson.sections.decisions, ["Use committed Markdown for reviewable memory"]);
+    assert.deepEqual(sessionRecapJson.sections.handoff, ["Preserve the decision: Use committed Markdown for reviewable memory"]);
 
     const sessionCheck = JSON.parse((await runTrace(repo, ["session", "check", payload.session, "--json"])).stdout);
     assert.equal(sessionCheck.schema_version, "trace.session_check.v1");

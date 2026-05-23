@@ -1402,6 +1402,7 @@ async function recapSession(sessionId) {
   appendRecapSection(lines, "Decisions", recap.sections.decisions);
   appendRecapSection(lines, "Validation", recap.sections.validation);
   appendRecapSection(lines, "Risks", recap.sections.risks);
+  appendRecapSection(lines, "Handoff", recap.sections.handoff);
   appendRecapSection(lines, "Notes", recap.sections.notes);
   process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
 }
@@ -1535,6 +1536,13 @@ async function sessionRecap(root, sessionId, events, limit) {
       decisions: await recapItems(root, decisions, limit),
       validation: await recapItems(root, validation, limit),
       risks: await recapItems(root, risks, limit),
+      handoff: await recapItems(root, handoffItems({
+        decisions,
+        validations: validation,
+        risks,
+        files: [],
+        subject: `session ${sessionId}`,
+      }), limit),
       notes: await recapItems(root, notes, limit),
     },
   };
