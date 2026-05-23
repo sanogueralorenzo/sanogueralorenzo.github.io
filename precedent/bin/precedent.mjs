@@ -1020,6 +1020,7 @@ async function validationAfterRunEventHook(event) {
   const sessionId = requireString(event.sessionId, "event.sessionId");
   const commandText = requireString(event.command, "event.command");
   const exitCode = requireNumber(event.exitCode, "event.exitCode");
+  const eventId = hookEventId(event);
   const failureSignals = validationFailureSignals(event, exitCode);
   let guardResult = emptyGuardResult();
   let contextBlock = "";
@@ -1039,6 +1040,7 @@ async function validationAfterRunEventHook(event) {
       receivedAt: new Date().toISOString(),
       hook: event.hook,
       sessionId,
+      ...eventIdField(eventId),
       command: commandText,
       exitCode,
       durationMs: numberOrNull(event.durationMs),
@@ -1049,23 +1051,27 @@ async function validationAfterRunEventHook(event) {
       contextBlock,
     });
 
-    await appendJsonLine(join(stateDir, "events.jsonl"), {
-      type: "hook_event",
-      receivedAt: sessionEvent.receivedAt,
-      hook: event.hook,
-      sessionId,
-      command: commandText,
-      exitCode,
-      failureSignals,
-      guardResult,
-    });
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        ...eventIdField(eventId),
+        command: commandText,
+        exitCode,
+        failureSignals,
+        guardResult,
+      });
+    }
   });
 
   print({
     ok: true,
     hook: event.hook,
     sessionId,
-    recorded: true,
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
     sessionEventPath: sessionEvent.path,
     validation: {
       command: commandText,
@@ -1082,6 +1088,7 @@ async function validationAfterRunEventHook(event) {
 async function diffAfterEditEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
   const changedFiles = diffChangedFiles(event);
   const breadthSignals = diffBreadthSignals(event, changedFiles);
   let guardResult = emptyGuardResult();
@@ -1109,6 +1116,7 @@ async function diffAfterEditEventHook(event) {
       receivedAt: new Date().toISOString(),
       hook: event.hook,
       sessionId,
+      ...eventIdField(eventId),
       changedFiles,
       linesAdded: numberOrNull(event.linesAdded),
       linesDeleted: numberOrNull(event.linesDeleted),
@@ -1118,23 +1126,27 @@ async function diffAfterEditEventHook(event) {
       contextBlock,
     });
 
-    await appendJsonLine(join(stateDir, "events.jsonl"), {
-      type: "hook_event",
-      receivedAt: sessionEvent.receivedAt,
-      hook: event.hook,
-      sessionId,
-      changedFiles,
-      breadthSignals,
-      guardResult,
-      repairPrompt,
-    });
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        ...eventIdField(eventId),
+        changedFiles,
+        breadthSignals,
+        guardResult,
+        repairPrompt,
+      });
+    }
   });
 
   print({
     ok: true,
     hook: event.hook,
     sessionId,
-    recorded: true,
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
     sessionEventPath: sessionEvent.path,
     diff: {
       changedFiles,
@@ -1149,6 +1161,7 @@ async function diffAfterEditEventHook(event) {
 async function reviewAfterFeedbackEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
   const comments = reviewComments(event);
   const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
   let sessionEvent = null;
@@ -1164,27 +1177,32 @@ async function reviewAfterFeedbackEventHook(event) {
       receivedAt: new Date().toISOString(),
       hook: event.hook,
       sessionId,
+      ...eventIdField(eventId),
       reviewer: typeof event.reviewer === "string" ? event.reviewer : null,
       comments,
       changedFiles,
     });
 
-    await appendJsonLine(join(stateDir, "events.jsonl"), {
-      type: "hook_event",
-      receivedAt: sessionEvent.receivedAt,
-      hook: event.hook,
-      sessionId,
-      reviewer: sessionEvent.event.reviewer,
-      comments,
-      changedFiles,
-    });
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        ...eventIdField(eventId),
+        reviewer: sessionEvent.event.reviewer,
+        comments,
+        changedFiles,
+      });
+    }
   });
 
   print({
     ok: true,
     hook: event.hook,
     sessionId,
-    recorded: true,
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
     sessionEventPath: sessionEvent.path,
     review: {
       comments,
@@ -1196,6 +1214,7 @@ async function reviewAfterFeedbackEventHook(event) {
 async function outcomeAfterTaskEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
   const success = hookBoolean(event.success, "event.success", false);
   const status = typeof event.status === "string" ? event.status : (success ? "success" : "failure");
   let activePrecedentIds = [];
@@ -1210,6 +1229,7 @@ async function outcomeAfterTaskEventHook(event) {
       receivedAt: new Date().toISOString(),
       hook: event.hook,
       sessionId,
+      ...eventIdField(eventId),
       success,
       status,
       task: typeof event.task === "string" ? event.task : null,
@@ -1223,23 +1243,26 @@ async function outcomeAfterTaskEventHook(event) {
       replay: event.replay ?? null,
     });
 
-    await appendJsonLine(join(stateDir, "events.jsonl"), {
-      type: "hook_event",
-      receivedAt: sessionEvent.receivedAt,
-      hook: event.hook,
-      sessionId,
-      success: sessionEvent.event.success,
-      status: sessionEvent.event.status,
-      task: sessionEvent.event.task,
-      scope: sessionEvent.event.scope,
-      changedFiles: sessionEvent.event.changedFiles,
-      retries: sessionEvent.event.retries,
-      tokenEstimate: sessionEvent.event.tokenEstimate,
-      attributedPrecedents: activePrecedentIds,
-    });
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        ...eventIdField(eventId),
+        success: sessionEvent.event.success,
+        status: sessionEvent.event.status,
+        task: sessionEvent.event.task,
+        scope: sessionEvent.event.scope,
+        changedFiles: sessionEvent.event.changedFiles,
+        retries: sessionEvent.event.retries,
+        tokenEstimate: sessionEvent.event.tokenEstimate,
+        attributedPrecedents: activePrecedentIds,
+      });
+    }
 
     learning = await createSessionLearningSnapshot(stateDir, sessionId);
-    if (sessionEvent.event.success === true) {
+    if (!sessionEvent.deduped && sessionEvent.event.success === true) {
       const promoted = await promoteSessionPairs(stateDir, {
         successSessionId: sessionId,
         requireFailureBeforeSuccess: true,
@@ -1257,7 +1280,8 @@ async function outcomeAfterTaskEventHook(event) {
     ok: true,
     hook: event.hook,
     sessionId,
-    recorded: true,
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
     sessionEventPath: sessionEvent.path,
     outcome: {
       success: sessionEvent.event.success,
@@ -1276,6 +1300,7 @@ async function outcomeAfterTaskEventHook(event) {
 async function repairBeforeRetryEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
   let repairBlock = "";
   let repairSource = null;
   let suppressedRepairs = [];
@@ -1313,6 +1338,7 @@ async function repairBeforeRetryEventHook(event) {
         receivedAt: new Date().toISOString(),
         hook: event.hook,
         sessionId,
+        ...eventIdField(eventId),
         nextSessionId: typeof event.nextSessionId === "string" ? event.nextSessionId : null,
         repairId,
         repairBlock,
@@ -1321,16 +1347,19 @@ async function repairBeforeRetryEventHook(event) {
         attributedPrecedents: candidate.attributedPrecedents,
       });
 
-      await appendJsonLine(join(stateDir, "events.jsonl"), {
-        type: "hook_event",
-        receivedAt: sessionEvent.receivedAt,
-        hook: event.hook,
-        sessionId,
-        nextSessionId: sessionEvent.event.nextSessionId,
-        repairId: sessionEvent.event.repairId,
-        repairSource,
-        attributedPrecedents: candidate.attributedPrecedents,
-      });
+      if (!sessionEvent.deduped) {
+        await appendJsonLine(join(stateDir, "events.jsonl"), {
+          type: "hook_event",
+          receivedAt: sessionEvent.receivedAt,
+          hook: event.hook,
+          sessionId,
+          ...eventIdField(eventId),
+          nextSessionId: sessionEvent.event.nextSessionId,
+          repairId: sessionEvent.event.repairId,
+          repairSource,
+          attributedPrecedents: candidate.attributedPrecedents,
+        });
+      }
     }, { failOpen: true });
 
     if (locked?.lockTimeout) {
@@ -1349,7 +1378,8 @@ async function repairBeforeRetryEventHook(event) {
     ok: true,
     hook: event.hook,
     sessionId,
-    recorded: Boolean(sessionEvent),
+    recorded: Boolean(sessionEvent) && !sessionEvent.deduped,
+    deduped: Boolean(sessionEvent?.deduped),
     sessionEventPath: sessionEvent?.path ?? null,
     repairId: sessionEvent?.event?.repairId ?? null,
     repairBlock: sessionEvent?.event?.repairBlock ?? repairBlock,
@@ -1361,6 +1391,7 @@ async function repairBeforeRetryEventHook(event) {
 async function repairAfterRetryEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
   const repairId = typeof event.repairId === "string" ? event.repairId.trim() : "";
   let repairReceipt = null;
   let suppressedRepairs = [];
@@ -1435,6 +1466,7 @@ async function repairAfterRetryEventHook(event) {
         receivedAt: new Date().toISOString(),
         hook: event.hook,
         sessionId,
+        ...eventIdField(eventId),
         repairId: repairReceipt.id,
         repairSessionId: repairReceipt.repairSessionId,
         repairReceipt,
@@ -1442,17 +1474,20 @@ async function repairAfterRetryEventHook(event) {
         attributedPrecedents,
       });
 
-      await appendJsonLine(join(stateDir, "events.jsonl"), {
-        type: "hook_event",
-        receivedAt: sessionEvent.receivedAt,
-        hook: event.hook,
-        sessionId,
-        repairId: repairReceipt.id,
-        repairSessionId: repairReceipt.repairSessionId,
-        repairReceipt,
-        suppressedRepairs,
-        attributedPrecedents,
-      });
+      if (!sessionEvent.deduped) {
+        await appendJsonLine(join(stateDir, "events.jsonl"), {
+          type: "hook_event",
+          receivedAt: sessionEvent.receivedAt,
+          hook: event.hook,
+          sessionId,
+          ...eventIdField(eventId),
+          repairId: repairReceipt.id,
+          repairSessionId: repairReceipt.repairSessionId,
+          repairReceipt,
+          suppressedRepairs,
+          attributedPrecedents,
+        });
+      }
     }, { failOpen: true });
 
     if (locked?.lockTimeout) {
@@ -1468,7 +1503,8 @@ async function repairAfterRetryEventHook(event) {
     ok: true,
     hook: event.hook,
     sessionId,
-    recorded: Boolean(sessionEvent),
+    recorded: Boolean(sessionEvent) && !sessionEvent.deduped,
+    deduped: Boolean(sessionEvent?.deduped),
     sessionEventPath: sessionEvent?.path ?? null,
     repairReceipt,
     suppressedRepairs,
@@ -1591,44 +1627,44 @@ function buildManifest(runtime, stateDir) {
       },
       "validation.after_run": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
-        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "validation", "guardResult", "contextBlock"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
       "diff.after_edit": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
-        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff", "guardResult", "repairPrompt", "contextBlock"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "diff", "guardResult", "repairPrompt", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
       "review.after_feedback": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "comments", "changedFiles", "reviewer"],
-        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "review"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "comments", "changedFiles", "reviewer"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "review"],
         timeoutMs,
         failurePolicy,
       },
       "outcome.after_task": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
-        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "outcome"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "outcome"],
         timeoutMs,
         failurePolicy,
       },
       "repair.before_retry": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"],
-        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairId", "repairBlock", "repairSource", "suppressedRepairs"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"],
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairId", "repairBlock", "repairSource", "suppressedRepairs"],
         injectFrom: "repairBlock",
         timeoutMs,
         failurePolicy,
       },
       "repair.after_retry": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "repairId", "repairSessionId", "attributedPrecedents"],
-        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairReceipt", "suppressedRepairs"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "repairId", "repairSessionId", "attributedPrecedents"],
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairReceipt", "suppressedRepairs"],
         timeoutMs,
         failurePolicy,
       },
@@ -3612,11 +3648,36 @@ function guardPrecedentIdsFromChecks(checks) {
   return Array.isArray(checks) ? checks.map((check) => check.precedentId).filter(Boolean) : [];
 }
 
+function hookEventId(event) {
+  return typeof event.eventId === "string" && event.eventId.trim().length > 0
+    ? event.eventId.trim()
+    : null;
+}
+
+function eventIdField(eventId) {
+  return eventId ? { eventId } : {};
+}
+
 async function appendSessionEvent(stateDir, rawEvent) {
   const sessionId = requireString(rawEvent.sessionId, "event.sessionId");
   const sessionFile = join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`);
   const artifactDir = join(stateDir, "sessions", `${safeFileName(sessionId)}-artifacts`);
   const event = redactSecretsDeep(rawEvent).value;
+  const eventId = hookEventId(event);
+
+  if (eventId) {
+    const existing = (await readJsonLines(sessionFile)).find((item) => item.eventId === eventId);
+
+    if (existing) {
+      return {
+        sessionId,
+        path: sessionFile,
+        event: existing,
+        receivedAt: existing.receivedAt,
+        deduped: true,
+      };
+    }
+  }
 
   if (typeof event.stdout === "string" && event.stdout.length > 0) {
     await mkdir(artifactDir, { recursive: true });
@@ -3643,6 +3704,7 @@ async function appendSessionEvent(stateDir, rawEvent) {
     path: sessionFile,
     event,
     receivedAt: event.receivedAt,
+    deduped: false,
   };
 }
 

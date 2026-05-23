@@ -260,6 +260,43 @@ test("run captures validation output and exits with the wrapped command status",
   }
 });
 
+test("session hooks dedupe repeated event ids", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const event = {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "demo",
+      eventId: "validation-1",
+      command: "pnpm test",
+      exitCode: 1,
+      stderr: "first failure",
+    };
+
+    const first = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], event);
+    const second = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], event);
+
+    assert.equal(first.recorded, true);
+    assert.equal(first.deduped, false);
+    assert.equal(second.recorded, false);
+    assert.equal(second.deduped, true);
+    assert.equal(second.sessionEventPath, first.sessionEventPath);
+    assert.equal(second.validation.stderrPath, first.validation.stderrPath);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/demo.jsonl"));
+    assert.equal(sessionEvents.length, 1);
+    assert.equal(sessionEvents[0].eventId, "validation-1");
+
+    const globalEvents = await readJsonLines(join(stateDir, "events.jsonl"));
+    assert.equal(globalEvents.filter((item) => item.eventId === "validation-1").length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 function runPrecedent(args, stdinJson = null) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {
