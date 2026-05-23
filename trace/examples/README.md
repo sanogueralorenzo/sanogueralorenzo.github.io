@@ -50,6 +50,5 @@ trace release-notes v1.0.0..HEAD
 Use CI to prevent missing memory and transcript leaks:
 
 ```shell
-trace ci main..HEAD --agents
-trace checkpoint verify
+trace ci main..HEAD --agents --checkpoints
 ```

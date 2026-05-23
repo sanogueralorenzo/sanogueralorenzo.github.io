@@ -216,7 +216,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run", "all", "agents"].includes(key)) {
+    if (["json", "help", "dry-run", "all", "agents", "checkpoints"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -396,7 +396,7 @@ async function checkTrace() {
 
 async function runCiCheck(range) {
   const root = await repoRoot();
-  const report = await buildCoverageReport(root, range, { agents: args.agents });
+  const report = await buildCoverageReport(root, range, { agents: args.agents, checkpoints: args.checkpoints });
   print(report);
 
   if (!report.ok) {
@@ -440,11 +440,13 @@ async function buildCoverageReport(root, range, options = {}) {
   const memoryAudit = await auditMemoryFiles(root);
   const redaction = await redactionAudit(root);
   const agentContracts = options.agents ? await buildAgentCheckReport(root, "all") : null;
+  const checkpointIntegrity = options.checkpoints ? await checkpointIntegrityReport(root) : null;
   const ok = missingMemories.length === 0
     && unsafeFiles.length === 0
     && memoryAudit.invalidMemories.length === 0
     && redaction.findings.length === 0
-    && (agentContracts?.ok ?? true);
+    && (agentContracts?.ok ?? true)
+    && (checkpointIntegrity?.ok ?? true);
   const memoryTotal = coveredMemories.length + missingMemories.length;
   return {
     ok,
@@ -461,6 +463,19 @@ async function buildCoverageReport(root, range, options = {}) {
     invalidMemories: memoryAudit.invalidMemories,
     redactionFindings: redaction.findings,
     agentContracts,
+    checkpointIntegrity,
+  };
+}
+
+async function checkpointIntegrityReport(root) {
+  const audit = await checkpointAudit(root);
+  return {
+    ok: audit.present && audit.errors.length === 0,
+    ref: audit.ref,
+    present: audit.present,
+    commit: audit.commit,
+    checked: audit.checked,
+    errors: audit.errors,
   };
 }
 
@@ -2712,7 +2727,7 @@ Usage:
   trace redact audit
   trace redact remove <label>
   trace coverage [range]
-  trace ci [range] [--agents]
+  trace ci [range] [--agents] [--checkpoints]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace review [--all] [--json]

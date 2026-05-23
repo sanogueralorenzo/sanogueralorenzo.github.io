@@ -505,7 +505,14 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.deepEqual(coveredPayload.invalidMemories, []);
     assert.deepEqual(coveredPayload.redactionFindings, []);
     assert.equal(coveredPayload.agentContracts, null);
+    assert.equal(coveredPayload.checkpointIntegrity, null);
     assert.deepEqual(coveredPayload.commits.map((commit) => commit.status), ["covered", "skipped"]);
+
+    const withCheckpoints = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--checkpoints"])).stdout);
+    assert.equal(withCheckpoints.ok, true);
+    assert.equal(withCheckpoints.checkpointIntegrity.ok, true);
+    assert.equal(withCheckpoints.checkpointIntegrity.present, true);
+    assert.equal(withCheckpoints.checkpointIntegrity.checked, 1);
 
     const missingAgents = await runTraceAllowFailure(repo, ["ci", "HEAD", "--agents"]);
     assert.equal(missingAgents.exitCode, 1);
@@ -521,6 +528,19 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(withAgents.agentContracts.ok, true);
     assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
     assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.event), ["tool", "prompt", "response", "validation"]);
+
+    const fullCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--agents", "--checkpoints"])).stdout);
+    assert.equal(fullCi.ok, true);
+    assert.equal(fullCi.agentContracts.ok, true);
+    assert.equal(fullCi.checkpointIntegrity.ok, true);
+
+    await git(repo, ["update-ref", "-d", "refs/trace/checkpoints"]);
+    const missingCheckpoint = await runTraceAllowFailure(repo, ["ci", "HEAD", "--checkpoints"]);
+    assert.equal(missingCheckpoint.exitCode, 1);
+    const missingCheckpointPayload = JSON.parse(missingCheckpoint.stdout);
+    assert.equal(missingCheckpointPayload.ok, false);
+    assert.equal(missingCheckpointPayload.checkpointIntegrity.ok, false);
+    assert.equal(missingCheckpointPayload.checkpointIntegrity.present, false);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

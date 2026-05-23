@@ -95,7 +95,7 @@ trace redact audit
 trace doctor
 trace check
 trace coverage main..HEAD
-trace ci main..HEAD
+trace ci main..HEAD --agents --checkpoints
 ```
 
 From a checkout, the same commands can be run without installing:
@@ -158,7 +158,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace session start [session-id]` starts or switches the current local lifecycle session without writing raw data into the project tree. `trace session end [session-id]` clears the current session pointer without deleting raw session events, which keeps the next task from accidentally reusing stale context. `trace session list`, `trace session current`, and `trace session show <session>` inspect the local raw lifecycle store in the git common directory. This gives agents a way to debug capture coverage and event shape without writing transcripts into the project tree.
 
-`trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails when committed memory files are malformed, contain unredacted secrets, or when raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed. Add `--agents` to make CI also run the installed adapter contract fixtures for every supported first-class agent.
+`trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails when committed memory files are malformed, contain unredacted secrets, or when raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed. Add `--agents` to make CI also run the installed adapter contract fixtures for every supported first-class agent, and `--checkpoints` to require a present, valid `refs/trace/checkpoints` ref.
 
 `trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. Branch, PR, and release text are generated views, not the canonical memory store. Add `--json` to emit the same memory-derived summary as structured data for agents and CI automation.
 
