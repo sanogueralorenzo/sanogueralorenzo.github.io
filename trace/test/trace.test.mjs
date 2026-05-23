@@ -120,6 +120,21 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(searchJson.results[0].file, payload.memory);
     assert.match(searchJson.results[0].snippet, /reviewable/);
 
+    const searchPath = join(repo, "trace-search.txt");
+    const searchWrite = JSON.parse((await runTrace(repo, ["search", "--field", "decisions", "--limit", "1", "--output", searchPath, "reviewable"])).stdout);
+    assert.equal(searchWrite.schema_version, "trace.search_output.v1");
+    assert.equal(searchWrite.output, searchPath);
+    assert.equal(searchWrite.matches, 1);
+    assert.equal(searchWrite.bytes, (await readFile(searchPath, "utf8")).length);
+    assert.match(await readFile(searchPath, "utf8"), /reviewable/);
+
+    const searchJsonPath = join(repo, "trace-search.json");
+    const searchJsonWrite = JSON.parse((await runTrace(repo, ["search", "--field", "decisions", "--limit", "1", "--json", "--output", searchJsonPath, "reviewable"])).stdout);
+    assert.equal(searchJsonWrite.schema_version, "trace.search_output.v1");
+    const searchJsonFile = JSON.parse(await readFile(searchJsonPath, "utf8"));
+    assert.equal(searchJsonFile.schema_version, "trace.search_results.v1");
+    assert.equal(searchJsonFile.matches, 1);
+
     const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
     const indexed = JSON.parse((await runTrace(repo, ["index"])).stdout);
     assert.equal(indexed.ok, true);

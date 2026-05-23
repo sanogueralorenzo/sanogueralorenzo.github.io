@@ -2582,22 +2582,48 @@ async function searchMemories(query) {
   const limited = matches
     .sort((left, right) => right.score - left.score || left.file.localeCompare(right.file))
     .slice(0, limit);
-  if (args.json) {
+  const payload = searchPayload(query, field, terms, limited);
+  const document = args.json ? `${JSON.stringify(payload, null, 2)}\n` : renderSearchResults(limited);
+  if (args.output) {
+    const outputPath = resolve(args.output);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, document);
     print({
       ok: true,
-      schema_version: "trace.search_results.v1",
-      query,
-      field,
-      terms,
+      schema_version: "trace.search_output.v1",
+      output: args.output,
       matches: limited.length,
-      results: limited,
+      bytes: Buffer.byteLength(document),
     });
     return;
   }
 
-  for (const match of limited) {
-    process.stdout.write(`${match.sha.slice(0, 12)} ${match.file} score=${match.score}\n${match.snippet}\n`);
+  if (args.json) {
+    process.stdout.write(document);
+    return;
   }
+
+  process.stdout.write(document);
+}
+
+function searchPayload(query, field, terms, results) {
+  return {
+    ok: true,
+    schema_version: "trace.search_results.v1",
+    query,
+    field,
+    terms,
+    matches: results.length,
+    results,
+  };
+}
+
+function renderSearchResults(matches) {
+  const lines = [];
+  for (const match of matches) {
+    lines.push(`${match.sha.slice(0, 12)} ${match.file} score=${match.score}`, match.snippet);
+  }
+  return lines.length > 0 ? `${lines.join("\n")}\n` : "";
 }
 
 function searchScore(searchable, terms) {
@@ -3927,7 +3953,7 @@ Usage:
   trace review [--all] [--json]
   trace log [--limit 20] [--json]
   trace index
-  trace search [--field agents|lifecycle|intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
+  trace search [--field agents|lifecycle|intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] [--output FILE] <query>
   trace recall [query] [--field agents|lifecycle|intent|summary|decisions|responses|tools|files|validation|risks|handoff] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json] [--output FILE]
   trace summary [range] [--json] [--output FILE]
   trace branch-summary [branch] [--base main] [--json] [--output FILE]
