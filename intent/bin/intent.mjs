@@ -2193,11 +2193,17 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces"].includes(graphEdge.kind)) {
+  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces", "constrains", "guards"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
   const targetNode = nodesById.get(graphEdge.to);
+  if (graphEdge.kind === "constrains") {
+    return validateGraphConstrainsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "guards") {
+    return validateGraphGuardsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
   if (graphEdge.kind === "completes") {
     return validateGraphCompletesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
@@ -2233,6 +2239,49 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
     supported_roles: [
       { from_kind: "Type", to_kind: "Goal" },
       { from_kind: "Goal", to_kind: "Memory" },
+    ],
+  });
+}
+
+function validateGraphConstrainsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Invariant" && targetNode?.kind === "Goal") {
+    return null;
+  }
+  return error("INTENT_GRAPH_CONSTRAIN_INVALID", `constrains edge '${graphEdge.from}' to '${graphEdge.to}' must connect an Invariant node to a Goal node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Invariant", to_kind: "Goal" },
+    ],
+  });
+}
+
+function validateGraphGuardsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  const isStepCheck = targetNode?.kind === "Check" && targetNode.data?.scope === "step";
+  const isSupportedTarget = targetNode?.kind === "Completion"
+    || targetNode?.kind === "Effect"
+    || targetNode?.kind === "Checkpoint"
+    || targetNode?.kind === "Policy"
+    || isStepCheck;
+  if (sourceNode?.kind === "Invariant" && isSupportedTarget) {
+    return null;
+  }
+  return error("INTENT_GRAPH_GUARD_ROLE_INVALID", `guards edge '${graphEdge.from}' to '${graphEdge.to}' must connect an Invariant node to a supported guarded node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    to_scope: targetNode?.data?.scope ?? null,
+    supported_roles: [
+      { from_kind: "Invariant", to_kind: "Completion" },
+      { from_kind: "Invariant", to_kind: "Effect" },
+      { from_kind: "Invariant", to_kind: "Checkpoint" },
+      { from_kind: "Invariant", to_kind: "Policy" },
+      { from_kind: "Invariant", to_kind: "Check", to_scope: "step" },
     ],
   });
 }

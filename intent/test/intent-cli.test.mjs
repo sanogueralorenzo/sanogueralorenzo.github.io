@@ -1198,8 +1198,8 @@ describe("intent static model CLI", () => {
         { id: "node:b", kind: "Type", label: "b", span: testSpan(2) },
       ],
       edges: [
-        { from: "node:a", to: "node:b", kind: "guards" },
-        { from: "node:b", to: "node:a", kind: "guards" },
+        { from: "node:a", to: "node:b", kind: "precedes" },
+        { from: "node:b", to: "node:a", kind: "precedes" },
       ],
     });
 
@@ -1754,6 +1754,62 @@ describe("intent static model CLI", () => {
     assert.equal(produceDiagnostics[1].to_kind, "Context");
     assert.deepEqual(produceDiagnostics[1].supported_roles, [
       { from_kind: "Step", to_kind: "Completion" },
+    ]);
+  });
+
+  it("validates graph invariant edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
+        { id: "goal:demo:invariant:0", kind: "Invariant", label: "rule", span: testSpan(4) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(5) },
+        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(6) },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(7) },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(8), data: { scope: "step" } },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(9), data: { scope: "goal" } },
+      ],
+      edges: [
+        { from: "goal:demo:invariant:0", to: "goal:demo", kind: "constrains" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:step:patch:effect:0", kind: "guards" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:step:patch:checkpoint:0", kind: "guards" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:step:patch:timeout:0", kind: "guards" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:step:patch:requirement:0", kind: "guards" },
+        { from: "goal:demo:step:patch", to: "goal:demo", kind: "constrains" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "constrains" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "guards" },
+        { from: "goal:demo:invariant:0", to: "goal:demo", kind: "guards" },
+        { from: "goal:demo:invariant:0", to: "goal:demo:verify:0", kind: "guards" },
+      ],
+    });
+    const constrainDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CONSTRAIN_INVALID");
+    const guardRoleDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_GUARD_ROLE_INVALID");
+
+    assert.equal(constrainDiagnostics.length, 2);
+    assert.equal(constrainDiagnostics[0].from_kind, "Step");
+    assert.equal(constrainDiagnostics[0].to_kind, "Goal");
+    assert.equal(constrainDiagnostics[1].from_kind, "Invariant");
+    assert.equal(constrainDiagnostics[1].to_kind, "Completion");
+    assert.deepEqual(constrainDiagnostics[1].supported_roles, [
+      { from_kind: "Invariant", to_kind: "Goal" },
+    ]);
+    assert.equal(guardRoleDiagnostics.length, 3);
+    assert.equal(guardRoleDiagnostics[0].from_kind, "Goal");
+    assert.equal(guardRoleDiagnostics[0].to_kind, "Completion");
+    assert.equal(guardRoleDiagnostics[1].from_kind, "Invariant");
+    assert.equal(guardRoleDiagnostics[1].to_kind, "Goal");
+    assert.equal(guardRoleDiagnostics[2].from_kind, "Invariant");
+    assert.equal(guardRoleDiagnostics[2].to_kind, "Check");
+    assert.equal(guardRoleDiagnostics[2].to_scope, "goal");
+    assert.deepEqual(guardRoleDiagnostics[2].supported_roles, [
+      { from_kind: "Invariant", to_kind: "Completion" },
+      { from_kind: "Invariant", to_kind: "Effect" },
+      { from_kind: "Invariant", to_kind: "Checkpoint" },
+      { from_kind: "Invariant", to_kind: "Policy" },
+      { from_kind: "Invariant", to_kind: "Check", to_scope: "step" },
     ]);
   });
 
