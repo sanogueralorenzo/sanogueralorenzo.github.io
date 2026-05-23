@@ -536,6 +536,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(readme.includes("dry_run_reviewer"));
   assert.ok(readme.includes("reviewedBy"));
+  assert.ok(readme.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
   assert.ok(readme.includes("npm publish --provenance --access public"));
 });
 
@@ -1142,6 +1143,10 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("dry-run-publication"));
   assert.ok(publicationNotes.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(publicationNotes.includes("dry_run_reviewer"));
+  assert.ok(publicationNotes.includes("Post-Publication Comparison"));
+  assert.ok(publicationNotes.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
+  assert.ok(publicationNotes.includes("dist.tarball"));
+  assert.ok(publicationNotes.includes("must end with the retained `tarballName`"));
   assert.ok(publicationNotes.includes("packageVersion"));
   assert.ok(publicationNotes.includes("tarballName"));
   assert.ok(publicationNotes.includes("reviewedBy"));
@@ -1158,6 +1163,27 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("--pack-manifest <npm-pack-json>"));
   assert.ok(publicationNotes.includes('"missing": ["CI_ADOPTION.md"]'));
   assert.ok(publicationNotes.includes('"missing": ["examples/ci/jury-trusted-bundle-verify.yml"]'));
+
+  const comparisonCommands = extractShellBlock(publicationNotes, "Post-Publication Comparison");
+  assert.deepEqual(comparisonCommands, [
+    'node -e "const fs=require(\'node:fs\'); const record=JSON.parse(fs.readFileSync(\'jury-pack-dry-run-record.json\',\'utf8\')); console.log(JSON.stringify({packageVersion: record.packageVersion, tarballName: record.tarballName}, null, 2));"',
+    "npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json",
+  ]);
+  const comparisonDir = await tempState();
+  try {
+    await writeFile(join(comparisonDir, "jury-pack-dry-run-record.json"), JSON.stringify({
+      packageVersion: "0.1.0",
+      tarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+    }));
+    const comparisonRecord = await runShell(comparisonCommands[0], comparisonDir);
+    assert.equal(comparisonRecord.exitCode, 0, comparisonRecord.stderr);
+    assert.deepEqual(JSON.parse(comparisonRecord.stdout), {
+      packageVersion: "0.1.0",
+      tarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+    });
+  } finally {
+    await rm(comparisonDir, { recursive: true, force: true });
+  }
 
   for (const relativePath of release.packagePublication.requiredFiles) {
     await stat(join(repoRoot, "jury", relativePath));
@@ -2040,6 +2066,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("retention-days: 30"));
   assert.ok(checklist.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(checklist.includes("dry_run_reviewer"));
+  assert.ok(checklist.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
   assert.ok(checklist.includes("packageVersion"));
   assert.ok(checklist.includes("tarballName"));
   assert.ok(checklist.includes("reviewedBy"));
@@ -2141,6 +2168,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /dry-run release publication checklist guidance/);
   assert.match(handoff, /dry-run publication artifact handoff/);
   assert.match(handoff, /dry-run artifact retention expectations/);
+  assert.match(handoff, /post-publication package metadata comparison guidance/);
   assert.match(handoff, /dry-run publication summary output/);
   assert.match(handoff, /dry-run package summary reviewer audit notes/);
   assert.match(handoff, /stale dry-run artifact troubleshooting/);
@@ -2151,7 +2179,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /retained dry-run artifact with the npm-published package metadata/);
+  assert.match(handoff, /release rollback note for npm publication attempts that pass provenance but fail downstream verification/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

@@ -72,6 +72,17 @@ jobs:
 
 [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `dry-run-publication` has `needs: package-manifest`, uploads `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as `jury-package-dry-run`, and keeps that artifact for 30 days with `retention-days: 30`. `publish` downloads and verifies that artifact before the step that maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`. The workflow requires `dry_run_reviewer`; the verification step writes `packageVersion`, `tarballName`, and `reviewedBy` to `GITHUB_STEP_SUMMARY` so the release page records the package identity and who reviewed it before credentials were exposed. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
 
+## Post-Publication Comparison
+
+After publication, compare the retained `jury-package-dry-run` artifact with npm registry metadata before closing the release. Download `jury-pack-dry-run-record.json` from the workflow artifact and run:
+
+```shell
+node -e "const fs=require('node:fs'); const record=JSON.parse(fs.readFileSync('jury-pack-dry-run-record.json','utf8')); console.log(JSON.stringify({packageVersion: record.packageVersion, tarballName: record.tarballName}, null, 2));"
+npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json
+```
+
+The npm `version` must equal `packageVersion`. The npm `dist.tarball` URL must end with the retained `tarballName`. If either value differs, keep the release open and investigate before deleting the retained artifact.
+
 ## npm Credentials and Provenance
 
 Before enabling publication, create `secrets.NPM_TOKEN` as an npm token limited to publishing `@sanogueralorenzo/jury`. The workflow maps that secret to `NODE_AUTH_TOKEN` only in the final publish step, after `needs: package-manifest` has passed and the downloaded dry-run record has verified. Keep package-manifest and dry-run-publication jobs token-free.
