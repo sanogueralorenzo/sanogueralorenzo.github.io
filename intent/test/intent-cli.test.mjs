@@ -144,6 +144,20 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Input") {
     return { scope: "goal", type: "Synthetic", ...normalizedData };
   }
+  if (kind === "Step") {
+    return {
+      inputs: [],
+      outputType: null,
+      outputTypeSpan: null,
+      effects: [],
+      requirements: [],
+      checkpoints: [],
+      approvals: [],
+      timeouts: [],
+      retries: [],
+      ...normalizedData,
+    };
+  }
   if (kind === "Policy") {
     return { scope: "step", ownerStep: "patch", policyKind: "timeout", policy: "5m", ...normalizedData };
   }
@@ -1765,6 +1779,31 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_INPUT_INVALID");
     assert.equal(diagnostics[2].scope_is_valid, true);
     assert.equal(diagnostics[2].type_is_nonempty, false);
+  });
+
+  it("validates graph step plan payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "step:bad-inputs", kind: "Step", label: "bad inputs", span: testSpan(1), data: { inputs: [{ name: "", type: "Finding", span: testSpan(1) }] } },
+        { id: "step:bad-output", kind: "Step", label: "bad output", span: testSpan(2), data: { outputType: "", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
+        { id: "step:bad-lists", kind: "Step", label: "bad lists", span: testSpan(3), data: { effects: ["write", ""], requirements: null, checkpoints: ["before"], approvals: [" "], timeouts: ["5m"], retries: ["max 2"] } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_STEP_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_STEP_INVALID");
+    assert.equal(diagnostics[0].step_id, "step:bad-inputs");
+    assert.deepEqual(diagnostics[0].invalid_input_indexes, [0]);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_STEP_INVALID");
+    assert.equal(diagnostics[1].output_type_is_valid, false);
+    assert.equal(diagnostics[1].output_type_span_is_valid, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_STEP_INVALID");
+    assert.equal(diagnostics[2].effects_are_valid, false);
+    assert.equal(diagnostics[2].requirements_are_valid, false);
+    assert.equal(diagnostics[2].approvals_are_valid, false);
+    assert.equal(diagnostics[2].checkpoints_are_valid, true);
   });
 
   it("validates graph step input binding diagnostics", () => {

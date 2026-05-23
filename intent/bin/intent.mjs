@@ -1344,6 +1344,10 @@ function validateGraph(graph, options = {}) {
     if (inputDiagnostic) {
       diagnostics.push(inputDiagnostic);
     }
+    const stepDiagnostic = validateGraphStep(graphNode, graphSpan);
+    if (stepDiagnostic) {
+      diagnostics.push(stepDiagnostic);
+    }
     const policyDiagnostic = validateGraphPolicy(graphNode, graphSpan);
     if (policyDiagnostic) {
       diagnostics.push(policyDiagnostic);
@@ -1793,6 +1797,70 @@ function validateGraphInput(graphNode, graphSpan) {
     scope_is_valid: scopeIsValid,
     type_is_nonempty: typeIsNonempty,
   });
+}
+
+function validateGraphStep(graphNode, graphSpan) {
+  if (graphNode.kind !== "Step") {
+    return null;
+  }
+  const inputsIsArray = Array.isArray(graphNode.data.inputs);
+  const invalidInputIndexes = inputsIsArray
+    ? graphNode.data.inputs
+        .map((input, inputIndex) => isGraphParameterRecord(input) ? null : inputIndex)
+        .filter((inputIndex) => inputIndex !== null)
+    : [];
+  const outputTypeIsValid = graphNode.data.outputType === null
+    || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
+  const outputTypeSpanIsValid = graphNode.data.outputTypeSpan === undefined
+    || graphNode.data.outputTypeSpan === null
+    || isSpan(graphNode.data.outputTypeSpan);
+  const effectsAreValid = isNonemptyStringArray(graphNode.data.effects);
+  const requirementsAreValid = isNonemptyStringArray(graphNode.data.requirements);
+  const checkpointsAreValid = isNonemptyStringArray(graphNode.data.checkpoints);
+  const approvalsAreValid = isNonemptyStringArray(graphNode.data.approvals);
+  const timeoutsAreValid = isNonemptyStringArray(graphNode.data.timeouts);
+  const retriesAreValid = isNonemptyStringArray(graphNode.data.retries);
+  if (
+    inputsIsArray
+    && invalidInputIndexes.length === 0
+    && outputTypeIsValid
+    && outputTypeSpanIsValid
+    && effectsAreValid
+    && requirementsAreValid
+    && checkpointsAreValid
+    && approvalsAreValid
+    && timeoutsAreValid
+    && retriesAreValid
+  ) {
+    return null;
+  }
+  return error("INTENT_GRAPH_STEP_INVALID", `step '${graphNode.label}' must carry valid plan payload data.`, graphNode.span ?? graphSpan, {
+    step: graphNode.label,
+    step_id: graphNode.id,
+    inputs_is_array: inputsIsArray,
+    invalid_input_indexes: invalidInputIndexes,
+    output_type_is_valid: outputTypeIsValid,
+    output_type_span_is_valid: outputTypeSpanIsValid,
+    effects_are_valid: effectsAreValid,
+    requirements_are_valid: requirementsAreValid,
+    checkpoints_are_valid: checkpointsAreValid,
+    approvals_are_valid: approvalsAreValid,
+    timeouts_are_valid: timeoutsAreValid,
+    retries_are_valid: retriesAreValid,
+  });
+}
+
+function isGraphParameterRecord(value) {
+  return isPlainObject(value)
+    && typeof value.name === "string"
+    && value.name.trim() !== ""
+    && typeof value.type === "string"
+    && value.type.trim() !== ""
+    && isSpan(value.span);
+}
+
+function isNonemptyStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.trim() !== "");
 }
 
 function validateGraphPolicy(graphNode, graphSpan) {
