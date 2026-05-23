@@ -223,4 +223,7 @@ A goal is complete only when:
 - Every output has provenance; when the goal requires cited output or denies
   uncited external claims, the final step must cite retained memory evidence.
 - No invariant is violated.
-- The final state was checkpointed.
+- The final state was checkpointed; when the goal requires
+  `final_state_checkpointed`, requires `checkpointed_final_state`, or denies
+  `uncheckpointed_irreversible_effect`, the final step must declare a
+  checkpoint that can act as the resume boundary.

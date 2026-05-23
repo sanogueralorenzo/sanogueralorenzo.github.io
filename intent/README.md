@@ -268,6 +268,14 @@ Validation expectations:
   the triggering requirements, invariants, and final-step citations; malformed
   provenance payloads or required provenance with no citations emit
   `INTENT_GRAPH_COMPLETION_INVALID`.
+- Completion checkpoint policy is enforced by the checker and graph contract.
+  `require final_state_checkpointed`, `require checkpointed_final_state`, or
+  `deny uncheckpointed_irreversible_effect` requires the final
+  completion-producing step to declare at least one `checkpoint ...` statement.
+  Missing checkpoint coverage emits `INTENT_CHECKPOINT_MISSING`. Completion
+  node `data.checkpoint` records the triggering requirements, invariants, and
+  final-step checkpoints; malformed checkpoint payloads or required checkpoint
+  metadata with no checkpoint records emit `INTENT_GRAPH_COMPLETION_INVALID`.
 - Runtime graph `produces` and `requires` edge payloads are typed contracts.
   The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -437,9 +445,11 @@ Validation expectations:
   data must carry `outputType` as `null` or a non-empty string and
   `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when
   `outputType` is non-empty. It must also carry `provenance` with citation
-  requirements, invariants, and final-step memory citations. Malformed
-  Completion node payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make
-  graph output non-executable. This runtime payload contract is separate from
+  requirements, invariants, and final-step memory citations, plus `checkpoint`
+  with final-state checkpoint requirements, invariants, and final-step
+  checkpoints. Malformed Completion node payloads emit
+  `INTENT_GRAPH_COMPLETION_INVALID` and make graph output non-executable. This
+  runtime payload contract is separate from
   the existing
   completion-edge contract, which still requires `completes`, `produces`,
   `verifies`, and invariant `guards` edges.

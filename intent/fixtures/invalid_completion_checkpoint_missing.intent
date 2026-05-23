@@ -1,0 +1,33 @@
+package fixtures.invalid_completion_checkpoint_missing
+
+type Finding = {
+  summary: String
+}
+
+type Report = {
+  summary: String
+}
+
+goal missing_completion_checkpoint() -> Report {
+  context repo("./")
+
+  memory session {
+    retain checkpoints until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_source -> Finding {
+      checkpoint "source inspected"
+    }
+    step draft_report(input: Finding) -> Report
+  }
+
+  verify {
+    require final_state_checkpointed
+  }
+
+  invariant {
+    deny uncheckpointed_irreversible_effect
+  }
+}

@@ -424,6 +424,15 @@ Next graph envelope validation milestone:
   triggers and final-step citation records into `Completion.data.provenance`,
   and graph validation rejects malformed completion provenance or required
   provenance with no citations using `INTENT_GRAPH_COMPLETION_INVALID`.
+- Completion checkpoint policy is enforced before graph execution. A goal with
+  `require final_state_checkpointed`, `require checkpointed_final_state`, or
+  `deny uncheckpointed_irreversible_effect` must have at least one
+  `checkpoint ...` statement on the final completion-producing step. Missing
+  final-step checkpoint coverage emits `INTENT_CHECKPOINT_MISSING`. The graph
+  builder copies those triggers and final-step checkpoint records into
+  `Completion.data.checkpoint`, and graph validation rejects malformed
+  completion checkpoint metadata or required checkpoint metadata with no
+  checkpoint records using `INTENT_GRAPH_COMPLETION_INVALID`.
 - Runtime graph `authorizes` edges have a constrained role contract. An
   `authorizes` edge is valid only from `Capability` to `Goal` for capability
   ownership, or from `Capability` to an `Effect`, `Check`, or `Context` node
@@ -1517,6 +1526,16 @@ Rules:
   `provenance.requirements`, `provenance.invariants`, and
   `provenance.citations`. Required provenance with an empty citation list, or
   malformed provenance records, emits `INTENT_GRAPH_COMPLETION_INVALID`.
+- `require final_state_checkpointed`, `require checkpointed_final_state`, and
+  `deny uncheckpointed_irreversible_effect` are completion checkpoint
+  triggers. The final step must include at least one `checkpoint ...` statement
+  so runtime resume can restart from a named final-state boundary. Missing
+  coverage emits `INTENT_CHECKPOINT_MISSING`.
+- Graph `Completion` node data includes `checkpoint.required`,
+  `checkpoint.requirements`, `checkpoint.invariants`, and
+  `checkpoint.checkpoints`. Required checkpoint metadata with an empty
+  checkpoint list, or malformed checkpoint records, emits
+  `INTENT_GRAPH_COMPLETION_INVALID`.
 
 ## Trust Flow
 
@@ -1807,6 +1826,7 @@ Initial diagnostic families:
 - `INTENT_VERIFY_IMPURE`
 - `INTENT_VERIFY_UNDECLARED`
 - `INTENT_PROVENANCE_MISSING`
+- `INTENT_CHECKPOINT_MISSING`
 - `INTENT_INVARIANT_VIOLATION`
 - `INTENT_TRUST_FLOW_UNSAFE`
 - `INTENT_MEMORY_UNDECLARED`
@@ -2853,10 +2873,11 @@ diagnostics.
 Completion node data also carries `outputType` as `null` or a
 non-empty string and `outputTypeSpan` as `null` when `outputType` is `null` or
 a valid span when `outputType` is non-empty, plus `provenance` records for
-completion citation requirements, invariants, and final-step citations;
-malformed Completion payload data emits `INTENT_GRAPH_COMPLETION_INVALID` and
-makes graph output non-executable. This node payload contract is separate from
-the completion-edge contract. Graph
+completion citation requirements, invariants, and final-step citations, plus
+`checkpoint` records for final-state checkpoint requirements, invariants, and
+final-step checkpoints; malformed Completion payload data emits
+`INTENT_GRAPH_COMPLETION_INVALID` and makes graph output non-executable. This
+node payload contract is separate from the completion-edge contract. Graph
 validation emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a `Goal` node lacks its
 `${goal_id}:completion` `Completion` node, lacks exactly one outgoing

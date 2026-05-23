@@ -5,7 +5,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 ## Valid
 
 - `valid_code_change.intent`: code-change goal with declared step output types, repository context, file and shell capabilities, allowed `FileWrite` and `ShellExec` calls, verification, and invariants.
-- `valid_checkpoint_graph.intent`: code-change goal with step body `checkpoint ...` lines, normal file and shell capabilities, checkpoint memory retention, verification, and invariants.
+- `valid_checkpoint_graph.intent`: code-change goal with step body `checkpoint ...` lines, normal file and shell capabilities, checkpoint memory retention, final-state checkpoint verification, and invariants.
 - `valid_context_trust_graph.intent`: context graph goal with repository, web, and document sources, read-only file and web capabilities, memory retention, plan steps, final-step citation provenance, verification, and trust invariants.
 - `valid_dependency_graph.intent`: named goal input feeding the first step, followed by prior step outputs feeding later steps for graph dependency coverage.
 - `valid_research.intent`: research goal with declared source, claim, and report types, web and local document context, read-only capabilities, plan steps, final-step citation provenance, citation verification, and invariants.
@@ -52,7 +52,8 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_memory_access_undeclared.intent`: references undeclared memory from a step-local memory access statement, which should fail `INTENT_MEMORY_UNDECLARED`.
 - `invalid_memory_key_undeclared.intent`: references a memory key that is not declared by the memory block's retained subjects or explicit keys, which should fail `INTENT_MEMORY_KEY_UNDECLARED`.
 - `invalid_provenance_missing.intent`: requires cited completion output without a final-step `memory cite`, which should fail `INTENT_PROVENANCE_MISSING`.
-- `invalid_checkpoint_empty.intent`: declares an empty step checkpoint label, which should fail `INTENT_CHECKPOINT_INVALID` once checkpoint validation is enforced.
+- `invalid_completion_checkpoint_missing.intent`: requires final-state checkpointing without a final-step `checkpoint ...`, which should fail `INTENT_CHECKPOINT_MISSING`.
+- `invalid_checkpoint_empty.intent`: declares an empty step checkpoint label, which should fail `INTENT_CHECKPOINT_INVALID`.
 - `invalid_approval_empty.intent`: declares an empty step approval label, which should fail `INTENT_APPROVAL_INVALID` once approval validation is enforced.
 - `invalid_step_policy_bad_timeout.intent`: declares a step timeout policy with unsupported duration `soon`, which should fail `INTENT_POLICY_INVALID` once policy validation is enforced.
 - `invalid_duplicate_type_name.intent`: declares the same top-level type name twice.

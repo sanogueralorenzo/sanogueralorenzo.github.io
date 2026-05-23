@@ -297,6 +297,70 @@
         }
       }
     },
+    "completion_checkpoint": {
+      "type": "object",
+      "required": ["required", "requirements", "invariants", "checkpoints"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["requirement", "span"],
+            "additionalProperties": false,
+            "properties": {
+              "requirement": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              }
+            }
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["assertion", "invariant", "span"],
+            "additionalProperties": false,
+            "properties": {
+              "assertion": {
+                "enum": ["Require", "Deny"]
+              },
+              "invariant": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              }
+            }
+          }
+        },
+        "checkpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["checkpoint", "step", "span"],
+            "additionalProperties": false,
+            "properties": {
+              "checkpoint": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "step": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              }
+            }
+          }
+        }
+      }
+    },
     "contract_arguments": {
       "type": "object",
       "additionalProperties": {
@@ -864,7 +928,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["outputType", "outputTypeSpan", "provenance"],
+              "required": ["outputType", "outputTypeSpan", "provenance", "checkpoint"],
               "additionalProperties": false,
               "properties": {
                 "outputType": {
@@ -882,6 +946,9 @@
                 },
                 "provenance": {
                   "$ref": "#/$defs/completion_provenance"
+                },
+                "checkpoint": {
+                  "$ref": "#/$defs/completion_checkpoint"
                 }
               }
             }

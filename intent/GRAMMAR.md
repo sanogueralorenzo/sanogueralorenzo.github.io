@@ -244,6 +244,12 @@ completion-producing step must contain at least one `memory cite ...`
 statement. Missing final-step citation coverage emits
 `INTENT_PROVENANCE_MISSING`.
 
+When a goal requires `final_state_checkpointed`, requires
+`checkpointed_final_state`, or denies `uncheckpointed_irreversible_effect`, the
+final completion-producing step must contain at least one `checkpoint ...`
+statement. Missing final-step checkpoint coverage emits
+`INTENT_CHECKPOINT_MISSING`.
+
 ## Expressions
 
 The parser preserves raw expression text for later phases, but it also parses
@@ -570,6 +576,8 @@ The parser emits names and type reference strings; the checker owns binding.
   step in source order creates a `produces` edge.
 - Completion node data records whether citation provenance is required and the
   final-step memory citations that satisfy it.
+- Completion node data records whether final-state checkpointing is required
+  and the final-step checkpoints that satisfy it.
 
 ## Whitespace And Comments
 

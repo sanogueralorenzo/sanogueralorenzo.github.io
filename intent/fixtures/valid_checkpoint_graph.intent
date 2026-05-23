@@ -52,6 +52,7 @@ goal "apply checkpointed code change" {
 
   verify {
     require shell("npm test").exit_code == 0
+    require final_state_checkpointed
   }
 
   invariant {

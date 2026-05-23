@@ -63,6 +63,7 @@ const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memo
 const INVALID_MEMORY_ACCESS_UNDECLARED = new URL("../fixtures/invalid_memory_access_undeclared.intent", import.meta.url).pathname;
 const INVALID_MEMORY_KEY_UNDECLARED = new URL("../fixtures/invalid_memory_key_undeclared.intent", import.meta.url).pathname;
 const INVALID_PROVENANCE_MISSING = new URL("../fixtures/invalid_provenance_missing.intent", import.meta.url).pathname;
+const INVALID_COMPLETION_CHECKPOINT_MISSING = new URL("../fixtures/invalid_completion_checkpoint_missing.intent", import.meta.url).pathname;
 const INVALID_STEP_POLICY_BAD_TIMEOUT = new URL("../fixtures/invalid_step_policy_bad_timeout.intent", import.meta.url).pathname;
 const INVALID_CHECKPOINT_EMPTY = new URL("../fixtures/invalid_checkpoint_empty.intent", import.meta.url).pathname;
 const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.intent", import.meta.url).pathname;
@@ -216,6 +217,7 @@ function defaultGraphNodeData(kind, data) {
       outputType: "Synthetic",
       outputTypeSpan: testSpan(1),
       provenance: { required: false, requirements: [], invariants: [], citations: [] },
+      checkpoint: { required: false, requirements: [], invariants: [], checkpoints: [] },
       ...normalizedData,
     };
   }
@@ -1259,6 +1261,19 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].citations, 0);
   });
 
+  it("rejects completion checkpoint requirements without final-step checkpoints", () => {
+    const result = run(["check", INVALID_COMPLETION_CHECKPOINT_MISSING]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CHECKPOINT_MISSING");
+    assert.equal(payload.diagnostics[0].step, "draft_report");
+    assert.deepEqual(payload.diagnostics[0].requirements, ["final_state_checkpointed"]);
+    assert.deepEqual(payload.diagnostics[0].invariants, ["uncheckpointed_irreversible_effect"]);
+    assert.equal(payload.diagnostics[0].checkpoints, 0);
+  });
+
   it("rejects invalid step policy syntax", () => {
     const result = run(["check", INVALID_STEP_POLICY_BAD_TIMEOUT]);
     const payload = JSON.parse(result.stdout);
@@ -1646,6 +1661,7 @@ describe("intent static model CLI", () => {
     const graph = runJson(["graph", VALID_CHECKPOINT_GRAPH]);
     const checkpoint = graph.nodes.find((node) => node.kind === "Checkpoint" && node.data.ownerStep === "patch_code");
     const patchStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "patch_code");
+    const completion = graph.nodes.find((node) => node.kind === "Completion");
 
     assert.equal(graph.ok, true);
     assert.equal(checkpoint.data.scope, "step");
@@ -1653,6 +1669,9 @@ describe("intent static model CLI", () => {
     assert.equal(patchStep.data.checkpoints.includes("before patch"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "checkpoints" && edge.from === patchStep.id && edge.to === checkpoint.id), true);
     assert.equal(graph.edges.some((edge) => edge.from === checkpoint.id && edge.kind === "verifies"), false);
+    assert.equal(completion.data.checkpoint.required, true);
+    assert.deepEqual(completion.data.checkpoint.requirements.map((record) => record.requirement), ["final_state_checkpointed"]);
+    assert.deepEqual(completion.data.checkpoint.checkpoints.map((record) => [record.step, record.checkpoint]), [["verify_patch", "verification complete"]]);
   });
 
   it("emits invariant guards to completion, effects, checkpoints, policies, and step requirements", () => {
@@ -4187,6 +4206,33 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
+    const missingCheckpointDiagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
+        {
+          id: "goal:demo:completion",
+          kind: "Completion",
+          label: "demo",
+          span: testSpan(4),
+          data: {
+            checkpoint: {
+              required: true,
+              requirements: [{ requirement: "final_state_checkpointed", span: testSpan(3) }],
+              invariants: [],
+              checkpoints: [{ checkpoint: "final state", step: "a", span: testSpan(2) }],
+            },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    });
 
     assert.equal(missingProducesDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(missingProducesDiagnostics[0].completes_edges, 1);
@@ -4204,6 +4250,10 @@ describe("intent static model CLI", () => {
     assert.equal(missingCitationDiagnostics[0].provenance_required, true);
     assert.equal(missingCitationDiagnostics[0].citation_edges, 0);
     assert.equal(missingCitationDiagnostics[0].has_required_citation_edges, false);
+    assert.equal(missingCheckpointDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(missingCheckpointDiagnostics[0].checkpoint_required, true);
+    assert.equal(missingCheckpointDiagnostics[0].checkpoint_edges, 0);
+    assert.equal(missingCheckpointDiagnostics[0].has_required_checkpoint_edges, false);
   });
 
   it("validates graph completion payload diagnostics", () => {
@@ -4222,11 +4272,19 @@ describe("intent static model CLI", () => {
           span: testSpan(6),
           data: { provenance: { required: true, requirements: [], invariants: [], citations: [] } },
         },
+        { id: "goal:missing-checkpoint:completion", kind: "Completion", label: "missing checkpoint", span: testSpan(7), data: { checkpoint: null } },
+        {
+          id: "goal:missing-checkpoint-record:completion",
+          kind: "Completion",
+          label: "missing checkpoint record",
+          span: testSpan(8),
+          data: { checkpoint: { required: true, requirements: [], invariants: [], checkpoints: [] } },
+        },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_COMPLETION_INVALID" && "output_type_is_valid" in diagnostic);
 
-    assert.equal(diagnostics.length, 6);
+    assert.equal(diagnostics.length, 8);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(diagnostics[0].completion_id, "goal:demo:completion");
     assert.equal(diagnostics[0].output_type_is_valid, false);
@@ -4246,6 +4304,11 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[5].completion_id, "goal:missing-citation:completion");
     assert.equal(diagnostics[5].provenance_is_valid, true);
     assert.equal(diagnostics[5].provenance_has_required_citations, false);
+    assert.equal(diagnostics[6].completion_id, "goal:missing-checkpoint:completion");
+    assert.equal(diagnostics[6].checkpoint_is_valid, false);
+    assert.equal(diagnostics[7].completion_id, "goal:missing-checkpoint-record:completion");
+    assert.equal(diagnostics[7].checkpoint_is_valid, true);
+    assert.equal(diagnostics[7].checkpoint_has_required_records, false);
   });
 
   it("validates graph typed edge contract diagnostics", () => {

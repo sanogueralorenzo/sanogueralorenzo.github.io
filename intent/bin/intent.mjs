@@ -73,6 +73,8 @@ const GRAPH_EDGE_KINDS = new Set([
 const TRUST_ZONES = new Set(["trusted", "untrusted", "unknown"]);
 const COMPLETION_PROVENANCE_REQUIREMENTS = new Set(["all_outputs_cited", "memory_provenance_complete"]);
 const COMPLETION_PROVENANCE_INVARIANTS = new Set(["uncited_external_claim"]);
+const COMPLETION_CHECKPOINT_REQUIREMENTS = new Set(["final_state_checkpointed", "checkpointed_final_state"]);
+const COMPLETION_CHECKPOINT_INVARIANTS = new Set(["uncheckpointed_irreversible_effect"]);
 const EFFECT_CONTRACTS = [
   {
     id: "intent.effect.file.read.v0",
@@ -841,6 +843,7 @@ function checkIntent(ast) {
     validateMemoryAccesses(goal, diagnostics);
     validateVerifyRequirements(goal, diagnostics);
     validateCompletionProvenance(goal, diagnostics);
+    validateCompletionCheckpoint(goal, diagnostics);
     validateApprovalRequirements(goal, diagnostics);
 
     const capabilities = goal.capabilities.map((capability) => capability.family);
@@ -1300,6 +1303,55 @@ function completionMemoryCitations(goal) {
     }));
 }
 
+function validateCompletionCheckpoint(goal, diagnostics) {
+  const checkpoint = completionCheckpoint(goal);
+  if (!checkpoint.required || checkpoint.checkpoints.length > 0) {
+    return;
+  }
+  const rule = checkpoint.requirements[0] ?? checkpoint.invariants[0] ?? null;
+  diagnostics.push(error("INTENT_CHECKPOINT_MISSING", `goal '${goal.name}' requires a final-state checkpoint but the final step has none.`, rule?.span ?? goal.span, {
+    goal: goal.name,
+    step: goal.steps.at(-1)?.name ?? null,
+    requirements: checkpoint.requirements.map((requirement) => requirement.requirement),
+    invariants: checkpoint.invariants.map((invariant) => invariant.invariant),
+    checkpoints: checkpoint.checkpoints.length,
+  }));
+}
+
+function completionCheckpoint(goal, checkpoints = completionStepCheckpoints(goal)) {
+  const requirements = goal.verify
+    .filter((requirement) => COMPLETION_CHECKPOINT_REQUIREMENTS.has(requirement.value.trim()))
+    .map((requirement) => ({
+      requirement: requirement.value,
+      span: requirement.span,
+    }));
+  const invariants = goal.invariants
+    .filter((invariant) => invariant.kind === "Deny" && COMPLETION_CHECKPOINT_INVARIANTS.has(invariant.value.trim()))
+    .map((invariant) => ({
+      assertion: invariant.kind,
+      invariant: invariant.value,
+      span: invariant.span,
+    }));
+  return {
+    required: requirements.length > 0 || invariants.length > 0,
+    requirements,
+    invariants,
+    checkpoints,
+  };
+}
+
+function completionStepCheckpoints(goal) {
+  const finalStep = goal.steps.at(-1);
+  if (!finalStep) {
+    return [];
+  }
+  return finalStep.checkpoints.map((checkpoint) => ({
+    checkpoint: checkpoint.value,
+    step: finalStep.name,
+    span: checkpoint.span,
+  }));
+}
+
 function buildGraph(ast, diagnostics = checkIntent(ast)) {
   const nodes = [];
   const edges = [];
@@ -1586,10 +1638,12 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     const completionId = `${goalId}:completion`;
     const finalStep = goal.steps.at(-1);
     const provenance = completionProvenance(goal, completionCitations.filter((citation) => citation.step === finalStep?.name));
+    const checkpoint = completionCheckpoint(goal);
     nodes.push(node(completionId, "Completion", goal.name, goal.span, {
       outputType: goal.outputType,
       outputTypeSpan: goal.outputTypeSpan,
       provenance,
+      checkpoint,
     }));
     edges.push(edge(goalId, completionId, "completes"));
     if (lastStepId) {
@@ -2127,13 +2181,19 @@ function validateGraph(graph, options = {}) {
       return (incomingEdgesByNode.get(graphEdge.from) ?? [])
         .filter((candidate) => candidate.kind === "cites" && nodesById.get(candidate.from)?.kind === "Memory");
     });
+    const checkpointEdges = producingEdges.flatMap((graphEdge) => {
+      return (outgoingEdgesByNode.get(graphEdge.from) ?? [])
+        .filter((candidate) => candidate.kind === "checkpoints" && nodesById.get(candidate.to)?.kind === "Checkpoint");
+    });
     const goalId = graphNode.id.endsWith(":completion") ? graphNode.id.slice(0, -":completion".length) : null;
     const expectedGuardEdges = goalId
       ? graphNodes.filter((candidate) => candidate.kind === "Invariant" && candidate.id.startsWith(`${goalId}:invariant:`)).length
       : guardingEdges.length;
     const provenanceRequired = graphNode.data?.provenance?.required === true;
     const hasRequiredCitationEdges = !provenanceRequired || citationEdges.length > 0;
-    if (completingEdges.length !== 1 || producingEdges.length !== 1 || verifyingEdges.length < 1 || guardingEdges.length !== expectedGuardEdges || !hasRequiredCitationEdges) {
+    const checkpointRequired = graphNode.data?.checkpoint?.required === true;
+    const hasRequiredCheckpointEdges = !checkpointRequired || checkpointEdges.length > 0;
+    if (completingEdges.length !== 1 || producingEdges.length !== 1 || verifyingEdges.length < 1 || guardingEdges.length !== expectedGuardEdges || !hasRequiredCitationEdges || !hasRequiredCheckpointEdges) {
       diagnostics.push(error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must have incoming completes, produces, verifies, and invariant guard edges.`, graphNode.span ?? fallbackSpan, {
         completion: graphNode.label,
         completion_id: graphNode.id,
@@ -2145,6 +2205,9 @@ function validateGraph(graph, options = {}) {
         provenance_required: provenanceRequired,
         citation_edges: citationEdges.length,
         has_required_citation_edges: hasRequiredCitationEdges,
+        checkpoint_required: checkpointRequired,
+        checkpoint_edges: checkpointEdges.length,
+        has_required_checkpoint_edges: hasRequiredCheckpointEdges,
       }));
     }
   }
@@ -2376,7 +2439,8 @@ function validateGraphCompletion(graphNode, graphSpan) {
     || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
   const outputTypeSpanIsValid = isGraphOutputTypeSpanValid(graphNode.data.outputType, graphNode.data.outputTypeSpan);
   const provenanceDiagnostic = validateGraphCompletionProvenance(graphNode.data.provenance);
-  if (outputTypeIsValid && outputTypeSpanIsValid && !provenanceDiagnostic) {
+  const checkpointDiagnostic = validateGraphCompletionCheckpoint(graphNode.data.checkpoint);
+  if (outputTypeIsValid && outputTypeSpanIsValid && !provenanceDiagnostic && !checkpointDiagnostic) {
     return null;
   }
   return error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must carry valid output contract data.`, graphNode.span ?? graphSpan, {
@@ -2388,6 +2452,10 @@ function validateGraphCompletion(graphNode, graphSpan) {
     provenance_required: provenanceDiagnostic ? provenanceDiagnostic.provenance_required : Boolean(graphNode.data.provenance?.required),
     provenance_citations: Array.isArray(graphNode.data.provenance?.citations) ? graphNode.data.provenance.citations.length : null,
     provenance_has_required_citations: provenanceDiagnostic ? provenanceDiagnostic.provenance_has_required_citations : true,
+    checkpoint_is_valid: checkpointDiagnostic ? checkpointDiagnostic.checkpoint_is_valid : true,
+    checkpoint_required: checkpointDiagnostic ? checkpointDiagnostic.checkpoint_required : Boolean(graphNode.data.checkpoint?.required),
+    completion_checkpoints: Array.isArray(graphNode.data.checkpoint?.checkpoints) ? graphNode.data.checkpoint.checkpoints.length : null,
+    checkpoint_has_required_records: checkpointDiagnostic ? checkpointDiagnostic.checkpoint_has_required_records : true,
   });
 }
 
@@ -2434,6 +2502,51 @@ function isGraphProvenanceCitation(value) {
     && (value.key === null || (typeof value.key === "string" && value.key.trim() !== ""))
     && typeof value.target === "string"
     && value.target.trim() !== ""
+    && typeof value.step === "string"
+    && value.step.trim() !== ""
+    && isSpan(value.span);
+}
+
+function validateGraphCompletionCheckpoint(checkpoint) {
+  const checkpointIsValid = isPlainObject(checkpoint)
+    && typeof checkpoint.required === "boolean"
+    && Array.isArray(checkpoint.requirements)
+    && checkpoint.requirements.every(isGraphCheckpointRequirement)
+    && Array.isArray(checkpoint.invariants)
+    && checkpoint.invariants.every(isGraphCheckpointInvariant)
+    && Array.isArray(checkpoint.checkpoints)
+    && checkpoint.checkpoints.every(isGraphCompletionCheckpointRecord);
+  const checkpointHasRequiredRecords = checkpointIsValid
+    && (!checkpoint.required || checkpoint.checkpoints.length > 0);
+  if (checkpointIsValid && checkpointHasRequiredRecords) {
+    return null;
+  }
+  return {
+    checkpoint_is_valid: checkpointIsValid,
+    checkpoint_required: isPlainObject(checkpoint) && typeof checkpoint.required === "boolean" ? checkpoint.required : null,
+    checkpoint_has_required_records: checkpointHasRequiredRecords,
+  };
+}
+
+function isGraphCheckpointRequirement(value) {
+  return isPlainObject(value)
+    && typeof value.requirement === "string"
+    && value.requirement.trim() !== ""
+    && isSpan(value.span);
+}
+
+function isGraphCheckpointInvariant(value) {
+  return isPlainObject(value)
+    && (value.assertion === "Require" || value.assertion === "Deny")
+    && typeof value.invariant === "string"
+    && value.invariant.trim() !== ""
+    && isSpan(value.span);
+}
+
+function isGraphCompletionCheckpointRecord(value) {
+  return isPlainObject(value)
+    && typeof value.checkpoint === "string"
+    && value.checkpoint.trim() !== ""
     && typeof value.step === "string"
     && value.step.trim() !== ""
     && isSpan(value.span);
