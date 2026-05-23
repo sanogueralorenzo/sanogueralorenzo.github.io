@@ -1459,6 +1459,7 @@ function normalizeAgentName(name) {
 }
 
 function agentConfig(name) {
+  const contract = AGENT_CONTRACTS[name];
   return {
     schema_version: AGENT_CONFIG_VERSION,
     agent: name,
@@ -1466,6 +1467,11 @@ function agentConfig(name) {
     command: `trace hook agent --adapter ${name}`,
     events: TRACE_EVENTS,
     stdin: "json-or-text",
+    contract: {
+      fixture: `examples/${contract.fixture}`,
+      event: contract.event,
+      message_includes: contract.messageIncludes,
+    },
     output: "trace.event.v1 JSONL in git common dir",
   };
 }
@@ -1497,6 +1503,7 @@ async function listAgentConfigs(root) {
         config: configPath,
         command: config.command ?? null,
         events: Array.isArray(config.events) ? config.events : [],
+        contract: config.contract ?? null,
         valid: errors.length === 0,
         errors,
       });
@@ -1539,7 +1546,39 @@ function validateAgentConfig(config) {
   if (config.stdin !== "json-or-text") {
     errors.push("stdin must be json-or-text");
   }
+  const expectedContract = expectedAgentContract(config.agent);
+  if (!config.contract || typeof config.contract !== "object") {
+    errors.push("contract must describe the adapter fixture");
+  } else if (expectedContract) {
+    if (config.contract.fixture !== expectedContract.fixture) {
+      errors.push(`contract fixture must be ${expectedContract.fixture}`);
+    }
+    if (config.contract.event !== expectedContract.event) {
+      errors.push(`contract event must be ${expectedContract.event}`);
+    }
+    if (!Array.isArray(config.contract.message_includes)
+      || config.contract.message_includes.some((item) => typeof item !== "string")
+      || !sameStringList(config.contract.message_includes, expectedContract.message_includes)) {
+      errors.push("contract message_includes must match the adapter contract");
+    }
+  }
   return errors;
+}
+
+function expectedAgentContract(name) {
+  const contract = AGENT_CONTRACTS[name];
+  if (!contract) {
+    return null;
+  }
+  return {
+    fixture: `examples/${contract.fixture}`,
+    event: contract.event,
+    message_includes: contract.messageIncludes,
+  };
+}
+
+function sameStringList(left, right) {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
 async function appendEvent(root, input) {

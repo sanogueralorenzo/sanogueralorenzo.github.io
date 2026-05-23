@@ -873,11 +873,17 @@ test("agent add list remove manages local hook adapter configs", async () => {
     assert.equal(config.agent, "codex");
     assert.equal(config.adapter, "codex");
     assert.deepEqual(config.events, ["prompt", "response", "tool", "decision", "validation", "risk", "note"]);
+    assert.deepEqual(config.contract, {
+      fixture: "examples/codex-tool-call.json",
+      event: "tool",
+      message_includes: ["codex tool shell", "npm --prefix trace test"],
+    });
 
     const listed = await runTrace(repo, ["agent", "list"]);
     const listedPayload = JSON.parse(listed.stdout);
     assert.deepEqual(listedPayload.agents.map((agent) => agent.agent), ["codex"]);
     assert.equal(listedPayload.agents[0].valid, true);
+    assert.equal(listedPayload.agents[0].contract.event, "tool");
     assert.deepEqual(listedPayload.agents[0].errors, []);
 
     const checked = JSON.parse((await runTrace(repo, ["agent", "check", "codex"])).stdout);
@@ -1101,12 +1107,19 @@ test("agent command validates names and reports malformed configs", async () => 
       command: "trace hook agent --adapter generic",
       events: ["prompt"],
       stdin: "json",
+      contract: {
+        fixture: "examples/wrong.json",
+        event: "prompt",
+        message_includes: ["wrong"],
+      },
     }, null, 2));
     const invalid = JSON.parse((await runTrace(repo, ["agent", "list"])).stdout);
     const codex = invalid.agents.find((agent) => agent.agent === "codex");
     assert.equal(codex.valid, false);
     assert.ok(codex.errors.some((error) => error.includes("adapter must match")));
     assert.ok(codex.errors.some((error) => error.includes("events missing")));
+    assert.ok(codex.errors.some((error) => error.includes("contract fixture")));
+    assert.ok(codex.errors.some((error) => error.includes("contract event")));
 
     const checked = await runTraceAllowFailure(repo, ["agent", "check", "codex"]);
     assert.equal(checked.exitCode, 1);

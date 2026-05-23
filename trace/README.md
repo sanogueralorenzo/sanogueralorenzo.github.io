@@ -196,7 +196,7 @@ See `trace/examples/` for complete local workflows covering adapter capture, com
 trace hook agent --adapter codex
 ```
 
-This keeps the first version agent-agnostic while making the hook contract explicit and reviewable. `trace agent list` and `trace doctor` validate that each adapter spec uses the supported schema, adapter command, stdin mode, and lifecycle events. `trace agent check [agent|all]` also runs the adapter contract fixtures from `trace/examples/` so CI can prove that configured adapters still normalize representative payloads into the expected lifecycle events.
+This keeps the first version agent-agnostic while making the hook contract explicit and reviewable. `trace agent list` and `trace doctor` validate that each adapter spec uses the supported schema, adapter command, stdin mode, lifecycle events, and fixture contract. `trace agent check [agent|all]` also runs the adapter contract fixtures from `trace/examples/` so CI can prove that configured adapters still normalize representative payloads into the expected lifecycle events.
 
 Checkpoint commands keep the raw side of Trace explicit:
 
