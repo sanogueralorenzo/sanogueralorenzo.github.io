@@ -345,8 +345,8 @@ Next graph envelope validation milestone:
 - A runtime must accept only its supported `schema_version` and
   `ast_schema_version` pair, starting with `intent.graph.v0` and
   `intent.ast.v0`.
-- An unsupported or missing envelope version emits the stable diagnostic code
-  `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
+- An unsupported or missing graph or AST schema version emits the stable
+  diagnostic code `INTENT_GRAPH_SCHEMA_INVALID`.
 - Executable graph payloads must include non-empty `source` and `package`
   provenance strings after trimming before runtime validation continues.
   Missing, non-string, or blank envelope provenance emits
@@ -1643,7 +1643,10 @@ Initial diagnostic families:
 - `INTENT_MEMORY_RETENTION_INVALID`
 - `INTENT_CHECKPOINT_INVALID`
 - `INTENT_POLICY_INVALID`
-- `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`
+- `INTENT_GRAPH_SCHEMA_INVALID`
+- `INTENT_GRAPH_EXECUTABLE_INVALID`
+- `INTENT_GRAPH_NODE_INVALID`
+- `INTENT_GRAPH_EDGE_INVALID`
 - `INTENT_GRAPH_SHAPE_INVALID`
 - `INTENT_GRAPH_DIAGNOSTIC_INVALID`
 - `INTENT_GRAPH_TRUST_INVALID`

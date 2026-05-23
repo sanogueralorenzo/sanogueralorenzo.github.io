@@ -111,7 +111,7 @@ Validation expectations:
   allowed for tooling inspection.
 - Static graph validators must accept only their supported `schema_version` and
   `ast_schema_version` pair. Missing or unsupported values for either field
-  emit `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
+  emit `INTENT_GRAPH_SCHEMA_INVALID`.
 - Executable graph payloads must include non-empty `source` and `package`
   provenance strings after trimming before runtime validation continues.
   Missing, non-string, or blank envelope provenance emits
