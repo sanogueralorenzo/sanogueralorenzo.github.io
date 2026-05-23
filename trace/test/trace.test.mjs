@@ -47,6 +47,49 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
   }
 });
 
+test("generic agent hook captures JSON payloads for PR summaries", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "service.txt"), "v1\n");
+    await git(repo, ["add", "service.txt"]);
+    await git(repo, ["commit", "-m", "Create service"]);
+    await runTrace(repo, ["init"]);
+
+    await runTraceWithInput(repo, ["hook", "agent", "prompt"], JSON.stringify({
+      session_id: "session-json",
+      agent: "codex",
+      prompt: "add retry memory for service",
+    }));
+    await runTraceWithInput(repo, ["hook", "agent", "decision"], JSON.stringify({
+      session_id: "session-json",
+      agent: "codex",
+      message: "Keep raw checkpoint data outside the project tree",
+    }));
+    await runTraceWithInput(repo, ["hook", "agent", "risk"], JSON.stringify({
+      session_id: "session-json",
+      agent: "codex",
+      message: "token=super-secret-token should be redacted",
+    }));
+
+    await writeFile(join(repo, "service.txt"), "v2\n");
+    await git(repo, ["add", "service.txt"]);
+    await git(repo, ["commit", "-m", "Update service"]);
+    await runTrace(repo, ["record", "--session", "session-json", "--validation", "npm --prefix trace test"]);
+
+    const prBody = await runTrace(repo, ["pr-body", "HEAD"]);
+    assert.match(prBody.stdout, /Trace PR Summary/);
+    assert.match(prBody.stdout, /add retry memory for service/);
+    assert.match(prBody.stdout, /Keep raw checkpoint data outside the project tree/);
+    assert.match(prBody.stdout, /token=REDACTED/);
+    assert.doesNotMatch(prBody.stdout, /super-secret-token/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("enable installs git hooks that link commits and write post-commit memory", async () => {
   const repo = await tempRepo();
 
@@ -76,6 +119,30 @@ test("enable installs git hooks that link commits and write post-commit memory",
   }
 });
 
+test("enable and disable preserve existing hook bodies", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    const hookPath = join(repo, ".git/hooks/post-commit");
+    await writeFile(hookPath, "#!/bin/sh\nprintf existing-hook\\n\n");
+
+    await runTrace(repo, ["enable"]);
+    await runTrace(repo, ["enable"]);
+    const enabled = await readFile(hookPath, "utf8");
+    assert.equal(enabled.match(/# trace:start/g)?.length, 1);
+    assert.match(enabled, /printf existing-hook/);
+
+    await runTrace(repo, ["disable"]);
+    const disabled = await readFile(hookPath, "utf8");
+    assert.doesNotMatch(disabled, /# trace:start/);
+    assert.match(disabled, /printf existing-hook/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 async function tempRepo() {
   const repo = await mkdtemp(join(tmpdir(), "trace-test-"));
   await git(repo, ["init", "-b", "main"]);
@@ -88,19 +155,30 @@ async function runTrace(cwd, args) {
   return result;
 }
 
+async function runTraceWithInput(cwd, args, input) {
+  const result = await run(cwd, ["node", cliPath, ...args], fixedEnv, input);
+  assert.equal(result.exitCode, 0, `${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return result;
+}
+
 async function git(cwd, args) {
   const result = await run(cwd, ["git", ...args], fixedEnv);
   assert.equal(result.exitCode, 0, `git ${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return result;
 }
 
-async function run(cwd, command, env = process.env) {
+async function run(cwd, command, env = process.env, input = null) {
   return new Promise((resolveRun) => {
-    const child = spawn(command[0], command.slice(1), { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command[0], command.slice(1), { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("close", (exitCode) => resolveRun({ exitCode, stdout, stderr }));
+    if (input != null) {
+      child.stdin.end(input);
+    } else {
+      child.stdin.end();
+    }
   });
 }

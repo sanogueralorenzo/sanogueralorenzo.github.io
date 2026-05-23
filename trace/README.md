@@ -58,6 +58,7 @@ trace show HEAD
 trace log
 trace search "auth retry"
 trace summary main..HEAD
+trace pr-body main..HEAD
 ```
 
 From a checkout, the same commands can be run without installing:
@@ -71,8 +72,18 @@ node trace/bin/trace.mjs show HEAD
 node trace/bin/trace.mjs log
 node trace/bin/trace.mjs search "auth retry"
 node trace/bin/trace.mjs summary main..HEAD
+node trace/bin/trace.mjs pr-body main..HEAD
 ```
 
 `trace enable` installs managed `prepare-commit-msg` and `post-commit` git hook blocks. The prepare hook adds `Trace-Checkpoint` and `Trace-Session` trailers to the commit message. The post-commit hook writes a compact memory file under `.trace/commits/` and stores the raw checkpoint payload on the local `refs/trace/checkpoints` git ref.
 
 This keeps the project tree focused on reviewable memories while raw checkpoint data stays outside the normal branch history unless someone explicitly pushes the Trace ref.
+
+Agent integrations can start with the generic hook endpoint:
+
+```shell
+printf '{"session_id":"abc","agent":"codex","prompt":"why this task exists"}' \
+  | trace hook agent prompt
+```
+
+The hook accepts JSON or plain text on stdin and records it into the local raw session store. Specific agent adapters can later translate Claude, Codex, Gemini, or other hook payloads into the same event shape without changing the memory format.

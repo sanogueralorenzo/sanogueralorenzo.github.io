@@ -76,6 +76,11 @@ async function main() {
     return;
   }
 
+  if (command === "pr-body" || command === "pr") {
+    await summarizeRange(subcommand ?? args.range ?? defaultSummaryRange(), { prBody: true });
+    return;
+  }
+
   if (command === "hook" && subcommand === "prepare-commit-msg") {
     await hookPrepareCommitMsg(rawArgs);
     return;
@@ -83,6 +88,11 @@ async function main() {
 
   if (command === "hook" && subcommand === "post-commit") {
     await hookPostCommit();
+    return;
+  }
+
+  if (command === "hook" && subcommand === "agent") {
+    await hookAgent(rawArgs);
     return;
   }
 
@@ -167,20 +177,32 @@ async function printStatus() {
 
 async function captureEvent() {
   const root = await repoRoot();
-  const sessionId = args.session ?? await currentOrNewSession(root);
+  const event = await appendEvent(root, {
+    sessionId: args.session,
+    event: args.event ?? "note",
+    role: args.role ?? "agent",
+    message: args.message ?? await readStdin(),
+    source: args.source ?? "manual",
+  });
+  print({ ok: true, session: event.session_id, event: event.event });
+}
+
+async function appendEvent(root, input) {
+  const sessionId = input.sessionId ?? await currentOrNewSession(root);
   const event = {
     schema_version: "trace.event.v1",
     session_id: sessionId,
-    event: args.event ?? "note",
-    role: args.role ?? "agent",
-    message: redact(args.message ?? await readStdin()),
+    event: input.event,
+    role: input.role,
+    source: input.source ?? "manual",
+    message: redact(input.message),
     created_at: now(),
   };
   const sessionFile = await sessionPath(root, sessionId);
   await mkdir(dirname(sessionFile), { recursive: true });
   await writeFile(sessionFile, `${JSON.stringify(event)}\n`, { flag: "a" });
   await writeFile(await currentSessionPath(root), sessionId);
-  print({ ok: true, session: sessionId, event: event.event });
+  return event;
 }
 
 async function recordMemory() {
@@ -255,7 +277,7 @@ async function searchMemories(query) {
   }
 }
 
-async function summarizeRange(range) {
+async function summarizeRange(range, options = {}) {
   const root = await repoRoot();
   const commits = (await git(["rev-list", "--reverse", range], { cwd: root })).split("\n").filter(Boolean);
   const memories = [];
@@ -267,10 +289,27 @@ async function summarizeRange(range) {
     }
   }
 
-  const lines = ["# Trace Summary", "", `Range: \`${range}\``, "", "## Commits", ""];
+  const title = options.prBody ? "Trace PR Summary" : "Trace Summary";
+  const lines = [`# ${title}`, "", `Range: \`${range}\``];
   if (memories.length === 0) {
-    lines.push("No Trace memories found for this range.", "");
+    lines.push("", "No Trace memories found for this range.", "");
   } else {
+    lines.push("", "## Intent", "");
+    for (const memory of memories) {
+      const intent = section(memory, "Intent") ?? "No intent recorded.";
+      lines.push(`- ${firstLine(intent)}`);
+    }
+
+    lines.push("", "## Decisions", "");
+    appendMergedSection(lines, memories, "Decisions");
+
+    lines.push("", "## Validation", "");
+    appendMergedSection(lines, memories, "Validation");
+
+    lines.push("", "## Risks", "");
+    appendMergedSection(lines, memories, "Risks");
+
+    lines.push("", "## Commits", "");
     for (const memory of memories) {
       const sha = memory.match(/^Commit: `([^`]+)`/m)?.[1] ?? "unknown";
       const intent = memory.match(/^## Intent\n\n([\s\S]*?)\n\n## /m)?.[1]?.trim() ?? "No intent recorded.";
@@ -314,6 +353,26 @@ async function hookPostCommit() {
   await writeFile(memoryPath, memory.markdown);
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
   await rm(await pendingCommitPath(root), { force: true });
+}
+
+async function hookAgent(values) {
+  const root = await repoRoot();
+  await ensureTrace(root);
+  const raw = await readStdin();
+  const payload = parseOptionalJson(raw);
+  const eventName = args.event ?? firstPositional(values) ?? payload?.event ?? payload?.hook ?? "agent";
+  const message = args.message ?? payloadMessage(payload) ?? raw;
+  const role = args.role ?? payload?.role ?? inferRole(eventName);
+  const source = args.source ?? payload?.agent ?? payload?.source ?? "agent-hook";
+  const sessionId = args.session ?? payload?.session_id ?? payload?.sessionId;
+  const event = await appendEvent(root, {
+    sessionId,
+    event: eventName,
+    role,
+    source,
+    message,
+  });
+  print({ ok: true, session: event.session_id, event: event.event, source: event.source });
 }
 
 async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
@@ -564,8 +623,8 @@ async function readStdin() {
 
 function redact(value) {
   return String(value)
-    .replace(/\b[A-Za-z0-9_=-]{24,}\b/g, "REDACTED")
-    .replace(/\b(api[_-]?key|token|secret|password)=("[^"]*"|'[^']*'|[^\s]+)/gi, "$1=REDACTED");
+    .replace(/\b(api[_-]?key|token|secret|password)=("[^"]*"|'[^']*'|[^\s]+)/gi, "$1=REDACTED")
+    .replace(/\b[A-Za-z0-9_=-]{24,}\b/g, (match) => match.includes("REDACTED") ? match : "REDACTED");
 }
 
 function memoryPathFor(root, sha) {
@@ -573,7 +632,7 @@ function memoryPathFor(root, sha) {
 }
 
 function defaultSummaryRange() {
-  return "main..HEAD";
+  return "HEAD";
 }
 
 function print(payload) {
@@ -596,6 +655,8 @@ Usage:
   trace log [--limit 20]
   trace search <query>
   trace summary [range]
+  trace pr-body [range]
+  trace hook agent <event>
   trace status
   trace disable
 `);
@@ -643,6 +704,29 @@ function firstLine(value) {
   return value.split("\n").find(Boolean) ?? "";
 }
 
+function section(markdown, name) {
+  const pattern = new RegExp(`^## ${escapeRegExp(name)}\\n\\n([\\s\\S]*?)(?=\\n\\n## |\\n*$)`, "m");
+  return markdown.match(pattern)?.[1]?.trim() ?? null;
+}
+
+function appendMergedSection(lines, memories, name) {
+  const values = memories
+    .map((memory) => section(memory, name))
+    .filter(Boolean)
+    .filter((value) => value !== "Not recorded." && value !== "No known open risks recorded.");
+
+  if (values.length === 0) {
+    lines.push("- Not recorded.");
+    return;
+  }
+
+  for (const value of values) {
+    for (const line of value.split("\n").map((entry) => entry.trim()).filter(Boolean)) {
+      lines.push(line.startsWith("- ") ? line : `- ${line}`);
+    }
+  }
+}
+
 function snippet(content, term) {
   const index = content.toLowerCase().indexOf(term.toLowerCase());
   if (index < 0) {
@@ -657,4 +741,46 @@ function shellQuote(value) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseOptionalJson(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function payloadMessage(payload) {
+  if (!payload) {
+    return null;
+  }
+
+  for (const key of ["message", "prompt", "text", "summary", "response"]) {
+    if (typeof payload[key] === "string" && payload[key].trim()) {
+      return payload[key];
+    }
+  }
+
+  return JSON.stringify(payload);
+}
+
+function inferRole(eventName) {
+  const normalized = eventName.toLowerCase();
+  if (normalized.includes("prompt") || normalized.includes("user")) {
+    return "user";
+  }
+  if (normalized.includes("stop") || normalized.includes("assistant") || normalized.includes("response")) {
+    return "assistant";
+  }
+  return "agent";
+}
+
+function firstPositional(values) {
+  return values.find((value) => !value.startsWith("--")) ?? null;
 }
