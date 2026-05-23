@@ -9,8 +9,10 @@ const args = parseArgs(process.argv.slice(2));
 const fixtureDir = args.fixtureDir ?? join(packageRoot, "examples/ci/fixtures/package-release");
 const evidenceSchemaPath = join(packageRoot, "schemas/package-release-evidence.schema.json");
 const archiveManifestSchemaPath = join(packageRoot, "schemas/package-release-archive-manifest.schema.json");
+const remediationAuditSchemaPath = join(packageRoot, "schemas/package-release-remediation-audit.schema.json");
 const evidenceSchema = await readJson(evidenceSchemaPath);
 const archiveManifestSchema = await readJson(archiveManifestSchemaPath);
+const remediationAuditSchema = await readJson(remediationAuditSchemaPath);
 const archiveEvidenceFiles = [
   "jury-pack-dry-run-record.json",
   "failed-npm-view.json",
@@ -28,6 +30,7 @@ const fixtureRead = await readRequiredFixtures([
   "downstream-failure-gate.json",
   "replacement-npm-view.json",
   "replacement-downstream-gate.json",
+  "archive-drift-remediation-audit.json",
 ]);
 if (fixtureRead.errors.length > 0) {
   process.stderr.write(`${fixtureRead.errors.join("\n")}\n`);
@@ -40,6 +43,7 @@ const failedNpmView = fixtureRead.fixtures.get("failed-npm-view.json");
 const failedGate = fixtureRead.fixtures.get("downstream-failure-gate.json");
 const replacementNpmView = fixtureRead.fixtures.get("replacement-npm-view.json");
 const replacementGate = fixtureRead.fixtures.get("replacement-downstream-gate.json");
+const remediationAudit = fixtureRead.fixtures.get("archive-drift-remediation-audit.json");
 const archiveManifest = tryBuildArchiveManifest();
 const archiveDriftManifestPath = args.checkArchiveDrift
   ? join(fixtureDir, "retained-package-release-evidence-manifest.json")
@@ -47,6 +51,7 @@ const archiveDriftManifestPath = args.checkArchiveDrift
 const errors = [
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", rollback, "rollback-audit.json"),
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", replacement, "replacement-patch-audit.json"),
+  ...schemaDocumentErrors(remediationAuditSchema, "jury.package_release_remediation_audit.v1", remediationAudit, "archive-drift-remediation-audit.json"),
   ...archiveManifest.errors,
   ...relationshipErrors(),
 ];
@@ -70,12 +75,14 @@ process.stdout.write(`${JSON.stringify({
   ok: true,
   schema: "schemas/package-release-evidence.schema.json",
   archiveManifestSchema: "schemas/package-release-archive-manifest.schema.json",
+  remediationAuditSchema: "schemas/package-release-remediation-audit.schema.json",
   manifestOut: args.manifestOut ?? null,
   verifiedManifest: args.verifyManifest ?? null,
   archiveDriftManifest: archiveDriftManifestPath,
   fixtures: [
     "rollback-audit.json",
     "replacement-patch-audit.json",
+    "archive-drift-remediation-audit.json",
   ],
 }, null, 2)}\n`);
 
@@ -395,8 +402,77 @@ function relationshipErrors() {
   if (rollback.retention?.provenance?.sourceRevision !== replacement.retention?.provenance?.sourceRevision) {
     errors.push("rollback and replacement retention provenance sourceRevision must match");
   }
+  errors.push(...remediationAuditErrors());
 
   return errors;
+}
+
+function remediationAuditErrors() {
+  const errors = [];
+  const driftEvidence = remediationAudit.drift?.evidence ?? [];
+  const restoredEvidence = remediationAudit.remediation?.restoredEvidence ?? [];
+  const commands = remediationAudit.verification?.commands ?? [];
+
+  if (remediationAudit.audit_type !== "retained-archive-drift-remediation") {
+    errors.push("archive drift remediation audit_type must be retained-archive-drift-remediation");
+  }
+  if (remediationAudit.package !== rollback.package) {
+    errors.push("archive drift remediation package must match package release evidence");
+  }
+  if (remediationAudit.failed?.packageVersion !== failedRecord.packageVersion) {
+    errors.push("archive drift remediation failed packageVersion must match dry-run record");
+  }
+  if (remediationAudit.failed?.tarballName !== failedRecord.tarballName) {
+    errors.push("archive drift remediation failed tarballName must match dry-run record");
+  }
+  if (remediationAudit.replacement?.packageVersion !== replacement.replacement?.packageVersion) {
+    errors.push("archive drift remediation replacement packageVersion must match replacement audit");
+  }
+  if (!hasArchiveRecord(driftEvidence, "downstream-failure-gate.json", "failed-publication")) {
+    errors.push("archive drift remediation audit must include failed publication downstream gate drift");
+  }
+  if (!hasArchiveRecord(driftEvidence, "replacement-downstream-gate.json", "replacement-patch")) {
+    errors.push("archive drift remediation audit must include replacement downstream gate drift");
+  }
+  if (!hasArchiveRecord(restoredEvidence, "downstream-failure-gate.json", "failed-publication")) {
+    errors.push("archive drift remediation audit must restore failed publication downstream gate evidence");
+  }
+  if (!hasArchiveRecord(restoredEvidence, "replacement-downstream-gate.json", "replacement-patch")) {
+    errors.push("archive drift remediation audit must restore replacement downstream gate evidence");
+  }
+  if (remediationAudit.remediation?.policy !== "restore-before-regenerate") {
+    errors.push("archive drift remediation policy must be restore-before-regenerate");
+  }
+  if (remediationAudit.remediation?.diffReviewed !== true) {
+    errors.push("archive drift remediation diffReviewed must be true");
+  }
+  if (!commands.some((command) => command.includes("--verify-manifest"))) {
+    errors.push("archive drift remediation audit must verify the retained manifest");
+  }
+  if (!commands.some((command) => command.includes("archiveEvidence SHA-256 helper"))) {
+    errors.push("archive drift remediation audit must run the archiveEvidence SHA-256 helper");
+  }
+  if (!commands.some((command) => command.includes("dry-run identity helper"))) {
+    errors.push("archive drift remediation audit must run the dry-run identity helper");
+  }
+  if (!commands.some((command) => command.includes("--manifest-out"))) {
+    errors.push("archive drift remediation audit must regenerate the retained manifest");
+  }
+  if (!commands.some((command) => command.includes("fixtures:package-release:drift"))) {
+    errors.push("archive drift remediation audit must rerun the archive drift check");
+  }
+  if (!remediationAudit.approval?.approvedBy) {
+    errors.push("archive drift remediation audit must record approving maintainer");
+  }
+  if (remediationAudit.record?.location !== "release record or incident archive") {
+    errors.push("archive drift remediation audit record location must be release record or incident archive");
+  }
+
+  return errors;
+}
+
+function hasArchiveRecord(records, path, archive) {
+  return records.some((record) => record.path === path && record.archive === archive);
 }
 
 function retentionProvenanceErrors(audit, label) {
@@ -428,6 +504,7 @@ function retentionProvenanceErrors(audit, label) {
       "replacement-npm-view.json",
       "replacement-downstream-gate.json",
       "replacement-patch-audit.json",
+      "archive-drift-remediation-audit.json",
     ]],
   ]) {
     const artifact = artifactMap.get(artifactName);

@@ -47,6 +47,7 @@
     "objection": "schemas/objection.schema.json",
     "packageReleaseArchiveManifest": "schemas/package-release-archive-manifest.schema.json",
     "packageReleaseEvidence": "schemas/package-release-evidence.schema.json",
+    "packageReleaseRemediationAudit": "schemas/package-release-remediation-audit.schema.json",
     "reviewBundle": "schemas/review-bundle.schema.json",
     "waiver": "schemas/waiver.schema.json",
     "verdict": "schemas/verdict.schema.json"

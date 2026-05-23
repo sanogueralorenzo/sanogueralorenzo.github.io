@@ -12,7 +12,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Use [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) as the npm publication shape when releases need `needs: package-manifest`.
 - [ ] Confirm publication CI runs `package-release-fixtures` with `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check` before `dry-run-publication`.
 - [ ] Confirm publication CI runs `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:drift` before `dry-run-publication`.
-- [ ] Upload `rollback-audit.json` and `replacement-patch-audit.json` as the `jury-package-release-evidence` CI artifact for package release audit comparison.
+- [ ] Upload `rollback-audit.json`, `replacement-patch-audit.json`, and `archive-drift-remediation-audit.json` as the `jury-package-release-evidence` CI artifact for package release audit comparison.
 - [ ] Export `retained-package-release-evidence-manifest.json` in publication CI and upload it as the `jury-package-release-archive-manifest` CI artifact.
 - [ ] Download `jury-package-release-evidence` and replay it with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>` before `dry-run-publication`.
 - [ ] Download `jury-package-release-archive-manifest` and verify it with `--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"` before `dry-run-publication`.
@@ -37,6 +37,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Verify `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest retained-package-release-evidence-manifest.json`.
 - [ ] Run `npm --prefix jury run fixtures:package-release:drift` before release to confirm the checked-in retained archive manifest has not drifted from failed or replacement archive evidence or archive evidence digests.
 - [ ] If retained archive drift appears, restore the failed or replacement archive evidence first, regenerate the manifest from the restored evidence directory, review the diff, and record the approving maintainer before replacing the archived copy.
+- [ ] Store `archive-drift-remediation-audit.json` with failed-publication drift, replacement-patch drift, restored evidence, verification commands, and approving maintainer when replacing an archived manifest after drift.
 - [ ] If retained package release manifest replay fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to inspect manifest identity, required archive evidence, retention artifacts, and provenance artifacts.
 - [ ] Retain promoted failed and replacement release evidence until at least 180 days after replacement downstream verification passes.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when the dry-run artifact is stale or mismatched.
@@ -91,6 +92,7 @@ Expected fixture files:
 - [examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json](examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json)
 - [examples/ci/fixtures/key-policy-rotation/README.md](examples/ci/fixtures/key-policy-rotation/README.md)
 - [examples/ci/fixtures/package-release/README.md](examples/ci/fixtures/package-release/README.md)
+- [examples/ci/fixtures/package-release/archive-drift-remediation-audit.json](examples/ci/fixtures/package-release/archive-drift-remediation-audit.json)
 - [examples/ci/fixtures/package-release/jury-pack-dry-run-record.json](examples/ci/fixtures/package-release/jury-pack-dry-run-record.json)
 - [examples/ci/fixtures/package-release/failed-npm-view.json](examples/ci/fixtures/package-release/failed-npm-view.json)
 - [examples/ci/fixtures/package-release/downstream-failure-gate.json](examples/ci/fixtures/package-release/downstream-failure-gate.json)
@@ -101,6 +103,7 @@ Expected fixture files:
 - [examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json](examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json)
 - [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json)
 - [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json)
+- [schemas/package-release-remediation-audit.schema.json](schemas/package-release-remediation-audit.schema.json)
 - [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs)
 
 ## Validation

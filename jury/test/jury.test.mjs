@@ -478,6 +478,7 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.includes("retention-days: 90"));
   assert.ok(workflow.includes("rollback-audit.json"));
   assert.ok(workflow.includes("replacement-patch-audit.json"));
+  assert.ok(workflow.includes("archive-drift-remediation-audit.json"));
   assert.ok(workflow.includes("jury-pack-dry-run.json"));
   assert.ok(workflow.includes("jury-pack-dry-run-record.json"));
   assert.ok(workflow.includes("GITHUB_STEP_SUMMARY"));
@@ -511,6 +512,7 @@ test("release workflow requires package manifest before npm publication", async 
   assert.equal(replayManifestCommand, 'npm --prefix jury run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR" --verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"');
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/rollback-audit.json"));
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/replacement-patch-audit.json"));
+  assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/archive-drift-remediation-audit.json"));
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/failed-npm-view.json"));
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/replacement-npm-view.json"));
   assert.ok(uploadPaths.includes("retained-package-release-evidence-manifest.json"));
@@ -616,7 +618,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes('npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check'));
   assert.ok(readme.includes("jury-package-release-evidence"));
   assert.ok(readme.includes("jury-package-release-archive-manifest"));
-  assert.ok(readme.includes("rollback and replacement audit examples"));
+  assert.ok(readme.includes("rollback, replacement, and archive drift remediation audit examples"));
   assert.ok(readme.includes("package-release-evidence-replay"));
   assert.ok(readme.includes("--fixture-dir"));
   assert.ok(readme.includes('--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"'));
@@ -815,12 +817,16 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   const replacementGate = await readFixture("replacement-downstream-gate.json");
   const replacementAudit = await readFixture("replacement-patch-audit.json");
   const retainedArchiveManifest = await readFixture("retained-package-release-evidence-manifest.json");
+  const remediationAudit = await readFixture("archive-drift-remediation-audit.json");
   const publicationNotes = await readFile(join(repoRoot, "jury/PUBLISHING.md"), "utf8");
   const replacementCommands = extractShellBlock(publicationNotes, "Replacement Patch Evidence");
 
   assert.ok(readme.includes("rollback-audit.json"));
   assert.ok(readme.includes("replacement-patch-audit.json"));
   assert.ok(readme.includes("retained-package-release-evidence-manifest.json"));
+  assert.ok(readme.includes("archive-drift-remediation-audit.json"));
+  assert.ok(readme.includes("package-release-remediation-audit.schema.json"));
+  assert.ok(readme.includes("Archive Drift Remediation Audit"));
   assert.ok(readme.includes("npm --prefix jury run fixtures:package-release:check"));
   assert.ok(readme.includes("downstream verification passes"));
   assert.ok(readme.includes("jury.package_release_retention.v1"));
@@ -848,6 +854,22 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.equal(retainedArchiveManifest.failed.rollbackAudit, "rollback-audit.json");
   assert.equal(retainedArchiveManifest.replacement.replacementAudit, "replacement-patch-audit.json");
   assert.deepEqual(retainedArchiveManifest.provenance.artifacts.map((artifact) => artifact.name), ["jury-package-dry-run", "jury-package-release-evidence"]);
+  assert.equal(remediationAudit.schema_version, "jury.package_release_remediation_audit.v1");
+  assert.equal(remediationAudit.audit_type, "retained-archive-drift-remediation");
+  assert.equal(remediationAudit.failed.packageVersion, dryRunRecord.packageVersion);
+  assert.equal(remediationAudit.failed.tarballName, dryRunRecord.tarballName);
+  assert.equal(remediationAudit.replacement.packageVersion, replacementAudit.replacement.packageVersion);
+  assert.deepEqual(remediationAudit.drift.evidence.map((item) => item.path), ["downstream-failure-gate.json", "replacement-downstream-gate.json"]);
+  assert.deepEqual(remediationAudit.drift.evidence.map((item) => item.archive), ["failed-publication", "replacement-patch"]);
+  assert.ok(remediationAudit.remediation.restoredEvidence.some((item) => item.path === "downstream-failure-gate.json" && item.archive === "failed-publication"));
+  assert.ok(remediationAudit.remediation.restoredEvidence.some((item) => item.path === "replacement-downstream-gate.json" && item.archive === "replacement-patch"));
+  assert.equal(remediationAudit.remediation.policy, "restore-before-regenerate");
+  assert.equal(remediationAudit.remediation.diffReviewed, true);
+  assert.ok(remediationAudit.verification.commands.some((command) => command.includes("--verify-manifest")));
+  assert.ok(remediationAudit.verification.commands.some((command) => command.includes("archiveEvidence SHA-256 helper")));
+  assert.ok(remediationAudit.verification.commands.some((command) => command.includes("dry-run identity helper")));
+  assert.ok(remediationAudit.verification.commands.some((command) => command.includes("fixtures:package-release:drift")));
+  assert.equal(remediationAudit.record.location, "release record or incident archive");
   assert.deepEqual(retainedArchiveManifest.archiveEvidence.map((item) => item.path), [
     "jury-pack-dry-run-record.json",
     "failed-npm-view.json",
@@ -884,6 +906,7 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.equal(replacementProvenance.get("jury-package-release-evidence").retentionDays, 90);
   assert.ok(replacementProvenance.get("jury-package-release-evidence").files.includes("downstream-failure-gate.json"));
   assert.ok(replacementProvenance.get("jury-package-release-evidence").files.includes("replacement-patch-audit.json"));
+  assert.ok(replacementProvenance.get("jury-package-release-evidence").files.includes("archive-drift-remediation-audit.json"));
   assert.ok(rollbackAudit.retention.artifacts.includes("jury-package-dry-run"));
   assert.ok(rollbackAudit.retention.artifacts.includes("jury-package-release-evidence"));
   assert.ok(rollbackAudit.retention.artifacts.includes("downstream-failure-gate.json"));
@@ -930,7 +953,8 @@ test("package release evidence fixtures cover rollback and replacement audits", 
   assert.equal(fixtureCheckPayload.archiveDriftManifest, null);
   assert.equal(fixtureCheckPayload.schema, "schemas/package-release-evidence.schema.json");
   assert.equal(fixtureCheckPayload.archiveManifestSchema, "schemas/package-release-archive-manifest.schema.json");
-  assert.deepEqual(fixtureCheckPayload.fixtures, ["rollback-audit.json", "replacement-patch-audit.json"]);
+  assert.equal(fixtureCheckPayload.remediationAuditSchema, "schemas/package-release-remediation-audit.schema.json");
+  assert.deepEqual(fixtureCheckPayload.fixtures, ["rollback-audit.json", "replacement-patch-audit.json", "archive-drift-remediation-audit.json"]);
   const fixtureDriftCheck = await runShell("npm --prefix jury run fixtures:package-release:drift");
   assert.equal(fixtureDriftCheck.exitCode, 0, fixtureDriftCheck.stderr);
   assert.equal(JSON.parse(fixtureDriftCheck.stdout.slice(fixtureDriftCheck.stdout.indexOf("{"))).archiveDriftManifest, join(ciPackageReleaseFixturesDir, "retained-package-release-evidence-manifest.json"));
@@ -1126,6 +1150,23 @@ test("package release evidence fixtures cover rollback and replacement audits", 
     assert.equal(replacementGateDriftCheck.exitCode, 1);
     assert.match(replacementGateDriftCheck.stderr, /retained-package-release-evidence-manifest\.json archive drift detected against retained package release evidence/);
     assert.match(replacementGateDriftCheck.stderr, /retained-package-release-evidence-manifest\.json\.archiveEvidence replacement-downstream-gate\.json sha256 must match retained evidence/);
+
+    await rm(copiedFixtureDir, { recursive: true, force: true });
+    await cp(ciPackageReleaseFixturesDir, copiedFixtureDir, { recursive: true });
+    const invalidRemediationAuditPath = join(copiedFixtureDir, "archive-drift-remediation-audit.json");
+    const invalidRemediationAudit = JSON.parse(await readFile(invalidRemediationAuditPath, "utf8"));
+    invalidRemediationAudit.drift.evidence.find((item) => item.path === "downstream-failure-gate.json").archive = "replacement-patch";
+    invalidRemediationAudit.drift.evidence = invalidRemediationAudit.drift.evidence.filter((item) => item.path !== "replacement-downstream-gate.json");
+    invalidRemediationAudit.remediation.restoredEvidence.find((item) => item.path === "replacement-downstream-gate.json").archive = "failed-publication";
+    invalidRemediationAudit.remediation.diffReviewed = false;
+    await writeFile(invalidRemediationAuditPath, `${JSON.stringify(invalidRemediationAudit, null, 2)}\n`);
+
+    const invalidRemediationCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(copiedFixtureDir)}`);
+    assert.equal(invalidRemediationCheck.exitCode, 1);
+    assert.match(invalidRemediationCheck.stderr, /archive drift remediation audit must include failed publication downstream gate drift/);
+    assert.match(invalidRemediationCheck.stderr, /archive drift remediation audit must include replacement downstream gate drift/);
+    assert.match(invalidRemediationCheck.stderr, /archive drift remediation audit must restore replacement downstream gate evidence/);
+    assert.match(invalidRemediationCheck.stderr, /archive drift remediation diffReviewed must be true/);
   } finally {
     await rm(invalidDir, { recursive: true, force: true });
   }
@@ -1234,7 +1275,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("remediate the replacement patch archive evidence first"));
   assert.ok(guide.includes("dry-run identity helper"));
   assert.ok(guide.includes("packageVersion` and `tarballName` across `jury-pack-dry-run-record.json`"));
-  assert.ok(guide.includes("record the remediation in the release or incident record"));
+  assert.ok(guide.includes("record the remediation in `archive-drift-remediation-audit.json`"));
   assert.ok(guide.includes("schema_version must equal jury.package_release_archive_manifest.v1"));
   assert.ok(guide.includes("must contain an item matching required archive evidence"));
   assert.ok(guide.includes("missing retained archive evidence"));
@@ -1256,7 +1297,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   const evidenceReplayCommands = extractShellBlock(guide, "Package Release Evidence Replay Failure");
   assert.deepEqual(evidenceReplayCommands, [
     "npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>",
-    'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const required=["README.md","jury-pack-dry-run-record.json","failed-npm-view.json","downstream-failure-gate.json","rollback-audit.json","replacement-npm-view.json","replacement-downstream-gate.json","replacement-patch-audit.json"]; const missing=required.filter((file)=>!fs.existsSync(`${dir}/${file}`)); if (missing.length) throw new Error(`missing package release evidence files: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, artifact:"jury-package-release-evidence", files: required}, null, 2));\' <downloaded-artifact-dir>',
+    'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const required=["README.md","jury-pack-dry-run-record.json","failed-npm-view.json","downstream-failure-gate.json","rollback-audit.json","replacement-npm-view.json","replacement-downstream-gate.json","replacement-patch-audit.json","archive-drift-remediation-audit.json"]; const missing=required.filter((file)=>!fs.existsSync(`${dir}/${file}`)); if (missing.length) throw new Error(`missing package release evidence files: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, artifact:"jury-package-release-evidence", files: required}, null, 2));\' <downloaded-artifact-dir>',
   ]);
   const replayRoot = await tempState();
   const replayDir = join(replayRoot, "package-release-evidence");
@@ -1283,7 +1324,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.deepEqual(retainedManifestCommands, [
     "npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest <retained-manifest>",
     "npm --prefix jury run fixtures:package-release:drift",
-    'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const required=["README.md","jury-pack-dry-run-record.json","failed-npm-view.json","downstream-failure-gate.json","rollback-audit.json","replacement-npm-view.json","replacement-downstream-gate.json","replacement-patch-audit.json"]; const missing=required.filter((file)=>!fs.existsSync(`${dir}/${file}`)); if (missing.length) throw new Error(`missing retained package release evidence files: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, artifact:"retained-package-release-evidence", files: required}, null, 2));\' <retained-evidence-dir>',
+    'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const required=["README.md","jury-pack-dry-run-record.json","failed-npm-view.json","downstream-failure-gate.json","rollback-audit.json","replacement-npm-view.json","replacement-downstream-gate.json","replacement-patch-audit.json","archive-drift-remediation-audit.json"]; const missing=required.filter((file)=>!fs.existsSync(`${dir}/${file}`)); if (missing.length) throw new Error(`missing retained package release evidence files: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, artifact:"retained-package-release-evidence", files: required}, null, 2));\' <retained-evidence-dir>',
     'node -e \'const fs=require("node:fs"); const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const summary={schema_version:manifest.schema_version,failedPackageVersion:manifest.failed?.packageVersion,replacementPackageVersion:manifest.replacement?.packageVersion,retentionArtifacts:manifest.retention?.artifacts,provenanceArtifacts:(manifest.provenance?.artifacts??[]).map((artifact)=>artifact.name)}; console.log(JSON.stringify(summary,null,2));\' <retained-manifest>',
     'node -e \'const fs=require("node:fs"); const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const required=["jury-package-dry-run","jury-package-release-evidence","rollback-audit.json","replacement-patch-audit.json"]; const missing=required.filter((artifact)=>!manifest.retention?.artifacts?.includes(artifact)); const provenanceMissing=["jury-package-dry-run","jury-package-release-evidence"].filter((name)=>!(manifest.provenance?.artifacts??[]).some((artifact)=>artifact.name===name)); if (missing.length || provenanceMissing.length) throw new Error(`missing retained archive evidence: retention=${missing.join(", ") || "none"} provenance=${provenanceMissing.join(", ") || "none"}`); console.log(JSON.stringify({ok:true, retentionArtifacts: required, provenanceArtifacts:["jury-package-dry-run","jury-package-release-evidence"]}, null, 2));\' <retained-manifest>',
   ]);
@@ -1767,6 +1808,8 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("retained package release archive drift remediation section"));
   assert.ok(publicationNotes.includes("restore missing or changed archive evidence first"));
   assert.ok(publicationNotes.includes("record the approving maintainer before replacing the archived copy"));
+  assert.ok(publicationNotes.includes("archive-drift-remediation-audit.json"));
+  assert.ok(publicationNotes.includes("schemas/package-release-remediation-audit.schema.json"));
   assert.ok(publicationNotes.includes("jury.package_release_archive_manifest.v1"));
   assert.ok(publicationNotes.includes("schemas/package-release-archive-manifest.schema.json"));
   assert.ok(publicationNotes.includes("dry-run-publication"));
@@ -2655,6 +2698,7 @@ test("review bundle schema references the stable record schemas", async () => {
   const keyPolicySchema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/key-policy.schema.json"), "utf8"));
   const packageReleaseEvidenceSchema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/package-release-evidence.schema.json"), "utf8"));
   const packageReleaseArchiveManifestSchema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/package-release-archive-manifest.schema.json"), "utf8"));
+  const packageReleaseRemediationAuditSchema = JSON.parse(await readFile(join(repoRoot, "jury/schemas/package-release-remediation-audit.schema.json"), "utf8"));
   const properties = schema.properties.records.properties;
 
   assert.ok(schema.required.includes("producer"));
@@ -2734,6 +2778,14 @@ test("review bundle schema references the stable record schemas", async () => {
     "replacement-patch-audit.json",
   ]);
   assert.equal(packageReleaseArchiveManifestSchema.properties.archiveEvidence.items.properties.sha256.pattern, "^sha256:[a-f0-9]{64}$");
+  assert.equal(packageReleaseRemediationAuditSchema.properties.schema_version.const, "jury.package_release_remediation_audit.v1");
+  assert.equal(packageReleaseRemediationAuditSchema.properties.audit_type.const, "retained-archive-drift-remediation");
+  assert.deepEqual(packageReleaseRemediationAuditSchema.required, ["schema_version", "audit_type", "package", "failed", "replacement", "drift", "remediation", "verification", "approval", "record"]);
+  assert.deepEqual(packageReleaseRemediationAuditSchema.properties.drift.required, ["detectedBy", "manifest", "evidence"]);
+  assert.equal(packageReleaseRemediationAuditSchema.properties.drift.properties.detectedBy.const, "fixtures:package-release:drift");
+  assert.equal(packageReleaseRemediationAuditSchema.properties.drift.properties.evidence.items.properties.archive.enum.length, 3);
+  assert.equal(packageReleaseRemediationAuditSchema.properties.remediation.properties.policy.const, "restore-before-regenerate");
+  assert.equal(packageReleaseRemediationAuditSchema.properties.remediation.properties.regeneratedManifest.const, "retained-package-release-evidence-manifest.json");
 });
 
 test("migration doc preserves the release artifact contract", async () => {
@@ -2792,6 +2844,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/key-policy-rotation/README.md",
     "examples/ci/fixtures/package-release",
     "examples/ci/fixtures/package-release/README.md",
+    "examples/ci/fixtures/package-release/archive-drift-remediation-audit.json",
     "examples/ci/fixtures/package-release/jury-pack-dry-run-record.json",
     "examples/ci/fixtures/package-release/failed-npm-view.json",
     "examples/ci/fixtures/package-release/downstream-failure-gate.json",
@@ -2802,6 +2855,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json",
     "schemas/package-release-archive-manifest.schema.json",
     "schemas/package-release-evidence.schema.json",
+    "schemas/package-release-remediation-audit.schema.json",
     "scripts/validate-package-release-fixtures.mjs",
   ]) {
     assert.ok(linkedTargets.includes(requiredLink), `RELEASE_CHECKLIST.md should link ${requiredLink}`);
@@ -2823,7 +2877,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes('npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check'));
   assert.ok(checklist.includes("before `dry-run-publication`"));
   assert.ok(checklist.includes("`jury-package-release-evidence`"));
-  assert.ok(checklist.includes("`rollback-audit.json` and `replacement-patch-audit.json`"));
+  assert.ok(checklist.includes("`rollback-audit.json`, `replacement-patch-audit.json`, and `archive-drift-remediation-audit.json`"));
   assert.ok(checklist.includes("`jury-package-release-archive-manifest`"));
   assert.ok(checklist.includes('JURY_PACKAGE_RELEASE_MANIFEST_PATH'));
   assert.ok(checklist.includes("Download `jury-package-release-archive-manifest`"));
@@ -2851,6 +2905,8 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("npm --prefix jury run fixtures:package-release:drift"));
   assert.ok(checklist.includes("checked-in retained archive manifest has not drifted from failed or replacement archive evidence"));
   assert.ok(checklist.includes("If retained archive drift appears"));
+  assert.ok(checklist.includes("archive-drift-remediation-audit.json"));
+  assert.ok(checklist.includes("failed-publication drift, replacement-patch drift"));
   assert.ok(checklist.includes("record the approving maintainer before replacing the archived copy"));
   assert.ok(checklist.includes("schemas/package-release-archive-manifest.schema.json"));
   assert.ok(checklist.includes("If retained package release manifest replay fails"));
@@ -2913,8 +2969,10 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/package-release",
     "examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json",
+    "examples/ci/fixtures/package-release/archive-drift-remediation-audit.json",
     "schemas/package-release-archive-manifest.schema.json",
     "schemas/package-release-evidence.schema.json",
+    "schemas/package-release-remediation-audit.schema.json",
     "scripts/validate-package-release-fixtures.mjs",
     "MIGRATION.md",
     "RELEASE_CHECKLIST.md",
@@ -3021,6 +3079,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /Archive Drift Remediation/);
   assert.match(handoff, /restore the changed failed or replacement archive evidence before regenerating/);
   assert.match(handoff, /record the approving maintainer in the release or incident record/);
+  assert.match(handoff, /Remediation Audit Record/);
+  assert.match(handoff, /archive-drift-remediation-audit\.json/);
+  assert.match(handoff, /failed-publication drift, replacement-patch drift, restored evidence, verification commands, manifest regeneration, diff review, and maintainer approval/);
   assert.match(handoff, /package release evidence artifact upload guidance/);
   assert.match(handoff, /package release evidence artifact download and replay guidance/);
   assert.match(handoff, /Package release evidence replay troubleshooting now covers/);
@@ -3029,7 +3090,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI handoff for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

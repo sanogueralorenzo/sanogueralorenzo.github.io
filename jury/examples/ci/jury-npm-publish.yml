@@ -52,6 +52,7 @@ jobs:
             jury/examples/ci/fixtures/package-release/replacement-npm-view.json
             jury/examples/ci/fixtures/package-release/replacement-downstream-gate.json
             jury/examples/ci/fixtures/package-release/replacement-patch-audit.json
+            jury/examples/ci/fixtures/package-release/archive-drift-remediation-audit.json
       - name: Upload Jury package release archive manifest
         uses: actions/upload-artifact@v4
         with:

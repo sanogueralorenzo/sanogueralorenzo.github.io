@@ -15,9 +15,10 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, trusted key policy manifest, and untrusted-producer troubleshooting policy.
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
-- [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release): local package release evidence examples for failed publication rollback, replacement patch supersedence audits, and the retained release archive manifest fixture.
+- [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release): local package release evidence examples for failed publication rollback, replacement patch supersedence audits, retained release archive manifest fixture, and archive drift remediation audit record.
 - [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json): JSON schema contract for retained package release archive manifests.
 - [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json): JSON schema contract for package release evidence audit files.
+- [schemas/package-release-remediation-audit.schema.json](schemas/package-release-remediation-audit.schema.json): JSON schema contract for retained archive drift remediation audit records.
 - [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs): local schema and relationship check for the package release evidence fixtures.
 - [MIGRATION.md](MIGRATION.md): artifact handoff and bundle replay path.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): release-readiness checklist.
@@ -37,7 +38,7 @@ npm --prefix jury run fixtures:package-release:check
 npm --prefix jury run fixtures:package-release:drift
 ```
 
-The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, package release artifact provenance checks for retained failed and replacement evidence, retained package release evidence manifest export, schema validation, verification, archive drift checking, CI handoff, and replay troubleshooting for failed and replacement release archives, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, package release artifact provenance checks for retained failed and replacement evidence, retained package release evidence manifest export, schema validation, verification, archive drift checking, archive drift remediation audit records, CI handoff, and replay troubleshooting for failed and replacement release archives, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -58,6 +59,10 @@ Run `npm --prefix jury run fixtures:package-release:drift` before handing off pa
 ## Archive Drift Remediation
 
 When archive drift appears, restore the changed failed or replacement archive evidence before regenerating the retained manifest. Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to identify whether the drift belongs to failed publication evidence, replacement patch evidence, or the dry-run package identity, then regenerate with `--manifest-out`, review the diff, rerun `--verify-manifest`, and record the approving maintainer in the release or incident record before replacing the archived manifest.
+
+## Remediation Audit Record
+
+The package release fixture directory includes [examples/ci/fixtures/package-release/archive-drift-remediation-audit.json](examples/ci/fixtures/package-release/archive-drift-remediation-audit.json). It records failed-publication drift, replacement-patch drift, restored evidence, verification commands, manifest regeneration, diff review, and maintainer approval before archived manifest replacement.
 
 ## Manifest Replay Troubleshooting
 
@@ -93,4 +98,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record CI handoff for failed and replacement release archives.

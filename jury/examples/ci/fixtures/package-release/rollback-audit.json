@@ -49,7 +49,8 @@
             "rollback-audit.json",
             "replacement-npm-view.json",
             "replacement-downstream-gate.json",
-            "replacement-patch-audit.json"
+            "replacement-patch-audit.json",
+            "archive-drift-remediation-audit.json"
           ]
         }
       ]

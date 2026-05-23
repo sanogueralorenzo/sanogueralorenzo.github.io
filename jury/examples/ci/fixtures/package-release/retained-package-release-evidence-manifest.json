@@ -66,7 +66,8 @@
           "rollback-audit.json",
           "replacement-npm-view.json",
           "replacement-downstream-gate.json",
-          "replacement-patch-audit.json"
+          "replacement-patch-audit.json",
+          "archive-drift-remediation-audit.json"
         ]
       }
     ]
@@ -86,7 +87,7 @@
     },
     {
       "path": "rollback-audit.json",
-      "sha256": "sha256:962d3f305c83e40442fe9fc56722686f9479b03c308285343f9544f50a383398"
+      "sha256": "sha256:4c82557058e2d2ca6931f66b01aea786258f067178ccf1f89395366bfebc9ee4"
     },
     {
       "path": "replacement-npm-view.json",
@@ -98,7 +99,7 @@
     },
     {
       "path": "replacement-patch-audit.json",
-      "sha256": "sha256:c6a8628db28a5efda078bca6ee0cd5ba6fd19c5e2cc579571b4a480091910774"
+      "sha256": "sha256:8bf5b311914413c9d08981a3eee4dfc91bd4099a2043e2ab0c8be69de9e5b177"
     }
   ]
 }
