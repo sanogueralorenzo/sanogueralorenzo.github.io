@@ -92,7 +92,7 @@ help     Print this help output.
 - At turn completion, it sends only the final assistant turn answer.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.
 - When `PRECEDENT_ENABLED=1`, Codex Remote calls Precedent with the bound Codex thread id before each normal turn. Only `contextBlock` is prepended to the prompt; `candidateHints` and `promotionTrials` remain telemetry and are never injected as instructions.
-- If Precedent recorded a repairable failure for the bound thread, Codex Remote prepends one `repairBlock` to the next normal prompt and records the retry receipt after that turn.
+- If Precedent records a repairable failure, Codex Remote can prepend one `repairBlock` to a hidden same-thread repair continuation before replying, or to the next normal prompt when the failure was already present before the turn. It records the retry receipt after the repaired turn.
 - Precedent calls are bounded by timeout and fail open: a hung or failing Precedent process cannot block a Telegram turn.
 
 ### Thread Delete Behavior

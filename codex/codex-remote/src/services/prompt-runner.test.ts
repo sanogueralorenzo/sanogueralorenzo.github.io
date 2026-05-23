@@ -17,7 +17,12 @@ vi.mock("../adapters/app-server/client.js", () => ({
 
 describe("createPromptRunner", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.mocked(sendMessageWithTimeoutContinuation).mockReset();
+    vi.mocked(sendMessageWithoutResumeWithTimeoutContinuation).mockReset();
+    vi.mocked(sendMessageWithTimeoutContinuation).mockImplementation(async (_threadId: string, text: string) => ({
+      status: "completed",
+      response: `done:${text}`,
+    }));
   });
 
   it("passes Precedent context into normal thread prompts and records outcomes", async () => {
@@ -252,6 +257,151 @@ describe("createPromptRunner", () => {
       expect.any(Object)
     );
     expect(sentMessages).toEqual(["fallback done"]);
+  });
+
+  it("runs one hidden repair continuation from current-turn evidence before replying", async () => {
+    vi.mocked(sendMessageWithTimeoutContinuation).mockImplementationOnce(async (_threadId, text, runtimeOptions) => {
+      runtimeOptions?.onTurnEvent?.({
+        kind: "itemCompleted",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        itemId: "cmd-1",
+        itemType: "commandExecution",
+        text: null,
+        status: "completed",
+        command: "npm test",
+        output: "fail",
+        exitCode: 1,
+        durationMs: 100,
+      });
+      return {
+        status: "completed",
+        response: `first:${text}`,
+      };
+    });
+    vi.mocked(sendMessageWithTimeoutContinuation).mockImplementationOnce(async (_threadId, text) => ({
+      status: "completed",
+      response: `repaired:${text}`,
+    }));
+    const sentMessages: string[] = [];
+    const afterTurns: unknown[] = [];
+    const afterRetries: unknown[] = [];
+    let beforeRetryCalls = 0;
+    const bridge: PrecedentBridge = {
+      beforeTurn: vi.fn(async () => ({
+        task: "Precedent:\n- Run focused validation.\n\nship it",
+        contextBlock: "Precedent:\n- Run focused validation.",
+        candidateHints: [],
+        promotionTrials: [],
+        attributedPrecedents: ["prec_validation"],
+      })),
+      beforeRetry: vi.fn(async () => {
+        beforeRetryCalls += 1;
+        if (beforeRetryCalls === 1) {
+          return { repairBlock: "", repairId: null };
+        }
+        return {
+          repairBlock: "Precedent repair:\n- Fix the failed validation.",
+          repairId: "repair_current",
+        };
+      }),
+      observeTurnEvent: vi.fn(async () => {}),
+      afterRetry: vi.fn(async (input) => {
+        afterRetries.push(input);
+      }),
+      afterTurn: vi.fn(async (input) => {
+        afterTurns.push(input);
+      }),
+    };
+    const runner = createPromptRunner({
+      store: { get: async () => "thread-1" } as never,
+      pendingNewSessionChats: new Set(),
+      getPendingNewSessionCwd: () => null,
+      clearPendingNewSessionCwd: () => {},
+      onThreadNotBound: async () => {},
+      getConversationOptions: () => ({ cwd: "/repo" }),
+      bindChatToThread: async () => {},
+      requestApprovalFromTelegram: async () => "accept",
+      precedentBridge: bridge,
+    });
+
+    await runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "ship it");
+
+    expect(bridge.beforeRetry).toHaveBeenCalledTimes(2);
+    expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledTimes(2);
+    expect(sendMessageWithTimeoutContinuation).toHaveBeenNthCalledWith(
+      2,
+      "thread-1",
+      "Precedent repair:\n- Fix the failed validation.",
+      expect.any(Object)
+    );
+    expect(sentMessages).toEqual(["repaired:Precedent repair:\n- Fix the failed validation."]);
+    expect(afterTurns).toMatchObject([{
+      response: "repaired:Precedent repair:\n- Fix the failed validation.",
+      success: true,
+    }]);
+    expect(afterRetries).toMatchObject([{
+      repairId: "repair_current",
+      attributedPrecedents: ["prec_validation"],
+    }]);
+  });
+
+  it("sends the original response when hidden repair continuation fails", async () => {
+    vi.mocked(sendMessageWithTimeoutContinuation).mockImplementationOnce(async (_threadId, text, runtimeOptions) => {
+      runtimeOptions?.onTurnEvent?.({
+        kind: "itemCompleted",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        itemId: "cmd-1",
+        itemType: "commandExecution",
+        text: null,
+        status: "completed",
+        command: "npm test",
+        output: "fail",
+        exitCode: 1,
+        durationMs: 100,
+      });
+      return {
+        status: "completed",
+        response: `first:${text}`,
+      };
+    });
+    vi.mocked(sendMessageWithTimeoutContinuation).mockRejectedValueOnce(new Error("repair failed"));
+    const sentMessages: string[] = [];
+    const bridge: PrecedentBridge = {
+      beforeTurn: vi.fn(async () => ({
+        task: "Precedent:\n- Run focused validation.\n\nship it",
+        contextBlock: "Precedent:\n- Run focused validation.",
+        candidateHints: [],
+        promotionTrials: [],
+        attributedPrecedents: ["prec_validation"],
+      })),
+      beforeRetry: vi.fn()
+        .mockResolvedValueOnce({ repairBlock: "", repairId: null })
+        .mockResolvedValueOnce({
+          repairBlock: "Precedent repair:\n- Fix the failed validation.",
+          repairId: "repair_current",
+        }),
+      observeTurnEvent: vi.fn(async () => {}),
+      afterRetry: vi.fn(async () => {}),
+      afterTurn: vi.fn(async () => {}),
+    };
+    const runner = createPromptRunner({
+      store: { get: async () => "thread-1" } as never,
+      pendingNewSessionChats: new Set(),
+      getPendingNewSessionCwd: () => null,
+      clearPendingNewSessionCwd: () => {},
+      onThreadNotBound: async () => {},
+      getConversationOptions: () => ({ cwd: "/repo" }),
+      bindChatToThread: async () => {},
+      requestApprovalFromTelegram: async () => "accept",
+      precedentBridge: bridge,
+    });
+
+    await runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "ship it");
+
+    expect(sentMessages).toEqual(["first:Precedent:\n- Run focused validation.\n\nship it"]);
+    expect(bridge.afterRetry).not.toHaveBeenCalled();
   });
 });
 
