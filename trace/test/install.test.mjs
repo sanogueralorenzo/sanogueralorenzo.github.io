@@ -7,15 +7,32 @@ import { spawn } from "node:child_process";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 const installScript = join(repoRoot, "trace/install.sh");
+const cliPath = join(repoRoot, "trace/bin/trace.mjs");
 
 test("install script installs updates and uninstalls trace", async () => {
   const installDir = await mkdtemp(join(tmpdir(), "trace-install-"));
 
   try {
+    const before = await run(["node", cliPath, "install", "status", "--prefix", installDir]);
+    assert.equal(before.exitCode, 0, before.stderr);
+    const beforePayload = JSON.parse(before.stdout);
+    assert.equal(beforePayload.installed, false);
+    assert.equal(beforePayload.valid, false);
+    assert.equal(beforePayload.target, join(installDir, "trace"));
+
     const installed = await run(["bash", installScript, "--prefix", installDir]);
     assert.equal(installed.exitCode, 0, installed.stderr);
     assert.match(installed.stdout, /Installed trace -> /);
     assert.equal((await lstat(join(installDir, "trace"))).isSymbolicLink(), true);
+
+    const status = await run(["node", cliPath, "install", "status", "--prefix", installDir]);
+    assert.equal(status.exitCode, 0, status.stderr);
+    const statusPayload = JSON.parse(status.stdout);
+    assert.equal(statusPayload.installed, true);
+    assert.equal(statusPayload.valid, true);
+    assert.equal(statusPayload.kind, "symlink");
+    assert.equal(statusPayload.expectedLinkTarget, cliPath);
+    assert.match(statusPayload.updateCommand, /install\.sh --update --prefix/);
 
     const help = await run([join(installDir, "trace"), "help"]);
     assert.equal(help.exitCode, 0, help.stderr);
@@ -28,6 +45,10 @@ test("install script installs updates and uninstalls trace", async () => {
     const uninstalled = await run(["bash", installScript, "--uninstall", "--prefix", installDir]);
     assert.equal(uninstalled.exitCode, 0, uninstalled.stderr);
     assert.match(uninstalled.stdout, /Uninstalled trace from /);
+
+    const after = await run(["node", cliPath, "install", "status", "--prefix", installDir]);
+    assert.equal(after.exitCode, 0, after.stderr);
+    assert.equal(JSON.parse(after.stdout).installed, false);
 
     const repeated = await run(["bash", installScript, "--uninstall", "--prefix", installDir]);
     assert.equal(repeated.exitCode, 0, repeated.stderr);

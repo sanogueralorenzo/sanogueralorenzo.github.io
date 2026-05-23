@@ -2,8 +2,9 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
-import { access, chmod, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { access, chmod, lstat, mkdir, readFile, readlink, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -65,6 +66,11 @@ async function main() {
 
   if (command === "disable") {
     await disableRepo();
+    return;
+  }
+
+  if (command === "install") {
+    await runInstallCommand(subcommand, rawArgs);
     return;
   }
 
@@ -265,6 +271,66 @@ async function disableRepo() {
   await removeManagedBlock(join(hooksDir, "prepare-commit-msg"));
   await removeManagedBlock(join(hooksDir, "post-commit"));
   print({ ok: true, enabled: false });
+}
+
+async function runInstallCommand(action, values) {
+  if (!action || action === "status") {
+    await printInstallStatus(values);
+    return;
+  }
+
+  fail(`unknown install command: ${action}`);
+}
+
+async function printInstallStatus(values) {
+  const prefix = args.prefix ?? positionalValues(values)[0] ?? process.env.TRACE_INSTALL_DIR ?? join(homedir(), ".local", "bin");
+  const installDir = resolve(process.cwd(), prefix);
+  const target = join(installDir, "trace");
+  const source = fileURLToPath(import.meta.url);
+  const targetStatus = await traceInstallTargetStatus(target, source);
+  print({
+    ok: true,
+    installDir,
+    target,
+    source,
+    installed: targetStatus.installed,
+    valid: targetStatus.valid,
+    kind: targetStatus.kind,
+    linkTarget: targetStatus.linkTarget,
+    expectedLinkTarget: source,
+    installCommand: `./trace/install.sh --prefix ${shellQuote(installDir)}`,
+    updateCommand: `./trace/install.sh --update --prefix ${shellQuote(installDir)}`,
+    uninstallCommand: `./trace/install.sh --uninstall --prefix ${shellQuote(installDir)}`,
+  });
+}
+
+async function traceInstallTargetStatus(target, source) {
+  const info = await lstat(target).catch(() => null);
+  if (!info) {
+    return { installed: false, valid: false, kind: "missing", linkTarget: null };
+  }
+
+  if (!info.isSymbolicLink()) {
+    const resolved = await realpath(target).catch(() => null);
+    const expected = await realpath(source).catch(() => source);
+    return {
+      installed: true,
+      valid: resolved === expected,
+      kind: info.isFile() ? "file" : "other",
+      linkTarget: resolved,
+    };
+  }
+
+  const link = await readlink(target);
+  const resolved = resolve(dirname(target), link);
+  const expected = await realpath(source).catch(() => source);
+  const actual = await realpath(target).catch(() => resolved);
+  return {
+    installed: true,
+    valid: actual === expected,
+    kind: "symlink",
+    linkTarget: resolved,
+  };
 }
 
 async function printStatus() {
@@ -2718,6 +2784,7 @@ function printHelp() {
   process.stdout.write(`Trace records compact commit memory for agentic coding.
 
 Usage:
+  trace install status [--prefix DIR]
   trace init
   trace enable
   trace capture --event prompt --role user --message "why this change exists"
