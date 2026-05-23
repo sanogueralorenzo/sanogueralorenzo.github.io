@@ -23,6 +23,7 @@ const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell
 const INVALID_WEB_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_web_read_outside_capability.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
+const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_impure_file_write.intent", import.meta.url).pathname;
 const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_without_retention.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
@@ -273,6 +274,19 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].argument, "command");
     assert.equal(payload.diagnostics[0].value, "npm run lint");
     assert.deepEqual(payload.diagnostics[0].allowed, ["npm test"]);
+  });
+
+  it("rejects side-effect calls inside verification requirements", () => {
+    const result = run(["check", INVALID_VERIFY_IMPURE_FILE_WRITE]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_VERIFY_IMPURE");
+    assert.equal(payload.diagnostics[0].requirement, "FileWrite(path: \"./src/app.ts\")");
+    assert.equal(payload.diagnostics[0].effect, "FileWrite");
+    assert.equal(payload.diagnostics[0].family, "file");
+    assert.equal(payload.diagnostics[0].action, "write");
   });
 
   it("rejects memory blocks without retention lifecycle rules", () => {

@@ -295,9 +295,12 @@ blocking diagnostics.
   read domains, and git push branches or remotes.
 - Normalize and compare constrained resources such as paths, commands, domains,
   branches, secret names, and approval targets.
-- Require verification gates for every goal and ensure they are pure unless
-  they declare a verification effect.
+- Require verification gates for every goal and ensure they are pure assertions
+  except for supported verification effects.
 - Bind verification shell requirements to declared shell run capability grants.
+- Emit `INTENT_VERIFY_IMPURE` for side-effect calls inside goal-level `verify`
+  requirements, including file writes, git pushes, web or HTTP reads, deploys,
+  and ticket updates.
 - Parse step-body `require ...` lines as step requirements, separate from
   goal-level verification requirements.
 - Parse step-body `checkpoint ...` lines as step checkpoints owned by their
@@ -607,6 +610,19 @@ Rules:
 - If no declared shell run grant covers the command, the checker emits
   `INTENT_VERIFY_UNDECLARED` at the verification shell call span with the
   denied command and allowed shell run grants.
+
+## Verification Purity
+
+Goal-level `verify` requirements are completion assertions, not execution
+steps. They may use predicate logic and supported verification effects only.
+The supported verification effect for this milestone is a shell check written
+as `shell("...")` or `shell(command: "...")`; it remains subject to
+verification shell binding and capability checks.
+
+Any side-effecting operation inside a goal-level `verify` requirement is
+impure. Calls such as `FileWrite`, `GitPush`, `web.read`, `http.get`, deploy
+operations, or ticket updates emit `INTENT_VERIFY_IMPURE` at the impure call
+span and make graph output non-executable.
 
 ## Diagnostics
 

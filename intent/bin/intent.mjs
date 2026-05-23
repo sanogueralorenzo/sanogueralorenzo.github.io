@@ -614,6 +614,17 @@ function validateStepBindings(goal, diagnostics) {
 
 function validateVerifyRequirements(goal, diagnostics) {
   for (const requirement of goal.verify) {
+    const impureEffect = verificationImpureEffect(requirement);
+    if (impureEffect) {
+      diagnostics.push(error("INTENT_VERIFY_IMPURE", `verify requirement '${requirement.value}' uses side-effect call '${impureEffect.name}'.`, requirement.span, {
+        requirement: requirement.value,
+        effect: impureEffect.name,
+        family: impureEffect.family,
+        action: impureEffect.action,
+      }));
+      continue;
+    }
+
     const effect = verificationEffect(requirement);
     if (!effect) {
       continue;
@@ -1051,6 +1062,37 @@ function verificationEffect(requirement) {
     expression: requirement.value,
     span: requirement.span,
   };
+}
+
+function verificationImpureEffect(requirement) {
+  for (const match of requirement.value.matchAll(/\b([A-Za-z][A-Za-z0-9_.]*)\s*\(([^)]*)\)/g)) {
+    const name = match[1];
+    if (name === "shell") {
+      continue;
+    }
+    if (!isKnownEffectCall(name)) {
+      continue;
+    }
+    const parsedArgs = parseCallArgs(`(${match[2]})`);
+    return {
+      kind: "EffectUse",
+      name,
+      family: effectFamily(name),
+      action: effectAction(name),
+      args: parsedArgs.values,
+      argKinds: parsedArgs.kinds,
+      expression: match[0],
+      span: requirement.span,
+    };
+  }
+  return null;
+}
+
+function isKnownEffectCall(name) {
+  if (/^[A-Z][A-Za-z0-9_.]*$/.test(name)) {
+    return true;
+  }
+  return ["file", "fs", "web", "http", "git", "deploy", "ticket"].includes(effectFamily(name));
 }
 
 function error(code, message, nodeSpan, data = {}) {

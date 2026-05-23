@@ -176,6 +176,12 @@ Inside `verify` requirements, `shell("npm test")` and
 binds them to declared shell run capability grants instead of treating them as
 opaque predicate text.
 
+Goal-level `verify` requirements are pure assertions by default. A `verify`
+requirement may include only predicate logic and supported verification effects,
+currently `shell("...")` and `shell(command: "...")`. Side-effect calls inside
+`verify`, including file writes, git pushes, web or HTTP reads, deploys, and
+ticket updates, are invalid and emit `INTENT_VERIFY_IMPURE`.
+
 Shell command arguments are trust-sensitive in the first checker prototype. A
 shell command argument must be either a string literal or a value already marked
 trusted by the checker. Nonliteral shell command expressions that are not
@@ -254,6 +260,10 @@ The parser emits names and type reference strings; the checker owns binding.
 - Verify `shell("command")` and `shell(command: "command")` requirements bind
   to in-scope shell run capability grants. If no declared grant covers the
   normalized command, the checker emits `INTENT_VERIFY_UNDECLARED`.
+- Goal-level `verify` requirements are pure assertions except for supported
+  verification effects. Side-effect calls such as `FileWrite`, `GitPush`, web
+  reads, deploys, or ticket updates inside `verify` emit
+  `INTENT_VERIFY_IMPURE`.
 - Step-body `require ...` lines become step requirement checks. They are
   emitted as graph `Check` nodes with `requires` edges into the owning step and
   `gates` edges to the owning goal, distinct from goal-level `verify`

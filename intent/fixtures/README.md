@@ -23,6 +23,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_shell_exec_outside_capability.intent`: calls `ShellExec` with a command outside the declared shell grant.
 - `invalid_web_read_outside_capability.intent`: calls `WebRead` for a URL outside the declared web domain grant.
 - `invalid_verify_shell_without_capability.intent`: requires `shell("npm run lint")` in verification without declaring the matching shell run grant.
+- `invalid_verify_impure_file_write.intent`: declares normal file and shell capabilities but calls `FileWrite(path: "./src/app.ts")` from `verify`, which should be rejected because verification must stay side-effect free.
 - `invalid_memory_without_retention.intent`: declares a memory block without any `retain ... until ...` retention rule.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.
