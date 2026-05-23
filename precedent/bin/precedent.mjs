@@ -97,6 +97,11 @@ async function main() {
     return;
   }
 
+  if (command === "check") {
+    await checkState();
+    return;
+  }
+
   if (command === "report") {
     await reportState();
     return;
@@ -860,12 +865,15 @@ async function printManifest() {
     fail(`unsupported runtime: ${runtime}`);
   }
 
-  const stateDir = args["state-dir"] ?? runtimeConfig.stateDir;
+  print(buildManifest(runtime, args["state-dir"] ?? runtimeConfig.stateDir));
+}
+
+function buildManifest(runtime, stateDir) {
   const hookCommand = ["node", "precedent/bin/precedent.mjs", "hook", "--state-dir", stateDir, "--json"];
   const timeoutMs = runtimeConfig.hookTimeoutMs;
   const failurePolicy = runtimeConfig.failurePolicy;
 
-  print({
+  return {
     schema_version: "precedent.manifest.v1",
     runtime,
     stateDir,
@@ -926,7 +934,7 @@ async function printManifest() {
         failurePolicy,
       },
     },
-  });
+  };
 }
 
 async function reportState() {
@@ -954,6 +962,36 @@ async function reportState() {
       ...outcomeSummaryForPrecedent(events, precedent.id),
     })),
   });
+}
+
+async function checkState() {
+  const stateDir = statePath();
+  const checks = [];
+
+  await checkConfig(checks);
+  await checkJsonLinesFile(checks, join(stateDir, "precedents.jsonl"), "precedents");
+  await checkJsonLinesFile(checks, join(stateDir, "events.jsonl"), "events");
+  await checkJsonLinesFile(checks, join(stateDir, "candidates.jsonl"), "candidates");
+  await checkJsonFilesInDir(checks, join(stateDir, "traces"), "trace", (value, file) => {
+    assertCheck(value?.schema_version === SCHEMA_VERSION, checks, "trace_schema", file, "trace.schema_version is invalid");
+  });
+  await checkJsonLinesInDir(checks, join(stateDir, "sessions"), "session");
+  await checkReplayArtifacts(checks, join(stateDir, "replays"));
+  await checkPromotedPrecedents(checks, stateDir);
+  await checkNoRawSecrets(checks, stateDir);
+  await checkManifestBuilds(checks);
+
+  const ok = checks.every((check) => check.ok);
+  const payload = {
+    ok,
+    stateDir,
+    checks,
+  };
+
+  print(payload);
+  if (!ok) {
+    process.exit(1);
+  }
 }
 
 function compileTraceCandidates(trace) {
@@ -1958,6 +1996,193 @@ async function readReplayCount(replaysDir) {
   }
 }
 
+async function checkConfig(checks) {
+  try {
+    const config = parseJson(await readFile(runtimeConfigPath, "utf8"), runtimeConfigPath);
+    validateConfigForCheck(config, "config", runtimeConfigPath, checks);
+    checks.push({ ok: true, name: "config", file: runtimeConfigPath });
+  } catch (error) {
+    checks.push({ ok: false, name: "config", file: runtimeConfigPath, message: error.message });
+  }
+}
+
+async function checkJsonLinesFile(checks, path, name) {
+  try {
+    const content = await readFile(path, "utf8");
+    const lines = content.split("\n");
+
+    lines.forEach((line, index) => {
+      if (line.trim().length === 0) {
+        return;
+      }
+
+      try {
+        JSON.parse(line);
+      } catch (error) {
+        checks.push({ ok: false, name, file: path, line: index + 1, message: `invalid JSONL: ${error.message}` });
+      }
+    });
+
+    if (!checks.some((check) => check.name === name && check.file === path && !check.ok)) {
+      checks.push({ ok: true, name, file: path });
+    }
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      checks.push({ ok: true, name, file: path, skipped: true });
+      return;
+    }
+
+    checks.push({ ok: false, name, file: path, message: error.message });
+  }
+}
+
+async function checkJsonFilesInDir(checks, dir, name, validate) {
+  for (const file of await jsonFiles(dir)) {
+    try {
+      validate(parseJson(await readFile(file, "utf8"), file), file);
+      checks.push({ ok: true, name, file });
+    } catch (error) {
+      checks.push({ ok: false, name, file, message: error.message });
+    }
+  }
+}
+
+async function checkJsonLinesInDir(checks, dir, name) {
+  for (const file of await jsonFiles(dir, ".jsonl")) {
+    await checkJsonLinesFile(checks, file, name);
+  }
+}
+
+async function checkReplayArtifacts(checks, replaysDir) {
+  for (const file of await jsonFiles(replaysDir)) {
+    try {
+      const replay = parseJson(await readFile(file, "utf8"), file);
+      assertCheck(typeof replay.id === "string", checks, "replay", file, "replay.id is required");
+      assertCheck(typeof replay.baseline?.exitCode === "number", checks, "replay", file, "replay.baseline.exitCode is required");
+      assertCheck(typeof replay.rerun?.exitCode === "number", checks, "replay", file, "replay.rerun.exitCode is required");
+      checks.push({ ok: true, name: "replay", file });
+    } catch (error) {
+      checks.push({ ok: false, name: "replay", file, message: error.message });
+    }
+  }
+}
+
+async function checkPromotedPrecedents(checks, stateDir) {
+  let precedents = [];
+  try {
+    precedents = await readJsonLinesForCheck(join(stateDir, "precedents.jsonl"));
+  } catch (error) {
+    checks.push({ ok: false, name: "promoted_precedent", file: join(stateDir, "precedents.jsonl"), message: error.message });
+    return;
+  }
+
+  for (const precedent of precedents) {
+    const name = "promoted_precedent";
+    const file = join(stateDir, "precedents.jsonl");
+    assertCheck(precedent.promotion_status === "promoted", checks, name, file, `precedent ${precedent.id} is not promoted`);
+    assertCheck(Array.isArray(precedent.evidence) && precedent.evidence.length > 0, checks, name, file, `precedent ${precedent.id} has no evidence`);
+    assertCheck(Number.isFinite(precedent.promotion?.baseline_failures), checks, name, file, `precedent ${precedent.id} missing baseline_failures`);
+    assertCheck(Number.isFinite(precedent.promotion?.rerun_failures), checks, name, file, `precedent ${precedent.id} missing rerun_failures`);
+  }
+
+  if (!checks.some((check) => check.name === "promoted_precedent" && !check.ok)) {
+    checks.push({ ok: true, name: "promoted_precedent", file: join(stateDir, "precedents.jsonl") });
+  }
+}
+
+async function readJsonLinesForCheck(path) {
+  const content = await readFile(path, "utf8");
+
+  return content
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line));
+}
+
+async function checkNoRawSecrets(checks, stateDir) {
+  const files = await allFiles(stateDir);
+  const findings = [];
+
+  for (const file of files) {
+    const content = await readFile(file, "utf8");
+    if (Object.keys(redactSecrets(content).counts).length > 0) {
+      findings.push(file);
+    }
+  }
+
+  checks.push({
+    ok: findings.length === 0,
+    name: "raw_secret_scan",
+    files: findings,
+    message: findings.length > 0 ? "raw secret-like values found in state" : undefined,
+  });
+}
+
+async function checkManifestBuilds(checks) {
+  const manifest = buildManifest(args.runtime ?? "generic", runtimeConfig.stateDir);
+  checks.push({
+    ok: manifest.schema_version === "precedent.manifest.v1" && manifest.hooks["context.before_turn"].injectFrom === "contextBlock",
+    name: "manifest",
+  });
+}
+
+function validateConfigForCheck(config, name, file, checks) {
+  const before = checks.length;
+  try {
+    validateConfig(config, name);
+  } catch (error) {
+    checks.push({ ok: false, name, file, message: error.message });
+  }
+
+  return checks.length === before;
+}
+
+function assertCheck(condition, checks, name, file, message) {
+  if (!condition) {
+    checks.push({ ok: false, name, file, message });
+  }
+}
+
+async function jsonFiles(dir, suffix = ".json") {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(suffix))
+      .map((entry) => join(dir, entry.name))
+      .sort();
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function allFiles(dir) {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const files = [];
+
+    for (const entry of entries) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...await allFiles(path));
+      } else if (entry.isFile()) {
+        files.push(path);
+      }
+    }
+
+    return files;
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 async function readHookEvent() {
   let rawEvent = "";
   let source = "stdin";
@@ -2157,6 +2382,7 @@ Usage:
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
+  precedent check [--state-dir .precedent] [--strict]
   precedent report [--state-dir .precedent]
 
 Commands:
@@ -2170,6 +2396,7 @@ Commands:
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
+  check     Validate local Precedent state for CI.
   report    Summarize local precedent state.
 
 Config:

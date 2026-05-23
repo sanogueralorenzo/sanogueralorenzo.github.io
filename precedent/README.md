@@ -99,6 +99,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent explain`: audits why a precedent was promoted or rejected.
 - `precedent run`: wraps a validation command and records the result as a session hook.
 - `precedent manifest`: emits the machine-readable hook contract for an agent runtime.
+- `precedent check`: validates local Precedent state for CI.
 - `precedent report`: prints before/after metrics.
 
 The first version should support one repo, five seeded tasks, one baseline coding agent, and three failure classes:
@@ -124,6 +125,7 @@ node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs manifest --runtime generic
+node precedent/bin/precedent.mjs check --json
 node precedent/bin/precedent.mjs observe --session demo
 node precedent/bin/precedent.mjs report
 ```
@@ -142,6 +144,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
+- `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
@@ -178,6 +181,13 @@ Promotion is idempotent. Re-observing the same promoted precedent updates the ex
 All JSON inputs use an explicit v1 schema marker. `observe`, `hook`, and `replay` reject missing or unknown schema versions with an exact field error.
 
 Security behavior is intentionally small and deterministic: before Precedent writes hook events, sessions, traces, replay artifacts, ledgers, or context injections, it redacts common secrets with typed markers such as `[REDACTED:bearer_token]`, `[REDACTED:openai_key]`, `[REDACTED:github_token]`, `[REDACTED:slack_token]`, `[REDACTED:connection_string_password]`, and `[REDACTED:credential]`. `run` still streams the wrapped command's stdout/stderr unchanged to the caller and preserves the exact exit code, but the stored command output is redacted.
+
+GitHub Actions check:
+
+```yaml
+- name: Check Precedent state
+  run: node precedent/bin/precedent.mjs check --json
+```
 
 Example runtime manifest:
 
