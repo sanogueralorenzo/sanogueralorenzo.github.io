@@ -900,6 +900,11 @@ function traceRunArgs(subcommandValue, values) {
 }
 
 async function runSessionCommand(action, values) {
+  if (action === "start" || action === "new") {
+    await startSession(values[0] ?? args.session);
+    return;
+  }
+
   if (!action || action === "list") {
     await listSessions();
     return;
@@ -916,6 +921,17 @@ async function runSessionCommand(action, values) {
   }
 
   fail(`unknown session command: ${action}`);
+}
+
+async function startSession(requestedSessionId) {
+  const root = await repoRoot();
+  await ensureTrace(root);
+  const sessionId = requestedSessionId ? validateSessionId(requestedSessionId) : newSessionId();
+  const file = await sessionPath(root, sessionId);
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, "", { flag: "a" });
+  await writeFile(await currentSessionPath(root), sessionId);
+  print({ ok: true, session: sessionId, path: relativePath(root, file) });
 }
 
 async function listSessions() {
@@ -2226,7 +2242,7 @@ async function currentOrNewSession(root) {
   if (current) {
     return current;
   }
-  const sessionId = `${new Date().toISOString().slice(0, 10)}-${randomHex(16)}`;
+  const sessionId = newSessionId();
   await mkdir(dirname(await currentSessionPath(root)), { recursive: true });
   await writeFile(await currentSessionPath(root), sessionId);
   return sessionId;
@@ -2438,6 +2454,7 @@ Usage:
   trace enable
   trace capture --event prompt --role user --message "why this change exists"
   trace run [--event validation|tool|risk] [--session id] -- <command> [args...]
+  trace session start [session-id]
   trace session list
   trace session current
   trace session show <session> [--limit 20]
@@ -2510,6 +2527,18 @@ function now() {
 
 function randomHex(length) {
   return randomBytes(Math.ceil(length / 2)).toString("hex").slice(0, length);
+}
+
+function newSessionId() {
+  return `${now().slice(0, 10)}-${randomHex(16)}`;
+}
+
+function validateSessionId(sessionId) {
+  const value = String(sessionId);
+  if (!/^[A-Za-z0-9._-]+$/.test(value)) {
+    fail("session id may only contain letters, numbers, dots, underscores, and dashes");
+  }
+  return value;
 }
 
 function relativePath(root, path) {

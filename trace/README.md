@@ -59,6 +59,7 @@ trace agent add claude-code
 trace agent add gemini
 trace capture --event prompt --role user --message "why this change exists"
 trace run -- npm test
+trace session start task-auth-retry
 trace session list
 trace session show <session>
 trace record --validation "npm test"
@@ -104,6 +105,7 @@ node trace/bin/trace.mjs agent add claude-code
 node trace/bin/trace.mjs agent add gemini
 node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
 node trace/bin/trace.mjs run -- npm test
+node trace/bin/trace.mjs session start task-auth-retry
 node trace/bin/trace.mjs session list
 node trace/bin/trace.mjs session show <session>
 node trace/bin/trace.mjs record --validation "npm test"
@@ -149,7 +151,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace run -- <command>` executes a local validation or tool command, streams its output, records the command result into the current raw session, and exits with the same code. Successful commands become `validation` events by default; failed commands become `risk` events. Use `--event tool` when the command is tool activity rather than validation.
 
-`trace session list`, `trace session current`, and `trace session show <session>` inspect the local raw lifecycle store in the git common directory. This gives agents a way to debug capture coverage and event shape without writing transcripts into the project tree.
+`trace session start [session-id]` starts or switches the current local lifecycle session without writing raw data into the project tree. `trace session list`, `trace session current`, and `trace session show <session>` inspect the local raw lifecycle store in the git common directory. This gives agents a way to debug capture coverage and event shape without writing transcripts into the project tree.
 
 `trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
 

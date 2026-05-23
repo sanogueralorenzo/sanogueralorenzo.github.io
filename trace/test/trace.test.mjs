@@ -816,6 +816,41 @@ test("agent add list remove manages local hook adapter configs", async () => {
   }
 });
 
+test("session start creates and switches current lifecycle sessions", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await runTrace(repo, ["init"]);
+
+    const started = JSON.parse((await runTrace(repo, ["session", "start", "task-auth-retry"])).stdout);
+    assert.equal(started.ok, true);
+    assert.equal(started.session, "task-auth-retry");
+    assert.match(started.path, /trace\/sessions\/task-auth-retry\.jsonl$/);
+
+    const current = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
+    assert.equal(current.current, "task-auth-retry");
+
+    const emptyList = JSON.parse((await runTrace(repo, ["session", "list"])).stdout);
+    assert.equal(emptyList.current, "task-auth-retry");
+    assert.equal(emptyList.sessions[0].session, "task-auth-retry");
+    assert.equal(emptyList.sessions[0].events, 0);
+
+    await runTrace(repo, ["capture", "--event", "decision", "--message", "session start controls capture"]);
+    const shown = JSON.parse((await runTrace(repo, ["session", "show", "task-auth-retry"])).stdout);
+    assert.equal(shown.events.length, 1);
+    assert.equal(shown.events[0].message, "session start controls capture");
+
+    const generated = JSON.parse((await runTrace(repo, ["session", "start"])).stdout);
+    assert.match(generated.session, /^2026-05-23-[0-9a-f]{16}$/);
+
+    const invalid = await runTraceAllowFailure(repo, ["session", "start", "../bad"]);
+    assert.equal(invalid.exitCode, 1);
+    assert.match(invalid.stderr, /session id may only contain/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle events", async () => {
   const repo = await tempRepo();
 
