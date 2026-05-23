@@ -1,4 +1,5 @@
 {
+  "schema_version": "precedent.v1",
   "id": "2026-05-23-webhook-no-improvement",
   "task": "add a webhook handler for provider delivery events",
   "scope": "feature:webhooks",

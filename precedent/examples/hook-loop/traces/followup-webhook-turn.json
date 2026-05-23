@@ -1,4 +1,5 @@
 {
+  "schema_version": "precedent.v1",
   "id": "2026-05-23-webhook-refund-followup-turn",
   "task": "add a webhook handler for provider refund events",
   "scope": "feature:webhooks",

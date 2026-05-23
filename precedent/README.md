@@ -111,11 +111,11 @@ This repository includes a small dependency-free prototype:
 node precedent/bin/precedent.mjs init
 node precedent/bin/precedent.mjs observe --trace precedent/examples/webhook-trace.json
 node precedent/bin/precedent.mjs inject --task "add another webhook handler" --scope feature:webhooks
-echo '{"hook":"context.before_turn","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"]}' | node precedent/bin/precedent.mjs hook
+echo '{"schema_version":"precedent.v1","hook":"context.before_turn","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"]}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
-printf '%s\n' '{"hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
+printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs observe --session demo
 node precedent/bin/precedent.mjs report
 ```
@@ -134,6 +134,8 @@ The prototype models the hook loop with local state in `.precedent/`:
 `observe` has a promotion gate: a candidate precedent is recorded as an event but is not injected later unless it has concrete evidence and measured replay improvement where `baseline_failures` is greater than `rerun_failures`. When a trace contains verified replay evidence, `observe` prefers the replay metrics over inline claim metrics.
 
 Promotion is idempotent. Re-observing the same promoted precedent updates the existing ledger row instead of appending duplicates, merges unique evidence, preserves the original `created_at`, refreshes `updated_at` only when the record changes, and keeps `.precedent/precedents.jsonl` sorted by precedent id for deterministic diffs.
+
+All JSON inputs use an explicit v1 schema marker. `observe`, `hook`, and `replay` reject missing or unknown schema versions with an exact field error.
 
 Example event hook response:
 
@@ -173,6 +175,7 @@ Before the agent starts a turn:
 
 ```json
 {
+  "schema_version": "precedent.v1",
   "hook": "context.before_turn",
   "sessionId": "demo",
   "task": "add webhook handler",
@@ -185,6 +188,7 @@ After validation runs:
 
 ```json
 {
+  "schema_version": "precedent.v1",
   "hook": "validation.after_run",
   "sessionId": "demo",
   "command": "pnpm test:webhooks",
@@ -197,6 +201,7 @@ After edits:
 
 ```json
 {
+  "schema_version": "precedent.v1",
   "hook": "diff.after_edit",
   "sessionId": "demo",
   "changedFiles": ["features/webhooks/providers/stripe.ts", "README.md"]
@@ -207,6 +212,7 @@ After the task ends:
 
 ```json
 {
+  "schema_version": "precedent.v1",
   "hook": "outcome.after_task",
   "sessionId": "demo",
   "success": false,
@@ -223,6 +229,47 @@ node precedent/bin/precedent.mjs observe --session demo
 ```
 
 This makes the hook layer useful during ordinary agent conversations: hooks quietly collect context, validation, diff, and outcome evidence; promotion still requires concrete evidence plus measured replay improvement before any precedent becomes injectable.
+
+## Schema Contracts
+
+Every JSON file or hook event passed into Precedent must include:
+
+```json
+{
+  "schema_version": "precedent.v1"
+}
+```
+
+Minimal trace input:
+
+```json
+{
+  "schema_version": "precedent.v1",
+  "id": "2026-05-23-add-webhook-handler",
+  "task": "add a webhook handler",
+  "scope": "feature:webhooks",
+  "failures": ["wrong test command"]
+}
+```
+
+Minimal replay case:
+
+```json
+{
+  "schema_version": "precedent.v1",
+  "id": "webhook-replay",
+  "baseline": { "command": "false" },
+  "rerun": { "command": "true" },
+  "precedent": {
+    "id": "prec_webhook_boundary",
+    "scope": "feature:webhooks",
+    "trigger": "task mentions webhook handler",
+    "lesson": "Use the webhook provider boundary.",
+    "artifact": "skill",
+    "injection": "For webhook changes, stay inside the provider boundary."
+  }
+}
+```
 
 ## Killer Demo
 

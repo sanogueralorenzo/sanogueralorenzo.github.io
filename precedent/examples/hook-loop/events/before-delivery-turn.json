@@ -1,4 +1,5 @@
 {
+  "schema_version": "precedent.v1",
   "hook": "context.before_turn",
   "task": "add a webhook handler for provider delivery events",
   "scope": "feature:webhooks",

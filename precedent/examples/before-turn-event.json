@@ -1,4 +1,5 @@
 {
+  "schema_version": "precedent.v1",
   "hook": "context.before_turn",
   "task": "add another webhook handler",
   "scope": "feature:webhooks",

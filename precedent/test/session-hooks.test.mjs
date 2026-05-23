@@ -17,6 +17,7 @@ test("session hooks compile normal conversation events into an observable trace"
     await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
 
     const beforeTurn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
       hook: "context.before_turn",
       sessionId: "demo",
       task: "add webhook handler",
@@ -28,6 +29,7 @@ test("session hooks compile normal conversation events into an observable trace"
     assert.equal(beforeTurn.contextBlock, "");
 
     const validation = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
       hook: "validation.after_run",
       sessionId: "demo",
       command: "pnpm test:webhooks",
@@ -39,6 +41,7 @@ test("session hooks compile normal conversation events into an observable trace"
     assert.match(validation.validation.stderrPath, /validation_after_run\.stderr\.txt$/u);
 
     const diff = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
       hook: "diff.after_edit",
       sessionId: "demo",
       changedFiles: [
@@ -54,6 +57,7 @@ test("session hooks compile normal conversation events into an observable trace"
     assert.deepEqual(diff.diff.breadthSignals, ["many_files_touched", "multiple_top_level_scopes"]);
 
     const outcome = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
       hook: "outcome.after_task",
       sessionId: "demo",
       success: false,

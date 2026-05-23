@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 
 const DEFAULT_STATE_DIR = ".precedent";
+const SCHEMA_VERSION = "precedent.v1";
 const SUPPORTED_EVENT_HOOKS = new Set([
   "context.before_turn",
   "validation.after_run",
@@ -124,6 +125,7 @@ async function observeTrace() {
   const trace = args.session
     ? await traceFromSession(stateDir, args.session)
     : parseJson(await readFile(resolve(args.trace), "utf8"), args.trace);
+  assertSchemaVersion(trace, "trace");
   const traceId = requireString(trace.id, "trace.id");
   const observedAt = new Date().toISOString();
   let promoted = null;
@@ -235,6 +237,7 @@ async function replayCase() {
 
   const resolvedCasePath = resolve(casePath);
   const replayCase = parseJson(await readFile(resolvedCasePath, "utf8"), casePath);
+  assertSchemaVersion(replayCase, "case");
   const replayId = requireString(replayCase.id, "case.id");
   const replayDir = join(stateDir, "replays", safeFileName(replayId));
   const startedAt = new Date().toISOString();
@@ -323,6 +326,7 @@ async function runHook() {
 
 async function eventHook() {
   const event = await readHookEvent();
+  assertSchemaVersion(event, "event");
   const hook = requireString(event.hook, "event.hook");
 
   if (!SUPPORTED_EVENT_HOOKS.has(hook)) {
@@ -656,6 +660,12 @@ function normalizePrecedent(precedent, traceId) {
   };
 }
 
+function assertSchemaVersion(value, name) {
+  if (value?.schema_version !== SCHEMA_VERSION) {
+    fail(`${name}.schema_version must be "${SCHEMA_VERSION}"`);
+  }
+}
+
 function precedentFromTrace(trace) {
   if (!trace.replay?.verified || !trace.replay.promotion) {
     return trace.precedent;
@@ -829,6 +839,7 @@ async function traceFromSession(stateDir, sessionId) {
     : null;
 
   return {
+    schema_version: SCHEMA_VERSION,
     id: `session-${safeFileName(sessionId)}`,
     sessionId,
     task: lastBeforeTurn.task ?? lastOutcome.task ?? null,
@@ -1065,6 +1076,7 @@ function buildReplayTrace(replayCase, replay, replayPath) {
   ];
 
   return {
+    schema_version: SCHEMA_VERSION,
     id: traceId,
     task: replay.task,
     scope: replay.scope,
@@ -1214,7 +1226,9 @@ async function readStoredTraces(tracesDir) {
   const traces = [];
 
   for (const traceFile of traceFiles) {
-    traces.push(parseJson(await readFile(traceFile, "utf8"), traceFile));
+    const trace = parseJson(await readFile(traceFile, "utf8"), traceFile);
+    assertSchemaVersion(trace, "trace");
+    traces.push(trace);
   }
 
   return traces;

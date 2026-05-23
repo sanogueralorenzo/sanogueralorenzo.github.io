@@ -1,4 +1,5 @@
 {
+  "schema_version": "precedent.v1",
   "id": "webhook-replay-improves",
   "task": "add a webhook handler for provider delivery events",
   "scope": "feature:webhooks",
