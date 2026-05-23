@@ -1968,7 +1968,15 @@ function isNonemptyStringArray(value) {
 }
 
 function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
-  if (graphEdge.kind !== "data" && graphEdge.kind !== "produces" && graphEdge.kind !== "requires") {
+  if (![
+    "data",
+    "produces",
+    "requires",
+    "approves",
+    "timeouts",
+    "retries",
+    "checkpoints",
+  ].includes(graphEdge.kind)) {
     return null;
   }
   const payload = isPlainObject(graphEdge.data) ? graphEdge.data : {};
@@ -1977,6 +1985,9 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
   const parameterIsNonempty = typeof payload.parameter === "string" && payload.parameter.trim() !== "";
   const typeIsNonempty = typeof payload.type === "string" && payload.type.trim() !== "";
   const requirementIsNonempty = typeof payload.requirement === "string" && payload.requirement.trim() !== "";
+  const approvalIsNonempty = typeof payload.approval === "string" && payload.approval.trim() !== "";
+  const policyIsNonempty = typeof payload.policy === "string" && payload.policy.trim() !== "";
+  const checkpointIsNonempty = typeof payload.checkpoint === "string" && payload.checkpoint.trim() !== "";
   const sourceSpanIsValid = isSpan(payload.sourceSpan);
   const targetSpanIsValid = isSpan(payload.targetSpan);
   const requiresStepInput = graphEdge.kind === "requires" && sourceNode?.kind === "Input" && targetNode?.kind === "Step";
@@ -1984,13 +1995,28 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     && sourceNode?.kind === "Check"
     && sourceNode.data?.scope === "step"
     && targetNode?.kind === "Step";
+  const approvesStepOrEffect = graphEdge.kind === "approves"
+    && sourceNode?.kind === "Approval"
+    && (targetNode?.kind === "Step" || targetNode?.kind === "Effect");
+  const policyAttachesToStep = (graphEdge.kind === "timeouts" || graphEdge.kind === "retries")
+    && sourceNode?.kind === "Policy"
+    && targetNode?.kind === "Step";
+  const stepCheckpoints = graphEdge.kind === "checkpoints"
+    && sourceNode?.kind === "Step"
+    && targetNode?.kind === "Checkpoint";
   const payloadIsValid = graphEdge.kind === "data"
     ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
     : graphEdge.kind === "produces"
       ? typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
       : requiresStepInput
         ? parameterIsNonempty && typeIsNonempty && targetSpanIsValid
-        : !requiresStepRequirement || requirementIsNonempty;
+        : requiresStepRequirement
+          ? requirementIsNonempty
+          : approvesStepOrEffect
+            ? approvalIsNonempty
+            : policyAttachesToStep
+              ? policyIsNonempty
+              : !stepCheckpoints || checkpointIsNonempty;
   if (payloadIsValid) {
     return null;
   }
@@ -2001,9 +2027,15 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     parameter: typeof payload.parameter === "string" ? payload.parameter : null,
     type: typeof payload.type === "string" ? payload.type : null,
     requirement: typeof payload.requirement === "string" ? payload.requirement : null,
+    approval: typeof payload.approval === "string" ? payload.approval : null,
+    policy: typeof payload.policy === "string" ? payload.policy : null,
+    checkpoint: typeof payload.checkpoint === "string" ? payload.checkpoint : null,
     parameter_is_nonempty: parameterIsNonempty,
     type_is_nonempty: typeIsNonempty,
     requirement_is_nonempty: requirementIsNonempty,
+    approval_is_nonempty: approvalIsNonempty,
+    policy_is_nonempty: policyIsNonempty,
+    checkpoint_is_nonempty: checkpointIsNonempty,
     source_span_is_valid: sourceSpanIsValid,
     target_span_is_valid: targetSpanIsValid,
   });

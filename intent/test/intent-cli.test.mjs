@@ -222,6 +222,15 @@ function defaultGraphEdgeData(edge, data) {
   if (edge.kind === "requires") {
     return { parameter: "input", type: "Synthetic", targetSpan: testSpan(1) };
   }
+  if (edge.kind === "approves") {
+    return { approval: "synthetic" };
+  }
+  if (edge.kind === "timeouts" || edge.kind === "retries") {
+    return { policy: "synthetic" };
+  }
+  if (edge.kind === "checkpoints") {
+    return { checkpoint: "synthetic" };
+  }
   return undefined;
 }
 
@@ -2017,6 +2026,39 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[3].type_is_nonempty, true);
     assert.equal(diagnostics[3].target_span_is_valid, false);
     assert.equal(diagnostics[4].requirement_is_nonempty, false);
+  });
+
+  it("validates graph step attachment edge payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(1) },
+        { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(2) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(4), data: { policyKind: "timeout" } },
+        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(5), data: { policyKind: "retry" } },
+        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(6) },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch", kind: "approves", data: {} },
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:patch:effect:0", kind: "approves", data: { approval: "" } },
+        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts", data: {} },
+        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries", data: { policy: "" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints", data: {} },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+
+    assert.equal(diagnostics.length, 5);
+    assert.equal(diagnostics[0].edge, "approves");
+    assert.equal(diagnostics[0].approval_is_nonempty, false);
+    assert.equal(diagnostics[1].edge, "approves");
+    assert.equal(diagnostics[1].approval_is_nonempty, false);
+    assert.equal(diagnostics[2].edge, "timeouts");
+    assert.equal(diagnostics[2].policy_is_nonempty, false);
+    assert.equal(diagnostics[3].edge, "retries");
+    assert.equal(diagnostics[3].policy_is_nonempty, false);
+    assert.equal(diagnostics[4].edge, "checkpoints");
+    assert.equal(diagnostics[4].checkpoint_is_nonempty, false);
   });
 
   it("validates graph authorization diagnostics", () => {
