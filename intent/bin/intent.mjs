@@ -1968,17 +1968,29 @@ function isNonemptyStringArray(value) {
 }
 
 function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
-  if (graphEdge.kind !== "data" && graphEdge.kind !== "produces") {
+  if (graphEdge.kind !== "data" && graphEdge.kind !== "produces" && graphEdge.kind !== "requires") {
     return null;
   }
   const payload = isPlainObject(graphEdge.data) ? graphEdge.data : {};
+  const sourceNode = nodesById.get(graphEdge.from);
+  const targetNode = nodesById.get(graphEdge.to);
   const parameterIsNonempty = typeof payload.parameter === "string" && payload.parameter.trim() !== "";
   const typeIsNonempty = typeof payload.type === "string" && payload.type.trim() !== "";
+  const requirementIsNonempty = typeof payload.requirement === "string" && payload.requirement.trim() !== "";
   const sourceSpanIsValid = isSpan(payload.sourceSpan);
   const targetSpanIsValid = isSpan(payload.targetSpan);
+  const requiresStepInput = graphEdge.kind === "requires" && sourceNode?.kind === "Input" && targetNode?.kind === "Step";
+  const requiresStepRequirement = graphEdge.kind === "requires"
+    && sourceNode?.kind === "Check"
+    && sourceNode.data?.scope === "step"
+    && targetNode?.kind === "Step";
   const payloadIsValid = graphEdge.kind === "data"
     ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
-    : typeIsNonempty && sourceSpanIsValid && targetSpanIsValid;
+    : graphEdge.kind === "produces"
+      ? typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
+      : requiresStepInput
+        ? parameterIsNonempty && typeIsNonempty && targetSpanIsValid
+        : !requiresStepRequirement || requirementIsNonempty;
   if (payloadIsValid) {
     return null;
   }
@@ -1988,8 +2000,10 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     to: graphEdge.to,
     parameter: typeof payload.parameter === "string" ? payload.parameter : null,
     type: typeof payload.type === "string" ? payload.type : null,
+    requirement: typeof payload.requirement === "string" ? payload.requirement : null,
     parameter_is_nonempty: parameterIsNonempty,
     type_is_nonempty: typeIsNonempty,
+    requirement_is_nonempty: requirementIsNonempty,
     source_span_is_valid: sourceSpanIsValid,
     target_span_is_valid: targetSpanIsValid,
   });

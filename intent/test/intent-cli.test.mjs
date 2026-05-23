@@ -96,7 +96,7 @@ function validateTestGraph(graph) {
       return isPlainObject(edge)
         ? {
             ...edge,
-            data: defaultGraphEdgeData(edge.kind, edge.data),
+            data: defaultGraphEdgeData(edge, edge.data),
           }
         : edge;
     }),
@@ -209,12 +209,18 @@ function defaultGraphNodeData(kind, data) {
   return normalizedData;
 }
 
-function defaultGraphEdgeData(kind, data) {
+function defaultGraphEdgeData(edge, data) {
   if (data !== undefined) {
     return data;
   }
-  if (kind === "produces") {
+  if (edge.kind === "produces") {
     return { type: "Synthetic", sourceSpan: testSpan(1), targetSpan: testSpan(1) };
+  }
+  if (edge.kind === "requires" && typeof edge.from === "string" && edge.from.includes(":requirement:")) {
+    return { requirement: "synthetic" };
+  }
+  if (edge.kind === "requires") {
+    return { parameter: "input", type: "Synthetic", targetSpan: testSpan(1) };
   }
   return undefined;
 }
@@ -1979,6 +1985,38 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].source_span_is_valid, false);
     assert.equal(diagnostics[2].type_is_nonempty, true);
     assert.equal(diagnostics[2].target_span_is_valid, false);
+  });
+
+  it("validates graph requires edge payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(1) },
+        { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(2), data: { scope: "step", type: "Finding" } },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "reviewed", span: testSpan(3), data: { scope: "step", ownerStep: "patch", assertion: "Require", requirement: "reviewed" } },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch:input:input", to: "goal:demo:step:patch", kind: "requires", data: {} },
+        { from: "goal:demo:step:patch:input:input", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "", type: "Finding", targetSpan: testSpan(2) } },
+        { from: "goal:demo:step:patch:input:input", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "input", type: "", targetSpan: testSpan(2) } },
+        { from: "goal:demo:step:patch:input:input", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "input", type: "Finding" } },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "" } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+
+    assert.equal(diagnostics.length, 5);
+    assert.equal(diagnostics[0].edge, "requires");
+    assert.equal(diagnostics[0].parameter_is_nonempty, false);
+    assert.equal(diagnostics[0].type_is_nonempty, false);
+    assert.equal(diagnostics[0].target_span_is_valid, false);
+    assert.equal(diagnostics[1].parameter_is_nonempty, false);
+    assert.equal(diagnostics[1].type_is_nonempty, true);
+    assert.equal(diagnostics[2].parameter_is_nonempty, true);
+    assert.equal(diagnostics[2].type_is_nonempty, false);
+    assert.equal(diagnostics[3].parameter_is_nonempty, true);
+    assert.equal(diagnostics[3].type_is_nonempty, true);
+    assert.equal(diagnostics[3].target_span_is_valid, false);
+    assert.equal(diagnostics[4].requirement_is_nonempty, false);
   });
 
   it("validates graph authorization diagnostics", () => {
