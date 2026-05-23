@@ -122,6 +122,64 @@ test("check fails on uncommitted Trace memories and passes after committing them
   }
 });
 
+test("ci checks memory coverage while skipping trace-only memory commits", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "ci.txt"), "ci\n");
+    await git(repo, ["add", "ci.txt"]);
+    await git(repo, ["commit", "-m", "Add ci file"]);
+
+    await runTrace(repo, ["init"]);
+    const missing = await runTraceAllowFailure(repo, ["ci", "HEAD"]);
+    assert.equal(missing.exitCode, 1);
+    const missingPayload = JSON.parse(missing.stdout);
+    assert.equal(missingPayload.ok, false);
+    assert.equal(missingPayload.checked, 1);
+    assert.equal(missingPayload.missingMemories.length, 1);
+    assert.match(missingPayload.missingMemories[0].expected, /^\.trace\/commits\/[0-9a-f]{2}\//);
+
+    await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "ci memory coverage"]);
+    await runTrace(repo, ["record", "--validation", "node --test"]);
+    await git(repo, ["add", ".trace"]);
+    await git(repo, ["commit", "-m", "Commit Trace memory"]);
+
+    const covered = await runTrace(repo, ["ci", "HEAD"]);
+    const coveredPayload = JSON.parse(covered.stdout);
+    assert.equal(coveredPayload.ok, true);
+    assert.equal(coveredPayload.checked, 2);
+    assert.deepEqual(coveredPayload.missingMemories, []);
+    assert.deepEqual(coveredPayload.unsafeFiles, []);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("ci rejects unsafe raw transcript files in the project tree", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "raw.txt"), "raw\n");
+    await git(repo, ["add", "raw.txt"]);
+    await git(repo, ["commit", "-m", "Add raw file"]);
+    await runTrace(repo, ["init"]);
+    await mkdir(join(repo, ".trace/sessions"), { recursive: true });
+    await writeFile(join(repo, ".trace/sessions/leak.jsonl"), "{\"message\":\"full transcript\"}\n");
+
+    const result = await runTraceAllowFailure(repo, ["ci", "HEAD"]);
+    assert.equal(result.exitCode, 1);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.ok, false);
+    assert.ok(payload.unsafeFiles.includes(".trace/sessions/leak.jsonl"));
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("checkpoint commands list verify sync and cleanup local checkpoint data", async () => {
   const repo = await tempRepo();
 
@@ -258,6 +316,10 @@ test("agent add list remove manages local hook adapter configs", async () => {
     await runTrace(repo, ["agent", "remove", "codex"]);
     const removed = await runTrace(repo, ["agent", "list"]);
     assert.deepEqual(JSON.parse(removed.stdout).agents, []);
+
+    const gemini = JSON.parse((await runTrace(repo, ["agent", "add", "gemini"])).stdout);
+    assert.equal(gemini.agent, "gemini");
+    assert.equal(gemini.command, "trace hook agent --source gemini");
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

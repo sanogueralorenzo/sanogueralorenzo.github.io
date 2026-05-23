@@ -69,6 +69,7 @@ trace checkpoint cleanup --sessions-before-days 14
 trace redact add codename 'PROJECT-[A-Z]+'
 trace redact list
 trace check
+trace ci main..HEAD
 ```
 
 From a checkout, the same commands can be run without installing:
@@ -91,6 +92,7 @@ node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14
 node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
 node trace/bin/trace.mjs redact list
 node trace/bin/trace.mjs check
+node trace/bin/trace.mjs ci main..HEAD
 ```
 
 `trace enable` installs managed `prepare-commit-msg` and `post-commit` git hook blocks. The prepare hook adds `Trace-Checkpoint` and `Trace-Session` trailers to the commit message. The post-commit hook writes a compact memory file under `.trace/commits/` and stores the raw checkpoint payload on the local `refs/trace/checkpoints` git ref.
@@ -98,6 +100,8 @@ node trace/bin/trace.mjs check
 This keeps the project tree focused on reviewable memories while raw checkpoint data stays outside the normal branch history unless someone explicitly pushes the Trace ref.
 
 Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace check` fails when Trace memory files are uncommitted or malformed, which makes that handoff explicit instead of silently pretending the memory is already durable.
+
+`trace ci <range>` is the CI gate for that model. It fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
 
 Agent integrations can start with the generic hook endpoint:
 
@@ -110,7 +114,7 @@ The hook accepts JSON or plain text on stdin and records it into the local raw s
 
 `trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, and `--uninstall` removes it.
 
-`trace agent add codex`, `trace agent add claude-code`, and `trace agent add generic` create small local adapter specs under `.trace/agents/`. The specs document the command an agent integration should call:
+`trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create small local adapter specs under `.trace/agents/`. The specs document the command an agent integration should call:
 
 ```shell
 trace hook agent --source codex

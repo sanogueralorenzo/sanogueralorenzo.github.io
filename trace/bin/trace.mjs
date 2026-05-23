@@ -14,7 +14,7 @@ const CHECKPOINT_REF = "refs/trace/checkpoints";
 const HOOK_START = "# trace:start";
 const HOOK_END = "# trace:end";
 const AGENT_CONFIG_VERSION = "trace.agent.v1";
-const SUPPORTED_AGENTS = new Set(["codex", "claude-code", "generic"]);
+const SUPPORTED_AGENTS = new Set(["codex", "claude-code", "gemini", "generic"]);
 const command = process.argv[2] ?? "help";
 const subcommand = process.argv[3]?.startsWith("--") ? null : process.argv[3] ?? null;
 const rawArgs = process.argv.slice(subcommand ? 4 : 3);
@@ -50,6 +50,11 @@ async function main() {
 
   if (command === "check") {
     await checkTrace();
+    return;
+  }
+
+  if (command === "ci") {
+    await runCiCheck(subcommand ?? args.range ?? defaultSummaryRange());
     return;
   }
 
@@ -235,6 +240,41 @@ async function checkTrace() {
     checkpointRef: checkpointRef || null,
     uncommitted: dirtyTrace,
     invalidMemories,
+  });
+
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function runCiCheck(range) {
+  const root = await repoRoot();
+  const commits = (await git(["rev-list", "--reverse", range], { cwd: root })).split("\n").filter(Boolean);
+  const missingMemories = [];
+
+  for (const sha of commits) {
+    if (await isTraceOnlyCommit(root, sha)) {
+      continue;
+    }
+
+    const memoryPath = memoryPathFor(root, sha);
+    if (!await exists(memoryPath)) {
+      missingMemories.push({
+        commit: sha,
+        expected: relativePath(root, memoryPath),
+      });
+    }
+  }
+
+  const traceFiles = (await git(["ls-files", "-co", "--exclude-standard", "--", TRACE_DIR], { cwd: root })).split("\n").filter(Boolean);
+  const unsafeFiles = traceFiles.filter(isUnsafeTracePath);
+  const ok = missingMemories.length === 0 && unsafeFiles.length === 0;
+  print({
+    ok,
+    range,
+    checked: commits.length,
+    missingMemories,
+    unsafeFiles,
   });
 
   if (!ok) {
@@ -909,6 +949,46 @@ async function listMemoryFiles(root) {
   return files.filter((file) => file.endsWith(".md"));
 }
 
+async function isTraceOnlyCommit(root, sha) {
+  const files = (await git(["show", "--name-only", "--format=", sha], { cwd: root })).split("\n").filter(Boolean);
+  return files.length > 0 && files.every((file) => file === TRACE_DIR || file.startsWith(`${TRACE_DIR}/`));
+}
+
+function isUnsafeTracePath(path) {
+  const normalized = path.replaceAll("\\", "/");
+  if (!normalized.startsWith(`${TRACE_DIR}/`)) {
+    return false;
+  }
+
+  if (normalized.startsWith(`${TRACE_DIR}/commits/`) && normalized.endsWith(".md")) {
+    return false;
+  }
+
+  if (normalized === `${TRACE_DIR}/commits/.gitkeep`) {
+    return false;
+  }
+
+  if (normalized === `${TRACE_DIR}/config.json`) {
+    return false;
+  }
+
+  if (normalized.startsWith(`${TRACE_DIR}/agents/`) && normalized.endsWith(".json")) {
+    return false;
+  }
+
+  return [
+    `${TRACE_DIR}/sessions/`,
+    `${TRACE_DIR}/raw/`,
+    `${TRACE_DIR}/checkpoints/`,
+    `${TRACE_DIR}/transcripts/`,
+  ].some((prefix) => normalized.startsWith(prefix))
+    || normalized.endsWith(".jsonl")
+    || normalized.includes("/raw_")
+    || normalized.includes("/transcript")
+    || normalized.endsWith("/current_session")
+    || normalized.endsWith("/pending_commit.json");
+}
+
 async function walk(dir, files) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
@@ -1063,6 +1143,7 @@ Usage:
   trace redact add <label> <regex>
   trace redact list
   trace redact remove <label>
+  trace ci [range]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace log [--limit 20]
