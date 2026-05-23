@@ -175,11 +175,13 @@ test("run captures command results as validation and risk events", async () => {
     assert.deepEqual(events.map((event) => event.event), ["validation", "risk"]);
     assert.deepEqual(events.map((event) => event.source), ["trace-run", "trace-run"]);
     assert.match(events[0].message, /validation passed: 'node' '-e'/);
+    assert.match(events[0].message, /stdout: validation ok/);
     assert.match(events[1].message, /risk failed exit 7: 'node' '-e'/);
 
     await runTrace(repo, ["record"]);
     const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
     assert.match(memory, /validation passed: 'node' '-e'/);
+    assert.match(memory, /stdout: validation ok/);
     assert.match(memory, /risk failed exit 7: 'node' '-e'/);
   } finally {
     await rm(repo, { recursive: true, force: true });

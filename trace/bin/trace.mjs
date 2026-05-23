@@ -881,12 +881,13 @@ async function runTraceCommand(subcommandValue, values) {
 
   const commandLine = commandArgs.map(shellQuote).join(" ");
   const status = result.exitCode === 0 ? "passed" : `failed exit ${result.exitCode}`;
+  const output = compactCommandOutput(result);
   await appendEvent(root, {
     sessionId: args.session,
     event: eventName,
     role: "tool",
     source: args.source ?? "trace-run",
-    message: `${eventName} ${status}: ${commandLine}`,
+    message: [`${eventName} ${status}: ${commandLine}`, output].filter(Boolean).join("\n"),
   });
   process.exitCode = result.exitCode;
 }
@@ -897,6 +898,31 @@ function traceRunArgs(subcommandValue, values) {
     return values.slice(separator + 1);
   }
   return [subcommandValue, ...positionalValues(values)].filter(Boolean);
+}
+
+function compactCommandOutput(result) {
+  const sections = [];
+  const stdout = compactOutputText(result.stdout);
+  const stderr = compactOutputText(result.stderr);
+  if (stdout) {
+    sections.push(`stdout: ${stdout}`);
+  }
+  if (stderr) {
+    sections.push(`stderr: ${stderr}`);
+  }
+  return sections.join("\n");
+}
+
+function compactOutputText(value) {
+  const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  const limit = 500;
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+  return `...${normalized.slice(-limit)}`;
 }
 
 async function runSessionCommand(action, values) {
@@ -2421,10 +2447,18 @@ async function runStreaming(commandName, commandArgs, options = {}) {
       env: options.env ?? process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    child.stdout.on("data", (chunk) => process.stdout.write(chunk));
-    child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      process.stdout.write(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+      process.stderr.write(chunk);
+    });
     child.on("error", (error) => fail(`failed to run ${commandName}: ${error.message}`));
-    child.on("close", (exitCode) => resolveRun({ exitCode: exitCode ?? 1 }));
+    child.on("close", (exitCode) => resolveRun({ exitCode: exitCode ?? 1, stdout, stderr }));
   });
 }
 
