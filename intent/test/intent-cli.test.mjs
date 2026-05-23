@@ -2826,6 +2826,48 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[4].checkpoint_is_nonempty, false);
   });
 
+  it("validates graph step attachment typed edge diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(1) },
+        { id: "goal:demo:step:other", kind: "Step", label: "other", span: testSpan(2) },
+        { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(3), data: { approval: "maintainer" } },
+        { id: "goal:demo:step:other:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(5), data: { policyKind: "timeout", policy: "5m" } },
+        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(6), data: { policyKind: "retry", policy: "max 2" } },
+        { id: "goal:demo:step:other:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(7), data: { checkpoint: "before" } },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch:approval:0", to: "goal:demo:step:other:effect:0", kind: "approves", data: { approval: "owner" } },
+        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts", data: { policy: "10m" } },
+        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries", data: { policy: "max 1" } },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:other:checkpoint:0", kind: "checkpoints", data: { checkpoint: "after" } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPED_EDGE_INVALID");
+
+    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics[0].edge, "approves");
+    assert.deepEqual(diagnostics[0].checks.map((check) => [check.name, check.ok]), [
+      ["owner_step_matches_target", false],
+      ["approval_matches_source", false],
+    ]);
+    assert.equal(diagnostics[1].edge, "timeouts");
+    assert.deepEqual(diagnostics[1].checks.map((check) => [check.name, check.ok]), [
+      ["owner_step_matches_target", true],
+      ["policy_kind_matches_edge", true],
+      ["policy_matches_source", false],
+    ]);
+    assert.equal(diagnostics[2].edge, "retries");
+    assert.equal(diagnostics[2].checks[2].name, "policy_matches_source");
+    assert.equal(diagnostics[2].checks[2].ok, false);
+    assert.equal(diagnostics[3].edge, "checkpoints");
+    assert.deepEqual(diagnostics[3].checks.map((check) => [check.name, check.ok]), [
+      ["owner_step_matches_source", false],
+      ["checkpoint_matches_target", false],
+    ]);
+  });
+
   it("validates graph memory access edge payload diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -2905,7 +2947,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
-        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "Synthetic", sourceSpan: testSpan(1), targetSpan: testSpan(1) } },
         { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
@@ -3506,11 +3548,11 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
-        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints" },
-        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires" },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints", data: { checkpoint: "before patch" } },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "synthetic" } },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo", kind: "gates" },
-        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts" },
-        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries" },
+        { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts", data: { policy: "5m" } },
+        { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries", data: { policy: "5m" } },
         { from: "goal:demo:invariant:0", to: "goal:demo", kind: "constrains" },
         { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
       ],

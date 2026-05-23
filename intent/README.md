@@ -281,19 +281,23 @@ Validation expectations:
   are valid only as `Policy` to `Step`, and unsupported endpoint roles emit
   `INTENT_GRAPH_POLICY_EDGE_INVALID`. Step-scoped `Approval` to `Step`
   `approves` edges and `Approval` to `Effect` `approves` edges must carry
-  non-empty `data.approval`. Step-scoped `Policy` to `Step` `timeouts` and
-  `retries` edges must carry non-empty `data.policy`. `Step` to `Checkpoint`
-  `checkpoints` edges must carry non-empty `data.checkpoint`. Malformed step
-  attachment edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
-  graph output non-executable; missing attachment coverage remains
+  non-empty `data.approval` matching the source `Approval` node, and must stay
+  within the owning step for effect approvals. Step-scoped `Policy` to `Step`
+  `timeouts` and `retries` edges must carry non-empty `data.policy` matching the
+  source `Policy` node and edge kind. `Step` to `Checkpoint` `checkpoints`
+  edges must carry non-empty `data.checkpoint` matching the target `Checkpoint`
+  node and owning step. Malformed step attachment edge payloads emit
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, typed attachment mismatches emit
+  `INTENT_GRAPH_TYPED_EDGE_INVALID`, and make graph output non-executable;
+  missing attachment coverage remains
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`. These generic role diagnostics are
   separate from `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`,
-  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics
-  such as `INTENT_GRAPH_INPUT_INVALID`, `INTENT_GRAPH_CHECK_INVALID`,
-  `INTENT_GRAPH_APPROVAL_INVALID`, `INTENT_GRAPH_CHECKPOINT_INVALID`, and
-  `INTENT_GRAPH_POLICY_INVALID`. This prevents step attachment edges from being
-  replayed as ambiguous runtime-control edges while preserving attachment
-  coverage and payload diagnostics.
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, `INTENT_GRAPH_TYPED_EDGE_INVALID`, and
+  malformed node payload diagnostics such as `INTENT_GRAPH_INPUT_INVALID`,
+  `INTENT_GRAPH_CHECK_INVALID`, `INTENT_GRAPH_APPROVAL_INVALID`,
+  `INTENT_GRAPH_CHECKPOINT_INVALID`, and `INTENT_GRAPH_POLICY_INVALID`. This
+  prevents step attachment edges from being replayed as ambiguous runtime-control
+  edges while preserving attachment coverage and payload diagnostics.
 - Runtime graph check gate edge contracts are the next Phase 2 static-model
   milestone. Every `Check` node is a runtime gate and must have exactly one
   outgoing `gates` edge to its owning `Goal`. Goal-scoped verification `Check`

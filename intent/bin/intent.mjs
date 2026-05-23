@@ -2280,7 +2280,7 @@ function validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, f
 }
 
 function validateGraphTypedEdgeContract(nodesById, graphEdge, fallbackSpan) {
-  if (!["data", "requires", "produces"].includes(graphEdge.kind)) {
+  if (!["data", "requires", "produces", "approves", "timeouts", "retries", "checkpoints"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
@@ -2306,6 +2306,15 @@ function typedEdgeChecks(graphEdge, sourceNode, targetNode) {
   }
   if (graphEdge.kind === "requires") {
     return requiresEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "approves") {
+    return approvesEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "timeouts" || graphEdge.kind === "retries") {
+    return policyEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "checkpoints") {
+    return checkpointEdgeChecks(graphEdge, sourceNode, targetNode);
   }
   return [];
 }
@@ -2360,6 +2369,41 @@ function requiresEdgeChecks(graphEdge, sourceNode, targetNode) {
     ];
   }
   return [];
+}
+
+function approvesEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind !== "Approval" || (targetNode?.kind !== "Step" && targetNode?.kind !== "Effect")) {
+    return [];
+  }
+  const ownerStepId = parentNodeId(sourceNode.id, ":approval:");
+  const targetOwnerStepId = targetNode.kind === "Step" ? targetNode.id : parentNodeId(targetNode.id, ":effect:");
+  return [
+    typedCheck("owner_step_matches_target", ownerStepId === targetOwnerStepId, ownerStepId, targetOwnerStepId),
+    typedCheck("approval_matches_source", graphEdge.data?.approval === sourceNode.data?.approval, graphEdge.data?.approval, sourceNode.data?.approval),
+  ];
+}
+
+function policyEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind !== "Policy" || targetNode?.kind !== "Step") {
+    return [];
+  }
+  const marker = graphEdge.kind === "timeouts" ? ":timeout:" : ":retry:";
+  const expectedPolicyKind = graphEdge.kind === "timeouts" ? "timeout" : "retry";
+  return [
+    typedCheck("owner_step_matches_target", parentNodeId(sourceNode.id, marker) === targetNode.id, parentNodeId(sourceNode.id, marker), targetNode.id),
+    typedCheck("policy_kind_matches_edge", sourceNode.data?.policyKind === expectedPolicyKind, sourceNode.data?.policyKind, expectedPolicyKind),
+    typedCheck("policy_matches_source", graphEdge.data?.policy === sourceNode.data?.policy, graphEdge.data?.policy, sourceNode.data?.policy),
+  ];
+}
+
+function checkpointEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind !== "Step" || targetNode?.kind !== "Checkpoint") {
+    return [];
+  }
+  return [
+    typedCheck("owner_step_matches_source", parentNodeId(targetNode.id, ":checkpoint:") === sourceNode.id, parentNodeId(targetNode.id, ":checkpoint:"), sourceNode.id),
+    typedCheck("checkpoint_matches_target", graphEdge.data?.checkpoint === targetNode.data?.checkpoint, graphEdge.data?.checkpoint, targetNode.data?.checkpoint),
+  ];
 }
 
 function graphProducerType(sourceNode) {
