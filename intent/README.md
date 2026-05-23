@@ -156,6 +156,17 @@ Validation expectations:
   `requires` edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
   graph output non-executable; wrong attachment endpoints remain
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+- Runtime graph goal-input supply edge contracts are the next Phase 2
+  static-model milestone. Every goal-scoped `Input` node must have exactly one
+  outgoing `supplies` edge to its owning `Goal`. Malformed, missing, or extra
+  goal-input `supplies` edges emit `INTENT_GRAPH_INPUT_SUPPLY_INVALID` and make
+  graph output non-executable; malformed `Input` node data remains
+  `INTENT_GRAPH_INPUT_INVALID`, and missing step input data or `requires` edges
+  remain `INTENT_GRAPH_INPUT_UNBOUND` or
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`. Step-scoped `Input` nodes remain
+  covered by the existing `data` and `requires` edge contracts and must not rely
+  on `supplies`. This makes goal parameter ownership explicit in the runtime
+  graph instead of relying on id strings alone.
 - Runtime graph step attachment edge payloads are the next Phase 2 static-model
   milestone. Step-scoped `Approval` to `Step` `approves` edges and `Approval`
   to `Effect` `approves` edges must carry non-empty `data.approval`. Step-scoped
@@ -219,6 +230,8 @@ Validation expectations:
   runtimes must not infer goal titles, inputs, output types, or provenance.
 - Graph `Input` nodes are runtime data ports. Goal inputs and step inputs must
   carry `data.scope` as either `goal` or `step` and a non-empty `data.type`.
+  Goal-scoped input nodes must supply their owning goal through exactly one
+  outgoing `supplies` edge.
   Step input nodes must also be attached to their owning step through the
   existing graph edge contracts, including the required `requires` edge to that
   step and the incoming `data` edge from a goal input or earlier producing
