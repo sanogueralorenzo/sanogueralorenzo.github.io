@@ -24,6 +24,7 @@
       "jury-package-release-replay-summary.md",
       "jury-package-release-replay-summary-diagnostics.json",
       "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+      "jury-package-release-replay-summary-expiry-handoff.json",
       "archive-drift-remediation-audit.json",
       "archive-drift-remediation-audit-handoff.json",
       "GITHUB_STEP_SUMMARY"
@@ -60,7 +61,8 @@
             "archive-drift-remediation-audit-handoff.json",
             "jury-package-release-replay-summary.md",
             "jury-package-release-replay-summary-diagnostics.json",
-            "jury-package-release-replay-summary-diagnostics-retention-handoff.json"
+            "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+            "jury-package-release-replay-summary-expiry-handoff.json"
           ]
         },
         {

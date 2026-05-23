@@ -34,6 +34,7 @@ const archiveEvidenceFiles = [
   "jury-package-release-replay-summary.md",
   "jury-package-release-replay-summary-diagnostics.json",
   "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+  "jury-package-release-replay-summary-expiry-handoff.json",
 ];
 const fixtureRead = await readRequiredFixtures([
   "rollback-audit.json",
@@ -377,6 +378,7 @@ function relationshipErrors() {
     "jury-package-release-replay-summary.md",
     "jury-package-release-replay-summary-diagnostics.json",
     "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    "jury-package-release-replay-summary-expiry-handoff.json",
     "archive-drift-remediation-audit.json",
     "archive-drift-remediation-audit-handoff.json",
     "GITHUB_STEP_SUMMARY",
@@ -430,6 +432,7 @@ function relationshipErrors() {
     "jury-package-release-replay-summary.md",
     "jury-package-release-replay-summary-diagnostics.json",
     "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+    "jury-package-release-replay-summary-expiry-handoff.json",
     "archive-drift-remediation-audit.json",
     "archive-drift-remediation-audit-handoff.json",
     "GITHUB_STEP_SUMMARY",
@@ -743,6 +746,7 @@ function retentionProvenanceErrors(audit, label) {
       "jury-package-release-replay-summary.md",
       "jury-package-release-replay-summary-diagnostics.json",
       "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+      "jury-package-release-replay-summary-expiry-handoff.json",
     ]],
     ["jury-package-release-replay-summary", "package-release-evidence-replay", [
       "jury-package-release-replay-summary.md",

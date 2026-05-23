@@ -36,6 +36,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Promote `jury-package-release-replay-summary.md` from `jury-package-release-replay-summary` with the failed and replacement release archive evidence before the 90-day artifact expiry.
 - [ ] Promote `jury-package-release-replay-summary-diagnostics.json` with the replay summary so the retained archive proves the workflow summary lines matched the failed and replacement release evidence.
 - [ ] Promote `jury-package-release-replay-summary-diagnostics-retention-handoff.json` so the retained archive records the diagnostics source artifact, source job, workflow run, source revision, 90-day retention window, and reviewer.
+- [ ] Promote `jury-package-release-replay-summary-expiry-handoff.json` with retained evidence so expired replay summary artifact recovery has a reviewed handoff before failed or replacement archives close.
 - [ ] Promote `archive-drift-remediation-audit-handoff.json` and validate it against [schemas/package-release-remediation-audit-handoff.schema.json](schemas/package-release-remediation-audit-handoff.schema.json) so the retained archive records the remediation audit source, restored evidence, verification commands, regenerated manifest, diff review, workflow run, source revision, approver, and approval time.
 - [ ] Confirm publication CI replays the generated diagnostics retention handoff against the retained manifest, diagnostics JSON, retained archive handoff, remediation approval, and replay summary artifact provenance before uploading `jury-package-release-replay-summary`.
 - [ ] Record retained artifact provenance for `jury-package-dry-run`, `jury-package-release-evidence`, and `jury-package-release-replay-summary`: source workflow, run id, source revision, source job, `retentionDays`, and uploaded file list.
@@ -48,6 +49,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] If the replay summary diagnostics retention handoff schema fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to inspect `schema_version`, source artifact, source job, retention window, diagnostics schema version, retained files, failed and replacement package versions, run id, source revision, and approving maintainer.
 - [ ] If the replay summary artifact expired before promotion, reconstruct `jury-package-release-replay-summary.md` from the retained manifest and `archive-drift-remediation-audit.json`, record a reviewed expiry handoff, then store both files with failed and replacement release evidence.
 - [ ] If the replay summary expiry handoff schema fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to inspect `schema_version`, `reason`, `expiredAfterDays`, reconstructed inputs, failed and replacement package versions, and the approving maintainer before closing the release archive.
+- [ ] If replay summary expiry handoff CI workflow enforcement fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to check publication workflow ordering and replay `jury-package-release-replay-summary-expiry-handoff.json` locally against retained failed and replacement archive evidence.
 - [ ] Confirm retained failed and replacement evidence comes from the same `jury-npm-publish.yml` workflow run and source revision before closing the release.
 - [ ] Export `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json`.
 - [ ] Confirm the retained archive manifest validates against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json).
@@ -124,8 +126,10 @@ Expected fixture files:
 - [schemas/package-release-remediation-audit.schema.json](schemas/package-release-remediation-audit.schema.json)
 - [schemas/package-release-replay-summary-diagnostics.schema.json](schemas/package-release-replay-summary-diagnostics.schema.json)
 - [schemas/package-release-replay-summary-diagnostics-retention-handoff.schema.json](schemas/package-release-replay-summary-diagnostics-retention-handoff.schema.json)
+- [schemas/package-release-replay-summary-expiry-handoff.schema.json](schemas/package-release-replay-summary-expiry-handoff.schema.json)
 - [examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics.json](examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics.json)
 - [examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics-retention-handoff.json](examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics-retention-handoff.json)
+- [examples/ci/fixtures/package-release/jury-package-release-replay-summary-expiry-handoff.json](examples/ci/fixtures/package-release/jury-package-release-replay-summary-expiry-handoff.json)
 - [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs)
 
 ## Validation

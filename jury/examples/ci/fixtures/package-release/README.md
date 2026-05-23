@@ -47,7 +47,7 @@ If the remediation audit handoff schema fails, use [../../../../TROUBLESHOOTING.
 
 [jury-package-release-replay-summary-expiry-handoff.json](jury-package-release-replay-summary-expiry-handoff.json) is the reviewed handoff fixture for a missing `jury-package-release-replay-summary` CI artifact after the 90-day expiry. It records the reconstructed summary path, retained inputs, failed package version, replacement package version, and reviewing maintainer.
 
-If the handoff schema fails, use [../../../../TROUBLESHOOTING.md](../../../../TROUBLESHOOTING.md) to inspect the required schema version, expiry reason, source artifact, 90-day expiry, reconstructed summary path, reconstructed inputs, failed and replacement package versions, and reviewing maintainer before closing the failed or replacement release archive.
+The publication workflow replays this handoff during `package-release-evidence-replay` before uploading the replay summary artifact. If the handoff schema or CI workflow enforcement fails, use [../../../../TROUBLESHOOTING.md](../../../../TROUBLESHOOTING.md) to inspect the required schema version, expiry reason, source artifact, 90-day expiry, reconstructed summary path, reconstructed inputs, failed and replacement package versions, reviewing maintainer, workflow step ordering, and retained evidence artifact provenance before closing the failed or replacement release archive.
 
 ## Replay Summary Diagnostics
 

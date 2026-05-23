@@ -37,6 +37,7 @@
       "jury-package-release-replay-summary.md",
       "jury-package-release-replay-summary-diagnostics.json",
       "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+      "jury-package-release-replay-summary-expiry-handoff.json",
       "archive-drift-remediation-audit.json",
       "archive-drift-remediation-audit-handoff.json",
       "GITHUB_STEP_SUMMARY",
@@ -77,7 +78,8 @@
           "archive-drift-remediation-audit-handoff.json",
           "jury-package-release-replay-summary.md",
           "jury-package-release-replay-summary-diagnostics.json",
-          "jury-package-release-replay-summary-diagnostics-retention-handoff.json"
+          "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+          "jury-package-release-replay-summary-expiry-handoff.json"
         ]
       },
       {
@@ -107,7 +109,7 @@
     },
     {
       "path": "rollback-audit.json",
-      "sha256": "sha256:c66c2a78bfc7ea7459962d0f7b6f8306146122de16be80847239fcd03802f3ef"
+      "sha256": "sha256:0b904de54f92587421d297c5d62c589d1369d7cc1c1c3a244e111c3941a9d454"
     },
     {
       "path": "replacement-npm-view.json",
@@ -119,7 +121,7 @@
     },
     {
       "path": "replacement-patch-audit.json",
-      "sha256": "sha256:24df732d890f493eeb28187f711637f243edc2b47761751fb2e872d2c6bd4a59"
+      "sha256": "sha256:b1339c24564d2e492e2dfd599b564fe4366b9c41bd4f2fd0c3f0b13aaad20935"
     },
     {
       "path": "archive-drift-remediation-audit.json",
@@ -140,6 +142,10 @@
     {
       "path": "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
       "sha256": "sha256:97c558de59e68091daa55f5666f16c2fbd15962da2580755b2bad8ccc58b5e7a"
+    },
+    {
+      "path": "jury-package-release-replay-summary-expiry-handoff.json",
+      "sha256": "sha256:9f72b905dc94a62a00ee07e4ca321626af5629644295fe2dea109d8af0cad4a7"
     }
   ]
 }
