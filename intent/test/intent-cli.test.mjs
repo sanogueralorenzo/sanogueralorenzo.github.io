@@ -1638,6 +1638,38 @@ describe("intent static model CLI", () => {
     assert.deepEqual(diagnostics[2].invalid_retention_indexes, [0]);
   });
 
+  it("validates graph memory declaration diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "goal:demo:memory:missing", kind: "Memory", label: "missing", span: testSpan(3) },
+        { id: "goal:demo:memory:wrong", kind: "Memory", label: "wrong", span: testSpan(4) },
+        { id: "goal:demo:memory:duplicate", kind: "Memory", label: "duplicate", span: testSpan(5) },
+        { id: "goal:demo:memory:valid", kind: "Memory", label: "valid", span: testSpan(6) },
+      ],
+      edges: [
+        { from: "goal:other", to: "goal:demo:memory:wrong", kind: "declares" },
+        { from: "goal:demo", to: "goal:demo:memory:duplicate", kind: "declares" },
+        { from: "goal:demo", to: "goal:demo:memory:duplicate", kind: "declares" },
+        { from: "goal:demo", to: "goal:demo:memory:valid", kind: "declares" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_MEMORY_DECLARE_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].memory_id, "goal:demo:memory:missing");
+    assert.equal(diagnostics[0].declares_edges, 0);
+    assert.equal(diagnostics[0].owner_goal_declares_edges, 0);
+    assert.equal(diagnostics[1].memory_id, "goal:demo:memory:wrong");
+    assert.equal(diagnostics[1].declares_edges, 1);
+    assert.equal(diagnostics[1].owner_goal_declares_edges, 0);
+    assert.equal(diagnostics[1].wrong_goal_declares_edges, 1);
+    assert.equal(diagnostics[2].memory_id, "goal:demo:memory:duplicate");
+    assert.equal(diagnostics[2].declares_edges, 2);
+    assert.equal(diagnostics[2].owner_goal_declares_edges, 2);
+  });
+
   it("validates graph type declaration diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",

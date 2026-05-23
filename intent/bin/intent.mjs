@@ -1620,6 +1620,16 @@ function validateGraph(graph, options = {}) {
   }
 
   for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Memory") {
+      continue;
+    }
+    const declareDiagnostic = validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, fallbackSpan);
+    if (declareDiagnostic) {
+      diagnostics.push(declareDiagnostic);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
     if (graphNode.kind !== "Completion") {
       continue;
     }
@@ -1950,6 +1960,30 @@ function isGraphRetentionRuleRecord(value) {
     && typeof value.until.raw === "string"
     && value.until.raw.trim() !== ""
     && isSupportedRetentionUntil(value.until.raw);
+}
+
+function validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, fallbackSpan) {
+  const ownerGoalId = parentNodeId(graphNode.id, ":memory:");
+  const ownerGoal = ownerGoalId ? nodesById.get(ownerGoalId) : null;
+  if (ownerGoal?.kind !== "Goal") {
+    return null;
+  }
+  const declareEdges = (incomingEdgesByNode.get(graphNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "declares");
+  const ownerGoalDeclareEdges = declareEdges.filter((graphEdge) => graphEdge.from === ownerGoalId);
+  const wrongGoalDeclareEdges = declareEdges.filter((graphEdge) => {
+    return graphEdge.from !== ownerGoalId && nodesById.get(graphEdge.from)?.kind === "Goal";
+  });
+  if (ownerGoalDeclareEdges.length === 1 && declareEdges.length === ownerGoalDeclareEdges.length) {
+    return null;
+  }
+  return error("INTENT_GRAPH_MEMORY_DECLARE_INVALID", `memory '${graphNode.label}' must be declared by its owning goal exactly once.`, graphNode.span ?? fallbackSpan, {
+    memory: graphNode.label,
+    memory_id: graphNode.id,
+    owner_goal_id: ownerGoalId,
+    declares_edges: declareEdges.length,
+    owner_goal_declares_edges: ownerGoalDeclareEdges.length,
+    wrong_goal_declares_edges: wrongGoalDeclareEdges.length,
+  });
 }
 
 function validateGraphInput(graphNode, graphSpan) {
