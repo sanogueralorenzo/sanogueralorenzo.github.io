@@ -1194,6 +1194,54 @@ describe("intent static model CLI", () => {
     assert.equal(wrongSourceDiagnostics[0].owner_goal_plans_edges, 0);
   });
 
+  it("validates graph step sequence diagnostics", () => {
+    const missingChainDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:step:b", kind: "Step", label: "b", span: testSpan(3) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(4) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(5) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:step:a", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:step:b", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:b", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    });
+    const wrongProducerDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:step:b", kind: "Step", label: "b", span: testSpan(3) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(4) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(5) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:step:a", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:step:b", kind: "plans" },
+        { from: "goal:demo:step:a", to: "goal:demo:step:b", kind: "precedes" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    });
+
+    assert.equal(missingChainDiagnostics.length, 1);
+    assert.equal(missingChainDiagnostics[0].code, "INTENT_GRAPH_STEP_SEQUENCE_INVALID");
+    assert.equal(missingChainDiagnostics[0].precedes_edges, 0);
+    assert.equal(missingChainDiagnostics[0].expected_precedes_edges, 1);
+    assert.deepEqual(missingChainDiagnostics[0].head_step_ids, ["goal:demo:step:a", "goal:demo:step:b"]);
+    assert.equal(wrongProducerDiagnostics.length, 1);
+    assert.equal(wrongProducerDiagnostics[0].code, "INTENT_GRAPH_STEP_SEQUENCE_INVALID");
+    assert.deepEqual(wrongProducerDiagnostics[0].completion_producer_step_ids, ["goal:demo:step:a"]);
+    assert.equal(wrongProducerDiagnostics[0].expected_completion_producer_step_id, "goal:demo:step:b");
+  });
+
   it("validates graph step attachment diagnostics", () => {
     const diagnostics = validateGraph({
       source: "synthetic.intent",

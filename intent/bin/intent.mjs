@@ -1395,6 +1395,16 @@ function validateGraph(graph) {
     }
   }
 
+  for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Goal") {
+      continue;
+    }
+    const sequenceDiagnostic = validateGoalStepSequence(graph, nodesById, incomingEdgesByNode, graphNode, fallbackSpan);
+    if (sequenceDiagnostic) {
+      diagnostics.push(sequenceDiagnostic);
+    }
+  }
+
   const visiting = new Set();
   const visited = new Set();
   let cycleReported = false;
@@ -1455,6 +1465,97 @@ function stepAttachment(graphNode) {
 function parentNodeId(nodeId, marker) {
   const markerIndex = nodeId.indexOf(marker);
   return markerIndex === -1 ? null : nodeId.slice(0, markerIndex);
+}
+
+function validateGoalStepSequence(graph, nodesById, incomingEdgesByNode, goalNode, fallbackSpan) {
+  const stepNodes = graph.nodes.filter((candidate) => candidate.kind === "Step" && candidate.id.startsWith(`${goalNode.id}:step:`));
+  if (stepNodes.length === 0) {
+    return null;
+  }
+
+  const stepIds = new Set(stepNodes.map((stepNode) => stepNode.id));
+  const incomingPrecedesCounts = new Map(stepNodes.map((stepNode) => [stepNode.id, 0]));
+  const outgoingPrecedesTargets = new Map(stepNodes.map((stepNode) => [stepNode.id, []]));
+  const precedesEdges = [];
+  const malformedPrecedesEdges = [];
+
+  for (const graphEdge of graph.edges) {
+    if (graphEdge.kind !== "precedes") {
+      continue;
+    }
+    const fromIsStep = stepIds.has(graphEdge.from);
+    const toIsStep = stepIds.has(graphEdge.to);
+    if (!fromIsStep && !toIsStep) {
+      continue;
+    }
+    if (!fromIsStep || !toIsStep) {
+      malformedPrecedesEdges.push(graphEdge);
+      continue;
+    }
+    precedesEdges.push(graphEdge);
+    incomingPrecedesCounts.set(graphEdge.to, (incomingPrecedesCounts.get(graphEdge.to) ?? 0) + 1);
+    outgoingPrecedesTargets.get(graphEdge.from).push(graphEdge.to);
+  }
+
+  const headStepIds = stepNodes
+    .filter((stepNode) => (incomingPrecedesCounts.get(stepNode.id) ?? 0) === 0)
+    .map((stepNode) => stepNode.id);
+  const tailStepIds = stepNodes
+    .filter((stepNode) => (outgoingPrecedesTargets.get(stepNode.id) ?? []).length === 0)
+    .map((stepNode) => stepNode.id);
+  const branchStepIds = stepNodes
+    .filter((stepNode) => {
+      return (incomingPrecedesCounts.get(stepNode.id) ?? 0) > 1 || (outgoingPrecedesTargets.get(stepNode.id) ?? []).length > 1;
+    })
+    .map((stepNode) => stepNode.id);
+
+  const orderedStepIds = [];
+  if (headStepIds.length === 1) {
+    const seen = new Set();
+    let cursor = headStepIds[0];
+    while (cursor && !seen.has(cursor)) {
+      orderedStepIds.push(cursor);
+      seen.add(cursor);
+      const targets = outgoingPrecedesTargets.get(cursor) ?? [];
+      cursor = targets.length === 1 ? targets[0] : null;
+    }
+  }
+
+  const completionId = `${goalNode.id}:completion`;
+  const completionProducerStepIds = (incomingEdgesByNode.get(completionId) ?? [])
+    .filter((graphEdge) => graphEdge.kind === "produces" && stepIds.has(graphEdge.from))
+    .map((graphEdge) => graphEdge.from);
+  const expectedTailStepId = tailStepIds.length === 1 ? tailStepIds[0] : null;
+  const producerIsTail = completionProducerStepIds.length !== 1 || expectedTailStepId === null
+    ? true
+    : completionProducerStepIds[0] === expectedTailStepId;
+  const validChain = stepNodes.length === 1
+    ? precedesEdges.length === 0 && malformedPrecedesEdges.length === 0
+    : precedesEdges.length === stepNodes.length - 1
+      && malformedPrecedesEdges.length === 0
+      && headStepIds.length === 1
+      && tailStepIds.length === 1
+      && branchStepIds.length === 0
+      && orderedStepIds.length === stepNodes.length;
+
+  if (validChain && producerIsTail) {
+    return null;
+  }
+
+  return error("INTENT_GRAPH_STEP_SEQUENCE_INVALID", `goal '${goalNode.label}' steps must form one linear precedes chain ending at the completion producer.`, goalNode.span ?? fallbackSpan, {
+    goal: goalNode.label,
+    goal_id: goalNode.id,
+    step_count: stepNodes.length,
+    precedes_edges: precedesEdges.length,
+    expected_precedes_edges: Math.max(stepNodes.length - 1, 0),
+    head_step_ids: headStepIds,
+    tail_step_ids: tailStepIds,
+    branch_step_ids: branchStepIds,
+    malformed_precedes_edges: malformedPrecedesEdges.map((graphEdge) => ({ from: graphEdge.from, to: graphEdge.to })),
+    ordered_step_ids: orderedStepIds,
+    completion_producer_step_ids: completionProducerStepIds,
+    expected_completion_producer_step_id: expectedTailStepId,
+  });
 }
 
 function invariantGoalId(invariantId) {
