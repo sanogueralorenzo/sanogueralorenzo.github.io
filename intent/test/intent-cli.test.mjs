@@ -1583,6 +1583,42 @@ describe("intent static model CLI", () => {
     ]);
   });
 
+  it("validates graph authorizes edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(5), data: { effect: { family: "shell", action: "run" } } },
+        { id: "goal:demo:context:0", kind: "Context", label: "web", span: testSpan(6), data: { source: "web" } },
+        { id: "goal:demo:memory:0", kind: "Memory", label: "memory", span: testSpan(7) },
+      ],
+      edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo:capability:0", to: "goal:demo:verify:0", kind: "authorizes" },
+        { from: "goal:demo:capability:0", to: "goal:demo:context:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:other", kind: "authorizes" },
+        { from: "goal:demo:capability:0", to: "goal:demo:memory:0", kind: "authorizes" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZE_INVALID");
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].from_kind, "Goal");
+    assert.equal(diagnostics[0].to_kind, "Goal");
+    assert.equal(diagnostics[1].from_kind, "Capability");
+    assert.equal(diagnostics[1].to_kind, "Memory");
+    assert.deepEqual(diagnostics[1].supported_roles, [
+      { from_kind: "Capability", to_kind: "Goal" },
+      { to_kind: "Effect" },
+      { to_kind: "Check" },
+      { to_kind: "Context" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
