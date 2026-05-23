@@ -1164,6 +1164,8 @@ function validateGraph(graph) {
   const nodesById = new Map(graph.nodes.map((candidate) => [candidate.id, candidate]));
   const fallbackSpan = graph.nodes[0]?.span ?? span(graph.source ?? "graph", 1, 1);
   const outgoing = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
+  const incomingEdgesByNode = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
+  const outgoingEdgesByNode = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
   const incomingDataCounts = new Map();
   const incomingCompletionEdges = new Map();
   const incomingAuthorizationEdges = new Map();
@@ -1181,6 +1183,8 @@ function validateGraph(graph) {
       continue;
     }
     outgoing.get(graphEdge.from).push(graphEdge.to);
+    outgoingEdgesByNode.get(graphEdge.from).push(graphEdge);
+    incomingEdgesByNode.get(graphEdge.to).push(graphEdge);
     if (nodesById.get(graphEdge.to)?.kind === "Completion") {
       const completionEdges = incomingCompletionEdges.get(graphEdge.to) ?? [];
       completionEdges.push(graphEdge);
@@ -1212,6 +1216,68 @@ function validateGraph(graph) {
         continue;
       }
       incomingDataCounts.set(graphEdge.to, (incomingDataCounts.get(graphEdge.to) ?? 0) + 1);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
+    const attachment = stepAttachment(graphNode);
+    if (!attachment) {
+      continue;
+    }
+    const missingEdges = [];
+    const missingApprovalTargets = [];
+    const ownerStep = attachment.ownerStepId ? nodesById.get(attachment.ownerStepId) : null;
+
+    if (!ownerStep || ownerStep.kind !== "Step") {
+      missingEdges.push({
+        kind: attachment.edgeKind,
+        from: attachment.direction === "incoming" ? attachment.ownerStepId : graphNode.id,
+        to: attachment.direction === "incoming" ? graphNode.id : attachment.ownerStepId,
+      });
+    } else if (attachment.direction === "incoming") {
+      const incomingEdges = incomingEdgesByNode.get(graphNode.id) ?? [];
+      const matchingEdges = incomingEdges.filter((graphEdge) => {
+        return graphEdge.kind === attachment.edgeKind && graphEdge.from === attachment.ownerStepId;
+      });
+      if (matchingEdges.length !== 1) {
+        missingEdges.push({ kind: attachment.edgeKind, from: attachment.ownerStepId, to: graphNode.id });
+      }
+    } else {
+      const outgoingEdges = outgoingEdgesByNode.get(graphNode.id) ?? [];
+      const matchingEdges = outgoingEdges.filter((graphEdge) => {
+        return graphEdge.kind === attachment.edgeKind && graphEdge.to === attachment.ownerStepId;
+      });
+      if (matchingEdges.length !== 1) {
+        missingEdges.push({ kind: attachment.edgeKind, from: graphNode.id, to: attachment.ownerStepId });
+      }
+    }
+
+    if (graphNode.kind === "Approval" && attachment.ownerStepId) {
+      const outgoingEdges = outgoingEdgesByNode.get(graphNode.id) ?? [];
+      const approvalRequiredEffectIds = graph.nodes
+        .filter((candidate) => {
+          return candidate.kind === "Effect"
+            && candidate.data?.approvalRequired === true
+            && candidate.id.startsWith(`${attachment.ownerStepId}:effect:`);
+        })
+        .map((candidate) => candidate.id);
+      for (const effectId of approvalRequiredEffectIds) {
+        const hasApprovalEdge = outgoingEdges.some((graphEdge) => graphEdge.kind === "approves" && graphEdge.to === effectId);
+        if (!hasApprovalEdge) {
+          missingApprovalTargets.push(effectId);
+        }
+      }
+    }
+
+    if (missingEdges.length > 0 || missingApprovalTargets.length > 0) {
+      diagnostics.push(error("INTENT_GRAPH_STEP_ATTACHMENT_INVALID", `${graphNode.kind} '${graphNode.label}' must be attached to its owning step with graph edges.`, graphNode.span ?? fallbackSpan, {
+        node: graphNode.label,
+        node_id: graphNode.id,
+        node_kind: graphNode.kind,
+        owner_step_id: attachment.ownerStepId,
+        missing_edges: missingEdges,
+        missing_approval_targets: missingApprovalTargets,
+      }));
     }
   }
 
@@ -1327,6 +1393,30 @@ function validateGraph(graph) {
 
 function requiresCapabilityAuthorization(graphNode) {
   return graphNode.kind === "Effect" || (graphNode.kind === "Check" && Boolean(graphNode.data?.effect));
+}
+
+function stepAttachment(graphNode) {
+  if (graphNode.kind === "Check" && graphNode.data?.scope === "step") {
+    return { ownerStepId: parentNodeId(graphNode.id, ":requirement:"), edgeKind: "requires", direction: "outgoing" };
+  }
+  if (graphNode.kind === "Approval") {
+    return { ownerStepId: parentNodeId(graphNode.id, ":approval:"), edgeKind: "approves", direction: "outgoing" };
+  }
+  if (graphNode.kind === "Checkpoint") {
+    return { ownerStepId: parentNodeId(graphNode.id, ":checkpoint:"), edgeKind: "checkpoints", direction: "incoming" };
+  }
+  if (graphNode.kind === "Policy" && graphNode.data?.policyKind === "timeout") {
+    return { ownerStepId: parentNodeId(graphNode.id, ":timeout:"), edgeKind: "timeouts", direction: "outgoing" };
+  }
+  if (graphNode.kind === "Policy" && graphNode.data?.policyKind === "retry") {
+    return { ownerStepId: parentNodeId(graphNode.id, ":retry:"), edgeKind: "retries", direction: "outgoing" };
+  }
+  return null;
+}
+
+function parentNodeId(nodeId, marker) {
+  const markerIndex = nodeId.indexOf(marker);
+  return markerIndex === -1 ? null : nodeId.slice(0, markerIndex);
 }
 
 function invariantGoalId(invariantId) {

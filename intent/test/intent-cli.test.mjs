@@ -1124,6 +1124,43 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].authorizes_edges, 0);
   });
 
+  it("validates graph step attachment diagnostics", () => {
+    const diagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "input.ready", span: testSpan(4), data: { scope: "step" } },
+        { id: "goal:demo:step:patch:approval:0", kind: "Approval", label: "maintainer", span: testSpan(5) },
+        { id: "goal:demo:step:patch:checkpoint:0", kind: "Checkpoint", label: "before", span: testSpan(6) },
+        { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(7), data: { policyKind: "timeout" } },
+        { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(8), data: { policyKind: "retry" } },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(9), data: { approvalRequired: true } },
+      ],
+      edges: [
+        { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+      ],
+    });
+
+    assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.code), [
+      "INTENT_GRAPH_STEP_ATTACHMENT_INVALID",
+      "INTENT_GRAPH_STEP_ATTACHMENT_INVALID",
+      "INTENT_GRAPH_STEP_ATTACHMENT_INVALID",
+      "INTENT_GRAPH_STEP_ATTACHMENT_INVALID",
+      "INTENT_GRAPH_STEP_ATTACHMENT_INVALID",
+    ]);
+    assert.equal(diagnostics[0].node_id, "goal:demo:step:patch:requirement:0");
+    assert.deepEqual(diagnostics[0].missing_edges, [
+      { kind: "requires", from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch" },
+    ]);
+    assert.equal(diagnostics[1].node_id, "goal:demo:step:patch:approval:0");
+    assert.deepEqual(diagnostics[1].missing_approval_targets, ["goal:demo:step:patch:effect:0"]);
+    assert.equal(diagnostics[2].node_id, "goal:demo:step:patch:checkpoint:0");
+    assert.equal(diagnostics[3].missing_edges[0].kind, "timeouts");
+    assert.equal(diagnostics[4].missing_edges[0].kind, "retries");
+  });
+
   it("validates graph completion edge diagnostics", () => {
     const missingProducesDiagnostics = validateGraph({
       source: "synthetic.intent",
@@ -1200,6 +1237,8 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints" },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires" },
         { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
       ],
     });
