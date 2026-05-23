@@ -86,4 +86,66 @@ describe("handleTurnNotification", () => {
     expect(onTurnEvent).not.toHaveBeenCalled();
     expect(state.lastAgentMessage).toBe("");
   });
+
+  it("emits completed command evidence with execution metadata", () => {
+    const onTurnEvent = vi.fn();
+    const { state } = createRunTurnState("thread-1", onTurnEvent);
+
+    handleTurnNotification(state, {
+      method: "item/completed",
+      params: {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        completedAtMs: 0,
+        item: {
+          id: "cmd-1",
+          type: "commandExecution",
+          command: "npm test",
+          cwd: "/repo",
+          processId: null,
+          source: "agent",
+          status: "completed",
+          commandActions: [],
+          aggregatedOutput: "pass",
+          exitCode: 0,
+          durationMs: 1234,
+        },
+      },
+    });
+
+    expect(onTurnEvent).toHaveBeenCalledWith({
+      kind: "itemCompleted",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      itemId: "cmd-1",
+      itemType: "commandExecution",
+      text: null,
+      status: "completed",
+      command: "npm test",
+      output: "pass",
+      exitCode: 0,
+      durationMs: 1234,
+    });
+  });
+
+  it("emits turn diff updates for the current turn", () => {
+    const onTurnEvent = vi.fn();
+    const { state } = createRunTurnState("thread-1", onTurnEvent);
+
+    handleTurnNotification(state, {
+      method: "turn/diff/updated",
+      params: {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        diff: "diff --git a/a b/a",
+      },
+    });
+
+    expect(onTurnEvent).toHaveBeenCalledWith({
+      kind: "turnDiffUpdated",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      diff: "diff --git a/a b/a",
+    });
+  });
 });

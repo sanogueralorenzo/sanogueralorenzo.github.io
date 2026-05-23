@@ -30,6 +30,7 @@ describe("createPromptRunner", () => {
         promotionTrials: [],
         attributedPrecedents: ["prec_validation"],
       })),
+      observeTurnEvent: vi.fn(async () => {}),
       afterTurn: vi.fn(async (input) => {
         afterTurns.push(input);
       }),
@@ -53,6 +54,32 @@ describe("createPromptRunner", () => {
       "Precedent:\n- Run focused validation.\n\nship it",
       expect.any(Object)
     );
+    const runtimeOptions = vi.mocked(sendMessageWithTimeoutContinuation).mock.calls[0][2] as {
+      onTurnEvent?: (event: Parameters<PrecedentBridge["observeTurnEvent"]>[0]["event"]) => void;
+    };
+    runtimeOptions.onTurnEvent?.({
+      kind: "itemCompleted",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      itemId: "cmd-1",
+      itemType: "commandExecution",
+      text: null,
+      status: "completed",
+      command: "npm test",
+      output: "pass",
+      exitCode: 0,
+      durationMs: 100,
+    });
+    expect(bridge.observeTurnEvent).toHaveBeenCalledWith({
+      cwd: "/repo",
+      threadId: "thread-1",
+      attributedPrecedents: ["prec_validation"],
+      event: expect.objectContaining({
+        kind: "itemCompleted",
+        command: "npm test",
+        exitCode: 0,
+      }),
+    });
     expect(sentMessages).toEqual(["done:Precedent:\n- Run focused validation.\n\nship it"]);
     expect(afterTurns).toMatchObject([{
       cwd: "/repo",
@@ -84,6 +111,48 @@ describe("createPromptRunner", () => {
       "ship it",
       expect.any(Object)
     );
+  });
+
+  it("records failed outcomes when normal thread prompts fail", async () => {
+    vi.mocked(sendMessageWithTimeoutContinuation).mockRejectedValueOnce(new Error("boom"));
+    const sentMessages: string[] = [];
+    const afterTurns: unknown[] = [];
+    const bridge: PrecedentBridge = {
+      beforeTurn: vi.fn(async () => ({
+        task: "Precedent:\n- Run focused validation.\n\nship it",
+        contextBlock: "Precedent:\n- Run focused validation.",
+        candidateHints: [],
+        promotionTrials: [],
+        attributedPrecedents: ["prec_validation"],
+      })),
+      observeTurnEvent: vi.fn(async () => {}),
+      afterTurn: vi.fn(async (input) => {
+        afterTurns.push(input);
+      }),
+    };
+    const runner = createPromptRunner({
+      store: { get: async () => "thread-1" } as never,
+      pendingNewSessionChats: new Set(),
+      getPendingNewSessionCwd: () => null,
+      clearPendingNewSessionCwd: () => {},
+      onThreadNotBound: async () => {},
+      getConversationOptions: () => ({ cwd: "/repo" }),
+      bindChatToThread: async () => {},
+      requestApprovalFromTelegram: async () => "accept",
+      precedentBridge: bridge,
+    });
+
+    await runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "ship it");
+
+    expect(afterTurns).toMatchObject([{
+      cwd: "/repo",
+      threadId: "thread-1",
+      task: "ship it",
+      response: "boom",
+      success: false,
+      attributedPrecedents: ["prec_validation"],
+    }]);
+    expect(sentMessages[0]).toContain("boom");
   });
 });
 

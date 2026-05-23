@@ -1,11 +1,14 @@
-import {
+import type {
   ApprovalDecision,
   ApprovalPolicy,
   ApprovalRequest,
   SandboxMode,
+  TurnProgressEvent,
+} from "../adapters/app-server/client.js";
+import {
   createAndSendFirstMessageWithTimeoutContinuation,
   sendMessageWithoutResumeWithTimeoutContinuation,
-  sendMessageWithTimeoutContinuation
+  sendMessageWithTimeoutContinuation,
 } from "../adapters/app-server/client.js";
 import { BindingStore } from "../adapters/binding-store.js";
 import { formatFailure } from "../bot/messages.js";
@@ -28,6 +31,7 @@ type TimedTurnLike =
 
 type PromptTurnRuntimeOptions = {
   approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
+  onTurnEvent?: (event: TurnProgressEvent) => void;
 };
 
 type PromptRunnerDeps = {
@@ -50,6 +54,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
     };
     const precedentBridge = deps.precedentBridge;
+    let failurePrecedent: PreparedPrecedentTurn | null = null;
     const finalizeTurn = async (
       turn: TimedTurnLike,
       precedent: PreparedPrecedentTurn | null
@@ -66,6 +71,23 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           });
         }
       });
+    };
+    const runtimeOptionsFor = (precedent: PreparedPrecedentTurn | null): PromptTurnRuntimeOptions => {
+      if (!precedentBridge || !precedent) {
+        return runtimeOptions;
+      }
+
+      return {
+        ...runtimeOptions,
+        onTurnEvent: (event) => {
+          void precedentBridge.observeTurnEvent({
+            cwd: precedent.cwd,
+            threadId: precedent.threadId,
+            event,
+            attributedPrecedents: precedent.attributedPrecedents,
+          });
+        },
+      };
     };
 
     try {
@@ -90,28 +112,55 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
       try {
         const precedent = await preparePrecedentTurn(threadId, text);
-        const turn = await sendMessageWithTimeoutContinuation(threadId, precedent.text, runtimeOptions);
+        failurePrecedent = precedent;
+        const turn = await sendMessageWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent));
         await finalizeTurn(turn, precedent);
+        failurePrecedent = null;
         return;
       } catch (error) {
-        if (!isNoRolloutFoundError(error)) {
+        if (isNoRolloutFoundError(error)) {
+          failurePrecedent = null;
+        } else {
           throw error;
         }
       }
 
       try {
         const precedent = await preparePrecedentTurn(threadId, text);
-        const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, precedent.text, runtimeOptions);
+        failurePrecedent = precedent;
+        const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent));
         await finalizeTurn(firstTurn, precedent);
+        failurePrecedent = null;
         return;
       } catch {
+        failurePrecedent = null;
         await recoverFromUnavailableThread(chatId, text, runtimeOptions, finalOutputRelay);
         return;
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      await recordFailedPrecedentTurn(failurePrecedent, text, message);
       await ctx.reply(formatFailure("Codex error.", message));
     }
+  }
+
+  async function recordFailedPrecedentTurn(
+    precedent: PreparedPrecedentTurn | null,
+    task: string,
+    response: string
+  ): Promise<void> {
+    if (!deps.precedentBridge || !precedent) {
+      return;
+    }
+
+    await deps.precedentBridge.afterTurn({
+      cwd: precedent.cwd,
+      threadId: precedent.threadId,
+      task,
+      response,
+      success: false,
+      attributedPrecedents: precedent.attributedPrecedents,
+    });
   }
 
   async function preparePrecedentTurn(threadId: string, text: string): Promise<PreparedPrecedentTurn> {

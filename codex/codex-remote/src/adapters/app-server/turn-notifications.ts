@@ -70,6 +70,19 @@ export function handleTurnNotification(state: RunTurnState, notification: JsonRp
       handleCompletedItem(state, params.turnId, params.item);
       return;
     }
+    case "turn/diff/updated": {
+      const { params } = notification;
+      if (!isCurrentTurnNotification(state, params.threadId, params.turnId)) {
+        return;
+      }
+      state.emitTurnEvent({
+        kind: "turnDiffUpdated",
+        threadId: state.threadId,
+        turnId: params.turnId,
+        diff: params.diff,
+      });
+      return;
+    }
     case "turn/completed": {
       const { params } = notification;
       if (params.threadId !== state.threadId || params.turn.id !== state.currentTurnId) {
@@ -128,6 +141,8 @@ function handleCompletedItem(state: RunTurnState, turnId: string, item: ThreadIt
     status: itemStatus(item),
     command: itemCommand(item),
     output: itemOutput(item),
+    exitCode: itemExitCode(item),
+    durationMs: itemDurationMs(item),
   });
 }
 
@@ -162,4 +177,12 @@ function itemCommand(item: ThreadItem): string | null {
 
 function itemOutput(item: ThreadItem): string | null {
   return item.type === "commandExecution" ? item.aggregatedOutput : null;
+}
+
+function itemExitCode(item: ThreadItem): number | null {
+  return item.type === "commandExecution" ? item.exitCode : null;
+}
+
+function itemDurationMs(item: ThreadItem): number | null {
+  return item.type === "commandExecution" ? item.durationMs : null;
 }

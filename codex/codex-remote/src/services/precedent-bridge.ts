@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
+import type { TurnProgressEvent } from "../adapters/app-server/client.js";
 
 export type PrecedentBridge = {
   beforeTurn: (input: PrecedentBeforeTurnInput) => Promise<PrecedentBeforeTurnResult>;
+  observeTurnEvent: (input: PrecedentTurnEventInput) => Promise<void>;
   afterTurn: (input: PrecedentAfterTurnInput) => Promise<void>;
 };
 
@@ -27,6 +29,13 @@ export type PrecedentAfterTurnInput = {
   task: string;
   success: boolean;
   response: string;
+  attributedPrecedents: string[];
+};
+
+export type PrecedentTurnEventInput = {
+  cwd: string;
+  threadId: string;
+  event: TurnProgressEvent;
   attributedPrecedents: string[];
 };
 
@@ -94,6 +103,26 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
         return emptyBeforeTurn(input.task);
       }
     },
+    observeTurnEvent: async (input) => {
+      try {
+        const payload = turnEventHookPayload(input);
+        if (!payload) {
+          return;
+        }
+        await runner({
+          cwd: input.cwd,
+          args: [
+            "hook",
+            "--state-dir",
+            stateDir,
+            "--json",
+          ],
+          stdinJson: payload,
+        });
+      } catch {
+        // Precedent is advisory; runtime turns must fail open.
+      }
+    },
     afterTurn: async (input) => {
       try {
         await runner({
@@ -132,6 +161,7 @@ export function precedentBridgeConfigFromEnv(env: NodeJS.ProcessEnv): PrecedentB
 function disabledPrecedentBridge(): PrecedentBridge {
   return {
     beforeTurn: async (input) => emptyBeforeTurn(input.task),
+    observeTurnEvent: async () => {},
     afterTurn: async () => {},
   };
 }
@@ -152,6 +182,40 @@ function sessionIdForThread(cwd: string, threadId: string): string {
     cwd,
     threadId,
   }).slice(0, 16)}`;
+}
+
+function turnEventHookPayload(input: PrecedentTurnEventInput): unknown | null {
+  const sessionId = sessionIdForThread(input.cwd, input.threadId);
+
+  if (input.event.kind === "itemCompleted" && input.event.itemType === "commandExecution") {
+    if (!input.event.command || input.event.exitCode === null) {
+      return null;
+    }
+
+    return {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId,
+      command: input.event.command,
+      exitCode: input.event.exitCode,
+      durationMs: input.event.durationMs,
+      stdout: input.event.output ?? "",
+      stderr: "",
+      attributedPrecedents: input.attributedPrecedents,
+    };
+  }
+
+  if (input.event.kind === "turnDiffUpdated" && input.event.diff.trim()) {
+    return {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId,
+      unifiedDiff: input.event.diff,
+      attributedPrecedents: input.attributedPrecedents,
+    };
+  }
+
+  return null;
 }
 
 async function runPrecedentJson(input: { cwd: string; args: string[]; stdinJson?: unknown }): Promise<unknown> {

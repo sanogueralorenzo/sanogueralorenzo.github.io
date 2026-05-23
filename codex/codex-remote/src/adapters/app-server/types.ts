@@ -43,6 +43,14 @@ export type TurnProgressEvent =
       status: string | null;
       command: string | null;
       output: string | null;
+      exitCode: number | null;
+      durationMs: number | null;
+    }
+  | {
+      kind: "turnDiffUpdated";
+      threadId: string;
+      turnId: string;
+      diff: string;
     }
   | {
       kind: "agentDelta" | "commandOutputDelta";
