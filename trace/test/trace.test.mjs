@@ -548,21 +548,28 @@ test("run captures command results as validation and risk events", async () => {
     const failed = await runTraceAllowFailure(repo, ["run", "--", "node", "-e", "process.exit(7)"]);
     assert.equal(failed.exitCode, 7);
 
+    const missing = await runTraceAllowFailure(repo, ["run", "--", "nope-cmd"]);
+    assert.equal(missing.exitCode, 127);
+    assert.match(missing.stderr, /failed to run nope-cmd/);
+
     const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
     const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
     const session = await readFile(join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`), "utf8");
     const events = session.trim().split("\n").map((line) => JSON.parse(line));
-    assert.deepEqual(events.map((event) => event.event), ["validation", "risk"]);
-    assert.deepEqual(events.map((event) => event.source), ["trace-run", "trace-run"]);
+    assert.deepEqual(events.map((event) => event.event), ["validation", "risk", "risk"]);
+    assert.deepEqual(events.map((event) => event.source), ["trace-run", "trace-run", "trace-run"]);
     assert.match(events[0].message, /validation passed: 'node' '-e'/);
     assert.match(events[0].message, /stdout: validation ok/);
     assert.match(events[1].message, /risk failed exit 7: 'node' '-e'/);
+    assert.match(events[2].message, /risk failed exit 127: 'nope-cmd'/);
+    assert.match(events[2].message, /stderr: failed to run nope-cmd/);
 
     await runTrace(repo, ["record"]);
     const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
     assert.match(memory, /validation passed: 'node' '-e'/);
     assert.match(memory, /stdout: validation ok/);
     assert.match(memory, /risk failed exit 7: 'node' '-e'/);
+    assert.match(memory, /risk failed exit 127: 'nope-cmd'/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

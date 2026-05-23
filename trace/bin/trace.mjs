@@ -3957,6 +3957,14 @@ async function run(commandName, commandArgs, options = {}) {
 
 async function runStreaming(commandName, commandArgs, options = {}) {
   return new Promise((resolveRun) => {
+    let settled = false;
+    const resolveOnce = (result) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolveRun(result);
+    };
     const child = spawn(commandName, commandArgs, {
       cwd: options.cwd ?? process.cwd(),
       env: options.env ?? process.env,
@@ -3972,8 +3980,13 @@ async function runStreaming(commandName, commandArgs, options = {}) {
       stderr += chunk;
       process.stderr.write(chunk);
     });
-    child.on("error", (error) => fail(`failed to run ${commandName}: ${error.message}`));
-    child.on("close", (exitCode) => resolveRun({ exitCode: exitCode ?? 1, stdout, stderr }));
+    child.on("error", (error) => {
+      const message = `failed to run ${commandName}: ${error.message}`;
+      stderr += message;
+      process.stderr.write(`${message}\n`);
+      resolveOnce({ exitCode: 127, stdout, stderr });
+    });
+    child.on("close", (exitCode) => resolveOnce({ exitCode: exitCode ?? 1, stdout, stderr }));
   });
 }
 
