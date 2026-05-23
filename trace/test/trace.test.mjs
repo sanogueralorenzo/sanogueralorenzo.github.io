@@ -1101,6 +1101,39 @@ test("documented example agent payloads are accepted by adapters", async () => {
   }
 });
 
+test("agent hook expands structured lifecycle memory fields", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "structured.txt"), "structured\n");
+    await git(repo, ["add", "structured.txt"]);
+    await git(repo, ["commit", "-m", "Add structured memory target"]);
+    await runTrace(repo, ["init"]);
+
+    const captured = JSON.parse((await runTraceWithInput(repo, ["hook", "agent", "--adapter", "generic"], JSON.stringify({
+      session_id: "structured-session",
+      event: "response",
+      message: "implemented structured lifecycle fanout",
+      decisions: ["Use structured fields as durable memory ingredients"],
+      validations: ["npm --prefix trace test passed"],
+      risks: ["Review adapter payload mapping before release"],
+    }))).stdout);
+    assert.deepEqual(captured.events.map((event) => event.event), ["response", "decision", "validation", "risk"]);
+
+    await runTrace(repo, ["record", "--session", "structured-session"]);
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.match(memory, /## Summary\n\n- implemented structured lifecycle fanout/);
+    assert.match(memory, /## Decisions\n\n- Use structured fields as durable memory ingredients/);
+    assert.match(memory, /## Validation\n\n- npm --prefix trace test passed/);
+    assert.match(memory, /## Risks\n\n- Review adapter payload mapping before release/);
+    assert.match(memory, /## Handoff\n\n- Preserve the decision: Use structured fields as durable memory ingredients/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("agent command validates names and reports malformed configs", async () => {
   const repo = await tempRepo();
 

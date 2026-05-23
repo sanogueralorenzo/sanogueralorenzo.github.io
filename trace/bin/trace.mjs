@@ -2241,16 +2241,18 @@ async function hookAgent(values) {
   const events = [];
 
   for (const item of payloads) {
-    const normalized = normalizeAgentPayload(args.adapter ?? args.source, args.event ?? firstPositional(values), item, raw);
     const sessionId = args.session ?? item?.session_id ?? item?.sessionId;
-    events.push(await appendEvent(root, {
-      sessionId,
-      event: normalized.event,
-      role: args.role ?? normalized.role,
-      source: args.source ?? normalized.source,
-      adapter: normalized.adapter,
-      message: args.message ?? normalized.message,
-    }));
+    const normalizedEvents = normalizeAgentPayloadEvents(args.adapter ?? args.source, args.event ?? firstPositional(values), item, raw);
+    for (const normalized of normalizedEvents) {
+      events.push(await appendEvent(root, {
+        sessionId,
+        event: normalized.event,
+        role: args.role ?? normalized.role,
+        source: args.source ?? normalized.source,
+        adapter: normalized.adapter,
+        message: args.message ?? normalized.message,
+      }));
+    }
   }
 
   if (events.length === 1) {
@@ -3348,6 +3350,66 @@ function normalizeAgentPayload(adapterInput, explicitEvent, payload, raw) {
   };
 }
 
+function normalizeAgentPayloadEvents(adapterInput, explicitEvent, payload, raw) {
+  const primary = normalizeAgentPayload(adapterInput, explicitEvent, payload, raw);
+  const events = [primary];
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return events;
+  }
+
+  for (const eventName of TRACE_EVENTS) {
+    for (const message of lifecycleFieldMessages(primary.adapter, eventName, payload)) {
+      if (eventName === primary.event && message === primary.message) {
+        continue;
+      }
+      events.push({
+        event: eventName,
+        role: inferRole(eventName),
+        source: primary.source,
+        adapter: primary.adapter,
+        message,
+      });
+    }
+  }
+
+  return events;
+}
+
+function lifecycleFieldMessages(adapter, eventName, payload) {
+  const keys = {
+    prompt: ["prompts"],
+    response: ["responses"],
+    tool: ["tools", "tool_activity", "toolActivity"],
+    decision: ["decision", "decisions"],
+    validation: ["validation", "validations"],
+    risk: ["risk", "risks"],
+    note: ["note", "notes"],
+  }[eventName] ?? [];
+  return keys.flatMap((key) => Object.hasOwn(payload, key) ? lifecycleValueMessages(adapter, eventName, payload[key]) : []);
+}
+
+function lifecycleValueMessages(adapter, eventName, value) {
+  if (value == null) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => lifecycleValueMessages(adapter, eventName, item));
+  }
+
+  if (typeof value === "string") {
+    const message = value.trim();
+    return message ? [message] : [];
+  }
+
+  if (typeof value === "object") {
+    return [agentPayloadMessage(adapter, eventName, value) ?? stringifyCompact(value)];
+  }
+
+  return [String(value)];
+}
+
 function agentPayloadMessage(adapter, eventName, payload) {
   if (!payload) {
     return null;
@@ -3389,7 +3451,7 @@ function payloadMessage(payload) {
     return null;
   }
 
-  for (const key of ["message", "prompt", "text", "summary", "response", "content", "output", "completion"]) {
+  for (const key of ["message", "prompt", "text", "summary", "response", "content", "output", "completion", "decision", "validation", "risk", "note"]) {
     if (typeof payload[key] === "string" && payload[key].trim()) {
       return payload[key];
     }
