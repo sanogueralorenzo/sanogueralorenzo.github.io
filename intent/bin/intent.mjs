@@ -26,6 +26,27 @@ const BUILTIN_TYPES = new Set([
   "Provenance",
   "SecretRef",
 ]);
+const GRAPH_EDGE_KINDS = new Set([
+  "authorizes",
+  "approves",
+  "checkpoints",
+  "completes",
+  "constrains",
+  "data",
+  "declares",
+  "gates",
+  "guards",
+  "informs",
+  "plans",
+  "precedes",
+  "produces",
+  "requests",
+  "requires",
+  "retries",
+  "supplies",
+  "timeouts",
+  "verifies",
+]);
 
 function usage() {
   return [
@@ -1192,6 +1213,15 @@ function validateGraph(graph) {
         from: graphEdge.from,
         to: graphEdge.to,
         missing_endpoints: missing,
+      }));
+      continue;
+    }
+    if (!GRAPH_EDGE_KINDS.has(graphEdge.kind)) {
+      diagnostics.push(error("INTENT_GRAPH_EDGE_KIND_INVALID", `graph edge kind '${graphEdge.kind}' is not supported.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+        edge: graphEdge.kind,
+        from: graphEdge.from,
+        to: graphEdge.to,
+        supported_edge_kinds: [...GRAPH_EDGE_KINDS],
       }));
       continue;
     }

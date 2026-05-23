@@ -1067,6 +1067,26 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].span.start.line, 2);
   });
 
+  it("validates graph edge kind diagnostics", () => {
+    const diagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(1) },
+        { id: "node:b", kind: "Type", label: "b", span: testSpan(2) },
+      ],
+      edges: [
+        { from: "node:a", to: "node:b", kind: "teleports" },
+      ],
+    });
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_EDGE_KIND_INVALID");
+    assert.equal(diagnostics[0].edge, "teleports");
+    assert.equal(diagnostics[0].from, "node:a");
+    assert.equal(diagnostics[0].to, "node:b");
+    assert.equal(diagnostics[0].supported_edge_kinds.includes("requests"), true);
+  });
+
   it("validates graph step input binding diagnostics", () => {
     const unboundDiagnostics = validateGraph({
       source: "synthetic.intent",
