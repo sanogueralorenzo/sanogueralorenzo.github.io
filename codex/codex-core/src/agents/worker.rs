@@ -154,8 +154,17 @@ struct PrecedentContext {
 #[derive(Deserialize)]
 struct PrecedentRepairOutput {
     schema_version: String,
+    #[serde(rename = "repairId")]
+    repair_id: Option<String>,
     #[serde(rename = "repairBlock")]
     repair_block: Option<String>,
+}
+
+#[derive(Debug)]
+struct PendingRepair {
+    repair_id: Option<String>,
+    repair_session_id: String,
+    block: String,
 }
 
 struct CaffeinateGuard {
@@ -231,17 +240,17 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
 
     let mut iteration: u64 = 0;
     let loop_run_id = uuid::Uuid::new_v4().to_string();
-    let mut pending_repair_block: Option<String> = None;
+    let mut pending_repair: Option<PendingRepair> = None;
     loop {
         iteration += 1;
-        let repair_block = pending_repair_block.take();
+        let active_repair = pending_repair.take();
         let turn = prepare_precedent_turn(
             &cwd,
             &prompt,
             &args,
             &loop_run_id,
             iteration,
-            repair_block.as_deref(),
+            active_repair.as_ref().map(|repair| repair.block.as_str()),
         );
         println!("[loop {iteration}] Running codex exec...");
         let diff_before = capture_precedent_diff_snapshot(&cwd);
@@ -266,6 +275,15 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
                         false,
                         "codex_exec_failed",
                     );
+                    if let Some(repair) = active_repair.as_ref() {
+                        record_precedent_repair_after_retry(
+                            &cwd,
+                            &args,
+                            session_id,
+                            repair,
+                            &turn.injected_precedent_ids,
+                        );
+                    }
                 }
                 return Err(error)
                     .with_context(|| format!("codex exec failed on iteration {}", iteration));
@@ -298,6 +316,15 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
                 stop_matched,
                 if stop_matched { "success" } else { "failure" },
             );
+            if let Some(repair) = active_repair.as_ref() {
+                record_precedent_repair_after_retry(
+                    &cwd,
+                    &args,
+                    session_id,
+                    repair,
+                    &turn.injected_precedent_ids,
+                );
+            }
         }
 
         println!(
@@ -319,7 +346,7 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
 
         if let Some(session_id) = turn.attempt_session_id.as_deref() {
             let next_session_id = precedent_session_id(&loop_run_id, iteration + 1);
-            pending_repair_block = fetch_precedent_repair_before_retry(
+            pending_repair = fetch_precedent_repair_before_retry(
                 &cwd,
                 &args,
                 session_id,
@@ -623,7 +650,7 @@ fn fetch_precedent_repair_before_retry(
     task: &str,
     final_message: &str,
     retry: u64,
-) -> Option<String> {
+) -> Option<PendingRepair> {
     match try_fetch_precedent_repair_before_retry(
         cwd,
         args,
@@ -651,7 +678,7 @@ fn try_fetch_precedent_repair_before_retry(
     task: &str,
     final_message: &str,
     retry: u64,
-) -> Result<Option<String>> {
+) -> Result<Option<PendingRepair>> {
     let state_dir = args
         .precedent_state_dir
         .as_ref()
@@ -700,7 +727,15 @@ fn try_fetch_precedent_repair_before_retry(
     Ok(parsed
         .repair_block
         .map(|block| block.trim().to_string())
-        .filter(|block| !block.is_empty()))
+        .filter(|block| !block.is_empty())
+        .map(|block| PendingRepair {
+            repair_id: parsed
+                .repair_id
+                .map(|id| id.trim().to_string())
+                .filter(|id| !id.is_empty()),
+            repair_session_id: session_id.to_string(),
+            block,
+        }))
 }
 
 fn record_precedent_outcome(
@@ -725,6 +760,71 @@ fn record_precedent_outcome(
     ) {
         eprintln!("[precedent {session_id}] outcome unavailable: {error}");
     }
+}
+
+fn record_precedent_repair_after_retry(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    repair: &PendingRepair,
+    injected_precedent_ids: &[String],
+) {
+    if repair.repair_id.is_none() {
+        return;
+    }
+
+    if let Err(error) = try_record_precedent_repair_after_retry(
+        cwd,
+        args,
+        session_id,
+        repair,
+        injected_precedent_ids,
+    ) {
+        eprintln!("[precedent {session_id}] repair receipt unavailable: {error}");
+    }
+}
+
+fn try_record_precedent_repair_after_retry(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    repair: &PendingRepair,
+    injected_precedent_ids: &[String],
+) -> Result<()> {
+    let state_dir = args
+        .precedent_state_dir
+        .as_ref()
+        .context("precedent state dir is not configured")?;
+    let mut cmd = precedent_command(cwd, &args.precedent_bin);
+    cmd.arg("hook");
+    cmd.arg("--state-dir");
+    cmd.arg(state_dir);
+    cmd.arg("--json");
+    let payload = json!({
+        "schema_version": "precedent.v1",
+        "hook": "repair.after_retry",
+        "sessionId": session_id,
+        "repairId": repair.repair_id.as_deref().unwrap_or(""),
+        "repairSessionId": repair.repair_session_id,
+        "attributedPrecedents": injected_precedent_ids,
+    });
+    let stdin =
+        serde_json::to_string(&payload).context("failed to serialize Precedent repair receipt")?;
+    let output = output_with_timeout(
+        cmd,
+        Some(&stdin),
+        Duration::from_millis(DEFAULT_PRECEDENT_TIMEOUT_MS),
+    )
+    .context("repair receipt hook command failed")?;
+    if !output.status.success() {
+        bail!(
+            "repair receipt hook exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    Ok(())
 }
 
 fn run_and_record_precedent_validation(
@@ -2049,6 +2149,7 @@ exit 2
         let precedent_bin = dir.join("fake-precedent.sh");
         let prompt_capture = dir.join("prompts.txt");
         let repair_capture = dir.join("repair.json");
+        let receipt_capture = dir.join("receipt.json");
         let codex_counter = dir.join("codex-count.txt");
         let state_dir = dir.join("state");
         fs::create_dir_all(&state_dir).unwrap();
@@ -2104,7 +2205,12 @@ if [ "$1" = "hook" ]; then
   payload=$(cat)
   if printf '%s' "$payload" | grep -q 'repair.before_retry'; then
     printf '%s' "$payload" > '{}'
-    printf '%s\n' '{{"schema_version":"precedent.repair.v1","ok":true,"repairBlock":"Precedent repair:\n- Fix bad path."}}'
+    printf '%s\n' '{{"schema_version":"precedent.repair.v1","ok":true,"repairId":"repair_test","repairBlock":"Precedent repair:\n- Fix bad path."}}'
+    exit 0
+  fi
+  if printf '%s' "$payload" | grep -q 'repair.after_retry'; then
+    printf '%s' "$payload" > '{}'
+    printf '%s\n' '{{"schema_version":"precedent.repair_receipt.v1","ok":true,"repairReceipt":{{"id":"repair_test","cleared":true}}}}'
     exit 0
   fi
   printf '%s\n' '{{"ok":true}}'
@@ -2112,7 +2218,8 @@ if [ "$1" = "hook" ]; then
 fi
 exit 2
 "#,
-                repair_capture.display()
+                repair_capture.display(),
+                receipt_capture.display()
             ),
         );
 
@@ -2146,6 +2253,10 @@ exit 2
         assert!(repair_payload.contains(r#"-1""#));
         assert!(repair_payload.contains(r#""nextSessionId":"codex-core-worker-loop-"#));
         assert!(repair_payload.contains(r#"-2""#));
+        let receipt_payload = fs::read_to_string(receipt_capture).unwrap();
+        assert!(receipt_payload.contains(r#""hook":"repair.after_retry""#));
+        assert!(receipt_payload.contains(r#""repairId":"repair_test""#));
+        assert!(receipt_payload.contains(r#""repairSessionId":"codex-core-worker-loop-"#));
 
         let _ = fs::remove_dir_all(dir);
     }

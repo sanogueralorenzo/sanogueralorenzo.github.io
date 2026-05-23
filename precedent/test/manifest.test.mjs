@@ -23,8 +23,10 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.deepEqual(manifest.hooks["diff.after_edit"].output, ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff", "guardResult", "repairPrompt", "contextBlock"]);
   assert.deepEqual(manifest.hooks["outcome.after_task"].stdin, ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"]);
   assert.deepEqual(manifest.hooks["repair.before_retry"].stdin, ["schema_version", "hook", "sessionId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"]);
-  assert.deepEqual(manifest.hooks["repair.before_retry"].output, ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairBlock", "repairSource", "suppressedRepairs"]);
+  assert.deepEqual(manifest.hooks["repair.before_retry"].output, ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairId", "repairBlock", "repairSource", "suppressedRepairs"]);
   assert.equal(manifest.hooks["repair.before_retry"].injectFrom, undefined);
+  assert.deepEqual(manifest.hooks["repair.after_retry"].stdin, ["schema_version", "hook", "sessionId", "repairId", "repairSessionId", "attributedPrecedents"]);
+  assert.deepEqual(manifest.hooks["repair.after_retry"].output, ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairReceipt", "suppressedRepairs"]);
   assert.deepEqual(manifest.hooks["context.before_turn"].command, [
     "node",
     "precedent/bin/precedent.mjs",

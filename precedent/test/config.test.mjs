@@ -26,6 +26,7 @@ test("init creates deterministic versioned runtime config", async () => {
         "review.after_feedback",
         "outcome.after_task",
         "repair.before_retry",
+        "repair.after_retry",
       ],
       failurePolicy: "fail_open",
       hookTimeoutMs: 1500,

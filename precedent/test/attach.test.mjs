@@ -67,6 +67,9 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.beforeRetry.stdin.hook, "repair.before_retry");
     assert.equal(first.adapter.beforeRetry.stdin.nextSessionId, "$NEXT_SESSION_ID");
     assert.equal(first.adapter.beforeRetry.injectFrom, "repairBlock");
+    assert.deepEqual(first.adapter.afterRetry.stdin.hook, "repair.after_retry");
+    assert.equal(first.adapter.afterRetry.stdin.repairId, "$REPAIR_ID");
+    assert.equal(first.adapter.afterRetry.stdin.repairSessionId, "$REPAIR_SESSION_ID");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

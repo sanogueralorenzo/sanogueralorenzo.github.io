@@ -110,12 +110,114 @@ test("repair.before_retry returns empty repair on clean sessions", async () => {
   }
 });
 
+test("repair.after_retry records cleared repair receipts in report and explain", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await promoteAndInjectWebhookPrecedent(stateDir, "failed-session");
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "failed-session",
+      changedFiles: ["features/billing/refunds.ts"],
+    });
+    const repair = await repairBeforeRetry(stateDir, "failed-session");
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "retry-session",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+    const receipt = await repairAfterRetry(stateDir, "retry-session", repair.repairId, "failed-session", ["prec_webhook_replay_boundary"]);
+
+    assert.equal(receipt.recorded, true);
+    assert.equal(receipt.repairReceipt.status, "cleared");
+    assert.equal(receipt.repairReceipt.cleared, true);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.repairClearedCount, 1);
+    assert.equal(health.repairStillFailingCount, 0);
+    assert.equal(health.repairSuccessRate, 1);
+
+    const explained = await runJson(["explain", "--state-dir", stateDir, "--id", "prec_webhook_replay_boundary", "--json"]);
+    assert.equal(explained.outcomes.repairClearedCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("repair.after_retry records still-failing repair receipts", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await promoteAndInjectWebhookPrecedent(stateDir, "failed-session");
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "failed-session",
+      changedFiles: ["features/billing/refunds.ts"],
+    });
+    const repair = await repairBeforeRetry(stateDir, "failed-session");
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "retry-session",
+      changedFiles: ["features/billing/refunds.ts"],
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+    const receipt = await repairAfterRetry(stateDir, "retry-session", repair.repairId, "failed-session", ["prec_webhook_replay_boundary"]);
+
+    assert.equal(receipt.repairReceipt.status, "still_failing");
+    assert.equal(receipt.repairReceipt.cleared, false);
+    assert.equal(receipt.repairReceipt.failureSource.kind, "diff_repair");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.repairClearedCount, 0);
+    assert.equal(health.repairStillFailingCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("repair.after_retry fails open without a repair id", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    const receipt = await repairAfterRetry(stateDir, "retry-session", "", "failed-session", []);
+
+    assert.equal(receipt.recorded, true);
+    assert.equal(receipt.repairReceipt.status, "unresolved");
+    assert.equal(receipt.repairReceipt.repairResolved, false);
+    assert.equal(receipt.suppressedRepairs[0].reason, "missing_repair_id");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function repairBeforeRetry(stateDir, sessionId) {
   return runJson(["hook", "--state-dir", stateDir, "--json"], {
     schema_version: "precedent.v1",
     hook: "repair.before_retry",
     sessionId,
     nextSessionId: `${sessionId}-retry`,
+  });
+}
+
+async function repairAfterRetry(stateDir, sessionId, repairId, repairSessionId, attributedPrecedents) {
+  return runJson(["hook", "--state-dir", stateDir, "--json"], {
+    schema_version: "precedent.v1",
+    hook: "repair.after_retry",
+    sessionId,
+    repairId,
+    repairSessionId,
+    attributedPrecedents,
   });
 }
 
