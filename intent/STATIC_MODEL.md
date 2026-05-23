@@ -381,6 +381,15 @@ Next graph envelope validation milestone:
   `requires` edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
   graph output non-executable; wrong attachment endpoints remain
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+- Runtime graph step attachment edge payloads are the next Phase 2 static-model
+  milestone. Step-scoped `Approval` to `Step` `approves` edges and `Approval`
+  to `Effect` `approves` edges must carry non-empty `data.approval`. Step-scoped
+  `Policy` to `Step` `timeouts` and `retries` edges must carry non-empty
+  `data.policy`. `Step` to `Checkpoint` `checkpoints` edges must carry
+  non-empty `data.checkpoint`. Malformed step attachment edge payloads emit
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable;
+  missing or wrong step attachment edges remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
@@ -610,18 +619,22 @@ blocking diagnostics.
   step and `gates` edges to the owning goal.
 - Emit step approval gates as `Approval` nodes, list them on the owning `Step`
   node data, and connect each one with an `approves` edge from that `Approval`
-  node to the owning `Step`. Approval labels must be non-empty after trimming;
-  empty labels such as `approval ""` are `INTENT_APPROVAL_INVALID` at the
-  approval line span and make graph output non-executable.
+  node to the owning `Step`. The edge must carry non-empty `data.approval`.
+  Approval labels must be non-empty after trimming; empty labels such as
+  `approval ""` are `INTENT_APPROVAL_INVALID` at the approval line span and
+  make graph output non-executable.
 - For approval-required effects, also connect a step `Approval` node to each
-  matching `Effect` node with an `approves` edge and record the approval policy
-  on the authorizing `Capability` node.
+  matching `Effect` node with an `approves` edge that carries non-empty
+  `data.approval`, and record the approval policy on the authorizing
+  `Capability` node.
 - Emit step checkpoints as `Checkpoint` nodes with non-empty `data.checkpoint`
   and `data.ownerStep`, list them on the owning `Step` node data, and connect
-  each one with a `checkpoints` edge from that `Step`.
+  each one with a `checkpoints` edge from that `Step` carrying non-empty
+  `data.checkpoint`.
 - Emit step timeout and retry policies as `Policy` nodes, list them on the
   owning `Step` node data, and connect each one with a `timeouts` or `retries`
-  edge from that `Policy` node to the owning `Step`.
+  edge from that `Policy` node to the owning `Step` carrying non-empty
+  `data.policy`.
 - Emit every `Step` node with `data.inputs`, `data.effects`,
   `data.requirements`, `data.checkpoints`, `data.approvals`, `data.timeouts`,
   and `data.retries` arrays. Each `data.inputs` entry must be a valid parameter
@@ -885,6 +898,7 @@ Rules:
 - The owning `Step` node data lists approval summaries in source order.
 - The graph builder creates an `approves` edge from each approval `Approval`
   node to the owning `Step`, so the step cannot run until approval is granted.
+  That edge must carry non-empty `data.approval`.
 - Runtime graph validation requires every `Approval` node to carry non-empty
   `data.approval` and non-empty `data.ownerStep`; malformed approval gate data
   emits `INTENT_GRAPH_APPROVAL_INVALID` and makes the graph non-executable.
@@ -898,7 +912,8 @@ Rules:
   effect's owning step must contain at least one step-local `approval ...` gate.
   The graph builder also creates an `approves` edge from a step `Approval` node
   to each approval-required `Effect` node in that step. If the owning step has
-  no approval gate, the checker emits `INTENT_APPROVAL_MISSING`.
+  no approval gate, the checker emits `INTENT_APPROVAL_MISSING`. The effect
+  approval edge must carry non-empty `data.approval`.
 
 ## Step Checkpoints
 
@@ -922,7 +937,8 @@ Rules:
   `checkpoint ...` line.
 - The owning `Step` node data lists checkpoint summaries in source order.
 - The graph builder creates a `checkpoints` edge from the owning `Step` to each
-  checkpoint `Checkpoint` node.
+  checkpoint `Checkpoint` node. That edge must carry non-empty
+  `data.checkpoint`.
 - Checkpoint labels must be non-empty after trimming.
 - Runtime graph validation also requires each `Checkpoint` node to carry
   non-empty `data.checkpoint` and non-empty `data.ownerStep`. Malformed
@@ -966,9 +982,9 @@ Rules:
 - The owning `Step` node data lists timeout and retry summaries in source
   order.
 - The graph builder creates a `timeouts` edge from each timeout `Policy` node
-  to the owning `Step`.
+  to the owning `Step`. That edge must carry non-empty `data.policy`.
 - The graph builder creates a `retries` edge from each retry `Policy` node to
-  the owning `Step`.
+  the owning `Step`. That edge must carry non-empty `data.policy`.
 - Step policies do not create `verifies` edges to the goal `Completion` node
   and do not replace approval, checkpoint, or capability policy requirements.
 
@@ -1678,27 +1694,32 @@ node id. It is an intermediate contract for a local runtime.
     {
       "from": "goal:ship_checkout_fix:step:run_tests:approval:0",
       "to": "goal:ship_checkout_fix:step:run_tests",
-      "kind": "approves"
+      "kind": "approves",
+      "data": { "approval": "release_manager_review" }
     },
     {
       "from": "goal:ship_checkout_fix:step:run_tests:approval:0",
       "to": "goal:ship_checkout_fix:step:run_tests:effect:0",
-      "kind": "approves"
+      "kind": "approves",
+      "data": { "approval": "release_manager_review" }
     },
     {
       "from": "goal:ship_checkout_fix:step:run_tests",
       "to": "goal:ship_checkout_fix:step:run_tests:checkpoint:0",
-      "kind": "checkpoints"
+      "kind": "checkpoints",
+      "data": { "checkpoint": "test_report_written" }
     },
     {
       "from": "goal:ship_checkout_fix:step:run_tests:timeout:0",
       "to": "goal:ship_checkout_fix:step:run_tests",
-      "kind": "timeouts"
+      "kind": "timeouts",
+      "data": { "policy": "2m" }
     },
     {
       "from": "goal:ship_checkout_fix:step:run_tests:retry:0",
       "to": "goal:ship_checkout_fix:step:run_tests",
-      "kind": "retries"
+      "kind": "retries",
+      "data": { "policy": "max 3" }
     },
     {
       "from": "goal:ship_checkout_fix:step:run_tests:requirement:0",
@@ -1785,6 +1806,11 @@ the required input parameter.
 Graph `produces` edge payloads that connect the final executable step to
 completion must include non-empty `type`, valid `sourceSpan` for the final step
 output, and valid `targetSpan` for the goal output.
+Graph step attachment edge payloads must include non-empty `data.approval` on
+step-scoped `Approval` to `Step` `approves` edges and `Approval` to `Effect`
+`approves` edges, non-empty `data.policy` on step-scoped `Policy` to `Step`
+`timeouts` and `retries` edges, and non-empty `data.checkpoint` on `Step` to
+`Checkpoint` `checkpoints` edges.
 
 Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
 `from` or `to` endpoint is absent from the same graph payload, emits
@@ -1795,7 +1821,9 @@ step `Input` node does not have exactly one incoming `data` edge or lacks its
 `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a `data` edge payload omits non-empty
 `parameter` or `type` values or valid `sourceSpan` or `targetSpan` values, or
 when a final-step-to-completion `produces` edge payload omits non-empty `type`
-or valid `sourceSpan` or `targetSpan` values,
+or valid `sourceSpan` or `targetSpan` values, or when a step attachment edge
+payload omits non-empty `data.approval`, `data.policy`, or `data.checkpoint`
+values,
 emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a
 `Goal` node lacks its `${goal_id}:completion` `Completion` node, lacks exactly
@@ -1961,7 +1989,8 @@ non-executable. Malformed trust metadata inside `data.effect` remains
 
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
-checkpoint has one incoming `checkpoints` edge from that owning step.
+checkpoint has one incoming `checkpoints` edge from that owning step. The
+`checkpoints` edge payload must carry non-empty `data.checkpoint`.
 Checkpoint graph data must carry non-empty `data.checkpoint` and non-empty
 `data.ownerStep`; malformed checkpoint records are non-executable because graph
 validation must emit `INTENT_GRAPH_CHECKPOINT_INVALID`. Source checkpoint
@@ -1970,11 +1999,13 @@ label is non-executable because the checker must emit `INTENT_CHECKPOINT_INVALID
 
 Step approval nodes are `Approval` nodes scoped to one owning step. The owning
 step node lists them in its `data.approvals` array, and each approval has one
-outgoing `approves` edge to that owning step. When an effect in that step is
-authorized by a capability whose approval policy is `required`, a step
-`Approval` node also has an outgoing `approves` edge to that approval-required
-`Effect` node. Approval labels must be non-empty after trimming; a graph with an
-empty approval label is non-executable because the checker must emit
+outgoing `approves` edge to that owning step. The step `approves` edge payload
+must carry non-empty `data.approval`. When an effect in that step is authorized
+by a capability whose approval policy is `required`, a step `Approval` node
+also has an outgoing `approves` edge to that approval-required `Effect` node.
+The effect `approves` edge payload must carry non-empty `data.approval`.
+Approval labels must be non-empty after trimming; a graph with an empty
+approval label is non-executable because the checker must emit
 `INTENT_APPROVAL_INVALID`. Runtime graph validation also requires each
 `Approval` node to carry non-empty `data.approval` and non-empty
 `data.ownerStep`; malformed approval node payloads emit
@@ -1984,10 +2015,11 @@ Step policy nodes are `Policy` nodes scoped to one owning step. The owning step
 node lists timeout summaries in `data.timeouts` and retry summaries in
 `data.retries`. Each timeout policy has one outgoing `timeouts` edge to that
 owning step, and each retry policy has one outgoing `retries` edge to that
-owning step. Runtime graph validation also requires `data.policyKind` to be
-`timeout` or `retry`, `data.policy` to be non-empty, and `data.ownerStep` to be
-non-empty; malformed records emit `INTENT_GRAPH_POLICY_INVALID` and make graph
-output non-executable.
+owning step. The `timeouts` and `retries` edge payloads must carry non-empty
+`data.policy`. Runtime graph validation also requires `data.policyKind` to be
+`timeout` or `retry`, `data.policy` to be non-empty, and `data.ownerStep` to
+be non-empty; malformed records emit `INTENT_GRAPH_POLICY_INVALID` and make
+graph output non-executable.
 
 Git commits are represented as `Effect` nodes the same way as other effect
 requests. The node data records family `git`, action `commit`, the normalized

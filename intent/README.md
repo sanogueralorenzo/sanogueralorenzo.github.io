@@ -156,6 +156,15 @@ Validation expectations:
   `requires` edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
   graph output non-executable; wrong attachment endpoints remain
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+- Runtime graph step attachment edge payloads are the next Phase 2 static-model
+  milestone. Step-scoped `Approval` to `Step` `approves` edges and `Approval`
+  to `Effect` `approves` edges must carry non-empty `data.approval`. Step-scoped
+  `Policy` to `Step` `timeouts` and `retries` edges must carry non-empty
+  `data.policy`. `Step` to `Checkpoint` `checkpoints` edges must carry
+  non-empty `data.checkpoint`. Malformed step attachment edge payloads emit
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable;
+  missing or wrong step attachment edges remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
