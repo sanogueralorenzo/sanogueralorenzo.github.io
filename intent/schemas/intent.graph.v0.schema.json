@@ -182,10 +182,10 @@
           "enum": ["trusted", "untrusted", "unknown"]
         },
         "source": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "argument": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         }
       }
     },

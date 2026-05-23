@@ -66,6 +66,7 @@ const GRAPH_EDGE_KINDS = new Set([
   "timeouts",
   "verifies",
 ]);
+const TRUST_ZONES = new Set(["trusted", "untrusted", "unknown"]);
 
 function usage() {
   return [
@@ -1329,6 +1330,10 @@ function validateGraph(graph, options = {}) {
       }));
       continue;
     }
+    const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
+    if (trustDiagnostic) {
+      diagnostics.push(trustDiagnostic);
+    }
     nodesById.set(graphNode.id, graphNode);
   }
   const fallbackSpan = graph.nodes[0]?.span ?? graphSpan;
@@ -1671,6 +1676,40 @@ function isDiagnosticRecord(value) {
     && typeof value.message === "string"
     && value.message.trim() !== ""
     && isSpan(value.span);
+}
+
+function validateGraphNodeTrust(graphNode, graphSpan) {
+  const trustTargets = [];
+  if (graphNode.kind === "Context" || graphNode.kind === "Effect") {
+    trustTargets.push({ path: "data.trust", trust: graphNode.data.trust });
+  }
+  if (graphNode.kind === "Check" && graphNode.data.effect) {
+    trustTargets.push({ path: "data.effect.trust", trust: graphNode.data.effect.trust });
+  }
+  const malformedTrust = trustTargets.find((target) => !isTrustRecord(target.trust));
+  if (!malformedTrust) {
+    return null;
+  }
+  return error("INTENT_GRAPH_TRUST_INVALID", `${graphNode.kind} '${graphNode.label}' must carry valid trust metadata.`, graphNode.span ?? graphSpan, {
+    node: graphNode.label,
+    node_id: graphNode.id,
+    node_kind: graphNode.kind,
+    trust_path: malformedTrust.path,
+    trust_zone: isPlainObject(malformedTrust.trust) ? malformedTrust.trust.zone ?? null : null,
+    trust_source: isPlainObject(malformedTrust.trust) ? malformedTrust.trust.source ?? null : null,
+    zone_is_supported: isPlainObject(malformedTrust.trust) && TRUST_ZONES.has(malformedTrust.trust.zone),
+    source_is_nonempty: isPlainObject(malformedTrust.trust) && typeof malformedTrust.trust.source === "string" && malformedTrust.trust.source.trim() !== "",
+    argument_is_valid: isPlainObject(malformedTrust.trust)
+      && (malformedTrust.trust.argument === undefined || (typeof malformedTrust.trust.argument === "string" && malformedTrust.trust.argument.trim() !== "")),
+  });
+}
+
+function isTrustRecord(value) {
+  return isPlainObject(value)
+    && TRUST_ZONES.has(value.zone)
+    && typeof value.source === "string"
+    && value.source.trim() !== ""
+    && (value.argument === undefined || (typeof value.argument === "string" && value.argument.trim() !== ""));
 }
 
 function requiresCapabilityAuthorization(graphNode) {

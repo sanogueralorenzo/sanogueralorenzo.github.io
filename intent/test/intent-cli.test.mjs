@@ -84,7 +84,12 @@ function validateTestGraph(graph) {
     ...graph,
     nodes: graph.nodes?.map((node, index) => {
       return isPlainObject(node)
-        ? { label: node.id ?? `node:${index}`, span: testSpan(index + 1), data: {}, ...node }
+        ? {
+            label: node.id ?? `node:${index}`,
+            span: testSpan(index + 1),
+            ...node,
+            data: defaultGraphNodeData(node.kind, node.data),
+          }
         : node;
     }),
   };
@@ -97,6 +102,20 @@ function validateTestGraph(graph) {
     diagnostics: [],
     ...normalizedGraph,
   });
+}
+
+function defaultGraphNodeData(kind, data) {
+  const normalizedData = isPlainObject(data) ? data : {};
+  if (kind === "Context" || kind === "Effect") {
+    return { trust: { zone: "unknown", source: "synthetic" }, ...normalizedData };
+  }
+  if (kind === "Check" && isPlainObject(normalizedData.effect)) {
+    return {
+      ...normalizedData,
+      effect: { trust: { zone: "unknown", source: "synthetic" }, ...normalizedData.effect },
+    };
+  }
+  return normalizedData;
 }
 
 function validateSchema(schema, value) {
@@ -1416,6 +1435,35 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].supported_edge_kinds.includes("requests"), true);
   });
 
+  it("validates graph trust metadata diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "context:missing-trust", kind: "Context", label: "missing trust", span: testSpan(1), data: { trust: null } },
+        { id: "context:bad-zone", kind: "Context", label: "bad zone", span: testSpan(2), data: { trust: { zone: "ambient", source: "external" } } },
+        { id: "context:blank-source", kind: "Context", label: "blank source", span: testSpan(3), data: { trust: { zone: "trusted", source: "   ", argument: "" } } },
+      ],
+      edges: [],
+    });
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_TRUST_INVALID");
+    assert.equal(diagnostics[0].node_id, "context:missing-trust");
+    assert.equal(diagnostics[0].trust_path, "data.trust");
+    assert.equal(diagnostics[0].zone_is_supported, false);
+    assert.equal(diagnostics[0].source_is_nonempty, false);
+    assert.equal(diagnostics[0].argument_is_valid, false);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_TRUST_INVALID");
+    assert.equal(diagnostics[1].trust_zone, "ambient");
+    assert.equal(diagnostics[1].zone_is_supported, false);
+    assert.equal(diagnostics[1].source_is_nonempty, true);
+    assert.equal(diagnostics[1].argument_is_valid, true);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_TRUST_INVALID");
+    assert.equal(diagnostics[2].trust_zone, "trusted");
+    assert.equal(diagnostics[2].source_is_nonempty, false);
+    assert.equal(diagnostics[2].argument_is_valid, false);
+  });
+
   it("validates graph step input binding diagnostics", () => {
     const unboundDiagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -1844,8 +1892,10 @@ describe("intent static model CLI", () => {
     const blankBaseNode = { id: "", kind: "", label: "", span: testSpan(2), data: {} };
     const baseNodeErrors = [];
     const diagnosticErrors = [];
+    const trustErrors = [];
     validateAgainst(graphSchema.$defs.base_node, blankBaseNode, graphSchema, "$defs.base_node", baseNodeErrors);
     validateAgainst(graphSchema.$defs.diagnostic, { severity: "error", code: "", message: "", span: testSpan(3) }, graphSchema, "$defs.diagnostic", diagnosticErrors);
+    validateAgainst(graphSchema.$defs.trust, { zone: "trusted", source: "", argument: "" }, graphSchema, "$defs.trust", trustErrors);
     const errors = validateSchema(graphSchema, graph);
 
     assert(errors.includes("$.source length must be >= 1"));
@@ -1857,6 +1907,8 @@ describe("intent static model CLI", () => {
     assert(baseNodeErrors.includes("$defs.base_node.label length must be >= 1"));
     assert(diagnosticErrors.includes("$defs.diagnostic.code length must be >= 1"));
     assert(diagnosticErrors.includes("$defs.diagnostic.message length must be >= 1"));
+    assert(trustErrors.includes("$defs.trust.source length must be >= 1"));
+    assert(trustErrors.includes("$defs.trust.argument length must be >= 1"));
   });
 
   it("rejects empty structural AST and check strings in schemas", () => {
