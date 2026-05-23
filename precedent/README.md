@@ -100,6 +100,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent run`: wraps a validation command and records the result as a session hook.
 - `precedent manifest`: emits the machine-readable hook contract for an agent runtime.
 - `precedent check`: validates local Precedent state for CI.
+- `precedent prune`: removes old non-promoted state using `retentionDays`.
 - `precedent report`: prints before/after metrics.
 
 The first version should support one repo, five seeded tasks, one baseline coding agent, and three failure classes:
@@ -126,6 +127,7 @@ printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","s
 node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs manifest --runtime generic
 node precedent/bin/precedent.mjs check --json
+node precedent/bin/precedent.mjs prune --dry-run --json
 node precedent/bin/precedent.mjs observe --session demo
 node precedent/bin/precedent.mjs report
 ```
@@ -145,6 +147,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
 - `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety.
+- `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.

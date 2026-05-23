@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, appendFile, access, readdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile, appendFile, access, readdir, rm, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 
@@ -102,6 +102,11 @@ async function main() {
     return;
   }
 
+  if (command === "prune") {
+    await pruneState();
+    return;
+  }
+
   if (command === "report") {
     await reportState();
     return;
@@ -126,7 +131,7 @@ function parseArgs(rawArgs) {
       fail("empty flag is not valid");
     }
 
-    if (key === "json" || key === "help") {
+    if (key === "json" || key === "help" || key === "dry-run" || key === "strict") {
       parsed[key] = true;
       continue;
     }
@@ -992,6 +997,51 @@ async function checkState() {
   if (!ok) {
     process.exit(1);
   }
+}
+
+async function pruneState() {
+  const stateDir = statePath();
+  const dryRun = args["dry-run"] === true;
+  const cutoff = args.before
+    ? new Date(args.before)
+    : new Date(Date.now() - runtimeConfig.retentionDays * 24 * 60 * 60 * 1000);
+
+  if (Number.isNaN(cutoff.getTime())) {
+    fail("prune.before must be a valid ISO date");
+  }
+
+  const plan = {
+    ok: true,
+    dryRun,
+    stateDir,
+    cutoff: cutoff.toISOString(),
+    retentionDays: runtimeConfig.retentionDays,
+    removedEvents: 0,
+    keptEvents: 0,
+    removedSessionEvents: 0,
+    keptSessionEvents: 0,
+    removedFiles: [],
+  };
+
+  await pruneJsonLinesByTime(join(stateDir, "events.jsonl"), cutoff, dryRun, plan, "removedEvents", "keptEvents");
+
+  for (const sessionFile of await jsonFiles(join(stateDir, "sessions"), ".jsonl")) {
+    await pruneJsonLinesByTime(sessionFile, cutoff, dryRun, plan, "removedSessionEvents", "keptSessionEvents");
+  }
+
+  for (const replayDir of await childDirs(join(stateDir, "replays"))) {
+    const replayPath = join(replayDir, "replay.json");
+    const replayTime = await fileTime(replayPath);
+
+    if (replayTime && replayTime < cutoff) {
+      plan.removedFiles.push(replayDir);
+      if (!dryRun) {
+        await rm(replayDir, { recursive: true, force: true });
+      }
+    }
+  }
+
+  print(plan);
 }
 
 function compileTraceCandidates(trace) {
@@ -2006,6 +2056,78 @@ async function checkConfig(checks) {
   }
 }
 
+async function pruneJsonLinesByTime(path, cutoff, dryRun, plan, removedKey, keptKey) {
+  let entries = [];
+
+  try {
+    const content = await readFile(path, "utf8");
+    entries = content
+      .split("\n")
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line));
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return;
+    }
+
+    throw error;
+  }
+
+  const kept = [];
+  for (const entry of entries) {
+    const timestamp = timestampForEntry(entry);
+    if (timestamp && timestamp < cutoff) {
+      plan[removedKey] += 1;
+    } else {
+      plan[keptKey] += 1;
+      kept.push(entry);
+    }
+  }
+
+  if (!dryRun) {
+    await writeJsonLines(path, kept);
+  }
+}
+
+function timestampForEntry(entry) {
+  const value = entry.observedAt ?? entry.receivedAt ?? entry.startedAt ?? entry.completedAt ?? entry.created_at ?? entry.updated_at;
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime()) ? null : timestamp;
+}
+
+async function fileTime(path) {
+  try {
+    const content = parseJson(await readFile(path, "utf8"), path);
+    return timestampForEntry(content) ?? (await stat(path)).mtime;
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+async function childDirs(dir) {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(dir, entry.name))
+      .sort();
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
 async function checkJsonLinesFile(checks, path, name) {
   try {
     const content = await readFile(path, "utf8");
@@ -2383,6 +2505,7 @@ Usage:
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent check [--state-dir .precedent] [--strict]
+  precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
 
 Commands:
@@ -2397,6 +2520,7 @@ Commands:
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   check     Validate local Precedent state for CI.
+  prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.
 
 Config:
