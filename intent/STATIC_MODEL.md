@@ -296,6 +296,17 @@ not have exactly one linear `precedes` chain across those steps, or when the
 command may emit `ok: false` with diagnostics for inspection, but runtimes must
 treat that graph as non-executable.
 
+Next graph envelope validation milestone:
+
+- A runtime must accept only its supported `schema_version` and
+  `ast_schema_version` pair, starting with `intent.graph.v0` and
+  `intent.ast.v0`.
+- An unsupported or missing envelope version emits the stable diagnostic code
+  `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
+- A malformed graph envelope, including an envelope with unsupported versions
+  or any graph validation diagnostic, is non-executable even when emitted for
+  tooling/debug inspection.
+
 ## Contract Validation
 
 Validation should cover both fixtures and output schemas:
