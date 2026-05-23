@@ -1229,11 +1229,21 @@ function validateGraph(graph, options = {}) {
   }
   const nodesById = new Map();
   for (const [nodeIndex, graphNode] of graph.nodes.entries()) {
-    if (!isPlainObject(graphNode) || typeof graphNode.id !== "string" || typeof graphNode.kind !== "string") {
-      diagnostics.push(error("INTENT_GRAPH_NODE_INVALID", `graph node must be an object with string id and kind fields.`, graphNode?.span ?? span(graph.source ?? "graph", 1, 1), {
+    if (
+      !isPlainObject(graphNode)
+      || typeof graphNode.id !== "string"
+      || typeof graphNode.kind !== "string"
+      || typeof graphNode.label !== "string"
+      || !isPlainObject(graphNode.span)
+      || !isPlainObject(graphNode.data)
+    ) {
+      diagnostics.push(error("INTENT_GRAPH_NODE_INVALID", `graph node must be an object with string id, kind, label, span, and data fields.`, graphNode?.span ?? span(graph.source ?? "graph", 1, 1), {
         node_index: nodeIndex,
         node_id: isPlainObject(graphNode) ? graphNode.id ?? null : null,
         node_kind: isPlainObject(graphNode) ? graphNode.kind ?? null : null,
+        label_is_string: isPlainObject(graphNode) && typeof graphNode.label === "string",
+        span_is_object: isPlainObject(graphNode) && isPlainObject(graphNode.span),
+        data_is_object: isPlainObject(graphNode) && isPlainObject(graphNode.data),
       }));
       continue;
     }
