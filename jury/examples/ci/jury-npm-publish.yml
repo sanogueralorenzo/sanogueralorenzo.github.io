@@ -29,6 +29,11 @@ jobs:
         env:
           JURY_PACKAGE_DIR: jury
         run: npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check
+      - name: Export Jury package release archive manifest
+        env:
+          JURY_PACKAGE_DIR: jury
+          JURY_PACKAGE_RELEASE_EVIDENCE_DIR: examples/ci/fixtures/package-release
+        run: npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR" --manifest-out ../retained-package-release-evidence-manifest.json
       - name: Upload Jury package release evidence audits
         uses: actions/upload-artifact@v4
         with:
@@ -43,6 +48,13 @@ jobs:
             jury/examples/ci/fixtures/package-release/replacement-npm-view.json
             jury/examples/ci/fixtures/package-release/replacement-downstream-gate.json
             jury/examples/ci/fixtures/package-release/replacement-patch-audit.json
+      - name: Upload Jury package release archive manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: jury-package-release-archive-manifest
+          retention-days: 90
+          path: |
+            retained-package-release-evidence-manifest.json
 
   package-release-evidence-replay:
     runs-on: ubuntu-latest
@@ -57,10 +69,20 @@ jobs:
         with:
           name: jury-package-release-evidence
           path: package-release-evidence
+      - name: Download Jury package release archive manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: jury-package-release-archive-manifest
+          path: package-release-manifest
       - name: Replay Jury package release evidence audits
         env:
           JURY_PACKAGE_RELEASE_EVIDENCE_DIR: ../package-release-evidence
         run: npm --prefix jury run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR"
+      - name: Replay Jury package release archive manifest
+        env:
+          JURY_PACKAGE_RELEASE_EVIDENCE_DIR: ../package-release-evidence
+          JURY_PACKAGE_RELEASE_MANIFEST_PATH: ../package-release-manifest/retained-package-release-evidence-manifest.json
+        run: npm --prefix jury run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR" --verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"
 
   dry-run-publication:
     runs-on: ubuntu-latest

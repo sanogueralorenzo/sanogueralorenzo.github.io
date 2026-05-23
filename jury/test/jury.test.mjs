@@ -436,7 +436,9 @@ test("release workflow requires package manifest before npm publication", async 
   const workflowPath = join(repoRoot, "jury/examples/ci/jury-npm-publish.yml");
   const workflow = await readFile(workflowPath, "utf8");
   const fixtureCommand = extractWorkflowSingleLineRun(workflow, "Check Jury package release evidence fixtures");
+  const exportManifestCommand = extractWorkflowSingleLineRun(workflow, "Export Jury package release archive manifest");
   const replayCommand = extractWorkflowSingleLineRun(workflow, "Replay Jury package release evidence audits");
+  const replayManifestCommand = extractWorkflowSingleLineRun(workflow, "Replay Jury package release archive manifest");
   const dryRunCommands = extractWorkflowRunBlock(workflow, "Create Jury package dry-run record");
   const verifyCommands = extractWorkflowRunBlock(workflow, "Verify Jury package dry-run record");
   const publishCommands = extractWorkflowRunBlock(workflow, "Publish Jury package");
@@ -458,9 +460,16 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.includes("actions/upload-artifact@v4"));
   assert.ok(workflow.includes("actions/download-artifact@v4"));
   assert.ok(workflow.includes("Upload Jury package release evidence audits"));
+  assert.ok(workflow.includes("Export Jury package release archive manifest"));
+  assert.ok(workflow.includes("Upload Jury package release archive manifest"));
+  assert.ok(workflow.includes("Download Jury package release archive manifest"));
   assert.ok(workflow.includes("Download Jury package release evidence audits"));
   assert.ok(workflow.includes("Replay Jury package release evidence audits"));
+  assert.ok(workflow.includes("Replay Jury package release archive manifest"));
   assert.ok(workflow.includes("jury-package-release-evidence"));
+  assert.ok(workflow.includes("jury-package-release-archive-manifest"));
+  assert.ok(workflow.includes("JURY_PACKAGE_RELEASE_MANIFEST_PATH"));
+  assert.ok(workflow.includes("retained-package-release-evidence-manifest.json"));
   assert.ok(workflow.includes("package-release-evidence-replay:"));
   assert.ok(workflow.includes("jury-package-dry-run"));
   assert.ok(workflow.includes("retention-days: 90"));
@@ -478,20 +487,27 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.indexOf("package-release-evidence-replay:") < workflow.indexOf("dry-run-publication:"));
   assert.ok(workflow.indexOf("dry-run-publication:") < workflow.indexOf("publish:"));
   assert.ok(workflow.indexOf("Check Jury package release evidence fixtures") < workflow.indexOf("Create Jury package dry-run record"));
+  assert.ok(workflow.indexOf("Export Jury package release archive manifest") < workflow.indexOf("Upload Jury package release archive manifest"));
   assert.ok(workflow.indexOf("Upload Jury package release evidence audits") < workflow.indexOf("Create Jury package dry-run record"));
+  assert.ok(workflow.indexOf("Upload Jury package release archive manifest") < workflow.indexOf("Create Jury package dry-run record"));
   assert.ok(workflow.indexOf("Download Jury package release evidence audits") < workflow.indexOf("Replay Jury package release evidence audits"));
+  assert.ok(workflow.indexOf("Download Jury package release archive manifest") < workflow.indexOf("Replay Jury package release archive manifest"));
   assert.ok(workflow.indexOf("Replay Jury package release evidence audits") < workflow.indexOf("Create Jury package dry-run record"));
+  assert.ok(workflow.indexOf("Replay Jury package release archive manifest") < workflow.indexOf("Create Jury package dry-run record"));
   assert.ok(workflow.indexOf("Download Jury package dry-run record") < workflow.indexOf("Verify Jury package dry-run record"));
   assert.ok(workflow.indexOf("Verify Jury package dry-run record") < workflow.indexOf("NODE_AUTH_TOKEN"));
   assert.ok(workflow.indexOf("needs: package-release-fixtures") < workflow.indexOf("npm publish --provenance --access public"));
   assert.ok(workflow.indexOf("- package-release-evidence-replay") < workflow.indexOf("npm publish --provenance --access public"));
   assert.ok(workflow.indexOf("- package-manifest") < workflow.indexOf("npm publish --provenance --access public"));
   assert.equal(fixtureCommand, 'npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check');
+  assert.equal(exportManifestCommand, 'npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR" --manifest-out ../retained-package-release-evidence-manifest.json');
   assert.equal(replayCommand, 'npm --prefix jury run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR"');
+  assert.equal(replayManifestCommand, 'npm --prefix jury run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR" --verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"');
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/rollback-audit.json"));
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/replacement-patch-audit.json"));
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/failed-npm-view.json"));
   assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/replacement-npm-view.json"));
+  assert.ok(uploadPaths.includes("retained-package-release-evidence-manifest.json"));
   assert.deepEqual(dryRunCommands, [
     '(cd "$JURY_PACKAGE_DIR" && npm pack --dry-run --json) > jury-pack-dry-run.json',
     'node -e \'const fs=require("node:fs"); const [pack]=JSON.parse(fs.readFileSync("jury-pack-dry-run.json","utf8")); fs.writeFileSync("jury-pack-dry-run-record.json", JSON.stringify({ packageVersion: pack.version, tarballName: pack.filename }, null, 2) + "\\n");\'',
@@ -510,15 +526,32 @@ test("release workflow requires package manifest before npm publication", async 
     const fixtureCheck = await runShell(fixtureCommand, checkout, { ...fixedEnv, JURY_PACKAGE_DIR: "jury" });
     assert.equal(fixtureCheck.exitCode, 0, `${fixtureCommand}\nstdout:\n${fixtureCheck.stdout}\nstderr:\n${fixtureCheck.stderr}`);
     assert.equal(JSON.parse(fixtureCheck.stdout.slice(fixtureCheck.stdout.indexOf("{"))).ok, true);
+    const exportManifest = await runShell(exportManifestCommand, checkout, {
+      ...fixedEnv,
+      JURY_PACKAGE_DIR: "jury",
+      JURY_PACKAGE_RELEASE_EVIDENCE_DIR: "examples/ci/fixtures/package-release",
+    });
+    assert.equal(exportManifest.exitCode, 0, `${exportManifestCommand}\nstdout:\n${exportManifest.stdout}\nstderr:\n${exportManifest.stderr}`);
+    assert.equal(JSON.parse(exportManifest.stdout.slice(exportManifest.stdout.indexOf("{"))).manifestOut, "../retained-package-release-evidence-manifest.json");
 
     const replayDir = join(checkout, "package-release-evidence");
+    const replayManifestDir = join(checkout, "package-release-manifest");
     await cp(join(checkout, "jury/examples/ci/fixtures/package-release"), replayDir, { recursive: true });
+    await mkdir(replayManifestDir);
+    await cp(join(checkout, "retained-package-release-evidence-manifest.json"), join(replayManifestDir, "retained-package-release-evidence-manifest.json"));
     const replayCheck = await runShell(replayCommand, checkout, {
       ...fixedEnv,
       JURY_PACKAGE_RELEASE_EVIDENCE_DIR: "../package-release-evidence",
     });
     assert.equal(replayCheck.exitCode, 0, `${replayCommand}\nstdout:\n${replayCheck.stdout}\nstderr:\n${replayCheck.stderr}`);
     assert.equal(JSON.parse(replayCheck.stdout.slice(replayCheck.stdout.indexOf("{"))).ok, true);
+    const replayManifestCheck = await runShell(replayManifestCommand, checkout, {
+      ...fixedEnv,
+      JURY_PACKAGE_RELEASE_EVIDENCE_DIR: "../package-release-evidence",
+      JURY_PACKAGE_RELEASE_MANIFEST_PATH: "../package-release-manifest/retained-package-release-evidence-manifest.json",
+    });
+    assert.equal(replayManifestCheck.exitCode, 0, `${replayManifestCommand}\nstdout:\n${replayManifestCheck.stdout}\nstderr:\n${replayManifestCheck.stderr}`);
+    assert.equal(JSON.parse(replayManifestCheck.stdout.slice(replayManifestCheck.stdout.indexOf("{"))).verifiedManifest, "../package-release-manifest/retained-package-release-evidence-manifest.json");
 
     const dryRun = await runShell(dryRunCommands.join("\n"), checkout, { ...fixedEnv, JURY_PACKAGE_DIR: "jury" });
     assert.equal(dryRun.exitCode, 0, `${dryRunCommands.join("\n")}\nstdout:\n${dryRun.stdout}\nstderr:\n${dryRun.stderr}`);
@@ -573,9 +606,12 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes('npm --prefix "$JURY_PACKAGE_DIR" run package:manifest:check'));
   assert.ok(readme.includes('npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check'));
   assert.ok(readme.includes("jury-package-release-evidence"));
+  assert.ok(readme.includes("jury-package-release-archive-manifest"));
   assert.ok(readme.includes("rollback and replacement audit examples"));
   assert.ok(readme.includes("package-release-evidence-replay"));
   assert.ok(readme.includes("--fixture-dir"));
+  assert.ok(readme.includes('--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"'));
+  assert.ok(readme.includes("JURY_PACKAGE_RELEASE_MANIFEST_PATH"));
   assert.ok(readme.includes("needs: package-manifest"));
   assert.ok(readme.includes("needs: package-release-evidence-replay"));
   assert.ok(readme.includes("before any publication dry run"));
@@ -585,8 +621,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("at least 180 days after replacement downstream verification passes"));
   assert.ok(readme.includes("retained artifact provenance"));
   assert.ok(readme.includes("source revision"));
-  assert.ok(readme.includes("--manifest-out retained-package-release-evidence-manifest.json"));
-  assert.ok(readme.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
+  assert.ok(readme.includes("retained-package-release-evidence-manifest.json"));
   assert.ok(readme.includes("NODE_AUTH_TOKEN"));
   assert.ok(readme.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(readme.includes("dry_run_reviewer"));
@@ -1551,6 +1586,8 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes(release.packagePublication.manifestCheckCommand));
   assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
   assert.ok(publicationNotes.includes("npm --prefix jury run fixtures:package-release:check"));
+  assert.ok(publicationNotes.includes("jury-package-release-archive-manifest"));
+  assert.ok(publicationNotes.includes('JURY_PACKAGE_RELEASE_MANIFEST_PATH'));
   assert.ok(publicationNotes.includes("Dry-Run Publication Record"));
   assert.ok(publicationNotes.includes("jury-pack-dry-run.json"));
   assert.ok(publicationNotes.includes("jury-pack-dry-run-record.json"));
@@ -1574,6 +1611,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("package-release-fixtures"));
   assert.ok(publicationNotes.includes("before any publication dry run"));
   assert.ok(publicationNotes.includes("jury-package-release-evidence"));
+  assert.ok(publicationNotes.includes("retained-package-release-evidence-manifest.json"));
   assert.ok(publicationNotes.includes("rollback and replacement audit examples"));
   assert.ok(publicationNotes.includes("package-release-evidence-replay"));
   assert.ok(publicationNotes.includes("--fixture-dir"));
@@ -2610,6 +2648,9 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("before `dry-run-publication`"));
   assert.ok(checklist.includes("`jury-package-release-evidence`"));
   assert.ok(checklist.includes("`rollback-audit.json` and `replacement-patch-audit.json`"));
+  assert.ok(checklist.includes("`jury-package-release-archive-manifest`"));
+  assert.ok(checklist.includes('JURY_PACKAGE_RELEASE_MANIFEST_PATH'));
+  assert.ok(checklist.includes("Download `jury-package-release-archive-manifest`"));
   assert.ok(checklist.includes("--fixture-dir <downloaded-artifact-dir>"));
   assert.ok(checklist.includes("jury-pack-dry-run.json"));
   assert.ok(checklist.includes("jury-pack-dry-run-record.json"));
@@ -2779,7 +2820,12 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package tarball manifest checks/);
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
-  assert.match(handoff, /release workflow example where npm publication depends on the package manifest check, package release evidence fixture validation, a downloaded and replayed release evidence audit artifact, and a downloaded dry-run publication record/);
+  assert.match(handoff, /release workflow example where npm publication depends on the package manifest check, package release evidence fixture validation, a downloaded and replayed release evidence audit artifact/);
+  assert.match(handoff, /downloaded and replayed retained archive manifest artifact/);
+  assert.match(handoff, /Manifest CI Handoff/);
+  assert.match(handoff, /jury-package-release-archive-manifest/);
+  assert.match(handoff, /JURY_PACKAGE_RELEASE_MANIFEST_PATH/);
+  assert.match(handoff, /before `dry-run-publication`/);
   assert.match(handoff, /package release evidence artifact upload guidance/);
   assert.match(handoff, /package release evidence artifact download and replay guidance/);
   assert.match(handoff, /Package release evidence replay troubleshooting now covers/);
@@ -2788,7 +2834,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest CI handoff example for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest release archive fixture for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
