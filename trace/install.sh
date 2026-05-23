@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  install.sh [--install|--update|--uninstall] [--prefix DIR]
+  install.sh [--install|--update|--uninstall|--status] [--prefix DIR]
 
 Environment:
   TRACE_INSTALL_DIR  Install directory when --prefix is not provided.
@@ -26,6 +26,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --uninstall)
       action="uninstall"
+      shift
+      ;;
+    --status)
+      action="status"
       shift
       ;;
     --prefix)
@@ -65,6 +69,11 @@ fi
 if [[ ! -f "$source_bin" ]]; then
   printf 'Trace CLI not found: %s\n' "$source_bin" >&2
   exit 1
+fi
+
+if [[ "$action" == "status" ]]; then
+  node "$source_bin" install status --prefix "$install_dir"
+  exit 0
 fi
 
 mkdir -p "$install_dir"

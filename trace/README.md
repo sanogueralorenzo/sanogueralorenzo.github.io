@@ -51,6 +51,7 @@ The current CLI is intentionally small and local-first:
 ```shell
 ./trace/install.sh
 ./trace/install.sh --update
+./trace/install.sh --status
 ./trace/install.sh --uninstall
 trace install status
 trace init
@@ -188,7 +189,7 @@ Adapters may also send a JSON array or newline-delimited JSON objects to `trace 
 
 See `trace/examples/` for complete local workflows covering adapter capture, commit memory review, PR/release summaries, and CI checks.
 
-`trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, and `--uninstall` removes it. `trace install status [--prefix <dir>]` reports whether the expected symlink is installed, whether it points at the current checkout, and the exact install/update/uninstall commands for that prefix.
+`trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, `--status` reports the same install state as `trace install status`, and `--uninstall` removes it. `trace install status [--prefix <dir>]` reports whether the expected symlink is installed, whether it points at the current checkout, and the exact install/update/uninstall commands for that prefix.
 
 `trace agent add all` creates local adapter specs for every supported first-class adapter. `trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create a single spec under `.trace/agents/`. The specs document the command an agent integration should call:
 

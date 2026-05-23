@@ -20,6 +20,10 @@ test("install script installs updates and uninstalls trace", async () => {
     assert.equal(beforePayload.valid, false);
     assert.equal(beforePayload.target, join(installDir, "trace"));
 
+    const shellBefore = await run(["bash", installScript, "--status", "--prefix", installDir]);
+    assert.equal(shellBefore.exitCode, 0, shellBefore.stderr);
+    assert.equal(JSON.parse(shellBefore.stdout).installed, false);
+
     const installed = await run(["bash", installScript, "--prefix", installDir]);
     assert.equal(installed.exitCode, 0, installed.stderr);
     assert.match(installed.stdout, /Installed trace -> /);
@@ -33,6 +37,12 @@ test("install script installs updates and uninstalls trace", async () => {
     assert.equal(statusPayload.kind, "symlink");
     assert.equal(statusPayload.expectedLinkTarget, cliPath);
     assert.match(statusPayload.updateCommand, /install\.sh --update --prefix/);
+
+    const shellStatus = await run(["bash", installScript, "--status", "--prefix", installDir]);
+    assert.equal(shellStatus.exitCode, 0, shellStatus.stderr);
+    const shellStatusPayload = JSON.parse(shellStatus.stdout);
+    assert.equal(shellStatusPayload.installed, true);
+    assert.equal(shellStatusPayload.valid, true);
 
     const help = await run([join(installDir, "trace"), "help"]);
     assert.equal(help.exitCode, 0, help.stderr);
