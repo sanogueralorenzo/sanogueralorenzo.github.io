@@ -1,17 +1,34 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile, appendFile, access, readdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 
 const DEFAULT_STATE_DIR = ".precedent";
 const SCHEMA_VERSION = "precedent.v1";
+const CONFIG_SCHEMA_VERSION = "precedent.config.v1";
 const SUPPORTED_EVENT_HOOKS = new Set([
   "context.before_turn",
   "validation.after_run",
   "diff.after_edit",
   "outcome.after_task",
 ]);
+const DEFAULT_CONFIG = {
+  schema_version: CONFIG_SCHEMA_VERSION,
+  stateDir: DEFAULT_STATE_DIR,
+  maxInjections: 2,
+  hookTimeoutMs: 1500,
+  failurePolicy: "fail_open",
+  retentionDays: 30,
+  redaction: {
+    enabled: true,
+  },
+  enabledHooks: Array.from(SUPPORTED_EVENT_HOOKS),
+};
+let runtimeConfig = DEFAULT_CONFIG;
+let runtimeConfigPath = null;
+let runtimeConfigHash = stableHash(DEFAULT_CONFIG);
 
 const command = process.argv[2] ?? "help";
 const hookName = command === "hook" && process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : null;
@@ -27,6 +44,8 @@ async function main() {
     printHelp();
     return;
   }
+
+  await loadRuntimeConfig();
 
   if (command === "init") {
     await initState();
@@ -124,11 +143,13 @@ async function initState() {
   const stateDir = statePath();
 
   await ensureState(stateDir);
+  await writeDefaultConfig(stateDir);
 
   print({
     ok: true,
     stateDir,
     files: [
+      join(stateDir, "config.json"),
       join(stateDir, "precedents.jsonl"),
       join(stateDir, "candidates.jsonl"),
       join(stateDir, "events.jsonl"),
@@ -215,7 +236,7 @@ async function injectPrecedent() {
     task,
     scope: args.scope ?? "",
     changedFiles: parseListArg(args["changed-files"]),
-  }).slice(0, Number(args.limit ?? 2));
+  }).slice(0, Number(args.limit ?? runtimeConfig.maxInjections));
 
   print({
     task,
@@ -244,7 +265,7 @@ async function exportContext() {
     scope: args.scope ?? "",
     changedFiles: parseListArg(args["changed-files"]),
   };
-  const limit = Number(args.limit ?? 2);
+  const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
   const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
   const rankedMatches = rankPrecedents(precedents, context)
@@ -511,6 +532,10 @@ async function eventHook() {
     fail(`unsupported hook: ${hook}; supported hooks: ${Array.from(SUPPORTED_EVENT_HOOKS).join(", ")}`);
   }
 
+  if (!runtimeConfig.enabledHooks.includes(hook)) {
+    fail(`disabled hook: ${hook}`);
+  }
+
   if (hook === "context.before_turn") {
     await contextBeforeTurnEventHook(event);
     return;
@@ -549,7 +574,7 @@ async function beforeTurnHook() {
     scope: args.scope ?? "",
     changedFiles: parseListArg(args["changed-files"]),
   };
-  const limit = Number(args.limit ?? 2);
+  const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
   const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
   const matches = rankPrecedents(precedents, context)
@@ -595,7 +620,7 @@ async function contextBeforeTurnEventHook(event) {
     scope: typeof event.scope === "string" ? event.scope : "",
     changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles),
   };
-  const limit = Number(args.limit ?? event.limit ?? 2);
+  const limit = Number(args.limit ?? event.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? event.threshold ?? 4);
   const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
   const rankedMatches = rankPrecedents(precedents, context)
@@ -835,13 +860,25 @@ async function printManifest() {
     fail(`unsupported runtime: ${runtime}`);
   }
 
-  const stateDir = args["state-dir"] ?? DEFAULT_STATE_DIR;
+  const stateDir = args["state-dir"] ?? runtimeConfig.stateDir;
   const hookCommand = ["node", "precedent/bin/precedent.mjs", "hook", "--state-dir", stateDir, "--json"];
+  const timeoutMs = runtimeConfig.hookTimeoutMs;
+  const failurePolicy = runtimeConfig.failurePolicy;
 
   print({
     schema_version: "precedent.manifest.v1",
     runtime,
     stateDir,
+    configPath: runtimeConfigPath,
+    configHash: runtimeConfigHash,
+    defaults: {
+      maxInjections: runtimeConfig.maxInjections,
+      hookTimeoutMs: runtimeConfig.hookTimeoutMs,
+      failurePolicy: runtimeConfig.failurePolicy,
+      retentionDays: runtimeConfig.retentionDays,
+      redaction: runtimeConfig.redaction,
+      enabledHooks: runtimeConfig.enabledHooks,
+    },
     requiredEnv: [],
     hooks: {
       "context.before_turn": {
@@ -864,29 +901,29 @@ async function printManifest() {
         ],
         output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "source"],
         injectFrom: "contextBlock",
-        timeoutMs: 1500,
-        failurePolicy: "fail_open",
+        timeoutMs,
+        failurePolicy,
       },
       "validation.after_run": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "validation"],
-        timeoutMs: 1500,
-        failurePolicy: "fail_open",
+        timeoutMs,
+        failurePolicy,
       },
       "diff.after_edit": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff"],
-        timeoutMs: 1500,
-        failurePolicy: "fail_open",
+        timeoutMs,
+        failurePolicy,
       },
       "outcome.after_task": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "success", "status", "retries", "tokenEstimate", "notes", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "outcome"],
-        timeoutMs: 1500,
-        failurePolicy: "fail_open",
+        timeoutMs,
+        failurePolicy,
       },
     },
   });
@@ -1753,6 +1790,134 @@ function capitalizeSentence(value) {
   return `${value[0].toUpperCase()}${value.slice(1)}.`;
 }
 
+async function loadRuntimeConfig() {
+  runtimeConfigPath = configPath();
+
+  let loadedConfig = DEFAULT_CONFIG;
+  try {
+    loadedConfig = parseJson(await readFile(runtimeConfigPath, "utf8"), runtimeConfigPath);
+    validateConfig(loadedConfig, "config");
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  runtimeConfig = normalizeConfig(loadedConfig);
+
+  if (args["state-dir"]) {
+    runtimeConfig = {
+      ...runtimeConfig,
+      stateDir: args["state-dir"],
+    };
+  }
+
+  if (args.limit) {
+    runtimeConfig = {
+      ...runtimeConfig,
+      maxInjections: positiveInteger(args.limit, "config.maxInjections"),
+    };
+  }
+
+  runtimeConfigHash = stableHash(runtimeConfig);
+}
+
+function configPath() {
+  if (process.env.PRECEDENT_CONFIG) {
+    return resolve(process.env.PRECEDENT_CONFIG);
+  }
+
+  return join(resolve(args["state-dir"] ?? DEFAULT_STATE_DIR), "config.json");
+}
+
+function normalizeConfig(config) {
+  return {
+    schema_version: CONFIG_SCHEMA_VERSION,
+    stateDir: config.stateDir ?? DEFAULT_CONFIG.stateDir,
+    maxInjections: config.maxInjections ?? DEFAULT_CONFIG.maxInjections,
+    hookTimeoutMs: config.hookTimeoutMs ?? DEFAULT_CONFIG.hookTimeoutMs,
+    failurePolicy: config.failurePolicy ?? DEFAULT_CONFIG.failurePolicy,
+    retentionDays: config.retentionDays ?? DEFAULT_CONFIG.retentionDays,
+    redaction: {
+      enabled: config.redaction?.enabled ?? DEFAULT_CONFIG.redaction.enabled,
+    },
+    enabledHooks: Array.isArray(config.enabledHooks) ? config.enabledHooks : DEFAULT_CONFIG.enabledHooks,
+  };
+}
+
+function validateConfig(config, name) {
+  if (config?.schema_version !== CONFIG_SCHEMA_VERSION) {
+    fail(`${name}.schema_version must be "${CONFIG_SCHEMA_VERSION}"`);
+  }
+
+  if (config.stateDir !== undefined && typeof config.stateDir !== "string") {
+    fail(`${name}.stateDir must be a string`);
+  }
+
+  if (config.maxInjections !== undefined) {
+    positiveInteger(config.maxInjections, `${name}.maxInjections`);
+  }
+
+  if (config.hookTimeoutMs !== undefined) {
+    positiveInteger(config.hookTimeoutMs, `${name}.hookTimeoutMs`);
+  }
+
+  if (config.failurePolicy !== undefined && config.failurePolicy !== "fail_open") {
+    fail(`${name}.failurePolicy must be "fail_open"`);
+  }
+
+  if (config.retentionDays !== undefined) {
+    positiveInteger(config.retentionDays, `${name}.retentionDays`);
+  }
+
+  if (config.redaction !== undefined && typeof config.redaction !== "object") {
+    fail(`${name}.redaction must be an object`);
+  }
+
+  if (config.redaction?.enabled !== undefined && typeof config.redaction.enabled !== "boolean") {
+    fail(`${name}.redaction.enabled must be a boolean`);
+  }
+
+  if (config.enabledHooks !== undefined) {
+    if (!Array.isArray(config.enabledHooks)) {
+      fail(`${name}.enabledHooks must be an array`);
+    }
+
+    for (const hook of config.enabledHooks) {
+      if (!SUPPORTED_EVENT_HOOKS.has(hook)) {
+        fail(`${name}.enabledHooks contains unsupported hook: ${hook}`);
+      }
+    }
+  }
+}
+
+async function writeDefaultConfig(stateDir) {
+  const configuredStateDir = args["state-dir"] ?? runtimeConfig.stateDir ?? DEFAULT_STATE_DIR;
+  const config = normalizeConfig({
+    ...runtimeConfig,
+    stateDir: configuredStateDir,
+  });
+
+  await writeFile(join(stateDir, "config.json"), `${JSON.stringify(sortObject(config), null, 2)}\n`);
+  runtimeConfig = config;
+  runtimeConfigPath = join(stateDir, "config.json");
+  runtimeConfigHash = stableHash(runtimeConfig);
+}
+
+function positiveInteger(value, name) {
+  const number = Number(value);
+
+  if (!Number.isInteger(number) || number <= 0) {
+    fail(`${name} must be a positive integer`);
+  }
+
+  return number;
+}
+
+function stableHash(value) {
+  return createHash("sha256").update(JSON.stringify(sortObject(value))).digest("hex");
+}
+
 async function ensureState(stateDir) {
   await mkdir(stateDir, { recursive: true });
   await mkdir(join(stateDir, "traces"), { recursive: true });
@@ -1960,7 +2125,7 @@ function requireNumber(value, name) {
 }
 
 function statePath() {
-  return resolve(args["state-dir"] ?? DEFAULT_STATE_DIR);
+  return resolve(args["state-dir"] ?? runtimeConfig.stateDir ?? DEFAULT_STATE_DIR);
 }
 
 function safeFileName(value) {
@@ -2006,6 +2171,10 @@ Commands:
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   report    Summarize local precedent state.
+
+Config:
+  Defaults load from .precedent/config.json or PRECEDENT_CONFIG.
+  CLI flags such as --state-dir and --limit override config values.
 `);
 }
 

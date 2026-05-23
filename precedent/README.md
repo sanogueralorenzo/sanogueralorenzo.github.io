@@ -130,6 +130,7 @@ node precedent/bin/precedent.mjs report
 
 The prototype models the hook loop with local state in `.precedent/`:
 
+- `init` writes a versioned `.precedent/config.json` with runtime defaults for state path, injection limit, hook timeout, failure policy, retention window, redaction, and enabled hooks.
 - `observe` is the passive hook ingesting an agent trace.
 - `inject` is the before-turn hook returning relevant precedent.
 - `context` is the preferred runtime-facing export: it returns `schema_version: "precedent.context.v1"`, an insertable `contextBlock`, injection metadata, suppression metadata, and the source inputs used for ranking.
@@ -145,6 +146,30 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
 - `report` also attributes session outcomes back to injected precedents, so each precedent has use, success, failure, and suppression counts.
+
+Runtime defaults come from `.precedent/config.json` unless `PRECEDENT_CONFIG=/path/to/config.json` is set. CLI flags still win: `--state-dir` overrides `stateDir`, and `--limit` overrides `maxInjections`. Config files use `schema_version: "precedent.config.v1"` and fail fast with exact field errors when malformed.
+
+Minimal config:
+
+```json
+{
+  "schema_version": "precedent.config.v1",
+  "stateDir": ".precedent",
+  "maxInjections": 2,
+  "hookTimeoutMs": 1500,
+  "failurePolicy": "fail_open",
+  "retentionDays": 30,
+  "redaction": {
+    "enabled": true
+  },
+  "enabledHooks": [
+    "context.before_turn",
+    "validation.after_run",
+    "diff.after_edit",
+    "outcome.after_task"
+  ]
+}
+```
 
 `observe` has a promotion gate: a candidate precedent is recorded as an event but is not injected later unless it has concrete evidence and measured replay improvement where `baseline_failures` is greater than `rerun_failures`. When a trace contains verified replay evidence, `observe` prefers the replay metrics over inline claim metrics.
 
