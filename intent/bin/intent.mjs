@@ -1626,6 +1626,16 @@ function validateGraph(graph, options = {}) {
   }
 
   for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Check") {
+      continue;
+    }
+    const gateDiagnostic = validateGraphCheckGate(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
+    if (gateDiagnostic) {
+      diagnostics.push(gateDiagnostic);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
     if (graphNode.kind !== "Invariant") {
       continue;
     }
@@ -2243,6 +2253,46 @@ function isTrustRecord(value) {
 
 function requiresCapabilityAuthorization(graphNode) {
   return graphNode.kind === "Effect" || (graphNode.kind === "Check" && Boolean(graphNode.data?.effect));
+}
+
+function validateGraphCheckGate(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
+  const ownerGoalId = checkOwnerGoalId(graphNode.id);
+  const expectedCompletionId = ownerGoalId ? `${ownerGoalId}:completion` : null;
+  const outgoingEdges = outgoingEdgesByNode.get(graphNode.id) ?? [];
+  const gateEdges = outgoingEdges.filter((graphEdge) => graphEdge.kind === "gates");
+  const ownerGateEdges = gateEdges.filter((graphEdge) => graphEdge.to === ownerGoalId && nodesById.get(graphEdge.to)?.kind === "Goal");
+  const verifyEdges = outgoingEdges.filter((graphEdge) => graphEdge.kind === "verifies");
+  const ownerVerifyEdges = verifyEdges.filter((graphEdge) => {
+    return graphEdge.to === expectedCompletionId && nodesById.get(graphEdge.to)?.kind === "Completion";
+  });
+  const isStepScoped = graphNode.data?.scope === "step";
+  const verifyContractIsValid = isStepScoped
+    ? verifyEdges.length === 0
+    : ownerVerifyEdges.length === 1 && verifyEdges.length === ownerVerifyEdges.length;
+
+  if (ownerGateEdges.length === 1 && gateEdges.length === ownerGateEdges.length && verifyContractIsValid) {
+    return null;
+  }
+
+  return error("INTENT_GRAPH_CHECK_GATE_INVALID", `check '${graphNode.label}' must have valid gates and verifies edges for its scope.`, graphNode.span ?? fallbackSpan, {
+    check: graphNode.label,
+    check_id: graphNode.id,
+    scope: isStepScoped ? "step" : "goal",
+    owner_goal_id: ownerGoalId,
+    completion_id: expectedCompletionId,
+    gate_edges: gateEdges.length,
+    owner_goal_gate_edges: ownerGateEdges.length,
+    verify_edges: verifyEdges.length,
+    owner_completion_verify_edges: ownerVerifyEdges.length,
+  });
+}
+
+function checkOwnerGoalId(checkId) {
+  const ownerStepId = parentNodeId(checkId, ":requirement:");
+  if (ownerStepId) {
+    return parentNodeId(ownerStepId, ":step:");
+  }
+  return parentNodeId(checkId, ":verify:");
 }
 
 function stepAttachment(graphNode) {

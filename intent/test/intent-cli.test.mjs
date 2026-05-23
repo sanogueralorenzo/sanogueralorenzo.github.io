@@ -2061,6 +2061,40 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[4].checkpoint_is_nonempty, false);
   });
 
+  it("validates graph check gate diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
+        { id: "goal:demo:verify:1", kind: "Check", label: "bad target", span: testSpan(4) },
+        { id: "goal:demo:step:patch:requirement:0", kind: "Check", label: "ready", span: testSpan(5), data: { scope: "step", ownerStep: "patch", assertion: "Require" } },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(6) },
+        { id: "goal:other:completion", kind: "Completion", label: "other", span: testSpan(7) },
+      ],
+      edges: [
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+        { from: "goal:demo:verify:1", to: "goal:demo", kind: "gates" },
+        { from: "goal:demo:verify:1", to: "goal:other:completion", kind: "verifies" },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo", kind: "gates" },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires" },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CHECK_GATE_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].check_id, "goal:demo:verify:0");
+    assert.equal(diagnostics[0].owner_goal_gate_edges, 0);
+    assert.equal(diagnostics[0].owner_completion_verify_edges, 1);
+    assert.equal(diagnostics[1].check_id, "goal:demo:verify:1");
+    assert.equal(diagnostics[1].owner_goal_gate_edges, 1);
+    assert.equal(diagnostics[1].owner_completion_verify_edges, 0);
+    assert.equal(diagnostics[2].check_id, "goal:demo:step:patch:requirement:0");
+    assert.equal(diagnostics[2].scope, "step");
+    assert.equal(diagnostics[2].verify_edges, 1);
+  });
+
   it("validates graph authorization diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -2078,6 +2112,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
@@ -2108,6 +2143,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
@@ -2127,6 +2163,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
@@ -2184,6 +2221,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:step:b", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:b", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
@@ -2202,6 +2240,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:a", to: "goal:demo:step:b", kind: "precedes" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
@@ -2267,6 +2306,8 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo", kind: "gates" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
@@ -2409,11 +2450,13 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:checkpoint:0", kind: "checkpoints" },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires" },
+        { from: "goal:demo:step:patch:requirement:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:step:patch:timeout:0", to: "goal:demo:step:patch", kind: "timeouts" },
         { from: "goal:demo:step:patch:retry:0", to: "goal:demo:step:patch", kind: "retries" },
         { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
