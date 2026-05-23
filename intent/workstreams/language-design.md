@@ -40,6 +40,49 @@ goal ship_checkout_fix(input: Issue) -> PullRequest
 }
 ```
 
+## Syntax Conventions
+
+Intent uses declarations followed by optional clauses and a braced block.
+Newlines separate declarations and statements. Commas separate fields and
+arguments. Semicolons are not used.
+
+```intent
+declaration =
+  package_decl
+  | import_decl
+  | type_decl
+  | capability_decl
+  | effect_decl
+  | policy_decl
+  | goal_decl
+
+goal_decl =
+  "goal" identifier "(" parameters ")" "->" type goal_clause* block
+
+goal_clause =
+  "uses" capability_list
+  | "effects" effect_list
+  | "requires" expression
+
+step_decl =
+  "step" identifier "(" parameters ")" "->" type step_clause* block
+
+step_clause =
+  "effects" effect_list
+  | "timeout" duration
+  | "retry" retry_policy
+```
+
+Identifiers use `snake_case` for values, functions, steps, and capabilities;
+`PascalCase` for types, effects, and tagged union cases; and dot-separated
+lowercase names for packages and modules. Comments start with `#` and run to
+the end of the line.
+
+Expressions include literals, names, field access, function calls, records,
+lists, tagged union constructors, `let` bindings, `if` expressions, `match`
+expressions, and effectful calls. Control flow is expression-oriented, but
+effectful calls are only legal inside steps whose effect set permits them.
+
 ## Declarations
 
 Top-level declarations define reusable values, types, capabilities, effects,
@@ -572,4 +615,3 @@ goal push_release(input: ReleaseInput) -> Url
   }
 }
 ```
-
