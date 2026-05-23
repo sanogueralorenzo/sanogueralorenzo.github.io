@@ -30,6 +30,13 @@ const RETIRE_SIGNAL_THRESHOLD = 4;
 const REPAIR_EFFICACY_SUPPRESSION_THRESHOLD = 2;
 const PROMOTION_TRIAL_LEASE_MS = 5 * 60 * 1000;
 const PROMOTION_TRIAL_MAX_ATTEMPTS = 2;
+const FINALIZATION_TRIGGER_HOOKS = new Set([
+  "context.before_turn",
+  "warrant.issue",
+  "validation.after_run",
+  "diff.after_edit",
+  "review.after_feedback",
+]);
 const DEFAULT_CONFIG = {
   schema_version: CONFIG_SCHEMA_VERSION,
   stateDir: DEFAULT_STATE_DIR,
@@ -2068,6 +2075,12 @@ async function orchestrationAfterIdleEventHook(event) {
         status: promotion.ok ? "drained" : "failed",
         reason: promotion.ok ? null : "promotion_failed",
         promotion,
+        finalization: await runIdleFinalization({
+          stateDir,
+          sessionId,
+          eventId: eventId ? `${eventId}:finalize.before_response` : null,
+          warrantId: event.warrantId,
+        }),
       };
 
       await withStateLock(stateDir, async () => {
@@ -6033,6 +6046,7 @@ function repairBlockForFailedOutcome(event) {
 
 function idleSummary(idle) {
   const promotion = idle?.promotion ?? null;
+  const finalization = idle?.finalization ?? null;
   return {
     status: idle?.status ?? "unknown",
     reason: idle?.reason ?? null,
@@ -6047,6 +6061,133 @@ function idleSummary(idle) {
         failed: promotion.queue.failed,
       }
       : null,
+    finalization: finalization
+      ? {
+        status: finalization.status,
+        reason: finalization.reason ?? null,
+        decision: finalization.decision ?? null,
+        recorded: finalization.recorded ?? false,
+        deduped: finalization.deduped ?? false,
+      }
+      : null,
+  };
+}
+
+async function runIdleFinalization({ stateDir, sessionId, eventId, warrantId }) {
+  let result = null;
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const sessionEvents = await readSessionEvents(stateDir, sessionId);
+    const plan = await idleFinalizationPlan({
+      stateDir,
+      sessionEvents,
+      explicitWarrantId: warrantId,
+    });
+
+    if (!plan.needed) {
+      result = {
+        status: "not_needed",
+        reason: plan.reason,
+        decision: null,
+        nextAction: null,
+        finalization: null,
+        contextBlock: "",
+        recorded: false,
+        deduped: false,
+        sessionEventPath: null,
+      };
+      return;
+    }
+
+    const sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: "finalize.before_response",
+      sessionId,
+      ...eventIdField(eventId),
+      warrantId: plan.warrant?.warrantId ?? null,
+      finalization: plan.finalization,
+      contextBlock: plan.contextBlock,
+      source: {
+        hook: "orchestration.after_idle",
+        reason: "missing_finalization",
+      },
+    });
+
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: "finalize.before_response",
+        sessionId,
+        ...eventIdField(eventId),
+        warrantId: plan.warrant?.warrantId ?? null,
+        finalization: plan.finalization,
+        contextBlock: plan.contextBlock,
+        source: {
+          hook: "orchestration.after_idle",
+          reason: "missing_finalization",
+        },
+      });
+    }
+
+    result = {
+      status: plan.finalization.decision === "ready" ? "ready" : "blocked",
+      reason: "missing_finalization",
+      decision: plan.finalization.decision,
+      nextAction: plan.finalization.nextAction,
+      finalization: plan.finalization,
+      contextBlock: plan.contextBlock,
+      recorded: !sessionEvent.deduped,
+      deduped: sessionEvent.deduped,
+      sessionEventPath: sessionEvent.path,
+    };
+  }, { failOpen: true });
+
+  return result ?? {
+    status: "unavailable",
+    reason: "lock_timeout",
+    decision: null,
+    nextAction: null,
+    finalization: null,
+    contextBlock: "",
+    recorded: false,
+    deduped: false,
+    sessionEventPath: null,
+  };
+}
+
+async function idleFinalizationPlan({ stateDir, sessionEvents, explicitWarrantId }) {
+  const turnEvents = eventsSinceLastOutcome(sessionEvents);
+  const latestTriggerIndex = turnEvents.findLastIndex((event) => FINALIZATION_TRIGGER_HOOKS.has(event.hook));
+  if (latestTriggerIndex < 0) {
+    return {
+      needed: false,
+      reason: "no_unfinished_turn",
+    };
+  }
+
+  const latestFinalizationIndex = turnEvents.findLastIndex((event) => event.hook === "finalize.before_response");
+  if (latestFinalizationIndex > latestTriggerIndex) {
+    return {
+      needed: false,
+      reason: "already_finalized",
+    };
+  }
+
+  const warrant = await finalizationWarrant(stateDir, sessionEvents, explicitWarrantId);
+  const finalization = finalizeSessionDecision({
+    sessionEvents,
+    warrant,
+  });
+
+  return {
+    needed: true,
+    reason: "missing_finalization",
+    warrant,
+    finalization,
+    contextBlock: formatFinalizeContextBlock(finalization),
   };
 }
 

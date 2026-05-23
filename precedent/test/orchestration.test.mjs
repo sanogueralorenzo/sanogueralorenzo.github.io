@@ -116,6 +116,101 @@ test("orchestration.after_idle leaves unsafe promotion trials blocked", async ()
   }
 });
 
+test("orchestration.after_idle finalizes unfinished sessions", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "unfinished",
+      "--event-id",
+      "warrant-1",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    const idle = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "orchestration.after_idle",
+      sessionId: "unfinished",
+      eventId: "idle-finalize",
+      warrantId: warrant.warrantId,
+    });
+    const repeated = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "orchestration.after_idle",
+      sessionId: "unfinished",
+      eventId: "idle-finalize",
+      warrantId: warrant.warrantId,
+    });
+
+    assert.equal(idle.idle.finalization.status, "blocked");
+    assert.equal(idle.idle.finalization.decision, "validate");
+    assert.deepEqual(idle.idle.finalization.nextAction, {
+      type: "run_validation",
+      commands: ["pnpm test:webhooks"],
+      followUpHook: "validation.after_run",
+      refinalize: true,
+    });
+    assert.match(idle.idle.finalization.contextBlock, /Required command: pnpm test:webhooks/u);
+    assert.equal(idle.idle.finalization.recorded, true);
+    assert.equal(repeated.deduped, true);
+    assert.equal(repeated.idle.finalization.recorded, true);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/unfinished.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.eventId === "idle-finalize:finalize.before_response").length, 1);
+    assert.equal(sessionEvents.filter((event) => event.hook === "finalize.before_response").length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("orchestration.after_idle skips already finalized sessions", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "done",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "done",
+      eventId: "finalize-done",
+    });
+
+    const idle = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "orchestration.after_idle",
+      sessionId: "done",
+      eventId: "idle-done",
+    });
+
+    assert.equal(idle.idle.finalization.status, "not_needed");
+    assert.equal(idle.idle.finalization.reason, "already_finalized");
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/done.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.hook === "finalize.before_response").length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function recordSafePromotionTrial(stateDir, sessionId) {
   await recordFailedSession(stateDir, "failed", "node --check precedent/examples/missing-safe-baseline.mjs");
   await hook(stateDir, {
@@ -142,6 +237,22 @@ async function recordSafePromotionTrial(stateDir, sessionId) {
     command: "node --check precedent/bin/precedent.mjs",
     exitCode: 0,
   });
+}
+
+async function promoteWebhookPrecedent(stateDir) {
+  await runJson(["init", "--state-dir", stateDir, "--json"]);
+  const traceOut = join(stateDir, "trace.json");
+  await runJson([
+    "replay",
+    "--state-dir",
+    stateDir,
+    "--case",
+    "precedent/examples/replay/webhook-case.json",
+    "--trace-out",
+    traceOut,
+    "--json",
+  ]);
+  await runJson(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
 }
 
 async function recordFailedSession(stateDir, sessionId, command) {
