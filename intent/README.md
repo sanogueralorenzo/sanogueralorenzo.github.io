@@ -165,6 +165,17 @@ Validation expectations:
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable;
   missing or wrong step attachment edges remain
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+- Runtime graph check gate edge contracts are the next Phase 2 static-model
+  milestone. Every `Check` node is a runtime gate and must have exactly one
+  outgoing `gates` edge to its owning `Goal`. Goal-scoped verification `Check`
+  nodes must also have exactly one outgoing `verifies` edge to the owning
+  `Completion` node. Step-scoped requirement `Check` nodes must have no
+  `verifies` edges; they attach to their owning step with the existing
+  `requires` edge contract and gate the owning goal with `gates`. Malformed,
+  missing, or extra check gate edges emit `INTENT_GRAPH_CHECK_GATE_INVALID` and
+  make graph output non-executable; malformed `Check` node data remains
+  `INTENT_GRAPH_CHECK_INVALID`, and missing step attachment edges remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics

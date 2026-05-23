@@ -390,6 +390,17 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable;
   missing or wrong step attachment edges remain
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+- Runtime graph check gate edge contracts are the next Phase 2 static-model
+  milestone. Every `Check` node is a runtime gate and must have exactly one
+  outgoing `gates` edge to its owning `Goal`. Goal-scoped verification `Check`
+  nodes must also have exactly one outgoing `verifies` edge to the owning
+  `Completion` node. Step-scoped requirement `Check` nodes must have no
+  `verifies` edges; they attach to their owning step with the existing
+  `requires` edge contract and gate the owning goal with `gates`. Malformed,
+  missing, or extra check gate edges emit `INTENT_GRAPH_CHECK_GATE_INVALID` and
+  make graph output non-executable; malformed `Check` node data remains
+  `INTENT_GRAPH_CHECK_INVALID`, and missing step attachment edges remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
@@ -617,6 +628,10 @@ blocking diagnostics.
   checkpoints, policies, and completion gates.
 - Emit step requirements as `Check` nodes with `requires` edges into the owning
   step and `gates` edges to the owning goal.
+- Emit every `Check` node with exactly one outgoing `gates` edge to its owning
+  `Goal`. Goal-scoped verification checks also emit exactly one outgoing
+  `verifies` edge to the owning `Completion`; step-scoped requirement checks
+  emit no `verifies` edges and use their `requires` edge for step attachment.
 - Emit step approval gates as `Approval` nodes, list them on the owning `Step`
   node data, and connect each one with an `approves` edge from that `Approval`
   node to the owning `Step`. The edge must carry non-empty `data.approval`.
@@ -865,6 +880,10 @@ Rules:
 - Step requirement checks do not create `verifies` edges to the goal
   `Completion` node. Goal-level `verify` requirements remain the only checks
   that verify completion.
+- Graph check gate validation emits `INTENT_GRAPH_CHECK_GATE_INVALID` when a
+  step requirement `Check` lacks exactly one outgoing `gates` edge to its owning
+  `Goal` or has any outgoing `verifies` edge. Missing step attachment
+  `requires` edges remain `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Graph requires-edge payload validation emits
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a step-requirement `requires` edge
   omits non-empty `requirement`. Wrong step-requirement attachment endpoints
@@ -1364,6 +1383,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_CONTEXT_INVALID`
 - `INTENT_GRAPH_EFFECT_INVALID`
 - `INTENT_GRAPH_CHECK_INVALID`
+- `INTENT_GRAPH_CHECK_GATE_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
 - `INTENT_GRAPH_APPROVAL_INVALID`
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
@@ -1866,12 +1886,16 @@ Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
 multiple `Step` nodes does not have exactly one linear `precedes` chain across
 those steps, or when the `Step` producing `Completion` is not the tail step of
 that chain.
-Graph validation emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID` when a
-step-scoped `Check` lacks a `requires` edge to its owning `Step`, an `Approval`
-lacks an `approves` edge to its owning `Step` or to an approval-required
-`Effect` in that same step, a `Checkpoint` lacks a `checkpoints` edge from its
-owning `Step`, or a `Policy` lacks its `timeouts` or `retries` edge to its
-owning `Step`.
+Graph validation emits `INTENT_GRAPH_CHECK_GATE_INVALID` when a `Check` node
+lacks exactly one outgoing `gates` edge to its owning `Goal`, when a
+goal-scoped verification `Check` lacks exactly one outgoing `verifies` edge to
+the owning `Completion`, or when a step-scoped requirement `Check` has any
+outgoing `verifies` edge. Graph validation emits
+`INTENT_GRAPH_STEP_ATTACHMENT_INVALID` when a step-scoped `Check` lacks a
+`requires` edge to its owning `Step`, an `Approval` lacks an `approves` edge to
+its owning `Step` or to an approval-required `Effect` in that same step, a
+`Checkpoint` lacks a `checkpoints` edge from its owning `Step`, or a `Policy`
+lacks its `timeouts` or `retries` edge to its owning `Step`.
 
 The next static graph contract milestone is rejection, not repair. Static graph
 validators must reject any graph with a missing or unsupported
@@ -1975,9 +1999,10 @@ runtimes must not infer executable inputs, side effects, gates, checkpoints,
 approvals, timeouts, retries, or output types.
 
 Step requirement nodes are `Check` nodes scoped to one owning step. They create
-`requires` edges into that step and `gates` edges to the owning goal. They are
-not completion checks and must not create `verifies` edges to the goal
-`Completion` node. Check graph data must carry non-empty `data.requirement`.
+`requires` edges into that step and exactly one outgoing `gates` edge to the
+owning goal. They are not completion checks and must not create `verifies`
+edges to the goal `Completion` node. Check graph data must carry non-empty
+`data.requirement`.
 When `data.scope` is present it must be either `goal` or `step`; step-scoped
 checks must carry non-empty `data.ownerStep` and `data.assertion`.
 Verification-effect checks must also carry valid nested `data.effect` adapter
@@ -1985,7 +2010,8 @@ data: non-empty `family` and `action`, object `args`, `argKinds`, and
 `argSpans`, and valid source spans for every `argSpans` value. Malformed check
 records emit `INTENT_GRAPH_CHECK_INVALID` and make graph output
 non-executable. Malformed trust metadata inside `data.effect` remains
-`INTENT_GRAPH_TRUST_INVALID`.
+`INTENT_GRAPH_TRUST_INVALID`. Malformed, missing, or extra check gate edges
+emit `INTENT_GRAPH_CHECK_GATE_INVALID` and make graph output non-executable.
 
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
@@ -2045,7 +2071,9 @@ output creates an `authorizes` edge from the matching `Capability` node to the
 `Deploy` `Effect` node.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
-to the completion node. Required checks create `verifies` edges to completion.
+to the completion node. Required goal-scoped checks create exactly one outgoing
+`gates` edge to the owning goal and exactly one outgoing `verifies` edge to
+completion.
 Invariants that apply to the goal create `guards` edges to completion and to
 every effect, checkpoint, and step requirement check in that goal. The last
 executable step in the plan creates a `produces` edge to completion. That edge
@@ -2079,6 +2107,11 @@ adapter metadata: non-empty `data.family` and `data.action`, object
 step-scoped `data.ownerStep` or `data.assertion`, or carries malformed nested
 `data.effect` adapter metadata. Malformed check effect trust metadata emits
 `INTENT_GRAPH_TRUST_INVALID`. Graph validation emits
+`INTENT_GRAPH_CHECK_GATE_INVALID` when a `Check` node lacks exactly one
+outgoing `gates` edge to its owning `Goal`, when a goal-scoped verification
+`Check` lacks exactly one outgoing `verifies` edge to the owning `Completion`,
+or when a step-scoped requirement `Check` has any `verifies` edge. Graph
+validation emits
 `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
 `guards` edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped
 `Check` node in the same goal. Graph validation emits
