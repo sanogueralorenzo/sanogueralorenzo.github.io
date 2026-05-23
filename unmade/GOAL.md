@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-Build the public skeleton first: a scrollable archive at `/unmade/`, reusable full case pages, and an initial set of entries spanning every section.
+The public skeleton is in place: a scrollable archive at `/unmade/`, reusable full case pages, and two entry batches spanning every section.
 
 ## Expansion Loop
 
@@ -19,4 +19,4 @@ Each batch should keep the archive navigable, add at least one memorable artifac
 
 ## Next Expansion Focus
 
-Add a second randomized batch with stranger objects and more varied formats: one confession, one machine, one abandoned route, one partial screenplay, one missing field record, and one alternate identity.
+Add a third randomized batch that leans more visual and strange: one diagram, one ritual, one failed product, one vanished performance, one impossible photograph, and one future that was rejected for being too easy.

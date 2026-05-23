@@ -505,6 +505,30 @@ a {
   background: #d7d4cf;
 }
 
+.unmade-object-envelope {
+  background: #eee0d2;
+}
+
+.unmade-object-machine {
+  background: #90a7a1;
+}
+
+.unmade-object-route {
+  background: #c9b068;
+}
+
+.unmade-object-script {
+  background: #f0eadf;
+}
+
+.unmade-object-signal {
+  background: #6aa4c8;
+}
+
+.unmade-object-mask {
+  background: #d9cbc3;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
