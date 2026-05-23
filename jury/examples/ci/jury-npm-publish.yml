@@ -29,6 +29,10 @@ jobs:
         env:
           JURY_PACKAGE_DIR: jury
         run: npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check
+      - name: Check Jury package release archive manifest drift
+        env:
+          JURY_PACKAGE_DIR: jury
+        run: npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:drift
       - name: Export Jury package release archive manifest
         env:
           JURY_PACKAGE_DIR: jury

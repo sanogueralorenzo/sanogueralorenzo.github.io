@@ -11,6 +11,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Copy [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml) into `.github/workflows/` before publication CI.
 - [ ] Use [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) as the npm publication shape when releases need `needs: package-manifest`.
 - [ ] Confirm publication CI runs `package-release-fixtures` with `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check` before `dry-run-publication`.
+- [ ] Confirm publication CI runs `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:drift` before `dry-run-publication`.
 - [ ] Upload `rollback-audit.json` and `replacement-patch-audit.json` as the `jury-package-release-evidence` CI artifact for package release audit comparison.
 - [ ] Export `retained-package-release-evidence-manifest.json` in publication CI and upload it as the `jury-package-release-archive-manifest` CI artifact.
 - [ ] Download `jury-package-release-evidence` and replay it with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>` before `dry-run-publication`.
@@ -34,6 +35,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Export `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json`.
 - [ ] Confirm the retained archive manifest validates against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json).
 - [ ] Verify `retained-package-release-evidence-manifest.json` with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest retained-package-release-evidence-manifest.json`.
+- [ ] Run `npm --prefix jury run fixtures:package-release:drift` before release to confirm the checked-in retained archive manifest has not drifted from failed or replacement archive evidence or archive evidence digests.
 - [ ] If retained package release manifest replay fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to inspect manifest identity, required archive evidence, retention artifacts, and provenance artifacts.
 - [ ] Retain promoted failed and replacement release evidence until at least 180 days after replacement downstream verification passes.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when the dry-run artifact is stale or mismatched.
@@ -107,6 +109,7 @@ npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-release-readiness --json
 npm --prefix jury run package:manifest:check
 npm --prefix jury run fixtures:package-release:check
+npm --prefix jury run fixtures:package-release:drift
 ```
 
 The release is ready when the quickstart, workflow, fixture sync tests, migration path, tarball manifest check, and strict check all pass against the same artifact contract.

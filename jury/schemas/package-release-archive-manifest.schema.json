@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Jury Package Release Archive Manifest",
   "type": "object",
-  "required": ["schema_version", "package", "failed", "replacement", "retention", "provenance"],
+  "required": ["schema_version", "package", "failed", "replacement", "retention", "provenance", "archiveEvidence"],
   "properties": {
     "schema_version": { "const": "jury.package_release_archive_manifest.v1" },
     "package": { "type": "string", "minLength": 1 },
@@ -114,6 +114,28 @@
         }
       },
       "additionalProperties": false
+    },
+    "archiveEvidence": {
+      "type": "array",
+      "minItems": 7,
+      "allOf": [
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "jury-pack-dry-run-record.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "failed-npm-view.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "downstream-failure-gate.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "rollback-audit.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-npm-view.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-downstream-gate.json" } } } },
+        { "contains": { "type": "object", "required": ["path"], "properties": { "path": { "const": "replacement-patch-audit.json" } } } }
+      ],
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

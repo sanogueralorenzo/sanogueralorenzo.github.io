@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,15 @@ const evidenceSchemaPath = join(packageRoot, "schemas/package-release-evidence.s
 const archiveManifestSchemaPath = join(packageRoot, "schemas/package-release-archive-manifest.schema.json");
 const evidenceSchema = await readJson(evidenceSchemaPath);
 const archiveManifestSchema = await readJson(archiveManifestSchemaPath);
+const archiveEvidenceFiles = [
+  "jury-pack-dry-run-record.json",
+  "failed-npm-view.json",
+  "downstream-failure-gate.json",
+  "rollback-audit.json",
+  "replacement-npm-view.json",
+  "replacement-downstream-gate.json",
+  "replacement-patch-audit.json",
+];
 const fixtureRead = await readRequiredFixtures([
   "rollback-audit.json",
   "replacement-patch-audit.json",
@@ -31,6 +41,9 @@ const failedGate = fixtureRead.fixtures.get("downstream-failure-gate.json");
 const replacementNpmView = fixtureRead.fixtures.get("replacement-npm-view.json");
 const replacementGate = fixtureRead.fixtures.get("replacement-downstream-gate.json");
 const archiveManifest = tryBuildArchiveManifest();
+const archiveDriftManifestPath = args.checkArchiveDrift
+  ? join(fixtureDir, "retained-package-release-evidence-manifest.json")
+  : null;
 const errors = [
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", rollback, "rollback-audit.json"),
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", replacement, "replacement-patch-audit.json"),
@@ -38,14 +51,10 @@ const errors = [
   ...relationshipErrors(),
 ];
 if (args.verifyManifest) {
-  const manifestRead = await readVerificationManifest(args.verifyManifest);
-  errors.push(...manifestRead.errors);
-  if (manifestRead.value) {
-    errors.push(
-      ...schemaDocumentErrors(archiveManifestSchema, "jury.package_release_archive_manifest.v1", manifestRead.value, args.verifyManifest),
-      ...(archiveManifest.value ? manifestVerificationErrors(manifestRead.value, archiveManifest.value, args.verifyManifest) : []),
-    );
-  }
+  errors.push(...await verificationErrorsForManifest(args.verifyManifest));
+}
+if (archiveDriftManifestPath) {
+  errors.push(...await verificationErrorsForManifest(archiveDriftManifestPath, { archiveDrift: true }));
 }
 
 if (errors.length > 0) {
@@ -63,6 +72,7 @@ process.stdout.write(`${JSON.stringify({
   archiveManifestSchema: "schemas/package-release-archive-manifest.schema.json",
   manifestOut: args.manifestOut ?? null,
   verifiedManifest: args.verifyManifest ?? null,
+  archiveDriftManifest: archiveDriftManifestPath,
   fixtures: [
     "rollback-audit.json",
     "replacement-patch-audit.json",
@@ -71,10 +81,13 @@ process.stdout.write(`${JSON.stringify({
 
 async function readRequiredFixtures(names) {
   const fixtures = new Map();
+  const rawFixtures = new Map();
   const errors = [];
   for (const name of names) {
     try {
-      fixtures.set(name, await readJson(join(fixtureDir, name)));
+      const raw = await readFile(join(fixtureDir, name), "utf8");
+      fixtures.set(name, JSON.parse(raw));
+      rawFixtures.set(name, raw);
     } catch (error) {
       if (error.code === "ENOENT") {
         errors.push(`${name} is required in package release evidence directory ${fixtureDir}`);
@@ -83,7 +96,7 @@ async function readRequiredFixtures(names) {
       }
     }
   }
-  return { fixtures, errors };
+  return { fixtures, rawFixtures, errors };
 }
 
 async function readVerificationManifest(path) {
@@ -102,7 +115,7 @@ async function readJson(path) {
 }
 
 function parseArgs(argv) {
-  const parsed = { fixtureDir: null, manifestOut: null, verifyManifest: null };
+  const parsed = { fixtureDir: null, manifestOut: null, verifyManifest: null, checkArchiveDrift: false };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -133,11 +146,27 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === "--check-archive-drift") {
+      parsed.checkArchiveDrift = true;
+      continue;
+    }
 
     fail(`unknown argument ${arg}`);
   }
 
   return parsed;
+}
+
+async function verificationErrorsForManifest(manifestPath, options = {}) {
+  const manifestRead = await readVerificationManifest(manifestPath);
+  const errors = [...manifestRead.errors];
+  if (manifestRead.value) {
+    errors.push(
+      ...schemaDocumentErrors(archiveManifestSchema, "jury.package_release_archive_manifest.v1", manifestRead.value, manifestPath),
+      ...(archiveManifest.value ? manifestVerificationErrors(manifestRead.value, archiveManifest.value, manifestPath, options) : []),
+    );
+  }
+  return errors;
 }
 
 function schemaDocumentErrors(schemaDocument, expectedSchemaVersion, value, label) {
@@ -477,7 +506,15 @@ function buildArchiveManifest() {
       sourceRevision: rollback.retention.provenance.sourceRevision,
       artifacts: [...provenanceArtifacts.values()],
     },
+    archiveEvidence: archiveEvidenceDigests(),
   };
+}
+
+function archiveEvidenceDigests() {
+  return archiveEvidenceFiles.map((path) => ({
+    path,
+    sha256: `sha256:${sha256(fixtureRead.rawFixtures.get(path))}`,
+  }));
 }
 
 function tryBuildArchiveManifest() {
@@ -500,10 +537,14 @@ function tryBuildArchiveManifest() {
   }
 }
 
-function manifestVerificationErrors(manifest, expected, manifestPath) {
+function manifestVerificationErrors(manifest, expected, manifestPath, options = {}) {
   const errors = [];
   if (stableStringify(manifest) !== stableStringify(expected)) {
-    errors.push(`${manifestPath} does not match retained package release evidence`);
+    if (options.archiveDrift) {
+      errors.push(`${manifestPath} archive drift detected against retained package release evidence`);
+    } else {
+      errors.push(`${manifestPath} does not match retained package release evidence`);
+    }
   }
   if (manifest.schema_version !== "jury.package_release_archive_manifest.v1") {
     errors.push(`${manifestPath}.schema_version must equal jury.package_release_archive_manifest.v1`);
@@ -526,7 +567,18 @@ function manifestVerificationErrors(manifest, expected, manifestPath) {
   if (manifest.provenance?.sourceRevision !== rollback.retention.provenance.sourceRevision) {
     errors.push(`${manifestPath}.provenance.sourceRevision must match retained evidence provenance`);
   }
+  const expectedEvidence = new Map((expected.archiveEvidence ?? []).map((item) => [item.path, item.sha256]));
+  const manifestEvidence = new Map((manifest.archiveEvidence ?? []).map((item) => [item.path, item.sha256]));
+  for (const [path, digest] of expectedEvidence) {
+    if (manifestEvidence.get(path) !== digest) {
+      errors.push(`${manifestPath}.archiveEvidence ${path} sha256 must match retained evidence`);
+    }
+  }
   return errors;
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function stableStringify(value) {

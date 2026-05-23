@@ -34,13 +34,14 @@ npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 npm --prefix jury run package:manifest:check
 npm --prefix jury run fixtures:package-release:check
+npm --prefix jury run fixtures:package-release:drift
 ```
 
-The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, package release artifact provenance checks for retained failed and replacement evidence, retained package release evidence manifest export, schema validation, verification, CI handoff, and replay troubleshooting for failed and replacement release archives, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, dry-run release publication checklist guidance, dry-run publication artifact handoff, dry-run artifact retention expectations, package release evidence artifact upload guidance, package release evidence artifact download and replay guidance, package release evidence replay failure troubleshooting for package rollback and replacement audits, package release evidence retention policy for failed and replacement release artifacts, package release artifact provenance checks for retained failed and replacement evidence, retained package release evidence manifest export, schema validation, verification, archive drift checking, CI handoff, and replay troubleshooting for failed and replacement release archives, post-publication package metadata comparison guidance, downstream verification rollback notes, replacement patch supersedence evidence, package release evidence fixture examples, package release evidence schema validation, package release fixture workflow gating, dry-run publication summary output, dry-run package summary reviewer audit notes, stale dry-run artifact troubleshooting, npm token and provenance release checklist guidance, release metadata, package tarball manifest checks, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, package manifest troubleshooting, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
-Retained package release evidence manifest export is available through `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json`. The exported `jury.package_release_archive_manifest.v1` file combines failed publication evidence, replacement patch evidence, retention requirements, and artifact provenance for release archive handoff. Export and verification validate the file against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json). Verify the archived manifest with `--verify-manifest retained-package-release-evidence-manifest.json` before closing the failed release record.
+Retained package release evidence manifest export is available through `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json`. The exported `jury.package_release_archive_manifest.v1` file combines failed publication evidence, replacement patch evidence, retention requirements, artifact provenance, and archive evidence digests for release archive handoff. Export and verification validate the file against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json). Verify the archived manifest with `--verify-manifest retained-package-release-evidence-manifest.json` before closing the failed release record.
 
 ## Manifest CI Handoff
 
@@ -49,6 +50,10 @@ The npm publication example exports `retained-package-release-evidence-manifest.
 ## Release Archive Fixture
 
 The package release fixture directory includes [examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json](examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json). Keep it synchronized with `rollback-audit.json`, `replacement-patch-audit.json`, the dry-run record, npm metadata, downstream gates, retention policy, and artifact provenance by regenerating it with `--manifest-out examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json` and verifying it with `--verify-manifest examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json`.
+
+## Archive Drift Check
+
+Run `npm --prefix jury run fixtures:package-release:drift` before handing off package release fixtures. It verifies the checked-in retained archive manifest still matches the failed publication archive evidence, replacement patch archive evidence, retention policy, artifact provenance, and archive evidence digests.
 
 ## Manifest Replay Troubleshooting
 
@@ -84,4 +89,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift check for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation guidance for failed and replacement release archives.

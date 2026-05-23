@@ -70,5 +70,35 @@
         ]
       }
     ]
-  }
+  },
+  "archiveEvidence": [
+    {
+      "path": "jury-pack-dry-run-record.json",
+      "sha256": "sha256:98c1435b0ae0d3839bbdaf23a95078e4288c3d29853bd9c2d35a4301abf8df51"
+    },
+    {
+      "path": "failed-npm-view.json",
+      "sha256": "sha256:cacaef42592ec152da581a7295f923da0a6f7ec4a9637a40b69fa74bc9b001b5"
+    },
+    {
+      "path": "downstream-failure-gate.json",
+      "sha256": "sha256:1bdc93cc74b9b062859363e3770a4d01a1c8db8874da10211046f59aba06b239"
+    },
+    {
+      "path": "rollback-audit.json",
+      "sha256": "sha256:962d3f305c83e40442fe9fc56722686f9479b03c308285343f9544f50a383398"
+    },
+    {
+      "path": "replacement-npm-view.json",
+      "sha256": "sha256:aaa6629186e307263f617e440f40b5de8de5be5f916da9ba3971db890f08a664"
+    },
+    {
+      "path": "replacement-downstream-gate.json",
+      "sha256": "sha256:8b12bc003be9b3e8dcb1d01ed562dbddffeb6868ce14972ba780ef53d10e1247"
+    },
+    {
+      "path": "replacement-patch-audit.json",
+      "sha256": "sha256:c6a8628db28a5efda078bca6ee0cd5ba6fd19c5e2cc579571b4a480091910774"
+    }
+  ]
 }

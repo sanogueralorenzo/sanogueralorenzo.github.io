@@ -12,6 +12,7 @@
     "fixtures:key-policy": "node scripts/generate-key-policy-fixtures.mjs",
     "fixtures:key-policy:check": "node scripts/generate-key-policy-fixtures.mjs --check",
     "fixtures:package-release:check": "node scripts/validate-package-release-fixtures.mjs",
+    "fixtures:package-release:drift": "node scripts/validate-package-release-fixtures.mjs --check-archive-drift",
     "package:manifest:check": "node scripts/check-package-manifest.mjs",
     "test": "node --test test/*.test.mjs"
   }
