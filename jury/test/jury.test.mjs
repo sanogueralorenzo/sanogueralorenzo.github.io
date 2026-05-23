@@ -1639,6 +1639,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("retainedWith missing archive-drift-remediation-audit.json"));
   assert.ok(guide.includes("Remediation Audit Handoff CI Workflow Enforcement Failure"));
   assert.ok(guide.includes("Replay Jury package release remediation audit handoff"));
+  assert.ok(guide.includes("Replay Jury package release remediation audit handoff step is missing"));
   assert.ok(guide.includes("remediation audit handoff CI workflow enforcement failed"));
   assert.ok(guide.includes("Replay Artifact Summary Failure"));
   assert.ok(guide.includes("Replay Summary CI Workflow Diagnostics Failure"));
@@ -1801,6 +1802,15 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
     assert.equal(remediationAuditHandoffWorkflowOrdering.exitCode, 0, remediationAuditHandoffWorkflowOrdering.stderr);
     assert.equal(JSON.parse(remediationAuditHandoffWorkflowOrdering.stdout).step, "Replay Jury package release remediation audit handoff");
     assert.equal(JSON.parse(remediationAuditHandoffWorkflowOrdering.stdout).dryRunNeeds, "package-release-evidence-replay");
+    const missingRemediationHandoffWorkflowPath = join(manifestReplayRoot, "missing-remediation-handoff-workflow.yml");
+    const missingRemediationHandoffWorkflow = (await readFile(join(repoRoot, "jury/examples/ci/jury-npm-publish.yml"), "utf8"))
+      .replace("Replay Jury package release remediation audit handoff", "Replay Jury package release remediation audit handoff disabled");
+    await writeFile(missingRemediationHandoffWorkflowPath, missingRemediationHandoffWorkflow);
+    const missingRemediationHandoffWorkflowOrdering = await runShell(
+      remediationAuditHandoffCiReplayCommands[0].replace("jury/examples/ci/jury-npm-publish.yml", shellQuote(missingRemediationHandoffWorkflowPath)),
+    );
+    assert.equal(missingRemediationHandoffWorkflowOrdering.exitCode, 1);
+    assert.match(missingRemediationHandoffWorkflowOrdering.stderr, /Replay Jury package release remediation audit handoff step is missing/);
     const remediationAuditHandoffCiReplay = await runShell(retainedCommand(remediationAuditHandoffCiReplayCommands[1]));
     assert.equal(remediationAuditHandoffCiReplay.exitCode, 0, remediationAuditHandoffCiReplay.stderr);
     assert.equal(JSON.parse(remediationAuditHandoffCiReplay.stdout).reviewedBy, "release-maintainer@example.com");
