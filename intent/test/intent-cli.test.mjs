@@ -1198,8 +1198,8 @@ describe("intent static model CLI", () => {
         { id: "node:b", kind: "Type", label: "b", span: testSpan(2) },
       ],
       edges: [
-        { from: "node:a", to: "node:b", kind: "requests" },
-        { from: "node:b", to: "node:a", kind: "requires" },
+        { from: "node:a", to: "node:b", kind: "guards" },
+        { from: "node:b", to: "node:a", kind: "guards" },
       ],
     });
 
@@ -1616,6 +1616,36 @@ describe("intent static model CLI", () => {
       { to_kind: "Effect" },
       { to_kind: "Check" },
       { to_kind: "Context" },
+    ]);
+  });
+
+  it("validates graph requests edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(4) },
+        { id: "goal:demo:context:0", kind: "Context", label: "repo", span: testSpan(5) },
+      ],
+      edges: [
+        { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
+        { from: "goal:demo:step:patch", to: "goal:demo", kind: "requests" },
+        { from: "goal:demo:step:patch", to: "goal:demo:verify:0", kind: "requests" },
+        { from: "goal:demo", to: "goal:demo:context:0", kind: "requests" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_REQUEST_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].from_kind, "Step");
+    assert.equal(diagnostics[0].to_kind, "Goal");
+    assert.equal(diagnostics[1].from_kind, "Step");
+    assert.equal(diagnostics[1].to_kind, "Check");
+    assert.equal(diagnostics[2].from_kind, "Goal");
+    assert.equal(diagnostics[2].to_kind, "Context");
+    assert.deepEqual(diagnostics[2].supported_roles, [
+      { to_kind: "Effect" },
     ]);
   });
 

@@ -2193,13 +2193,16 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (graphEdge.kind !== "declares" && graphEdge.kind !== "authorizes") {
+  if (graphEdge.kind !== "declares" && graphEdge.kind !== "authorizes" && graphEdge.kind !== "requests") {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
   const targetNode = nodesById.get(graphEdge.to);
   if (graphEdge.kind === "authorizes") {
     return validateGraphAuthorizesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "requests") {
+    return validateGraphRequestsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
   const isTypeAvailability = sourceNode?.kind === "Type" && targetNode?.kind === "Goal";
   const isMemoryOwnership = sourceNode?.kind === "Goal" && targetNode?.kind === "Memory";
@@ -2215,6 +2218,22 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
     supported_roles: [
       { from_kind: "Type", to_kind: "Goal" },
       { from_kind: "Goal", to_kind: "Memory" },
+    ],
+  });
+}
+
+function validateGraphRequestsEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (targetNode?.kind === "Effect") {
+    return null;
+  }
+  return error("INTENT_GRAPH_REQUEST_INVALID", `requests edge '${graphEdge.from}' to '${graphEdge.to}' must target an Effect node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { to_kind: "Effect" },
     ],
   });
 }
