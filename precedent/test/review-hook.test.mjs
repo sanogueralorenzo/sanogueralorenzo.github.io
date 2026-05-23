@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../..");
 const cliPath = join(repoRoot, "precedent/bin/precedent.mjs");
+const promotedReviewValidationPrecedentId = "prec_feature_webhooks_wrong_test_command_missed_contract";
 
 test("review feedback creates missed-contract candidates", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-review-test-"));
@@ -56,7 +57,7 @@ test("review feedback participates in session-pair promotion", async () => {
 
   try {
     await runJson(["init", "--state-dir", stateDir, "--json"]);
-    await recordReviewFailure(stateDir, "failed", "missed nullable payload contract");
+    await recordReviewFailureWithValidation(stateDir, "failed", "missed nullable payload contract");
     await hook(stateDir, {
       schema_version: "precedent.v1",
       hook: "outcome.after_task",
@@ -67,13 +68,80 @@ test("review feedback participates in session-pair promotion", async () => {
 
     const compiled = await runJson(["compile", "--state-dir", stateDir, "--promote-session-pairs", "--json"]);
     assert.equal(compiled.promoted.length, 1);
-    assert.equal(compiled.promoted[0].id, "prec_feature_webhooks_missed_contract");
+    assert.equal(compiled.promoted[0].id, promotedReviewValidationPrecedentId);
 
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
     assert.equal(precedents.length, 1);
     assert.ok(precedents[0].evidence.includes("review-comment: missed nullable payload contract"));
     assert.equal(precedents[0].promotion.baseline_failures, 1);
     assert.equal(precedents[0].promotion.rerun_failures, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("review-only feedback does not auto-promote on later clean success", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-review-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await recordReviewFailure(stateDir, "failed", "missed nullable payload contract");
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "failed",
+      success: false,
+    });
+    const outcome = await recordCleanSuccess(stateDir, "success");
+
+    assert.equal(outcome.learning.promotionStatus, "not_promoted");
+    assert.deepEqual(outcome.learning.promotedIds, []);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "fix webhook payload contract",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+    assert.deepEqual(context.injections, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("review feedback with failed validation can auto-promote on later clean success", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-review-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await recordReviewFailureWithValidation(stateDir, "failed", "missed nullable payload contract");
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "failed",
+      success: false,
+    });
+    const outcome = await recordCleanSuccess(stateDir, "success");
+
+    assert.equal(outcome.learning.promotionStatus, "promoted");
+    assert.deepEqual(outcome.learning.promotedIds, [promotedReviewValidationPrecedentId]);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "fix webhook payload contract",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+    assert.equal(context.injections.length, 1);
+    assert.equal(context.injections[0].id, promotedReviewValidationPrecedentId);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -148,6 +216,18 @@ async function recordReviewFailure(stateDir, sessionId, comment) {
   });
 }
 
+async function recordReviewFailureWithValidation(stateDir, sessionId, comment) {
+  await recordReviewFailure(stateDir, sessionId, comment);
+  await hook(stateDir, {
+    schema_version: "precedent.v1",
+    hook: "validation.after_run",
+    sessionId,
+    command: "pnpm test:webhooks",
+    exitCode: 1,
+    stderr: "nullable payload contract failed",
+  });
+}
+
 async function recordCleanSuccess(stateDir, sessionId) {
   await hook(stateDir, {
     schema_version: "precedent.v1",
@@ -164,7 +244,7 @@ async function recordCleanSuccess(stateDir, sessionId) {
     command: "pnpm test:webhooks",
     exitCode: 0,
   });
-  await hook(stateDir, {
+  return hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "outcome.after_task",
     sessionId,

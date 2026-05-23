@@ -2134,6 +2134,10 @@ async function promoteSessionPairs(stateDir, { successSessionId = null, requireF
     if (!failedTrace) {
       continue;
     }
+    if (!failedValidationEvidence(failedTrace)) {
+      continue;
+    }
+
     const replayId = `session-pair-${safeFileName(failedTrace.id)}-${safeFileName(successTrace.id)}`;
     const replayDir = join(stateDir, "replays", replayId);
     const replayPath = join(replayDir, "replay.json");
@@ -2314,7 +2318,7 @@ function failedValidationExitCode(trace) {
     : [];
   const failed = validations.find((event) => event.exitCode !== 0);
 
-  return failed?.exitCode ?? 1;
+  return failed?.exitCode ?? null;
 }
 
 function sessionPairEvidence(failedTrace, successTrace, replayPath) {
