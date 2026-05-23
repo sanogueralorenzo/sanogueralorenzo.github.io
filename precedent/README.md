@@ -99,6 +99,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent explain`: audits why a precedent was promoted or rejected.
 - `precedent run`: wraps a validation command and records the result as a session hook.
 - `precedent manifest`: emits the machine-readable hook contract for an agent runtime.
+- `precedent attach`: emits a zero-touch runtime adapter contract for one conversation session.
 - `precedent check`: validates local Precedent state for CI.
 - `precedent prune`: removes old non-promoted state using `retentionDays`.
 - `precedent report`: prints before/after metrics.
@@ -126,6 +127,7 @@ node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs manifest --runtime generic
+node precedent/bin/precedent.mjs attach --runtime codex --session demo --task "add another webhook handler" --scope feature:webhooks
 node precedent/bin/precedent.mjs check --strict --json
 node precedent/bin/precedent.mjs prune --dry-run --json
 node precedent/bin/precedent.mjs observe --session demo
@@ -146,6 +148,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
+- `attach` emits a session-scoped adapter contract with a before-turn command, after-validation hook command, after-diff hook command, after-outcome hook command, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
 - `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
 - `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
@@ -287,6 +290,14 @@ node precedent/examples/hook-loop/run.mjs
 ```
 
 The example sends two `context.before_turn` events through `precedent hook`: the first returns an empty `contextBlock`, the failed trace is observed and promoted, then the follow-up turn receives a compact `Precedent:` block.
+
+The adapter example demonstrates a normal runtime flow with no direct `context` or `hook` calls by the caller:
+
+```shell
+node precedent/examples/attach/run.mjs
+```
+
+It seeds a precedent, asks `attach` for a session contract, runs the contract's before-turn command for insertion, records validation and outcome through the contract hook commands, and prints attributed precedent health.
 
 It is intentionally small. The next build step is wiring these commands to real agent traces and PR review events.
 

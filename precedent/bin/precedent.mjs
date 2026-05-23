@@ -8,6 +8,7 @@ import { dirname, join, resolve } from "node:path";
 const DEFAULT_STATE_DIR = ".precedent";
 const SCHEMA_VERSION = "precedent.v1";
 const CONFIG_SCHEMA_VERSION = "precedent.config.v1";
+const ADAPTER_SCHEMA_VERSION = "precedent.adapter.v1";
 const SUPPORTED_EVENT_HOOKS = new Set([
   "context.before_turn",
   "validation.after_run",
@@ -96,6 +97,11 @@ async function main() {
 
   if (command === "manifest") {
     await printManifest();
+    return;
+  }
+
+  if (command === "attach") {
+    await attachRuntime();
     return;
   }
 
@@ -1019,6 +1025,142 @@ function buildManifest(runtime, stateDir) {
       },
     },
   };
+}
+
+async function attachRuntime() {
+  const runtime = args.runtime ?? "generic";
+
+  if (!["generic", "codex"].includes(runtime)) {
+    fail(`unsupported runtime: ${runtime}`);
+  }
+
+  const stateDir = statePath();
+  const stateDirArg = args["state-dir"] ?? runtimeConfig.stateDir;
+  const taskSource = await readAttachTaskSource();
+  const scope = args.scope ?? "";
+  const changedFiles = parseListArg(args["changed-files"]);
+  const sessionId = safeFileName(args.session ?? stableSessionId({
+    runtime,
+    task: taskSource.task,
+    taskFile: taskSource.taskFile,
+    scope,
+    changedFiles,
+  }));
+  const beforeTurnCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "context",
+    "--state-dir",
+    stateDirArg,
+    ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
+    ...(scope ? ["--scope", scope] : []),
+    ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
+    "--session",
+    sessionId,
+    "--format",
+    "json",
+    "--json",
+  ];
+  const hookCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ];
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+  });
+
+  print({
+    schema_version: ADAPTER_SCHEMA_VERSION,
+    runtime,
+    stateDir: stateDirArg,
+    sessionId,
+    task: taskSource.task,
+    taskFile: taskSource.taskFile,
+    scope: scope || null,
+    changedFiles,
+    hookTimeoutMs: runtimeConfig.hookTimeoutMs,
+    failurePolicy: runtimeConfig.failurePolicy,
+    adapter: {
+      beforeTurn: {
+        command: beforeTurnCommand,
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "source"],
+        injectFrom: "contextBlock",
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      afterValidation: {
+        command: hookCommand,
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "validation.after_run",
+          sessionId,
+          command: "$COMMAND",
+          exitCode: "$EXIT_CODE",
+          durationMs: "$DURATION_MS",
+          stdout: "$STDOUT",
+          stderr: "$STDERR",
+        },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      afterDiff: {
+        command: hookCommand,
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "diff.after_edit",
+          sessionId,
+          changedFiles: "$CHANGED_FILES",
+          linesAdded: "$LINES_ADDED",
+          linesDeleted: "$LINES_DELETED",
+        },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      afterOutcome: {
+        command: hookCommand,
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "outcome.after_task",
+          sessionId,
+          success: "$SUCCESS",
+          status: "$STATUS",
+          retries: "$RETRIES",
+          tokenEstimate: "$TOKEN_ESTIMATE",
+          notes: "$NOTES",
+        },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+    },
+  });
+}
+
+async function readAttachTaskSource() {
+  if (args["task-file"]) {
+    const taskFile = resolve(args["task-file"]);
+    return {
+      task: await readFile(taskFile, "utf8"),
+      taskFile,
+    };
+  }
+
+  if (args.task) {
+    return {
+      task: args.task,
+      taskFile: null,
+    };
+  }
+
+  fail("attach requires --task <text> or --task-file <path>");
+}
+
+function stableSessionId(input) {
+  return `session_${stableHash(input).slice(0, 16)}`;
 }
 
 async function reportState() {
@@ -2695,6 +2837,7 @@ Usage:
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
+  precedent attach [--runtime generic|codex] [--session session-id] --task "text"
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
@@ -2710,6 +2853,7 @@ Commands:
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
+  attach    Emit a zero-touch runtime adapter contract for one session.
   check     Validate local Precedent state for CI.
   prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.
