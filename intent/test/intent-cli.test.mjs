@@ -150,11 +150,24 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Checkpoint") {
     return { scope: "step", ownerStep: "patch", checkpoint: "before patch", ...normalizedData };
   }
-  if (kind === "Check" && isPlainObject(normalizedData.effect)) {
-    return {
-      ...normalizedData,
-      effect: { trust: { zone: "unknown", source: "synthetic" }, ...normalizedData.effect },
-    };
+  if (kind === "Check") {
+    const baseData = { requirement: "synthetic", ...normalizedData };
+    if (baseData.scope === "step") {
+      baseData.ownerStep ??= "patch";
+      baseData.assertion ??= "Require";
+    }
+    if (isPlainObject(baseData.effect)) {
+      baseData.effect = {
+        family: "shell",
+        action: "run",
+        args: {},
+        argKinds: {},
+        argSpans: {},
+        trust: { zone: "unknown", source: "synthetic" },
+        ...baseData.effect,
+      };
+    }
+    return baseData;
   }
   return normalizedData;
 }
@@ -1695,6 +1708,35 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].expression_is_nonempty, false);
     assert.equal(diagnostics[2].args_is_object, false);
     assert.equal(diagnostics[2].arg_kinds_is_object, false);
+  });
+
+  it("validates graph check payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "check:missing", kind: "Check", label: "missing check", span: testSpan(1), data: { requirement: null } },
+        { id: "check:bad-step", kind: "Check", label: "bad step", span: testSpan(2), data: { scope: "step", ownerStep: "", assertion: "" } },
+        { id: "check:bad-effect", kind: "Check", label: "bad effect", span: testSpan(3), data: { effect: { family: "", action: null, args: null, argKinds: null, argSpans: { command: "line 1" } } } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CHECK_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_CHECK_INVALID");
+    assert.equal(diagnostics[0].check_id, "check:missing");
+    assert.equal(diagnostics[0].requirement_is_nonempty, false);
+    assert.equal(diagnostics[0].scope_is_valid, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_CHECK_INVALID");
+    assert.equal(diagnostics[1].scope, "step");
+    assert.equal(diagnostics[1].owner_step_is_valid, false);
+    assert.equal(diagnostics[1].assertion_is_valid, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_CHECK_INVALID");
+    assert.equal(diagnostics[2].effect_family_is_nonempty, false);
+    assert.equal(diagnostics[2].effect_action_is_nonempty, false);
+    assert.equal(diagnostics[2].effect_args_is_object, false);
+    assert.equal(diagnostics[2].effect_arg_kinds_is_object, false);
+    assert.equal(diagnostics[2].effect_arg_spans_is_object, true);
+    assert.equal(diagnostics[2].effect_arg_spans_are_valid, false);
   });
 
   it("validates graph step input binding diagnostics", () => {

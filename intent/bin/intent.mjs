@@ -1182,7 +1182,9 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           argSpans: effect.argSpans,
           trust: effectTrust(effect),
         },
-      } : {}));
+      } : {
+        requirement: check.value,
+      }));
       edges.push(edge(id, goalId, "gates"));
       edges.push(edge(id, completionId, "verifies"));
       if (effect) {
@@ -1357,6 +1359,10 @@ function validateGraph(graph, options = {}) {
     const contextDiagnostic = validateGraphContext(graphNode, graphSpan);
     if (contextDiagnostic) {
       diagnostics.push(contextDiagnostic);
+    }
+    const checkDiagnostic = validateGraphCheck(graphNode, graphSpan);
+    if (checkDiagnostic) {
+      diagnostics.push(checkDiagnostic);
     }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
@@ -1878,6 +1884,57 @@ function validateGraphContext(graphNode, graphSpan) {
     arg_kinds_is_object: argKindsIsObject,
     arg_spans_is_object: argSpansIsObject,
     arg_spans_are_valid: argSpansAreValid,
+  });
+}
+
+function validateGraphCheck(graphNode, graphSpan) {
+  if (graphNode.kind !== "Check") {
+    return null;
+  }
+  const requirementIsNonempty = typeof graphNode.data.requirement === "string" && graphNode.data.requirement.trim() !== "";
+  const scopeIsValid = graphNode.data.scope === undefined || graphNode.data.scope === "goal" || graphNode.data.scope === "step";
+  const ownerStepIsValid = graphNode.data.scope !== "step"
+    || (typeof graphNode.data.ownerStep === "string" && graphNode.data.ownerStep.trim() !== "");
+  const assertionIsValid = graphNode.data.scope !== "step"
+    || (typeof graphNode.data.assertion === "string" && graphNode.data.assertion.trim() !== "");
+  const effectIsPresent = graphNode.data.effect !== undefined;
+  const effectIsObject = !effectIsPresent || isPlainObject(graphNode.data.effect);
+  const effect = effectIsObject && effectIsPresent ? graphNode.data.effect : {};
+  const effectFamilyIsNonempty = !effectIsPresent || (typeof effect.family === "string" && effect.family.trim() !== "");
+  const effectActionIsNonempty = !effectIsPresent || (typeof effect.action === "string" && effect.action.trim() !== "");
+  const effectArgsIsObject = !effectIsPresent || isPlainObject(effect.args);
+  const effectArgKindsIsObject = !effectIsPresent || isPlainObject(effect.argKinds);
+  const effectArgSpansIsObject = !effectIsPresent || isPlainObject(effect.argSpans);
+  const effectArgSpansAreValid = !effectIsPresent || (effectArgSpansIsObject && Object.values(effect.argSpans).every(isSpan));
+  if (
+    requirementIsNonempty
+    && scopeIsValid
+    && ownerStepIsValid
+    && assertionIsValid
+    && effectIsObject
+    && effectFamilyIsNonempty
+    && effectActionIsNonempty
+    && effectArgsIsObject
+    && effectArgKindsIsObject
+    && effectArgSpansAreValid
+  ) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CHECK_INVALID", `check '${graphNode.label}' must carry valid runtime check data.`, graphNode.span ?? graphSpan, {
+    check: graphNode.label,
+    check_id: graphNode.id,
+    scope: typeof graphNode.data.scope === "string" ? graphNode.data.scope : null,
+    requirement_is_nonempty: requirementIsNonempty,
+    scope_is_valid: scopeIsValid,
+    owner_step_is_valid: ownerStepIsValid,
+    assertion_is_valid: assertionIsValid,
+    effect_is_object: effectIsObject,
+    effect_family_is_nonempty: effectFamilyIsNonempty,
+    effect_action_is_nonempty: effectActionIsNonempty,
+    effect_args_is_object: effectArgsIsObject,
+    effect_arg_kinds_is_object: effectArgKindsIsObject,
+    effect_arg_spans_is_object: effectArgSpansIsObject,
+    effect_arg_spans_are_valid: effectArgSpansAreValid,
   });
 }
 
