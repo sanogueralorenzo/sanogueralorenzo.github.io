@@ -366,6 +366,17 @@ Next graph envelope validation milestone:
 - Executable graph edge records may carry `data`; when present it must be an
   object. Any `sourceSpan` or `targetSpan` inside edge `data` must be a valid
   span before runtime dependency or provenance logic can use it.
+- Runtime graph `declares` edges have a constrained role contract. A
+  `declares` edge is valid only from `Type` to `Goal` for type availability or
+  from `Goal` to `Memory` for goal-owned memory. Unsupported `declares`
+  endpoint roles emit `INTENT_GRAPH_DECLARE_INVALID` and make graph output
+  non-executable. This role diagnostic is separate from ownership-specific
+  diagnostics: missing, duplicate, or wrong coverage for Type availability
+  remains `INTENT_GRAPH_TYPE_DECLARE_INVALID`; missing, duplicate, or wrong
+  owning Goal for Memory remains `INTENT_GRAPH_MEMORY_DECLARE_INVALID`; and
+  malformed node payloads remain `INTENT_GRAPH_TYPE_INVALID` or
+  `INTENT_GRAPH_MEMORY_INVALID`. Constraining the generic role prevents
+  `declares` from becoming an ambiguous catch-all edge during runtime replay.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
   milestone. The `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -475,11 +486,12 @@ Next graph envelope validation milestone:
 - Runtime type availability edge contracts are the next Phase 2 static-model
   milestone. `Type` nodes are package/file-scoped runtime type metadata visible
   to every `Goal` in the graph. Every `Type` node must have exactly one
-  outgoing `declares` edge to each `Goal` node. Missing, duplicate, or non-Goal
-  `declares` targets from a `Type` node emit
+  outgoing `declares` edge to each `Goal` node. Missing, duplicate, or wrong
+  `Goal` coverage from a `Type` node emits
   `INTENT_GRAPH_TYPE_DECLARE_INVALID` and make graph output non-executable;
-  malformed Type node data remains `INTENT_GRAPH_TYPE_INVALID`. This makes type
-  availability explicit for runtime validation and graph replay instead of
+  malformed Type node data remains `INTENT_GRAPH_TYPE_INVALID`, and unsupported
+  `declares` endpoint roles remain `INTENT_GRAPH_DECLARE_INVALID`. This makes
+  type availability explicit for runtime validation and graph replay instead of
   relying only on package/global lookup.
 - Runtime Goal node metadata is part of graph validation. `Goal` node data must
   carry `title` as `null` or a non-empty string, `parameters` as an array of
@@ -554,8 +566,9 @@ Next graph envelope validation milestone:
   wrong-Goal memory ownership `declares` edges emit
   `INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make graph output non-executable;
   malformed `Memory` node retention lifecycle data remains
-  `INTENT_GRAPH_MEMORY_INVALID`. This makes memory ownership explicit for
-  runtime recovery and provenance instead of relying only on id strings.
+  `INTENT_GRAPH_MEMORY_INVALID`, and unsupported `declares` endpoint roles
+  remain `INTENT_GRAPH_DECLARE_INVALID`. This makes memory ownership explicit
+  for runtime recovery and provenance instead of relying only on id strings.
 - Runtime step policy metadata is part of graph validation. `Policy` nodes must
   carry `data.policyKind` as `timeout` or `retry`, non-empty `data.policy`, and
   non-empty `data.ownerStep`. Malformed step execution policy data emits
@@ -1514,6 +1527,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_UNRESOLVED`
 - `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`
+- `INTENT_GRAPH_DECLARE_INVALID`
 - `INTENT_GRAPH_DATA_INVALID`
 - `INTENT_GRAPH_INPUT_INVALID`
 - `INTENT_GRAPH_INPUT_SUPPLY_INVALID`
@@ -1937,6 +1951,13 @@ Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
 `informs`, `declares`, and `constrains`.
 Graph validation emits `INTENT_GRAPH_EDGE_KIND_INVALID` when an edge kind is
 not one of those runtime-supported Intent graph relationship kinds.
+Graph validation emits `INTENT_GRAPH_DECLARE_INVALID` when a `declares` edge
+does not use one of the supported endpoint role pairs: `Type` to `Goal` for
+type availability or `Goal` to `Memory` for goal-owned memory. This role
+diagnostic is separate from `INTENT_GRAPH_TYPE_DECLARE_INVALID`,
+`INTENT_GRAPH_MEMORY_DECLARE_INVALID`, `INTENT_GRAPH_TYPE_INVALID`, and
+`INTENT_GRAPH_MEMORY_INVALID`, and prevents `declares` from becoming an
+ambiguous catch-all edge during runtime replay.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
@@ -2019,11 +2040,11 @@ node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
 Graph validation emits `INTENT_GRAPH_MEMORY_DECLARE_INVALID` when a `Memory`
 node lacks exactly one incoming `declares` edge from its owning `Goal`, or when
-any incoming memory ownership `declares` edge is not from that owning `Goal`.
+any incoming `Goal` to `Memory` ownership `declares` edge is not from that
+owning `Goal`.
 Graph validation emits `INTENT_GRAPH_TYPE_DECLARE_INVALID` when a `Type` node
 lacks exactly one outgoing `declares` edge to each `Goal` node, has duplicate
-`declares` edges to a `Goal`, or has any outgoing `declares` edge to a non-Goal
-target.
+`declares` edges to a `Goal`, or has wrong `Goal` coverage.
 Graph validation emits `INTENT_GRAPH_TYPE_INVALID` when a `Type` node omits
 `definition` data, or when `definition` is neither `null` nor a non-empty
 string representing the declared structural or alias body.
@@ -2074,9 +2095,9 @@ whose `Capability` nodes omit valid runtime approval-policy data or valid
 ownership `authorizes` edges to their owning `Goal`, whose `Memory` nodes omit
 valid runtime retention lifecycle data or valid ownership `declares` edges from
 their owning `Goal`, whose `Type` nodes omit valid availability `declares`
-edges to every `Goal`, whose `Policy` nodes omit valid runtime step execution
-policy data, whose `Approval` nodes omit valid runtime step gate data, or whose
-required
+edges to every `Goal`, whose `declares` edges use unsupported endpoint roles,
+whose `Policy` nodes omit valid runtime step execution policy data, whose
+`Approval` nodes omit valid runtime step gate data, or whose required
 execution, data, authorization, approval, guard, verification, completion, and
 step-attachment relationships fail graph validation. Blank envelope provenance
 emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge
@@ -2100,8 +2121,10 @@ wrong-Goal memory ownership `declares` edges emit
 `INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make the graph non-executable. This
 ownership contract is separate from memory payload validation:
 `INTENT_GRAPH_MEMORY_INVALID` remains the diagnostic for malformed retention
-lifecycle data. The `declares` edge makes memory ownership explicit for runtime
-recovery and provenance instead of relying only on id strings.
+lifecycle data. Unsupported `declares` endpoint roles emit
+`INTENT_GRAPH_DECLARE_INVALID`. The `declares` edge makes memory ownership
+explicit for runtime recovery and provenance instead of relying only on id
+strings.
 
 Context nodes carry the same structured source call data as `ContextDecl`:
 `source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Runtime
@@ -2168,12 +2191,14 @@ structural or alias body. Malformed Type node payloads emit
 runtimes must not infer structural or alias type bodies. Type nodes are
 package/file-scoped runtime metadata visible to every `Goal` in the graph, so
 each `Type` node must have exactly one outgoing `declares` edge to each `Goal`
-node. Missing, duplicate, or non-Goal `declares` targets from a `Type` node
-emit `INTENT_GRAPH_TYPE_DECLARE_INVALID` and make graph output non-executable.
+node. Missing, duplicate, or wrong `Goal` coverage from a `Type` node emits
+`INTENT_GRAPH_TYPE_DECLARE_INVALID` and make graph output non-executable.
 This edge contract is separate from Type node payload validation:
 `INTENT_GRAPH_TYPE_INVALID` remains the diagnostic for malformed Type node
-data. Explicit type availability edges let runtime validation and graph replay
-resolve declared types without relying only on package/global lookup.
+data. Unsupported `declares` endpoint roles emit
+`INTENT_GRAPH_DECLARE_INVALID`. Explicit type availability edges let runtime
+validation and graph replay resolve declared types without relying only on
+package/global lookup.
 
 Goal nodes carry the runtime graph contract for requested work. Their data must
 include `title`, `parameters`, `outputType`, and `outputTypeSpan`. `title` may
