@@ -2236,7 +2236,8 @@ async function readStdin() {
 
 async function redact(root, value) {
   let redacted = String(value)
-    .replace(/\b(api[_-]?key|token|secret|password)=("[^"]*"|'[^']*'|[^\s]+)/gi, "$1=REDACTED")
+    .replace(secretAssignmentPattern(), (_match, key, separator) => `${key}${separator}REDACTED`)
+    .replace(authHeaderPattern(), (_match, key, scheme) => `${key}: ${scheme} REDACTED`)
     .replace(/\b[A-Za-z0-9_=-]{24,}\b/g, (match) => match.includes("REDACTED") ? match : "REDACTED");
 
   const config = await loadTraceConfig(root);
@@ -2506,15 +2507,25 @@ function searchFieldText(entry, field) {
 }
 
 function countUnredactedAssignments(content) {
-  const matches = content.matchAll(/\b(api[_-]?key|token|secret|password)=("[^"]*"|'[^']*'|[^\s]+)/gi);
+  const matches = [
+    ...content.matchAll(secretAssignmentPattern()),
+    ...content.matchAll(authHeaderPattern()),
+  ];
   let count = 0;
   for (const match of matches) {
-    const value = match[2] ?? "";
-    if (!value.includes("REDACTED")) {
+    if (!match[0].includes("REDACTED")) {
       count += 1;
     }
   }
   return count;
+}
+
+function secretAssignmentPattern() {
+  return /\b([A-Z0-9_-]*(?:api[_-]?key|token|secret|password|access[_-]?token|refresh[_-]?token|private[_-]?key)[A-Z0-9_-]*)\b(\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s]+)/gi;
+}
+
+function authHeaderPattern() {
+  return /\b(authorization)\s*:\s*(bearer|basic)\s+[^\s]+/gi;
 }
 
 function countMatches(content, pattern) {

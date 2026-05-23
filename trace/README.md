@@ -186,7 +186,7 @@ Checkpoint commands keep the raw side of Trace explicit:
 - `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service.
 - `trace checkpoint cleanup --sessions-before-days 14 --keep 100` prunes old local raw session JSONL files from the git common directory and rewrites the checkpoint ref to retain only the newest checkpoint payloads when `--keep` is provided.
 
-Redaction is local and configurable. Built-in rules scrub common token/password shapes and high-entropy strings. Custom rules live in `.trace/config.json`:
+Redaction is local and configurable. Built-in rules scrub common token/password shapes, environment-style secret names such as `OPENAI_API_KEY` and `GITHUB_TOKEN`, authorization headers, and high-entropy strings. Custom rules live in `.trace/config.json`:
 
 ```shell
 trace redact add codename 'PROJECT-[A-Z]+'

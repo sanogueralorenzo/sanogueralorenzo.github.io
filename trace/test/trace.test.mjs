@@ -583,6 +583,54 @@ test("custom redaction rules apply to raw events and commit memories", async () 
   }
 });
 
+test("built-in redaction handles environment secrets and authorization headers", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "builtin-redact.txt"), "redact\n");
+    await git(repo, ["add", "builtin-redact.txt"]);
+    await git(repo, ["commit", "-m", "Add builtin redact file"]);
+    await runTrace(repo, ["init"]);
+
+    await runTrace(repo, [
+      "capture",
+      "--event",
+      "prompt",
+      "--role",
+      "user",
+      "--message",
+      "OPENAI_API_KEY=sk-test Authorization: Bearer short-token x-api-key: header-secret",
+    ]);
+    await runTrace(repo, ["record", "--validation", "GITHUB_TOKEN=gh-test"]);
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
+    const session = await readFile(join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`), "utf8");
+    assert.match(session, /OPENAI_API_KEY=REDACTED/);
+    assert.match(session, /Authorization: Bearer REDACTED/);
+    assert.match(session, /x-api-key: REDACTED/);
+    assert.doesNotMatch(session, /sk-test|short-token|header-secret/);
+
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.match(memory, /GITHUB_TOKEN=REDACTED/);
+    assert.doesNotMatch(memory, /gh-test/);
+
+    const sha = (await git(repo, ["rev-parse", "HEAD"])).stdout.trim();
+    const memoryPath = join(repo, ".trace/commits", sha.slice(0, 2), `${sha}.md`);
+    await writeFile(memoryPath, `${await readFile(memoryPath, "utf8")}\nOPENAI_API_KEY=sk-live\nAuthorization: Bearer live-token\n`);
+
+    const audit = await runTraceAllowFailure(repo, ["redact", "audit"]);
+    assert.equal(audit.exitCode, 1);
+    const payload = JSON.parse(audit.stdout);
+    assert.equal(payload.ok, false);
+    assert.ok(payload.findings.some((finding) => finding.rule === "secret-assignment" && finding.count >= 2));
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("custom redaction rules reject invalid regex patterns", async () => {
   const repo = await tempRepo();
 
