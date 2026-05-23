@@ -13,6 +13,7 @@ Desktop.ini
 !.env.example
 !example.env
 # -------------------- Local Project Artifacts --------------------
+.precedent/
 voice/.cache/
 codex/codex-*/target/
 ekkzo/cli/codex-*/target/

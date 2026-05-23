@@ -20,6 +20,7 @@ It does not install `overlay`, `voice`, or `site`.
 - [Codex Core](./codex/codex-core/README.md)
 - [Codex Remote](./codex/codex-remote/README.md)
 - [Codex Menubar](./codex/codex-menubar/README.md)
+- [Precedent](./precedent/README.md)
 - [Overlay](./overlay/README.md)
 - [Voice](./voice/README.md)
 - [Site](./site/README.md)
