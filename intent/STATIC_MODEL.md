@@ -373,6 +373,14 @@ Next graph envelope validation milestone:
   non-executable; wrong completion edge counts remain
   `INTENT_GRAPH_COMPLETION_INVALID`, and wrong final-step sequencing or
   endpoint roles remain step sequence diagnostics.
+- Runtime graph `requires` edge payloads are the next Phase 2 static-model
+  milestone. Step-input `requires` edges from an `Input` node to its owning
+  `Step` must carry non-empty `parameter`, non-empty `type`, and a valid
+  `targetSpan`. Step-requirement `requires` edges from a step-scoped `Check`
+  node to its owning `Step` must carry non-empty `requirement`. Malformed
+  `requires` edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
+  graph output non-executable; wrong attachment endpoints remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
@@ -666,14 +674,20 @@ Every successful binding is also emitted as graph data dependency:
   non-empty `parameter`, non-empty `type`, `sourceSpan` for the producing
   output type, and `targetSpan` for the step parameter.
 - A step input node creates a `requires` edge to its owning step, so execution
-  waits for the bound value before the step can run. Its edge `data` may include
-  `targetSpan` for the required step parameter.
+  waits for the bound value before the step can run. Its edge `data` must
+  include non-empty `parameter`, non-empty `type`, and `targetSpan` for the
+  required step parameter.
 - The final executable step creates a `produces` edge to the goal completion
   node. Its edge `data` must include non-empty `type`, `sourceSpan` for the
   final step output, and `targetSpan` for the goal output.
 - Graph data-edge validation emits `INTENT_GRAPH_DATA_INVALID` when a `data`
   edge does not connect either a goal `Input` node or step producer to a step
   `Input` consumer.
+- Graph requires-edge payload validation emits
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a step-input `requires` edge omits
+  non-empty `parameter`, non-empty `type`, or valid `targetSpan`. Wrong
+  step-input attachment endpoints remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 
 ## Effect Call Arguments
 
@@ -832,11 +846,16 @@ Rules:
   `require ...` line.
 - The graph builder creates a `requires` edge from the step requirement `Check`
   node into the owning `Step`, so the step cannot run until the check succeeds.
+  Its edge `data` must include non-empty `requirement`.
 - The graph builder creates a `gates` edge from the step requirement `Check`
   node to the owning `Goal`, so the requirement is scoped to that goal.
 - Step requirement checks do not create `verifies` edges to the goal
   `Completion` node. Goal-level `verify` requirements remain the only checks
   that verify completion.
+- Graph requires-edge payload validation emits
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a step-requirement `requires` edge
+  omits non-empty `requirement`. Wrong step-requirement attachment endpoints
+  remain `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Graph validation requires every `Check` node to carry a non-empty
   `data.requirement`. Step-scoped requirements also require
   `data.scope: "step"`, non-empty `data.ownerStep`, and non-empty

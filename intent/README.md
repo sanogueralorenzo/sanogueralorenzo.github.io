@@ -148,6 +148,14 @@ Validation expectations:
   non-executable; wrong completion edge counts remain
   `INTENT_GRAPH_COMPLETION_INVALID`, and wrong final-step sequencing or
   endpoint roles remain step sequence diagnostics.
+- Runtime graph `requires` edge payloads are the next Phase 2 static-model
+  milestone. Step-input `requires` edges from an `Input` node to its owning
+  `Step` must carry non-empty `parameter`, non-empty `type`, and a valid
+  `targetSpan`. Step-requirement `requires` edges from a step-scoped `Check`
+  node to its owning `Step` must carry non-empty `requirement`. Malformed
+  `requires` edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make
+  graph output non-executable; wrong attachment endpoints remain
+  `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
