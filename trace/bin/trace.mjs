@@ -1962,12 +1962,30 @@ async function auditMemoryFiles(root) {
     const relative = relativePath(root, file);
     const schema = content.match(/^Schema: `([^`]+)`/m)?.[1];
     const sha = content.match(/^Commit: `([^`]+)`/m)?.[1];
+    const checkpoint = content.match(/^Checkpoint: `([^`]+)`/m)?.[1];
+    const session = content.match(/^Session: `([^`]+)`/m)?.[1];
+    const created = content.match(/^Created: `([^`]+)`/m)?.[1];
     if (schema !== MEMORY_VERSION) {
       invalidMemories.push({ file: relative, reason: `unsupported schema ${schema ?? "none"}` });
     }
     if (!sha) {
       invalidMemories.push({ file: relative, reason: "missing Commit field" });
       continue;
+    }
+
+    const commit = await git(["rev-parse", "--verify", `${sha}^{commit}`], { cwd: root, allowFailure: true });
+    if (!commit) {
+      invalidMemories.push({ file: relative, reason: `missing commit ${sha}` });
+    }
+
+    if (!checkpoint) {
+      invalidMemories.push({ file: relative, reason: "missing Checkpoint field" });
+    }
+    if (!session) {
+      invalidMemories.push({ file: relative, reason: "missing Session field" });
+    }
+    if (!created) {
+      invalidMemories.push({ file: relative, reason: "missing Created field" });
     }
 
     const expected = memoryPathFor(root, sha);

@@ -301,8 +301,72 @@ test("check rejects malformed committed memory files", async () => {
     assert.equal(checked.exitCode, 1);
     const payload = JSON.parse(checked.stdout);
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "unsupported schema trace.memory.v0"));
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Checkpoint field"));
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Session field"));
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Created field"));
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Summary section"));
     assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Risks section"));
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("check rejects memories whose commit is not reachable", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await runTrace(repo, ["init"]);
+
+    const missingSha = "a".repeat(40);
+    const memoryDir = join(repo, ".trace/commits", missingSha.slice(0, 2));
+    await mkdir(memoryDir, { recursive: true });
+    await writeFile(join(memoryDir, `${missingSha}.md`), `# ${missingSha.slice(0, 12)} missing
+
+Schema: \`trace.memory.v1\`
+Commit: \`${missingSha}\`
+Checkpoint: \`checkpoint-missing\`
+Session: \`session-missing\`
+Created: \`2026-05-23T00:00:00.000Z\`
+
+## Intent
+
+missing commit memory
+
+## Summary
+
+- unreachable memory should fail
+
+## Decisions
+
+- Not recorded.
+
+## Responses
+
+- Not recorded.
+
+## Tool Activity
+
+- Not recorded.
+
+## Files
+
+- \`missing.txt\`
+
+## Validation
+
+- Not recorded.
+
+## Risks
+
+- No known open risks recorded.
+`);
+
+    const checked = await runTraceAllowFailure(repo, ["check"]);
+    assert.equal(checked.exitCode, 1);
+    const payload = JSON.parse(checked.stdout);
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === `missing commit ${missingSha}`));
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
