@@ -53,8 +53,9 @@ definition is preserved as raw text and is not parsed into record fields,
 aliases, enum cases, or generic parameters yet.
 
 Goal signature params are goal inputs. The parser preserves their source order,
-names, types, and spans so the checker can emit graph input nodes and data
-dependency edges.
+names, types, and parameter spans so the checker can emit graph input nodes,
+data dependency edges, and duplicate parameter diagnostics at the parameter
+span.
 
 ## Goal Blocks
 
@@ -157,7 +158,8 @@ step-local `require ...`, `approval ...`, `checkpoint ...`, `timeout ...`, and
 `retry ...` lines. Effect bodies and execution statements are out of scope.
 Step input names are local to the step signature; the checker binds inputs by
 matching their type against goal inputs and previous step outputs in source
-order. Each step param becomes a step input port in the checked graph.
+order. Each step param preserves its parameter span and becomes a step input
+port in the checked graph.
 
 `require ...` lines inside a step body are parsed as step requirements. They are
 not goal-level `verify` checks and do not create completion verification gates.
@@ -471,6 +473,11 @@ Spans must cover the full syntactic node, including keywords and delimiters.
 Token spans must cover only the token text. Raw expression spans must exclude the
 leading `require` or `deny` keyword and include the expression text before the
 terminating newline.
+
+Goal header params and step header params must carry a source `span` on the
+parameter object itself. The parameter span covers the parameter name, type
+separator, and type reference, excluding surrounding delimiters and unrelated
+whitespace.
 
 Comments and whitespace do not become AST nodes, but diagnostics must be able to
 reference their byte locations when they cause lexical errors.

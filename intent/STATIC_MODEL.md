@@ -10,7 +10,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 
 - `PackageDecl`: package path for a source file.
 - `ImportDecl`: imported package or symbol path.
-- `GoalDecl`: root executable unit, inputs, output, clauses, and body blocks.
+- `GoalDecl`: root executable unit, spanned inputs, output, clauses, and body
+  blocks.
 - `ContextDecl`: named source of truth with structured call data, resource
   expression, freshness policy, access mode, trust zone/source, and optional
   capability coverage.
@@ -23,9 +24,9 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `MemoryRetention`: structured `retain ... until ...` rule with retained
   subject, until condition, raw text, and source span.
 - `PlanBlock`: ordered list of executable steps.
-- `StepDecl`: typed inputs, output, step-local requirements, step approval
-  gates, step checkpoint statements, step policy statements, declared effects,
-  checks, and body expression.
+- `StepDecl`: spanned typed inputs, output, step-local requirements, step
+  approval gates, step checkpoint statements, step policy statements, declared
+  effects, checks, and body expression.
 - `StepApproval`: structured `approval ...` step-body statement with raw
   approval text and source span.
 - `StepCheckpoint`: structured `checkpoint ...` step-body statement with raw
@@ -100,6 +101,10 @@ Rules:
 - Offsets are zero-based UTF-8 byte offsets for tools.
 - Spans include leading keywords and exclude trailing unrelated whitespace.
 - Generated graph nodes keep `span` from the AST node that caused them.
+- Goal header parameters and step header parameters keep `span` on the
+  parameter object itself.
+- Graph node and edge data that embeds parameters keeps those parameter spans
+  for provenance.
 - Structured capability grants keep `span` from the exact grant line that
   caused the grant object, not from the surrounding capability block.
 
@@ -291,6 +296,8 @@ blocking diagnostics.
 - Reject duplicate type names in the file, duplicate goal names in the file,
   duplicate goal input names in a goal, duplicate step names in a goal, and
   duplicate step input names in a step.
+- Duplicate goal and step parameter diagnostics should use the duplicate
+  parameter span, not the enclosing goal or step span.
 - Resolve every type reference against built-ins and file-local type
   declarations.
 - Bind step inputs against goal inputs and earlier step outputs in source order.
@@ -383,6 +390,8 @@ plan in source order.
 - A step output becomes available only after that step's inputs have been
   checked.
 - Step input names are local labels and do not create cross-step references.
+- Bound input graph data keeps the source parameter span from the goal or step
+  header that declared the parameter.
 - There are no implicit conversions, field projections, destructuring, or
   forward references.
 - If no prior value has the required type, the checker emits
@@ -1009,7 +1018,7 @@ node id. It is an intermediate contract for a local runtime.
       "span": "loc.4",
       "data": {
         "title": null,
-        "parameters": [{ "name": "ticket", "type": "TicketRef" }],
+        "parameters": [{ "name": "ticket", "type": "TicketRef", "span": "loc.4" }],
         "outputType": "PullRequest"
       }
     },
@@ -1072,7 +1081,7 @@ node id. It is an intermediate contract for a local runtime.
       "label": "prepare_patch",
       "span": "loc.12",
       "data": {
-        "inputs": [{ "name": "ticket", "type": "TicketRef" }],
+        "inputs": [{ "name": "ticket", "type": "TicketRef", "span": "loc.12" }],
         "outputType": "GitDiff",
         "effects": ["FileRead"]
       }
@@ -1093,7 +1102,7 @@ node id. It is an intermediate contract for a local runtime.
       "label": "run_tests",
       "span": "loc.15",
       "data": {
-        "inputs": [{ "name": "patch", "type": "GitDiff" }],
+        "inputs": [{ "name": "patch", "type": "GitDiff", "span": "loc.15" }],
         "outputType": "ShellExecResult",
         "effects": ["ShellExec"],
         "approvals": ["release_manager_review"],
@@ -1228,6 +1237,7 @@ node id. It is an intermediate contract for a local runtime.
       "data": {
         "parameter": "ticket",
         "type": "TicketRef",
+        "span": "loc.12",
         "trust": { "zone": "unknown" }
       }
     },
@@ -1235,7 +1245,7 @@ node id. It is an intermediate contract for a local runtime.
       "from": "goal:ship_checkout_fix:step:prepare_patch:input:ticket",
       "to": "goal:ship_checkout_fix:step:prepare_patch",
       "kind": "requires",
-      "data": { "parameter": "ticket", "type": "TicketRef" }
+      "data": { "parameter": "ticket", "type": "TicketRef", "span": "loc.12" }
     },
     {
       "from": "goal:ship_checkout_fix:step:prepare_patch",
@@ -1244,6 +1254,7 @@ node id. It is an intermediate contract for a local runtime.
       "data": {
         "parameter": "patch",
         "type": "GitDiff",
+        "span": "loc.15",
         "trust": { "zone": "unknown" }
       }
     },
@@ -1251,7 +1262,7 @@ node id. It is an intermediate contract for a local runtime.
       "from": "goal:ship_checkout_fix:step:run_tests:input:patch",
       "to": "goal:ship_checkout_fix:step:run_tests",
       "kind": "requires",
-      "data": { "parameter": "patch", "type": "GitDiff" }
+      "data": { "parameter": "patch", "type": "GitDiff", "span": "loc.15" }
     },
     {
       "from": "goal:ship_checkout_fix:capability:0",
@@ -1352,7 +1363,8 @@ available at goal start. Step inputs are required value ports for one step. A
 step input must have exactly one incoming `data` edge from either a goal input
 node or an earlier producing step. If multiple prior values have the same type,
 the checker selects the nearest prior value in source order and emits the chosen
-edge deterministically.
+edge deterministically. Parameter data embedded in `Goal`, `Step`, `Input`,
+`data`, and `requires` graph payloads retains the declaring parameter `span`.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
