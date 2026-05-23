@@ -1332,6 +1332,10 @@ function validateGraph(graph, options = {}) {
       }));
       continue;
     }
+    const goalDiagnostic = validateGraphGoal(graphNode, graphSpan);
+    if (goalDiagnostic) {
+      diagnostics.push(goalDiagnostic);
+    }
     const capabilityDiagnostic = validateGraphCapability(graphNode, graphSpan);
     if (capabilityDiagnostic) {
       diagnostics.push(capabilityDiagnostic);
@@ -1718,6 +1722,37 @@ function isDiagnosticRecord(value) {
     && typeof value.message === "string"
     && value.message.trim() !== ""
     && isSpan(value.span);
+}
+
+function validateGraphGoal(graphNode, graphSpan) {
+  if (graphNode.kind !== "Goal") {
+    return null;
+  }
+  const titleIsValid = graphNode.data.title === null
+    || (typeof graphNode.data.title === "string" && graphNode.data.title.trim() !== "");
+  const parametersIsArray = Array.isArray(graphNode.data.parameters);
+  const invalidParameterIndexes = parametersIsArray
+    ? graphNode.data.parameters
+        .map((parameter, parameterIndex) => isGraphParameterRecord(parameter) ? null : parameterIndex)
+        .filter((parameterIndex) => parameterIndex !== null)
+    : [];
+  const outputTypeIsValid = graphNode.data.outputType === null
+    || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
+  const outputTypeSpanIsValid = graphNode.data.outputTypeSpan === undefined
+    || graphNode.data.outputTypeSpan === null
+    || isSpan(graphNode.data.outputTypeSpan);
+  if (titleIsValid && parametersIsArray && invalidParameterIndexes.length === 0 && outputTypeIsValid && outputTypeSpanIsValid) {
+    return null;
+  }
+  return error("INTENT_GRAPH_GOAL_INVALID", `goal '${graphNode.label}' must carry valid typed contract data.`, graphNode.span ?? graphSpan, {
+    goal: graphNode.label,
+    goal_id: graphNode.id,
+    title_is_valid: titleIsValid,
+    parameters_is_array: parametersIsArray,
+    invalid_parameter_indexes: invalidParameterIndexes,
+    output_type_is_valid: outputTypeIsValid,
+    output_type_span_is_valid: outputTypeSpanIsValid,
+  });
 }
 
 function validateGraphCapability(graphNode, graphSpan) {

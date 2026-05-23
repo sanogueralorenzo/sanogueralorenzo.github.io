@@ -133,6 +133,9 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Capability") {
     return { family: "synthetic", action: null, grants: [], approvalPolicy: "none", ...normalizedData };
   }
+  if (kind === "Goal") {
+    return { title: null, parameters: [], outputType: null, outputTypeSpan: null, ...normalizedData };
+  }
   if (kind === "Memory") {
     return {
       scope: "session",
@@ -1591,6 +1594,28 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].retention_rules_nonempty, false);
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_MEMORY_INVALID");
     assert.deepEqual(diagnostics[2].invalid_retention_indexes, [0]);
+  });
+
+  it("validates graph goal typed contract diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:bad-title", kind: "Goal", label: "bad title", span: testSpan(1), data: { title: "" } },
+        { id: "goal:bad-parameters", kind: "Goal", label: "bad parameters", span: testSpan(2), data: { parameters: [{ name: "", type: "Finding", span: testSpan(2) }] } },
+        { id: "goal:bad-output", kind: "Goal", label: "bad output", span: testSpan(3), data: { outputType: "", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_GOAL_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_GOAL_INVALID");
+    assert.equal(diagnostics[0].goal_id, "goal:bad-title");
+    assert.equal(diagnostics[0].title_is_valid, false);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_GOAL_INVALID");
+    assert.deepEqual(diagnostics[1].invalid_parameter_indexes, [0]);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_GOAL_INVALID");
+    assert.equal(diagnostics[2].output_type_is_valid, false);
+    assert.equal(diagnostics[2].output_type_span_is_valid, false);
   });
 
   it("validates graph step policy diagnostics", () => {
