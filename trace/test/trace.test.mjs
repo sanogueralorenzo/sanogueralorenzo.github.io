@@ -20,7 +20,11 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     await git(repo, ["commit", "-m", "Add app text"]);
 
     await runTrace(repo, ["init"]);
-    await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "remember why app text exists"]);
+    const capture = JSON.parse((await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "remember why app text exists"])).stdout);
+    assert.equal(capture.schema_version, "trace.capture_result.v1");
+    assert.match(capture.session, /^[A-Za-z0-9-]+$/);
+    assert.equal(capture.event, "prompt");
+    assert.equal(capture.source, "manual");
     await runTrace(repo, ["capture", "--event", "response", "--role", "assistant", "--message", "created a minimal text fixture"]);
     await runTrace(repo, ["capture", "--event", "tool", "--message", "git commit wrote app.txt"]);
     await runTrace(repo, ["capture", "--event", "decision", "--message", "Use committed Markdown for reviewable memory"]);

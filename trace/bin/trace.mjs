@@ -1206,7 +1206,13 @@ async function captureEvent() {
     message: args.message ?? await readStdin(),
     source: args.source ?? "manual",
   });
-  print({ ok: true, session: event.session_id, event: event.event });
+  print({
+    ok: true,
+    schema_version: "trace.capture_result.v1",
+    session: event.session_id,
+    event: event.event,
+    source: event.source,
+  });
 }
 
 async function runTraceCommand(subcommandValue, values) {
