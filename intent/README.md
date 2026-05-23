@@ -243,6 +243,9 @@ Validation expectations:
   `Input` to `Goal`; unsupported endpoint roles emit
   `INTENT_GRAPH_SUPPLY_INVALID`. `informs` is valid only as `Context` to
   `Goal`; unsupported endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`.
+  Role-valid `informs` edges carry context source metadata, trust, contract
+  metadata, and source/target spans matching the source `Context` and owning
+  `Goal`; mismatches emit `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`.
   `precedes` is valid only as `Step` to `Step`; unsupported endpoint roles
   emit `INTENT_GRAPH_PRECEDE_INVALID`. These generic role diagnostics are
   separate from `INTENT_GRAPH_DATA_INVALID`,
@@ -405,7 +408,11 @@ Validation expectations:
   authorization: `web` and `documents` Context nodes still require incoming
   Capability `authorizes` edges, while `repo` Context nodes do not. Missing or
   extra role-valid context `informs` edges emit
-  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output non-executable;
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output non-executable.
+  The role-valid `informs` edge must carry source, expression, args, argument
+  kinds/spans, trust, optional contract metadata, source context span, and
+  owning goal span matching the source `Context`; metadata mismatches also emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`;
   unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`;
   malformed Context node data remains
   `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains

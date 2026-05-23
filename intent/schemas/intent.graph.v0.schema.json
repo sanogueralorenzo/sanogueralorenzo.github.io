@@ -1146,6 +1146,9 @@
             "expression": {
               "type": "string"
             },
+            "source": {
+              "type": "string"
+            },
             "family": {
               "type": "string"
             },
@@ -1178,6 +1181,9 @@
               "additionalProperties": {
                 "$ref": "#/$defs/span"
               }
+            },
+            "trust": {
+              "$ref": "#/$defs/trust"
             },
             "type": {
               "type": ["string", "null"]
@@ -1213,11 +1219,11 @@
               "type": ["string", "null"]
             },
             "sourceSpan": {
-              "description": "For supplies edges, the declared goal parameter span. For gates/verifies edges, the source check span. For requests edges, the owning step span. For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
+              "description": "For supplies edges, the declared goal parameter span. For gates/verifies edges, the source check span. For requests edges, the owning step span. For informs edges, the source context span. For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
               "$ref": "#/$defs/span"
             },
             "targetSpan": {
-              "description": "For supplies edges, the declared goal parameter span. For gates/verifies edges, the owning goal or completion span. For requests edges, the target effect span. For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span. For memory access edges, the provenance target span.",
+              "description": "For supplies edges, the declared goal parameter span. For gates/verifies edges, the owning goal or completion span. For requests edges, the target effect span. For informs edges, the owning goal span. For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span. For memory access edges, the provenance target span.",
               "$ref": "#/$defs/span"
             }
           }

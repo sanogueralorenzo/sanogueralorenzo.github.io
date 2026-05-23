@@ -511,6 +511,9 @@ Next graph envelope validation milestone:
   `Input` to `Goal`; unsupported endpoint roles emit
   `INTENT_GRAPH_SUPPLY_INVALID`. `informs` is valid only as `Context` to
   `Goal`; unsupported endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`.
+  Role-valid `informs` edges carry context source metadata, trust, contract
+  metadata, and source/target spans matching the source `Context` and owning
+  `Goal`; mismatches emit `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`.
   `precedes` is valid only as `Step` to `Step`; unsupported endpoint roles
   emit `INTENT_GRAPH_PRECEDE_INVALID`. These generic role diagnostics are
   separate from `INTENT_GRAPH_DATA_INVALID`,
@@ -639,7 +642,11 @@ Next graph envelope validation milestone:
   authorization: `web` and `documents` Context nodes still require incoming
   Capability `authorizes` edges, while `repo` Context nodes do not. Missing or
   extra role-valid context `informs` edges emit
-  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output non-executable;
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output non-executable.
+  The role-valid `informs` edge must carry source, expression, args, argument
+  kinds/spans, trust, optional contract metadata, source context span, and
+  owning goal span matching the source `Context`; metadata mismatches also emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`;
   unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`;
   malformed Context node data remains
   `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
@@ -1209,8 +1216,12 @@ Rules:
   external context authorization: `web` and `documents` Context nodes still
   require incoming Capability `authorizes` edges, while `repo` Context nodes do
   not. Missing or extra role-valid context `informs` edges emit
-  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`. Unsupported `informs` endpoint roles
-  emit `INTENT_GRAPH_INFORM_INVALID`. Malformed Context node data remains
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`. The role-valid edge must carry source,
+  expression, args, argument kinds/spans, trust, optional contract metadata,
+  source context span, and owning goal span matching the source `Context`;
+  metadata mismatches also emit `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`.
+  Unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`.
+  Malformed Context node data remains
   `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
   `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
   remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
@@ -2416,7 +2427,9 @@ not go from a goal-scoped `Input` or `Step` producer to a step-scoped `Input`.
 Graph validation emits `INTENT_GRAPH_SUPPLY_INVALID` when a `supplies` edge is
 not goal-scoped `Input` to `Goal`. Graph validation emits
 `INTENT_GRAPH_INFORM_INVALID` when an `informs` edge is not `Context` to
-`Goal`. Graph validation emits `INTENT_GRAPH_PRECEDE_INVALID` when a
+`Goal`. Role-valid `informs` edge metadata mismatches emit
+`INTENT_GRAPH_CONTEXT_INFORMS_INVALID`. Graph validation emits
+`INTENT_GRAPH_PRECEDE_INVALID` when a
 `precedes` edge is not `Step` to `Step`. These generic role diagnostics are
 separate from `INTENT_GRAPH_DATA_INVALID`,
 `INTENT_GRAPH_INPUT_SUPPLY_INVALID`,
@@ -2540,6 +2553,10 @@ with `data.source` equal to `web` or `documents` lacks one or more incoming
 local/trusted and do not require graph authorization edges.
 Graph validation emits `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` when a `Context`
 node lacks exactly one outgoing role-valid `informs` edge to its owning `Goal`.
+The role-valid `informs` edge must carry context source metadata, trust,
+optional contract metadata, and source/target spans matching the source
+`Context` and owning `Goal`; mismatches also emit
+`INTENT_GRAPH_CONTEXT_INFORMS_INVALID`.
 Unsupported `informs` endpoint roles instead emit
 `INTENT_GRAPH_INFORM_INVALID`. This ownership edge is separate from external
 context authorization: `web` and `documents` Context nodes still require
@@ -2703,6 +2720,9 @@ edges. Every `Context` node must also have exactly one outgoing role-valid
 `informs` edge to its owning `Goal`. Missing or extra role-valid context
 `informs` edges emit
 `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make the graph non-executable.
+Role-valid `informs` edge metadata must mirror the source `Context` source
+call, trust, optional contract metadata, and source/target spans; mismatches
+also emit `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`.
 Unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`. This
 ownership edge is separate from external context authorization. Web context
 nodes and browser/page state use untrusted external trust metadata. Runtime

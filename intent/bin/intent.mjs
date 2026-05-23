@@ -1375,6 +1375,21 @@ function requestEdgeData(step, effectUse) {
   };
 }
 
+function contextInformsEdgeData(context, access, goal) {
+  return {
+    source: context.source,
+    expression: context.expression,
+    args: context.args,
+    argKinds: context.argKinds,
+    argSpans: context.argSpans,
+    trust: context.trust,
+    contractId: access?.contractId ?? null,
+    contractArguments: access?.contractArguments ?? {},
+    sourceSpan: context.span,
+    targetSpan: goal.span,
+  };
+}
+
 function completionStepCheckpoints(goal) {
   const finalStep = goal.steps.at(-1);
   if (!finalStep) {
@@ -1537,7 +1552,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           contractArguments: access.contractArguments,
         } : {}),
       }));
-      edges.push(edge(id, goalId, "informs"));
+      edges.push(edge(id, goalId, "informs", contextInformsEdgeData(context, access, goal)));
       if (access) {
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
           if (isFamilyMatch(access.family, capability.family) && !getCapabilityDenial(access, [capability])) {
@@ -4750,7 +4765,7 @@ function validateGraphContextInforms(nodesById, outgoingEdgesByNode, graphNode, 
   const informsEdges = outgoingEdges.filter((graphEdge) => graphEdge.kind === "informs");
   const ownerGoalInformsEdges = informsEdges.filter((graphEdge) => graphEdge.to === ownerGoalId);
   if (ownerGoalInformsEdges.length === 1 && informsEdges.length === ownerGoalInformsEdges.length) {
-    return null;
+    return validateGraphContextInformsMetadata(ownerGoalInformsEdges[0], graphNode, ownerGoal, fallbackSpan);
   }
   return error("INTENT_GRAPH_CONTEXT_INFORMS_INVALID", `context '${graphNode.label}' must inform its owning goal.`, graphNode.span ?? fallbackSpan, {
     context: graphNode.label,
@@ -4759,6 +4774,62 @@ function validateGraphContextInforms(nodesById, outgoingEdgesByNode, graphNode, 
     informs_edges: informsEdges.length,
     owner_goal_informs_edges: ownerGoalInformsEdges.length,
   });
+}
+
+function validateGraphContextInformsMetadata(graphEdge, contextNode, goalNode, fallbackSpan) {
+  const data = graphEdge.data;
+  const dataIsObject = isPlainObject(data);
+  const sourceMatchesContext = dataIsObject && data.source === contextNode.data?.source;
+  const expressionMatchesContext = dataIsObject && data.expression === contextNode.data?.expression;
+  const argsMatchContext = dataIsObject && stringMapsEqual(data.args, contextNode.data?.args ?? {});
+  const argKindsMatchContext = dataIsObject && stringMapsEqual(data.argKinds, contextNode.data?.argKinds ?? {});
+  const argSpansMatchContext = dataIsObject && spanMapsEqual(data.argSpans, contextNode.data?.argSpans ?? {});
+  const trustMatchesContext = dataIsObject && trustRecordsEqual(data.trust, contextNode.data?.trust);
+  const contractIdMatchesContext = dataIsObject && (data.contractId ?? null) === (contextNode.data?.contractId ?? null);
+  const contractArgumentsMatchContext = dataIsObject && contractArgumentsEqual(data.contractArguments, contextNode.data?.contractArguments ?? {});
+  const sourceSpanMatchesContext = dataIsObject && spansEqual(data.sourceSpan, contextNode.span);
+  const targetSpanMatchesGoal = dataIsObject && spansEqual(data.targetSpan, goalNode.span);
+  if (
+    dataIsObject
+    && sourceMatchesContext
+    && expressionMatchesContext
+    && argsMatchContext
+    && argKindsMatchContext
+    && argSpansMatchContext
+    && trustMatchesContext
+    && contractIdMatchesContext
+    && contractArgumentsMatchContext
+    && sourceSpanMatchesContext
+    && targetSpanMatchesGoal
+  ) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CONTEXT_INFORMS_INVALID", `informs edge '${graphEdge.from}' to '${graphEdge.to}' must carry context metadata matching its source context and owning goal.`, edgeDiagnosticSpan(new Map([[contextNode.id, contextNode], [goalNode.id, goalNode]]), graphEdge, fallbackSpan), {
+    context: contextNode.label,
+    context_id: contextNode.id,
+    owner_goal_id: goalNode.id,
+    informs_edges: 1,
+    owner_goal_informs_edges: 1,
+    data_is_object: dataIsObject,
+    source_matches_context: sourceMatchesContext,
+    expression_matches_context: expressionMatchesContext,
+    args_match_context: argsMatchContext,
+    arg_kinds_match_context: argKindsMatchContext,
+    arg_spans_match_context: argSpansMatchContext,
+    trust_matches_context: trustMatchesContext,
+    contract_id_matches_context: contractIdMatchesContext,
+    contract_arguments_match_context: contractArgumentsMatchContext,
+    source_span_matches_context: sourceSpanMatchesContext,
+    target_span_matches_goal: targetSpanMatchesGoal,
+  });
+}
+
+function trustRecordsEqual(left, right) {
+  return isPlainObject(left)
+    && isPlainObject(right)
+    && left.zone === right.zone
+    && left.source === right.source
+    && (left.argument ?? null) === (right.argument ?? null);
 }
 
 function validateGraphCheckGate(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {

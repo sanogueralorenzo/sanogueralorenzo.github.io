@@ -382,6 +382,24 @@ function defaultGraphEdgeData(edge, data, nodesById = new Map()) {
       };
     }
   }
+  if (edge.kind === "informs") {
+    const sourceNode = nodesById.get(edge.from);
+    const targetNode = nodesById.get(edge.to);
+    if (sourceNode?.kind === "Context" && targetNode?.kind === "Goal") {
+      return {
+        source: sourceNode.data.source,
+        expression: sourceNode.data.expression,
+        args: sourceNode.data.args ?? {},
+        argKinds: sourceNode.data.argKinds ?? {},
+        argSpans: sourceNode.data.argSpans ?? {},
+        trust: sourceNode.data.trust,
+        contractId: sourceNode.data.contractId ?? null,
+        contractArguments: sourceNode.data.contractArguments ?? {},
+        sourceSpan: sourceNode.span,
+        targetSpan: targetNode.span,
+      };
+    }
+  }
   if (edge.kind === "requires" && typeof edge.from === "string" && edge.from.includes(":requirement:")) {
     return { requirement: "synthetic" };
   }
@@ -1633,6 +1651,7 @@ describe("intent static model CLI", () => {
     const documentsContext = graph.nodes.find((node) => node.kind === "Context" && node.data.source === "documents");
     const webAuthorization = graph.edges.find((edge) => edge.kind === "authorizes" && edge.to === webContext.id);
     const documentsAuthorization = graph.edges.find((edge) => edge.kind === "authorizes" && edge.to === documentsContext.id);
+    const webInform = graph.edges.find((edge) => edge.kind === "informs" && edge.from === webContext.id);
 
     assert.equal(graph.ok, true);
     assert.equal(repoContext.data.args._0, "./");
@@ -1652,7 +1671,14 @@ describe("intent static model CLI", () => {
     assert.equal(documentsContext.data.trust.zone, "trusted");
     assert.equal(documentsContext.data.contractId, "intent.effect.file.read.v0");
     assert.deepEqual(documentsContext.data.contractArguments, { path: "_0" });
-    assert.equal(graph.edges.some((edge) => edge.kind === "informs" && edge.from === webContext.id), true);
+    assert.equal(Boolean(webInform), true);
+    assert.equal(webInform.data.source, "web");
+    assert.equal(webInform.data.expression, webContext.data.expression);
+    assert.deepEqual(webInform.data.args, webContext.data.args);
+    assert.deepEqual(webInform.data.trust, webContext.data.trust);
+    assert.equal(webInform.data.contractId, "intent.effect.web.read.v0");
+    assert.deepEqual(webInform.data.contractArguments, { domain: "_0" });
+    assert.equal(webInform.data.sourceSpan.start.line, webContext.span.start.line);
     assert.equal(Boolean(webAuthorization), true);
     assert.equal(webAuthorization.data.contractId, "intent.effect.web.read.v0");
     assert.deepEqual(webAuthorization.data.contractArguments, { domain: "_0" });
@@ -4308,6 +4334,62 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].context_id, "goal:demo:context:duplicate");
     assert.equal(diagnostics[2].informs_edges, 2);
     assert.equal(diagnostics[2].owner_goal_informs_edges, 1);
+  });
+
+  it("validates graph context informs metadata diagnostics", () => {
+    const contextSpan = testSpan(2);
+    const goalSpan = testSpan(1);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: goalSpan },
+        {
+          id: "goal:demo:context:web",
+          kind: "Context",
+          label: "web",
+          span: contextSpan,
+          data: {
+            source: "web",
+            expression: "web(url: \"https://example.com/context\")",
+            contractId: "intent.effect.web.read.v0",
+            contractArguments: { domain: "url" },
+            args: { url: "https://example.com/context" },
+            argKinds: { url: "string" },
+            argSpans: { url: contextSpan },
+            trust: { zone: "untrusted", source: "external_context" },
+          },
+        },
+      ],
+      edges: [
+        {
+          from: "goal:demo:context:web",
+          to: "goal:demo",
+          kind: "informs",
+          data: {
+            source: "documents",
+            expression: "web(url: \"https://example.com/context\")",
+            contractId: "intent.effect.web.read.v0",
+            contractArguments: { domain: "url" },
+            args: { url: "https://example.com/context" },
+            argKinds: { url: "string" },
+            argSpans: { url: contextSpan },
+            trust: { zone: "untrusted", source: "external_context" },
+            sourceSpan: contextSpan,
+            targetSpan: goalSpan,
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CONTEXT_INFORMS_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].context_id, "goal:demo:context:web");
+    assert.equal(diagnostics[0].data_is_object, true);
+    assert.equal(diagnostics[0].source_matches_context, false);
+    assert.equal(diagnostics[0].expression_matches_context, true);
+    assert.equal(diagnostics[0].trust_matches_context, true);
+    assert.equal(diagnostics[0].contract_arguments_match_context, true);
+    assert.equal(diagnostics[0].source_span_matches_context, true);
+    assert.equal(diagnostics[0].target_span_matches_goal, true);
   });
 
   it("validates graph effect request diagnostics", () => {
