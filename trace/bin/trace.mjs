@@ -53,6 +53,11 @@ async function main() {
     return;
   }
 
+  if (command === "checkpoint") {
+    await runCheckpointCommand(subcommand, rawArgs);
+    return;
+  }
+
   if (command === "capture") {
     await captureEvent();
     return;
@@ -122,7 +127,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help"].includes(key)) {
+    if (["json", "help", "dry-run"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -225,6 +230,151 @@ async function checkTrace() {
   if (!ok) {
     process.exitCode = 1;
   }
+}
+
+async function runCheckpointCommand(action, values) {
+  if (!action || action === "list") {
+    await listCheckpoints();
+    return;
+  }
+
+  if (action === "verify") {
+    await verifyCheckpoints();
+    return;
+  }
+
+  if (action === "push") {
+    await syncCheckpointRef("push", values[0] ?? args.remote ?? "origin");
+    return;
+  }
+
+  if (action === "fetch") {
+    await syncCheckpointRef("fetch", values[0] ?? args.remote ?? "origin");
+    return;
+  }
+
+  if (action === "cleanup") {
+    await cleanupCheckpoints();
+    return;
+  }
+
+  fail(`unknown checkpoint command: ${action}`);
+}
+
+async function listCheckpoints() {
+  const root = await repoRoot();
+  const checkpoints = await readCheckpointPayloads(root);
+  print({ ok: true, ref: CHECKPOINT_REF, checkpoints: checkpoints.map(({ payload }) => checkpointSummary(payload)) });
+}
+
+async function verifyCheckpoints() {
+  const root = await repoRoot();
+  const checkpoints = await readCheckpointPayloads(root);
+  const errors = [];
+
+  for (const { path, payload, error } of checkpoints) {
+    if (error) {
+      errors.push({ path, error });
+      continue;
+    }
+
+    for (const field of ["schema_version", "checkpoint_id", "commit", "created_at"]) {
+      if (!payload[field]) {
+        errors.push({ path, error: `missing ${field}` });
+      }
+    }
+
+    if (payload.schema_version && payload.schema_version !== "trace.checkpoint.v1") {
+      errors.push({ path, error: `unsupported schema ${payload.schema_version}` });
+    }
+
+    if (payload.commit) {
+      const commit = await git(["rev-parse", "--verify", `${payload.commit}^{commit}`], { cwd: root, allowFailure: true });
+      if (!commit) {
+        errors.push({ path, error: `missing commit ${payload.commit}` });
+      }
+    }
+  }
+
+  const ok = errors.length === 0;
+  print({ ok, ref: CHECKPOINT_REF, checked: checkpoints.length, errors });
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function syncCheckpointRef(action, remote) {
+  const root = await repoRoot();
+  const dryRun = Boolean(args["dry-run"]);
+  const gitArgs = action === "push"
+    ? ["push", remote, `${CHECKPOINT_REF}:${CHECKPOINT_REF}`]
+    : ["fetch", remote, `${CHECKPOINT_REF}:${CHECKPOINT_REF}`];
+
+  if (dryRun) {
+    print({ ok: true, dryRun: true, command: `git ${gitArgs.join(" ")}` });
+    return;
+  }
+
+  await git(gitArgs, { cwd: root });
+  print({ ok: true, command: `git ${gitArgs.join(" ")}` });
+}
+
+async function cleanupCheckpoints() {
+  const root = await repoRoot();
+  const days = Number.parseInt(args["sessions-before-days"] ?? args.days ?? "14", 10);
+  if (!Number.isInteger(days) || days < 0) {
+    fail("--sessions-before-days must be a non-negative integer");
+  }
+
+  const sessionsDir = join(await gitCommonDir(root), "trace", "sessions");
+  const removed = [];
+  if (await exists(sessionsDir)) {
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    for (const entry of await readdir(sessionsDir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".jsonl")) {
+        continue;
+      }
+      const file = join(sessionsDir, entry.name);
+      const fileStat = await stat(file);
+      if (fileStat.mtimeMs <= cutoff) {
+        await rm(file);
+        removed.push(relativePath(root, file));
+      }
+    }
+  }
+
+  print({ ok: true, sessionsBeforeDays: days, removed });
+}
+
+async function readCheckpointPayloads(root) {
+  const ref = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
+  if (!ref) {
+    return [];
+  }
+
+  const paths = (await git(["ls-tree", "-r", "--name-only", CHECKPOINT_REF], { cwd: root })).split("\n").filter(Boolean);
+  const checkpoints = [];
+  for (const path of paths.filter((entry) => entry.startsWith("checkpoints/") && entry.endsWith(".json"))) {
+    try {
+      const raw = await git(["show", `${CHECKPOINT_REF}:${path}`], { cwd: root });
+      checkpoints.push({ path, payload: JSON.parse(raw) });
+    } catch (error) {
+      checkpoints.push({ path, payload: null, error: error.message });
+    }
+  }
+
+  return checkpoints;
+}
+
+function checkpointSummary(payload) {
+  return {
+    checkpoint_id: payload.checkpoint_id,
+    session_id: payload.session_id ?? null,
+    commit: payload.commit,
+    created_at: payload.created_at,
+    files: Array.isArray(payload.files) ? payload.files.length : 0,
+    events: Array.isArray(payload.events) ? payload.events.length : 0,
+  };
 }
 
 async function captureEvent() {
@@ -806,6 +956,11 @@ Usage:
   trace agent add <codex|claude-code|generic>
   trace agent list
   trace agent remove <codex|claude-code|generic>
+  trace checkpoint list
+  trace checkpoint verify
+  trace checkpoint push [remote] [--dry-run]
+  trace checkpoint fetch [remote] [--dry-run]
+  trace checkpoint cleanup [--sessions-before-days 14]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace log [--limit 20]

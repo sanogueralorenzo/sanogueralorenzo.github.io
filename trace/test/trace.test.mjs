@@ -122,6 +122,55 @@ test("check fails on uncommitted Trace memories and passes after committing them
   }
 });
 
+test("checkpoint commands list verify sync and cleanup local checkpoint data", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "checkpoint.txt"), "checkpoint\n");
+    await git(repo, ["add", "checkpoint.txt"]);
+    await git(repo, ["commit", "-m", "Add checkpoint file"]);
+
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "checkpoint ref controls"]);
+    const record = JSON.parse((await runTrace(repo, ["record", "--validation", "node --test"])).stdout);
+
+    const listed = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.equal(listed.ok, true);
+    assert.equal(listed.ref, "refs/trace/checkpoints");
+    assert.equal(listed.checkpoints.length, 1);
+    assert.equal(listed.checkpoints[0].checkpoint_id, record.checkpoint);
+    assert.equal(listed.checkpoints[0].events, 1);
+
+    const verified = JSON.parse((await runTrace(repo, ["checkpoint", "verify"])).stdout);
+    assert.equal(verified.ok, true);
+    assert.equal(verified.checked, 1);
+    assert.deepEqual(verified.errors, []);
+
+    const push = JSON.parse((await runTrace(repo, ["checkpoint", "push", "origin", "--dry-run"])).stdout);
+    assert.equal(push.command, "git push origin refs/trace/checkpoints:refs/trace/checkpoints");
+
+    const fetch = JSON.parse((await runTrace(repo, ["checkpoint", "fetch", "origin", "--dry-run"])).stdout);
+    assert.equal(fetch.command, "git fetch origin refs/trace/checkpoints:refs/trace/checkpoints");
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
+    const sessionFile = join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`);
+    assert.match(await readFile(sessionFile, "utf8"), /checkpoint ref controls/);
+
+    const cleanup = JSON.parse((await runTrace(repo, ["checkpoint", "cleanup", "--sessions-before-days", "0"])).stdout);
+    assert.equal(cleanup.ok, true);
+    assert.equal(cleanup.sessionsBeforeDays, 0);
+    assert.ok(cleanup.removed.some((entry) => entry.endsWith(`${sessionId}.jsonl`)));
+
+    const ref = await git(repo, ["rev-parse", "--verify", "refs/trace/checkpoints"]);
+    assert.match(ref.stdout.trim(), /^[0-9a-f]{40}$/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("agent add list remove manages local hook adapter configs", async () => {
   const repo = await tempRepo();
 

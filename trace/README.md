@@ -60,6 +60,10 @@ trace log
 trace search "auth retry"
 trace summary main..HEAD
 trace pr-body main..HEAD
+trace checkpoint list
+trace checkpoint verify
+trace checkpoint push origin --dry-run
+trace checkpoint cleanup --sessions-before-days 14
 trace check
 ```
 
@@ -76,6 +80,10 @@ node trace/bin/trace.mjs log
 node trace/bin/trace.mjs search "auth retry"
 node trace/bin/trace.mjs summary main..HEAD
 node trace/bin/trace.mjs pr-body main..HEAD
+node trace/bin/trace.mjs checkpoint list
+node trace/bin/trace.mjs checkpoint verify
+node trace/bin/trace.mjs checkpoint push origin --dry-run
+node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14
 node trace/bin/trace.mjs check
 ```
 
@@ -101,3 +109,10 @@ trace hook agent --source codex
 ```
 
 This keeps the first version agent-agnostic while making the hook contract explicit and reviewable.
+
+Checkpoint commands keep the raw side of Trace explicit:
+
+- `trace checkpoint list` shows checkpoint payloads stored on `refs/trace/checkpoints`.
+- `trace checkpoint verify` checks checkpoint payload shape and commit reachability.
+- `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref.
+- `trace checkpoint cleanup --sessions-before-days 14` prunes old local raw session JSONL files from the git common directory.
