@@ -20,6 +20,7 @@ The long-term target is a shared review protocol that can sit behind code change
 - [QUICKSTART.md](QUICKSTART.md): clean-checkout commands for producing a verdict and review bundle.
 - [MIGRATION.md](MIGRATION.md): moving local Jury state into shared CI artifacts.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): v1 adoption checklist tying quickstart, CI, fixtures, and migration together.
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md): CI failure modes and artifact inspection examples.
 - [release.json](release.json): machine-readable v1 metadata for schemas, commands, and exports.
 - [examples/README.md](examples/README.md): concrete review gates for code, research, deployment, and tool-use claims.
 

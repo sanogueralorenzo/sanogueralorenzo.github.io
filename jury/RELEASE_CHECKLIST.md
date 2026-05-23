@@ -8,6 +8,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Copy [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml) into `.github/workflows/`.
 - [ ] Compare generated outputs with [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart).
 - [ ] Follow [MIGRATION.md](MIGRATION.md) when handing artifacts between jobs.
+- [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI emits `reject`, `retry`, or `human_decision`.
 
 ## Required Artifacts
 

@@ -237,6 +237,55 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("actions/upload-artifact@v4"));
 });
 
+test("troubleshooting failure examples stay executable", async () => {
+  const checkout = await copyJuryCheckout();
+
+  try {
+    const guide = await readFile(join(checkout, "jury/TROUBLESHOOTING.md"), "utf8");
+    const cases = [
+      ["Retry Example", "verdict.retry.json", "gate.retry.json", "review-bundle.retry.json", "retry"],
+      ["Reject Example", "verdict.reject.json", "gate.reject.json", "review-bundle.reject.json", "reject"],
+    ];
+
+    for (const [heading, verdictFile, gateFile, bundleFile, decision] of cases) {
+      for (const command of extractShellBlock(guide, heading)) {
+        const result = await runShell(command, checkout);
+
+        assert.equal(result.exitCode, 0, `${heading}: ${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+      }
+
+      const verdict = JSON.parse(await readFile(join(checkout, verdictFile), "utf8"));
+      const gate = JSON.parse(await readFile(join(checkout, gateFile), "utf8"));
+      const bundle = JSON.parse(await readFile(join(checkout, bundleFile), "utf8"));
+
+      assert.equal(verdict.decision, decision);
+      assert.equal(gate.ok, false);
+      assert.equal(gate.decision, decision);
+      assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+      assert.equal(bundle.records.verdicts.at(-1).decision, decision);
+    }
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
+test("troubleshooting guide documents gate and bundle inspection fields", async () => {
+  const guide = await readFile(join(repoRoot, "jury/TROUBLESHOOTING.md"), "utf8");
+  const readme = await readFile(join(repoRoot, "jury/README.md"), "utf8");
+  const checklist = await readFile(join(repoRoot, "jury/RELEASE_CHECKLIST.md"), "utf8");
+
+  for (const field of ["ok", "decision", "reason", "missing_fields", "unresolved_objections", "next_actions"]) {
+    assert.ok(guide.includes(`\`${field}\``), `TROUBLESHOOTING.md should describe gate.${field}`);
+  }
+
+  for (const field of ["claim_id", "records.claims", "records.checks", "records.evidence", "records.objections", "records.verdicts"]) {
+    assert.ok(guide.includes(`\`${field}\``), `TROUBLESHOOTING.md should describe bundle.${field}`);
+  }
+
+  assert.ok(readme.includes("TROUBLESHOOTING.md"));
+  assert.ok(checklist.includes("TROUBLESHOOTING.md"));
+});
+
 test("fixture verdicts cover accept, reject, retry, and human_decision gate paths", async () => {
   const cases = [
     ["accept.json", 0, true, "accept"],
@@ -626,6 +675,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/jury-review-gate.yml",
     "examples/ci/fixtures/quickstart",
     "MIGRATION.md",
+    "TROUBLESHOOTING.md",
     "examples/ci/fixtures/quickstart/verdict.json",
     "examples/ci/fixtures/quickstart/review-bundle.json",
     "examples/ci/fixtures/quickstart/gate.json",
