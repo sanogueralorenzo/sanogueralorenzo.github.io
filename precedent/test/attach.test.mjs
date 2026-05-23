@@ -95,6 +95,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "--state-dir",
       stateDir,
     ]);
+    assert.ok(first.adapter.warrant.command.includes("--delivery-id"));
     assert.ok(first.adapter.warrant.output.includes("warrantId"));
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.equal(first.adapter.beforeTurn.eventId, "$EVENT_ID");
@@ -360,6 +361,7 @@ test("attach-run executes an ordinary session with automatic attribution", async
     assert.equal(run.beforeTurn.injections.length, 1);
     assert.equal(run.injectionAck.status, "accepted");
     assert.equal(run.injectionAck.ack.contextInjectionAck.contextBlockHash, run.beforeTurn.contextBlockHash);
+    assert.equal(run.warrant.deliveryReceipt.deliveryId, run.beforeTurn.deliveryReceipt.deliveryId);
     assert.equal(run.warrant.sources.precedentIds[0], "prec_webhook_replay_boundary");
     assert.equal(run.warrant.requiredEvidence[0].command, "pnpm test:webhooks");
     assert.equal(run.validation.validation.exitCode, 0);

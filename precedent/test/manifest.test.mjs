@@ -85,6 +85,8 @@ test("manifest emits a generic runtime hook contract", async () => {
     "$SESSION_ID",
     "--event-id",
     "$EVENT_ID",
+    "--delivery-id",
+    "$DELIVERY_ID",
     "--task-file",
     "$TASK_FILE",
     "--scope",

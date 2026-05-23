@@ -572,6 +572,7 @@ async function issueWarrant() {
   };
   const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
+  const explicitDeliveryId = stringOrNull(args["delivery-id"]);
   let payload = null;
 
   await withStateLock(stateDir, async () => {
@@ -590,45 +591,61 @@ async function issueWarrant() {
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
     const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     const events = await readJsonLines(join(stateDir, "events.jsonl"));
-    const replayAuditSelected = await suppressReplayAuditInjections({
-      stateDir,
-      matches: rankPrecedents(precedents, context)
-        .filter((precedent) => precedent.score >= threshold),
-    });
-    const lifecycleSelected = suppressLifecycleInjections({
-      events,
-      matches: replayAuditSelected.matches.slice(0, limit),
-      includeStale: args["include-stale"] === "true" || args["include-stale"] === true,
-    });
-    const applicabilitySelected = suppressApplicabilityInjections(lifecycleSelected.matches);
-    const selected = await suppressRepeatedSessionInjections({
-      stateDir,
-      sessionId,
-      matches: applicabilitySelected.matches,
-      allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
-    });
-    const candidateHints = candidateHintsForContext({
-      candidates,
-      precedents,
-      context,
-      stateDir,
-      sessionId,
-    });
     const turnDirectives = await activeTurnDirectivesForSession(stateDir, sessionId);
     const issuedAt = new Date().toISOString();
-    const deliveryReceipt = deliveryReceiptFor({
-      sessionId,
-      eventId,
-      injections: selected.matches,
-      issuedAt,
-    });
+    let matches = [];
+    let candidateHints = [];
+    let deliveryReceipt = null;
+
+    if (explicitDeliveryId) {
+      deliveryReceipt = await findDeliveryReceipt(stateDir, explicitDeliveryId);
+      if (!deliveryReceipt) {
+        fail(`warrant --delivery-id references unknown delivery: ${explicitDeliveryId}`);
+      }
+      if (deliveryReceipt.sessionId !== sessionId) {
+        fail(`warrant --delivery-id session mismatch: ${deliveryReceipt.sessionId} !== ${sessionId}`);
+      }
+      matches = precedentsForDeliveryReceipt(precedents, deliveryReceipt);
+    } else {
+      const replayAuditSelected = await suppressReplayAuditInjections({
+        stateDir,
+        matches: rankPrecedents(precedents, context)
+          .filter((precedent) => precedent.score >= threshold),
+      });
+      const lifecycleSelected = suppressLifecycleInjections({
+        events,
+        matches: replayAuditSelected.matches.slice(0, limit),
+        includeStale: args["include-stale"] === "true" || args["include-stale"] === true,
+      });
+      const applicabilitySelected = suppressApplicabilityInjections(lifecycleSelected.matches);
+      const selected = await suppressRepeatedSessionInjections({
+        stateDir,
+        sessionId,
+        matches: applicabilitySelected.matches,
+        allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
+      });
+      matches = selected.matches;
+      candidateHints = candidateHintsForContext({
+        candidates,
+        precedents,
+        context,
+        stateDir,
+        sessionId,
+      });
+      deliveryReceipt = deliveryReceiptFor({
+        sessionId,
+        eventId,
+        injections: matches,
+        issuedAt,
+      });
+    }
     const warrant = warrantForContext({
       sessionId,
       eventId,
       issuedAt,
       task,
       context,
-      matches: selected.matches,
+      matches,
       candidateHints,
       deliveryReceipt,
       turnDirectives,
@@ -2567,6 +2584,8 @@ function buildManifest(runtime, stateDir) {
     "$SESSION_ID",
     "--event-id",
     "$EVENT_ID",
+    "--delivery-id",
+    "$DELIVERY_ID",
     "--task-file",
     "$TASK_FILE",
     "--scope",
@@ -2790,6 +2809,8 @@ async function attachRuntime() {
     sessionId,
     "--event-id",
     "$EVENT_ID",
+    "--delivery-id",
+    "$DELIVERY_ID",
     ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
     ...(scope ? ["--scope", scope] : []),
     ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
@@ -3201,10 +3222,10 @@ async function attachRunSession() {
     sessionId,
     "--event-id",
     eventPrefix ? `${eventPrefix}:warrant.issue` : `warrant-${Date.now()}-${stableHash({ sessionId, task: taskSource.task, scope, changedFiles }).slice(0, 12)}`,
+    ...(beforeTurn.deliveryReceipt?.deliveryId ? ["--delivery-id", beforeTurn.deliveryReceipt.deliveryId] : []),
     ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
     ...(scope ? ["--scope", scope] : []),
     ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
-    ...(attributedPrecedents.length > 0 ? ["--allow-repeat", "true"] : []),
     "--json",
   ]);
   const warrantId = warrant.warrantId ?? null;
@@ -5700,6 +5721,40 @@ async function findDeliveryReceipt(stateDir, deliveryId) {
   }
 
   return null;
+}
+
+function precedentsForDeliveryReceipt(precedents, receipt) {
+  const byId = new Map(precedents.map((precedent) => [precedent.id, precedent]));
+  const missing = [];
+  const matches = [];
+
+  for (const id of receipt.injectedPrecedentIds ?? []) {
+    const precedent = byId.get(id);
+    if (!precedent) {
+      missing.push(id);
+      continue;
+    }
+
+    matches.push({
+      ...precedent,
+      score: 0,
+      matchReasons: [{
+        type: "delivery_receipt",
+        deliveryId: receipt.deliveryId,
+      }],
+      applicabilityReceipt: {
+        status: "anchored",
+        anchors: ["delivery_receipt"],
+        required: ["delivery_receipt"],
+      },
+    });
+  }
+
+  if (missing.length > 0) {
+    fail(`warrant --delivery-id references unknown precedent ids: ${missing.join(", ")}`);
+  }
+
+  return matches;
 }
 
 function contextInjectionAckFor({ deliveryId, receipt, inserted, contextBlockHash: receivedHash, reason }) {

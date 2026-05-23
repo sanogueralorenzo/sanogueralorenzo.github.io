@@ -51,6 +51,120 @@ test("warrant emits a stable edit contract", async () => {
   }
 });
 
+test("warrant can bind to an already delivered context receipt", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "delivery-bound-session",
+      "--event-id",
+      "turn-1-context",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    const repeated = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "delivery-bound-session",
+      "--event-id",
+      "turn-2-context",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    assert.equal(beforeTurn.injections.length, 1);
+    assert.equal(repeated.injections.length, 0);
+
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "delivery-bound-session",
+      "--event-id",
+      "turn-1-warrant",
+      "--delivery-id",
+      beforeTurn.deliveryReceipt.deliveryId,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    assert.equal(warrant.deliveryReceipt.deliveryId, beforeTurn.deliveryReceipt.deliveryId);
+    assert.deepEqual(warrant.sources.precedentIds, ["prec_webhook_replay_boundary"]);
+    assert.equal(warrant.requiredEvidence[0].command, "pnpm test:webhooks");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("warrant rejects delivery receipts from another session", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "delivery-owner",
+      "--event-id",
+      "turn-1-context",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    const result = await runProcess([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "wrong-session",
+      "--event-id",
+      "turn-1-warrant",
+      "--delivery-id",
+      beforeTurn.deliveryReceipt.deliveryId,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /session mismatch/u);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("warrant warns on escaped diffs and too many files", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
 
