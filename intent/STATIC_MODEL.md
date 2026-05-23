@@ -303,6 +303,8 @@ Next graph envelope validation milestone:
   `intent.ast.v0`.
 - An unsupported or missing envelope version emits the stable diagnostic code
   `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
+- Executable graph payloads must include `nodes` and `edges` arrays. Missing
+  or non-array collections emit `INTENT_GRAPH_SHAPE_INVALID`.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.
@@ -1101,6 +1103,7 @@ Initial diagnostic families:
 - `INTENT_CHECKPOINT_INVALID`
 - `INTENT_POLICY_INVALID`
 - `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`
+- `INTENT_GRAPH_SHAPE_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_NODE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
