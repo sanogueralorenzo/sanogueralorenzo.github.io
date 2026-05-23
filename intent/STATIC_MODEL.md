@@ -331,8 +331,9 @@ blocking diagnostics.
   containing step.
 - Parse step-body `checkpoint ...` lines as step checkpoints owned by their
   containing step.
-- Parse step-body `timeout ...` and `retry ...` lines as step policy statements
-  owned by their containing step.
+- Parse step-body `timeout ...` and `retry ...` lines as step policy
+  statements owned by their containing step, and emit `INTENT_POLICY_INVALID`
+  when policy syntax is invalid.
 - Enforce invariant placement, emit invariant statements as `Invariant` nodes,
   and attach those nodes to the graph as guards.
 - Reject unsafe trust flows, including untrusted data flowing into executable
@@ -606,7 +607,7 @@ execution policy for only that step:
 plan {
   step run_tests(patch: GitDiff) -> TestReport {
     timeout 2m
-    retry max_attempts: 3, backoff: exponential
+    retry max 3
   }
 }
 ```
@@ -617,6 +618,11 @@ Rules:
   step policy statements.
 - `timeout` preserves the raw duration text; `retry` preserves the raw policy
   text.
+- Timeout values must be simple positive durations with a positive integer and
+  unit `s`, `m`, `h`, or `d`, such as `10s`, `5m`, `2h`, or `1d`.
+- Retry policies must be `max N`, where `N` is a positive integer.
+- Invalid timeout or retry policy syntax emits `INTENT_POLICY_INVALID` at the
+  policy line span.
 - Each step policy emits one graph `Policy` node whose span is the policy line.
 - The owning `Step` node data lists timeout and retry summaries in source
   order.
@@ -956,6 +962,7 @@ Initial diagnostic families:
 - `INTENT_TRUST_FLOW_UNSAFE`
 - `INTENT_MEMORY_UNSCOPED`
 - `INTENT_MEMORY_RETENTION_INVALID`
+- `INTENT_POLICY_INVALID`
 - `INTENT_GRAPH_CYCLE`
 
 Errors make graph output non-executable by setting `ok: false`. Warnings and
@@ -1074,7 +1081,7 @@ node id. It is an intermediate contract for a local runtime.
         "requirements": [],
         "checkpoints": ["test_report_written"],
         "timeouts": ["2m"],
-        "retries": ["max_attempts: 3, backoff: exponential"]
+        "retries": ["max 3"]
       }
     },
     {
@@ -1114,13 +1121,13 @@ node id. It is an intermediate contract for a local runtime.
     {
       "id": "goal:ship_checkout_fix:step:run_tests:retry:0",
       "kind": "Policy",
-      "label": "max_attempts: 3, backoff: exponential",
+      "label": "max 3",
       "span": "loc.16",
       "data": {
         "scope": "step",
         "ownerStep": "run_tests",
         "policyKind": "retry",
-        "policy": "max_attempts: 3, backoff: exponential"
+        "policy": "max 3"
       }
     },
     {

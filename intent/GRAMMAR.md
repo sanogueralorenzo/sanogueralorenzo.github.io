@@ -183,9 +183,12 @@ a `Checkpoint` node, lists it on the owning step node data, and creates a
 
 `timeout <duration>` and `retry <raw policy>` lines inside a step body are
 parsed as step policy statements and represented on the owning `StepDecl`. The
-graph builder surfaces them on the owning step node data, emits each statement
-as a `Policy` node, and creates `timeouts` or `retries` edges from that policy
-node to the owning `Step`.
+checker accepts timeout values only as simple positive durations such as `10s`,
+`5m`, `2h`, or `1d`, and accepts retry policies only as `max N` with a positive
+integer. Invalid policy syntax emits `INTENT_POLICY_INVALID` at the policy line
+span. The graph builder surfaces valid policies on the owning step node data,
+emits each statement as a `Policy` node, and creates `timeouts` or `retries`
+edges from that policy node to the owning `Step`.
 
 ## Expressions
 
@@ -403,8 +406,11 @@ The parser emits names and type reference strings; the checker owns binding.
   listed on the owning step node data and connected by `checkpoints` edges from
   that step.
 - Step-body `timeout ...` and `retry ...` lines become graph `Policy` nodes.
-  They are listed on the owning step node data and connected by `timeouts` or
-  `retries` edges from each policy node to that step.
+  Timeout values must be simple positive durations such as `10s`, `5m`, `2h`,
+  or `1d`; retry policies must be `max N` with a positive integer. Invalid
+  policy syntax is `INTENT_POLICY_INVALID` at the policy line span. Valid
+  policies are listed on the owning step node data and connected by `timeouts`
+  or `retries` edges from each policy node to that step.
 - Memory blocks must contain at least one parsed `retain ... until ...`
   retention rule. Missing retention is `INTENT_MEMORY_UNSCOPED`.
 - Retention `until` values must be `goal_complete`, `goal.completed`, or a
