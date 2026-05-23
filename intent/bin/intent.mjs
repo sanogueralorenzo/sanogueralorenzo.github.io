@@ -1464,6 +1464,11 @@ function validateGraph(graph, options = {}) {
       diagnostics.push(semanticPayloadDiagnostic);
       continue;
     }
+    const edgeRoleDiagnostic = validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan);
+    if (edgeRoleDiagnostic) {
+      diagnostics.push(edgeRoleDiagnostic);
+      continue;
+    }
     outgoing.get(graphEdge.from).push(graphEdge.to);
     outgoingEdgesByNode.get(graphEdge.from).push(graphEdge);
     incomingEdgesByNode.get(graphEdge.to).push(graphEdge);
@@ -2184,6 +2189,30 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
     checkpoint_is_nonempty: checkpointIsNonempty,
     source_span_is_valid: sourceSpanIsValid,
     target_span_is_valid: targetSpanIsValid,
+  });
+}
+
+function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
+  if (graphEdge.kind !== "declares") {
+    return null;
+  }
+  const sourceNode = nodesById.get(graphEdge.from);
+  const targetNode = nodesById.get(graphEdge.to);
+  const isTypeAvailability = sourceNode?.kind === "Type" && targetNode?.kind === "Goal";
+  const isMemoryOwnership = sourceNode?.kind === "Goal" && targetNode?.kind === "Memory";
+  if (isTypeAvailability || isMemoryOwnership) {
+    return null;
+  }
+  return error("INTENT_GRAPH_DECLARE_INVALID", `declares edge '${graphEdge.from}' to '${graphEdge.to}' must connect a supported declaration role.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Type", to_kind: "Goal" },
+      { from_kind: "Goal", to_kind: "Memory" },
+    ],
   });
 }
 

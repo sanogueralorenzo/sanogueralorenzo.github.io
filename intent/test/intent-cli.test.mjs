@@ -1551,6 +1551,38 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].supported_edge_kinds.includes("requests"), true);
   });
 
+  it("validates graph declares edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(2) },
+        { id: "type:Finding", kind: "Type", label: "Finding", span: testSpan(3) },
+        { id: "goal:demo:memory:0", kind: "Memory", label: "memory", span: testSpan(4) },
+      ],
+      edges: [
+        { from: "type:Finding", to: "goal:demo", kind: "declares" },
+        { from: "type:Finding", to: "goal:other", kind: "declares" },
+        { from: "goal:demo", to: "goal:demo:memory:0", kind: "declares" },
+        { from: "type:Finding", to: "goal:demo:memory:0", kind: "declares" },
+        { from: "goal:demo", to: "goal:other", kind: "declares" },
+        { from: "goal:demo:memory:0", to: "goal:demo", kind: "declares" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_DECLARE_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].from_kind, "Type");
+    assert.equal(diagnostics[0].to_kind, "Memory");
+    assert.equal(diagnostics[1].from_kind, "Goal");
+    assert.equal(diagnostics[1].to_kind, "Goal");
+    assert.equal(diagnostics[2].from_kind, "Memory");
+    assert.equal(diagnostics[2].to_kind, "Goal");
+    assert.deepEqual(diagnostics[2].supported_roles, [
+      { from_kind: "Type", to_kind: "Goal" },
+      { from_kind: "Goal", to_kind: "Memory" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -1716,7 +1748,7 @@ describe("intent static model CLI", () => {
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPE_DECLARE_INVALID");
 
-    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics.length, 3);
     assert.equal(diagnostics[0].type_id, "type:missing");
     assert.deepEqual(diagnostics[0].missing_goal_ids, ["goal:demo", "goal:other"]);
     assert.equal(diagnostics[0].declares_edges, 0);
@@ -1725,8 +1757,6 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].type_id, "type:duplicate");
     assert.deepEqual(diagnostics[2].duplicate_goal_ids, ["goal:demo"]);
     assert.equal(diagnostics[2].declares_edges, 3);
-    assert.equal(diagnostics[3].type_id, "type:wrong");
-    assert.deepEqual(diagnostics[3].invalid_target_ids, ["goal:demo:memory:0"]);
   });
 
   it("validates graph goal typed contract diagnostics", () => {
