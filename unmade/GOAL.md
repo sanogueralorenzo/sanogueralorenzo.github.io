@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-The public skeleton is in place: a scrollable archive at `/unmade/`, reusable full case pages, and seven entry batches spanning every section.
+The public skeleton is in place: a scrollable archive at `/unmade/`, reusable full case pages, and eight entry batches spanning every section.
 
 ## Expansion Loop
 
@@ -19,4 +19,4 @@ Each batch should keep the archive navigable, add at least one memorable artifac
 
 ## Next Expansion Focus
 
-Add an eighth randomized batch that feels tactile and domestic: one unsent recipe note, one unbuilt kitchen device, one unchosen room swap, one unfinished household catalog, one unrecorded dinner, and one unlived evening ritual.
+Add a ninth randomized batch that feels institutional and secret: one unsent internal memo, one unbuilt archive machine, one unchosen committee seat, one unfinished policy, one unrecorded hearing, and one unlived official role.

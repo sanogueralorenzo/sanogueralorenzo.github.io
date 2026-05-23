@@ -649,6 +649,30 @@ a {
   background: #6f9fbc;
 }
 
+.unmade-object-recipe {
+  background: #eadcc8;
+}
+
+.unmade-object-stove {
+  background: #b9654f;
+}
+
+.unmade-object-floorplan {
+  background: #d7c176;
+}
+
+.unmade-object-drawer {
+  background: #d9d2c5;
+}
+
+.unmade-object-plate {
+  background: #e9e4d8;
+}
+
+.unmade-object-lamp {
+  background: #caa85f;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
