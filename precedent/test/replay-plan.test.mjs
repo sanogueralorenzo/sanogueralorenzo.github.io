@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -184,6 +184,58 @@ test("promote-pending blocks non-allowlisted replay commands", async () => {
   }
 });
 
+test("promote-pending respects active leases and retries expired leases", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-plan-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    const validation = await recordSafePromotionTrial(stateDir, "leased");
+    const trial = validation.promotionTrials[0];
+    const activeStart = {
+      type: "promotion_trial_started",
+      observedAt: new Date().toISOString(),
+      runId: "run_active",
+      attempt: 1,
+      leaseExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+      trialId: trial.id,
+      candidateId: trial.candidateId,
+      sourceEventId: "leased-validation",
+      sourceSessionId: "leased",
+      command: trial.command,
+    };
+    await appendJsonLine(join(stateDir, "events.jsonl"), activeStart);
+
+    const active = await runJson(["promote-pending", "--state-dir", stateDir, "--json"]);
+    assert.equal(active.processed, 0);
+    assert.equal(active.queue.running, 1);
+    assert.equal(active.queue.items[0].runId, "run_active");
+
+    const retryStateDir = await mkdtemp(join(tmpdir(), "precedent-replay-plan-test-"));
+    await runJson(["init", "--state-dir", retryStateDir, "--json"]);
+    const retryValidation = await recordSafePromotionTrial(retryStateDir, "retry-session");
+    const retryTrial = retryValidation.promotionTrials[0];
+    await appendJsonLine(join(retryStateDir, "events.jsonl"), {
+      ...activeStart,
+      runId: "run_expired",
+      leaseExpiresAt: "2000-01-01T00:00:00.000Z",
+      trialId: retryTrial.id,
+      candidateId: retryTrial.candidateId,
+      sourceSessionId: "retry-session",
+      command: retryTrial.command,
+    });
+
+    const retried = await runJson(["promote-pending", "--state-dir", retryStateDir, "--json"]);
+    assert.equal(retried.processed, 1);
+    assert.equal(retried.results[0].attempt, 2);
+    assert.equal(retried.results[0].status, "promoted");
+    assert.equal(retried.queue.completed, 1);
+
+    await rm(retryStateDir, { force: true, recursive: true });
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function recordFailedSession(stateDir, sessionId, command) {
   await hook(stateDir, {
     schema_version: "precedent.v1",
@@ -203,8 +255,40 @@ async function recordFailedSession(stateDir, sessionId, command) {
   });
 }
 
+async function recordSafePromotionTrial(stateDir, sessionId) {
+  await recordFailedSession(stateDir, "failed", "node --check precedent/examples/missing-safe-baseline.mjs");
+  await hook(stateDir, {
+    schema_version: "precedent.v1",
+    hook: "outcome.after_task",
+    sessionId: "failed",
+    success: false,
+    status: "failure",
+    notes: "agent used the wrong test command",
+  });
+  await hook(stateDir, {
+    schema_version: "precedent.v1",
+    hook: "context.before_turn",
+    sessionId,
+    task: "add webhook handler",
+    scope: "feature:webhooks",
+    changedFiles: ["features/webhooks/providers/stripe.ts"],
+  });
+  return hook(stateDir, {
+    schema_version: "precedent.v1",
+    hook: "validation.after_run",
+    sessionId,
+    eventId: `${sessionId}-validation`,
+    command: "node --check precedent/bin/precedent.mjs",
+    exitCode: 0,
+  });
+}
+
 function hook(stateDir, event) {
   return runJson(["hook", "--state-dir", stateDir, "--json"], event);
+}
+
+async function appendJsonLine(path, value) {
+  await appendFile(path, `${JSON.stringify(value)}\n`);
 }
 
 async function readJsonLines(path) {

@@ -25,6 +25,8 @@ const SUPPORTED_EVENT_HOOKS = new Set([
 const STALE_SIGNAL_THRESHOLD = 2;
 const RETIRE_SIGNAL_THRESHOLD = 4;
 const REPAIR_EFFICACY_SUPPRESSION_THRESHOLD = 2;
+const PROMOTION_TRIAL_LEASE_MS = 5 * 60 * 1000;
+const PROMOTION_TRIAL_MAX_ATTEMPTS = 2;
 const DEFAULT_CONFIG = {
   schema_version: CONFIG_SCHEMA_VERSION,
   stateDir: DEFAULT_STATE_DIR,
@@ -821,14 +823,20 @@ async function promotePendingTrials() {
   await ensureState(stateDir);
   const dryRun = args["dry-run"] === true;
   const limit = Number(args.limit ?? 3);
-  const events = await readJsonLines(join(stateDir, "events.jsonl"));
-  const queue = promotionTrialQueue(events);
-  const pending = queue.items
-    .filter((item) => item.status === "ready" || item.status === "blocked")
-    .slice(0, limit);
+  const leaseMs = Number(args["lease-ms"] ?? PROMOTION_TRIAL_LEASE_MS);
+  const maxAttempts = Number(args["max-attempts"] ?? PROMOTION_TRIAL_MAX_ATTEMPTS);
+  const now = new Date();
+  const claims = await claimPendingPromotionTrials({
+    stateDir,
+    dryRun,
+    limit,
+    leaseMs,
+    maxAttempts,
+    now,
+  });
   const results = [];
 
-  for (const item of pending) {
+  for (const item of claims.items) {
     const safety = replayTrialExecutionSafety(item);
     if (!safety.safe) {
       results.push({
@@ -847,25 +855,18 @@ async function promotePendingTrials() {
         candidateId: item.candidateId,
         status: "dry_run",
         command: item.command,
+        attempt: item.attempt,
       });
       continue;
     }
-
-    await appendJsonLine(join(stateDir, "events.jsonl"), {
-      type: "promotion_trial_started",
-      observedAt: new Date().toISOString(),
-      trialId: item.trialId,
-      candidateId: item.candidateId,
-      sourceEventId: item.sourceEventId,
-      sourceSessionId: item.sourceSessionId,
-      command: item.command,
-    });
 
     try {
       const observed = await runPrecedentChildJson(item.command.slice(2));
       await appendJsonLine(join(stateDir, "events.jsonl"), {
         type: "promotion_trial_completed",
         observedAt: new Date().toISOString(),
+        runId: item.runId,
+        attempt: item.attempt,
         trialId: item.trialId,
         candidateId: item.candidateId,
         sourceEventId: item.sourceEventId,
@@ -880,6 +881,8 @@ async function promotePendingTrials() {
         trialId: item.trialId,
         candidateId: item.candidateId,
         status: observed.promoted ? "promoted" : "completed",
+        runId: item.runId,
+        attempt: item.attempt,
         promotedId: observed.promoted?.id ?? null,
         rejectedId: observed.rejected?.id ?? null,
         replayAuditStatus: observed.replayAudit?.status ?? null,
@@ -888,6 +891,8 @@ async function promotePendingTrials() {
       await appendJsonLine(join(stateDir, "events.jsonl"), {
         type: "promotion_trial_failed",
         observedAt: new Date().toISOString(),
+        runId: item.runId,
+        attempt: item.attempt,
         trialId: item.trialId,
         candidateId: item.candidateId,
         sourceEventId: item.sourceEventId,
@@ -898,21 +903,65 @@ async function promotePendingTrials() {
         trialId: item.trialId,
         candidateId: item.candidateId,
         status: "failed",
+        runId: item.runId,
+        attempt: item.attempt,
         error: error.message,
       });
     }
   }
 
-  const afterEvents = dryRun ? events : await readJsonLines(join(stateDir, "events.jsonl"));
+  const afterEvents = dryRun ? claims.events : await readJsonLines(join(stateDir, "events.jsonl"));
   print({
     ok: results.every((result) => result.status !== "failed"),
     schema_version: "precedent.promote_pending.v1",
     dryRun,
     stateDir,
+    leaseMs,
+    maxAttempts,
     processed: results.length,
     results,
-    queue: promotionTrialQueue(afterEvents),
+    queue: promotionTrialQueue(afterEvents, { now: new Date(), maxAttempts }),
   });
+}
+
+async function claimPendingPromotionTrials({ stateDir, dryRun, limit, leaseMs, maxAttempts, now }) {
+  let events = [];
+  let items = [];
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    events = await readJsonLines(join(stateDir, "events.jsonl"));
+    const queue = promotionTrialQueue(events, { now, maxAttempts });
+    items = queue.items
+      .filter((item) => item.status === "ready" || item.status === "blocked")
+      .slice(0, limit)
+      .map((item) => ({
+        ...item,
+        runId: `run_${stableHash({ trialId: item.trialId, attempt: item.attempt, now: now.toISOString() }).slice(0, 16)}`,
+        leaseExpiresAt: new Date(now.getTime() + leaseMs).toISOString(),
+      }));
+
+    if (dryRun) {
+      return;
+    }
+
+    for (const item of items.filter((entry) => replayTrialExecutionSafety(entry).safe)) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "promotion_trial_started",
+        observedAt: now.toISOString(),
+        runId: item.runId,
+        attempt: item.attempt,
+        leaseExpiresAt: item.leaseExpiresAt,
+        trialId: item.trialId,
+        candidateId: item.candidateId,
+        sourceEventId: item.sourceEventId,
+        sourceSessionId: item.sourceSessionId,
+        command: item.command,
+      });
+    }
+  });
+
+  return { events, items };
 }
 
 function replayTrialExecutionSafety(item) {
@@ -2787,23 +2836,21 @@ async function reportState() {
   });
 }
 
-function promotionTrialQueue(events) {
-  const terminalById = new Map();
-  for (const event of events) {
-    if ((event.type === "promotion_trial_completed" || event.type === "promotion_trial_failed") && event.trialId) {
-      terminalById.set(event.trialId, event);
-    }
-  }
-
-  const startedIds = new Set(events
-    .filter((event) => event.type === "promotion_trial_started" && event.trialId)
-    .map((event) => event.trialId));
+function promotionTrialQueue(events, options = {}) {
+  const nowMs = options.now instanceof Date ? options.now.getTime() : Date.now();
+  const maxAttempts = Number(options.maxAttempts ?? PROMOTION_TRIAL_MAX_ATTEMPTS);
+  const eventsByTrial = new Map();
   const byId = new Map();
+
   for (const event of events) {
+    if (event.trialId) {
+      const list = eventsByTrial.get(event.trialId) ?? [];
+      list.push(event);
+      eventsByTrial.set(event.trialId, list);
+    }
     if (!Array.isArray(event.promotionTrials)) {
       continue;
     }
-
     for (const trial of event.promotionTrials) {
       if (!trial?.id || !Array.isArray(trial.command) || trial.command.length < 3) {
         continue;
@@ -2828,26 +2875,21 @@ function promotionTrialQueue(events) {
   const items = [...byId.values()]
     .sort((left, right) => left.trialId.localeCompare(right.trialId))
     .map((item) => {
-      const terminal = terminalById.get(item.trialId);
-      const status = terminal?.type === "promotion_trial_completed"
-        ? "completed"
-        : terminal?.type === "promotion_trial_failed"
-          ? "failed"
-          : startedIds.has(item.trialId)
-            ? "running"
-            : replayTrialExecutionSafety(item).safe
-              ? "ready"
-              : "blocked";
+      const trialEvents = eventsByTrial.get(item.trialId) ?? [];
       const safety = replayTrialExecutionSafety(item);
+      const state = promotionTrialExecutionState(trialEvents, safety, nowMs, maxAttempts);
 
       return {
         ...item,
-        status,
-        blockers: status === "blocked" ? safety.blockers : [],
-        promotedId: terminal?.promotedId ?? null,
-        rejectedId: terminal?.rejectedId ?? null,
-        replayAuditStatus: terminal?.replayAuditStatus ?? null,
-        error: terminal?.error ?? null,
+        status: state.status,
+        attempt: state.attempt,
+        runId: state.runId,
+        leaseExpiresAt: state.leaseExpiresAt,
+        blockers: state.status === "blocked" ? safety.blockers : [],
+        promotedId: state.terminal?.promotedId ?? null,
+        rejectedId: state.terminal?.rejectedId ?? null,
+        replayAuditStatus: state.terminal?.replayAuditStatus ?? null,
+        error: state.error,
       };
     });
 
@@ -2859,6 +2901,84 @@ function promotionTrialQueue(events) {
     completed: items.filter((item) => item.status === "completed").length,
     failed: items.filter((item) => item.status === "failed").length,
     items,
+  };
+}
+
+function promotionTrialExecutionState(trialEvents, safety, nowMs, maxAttempts) {
+  const starts = trialEvents.filter((event) => event.type === "promotion_trial_started");
+  const terminals = trialEvents.filter((event) => event.type === "promotion_trial_completed" || event.type === "promotion_trial_failed");
+  const latestStart = starts.at(-1) ?? null;
+  const latestTerminal = terminals.at(-1) ?? null;
+  const attempt = starts.length + 1;
+
+  if (latestTerminal && (!latestStart || eventTime(latestTerminal) >= eventTime(latestStart))) {
+    if (latestTerminal.type === "promotion_trial_completed") {
+      return {
+        status: "completed",
+        attempt: starts.length,
+        runId: latestTerminal.runId ?? null,
+        leaseExpiresAt: null,
+        terminal: latestTerminal,
+        error: null,
+      };
+    }
+
+    if (starts.length >= maxAttempts) {
+      return {
+        status: "failed",
+        attempt: starts.length,
+        runId: latestTerminal.runId ?? null,
+        leaseExpiresAt: null,
+        terminal: latestTerminal,
+        error: latestTerminal.error ?? "promotion trial failed",
+      };
+    }
+  }
+
+  if (!safety.safe) {
+    return {
+      status: "blocked",
+      attempt,
+      runId: null,
+      leaseExpiresAt: null,
+      terminal: latestTerminal,
+      error: safety.reason,
+    };
+  }
+
+  if (latestStart && (!latestTerminal || eventTime(latestTerminal) < eventTime(latestStart))) {
+    const leaseExpiresAt = Date.parse(latestStart.leaseExpiresAt ?? "");
+    const leaseExpired = Number.isFinite(leaseExpiresAt) && leaseExpiresAt <= nowMs;
+    if (!leaseExpired) {
+      return {
+        status: "running",
+        attempt: starts.length,
+        runId: latestStart.runId ?? null,
+        leaseExpiresAt: latestStart.leaseExpiresAt ?? null,
+        terminal: null,
+        error: null,
+      };
+    }
+
+    if (starts.length >= maxAttempts) {
+      return {
+        status: "failed",
+        attempt: starts.length,
+        runId: latestStart.runId ?? null,
+        leaseExpiresAt: latestStart.leaseExpiresAt ?? null,
+        terminal: null,
+        error: "promotion trial lease expired after max attempts",
+      };
+    }
+  }
+
+  return {
+    status: "ready",
+    attempt,
+    runId: null,
+    leaseExpiresAt: null,
+    terminal: latestTerminal,
+    error: null,
   };
 }
 
