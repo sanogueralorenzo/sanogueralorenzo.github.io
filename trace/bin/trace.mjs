@@ -86,6 +86,11 @@ async function main() {
     return;
   }
 
+  if (command === "session") {
+    await runSessionCommand(subcommand, rawArgs);
+    return;
+  }
+
   if (command === "agent") {
     await runAgentCommand(subcommand, rawArgs);
     return;
@@ -689,6 +694,96 @@ async function captureEvent() {
     source: args.source ?? "manual",
   });
   print({ ok: true, session: event.session_id, event: event.event });
+}
+
+async function runSessionCommand(action, values) {
+  if (!action || action === "list") {
+    await listSessions();
+    return;
+  }
+
+  if (action === "current") {
+    await showCurrentSession();
+    return;
+  }
+
+  if (action === "show") {
+    await showSession(values[0] ?? args.session);
+    return;
+  }
+
+  fail(`unknown session command: ${action}`);
+}
+
+async function listSessions() {
+  const root = await repoRoot();
+  print({ ok: true, current: await readCurrentSession(root).catch(() => null), sessions: await sessionSummaries(root) });
+}
+
+async function showCurrentSession() {
+  const root = await repoRoot();
+  print({ ok: true, current: await readCurrentSession(root).catch(() => null) });
+}
+
+async function showSession(sessionId) {
+  if (!sessionId) {
+    fail("session id is required");
+  }
+
+  const root = await repoRoot();
+  const events = await readSessionEvents(root, sessionId).catch((error) => fail(`session ${sessionId} not found or unreadable: ${error.message}`));
+  const limit = args.limit == null ? events.length : parsePositiveInteger(args.limit, "--limit");
+  print({
+    ok: true,
+    session: sessionId,
+    path: relativePath(root, await sessionPath(root, sessionId)),
+    events: events.slice(Math.max(0, events.length - limit)),
+  });
+}
+
+async function sessionSummaries(root) {
+  const dir = join(await gitCommonDir(root), "trace", "sessions");
+  if (!await exists(dir)) {
+    return [];
+  }
+
+  const sessions = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".jsonl")) {
+      continue;
+    }
+    sessions.push(await sessionSummary(root, join(dir, entry.name)));
+  }
+
+  return sessions.sort((left, right) => String(right.last_at ?? "").localeCompare(String(left.last_at ?? "")));
+}
+
+async function sessionSummary(root, file) {
+  const events = (await readFile(file, "utf8")).split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  const counts = {};
+  const sources = new Set();
+  const adapters = new Set();
+
+  for (const event of events) {
+    counts[event.event] = (counts[event.event] ?? 0) + 1;
+    if (event.source) {
+      sources.add(event.source);
+    }
+    if (event.adapter) {
+      adapters.add(event.adapter);
+    }
+  }
+
+  return {
+    session: file.split("/").pop().replace(/\.jsonl$/, ""),
+    path: relativePath(root, file),
+    events: events.length,
+    first_at: events[0]?.created_at ?? null,
+    last_at: events.at(-1)?.created_at ?? null,
+    counts,
+    sources: Array.from(sources).sort(),
+    adapters: Array.from(adapters).sort(),
+  };
 }
 
 async function runRedactCommand(action, values) {
@@ -1835,6 +1930,9 @@ Usage:
   trace init
   trace enable
   trace capture --event prompt --role user --message "why this change exists"
+  trace session list
+  trace session current
+  trace session show <session> [--limit 20]
   trace agent add <codex|claude-code|gemini|generic>
   trace agent list
   trace agent remove <codex|claude-code|gemini|generic>

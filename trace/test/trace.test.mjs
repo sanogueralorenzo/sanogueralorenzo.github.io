@@ -566,6 +566,20 @@ test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle ev
     assert.equal(events[1].message, "explain the storage tradeoff");
     assert.equal(events[2].message, "memory summary completed");
     assert.equal(events[3].message, "npm --prefix trace test passed");
+
+    const listed = JSON.parse((await runTrace(repo, ["session", "list"])).stdout);
+    assert.equal(listed.current, "adapter-session");
+    assert.equal(listed.sessions[0].session, "adapter-session");
+    assert.equal(listed.sessions[0].events, 4);
+    assert.deepEqual(listed.sessions[0].counts, { tool: 1, prompt: 1, response: 1, validation: 1 });
+    assert.deepEqual(listed.sessions[0].adapters, ["claude-code", "codex", "gemini", "generic"]);
+
+    const current = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
+    assert.equal(current.current, "adapter-session");
+
+    const shown = JSON.parse((await runTrace(repo, ["session", "show", "adapter-session", "--limit", "2"])).stdout);
+    assert.equal(shown.session, "adapter-session");
+    assert.deepEqual(shown.events.map((event) => event.event), ["response", "validation"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
