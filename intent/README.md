@@ -157,7 +157,7 @@ Validation expectations:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
-- Graph `Type` nodes are the next Phase 2 static-model milestone. Type node
+- Graph `Type` nodes are runtime type metadata. Type node
   data must carry `definition` as `null` or a non-empty string representing the
   declared structural or alias body. Malformed Type node payloads emit
   `INTENT_GRAPH_TYPE_INVALID` and make graph output non-executable because
@@ -185,6 +185,13 @@ Validation expectations:
   emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable
   because runtimes must not infer executable inputs, side effects, gates,
   checkpoints, approvals, timeouts, retries, or output types.
+- Graph `Completion` nodes are the next Phase 2 static-model milestone.
+  Completion node data must carry `outputType` as `null` or a non-empty string
+  and `outputTypeSpan` as `null` or a valid span. Malformed Completion node
+  payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make graph output
+  non-executable. This runtime payload contract is separate from the existing
+  completion-edge contract, which still requires `completes`, `produces`,
+  `verifies`, and invariant `guards` edges.
 - Graph `Effect` nodes are runtime adapter invocations. They must carry valid
   adapter data: `data.family` and `data.action` must be non-empty strings,
   `data.args`, `data.argKinds`, and `data.argSpans` must be objects, every

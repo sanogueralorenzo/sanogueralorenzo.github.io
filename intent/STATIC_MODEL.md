@@ -111,7 +111,7 @@ Rules:
   parameter object itself.
 - Goal and step output type tokens keep `outputTypeSpan` alongside
   `outputType`; it is `null` when no output type is declared.
-- Goal, Step, and Completion graph node data may carry the same
+- Goal, Step, and Completion graph node data carry the same
   `outputTypeSpan` so diagnostics can point at the exact declared output type
   instead of the wider node span.
 - Graph node and edge data that embeds parameters keeps those parameter spans
@@ -382,8 +382,8 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
-- Runtime Type node metadata is the next Phase 2 static-model milestone.
-  `Type` node data must carry `definition` as `null` or a non-empty string
+- Runtime Type node metadata is part of graph validation. `Type` node data must
+  carry `definition` as `null` or a non-empty string
   representing the declared structural or alias body. Malformed Type node
   payloads emit `INTENT_GRAPH_TYPE_INVALID` and make graph output
   non-executable because runtimes must not infer structural or alias type
@@ -404,6 +404,13 @@ Next graph envelope validation milestone:
   emit `INTENT_GRAPH_STEP_INVALID` and make graph output non-executable because
   runtimes must not infer executable inputs, side effects, gates, checkpoints,
   approvals, timeouts, retries, or output types.
+- Runtime Completion node metadata is the next Phase 2 static-model milestone.
+  `Completion` node data must carry `outputType` as `null` or a non-empty
+  string and `outputTypeSpan` as `null` or a valid span. Malformed Completion
+  node payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make graph output
+  non-executable. This runtime payload contract is separate from the existing
+  completion-edge contract, which still requires `completes`, `produces`,
+  `verifies`, and invariant `guards` edges.
 - Runtime input metadata is part of graph validation. Goal inputs and step
   inputs must carry `data.scope` as either `goal` or `step` and a non-empty
   `data.type`. Step input nodes must additionally be attached to their owning
@@ -600,6 +607,8 @@ blocking diagnostics.
   `data.parameters` as an array of valid parameter records with non-empty
   `name` and `type` strings and valid spans, `data.outputType` as `null` or a
   non-empty string, and `data.outputTypeSpan` as `null` or a valid span.
+- Emit every `Completion` node with `data.outputType` as `null` or a non-empty
+  string and `data.outputTypeSpan` as `null` or a valid span.
 - Emit each invariant statement as an `Invariant` node with `guards` edges to
   completion and to every effect, checkpoint, and step requirement check in the
   same goal.
@@ -1767,6 +1776,10 @@ array data for `inputs`, `effects`, `requirements`, `checkpoints`, `approvals`,
 with non-empty `name` and `type` strings and a valid `span`, when `outputType`
 is neither `null` nor a non-empty string, or when `outputTypeSpan` is neither
 `null` nor a valid span.
+Graph validation emits `INTENT_GRAPH_COMPLETION_INVALID` when a `Completion`
+node omits `outputType` or `outputTypeSpan` data, when `outputType` is neither
+`null` nor a non-empty string, or when `outputTypeSpan` is neither `null` nor a
+valid span.
 Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
 multiple `Step` nodes does not have exactly one linear `precedes` chain across
 those steps, or when the `Step` producing `Completion` is not the tail step of
@@ -1788,6 +1801,7 @@ above, whose edge endpoint does not resolve inside the same payload, whose
 `Type` nodes omit valid runtime Type node data, whose
 `Goal` nodes omit valid runtime Goal node data, whose
 `Step` nodes omit valid runtime Step node data, whose
+`Completion` nodes omit valid runtime Completion node data, whose
 `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
 nodes omit valid runtime retention lifecycle data, whose `Policy` nodes omit
 valid runtime step execution policy data, whose `Approval` nodes omit valid
@@ -1950,7 +1964,12 @@ Invariants that apply to the goal create `guards` edges to completion and to
 every effect, checkpoint, and step requirement check in that goal. The last
 executable step in the plan creates a `produces` edge to completion. That edge
 may carry `data.sourceSpan` for the final step output type and
-`data.targetSpan` for the goal output type. Graph validation emits
+`data.targetSpan` for the goal output type. Completion node data also carries
+`outputType` as `null` or a non-empty string and `outputTypeSpan` as `null` or
+a valid span; malformed Completion payload data emits
+`INTENT_GRAPH_COMPLETION_INVALID` and makes graph output non-executable. This
+node payload contract is separate from the completion-edge contract. Graph
+validation emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a `Goal` node lacks its
 `${goal_id}:completion` `Completion` node, lacks exactly one outgoing
 `completes` edge to that node, or has `completes` edges to another completion.
