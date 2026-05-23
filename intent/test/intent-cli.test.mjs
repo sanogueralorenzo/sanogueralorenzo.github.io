@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import { validateGraph } from "../bin/intent.mjs";
 
 const CLI = new URL("../bin/intent.mjs", import.meta.url).pathname;
+const STATIC_MODEL = new URL("../STATIC_MODEL.md", import.meta.url).pathname;
 const AST_SCHEMA = new URL("../schemas/intent.ast.v0.schema.json", import.meta.url).pathname;
 const CHECK_SCHEMA = new URL("../schemas/intent.check.v0.schema.json", import.meta.url).pathname;
 const GRAPH_SCHEMA = new URL("../schemas/intent.graph.v0.schema.json", import.meta.url).pathname;
@@ -69,6 +70,18 @@ function run(args) {
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
+}
+
+function emittedDiagnosticCodes() {
+  const source = readFileSync(CLI, "utf8");
+  const errorCallCodes = [...source.matchAll(/error\("([A-Z0-9_]+)"/g)].map((match) => match[1]);
+  const literalCodes = [...source.matchAll(/code:\s*"([A-Z0-9_]+)"/g)].map((match) => match[1]);
+  return [...new Set([...errorCallCodes, ...literalCodes])].sort();
+}
+
+function documentedDiagnosticCodes() {
+  const source = readFileSync(STATIC_MODEL, "utf8");
+  return [...new Set([...source.matchAll(/`(INTENT_[A-Z0-9_]+)`/g)].map((match) => match[1]))].sort();
 }
 
 function testSpan(line) {
@@ -1262,6 +1275,15 @@ describe("intent static model CLI", () => {
     assert.equal(missingDiagnostics[0].code, "INTENT_GRAPH_SCHEMA_INVALID");
     assert.equal(missingDiagnostics[0].schema_version, null);
     assert.equal(missingDiagnostics[0].ast_schema_version, null);
+  });
+
+  it("documents every emitted diagnostic code", () => {
+    const emitted = emittedDiagnosticCodes();
+    const documented = documentedDiagnosticCodes();
+    const missing = emitted.filter((code) => !documented.includes(code));
+
+    assert.deepEqual(missing, []);
+    assert.equal(documented.includes("INTENT_GRAPH_ENVELOPE_UNSUPPORTED"), false);
   });
 
   it("validates graph envelope provenance diagnostics", () => {
