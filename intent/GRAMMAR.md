@@ -309,7 +309,9 @@ capability matching and graph emission. The registry currently covers file
 read/write, shell run, web read, git push, git commit, secret read, ticket
 update, and deploy adapter aliases. Unknown or custom effect calls continue to
 use fallback family/action parsing until a later adapter schema makes custom
-contracts explicit.
+contracts explicit. The registry is also emitted as
+`intent.effect-contracts.v0`, and graph effect payloads reference the selected
+entry with `contractId` and canonical-to-source `contractArguments`.
 
 Git commit effects use a named `message` constrained argument. The checker
 binds `GitCommit(message: "...")` and `git.commit(message: "...")` to in-scope

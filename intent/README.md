@@ -51,6 +51,7 @@ node intent/bin/intent.mjs parse intent/fixtures/valid_code_change.intent
 node intent/bin/intent.mjs check intent/fixtures/valid_code_change.intent
 node intent/bin/intent.mjs graph intent/fixtures/valid_code_change.intent
 node intent/bin/intent.mjs graph intent/examples/code_change.intent
+node intent/bin/intent.mjs contracts
 node --test intent/test/*.test.mjs
 ```
 
@@ -72,12 +73,15 @@ Every successful command writes formatted JSON to stdout and includes a stable
 - `graph`: emits `intent.graph.v0`, an execution graph envelope with
   `ast_schema_version`, `source`, `package`, `ok`, `diagnostics`, `nodes`, and
   `edges`.
+- `contracts`: emits `intent.effect-contracts.v0`, the effect adapter contract
+  registry used to normalize effect calls before checking and graph emission.
 
 The schema files for the contract milestone are expected at these paths:
 
 - `intent/schemas/intent.ast.v0.schema.json`
 - `intent/schemas/intent.check.v0.schema.json`
 - `intent/schemas/intent.graph.v0.schema.json`
+- `intent/schemas/intent.effect-contracts.v0.schema.json`
 
 Schema names and `schema_version` values must move together. A breaking payload
 change requires a new schema version and a new schema file instead of silently
@@ -455,7 +459,11 @@ Validation expectations:
   approval requirement.
 - Effect adapter family, action, constrained arguments, aliases, and
   trust-sensitive sinks are normalized through the v0 effect contract registry
-  before graph emission.
+  before graph emission. Effect nodes and verification-effect payloads carry a
+  stable `contractId` plus `contractArguments` references so runtimes can verify
+  which adapter contract and source argument aliases were selected. Effect
+  authorization edges also carry the selected contract id and matched grant
+  argument records.
 - Graph `Check` nodes are runtime verification gates, not executable steps.
   They must carry a non-empty `data.requirement`; optional `data.scope` must be
   either `goal` or `step`. Step-scoped checks must also carry non-empty

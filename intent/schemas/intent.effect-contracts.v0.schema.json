@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sanogueralorenzo.github.io/intent/schemas/intent.effect-contracts.v0.schema.json",
+  "title": "Intent Effect Contracts v0",
+  "type": "object",
+  "required": ["schema_version", "contracts"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "intent.effect-contracts.v0"
+    },
+    "contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/contract"
+      }
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contract": {
+      "type": "object",
+      "required": ["id", "family", "action", "match", "arguments"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "family": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "action": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "match": {
+          "$ref": "#/$defs/match"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          }
+        }
+      }
+    },
+    "match": {
+      "type": "object",
+      "required": ["exact", "prefix"],
+      "additionalProperties": false,
+      "properties": {
+        "exact": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "prefix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        }
+      }
+    },
+    "argument": {
+      "type": "object",
+      "required": ["key", "aliases", "normalize", "trustSink"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "aliases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          }
+        },
+        "normalize": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "trustSink": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/non_empty_string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

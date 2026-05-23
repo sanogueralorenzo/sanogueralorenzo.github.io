@@ -7,6 +7,7 @@ const VERSION = "intent.static.v0";
 const AST_SCHEMA_VERSION = "intent.ast.v0";
 const CHECK_SCHEMA_VERSION = "intent.check.v0";
 const GRAPH_SCHEMA_VERSION = "intent.graph.v0";
+const EFFECT_CONTRACT_SCHEMA_VERSION = "intent.effect-contracts.v0";
 const sourceLineOffsets = new Map();
 const BUILTIN_TYPES = new Set([
   "String",
@@ -72,17 +73,19 @@ const GRAPH_EDGE_KINDS = new Set([
 const TRUST_ZONES = new Set(["trusted", "untrusted", "unknown"]);
 const EFFECT_CONTRACTS = [
   {
+    id: "intent.effect.file.read.v0",
     family: "file",
     action: "read",
-    match: /^(FileRead|ReadFile|fs\.read|file\.read)$/,
+    match: { exact: ["FileRead", "ReadFile", "fs.read", "file.read"] },
     arguments: [
       { key: "path", aliases: ["path", "paths", "_0"], normalize: "path" },
     ],
   },
   {
+    id: "intent.effect.file.write.v0",
     family: "file",
     action: "write",
-    match: /^(FileWrite|WriteFile|fs\.write|file\.write)$/,
+    match: { exact: ["FileWrite", "WriteFile", "fs.write", "file.write"] },
     arguments: [
       {
         key: "path",
@@ -93,9 +96,10 @@ const EFFECT_CONTRACTS = [
     ],
   },
   {
+    id: "intent.effect.shell.run.v0",
     family: "shell",
     action: "run",
-    match: /^(ShellExec|shell\.exec|Command)$/,
+    match: { exact: ["ShellExec", "shell.exec", "Command"] },
     arguments: [
       {
         key: "command",
@@ -106,18 +110,20 @@ const EFFECT_CONTRACTS = [
     ],
   },
   {
+    id: "intent.effect.web.read.v0",
     family: "web",
     action: "read",
-    match: /^(Http|HttpGet|Web|WebRead|web\.read|http\.get|http\.request)$/,
+    match: { exact: ["Http", "HttpGet", "Web", "WebRead", "web.read", "http.get", "http.request"] },
     arguments: [
       { key: "domain", aliases: ["domain", "domains"], normalize: "domain" },
       { key: "domain", aliases: ["url", "urls", "_0"], normalize: "url_domain" },
     ],
   },
   {
+    id: "intent.effect.git.push.v0",
     family: "git",
     action: "push",
-    match: /^(GitPush|git\.push)$/,
+    match: { exact: ["GitPush", "git.push"] },
     arguments: [
       {
         key: "branch",
@@ -134,9 +140,10 @@ const EFFECT_CONTRACTS = [
     ],
   },
   {
+    id: "intent.effect.git.commit.v0",
     family: "git",
     action: "commit",
-    match: /^(GitCommit|git\.commit)$/,
+    match: { exact: ["GitCommit", "git.commit"] },
     arguments: [
       {
         key: "message",
@@ -147,9 +154,10 @@ const EFFECT_CONTRACTS = [
     ],
   },
   {
+    id: "intent.effect.deploy.deploy.v0",
     family: "deploy",
     action: "deploy",
-    match: /^(Deploy|deploy\.)/,
+    match: { exact: ["Deploy"], prefix: ["deploy."] },
     arguments: [
       {
         key: "target",
@@ -160,17 +168,19 @@ const EFFECT_CONTRACTS = [
     ],
   },
   {
+    id: "intent.effect.ticket.update.v0",
     family: "ticket",
     action: "update",
-    match: /^(Ticket|ticket\.)/,
+    match: { exact: ["Ticket", "TicketUpdate"], prefix: ["ticket."] },
     arguments: [
       { key: "id", aliases: ["id", "_0"], normalize: "ticket", trustSink: "ticket id" },
     ],
   },
   {
+    id: "intent.effect.secret.read.v0",
     family: "secret",
     action: "read",
-    match: /^(SecretRead|Secret|secret\.read|secret\.)/,
+    match: { exact: ["SecretRead", "Secret"], prefix: ["secret."] },
     arguments: [
       {
         key: "name",
@@ -185,11 +195,13 @@ const EFFECT_CONTRACTS = [
 function usage() {
   return [
     "Usage: node intent/bin/intent.mjs <parse|check|graph> <file.intent> [--json]",
+    "       node intent/bin/intent.mjs contracts",
     "",
     "Commands:",
-    "  parse   Parse Intent source and emit AST JSON.",
-    "  check   Run static checks and emit diagnostics.",
-    "  graph   Emit a machine-readable execution graph.",
+    "  parse      Parse Intent source and emit AST JSON.",
+    "  check      Run static checks and emit diagnostics.",
+    "  graph      Emit a machine-readable execution graph.",
+    "  contracts  Emit the v0 effect adapter contract registry.",
   ].join("\n");
 }
 
@@ -199,10 +211,14 @@ function main(argv) {
     console.log(usage());
     return 0;
   }
-  if (!["parse", "check", "graph"].includes(command)) {
+  if (!["parse", "check", "graph", "contracts"].includes(command)) {
     console.error(`intent: unknown command '${command}'`);
     console.error(usage());
     return 2;
+  }
+  if (command === "contracts") {
+    printJson(effectContractRegistry());
+    return 0;
   }
   if (!file) {
     console.error("intent: missing source file");
@@ -1460,6 +1476,8 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         nodes.push(node(effectId, "Effect", effectUse.name, effectUse.span, {
           family: effectUse.family,
           action: effectUse.action,
+          contractId: effectContractId(effectUse),
+          contractArguments: effectContractArgumentRefs(effectUse),
           args: effectUse.args,
           argKinds: effectUse.argKinds,
           argSpans: effectUse.argSpans,
@@ -1478,7 +1496,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         guardTargetIds.push(effectId);
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
           if (isFamilyMatch(effectUse.family, capability.family) && !getCapabilityDenial(effectUse, [capability])) {
-            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, effectId, "authorizes"));
+            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, effectId, "authorizes", authorizationEdgeData(effectUse, capability)));
           }
         }
       }
@@ -1510,6 +1528,8 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         effect: {
           family: effect.family,
           action: effect.action,
+          contractId: effectContractId(effect),
+          contractArguments: effectContractArgumentRefs(effect),
           args: effect.args,
           argKinds: effect.argKinds,
           argSpans: effect.argSpans,
@@ -1534,7 +1554,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       if (effect) {
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
           if (isFamilyMatch(effect.family, capability.family) && !getCapabilityDenial(effect, [capability])) {
-            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, id, "authorizes"));
+            edges.push(edge(`${goalId}:capability:${capabilityIndex}`, id, "authorizes", authorizationEdgeData(effect, capability)));
           }
         }
       }
@@ -3394,12 +3414,13 @@ function validateGraphEffect(graphNode, graphSpan) {
   }
   const familyIsNonempty = typeof graphNode.data.family === "string" && graphNode.data.family.trim() !== "";
   const actionIsNonempty = typeof graphNode.data.action === "string" && graphNode.data.action.trim() !== "";
+  const contractDiagnostic = validateGraphEffectContract(graphNode.data);
   const argsIsObject = isPlainObject(graphNode.data.args);
   const argKindsIsObject = isPlainObject(graphNode.data.argKinds);
   const argSpansIsObject = isPlainObject(graphNode.data.argSpans);
   const argSpansAreValid = argSpansIsObject && Object.values(graphNode.data.argSpans).every(isSpan);
   const approvalRequiredIsBoolean = typeof graphNode.data.approvalRequired === "boolean";
-  if (familyIsNonempty && actionIsNonempty && argsIsObject && argKindsIsObject && argSpansAreValid && approvalRequiredIsBoolean) {
+  if (familyIsNonempty && actionIsNonempty && !contractDiagnostic && argsIsObject && argKindsIsObject && argSpansAreValid && approvalRequiredIsBoolean) {
     return null;
   }
   return error("INTENT_GRAPH_EFFECT_INVALID", `effect '${graphNode.label}' must carry valid runtime adapter data.`, graphNode.span ?? graphSpan, {
@@ -3409,6 +3430,12 @@ function validateGraphEffect(graphNode, graphSpan) {
     action: typeof graphNode.data.action === "string" ? graphNode.data.action : null,
     family_is_nonempty: familyIsNonempty,
     action_is_nonempty: actionIsNonempty,
+    contract_id: typeof graphNode.data.contractId === "string" ? graphNode.data.contractId : null,
+    contract_id_is_nonempty: typeof graphNode.data.contractId === "string" && graphNode.data.contractId.trim() !== "",
+    contract_is_known: contractDiagnostic ? contractDiagnostic.contract_is_known : true,
+    contract_family_matches: contractDiagnostic ? contractDiagnostic.contract_family_matches : true,
+    contract_action_matches: contractDiagnostic ? contractDiagnostic.contract_action_matches : true,
+    contract_arguments_are_valid: contractDiagnostic ? contractDiagnostic.contract_arguments_are_valid : true,
     args_is_object: argsIsObject,
     arg_kinds_is_object: argKindsIsObject,
     arg_spans_is_object: argSpansIsObject,
@@ -3459,6 +3486,7 @@ function validateGraphCheck(graphNode, graphSpan) {
   const effect = effectIsObject && effectIsPresent ? graphNode.data.effect : {};
   const effectFamilyIsNonempty = !effectIsPresent || (typeof effect.family === "string" && effect.family.trim() !== "");
   const effectActionIsNonempty = !effectIsPresent || (typeof effect.action === "string" && effect.action.trim() !== "");
+  const effectContractDiagnostic = !effectIsPresent || !effectIsObject ? null : validateGraphEffectContract(effect);
   const effectArgsIsObject = !effectIsPresent || isPlainObject(effect.args);
   const effectArgKindsIsObject = !effectIsPresent || isPlainObject(effect.argKinds);
   const effectArgSpansIsObject = !effectIsPresent || isPlainObject(effect.argSpans);
@@ -3471,6 +3499,7 @@ function validateGraphCheck(graphNode, graphSpan) {
     && effectIsObject
     && effectFamilyIsNonempty
     && effectActionIsNonempty
+    && !effectContractDiagnostic
     && effectArgsIsObject
     && effectArgKindsIsObject
     && effectArgSpansAreValid
@@ -3488,11 +3517,38 @@ function validateGraphCheck(graphNode, graphSpan) {
     effect_is_object: effectIsObject,
     effect_family_is_nonempty: effectFamilyIsNonempty,
     effect_action_is_nonempty: effectActionIsNonempty,
+    effect_contract_id: typeof effect.contractId === "string" ? effect.contractId : null,
+    effect_contract_id_is_nonempty: !effectIsPresent || (typeof effect.contractId === "string" && effect.contractId.trim() !== ""),
+    effect_contract_is_known: effectContractDiagnostic ? effectContractDiagnostic.contract_is_known : true,
+    effect_contract_family_matches: effectContractDiagnostic ? effectContractDiagnostic.contract_family_matches : true,
+    effect_contract_action_matches: effectContractDiagnostic ? effectContractDiagnostic.contract_action_matches : true,
+    effect_contract_arguments_are_valid: effectContractDiagnostic ? effectContractDiagnostic.contract_arguments_are_valid : true,
     effect_args_is_object: effectArgsIsObject,
     effect_arg_kinds_is_object: effectArgKindsIsObject,
     effect_arg_spans_is_object: effectArgSpansIsObject,
     effect_arg_spans_are_valid: effectArgSpansAreValid,
   });
+}
+
+function validateGraphEffectContract(effectData) {
+  if (effectData.contractId === undefined && effectData.contractArguments === undefined) {
+    return null;
+  }
+  const contractIdIsNonempty = typeof effectData.contractId === "string" && effectData.contractId.trim() !== "";
+  const contract = contractIdIsNonempty ? effectContractById(effectData.contractId) : null;
+  const contractArgumentsAreValid = validateContractArgumentRefs(contract, effectData);
+  const contractFamilyMatches = Boolean(contract) && effectData.family === contract.family;
+  const contractActionMatches = Boolean(contract) && effectData.action === contract.action;
+  if (contractIdIsNonempty && contract && contractFamilyMatches && contractActionMatches && contractArgumentsAreValid) {
+    return null;
+  }
+  return {
+    contract_id_is_nonempty: contractIdIsNonempty,
+    contract_is_known: Boolean(contract),
+    contract_family_matches: contractFamilyMatches,
+    contract_action_matches: contractActionMatches,
+    contract_arguments_are_valid: contractArgumentsAreValid,
+  };
 }
 
 function validateGraphNodeTrust(graphNode, graphSpan) {
@@ -4479,18 +4535,52 @@ function effectAction(name) {
   return effectContractByName(normalizedEffectName(name))?.action ?? null;
 }
 
+function effectContractId(effect) {
+  return effectContractForAccess(effect)?.id ?? null;
+}
+
 function normalizedEffectName(name) {
   return name.replace(/^Effect\./, "");
 }
 
 function effectContractByName(name) {
-  return EFFECT_CONTRACTS.find((contract) => contract.match.test(name)) ?? null;
+  return EFFECT_CONTRACTS.find((contract) => contractMatchesName(contract, name)) ?? null;
+}
+
+function effectContractById(id) {
+  return EFFECT_CONTRACTS.find((contract) => contract.id === id) ?? null;
+}
+
+function contractMatchesName(contract, name) {
+  return (contract.match.exact ?? []).includes(name)
+    || (contract.match.prefix ?? []).some((prefix) => name.startsWith(prefix));
 }
 
 function effectContractForAccess(effect) {
   return EFFECT_CONTRACTS.find((contract) => {
     return effect.family === contract.family && effect.action === contract.action;
   }) ?? null;
+}
+
+function effectContractRegistry() {
+  return {
+    schema_version: EFFECT_CONTRACT_SCHEMA_VERSION,
+    contracts: EFFECT_CONTRACTS.map((contract) => ({
+      id: contract.id,
+      family: contract.family,
+      action: contract.action,
+      match: {
+        exact: contract.match.exact ?? [],
+        prefix: contract.match.prefix ?? [],
+      },
+      arguments: contract.arguments.map((argument) => ({
+        key: argument.key,
+        aliases: argument.aliases,
+        normalize: argument.normalize,
+        trustSink: argument.trustSink ?? null,
+      })),
+    })),
+  };
 }
 
 function isEffectAuthorized(effect, capabilities) {
@@ -4550,6 +4640,32 @@ function getCapabilityDenial(effect, capabilities) {
   }
 
   return null;
+}
+
+function authorizationEdgeData(effect, capability) {
+  const contractId = effectContractId(effect);
+  const contractArguments = effectContractArgumentRefs(effect);
+  const grants = effectArguments(effect).map((argument) => {
+    const grant = (capability.grants ?? []).find((candidate) => {
+      return candidate.action === effect.action
+        && candidate.key === argument.key
+        && isGrantMatch(argument, candidate);
+    });
+    if (!grant) return null;
+    return {
+      argument: argument.key,
+      sourceArgument: contractArguments[argument.key] ?? argument.key,
+      value: argument.value,
+      grantAction: grant.action,
+      grantKey: grant.key,
+      grantValue: grant.value,
+    };
+  }).filter(Boolean);
+  return {
+    contractId,
+    contractArguments,
+    grants,
+  };
 }
 
 function getTrustFlowDiagnostic(effect) {
@@ -4701,6 +4817,41 @@ function effectArgumentRawValue(effect, key) {
 
 function effectArgumentAliasValues(values, key) {
   return effectArgumentAliases(key).map((alias) => values[alias]);
+}
+
+function effectContractArgumentRefs(effect) {
+  const contract = effectContractForAccess(effect);
+  if (!contract) return {};
+  const refs = {};
+  const seenKeys = new Set();
+  for (const argument of contract.arguments) {
+    if (seenKeys.has(argument.key)) continue;
+    const source = argument.aliases.find((alias) => typeof effect.args?.[alias] === "string");
+    if (!source) continue;
+    seenKeys.add(argument.key);
+    refs[argument.key] = source;
+  }
+  return refs;
+}
+
+function validateContractArgumentRefs(contract, effectData) {
+  if (!contract || !isPlainObject(effectData.contractArguments) || !isPlainObject(effectData.args)) {
+    return false;
+  }
+  const contractArgumentsByKey = new Map();
+  for (const argument of contract.arguments) {
+    const existing = contractArgumentsByKey.get(argument.key) ?? new Set();
+    for (const alias of argument.aliases) {
+      existing.add(alias);
+    }
+    contractArgumentsByKey.set(argument.key, existing);
+  }
+  return Object.entries(effectData.contractArguments).every(([key, source]) => {
+    return typeof source === "string"
+      && source.trim() !== ""
+      && contractArgumentsByKey.get(key)?.has(source)
+      && typeof effectData.args[source] === "string";
+  });
 }
 
 function effectArgumentAliases(key) {

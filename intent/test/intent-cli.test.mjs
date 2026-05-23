@@ -11,6 +11,7 @@ const STATIC_MODEL = new URL("../STATIC_MODEL.md", import.meta.url).pathname;
 const AST_SCHEMA = new URL("../schemas/intent.ast.v0.schema.json", import.meta.url).pathname;
 const CHECK_SCHEMA = new URL("../schemas/intent.check.v0.schema.json", import.meta.url).pathname;
 const GRAPH_SCHEMA = new URL("../schemas/intent.graph.v0.schema.json", import.meta.url).pathname;
+const EFFECT_CONTRACT_SCHEMA = new URL("../schemas/intent.effect-contracts.v0.schema.json", import.meta.url).pathname;
 const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import.meta.url).pathname;
 const VALID_CHECKPOINT_GRAPH = new URL("../fixtures/valid_checkpoint_graph.intent", import.meta.url).pathname;
 const VALID_CONTEXT_TRUST_GRAPH = new URL("../fixtures/valid_context_trust_graph.intent", import.meta.url).pathname;
@@ -192,6 +193,8 @@ function defaultGraphNodeData(kind, data) {
     return {
       family: "file",
       action: "write",
+      contractId: "intent.effect.file.write.v0",
+      contractArguments: {},
       args: {},
       argKinds: {},
       argSpans: {},
@@ -259,6 +262,8 @@ function defaultGraphNodeData(kind, data) {
       baseData.effect = {
         family: "shell",
         action: "run",
+        contractId: "intent.effect.shell.run.v0",
+        contractArguments: {},
         args: {},
         argKinds: {},
         argSpans: {},
@@ -654,6 +659,9 @@ describe("intent static model CLI", () => {
       const check = runJson(["check", file]);
       const graph = runJson(["graph", file]);
       const effects = graph.nodes.filter((node) => node.kind === "Effect");
+      const authorizations = effects.map((effect) => {
+        return graph.edges.find((edge) => edge.kind === "authorizes" && edge.to === effect.id);
+      });
 
       assert.equal(check.ok, true);
       assert.deepEqual(check.diagnostics, []);
@@ -669,12 +677,69 @@ describe("intent static model CLI", () => {
         ["TicketUpdate", "ticket", "update"],
         ["Deploy", "deploy", "deploy"],
       ]);
-      assert(effects.every((effect) => {
-        return graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === effect.id);
-      }));
+      assert.deepEqual(effects.map((effect) => effect.data.contractId), [
+        "intent.effect.file.write.v0",
+        "intent.effect.file.write.v0",
+        "intent.effect.shell.run.v0",
+        "intent.effect.web.read.v0",
+        "intent.effect.web.read.v0",
+        "intent.effect.git.push.v0",
+        "intent.effect.git.commit.v0",
+        "intent.effect.secret.read.v0",
+        "intent.effect.ticket.update.v0",
+        "intent.effect.deploy.deploy.v0",
+      ]);
+      assert.deepEqual(effects.map((effect) => effect.data.contractArguments), [
+        { path: "path" },
+        { path: "_0" },
+        { command: "_0" },
+        { domain: "url" },
+        { domain: "_0" },
+        { branch: "branch" },
+        { message: "message" },
+        { name: "name" },
+        { id: "id" },
+        { target: "target" },
+      ]);
+      assert(authorizations.every(Boolean));
+      assert.deepEqual(authorizations.map((edge) => edge.data.contractId), effects.map((effect) => effect.data.contractId));
+      assert.deepEqual(authorizations.map((edge) => edge.data.grants.map((grant) => [grant.argument, grant.sourceArgument])), [
+        [["path", "path"]],
+        [["path", "_0"]],
+        [["command", "_0"]],
+        [["domain", "url"]],
+        [["domain", "_0"]],
+        [["branch", "branch"]],
+        [["message", "message"]],
+        [["name", "name"]],
+        [["id", "id"]],
+        [["target", "target"]],
+      ]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("emits a schema-valid v0 effect adapter contract registry", () => {
+    const schema = readJson(EFFECT_CONTRACT_SCHEMA);
+    const registry = runJson(["contracts"]);
+
+    assert.deepEqual(validateSchema(schema, registry), []);
+    assert.equal(registry.schema_version, "intent.effect-contracts.v0");
+    assert.deepEqual(registry.contracts.map((contract) => contract.id), [
+      "intent.effect.file.read.v0",
+      "intent.effect.file.write.v0",
+      "intent.effect.shell.run.v0",
+      "intent.effect.web.read.v0",
+      "intent.effect.git.push.v0",
+      "intent.effect.git.commit.v0",
+      "intent.effect.deploy.deploy.v0",
+      "intent.effect.ticket.update.v0",
+      "intent.effect.secret.read.v0",
+    ]);
+    assert(registry.contracts.every((contract) => {
+      return contract.match.exact.length + contract.match.prefix.length > 0;
+    }));
   });
 
   it("rejects unsupported v0 call argument syntax", () => {
@@ -2896,11 +2961,29 @@ describe("intent static model CLI", () => {
         { id: "effect:missing", kind: "Effect", label: "missing effect", span: testSpan(1), data: { family: null } },
         { id: "effect:bad-spans", kind: "Effect", label: "bad spans", span: testSpan(2), data: { argSpans: { path: "line 1" } } },
         { id: "effect:bad-policy", kind: "Effect", label: "bad policy", span: testSpan(3), data: { family: "   ", action: "", args: null, argKinds: null, approvalRequired: "yes" } },
+        {
+          id: "effect:stale-contract",
+          kind: "Effect",
+          label: "stale contract",
+          span: testSpan(4),
+          data: {
+            family: "shell",
+            action: "run",
+            contractId: "intent.effect.file.write.v0",
+            contractArguments: { command: "command" },
+            args: { command: "npm test" },
+            argKinds: { command: "string" },
+            argSpans: { command: testSpan(4) },
+            trust: { zone: "trusted", source: "literal", argument: "command" },
+            expression: "Command(\"npm test\")",
+            approvalRequired: false,
+          },
+        },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EFFECT_INVALID");
 
-    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics.length, 4);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_EFFECT_INVALID");
     assert.equal(diagnostics[0].effect_id, "effect:missing");
     assert.equal(diagnostics[0].family_is_nonempty, false);
@@ -2915,6 +2998,11 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].args_is_object, false);
     assert.equal(diagnostics[2].arg_kinds_is_object, false);
     assert.equal(diagnostics[2].approval_required_is_boolean, false);
+    assert.equal(diagnostics[3].contract_id, "intent.effect.file.write.v0");
+    assert.equal(diagnostics[3].contract_is_known, true);
+    assert.equal(diagnostics[3].contract_family_matches, false);
+    assert.equal(diagnostics[3].contract_action_matches, false);
+    assert.equal(diagnostics[3].contract_arguments_are_valid, false);
   });
 
   it("validates graph context source diagnostics", () => {
@@ -4127,6 +4215,8 @@ describe("intent static model CLI", () => {
     const astSchema = readJson(AST_SCHEMA);
     const checkSchema = readJson(CHECK_SCHEMA);
     const graphSchema = readJson(GRAPH_SCHEMA);
+    const effectContractSchema = readJson(EFFECT_CONTRACT_SCHEMA);
+    const effectContracts = runJson(["contracts"]);
     const ast = runJson(["parse", VALID_DEPENDENCY_GRAPH]);
     const importAst = runJson(["parse", VALID_IMPORTS]);
     const validCheck = runJson(["check", VALID_DEPENDENCY_GRAPH]);
@@ -4152,6 +4242,7 @@ describe("intent static model CLI", () => {
     assert.deepEqual(validateSchema(astSchema, importAst), []);
     assert.deepEqual(validateSchema(checkSchema, validCheck), []);
     assert.deepEqual(validateSchema(checkSchema, invalidCheck), []);
+    assert.deepEqual(validateSchema(effectContractSchema, effectContracts), []);
     assert.deepEqual(validateSchema(graphSchema, graph), []);
     assert.deepEqual(validateSchema(graphSchema, deployGraph), []);
     assert.deepEqual(validateSchema(graphSchema, commitGraph), []);

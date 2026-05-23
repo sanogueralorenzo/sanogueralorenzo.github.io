@@ -221,6 +221,12 @@
         }
       }
     },
+    "contract_arguments": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
     "diagnostic": {
       "type": "object",
       "required": ["severity", "code", "message", "span"],
@@ -722,6 +728,12 @@
                 "action": {
                   "type": ["string", "null"]
                 },
+                "contractId": {
+                  "$ref": "#/$defs/non_empty_string"
+                },
+                "contractArguments": {
+                  "$ref": "#/$defs/contract_arguments"
+                },
                 "args": {
                   "type": "object",
                   "additionalProperties": {
@@ -831,6 +843,12 @@
                     },
                     "action": {
                       "type": ["string", "null"]
+                    },
+                    "contractId": {
+                      "$ref": "#/$defs/non_empty_string"
+                    },
+                    "contractArguments": {
+                      "$ref": "#/$defs/contract_arguments"
                     },
                     "args": {
                       "type": "object",

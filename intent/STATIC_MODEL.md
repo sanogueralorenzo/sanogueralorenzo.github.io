@@ -148,6 +148,7 @@ Canonical schema files for this milestone:
 - `intent/schemas/intent.ast.v0.schema.json`
 - `intent/schemas/intent.check.v0.schema.json`
 - `intent/schemas/intent.graph.v0.schema.json`
+- `intent/schemas/intent.effect-contracts.v0.schema.json`
 
 The parser, checker, and graph builder may add optional fields only when the
 schema allows them and existing consumers can ignore them safely.
@@ -431,7 +432,11 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`; and malformed node payloads keep
   their existing node diagnostics. Constraining the generic role prevents
   `authorizes` from becoming an ambiguous catch-all edge during runtime replay
-  while preserving target-specific authorization diagnostics.
+  while preserving target-specific authorization diagnostics. Effect and
+  verification-effect authorization edges emitted by the graph builder carry
+  `contractId`, `contractArguments`, and matched grant argument records so
+  runtime tools can audit which adapter contract and grant authorized the
+  effect.
 - Runtime graph `requests` edges have a constrained target-role contract. A
   `requests` edge may target only an `Effect` node because `requests`
   represents a step asking the runtime to execute an effect/tool adapter.
@@ -1040,7 +1045,10 @@ Rules:
 - Effect family, action, constrained arguments, aliases, and trust-sensitive
   sink arguments are resolved through the v0 effect contract registry. The
   registry currently covers file read/write, shell run, web read, git push,
-  git commit, deploy, ticket update, and secret read adapter operations.
+  git commit, deploy, ticket update, and secret read adapter operations. The
+  registry is emitted as `intent.effect-contracts.v0`; graph effect payloads
+  must reference the selected contract by stable `contractId` and record which
+  source argument alias supplied each canonical contract argument.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -2591,13 +2599,17 @@ validation requires every `Context` node trust record to carry zone `trusted`,
 
 Effect nodes carry normalized runtime adapter call data: `family`, `action`,
 `args`, `argKinds`, `argSpans`, `expression`, `approvalRequired`, and trust
-metadata when applicable. `family` and `action` must be non-empty strings so
-the runtime invokes an explicit adapter operation. Those adapter operations are
-normalized by the v0 effect contract registry before graph emission. `args`,
-`argKinds`, and `argSpans` must be objects, every `argSpans` value must be a
-valid source span, and `approvalRequired` must be a boolean so the runtime can
-enforce argument provenance and approval without inference. Malformed adapter
-data emits
+metadata when applicable. Emitted graph effect payloads also carry `contractId`
+and `contractArguments` when the adapter operation is covered by
+`intent.effect-contracts.v0`; when present, `contractId` must name a known
+contract whose family and action match the payload, and `contractArguments`
+maps canonical contract argument keys to the source argument aliases found in
+`args`. `family` and `action` must be non-empty strings so the runtime invokes
+an explicit adapter operation. Those adapter operations are normalized by the
+v0 effect contract registry before graph emission. `args`, `argKinds`, and
+`argSpans` must be objects, every `argSpans` value must be a valid source span,
+and `approvalRequired` must be a boolean so the runtime can enforce argument
+provenance and approval without inference. Malformed adapter data emits
 `INTENT_GRAPH_EFFECT_INVALID` and makes the graph non-executable. Verification
 shell `Check` nodes carry the same effect data under `data.effect`, so
 diagnostics can point to the exact denied command argument. Runtime validation
