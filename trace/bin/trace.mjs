@@ -1453,12 +1453,31 @@ async function recapSession(sessionId) {
     field,
     sections: recapSectionsForField(recap.sections, field),
   };
-
-  if (args.json) {
-    print(output);
+  const document = args.json ? `${JSON.stringify(output, null, 2)}\n` : renderSessionRecapMarkdown(output, field);
+  if (args.output) {
+    const outputPath = resolve(args.output);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, document);
+    print({
+      ok: true,
+      schema_version: "trace.session_recap_output.v1",
+      session: output.session,
+      field,
+      output: args.output,
+      bytes: Buffer.byteLength(document),
+    });
     return;
   }
 
+  if (args.json) {
+    process.stdout.write(document);
+    return;
+  }
+
+  process.stdout.write(document);
+}
+
+function renderSessionRecapMarkdown(output, field) {
   const lines = [
     "# Trace Session Recap",
     "",
@@ -1473,7 +1492,7 @@ async function recapSession(sessionId) {
   for (const [key, label] of recapSectionEntries(field)) {
     appendRecapSection(lines, label, output.sections[key]);
   }
-  process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 async function checkSession(sessionId) {
@@ -3881,7 +3900,7 @@ Usage:
   trace session list
   trace session current
   trace session show <session> [--limit 20]
-  trace session recap [session] [--field intent|responses|tools|decisions|validation|risks|handoff|notes] [--limit 5] [--json]
+  trace session recap [session] [--field intent|responses|tools|decisions|validation|risks|handoff|notes] [--limit 5] [--json] [--output FILE]
   trace session check [session] [--strict] [--json]
   trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list

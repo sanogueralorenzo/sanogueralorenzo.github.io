@@ -248,6 +248,23 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.deepEqual(sessionRecapJson.sections.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(sessionRecapJson.sections.handoff, ["Preserve the decision: Use committed Markdown for reviewable memory"]);
 
+    const sessionRecapPath = join(repo, "trace-session-recap.md");
+    const sessionRecapWrite = JSON.parse((await runTrace(repo, ["session", "recap", payload.session, "--field", "handoff", "--output", sessionRecapPath])).stdout);
+    assert.equal(sessionRecapWrite.schema_version, "trace.session_recap_output.v1");
+    assert.equal(sessionRecapWrite.session, payload.session);
+    assert.equal(sessionRecapWrite.field, "handoff");
+    assert.equal(sessionRecapWrite.output, sessionRecapPath);
+    assert.equal(sessionRecapWrite.bytes, (await readFile(sessionRecapPath, "utf8")).length);
+    assert.match(await readFile(sessionRecapPath, "utf8"), /# Trace Session Recap/);
+    assert.match(await readFile(sessionRecapPath, "utf8"), /Preserve the decision: Use committed Markdown for reviewable memory/);
+
+    const sessionRecapJsonPath = join(repo, "trace-session-recap.json");
+    const sessionRecapJsonWrite = JSON.parse((await runTrace(repo, ["session", "recap", payload.session, "--json", "--output", sessionRecapJsonPath])).stdout);
+    assert.equal(sessionRecapJsonWrite.schema_version, "trace.session_recap_output.v1");
+    const sessionRecapJsonFile = JSON.parse(await readFile(sessionRecapJsonPath, "utf8"));
+    assert.equal(sessionRecapJsonFile.schema_version, "trace.session_recap.v1");
+    assert.equal(sessionRecapJsonFile.session, payload.session);
+
     const decisionRecap = await runTrace(repo, ["session", "recap", payload.session, "--field", "decisions", "--limit", "1"]);
     assert.match(decisionRecap.stdout, /Field: `decisions`/);
     assert.match(decisionRecap.stdout, /## Decisions\n\n- Use committed Markdown for reviewable memory/);
