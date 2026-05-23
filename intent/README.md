@@ -88,6 +88,12 @@ Validation expectations:
   stable diagnostic codes and spans.
 - Graph JSON with `ok: false` is for tooling/debug output only and must not be
   treated as executable by a runtime.
+- Static graph runtimes accept only the supported node and edge kinds documented
+  in `STATIC_MODEL.md`; every edge `from` and `to` endpoint must resolve to a
+  node id in the same payload.
+- A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,
+  cycles, missing authorization or approval edges, or invalid completion gates is
+  malformed and must be rejected before execution.
 - CLI output should validate against the matching schema file when schema
   validation is wired into tests or CI.
 
