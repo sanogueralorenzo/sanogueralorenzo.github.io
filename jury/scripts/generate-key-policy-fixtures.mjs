@@ -44,6 +44,7 @@ try {
   writeFileSync(join(rotationOutDir, "ci-old-public.pem"), rotationOldKeyPair.publicKey);
   writeFileSync(join(rotationOutDir, "ci-new-public.pem"), rotationNewKeyPair.publicKey);
   writeFileSync(join(rotationOutDir, "jury-key-policy.rotation.json"), `${JSON.stringify(rotationKeyPolicy(), null, 2)}\n`);
+  writeFileSync(join(rotationOutDir, "jury-key-policy.revoked-old.json"), `${JSON.stringify(revokedOldKeyPolicy(), null, 2)}\n`);
 
   buildAcceptedReviewState(stateDir);
   runJury([
@@ -79,6 +80,8 @@ try {
   ]);
   runJury(["bundle", "preflight", "--bundle", join(rotationOutDir, "review-bundle.old.signed.json"), "--key-policy", join(rotationOutDir, "jury-key-policy.rotation.json")]);
   runJury(["bundle", "preflight", "--bundle", join(rotationOutDir, "review-bundle.new.signed.json"), "--key-policy", join(rotationOutDir, "jury-key-policy.rotation.json")]);
+  runJury(["bundle", "preflight", "--bundle", join(rotationOutDir, "review-bundle.new.signed.json"), "--key-policy", join(rotationOutDir, "jury-key-policy.revoked-old.json")]);
+  runJuryExpectFailure(["bundle", "preflight", "--bundle", join(rotationOutDir, "review-bundle.old.signed.json"), "--key-policy", join(rotationOutDir, "jury-key-policy.revoked-old.json")], "revoked");
 
   if (checkOnly) {
     const hasDrift = [
@@ -88,6 +91,7 @@ try {
       assertFixtureDrift("ci-old-public.pem", rotationOutDir, rotationFixtureDir),
       assertFixtureDrift("ci-new-public.pem", rotationOutDir, rotationFixtureDir),
       assertFixtureDrift("jury-key-policy.rotation.json", rotationOutDir, rotationFixtureDir),
+      assertFixtureDrift("jury-key-policy.revoked-old.json", rotationOutDir, rotationFixtureDir),
       assertFixtureDrift("review-bundle.old.signed.json", rotationOutDir, rotationFixtureDir),
       assertFixtureDrift("review-bundle.new.signed.json", rotationOutDir, rotationFixtureDir),
     ].some(Boolean);
@@ -151,6 +155,36 @@ function rotationKeyPolicy() {
   };
 }
 
+function revokedOldKeyPolicy() {
+  return {
+    schema_version: "jury.key_policy.v1",
+    producers: [{
+      name: "@sanogueralorenzo/jury",
+      version: "0.1.0",
+      source: "local",
+      revision_pattern: "^unknown$",
+      keys: [
+        {
+          key_id: ROTATION_OLD_KEY_ID,
+          type: "rsa-sha256",
+          public_key_path: "ci-old-public.pem",
+          valid_from: "2026-05-01T00:00:00.000Z",
+          valid_until: "2026-06-01T00:00:00.000Z",
+          revoked_at: "2026-06-01T00:00:00.000Z",
+          revoked_reason: "migration window closed; ci-new is the active producer key",
+        },
+        {
+          key_id: ROTATION_NEW_KEY_ID,
+          type: "rsa-sha256",
+          public_key_path: "ci-new-public.pem",
+          valid_from: "2026-05-15T00:00:00.000Z",
+          valid_until: "2026-07-01T00:00:00.000Z",
+        },
+      ],
+    }],
+  };
+}
+
 function buildAcceptedReviewState(targetStateDir) {
   runJury(["init", "--state-dir", targetStateDir]);
   runJury(["claim", "create", "--state-dir", targetStateDir, "--id", CLAIM_ID, "--summary", "pull request is ready", "--scope", "jury", "--impact", "high"]);
@@ -184,6 +218,24 @@ function runJury(args) {
   }
 
   return result.stdout;
+}
+
+function runJuryExpectFailure(args, expectedMessage) {
+  const env = { ...process.env, JURY_NOW };
+  delete env.GITHUB_REPOSITORY;
+  delete env.GITHUB_SHA;
+  delete env.GITHUB_WORKFLOW;
+  delete env.GITHUB_RUN_ID;
+
+  const result = spawnSync(process.execPath, [cliPath, ...args, "--json"], {
+    cwd: repoRoot,
+    env,
+    encoding: "utf8",
+  });
+
+  if (result.status === 0 || !result.stdout.includes(expectedMessage)) {
+    throw new Error(`jury ${args.join(" ")} expected failure containing ${expectedMessage}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
 }
 
 function assertFixtureDrift(filename, generatedDir, expectedDir = fixtureDir) {

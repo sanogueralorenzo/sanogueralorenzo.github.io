@@ -42,6 +42,7 @@ Expected fixture files:
 - [examples/ci/fixtures/key-policy/review-bundle.signed.json](examples/ci/fixtures/key-policy/review-bundle.signed.json)
 - [examples/ci/fixtures/key-policy/README.md](examples/ci/fixtures/key-policy/README.md)
 - [examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json](examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json)
+- [examples/ci/fixtures/key-policy-rotation/jury-key-policy.revoked-old.json](examples/ci/fixtures/key-policy-rotation/jury-key-policy.revoked-old.json)
 - [examples/ci/fixtures/key-policy-rotation/ci-old-public.pem](examples/ci/fixtures/key-policy-rotation/ci-old-public.pem)
 - [examples/ci/fixtures/key-policy-rotation/ci-new-public.pem](examples/ci/fixtures/key-policy-rotation/ci-new-public.pem)
 - [examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json](examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json)

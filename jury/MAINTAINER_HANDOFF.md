@@ -10,7 +10,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml): reusable downstream workflow for signed trusted-producer bundle verification.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, and key policy manifest for trusted-producer verification.
-- [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window.
+- [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
 - [MIGRATION.md](MIGRATION.md): artifact handoff and bundle replay path.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): release-readiness checklist.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): failure-mode inspection and retry/reject examples.
@@ -44,4 +44,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a negative rotation example that revokes the old key after the migration window and proves old signed bundles fail preflight.
+Add a downstream workflow example that downloads signed producer artifacts from a previous job and verifies them with the key policy.
