@@ -565,6 +565,20 @@ function checkIntent(ast) {
             value: denial.value,
             allowed: denial.allowed,
           }));
+          continue;
+        }
+
+        const invariantViolation = getInvariantViolation(effect, goal.invariants);
+        if (invariantViolation) {
+          diagnostics.push(error("INTENT_INVARIANT_VIOLATION", invariantViolation.message, invariantViolation.invariant.span, {
+            invariant: invariantViolation.invariant.value,
+            effect: effect.name,
+            family: effect.family,
+            action: effect.action,
+            argument: invariantViolation.argument,
+            value: invariantViolation.value,
+            effect_span: effectArgumentSpan(effect, invariantViolation),
+          }));
         }
       }
     }
@@ -1715,6 +1729,27 @@ function getTrustFlowDiagnostic(effect) {
     value: effect.args[commandKey],
     trust: "untrusted",
   };
+}
+
+function getInvariantViolation(effect, invariants) {
+  for (const invariant of invariants) {
+    if (invariant.kind !== "Deny") {
+      continue;
+    }
+    if (invariant.value.trim() !== "production_deploy") {
+      continue;
+    }
+    const target = effectArguments(effect).find((argument) => argument.key === "target");
+    if (effect.family === "deploy" && target?.value === "production") {
+      return {
+        message: `invariant '${invariant.value}' denies effect '${effect.name}' target '${target.value}'.`,
+        invariant,
+        argument: "target",
+        value: target.value,
+      };
+    }
+  }
+  return null;
 }
 
 function effectTrust(effect) {

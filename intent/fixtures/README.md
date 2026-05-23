@@ -28,7 +28,8 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
 - `invalid_git_push_branch_mismatch.intent`: declares git push access for `main` but calls `GitPush(branch: "release")`.
 - `invalid_git_commit_message_mismatch.intent`: declares git commit access for `ship fix` but calls `GitCommit(message: "release fix")`.
-- `invalid_deploy_target_outside_capability.intent`: declares deploy access for `staging` but calls `Deploy` for `production` under `deny production_deploy`, which should fail `INTENT_INVARIANT_VIOLATION` at the invariant line span.
+- `invalid_deploy_target_outside_capability.intent`: declares deploy access for `staging` but calls `Deploy` for `production`, which should fail `INTENT_CAPABILITY_DENIED` at the target argument span.
+- `invalid_invariant_production_deploy.intent`: declares deploy access for `production` but denies `production_deploy`, which should fail `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - `invalid_approval_required_missing.intent`: declares git push access for `main` with approval required but calls `GitPush(branch: "main")` without a step approval gate.
 - `invalid_file_write_outside_capability.intent`: calls `FileWrite` for a path outside the declared write grant.
 - `invalid_shell_exec_outside_capability.intent`: calls `ShellExec` with a command outside the declared shell grant.

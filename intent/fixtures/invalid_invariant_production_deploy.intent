@@ -1,0 +1,37 @@
+package fixtures.invalid_invariant_production_deploy
+
+type DeployContext = {
+  target: String
+}
+
+type DeployResult = {
+  target: String
+}
+
+goal "reject production deploy invariant" {
+  context deploy("production")
+
+  capability deploy {
+    deploy target: "production"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_deploy_target -> DeployContext
+    step deploy_release(input: DeployContext) -> DeployResult {
+      effect Deploy(target: "production")
+    }
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny production_deploy
+  }
+}
