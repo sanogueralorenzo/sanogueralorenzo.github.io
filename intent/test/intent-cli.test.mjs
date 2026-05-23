@@ -1048,6 +1048,25 @@ describe("intent static model CLI", () => {
     assert.deepEqual(cycleDiagnostics[0].cycle, ["node:a", "node:b", "node:a"]);
   });
 
+  it("validates graph duplicate node diagnostics", () => {
+    const diagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(1) },
+        { id: "node:a", kind: "Context", label: "a", span: testSpan(2) },
+      ],
+      edges: [],
+    });
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_NODE_DUPLICATE");
+    assert.equal(diagnostics[0].node_id, "node:a");
+    assert.equal(diagnostics[0].node_kind, "Context");
+    assert.equal(diagnostics[0].previous_node_kind, "Type");
+    assert.equal(diagnostics[0].previous_span.start.line, 1);
+    assert.equal(diagnostics[0].span.start.line, 2);
+  });
+
   it("validates graph step input binding diagnostics", () => {
     const unboundDiagnostics = validateGraph({
       source: "synthetic.intent",

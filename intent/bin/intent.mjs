@@ -1161,11 +1161,24 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
 function validateGraph(graph) {
   const diagnostics = [];
-  const nodesById = new Map(graph.nodes.map((candidate) => [candidate.id, candidate]));
+  const nodesById = new Map();
+  for (const graphNode of graph.nodes) {
+    const previousNode = nodesById.get(graphNode.id);
+    if (previousNode) {
+      diagnostics.push(error("INTENT_GRAPH_NODE_DUPLICATE", `graph node id '${graphNode.id}' is emitted more than once.`, graphNode.span ?? previousNode.span ?? span(graph.source ?? "graph", 1, 1), {
+        node_id: graphNode.id,
+        node_kind: graphNode.kind,
+        previous_node_kind: previousNode.kind,
+        previous_span: previousNode.span,
+      }));
+      continue;
+    }
+    nodesById.set(graphNode.id, graphNode);
+  }
   const fallbackSpan = graph.nodes[0]?.span ?? span(graph.source ?? "graph", 1, 1);
-  const outgoing = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
-  const incomingEdgesByNode = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
-  const outgoingEdgesByNode = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
+  const outgoing = new Map([...nodesById.keys()].map((nodeId) => [nodeId, []]));
+  const incomingEdgesByNode = new Map([...nodesById.keys()].map((nodeId) => [nodeId, []]));
+  const outgoingEdgesByNode = new Map([...nodesById.keys()].map((nodeId) => [nodeId, []]));
   const incomingDataCounts = new Map();
   const incomingCompletionEdges = new Map();
   const incomingAuthorizationEdges = new Map();
