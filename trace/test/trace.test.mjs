@@ -40,6 +40,22 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const search = await runTrace(repo, ["search", "reviewable"]);
     assert.match(search.stdout, /\.trace\/commits\//);
 
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const indexed = JSON.parse((await runTrace(repo, ["index"])).stdout);
+    assert.equal(indexed.ok, true);
+    assert.equal(indexed.entries, 1);
+    assert.equal(indexed.path, `${commonDir}/trace/index.json`);
+    const index = JSON.parse(await readFile(join(repo, commonDir, "trace/index.json"), "utf8"));
+    assert.equal(index.schema_version, "trace.search_index.v1");
+    assert.equal(index.entries[0].decisions, "- Use committed Markdown for reviewable memory");
+
+    const decisionSearch = await runTrace(repo, ["search", "--field", "decisions", "reviewable"]);
+    assert.match(decisionSearch.stdout, /\.trace\/commits\//);
+    const fileSearch = await runTrace(repo, ["search", "--field", "files", "app.txt"]);
+    assert.match(fileSearch.stdout, /app.txt/);
+    const riskSearch = await runTrace(repo, ["search", "--field", "risks", "reviewable"]);
+    assert.equal(riskSearch.stdout, "");
+
     const summary = await runTrace(repo, ["summary", "HEAD"]);
     assert.match(summary.stdout, /Trace Summary/);
     assert.match(summary.stdout, /remember why app text exists/);

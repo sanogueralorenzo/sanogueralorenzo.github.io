@@ -94,8 +94,13 @@ async function main() {
     return;
   }
 
+  if (command === "index") {
+    await rebuildSearchIndex();
+    return;
+  }
+
   if (command === "search") {
-    await searchMemories([subcommand, ...rawArgs].filter(Boolean).join(" "));
+    await searchMemories([subcommand, ...positionalValues(rawArgs)].filter(Boolean).join(" "));
     return;
   }
 
@@ -673,22 +678,90 @@ async function searchMemories(query) {
 
   const root = await repoRoot();
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const files = await listMemoryFiles(root);
+  const index = await loadSearchIndex(root);
+  const field = normalizeSearchField(args.field);
   const matches = [];
 
-  for (const file of files) {
-    const content = await readFile(file, "utf8");
-    const lower = content.toLowerCase();
+  for (const entry of index.entries) {
+    const searchable = searchFieldText(entry, field);
+    const lower = searchable.toLowerCase();
     if (!terms.every((term) => lower.includes(term))) {
       continue;
     }
-    const sha = content.match(/^Commit: `([^`]+)`/m)?.[1] ?? "";
-    matches.push({ sha, file: relativePath(root, file), snippet: snippet(content, terms[0]) });
+    matches.push({ sha: entry.sha, file: entry.file, snippet: snippet(searchable, terms[0]) });
   }
 
   for (const match of matches) {
     process.stdout.write(`${match.sha.slice(0, 12)} ${match.file}\n${match.snippet}\n`);
   }
+}
+
+async function rebuildSearchIndex() {
+  const root = await repoRoot();
+  const index = await buildSearchIndex(root);
+  const path = await searchIndexPath(root);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(index, null, 2)}\n`);
+  print({ ok: true, path: relativePath(root, path), entries: index.entries.length });
+}
+
+async function loadSearchIndex(root) {
+  const path = await searchIndexPath(root);
+  const currentFiles = await memoryFingerprints(root);
+  const existing = await readFile(path, "utf8").then((content) => JSON.parse(content)).catch(() => null);
+
+  if (existing?.schema_version === "trace.search_index.v1" && sameFingerprints(existing.files, currentFiles)) {
+    return existing;
+  }
+
+  const rebuilt = await buildSearchIndex(root, currentFiles);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(rebuilt, null, 2)}\n`);
+  return rebuilt;
+}
+
+async function buildSearchIndex(root, files = null) {
+  const memoryFiles = files ?? await memoryFingerprints(root);
+  const entries = [];
+
+  for (const file of memoryFiles) {
+    const content = await readFile(join(root, file.path), "utf8");
+    const sha = content.match(/^Commit: `([^`]+)`/m)?.[1] ?? "";
+    const entry = {
+      sha,
+      file: file.path,
+      title: firstLine(content.replace(/^#\s*/, "")),
+      intent: section(content, "Intent") ?? "",
+      summary: section(content, "Summary") ?? "",
+      decisions: section(content, "Decisions") ?? "",
+      responses: section(content, "Responses") ?? "",
+      tools: section(content, "Tool Activity") ?? "",
+      files: section(content, "Files") ?? "",
+      validation: section(content, "Validation") ?? "",
+      risks: section(content, "Risks") ?? "",
+    };
+    entries.push({
+      ...entry,
+      text: [
+        entry.title,
+        entry.intent,
+        entry.summary,
+        entry.decisions,
+        entry.responses,
+        entry.tools,
+        entry.files,
+        entry.validation,
+        entry.risks,
+      ].filter(Boolean).join("\n"),
+    });
+  }
+
+  return {
+    schema_version: "trace.search_index.v1",
+    created_at: now(),
+    files: memoryFiles,
+    entries,
+  };
 }
 
 async function summarizeRange(range, options = {}) {
@@ -988,6 +1061,22 @@ async function listMemoryFiles(root) {
   return files.filter((file) => file.endsWith(".md"));
 }
 
+async function memoryFingerprints(root) {
+  const files = await listMemoryFiles(root);
+  const fingerprints = [];
+
+  for (const file of files) {
+    const fileStat = await stat(file);
+    fingerprints.push({
+      path: relativePath(root, file),
+      size: fileStat.size,
+      mtimeMs: Math.round(fileStat.mtimeMs),
+    });
+  }
+
+  return fingerprints.sort((left, right) => left.path.localeCompare(right.path));
+}
+
 async function isTraceOnlyCommit(root, sha) {
   const files = (await git(["show", "--name-only", "--format=", sha], { cwd: root })).split("\n").filter(Boolean);
   return files.length > 0 && files.every((file) => file === TRACE_DIR || file.startsWith(`${TRACE_DIR}/`));
@@ -1079,6 +1168,10 @@ async function readPendingCommit(root) {
 
 async function sessionPath(root, sessionId) {
   return join(await gitCommonDir(root), "trace", "sessions", `${sessionId}.jsonl`);
+}
+
+async function searchIndexPath(root) {
+  return join(await gitCommonDir(root), "trace", "index.json");
 }
 
 async function gitHooksDir() {
@@ -1186,7 +1279,8 @@ Usage:
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace log [--limit 20]
-  trace search <query>
+  trace index
+  trace search [--field decisions|files|validation|risks] <query>
   trace summary [range]
   trace pr-body [range]
   trace release-notes [range]
@@ -1281,12 +1375,71 @@ function appendCommitList(lines, memories) {
   }
 }
 
+function normalizeSearchField(value) {
+  const field = String(value ?? "all").toLowerCase();
+  const aliases = {
+    all: "text",
+    memory: "text",
+    text: "text",
+    intent: "intent",
+    summary: "summary",
+    decision: "decisions",
+    decisions: "decisions",
+    response: "responses",
+    responses: "responses",
+    tool: "tools",
+    tools: "tools",
+    activity: "tools",
+    file: "files",
+    files: "files",
+    validation: "validation",
+    risk: "risks",
+    risks: "risks",
+  };
+
+  if (!aliases[field]) {
+    fail(`unknown search field: ${value}`);
+  }
+
+  return aliases[field];
+}
+
+function searchFieldText(entry, field) {
+  return String(entry[field] ?? "");
+}
+
+function sameFingerprints(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((file, index) => {
+    const other = right[index];
+    return file.path === other.path && file.size === other.size && file.mtimeMs === other.mtimeMs;
+  });
+}
+
 function snippet(content, term) {
   const index = content.toLowerCase().indexOf(term.toLowerCase());
   if (index < 0) {
     return firstLine(content);
   }
   return content.slice(Math.max(0, index - 60), Math.min(content.length, index + 140)).replace(/\s+/g, " ").trim();
+}
+
+function positionalValues(values) {
+  const positionals = [];
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value.startsWith("--")) {
+      if (!["--json", "--help", "--dry-run"].includes(value)) {
+        index += 1;
+      }
+      continue;
+    }
+    positionals.push(value);
+  }
+  return positionals;
 }
 
 function shellQuote(value) {

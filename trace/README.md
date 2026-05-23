@@ -61,7 +61,10 @@ trace capture --event prompt --role user --message "why this change exists"
 trace record --validation "npm test"
 trace show HEAD
 trace log
+trace index
 trace search "auth retry"
+trace search --field decisions "retry"
+trace search --field files "auth"
 trace summary main..HEAD
 trace pr-body main..HEAD
 trace release-notes v1.0.0..HEAD
@@ -87,7 +90,10 @@ node trace/bin/trace.mjs capture --event prompt --role user --message "why this 
 node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
 node trace/bin/trace.mjs log
+node trace/bin/trace.mjs index
 node trace/bin/trace.mjs search "auth retry"
+node trace/bin/trace.mjs search --field decisions "retry"
+node trace/bin/trace.mjs search --field files "auth"
 node trace/bin/trace.mjs summary main..HEAD
 node trace/bin/trace.mjs pr-body main..HEAD
 node trace/bin/trace.mjs release-notes v1.0.0..HEAD
@@ -110,6 +116,8 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 `trace ci <range>` is the CI gate for that model. It fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
 
 `trace summary <range>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. PR and release text are generated views, not the canonical memory store.
+
+`trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change and can search all memory text or a specific field such as `decisions`, `files`, `validation`, or `risks`.
 
 Agent integrations can use first-class adapters or the generic hook endpoint:
 
