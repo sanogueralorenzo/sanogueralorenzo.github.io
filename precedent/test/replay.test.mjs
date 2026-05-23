@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,6 +58,17 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     assert.equal(observed.promoted.promotion_status, "promoted");
     assert.equal(observed.promoted.promotion.baseline_failures, 1);
     assert.equal(observed.promoted.promotion.rerun_failures, 0);
+    assert.equal(observed.observed.promotionAction, "created");
+
+    const observedAgain = await runPrecedent([
+      "observe",
+      "--state-dir",
+      stateDir,
+      "--trace",
+      traceOut,
+      "--json",
+    ]);
+    assert.equal(observedAgain.observed.promotionAction, "unchanged");
 
     const afterPromotion = await runPrecedent([
       "hook",
@@ -80,6 +91,65 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     const report = await runPrecedent(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(report.replays, 1);
     assert.equal(report.precedents, 1);
+
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.equal(precedents.length, 1);
+    assert.equal(precedents[0].id, "prec_webhook_replay_boundary");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("observing an improved precedent id updates the existing ledger record", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const traceOut = join(stateDir, "webhook-replay-trace.json");
+    await runPrecedent([
+      "replay",
+      "--state-dir",
+      stateDir,
+      "--case",
+      "precedent/examples/replay/webhook-case.json",
+      "--trace-out",
+      traceOut,
+      "--json",
+    ]);
+    const firstObserved = await runPrecedent([
+      "observe",
+      "--state-dir",
+      stateDir,
+      "--trace",
+      traceOut,
+      "--json",
+    ]);
+
+    const betterTrace = JSON.parse(await readFile(traceOut, "utf8"));
+    betterTrace.id = "webhook-replay-better";
+    betterTrace.replay.promotion.baseline_failures = 2;
+    betterTrace.precedent.evidence.push("replay: second baseline failure avoided");
+    const betterTraceOut = join(stateDir, "webhook-replay-better-trace.json");
+    await writeFile(betterTraceOut, JSON.stringify(betterTrace, null, 2));
+
+    const observedBetter = await runPrecedent([
+      "observe",
+      "--state-dir",
+      stateDir,
+      "--trace",
+      betterTraceOut,
+      "--json",
+    ]);
+    assert.equal(observedBetter.observed.promotionAction, "updated");
+    assert.equal(observedBetter.promoted.promotion.baseline_failures, 2);
+
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.equal(precedents.length, 1);
+    assert.equal(precedents[0].promotion.baseline_failures, 2);
+    assert.ok(precedents[0].evidence.includes("replay: second baseline failure avoided"));
+    assert.equal(precedents[0].created_at, firstObserved.promoted.created_at);
+    assert.equal(precedents[0].updated_at, observedBetter.promoted.updated_at);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -163,4 +233,13 @@ function runPrecedent(args) {
       resolvePromise(JSON.parse(stdout));
     });
   });
+}
+
+async function readJsonLines(path) {
+  const content = await readFile(path, "utf8");
+
+  return content
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line));
 }

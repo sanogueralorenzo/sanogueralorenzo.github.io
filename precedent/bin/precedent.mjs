@@ -5,7 +5,12 @@ import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 
 const DEFAULT_STATE_DIR = ".precedent";
-const SUPPORTED_EVENT_HOOKS = new Set(["context.before_turn"]);
+const SUPPORTED_EVENT_HOOKS = new Set([
+  "context.before_turn",
+  "validation.after_run",
+  "diff.after_edit",
+  "outcome.after_task",
+]);
 
 const command = process.argv[2] ?? "help";
 const hookName = command === "hook" && process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : null;
@@ -102,43 +107,44 @@ async function initState() {
       join(stateDir, "candidates.jsonl"),
       join(stateDir, "events.jsonl"),
       join(stateDir, "replays"),
+      join(stateDir, "sessions"),
       join(stateDir, "traces"),
     ],
   });
 }
 
 async function observeTrace() {
-  const tracePath = args.trace;
-
-  if (!tracePath) {
-    fail("observe requires --trace <path>");
-  }
-
   const stateDir = statePath();
   await ensureState(stateDir);
 
-  const rawTrace = await readFile(resolve(tracePath), "utf8");
-  const trace = parseJson(rawTrace, tracePath);
+  if (!args.trace && !args.session) {
+    fail("observe requires --trace <path> or --session <id>");
+  }
+
+  const trace = args.session
+    ? await traceFromSession(stateDir, args.session)
+    : parseJson(await readFile(resolve(args.trace), "utf8"), args.trace);
   const traceId = requireString(trace.id, "trace.id");
   const observedAt = new Date().toISOString();
   let promoted = null;
   let rejected = null;
+  let promotionAction = "none";
 
   if (trace.precedent) {
     const candidate = normalizePrecedent(precedentFromTrace(trace), traceId);
     const assessment = assessPromotionCandidate(candidate);
 
     if (assessment.ok) {
-      promoted = {
-        ...candidate,
-        promotion_status: "promoted",
-        promoted_at: observedAt,
-      };
+      const promotion = await upsertPromotedPrecedent(stateDir, candidate, observedAt);
+
+      promoted = promotion.precedent;
+      promotionAction = promotion.action;
     } else {
       rejected = {
         id: candidate.id,
         reasons: assessment.reasons,
       };
+      promotionAction = "rejected";
     }
   }
 
@@ -151,14 +157,12 @@ async function observeTrace() {
     scope: trace.scope ?? null,
     failures: Array.isArray(trace.failures) ? trace.failures : [],
     promotionStatus: promoted ? "promoted" : trace.precedent ? "rejected" : "none",
+    promotionAction,
     promotionReasons: rejected?.reasons ?? [],
   };
 
   await writeFile(join(stateDir, "traces", `${safeFileName(traceId)}.json`), JSON.stringify(trace, null, 2));
   await appendJsonLine(join(stateDir, "events.jsonl"), event);
-  if (promoted) {
-    await appendJsonLine(join(stateDir, "precedents.jsonl"), promoted);
-  }
 
   print({
     ok: true,
@@ -330,6 +334,21 @@ async function eventHook() {
     return;
   }
 
+  if (hook === "validation.after_run") {
+    await validationAfterRunEventHook(event);
+    return;
+  }
+
+  if (hook === "diff.after_edit") {
+    await diffAfterEditEventHook(event);
+    return;
+  }
+
+  if (hook === "outcome.after_task") {
+    await outcomeAfterTaskEventHook(event);
+    return;
+  }
+
   fail(`unsupported hook: ${hook}`);
 }
 
@@ -404,22 +423,165 @@ async function contextBeforeTurnEventHook(event) {
     .slice(0, limit);
   const contextBlock = formatInjectionBlock(matches);
 
-  await appendJsonLine(join(stateDir, "events.jsonl"), {
+  const hookEvent = {
     type: "hook_event",
     receivedAt: new Date().toISOString(),
     hook: event.hook,
+    sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
     task,
     scope: context.scope || null,
     changedFiles: context.changedFiles,
     threshold,
     injections: matches.map((match) => match.id),
+  };
+
+  await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
+  const sessionEvent = event.sessionId
+    ? await appendSessionEvent(stateDir, {
+      ...hookEvent,
+      task,
+      contextBlock,
+    })
+    : null;
+
+  print({
+    ok: true,
+    hook: event.hook,
+    sessionId: sessionEvent?.sessionId ?? null,
+    injections: matches.map(formatInjection),
+    contextBlock,
+  });
+}
+
+async function validationAfterRunEventHook(event) {
+  const stateDir = statePath();
+  await ensureState(stateDir);
+
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const commandText = requireString(event.command, "event.command");
+  const exitCode = requireNumber(event.exitCode, "event.exitCode");
+  const failureSignals = validationFailureSignals(event, exitCode);
+  const sessionEvent = await appendSessionEvent(stateDir, {
+    type: "hook_event",
+    receivedAt: new Date().toISOString(),
+    hook: event.hook,
+    sessionId,
+    command: commandText,
+    exitCode,
+    durationMs: numberOrNull(event.durationMs),
+    failureSignals,
+    stdout: typeof event.stdout === "string" ? event.stdout : "",
+    stderr: typeof event.stderr === "string" ? event.stderr : "",
+  });
+
+  await appendJsonLine(join(stateDir, "events.jsonl"), {
+    type: "hook_event",
+    receivedAt: sessionEvent.receivedAt,
+    hook: event.hook,
+    sessionId,
+    command: commandText,
+    exitCode,
+    failureSignals,
   });
 
   print({
     ok: true,
     hook: event.hook,
-    injections: matches.map(formatInjection),
-    contextBlock,
+    sessionId,
+    recorded: true,
+    sessionEventPath: sessionEvent.path,
+    validation: {
+      command: commandText,
+      exitCode,
+      failureSignals,
+      stdoutPath: sessionEvent.event.stdoutPath ?? null,
+      stderrPath: sessionEvent.event.stderrPath ?? null,
+    },
+  });
+}
+
+async function diffAfterEditEventHook(event) {
+  const stateDir = statePath();
+  await ensureState(stateDir);
+
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
+  const breadthSignals = diffBreadthSignals(event, changedFiles);
+  const sessionEvent = await appendSessionEvent(stateDir, {
+    type: "hook_event",
+    receivedAt: new Date().toISOString(),
+    hook: event.hook,
+    sessionId,
+    changedFiles,
+    linesAdded: numberOrNull(event.linesAdded),
+    linesDeleted: numberOrNull(event.linesDeleted),
+    breadthSignals,
+  });
+
+  await appendJsonLine(join(stateDir, "events.jsonl"), {
+    type: "hook_event",
+    receivedAt: sessionEvent.receivedAt,
+    hook: event.hook,
+    sessionId,
+    changedFiles,
+    breadthSignals,
+  });
+
+  print({
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: true,
+    sessionEventPath: sessionEvent.path,
+    diff: {
+      changedFiles,
+      breadthSignals,
+    },
+  });
+}
+
+async function outcomeAfterTaskEventHook(event) {
+  const stateDir = statePath();
+  await ensureState(stateDir);
+
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const sessionEvent = await appendSessionEvent(stateDir, {
+    type: "hook_event",
+    receivedAt: new Date().toISOString(),
+    hook: event.hook,
+    sessionId,
+    success: Boolean(event.success),
+    status: typeof event.status === "string" ? event.status : (event.success ? "success" : "failure"),
+    retries: numberOrNull(event.retries),
+    tokenEstimate: numberOrNull(event.tokenEstimate),
+    notes: typeof event.notes === "string" ? event.notes : "",
+    precedent: event.precedent ?? null,
+    replay: event.replay ?? null,
+  });
+
+  await appendJsonLine(join(stateDir, "events.jsonl"), {
+    type: "hook_event",
+    receivedAt: sessionEvent.receivedAt,
+    hook: event.hook,
+    sessionId,
+    success: sessionEvent.event.success,
+    status: sessionEvent.event.status,
+    retries: sessionEvent.event.retries,
+    tokenEstimate: sessionEvent.event.tokenEstimate,
+  });
+
+  print({
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: true,
+    sessionEventPath: sessionEvent.path,
+    outcome: {
+      success: sessionEvent.event.success,
+      status: sessionEvent.event.status,
+      retries: sessionEvent.event.retries,
+      tokenEstimate: sessionEvent.event.tokenEstimate,
+    },
   });
 }
 
@@ -588,8 +750,153 @@ function formatInjection(match) {
   };
 }
 
+async function appendSessionEvent(stateDir, rawEvent) {
+  const sessionId = requireString(rawEvent.sessionId, "event.sessionId");
+  const sessionFile = join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`);
+  const artifactDir = join(stateDir, "sessions", `${safeFileName(sessionId)}-artifacts`);
+  const event = { ...rawEvent };
+
+  if (typeof event.stdout === "string" && event.stdout.length > 0) {
+    await mkdir(artifactDir, { recursive: true });
+    const stdoutPath = join(artifactDir, `${Date.now()}-${event.hook.replaceAll(".", "_")}.stdout.txt`);
+    await writeFile(stdoutPath, event.stdout);
+    event.stdoutPath = stdoutPath;
+    event.stdoutSummary = summarizeText(event.stdout);
+    delete event.stdout;
+  }
+
+  if (typeof event.stderr === "string" && event.stderr.length > 0) {
+    await mkdir(artifactDir, { recursive: true });
+    const stderrPath = join(artifactDir, `${Date.now()}-${event.hook.replaceAll(".", "_")}.stderr.txt`);
+    await writeFile(stderrPath, event.stderr);
+    event.stderrPath = stderrPath;
+    event.stderrSummary = summarizeText(event.stderr);
+    delete event.stderr;
+  }
+
+  await appendJsonLine(sessionFile, event);
+
+  return {
+    sessionId,
+    path: sessionFile,
+    event,
+    receivedAt: event.receivedAt,
+  };
+}
+
+async function traceFromSession(stateDir, sessionId) {
+  const sessionFile = join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`);
+  const events = await readJsonLines(sessionFile);
+
+  if (events.length === 0) {
+    fail(`session has no recorded hook events: ${sessionId}`);
+  }
+
+  const beforeTurns = events.filter((event) => event.hook === "context.before_turn");
+  const validations = events.filter((event) => event.hook === "validation.after_run");
+  const diffs = events.filter((event) => event.hook === "diff.after_edit");
+  const outcomes = events.filter((event) => event.hook === "outcome.after_task");
+  const lastBeforeTurn = beforeTurns.at(-1) ?? {};
+  const lastOutcome = outcomes.at(-1) ?? {};
+  const changedFiles = uniqueStrings([
+    ...beforeTurns.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+    ...diffs.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+  ]);
+  const validationFailures = validations
+    .filter((event) => event.exitCode !== 0)
+    .map((event) => {
+      const signals = Array.isArray(event.failureSignals) ? event.failureSignals.join(", ") : "non_zero_exit";
+      return `command failed: ${event.command} (${signals})`;
+    });
+  const diffFailures = diffs
+    .filter((event) => Array.isArray(event.breadthSignals) && event.breadthSignals.length > 0)
+    .map((event) => `broad edit: ${event.breadthSignals.join(", ")}`);
+  const outcomeFailures = outcomes
+    .filter((event) => event.success === false && typeof event.notes === "string" && event.notes.trim().length > 0)
+    .map((event) => `outcome: ${event.notes}`);
+  const failures = [...validationFailures, ...diffFailures, ...outcomeFailures];
+  const failedValidation = validations.find((event) => event.exitCode !== 0);
+  const validationEvidence = failedValidation
+    ? {
+      command: failedValidation.command,
+      result: `exit ${failedValidation.exitCode}`,
+      evidence: [
+        ...(Array.isArray(failedValidation.failureSignals) ? failedValidation.failureSignals : []),
+        failedValidation.stderrSummary,
+        failedValidation.stdoutSummary,
+      ].filter(Boolean).join(" - "),
+    }
+    : null;
+
+  return {
+    id: `session-${safeFileName(sessionId)}`,
+    sessionId,
+    task: lastBeforeTurn.task ?? lastOutcome.task ?? null,
+    scope: lastBeforeTurn.scope ?? lastOutcome.scope ?? null,
+    outcome: lastOutcome.status ?? (lastOutcome.success === true ? "success" : "unknown"),
+    changedFiles,
+    failures,
+    hooks: {
+      ...(validationEvidence ? { "validation.after_run": validationEvidence } : {}),
+    },
+    session: {
+      path: sessionFile,
+      eventCount: events.length,
+      hooks: uniqueStrings(events.map((event) => event.hook).filter(Boolean)),
+    },
+    ...(lastOutcome.precedent ? { precedent: lastOutcome.precedent } : {}),
+    ...(lastOutcome.replay ? { replay: lastOutcome.replay } : {}),
+  };
+}
+
+function validationFailureSignals(event, exitCode) {
+  return uniqueStrings([
+    ...(Array.isArray(event.failureSignals) ? event.failureSignals : parseListArg(event.failureSignals)),
+    ...(exitCode === 0 ? [] : ["non_zero_exit"]),
+    ...(typeof event.stderr === "string" && event.stderr.trim().length > 0 ? ["stderr_output"] : []),
+  ]);
+}
+
+function diffBreadthSignals(event, changedFiles) {
+  const topLevelDirs = uniqueStrings(changedFiles.map((file) => file.split("/", 1)[0]).filter(Boolean));
+
+  return uniqueStrings([
+    ...(Array.isArray(event.breadthSignals) ? event.breadthSignals : parseListArg(event.breadthSignals)),
+    ...(changedFiles.length > 5 ? ["many_files_touched"] : []),
+    ...(topLevelDirs.length > 2 ? ["multiple_top_level_scopes"] : []),
+  ]);
+}
+
+function summarizeText(value) {
+  const normalized = value.replace(/\s+/gu, " ").trim();
+  return normalized.length <= 500 ? normalized : `${normalized.slice(0, 497)}...`;
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.filter((value) => typeof value === "string" && value.trim().length > 0))];
+}
+
+function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function parseListArg(value) {
   if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item).trim())
+      .filter((item) => item.length > 0);
+  }
+
+  if (typeof value !== "string") {
     return [];
   }
 
@@ -625,6 +932,75 @@ function assessPromotionCandidate(precedent) {
     ok: reasons.length === 0,
     reasons,
   };
+}
+
+async function upsertPromotedPrecedent(stateDir, candidate, observedAt) {
+  const ledgerPath = join(stateDir, "precedents.jsonl");
+  const existingPrecedents = await readJsonLines(ledgerPath);
+  const existing = existingPrecedents.find((precedent) => precedent.id === candidate.id);
+  const createdAt = existing?.created_at ?? existing?.promoted_at ?? observedAt;
+  const next = {
+    ...existing,
+    ...candidate,
+    evidence: uniqueStrings([
+      ...(Array.isArray(existing?.evidence) ? existing.evidence : []),
+      ...(Array.isArray(candidate.evidence) ? candidate.evidence : []),
+    ]),
+    source_trace: candidate.source_trace ?? existing?.source_trace,
+    source_traces: uniqueStrings([
+      ...(Array.isArray(existing?.source_traces) ? existing.source_traces : []),
+      existing?.source_trace,
+      candidate.source_trace,
+    ]),
+    promotion: candidate.promotion,
+    promotion_status: "promoted",
+    promoted_at: existing?.promoted_at ?? observedAt,
+    created_at: createdAt,
+    updated_at: observedAt,
+  };
+
+  const action = existing ? promotionRecordChanged(existing, next) ? "updated" : "unchanged" : "created";
+  const finalRecord = action === "unchanged" ? existing : next;
+  const records = existingPrecedents
+    .filter((precedent) => precedent.id !== candidate.id)
+    .concat(finalRecord)
+    .sort((left, right) => left.id.localeCompare(right.id));
+
+  await writeJsonLines(ledgerPath, records);
+
+  return {
+    action,
+    precedent: finalRecord,
+  };
+}
+
+function promotionRecordChanged(existing, next) {
+  return stableComparablePrecedent(existing) !== stableComparablePrecedent(next);
+}
+
+function stableComparablePrecedent(precedent) {
+  const {
+    updated_at: _updatedAt,
+    ...stableFields
+  } = precedent;
+
+  return JSON.stringify(sortObject(stableFields));
+}
+
+function sortObject(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortObject);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, sortObject(item)]),
+    );
+  }
+
+  return value;
 }
 
 async function runReplayCommand({ label, command, cwd, outputDir }) {
@@ -823,6 +1199,7 @@ async function ensureState(stateDir) {
   await mkdir(stateDir, { recursive: true });
   await mkdir(join(stateDir, "traces"), { recursive: true });
   await mkdir(join(stateDir, "replays"), { recursive: true });
+  await mkdir(join(stateDir, "sessions"), { recursive: true });
   await ensureFile(join(stateDir, "precedents.jsonl"));
   await ensureFile(join(stateDir, "candidates.jsonl"));
   await ensureFile(join(stateDir, "events.jsonl"));
@@ -935,6 +1312,16 @@ function requireString(value, name) {
   return value;
 }
 
+function requireNumber(value, name) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    fail(`${name} must be a number`);
+  }
+
+  return number;
+}
+
 function statePath() {
   return resolve(args["state-dir"] ?? DEFAULT_STATE_DIR);
 }
@@ -958,6 +1345,7 @@ function printHelp() {
 Usage:
   precedent init [--state-dir .precedent]
   precedent observe --trace trace.json [--state-dir .precedent]
+  precedent observe --session session-id [--state-dir .precedent]
   precedent compile [--state-dir .precedent]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
@@ -967,7 +1355,7 @@ Usage:
 
 Commands:
   init      Create local Precedent state.
-  observe   Ingest one agent trace and promote embedded precedent.
+  observe   Ingest one agent trace or recorded hook session.
   compile   Mine observed raw traces into candidate precedent artifacts.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   inject    Return relevant precedent for the current task.

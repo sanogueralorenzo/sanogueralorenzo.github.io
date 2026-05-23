@@ -115,6 +115,8 @@ echo '{"hook":"context.before_turn","task":"add another webhook handler","scope"
 node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
+printf '%s\n' '{"hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
+node precedent/bin/precedent.mjs observe --session demo
 node precedent/bin/precedent.mjs report
 ```
 
@@ -124,10 +126,14 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `inject` is the before-turn hook returning relevant precedent.
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
+- Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
+- `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
 
 `observe` has a promotion gate: a candidate precedent is recorded as an event but is not injected later unless it has concrete evidence and measured replay improvement where `baseline_failures` is greater than `rerun_failures`. When a trace contains verified replay evidence, `observe` prefers the replay metrics over inline claim metrics.
+
+Promotion is idempotent. Re-observing the same promoted precedent updates the existing ledger row instead of appending duplicates, merges unique evidence, preserves the original `created_at`, refreshes `updated_at` only when the record changes, and keeps `.precedent/precedents.jsonl` sorted by precedent id for deterministic diffs.
 
 Example event hook response:
 
@@ -158,6 +164,65 @@ node precedent/examples/hook-loop/run.mjs
 The example sends two `context.before_turn` events through `precedent hook`: the first returns an empty `contextBlock`, the failed trace is observed and promoted, then the follow-up turn receives a compact `Precedent:` block.
 
 It is intentionally small. The next build step is wiring these commands to real agent traces and PR review events.
+
+## Session Hook Events
+
+The JSON hook API is the shape a normal coding-agent runtime would call while a conversation is happening.
+
+Before the agent starts a turn:
+
+```json
+{
+  "hook": "context.before_turn",
+  "sessionId": "demo",
+  "task": "add webhook handler",
+  "scope": "feature:webhooks",
+  "changedFiles": ["features/webhooks/providers/stripe.ts"]
+}
+```
+
+After validation runs:
+
+```json
+{
+  "hook": "validation.after_run",
+  "sessionId": "demo",
+  "command": "pnpm test:webhooks",
+  "exitCode": 1,
+  "stderr": "nullable payload test failed"
+}
+```
+
+After edits:
+
+```json
+{
+  "hook": "diff.after_edit",
+  "sessionId": "demo",
+  "changedFiles": ["features/webhooks/providers/stripe.ts", "README.md"]
+}
+```
+
+After the task ends:
+
+```json
+{
+  "hook": "outcome.after_task",
+  "sessionId": "demo",
+  "success": false,
+  "retries": 2,
+  "tokenEstimate": 4100,
+  "notes": "Agent used the wrong test command and missed nullable payload handling."
+}
+```
+
+Then compile the session into an observable trace:
+
+```shell
+node precedent/bin/precedent.mjs observe --session demo
+```
+
+This makes the hook layer useful during ordinary agent conversations: hooks quietly collect context, validation, diff, and outcome evidence; promotion still requires concrete evidence plus measured replay improvement before any precedent becomes injectable.
 
 ## Killer Demo
 
