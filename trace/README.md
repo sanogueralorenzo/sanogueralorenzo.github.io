@@ -79,6 +79,7 @@ trace redact add codename 'PROJECT-[A-Z]+'
 trace redact list
 trace doctor
 trace check
+trace coverage main..HEAD
 trace ci main..HEAD
 ```
 
@@ -112,6 +113,7 @@ node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
 node trace/bin/trace.mjs redact list
 node trace/bin/trace.mjs doctor
 node trace/bin/trace.mjs check
+node trace/bin/trace.mjs coverage main..HEAD
 node trace/bin/trace.mjs ci main..HEAD
 ```
 
@@ -123,7 +125,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace record` and the post-commit hook distill raw session events into compact commit memory. Repeated events are deduplicated, long entries are truncated, and noisy sections are capped with an explicit omitted-events line so committed memory stays reviewable while the full checkpoint remains available on the Trace ref.
 
-`trace ci <range>` is the CI gate for that model. It fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
+`trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
 
 `trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. Branch, PR, and release text are generated views, not the canonical memory store.
 

@@ -278,6 +278,13 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(missingPayload.missingMemories.length, 1);
     assert.match(missingPayload.missingMemories[0].expected, /^\.trace\/commits\/[0-9a-f]{2}\//);
 
+    const coverage = await runTrace(repo, ["coverage", "HEAD"]);
+    const coveragePayload = JSON.parse(coverage.stdout);
+    assert.equal(coveragePayload.ok, false);
+    assert.equal(coveragePayload.covered, 0);
+    assert.equal(coveragePayload.missing, 1);
+    assert.equal(coveragePayload.commits[0].status, "missing");
+
     await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "ci memory coverage"]);
     await runTrace(repo, ["record", "--validation", "node --test"]);
     await git(repo, ["add", ".trace"]);
@@ -287,8 +294,11 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     const coveredPayload = JSON.parse(covered.stdout);
     assert.equal(coveredPayload.ok, true);
     assert.equal(coveredPayload.checked, 2);
+    assert.equal(coveredPayload.covered, 1);
+    assert.equal(coveredPayload.skipped, 1);
     assert.deepEqual(coveredPayload.missingMemories, []);
     assert.deepEqual(coveredPayload.unsafeFiles, []);
+    assert.deepEqual(coveredPayload.commits.map((commit) => commit.status), ["covered", "skipped"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

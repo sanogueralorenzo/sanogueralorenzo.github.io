@@ -61,6 +61,11 @@ async function main() {
     return;
   }
 
+  if (command === "coverage") {
+    await runCoverageReport(subcommand ?? args.range ?? defaultSummaryRange());
+    return;
+  }
+
   if (command === "ci") {
     await runCiCheck(subcommand ?? args.range ?? defaultSummaryRange());
     return;
@@ -333,37 +338,72 @@ async function checkTrace() {
 
 async function runCiCheck(range) {
   const root = await repoRoot();
+  const report = await buildCoverageReport(root, range);
+  print(report);
+
+  if (!report.ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function runCoverageReport(range) {
+  const root = await repoRoot();
+  print(await buildCoverageReport(root, range));
+}
+
+async function buildCoverageReport(root, range) {
   const commits = (await git(["rev-list", "--reverse", range], { cwd: root })).split("\n").filter(Boolean);
   const missingMemories = [];
+  const coveredMemories = [];
+  const skippedCommits = [];
+  const entries = [];
 
   for (const sha of commits) {
     if (await isTraceOnlyCommit(root, sha)) {
+      skippedCommits.push(sha);
+      entries.push(await coverageEntry(root, sha, "skipped", null));
       continue;
     }
 
     const memoryPath = memoryPathFor(root, sha);
     if (!await exists(memoryPath)) {
-      missingMemories.push({
-        commit: sha,
-        expected: relativePath(root, memoryPath),
-      });
+      const missing = await coverageEntry(root, sha, "missing", relativePath(root, memoryPath));
+      missingMemories.push({ commit: sha, expected: missing.memory });
+      entries.push(missing);
+    } else {
+      const covered = await coverageEntry(root, sha, "covered", relativePath(root, memoryPath));
+      coveredMemories.push({ commit: sha, memory: covered.memory });
+      entries.push(covered);
     }
   }
 
   const traceFiles = (await git(["ls-files", "-co", "--exclude-standard", "--", TRACE_DIR], { cwd: root })).split("\n").filter(Boolean);
   const unsafeFiles = traceFiles.filter(isUnsafeTracePath);
   const ok = missingMemories.length === 0 && unsafeFiles.length === 0;
-  print({
+  const memoryTotal = coveredMemories.length + missingMemories.length;
+  return {
     ok,
     range,
     checked: commits.length,
+    covered: coveredMemories.length,
+    missing: missingMemories.length,
+    skipped: skippedCommits.length,
+    coverage: memoryTotal === 0 ? 1 : coveredMemories.length / memoryTotal,
+    commits: entries,
+    coveredMemories,
     missingMemories,
     unsafeFiles,
-  });
+  };
+}
 
-  if (!ok) {
-    process.exitCode = 1;
-  }
+async function coverageEntry(root, sha, status, memory) {
+  const subject = await git(["show", "-s", "--format=%s", sha], { cwd: root });
+  return {
+    commit: sha,
+    subject,
+    status,
+    memory,
+  };
 }
 
 async function runCheckpointCommand(action, values) {
@@ -1708,6 +1748,7 @@ Usage:
   trace redact add <label> <regex>
   trace redact list
   trace redact remove <label>
+  trace coverage [range]
   trace ci [range]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
