@@ -13,7 +13,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml): reusable workflow step that runs the package manifest check before publication.
 - [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml): release workflow example where npm publication depends on the package manifest check, package release evidence fixture validation, a downloaded and replayed release evidence audit artifact, a downloaded and replayed retained archive manifest artifact, and a downloaded dry-run publication record.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
-- [examples/code-change-adoption](examples/code-change-adoption): end-to-end code-change retry verdict, gate, and review bundle fixture.
+- [examples/code-change-adoption](examples/code-change-adoption): end-to-end code-change retry and accept verdict, gate, and review bundle fixtures.
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, trusted key policy manifest, and untrusted-producer troubleshooting policy.
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
 - [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release): local package release evidence examples for failed publication rollback, replacement patch supersedence audits, retained release archive manifest fixture, and archive drift remediation audit record.
@@ -45,7 +45,7 @@ The test suite covers the CI adoption guide, code-change adoption fixture, packa
 
 ## Current Hardening Step
 
-The code-change adoption fixture is available through [examples/code-change-adoption](examples/code-change-adoption). It proves the core `init`, `claim create`, `evidence add`, `critic run`, `judge`, `gate`, and `bundle export` path with a retry verdict, failing gate output, and portable `review-bundle.retry.json` carrying actionable scope-critic next actions.
+The code-change adoption fixture is available through [examples/code-change-adoption](examples/code-change-adoption). It proves the core `init`, `claim create`, `evidence add`, `critic run`, `judge`, `gate`, and `bundle export` path with a retry verdict, failing gate output, portable `review-bundle.retry.json` carrying actionable scope-critic next actions, scope correction evidence, resolved objection state, accept verdict, passing gate output, and portable `review-bundle.accept.json`.
 
 ## Release Archive Hardening
 
@@ -197,4 +197,4 @@ Curie (`019e54fa-5822-71d2-8aa1-f849b85b4665`) completed a read-only audit on 20
 
 ## Next Hardening Step
 
-Add an end-to-end code-change adoption fixture that proves the core `init`, `claim create`, `evidence add`, `critic run`, `judge`, and `gate` workflow produces a portable review bundle with actionable retry evidence before Jury v1 adoption expands beyond package release archives.
+Add a reusable CI workflow variant that runs the code-change adoption fixture and publishes retry and accept review bundles as artifacts for downstream verification.

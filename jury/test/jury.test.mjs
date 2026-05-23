@@ -175,7 +175,7 @@ test("documented core flow commands stay in sync with CLI behavior", async () =>
   }
 });
 
-test("code-change adoption fixture produces portable retry evidence", async () => {
+test("code-change adoption fixture produces portable retry and accept evidence", async () => {
   const checkout = await copyJuryCheckout();
 
   try {
@@ -199,6 +199,9 @@ test("code-change adoption fixture produces portable retry evidence", async () =
     const verdict = JSON.parse(await readFile(join(checkout, "verdict.retry.json"), "utf8"));
     const gate = JSON.parse(await readFile(join(checkout, "gate.retry.json"), "utf8"));
     const bundle = JSON.parse(await readFile(join(checkout, "review-bundle.retry.json"), "utf8"));
+    const acceptedVerdict = JSON.parse(await readFile(join(checkout, "verdict.accept.json"), "utf8"));
+    const acceptedGate = JSON.parse(await readFile(join(checkout, "gate.accept.json"), "utf8"));
+    const acceptedBundle = JSON.parse(await readFile(join(checkout, "review-bundle.accept.json"), "utf8"));
 
     assert.equal(verdict.decision, "retry");
     assert.deepEqual(verdict.evidence_ids, ["ev_jury_tests"]);
@@ -214,8 +217,22 @@ test("code-change adoption fixture produces portable retry evidence", async () =
     assert.equal(bundle.records.evidence[0].command, "npm --prefix jury test");
     assert.equal(bundle.records.objections[0].raised_by, "critic:scope");
     assert.equal(bundle.records.verdicts[0].decision, "retry");
+    assert.equal(acceptedVerdict.decision, "accept");
+    assert.deepEqual(acceptedVerdict.next_actions, []);
+    assert.deepEqual(acceptedVerdict.evidence_ids, ["ev_jury_tests", "ev_scope_corrected"]);
+    assert.deepEqual(acceptedVerdict.objection_ids, ["obj_claim_checkout_ready_scope_out_of_scope_changes"]);
+    assert.equal(acceptedGate.ok, true);
+    assert.equal(acceptedGate.decision, "accept");
+    assert.deepEqual(acceptedGate.unresolved_objections, []);
+    assert.equal(acceptedBundle.schema_version, "jury.review_bundle.v1");
+    assert.equal(acceptedBundle.claim_id, "claim_checkout_ready");
+    assert.equal(acceptedBundle.records.evidence.find((item) => item.id === "ev_scope_corrected").source, "changed-files:jury/bin/jury.mjs");
+    assert.equal(acceptedBundle.records.objections.at(-1).status, "resolved");
+    assert.match(acceptedBundle.records.objections.at(-1).resolution, /Removed docs\/checkout-notes\.md/);
+    assert.equal(acceptedBundle.records.verdicts.find((item) => item.id === "verdict_claim_checkout_ready_accept").decision, "accept");
+    assert.equal(acceptedBundle.records.verdicts.find((item) => item.id === "verdict_claim_checkout_ready_retry").decision, "retry");
 
-    for (const filename of ["verdict.retry.json", "gate.retry.json", "review-bundle.retry.json"]) {
+    for (const filename of ["verdict.retry.json", "gate.retry.json", "review-bundle.retry.json", "verdict.accept.json", "gate.accept.json", "review-bundle.accept.json"]) {
       const generated = JSON.parse(await readFile(join(checkout, filename), "utf8"));
       const expected = JSON.parse(await readFile(join(checkout, "jury/examples/code-change-adoption", filename), "utf8"));
 
@@ -3883,6 +3900,9 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/code-change-adoption/verdict.retry.json",
     "examples/code-change-adoption/gate.retry.json",
     "examples/code-change-adoption/review-bundle.retry.json",
+    "examples/code-change-adoption/verdict.accept.json",
+    "examples/code-change-adoption/gate.accept.json",
+    "examples/code-change-adoption/review-bundle.accept.json",
     "MIGRATION.md",
     "TROUBLESHOOTING.md",
     "MAINTAINER_HANDOFF.md",
@@ -4136,6 +4156,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package publication notes/);
   assert.match(handoff, /code-change adoption fixture/);
   assert.match(handoff, /portable `review-bundle\.retry\.json` carrying actionable scope-critic next actions/);
+  assert.match(handoff, /portable `review-bundle\.accept\.json`/);
   assert.match(handoff, /dry-run release publication checklist guidance/);
   assert.match(handoff, /dry-run publication artifact handoff/);
   assert.match(handoff, /dry-run artifact retention expectations/);
@@ -4282,9 +4303,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /should require `jury-package-release-replay-summary-expiry-handoff\.json`/);
   assert.match(handoff, /requires the expiry handoff in both `retention\.artifacts` and `archiveEvidence`/);
   assert.match(handoff, /Next Hardening Step/);
-  assert.match(handoff, /end-to-end code-change adoption fixture/);
-  assert.match(handoff, /`init`, `claim create`, `evidence add`, `critic run`, `judge`, and `gate` workflow/);
-  assert.match(handoff, /actionable retry evidence/);
+  assert.match(handoff, /reusable CI workflow variant/);
+  assert.match(handoff, /publishes retry and accept review bundles as artifacts/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

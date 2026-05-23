@@ -26,7 +26,7 @@ The long-term target is a shared review protocol that can sit behind code change
 - [MAINTAINER_HANDOFF.md](MAINTAINER_HANDOFF.md): current adoption artifacts, validation commands, and next hardening step.
 - [release.json](release.json): machine-readable v1 metadata for schemas, commands, exports, and CI workflow variants.
 - [examples/README.md](examples/README.md): concrete review gates for code, research, deployment, and tool-use claims.
-- [examples/code-change-adoption](examples/code-change-adoption): end-to-end retry fixture for a real code-change review bundle.
+- [examples/code-change-adoption](examples/code-change-adoption): end-to-end retry and accept fixtures for a real code-change review bundle.
 
 ## Core Idea
 
