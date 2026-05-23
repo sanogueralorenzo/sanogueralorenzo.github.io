@@ -2937,6 +2937,7 @@ function sessionTraceEvent(event) {
     status: event.status ?? null,
     failureSignals: Array.isArray(event.failureSignals) ? event.failureSignals : [],
     guardResult: event.guardResult ?? null,
+    suppressedInjections: Array.isArray(event.suppressedInjections) ? event.suppressedInjections : [],
     stdoutSummary: event.stdoutSummary ?? null,
     stderrSummary: event.stderrSummary ?? null,
   };
@@ -2944,8 +2945,15 @@ function sessionTraceEvent(event) {
 
 async function createSessionLearningSnapshot(stateDir, sessionId) {
   const trace = await traceFromSession(stateDir, sessionId);
-  const candidates = compileTraceCandidates(trace);
-  const tracePath = trace.failures.length > 0 ? join(stateDir, "traces", `${safeFileName(trace.id)}.json`) : null;
+  const events = await readJsonLines(join(stateDir, "events.jsonl"));
+  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+  const candidates = [
+    ...compileTraceCandidates(trace),
+    ...compileReplacementCandidates({ trace, events, precedents }),
+  ];
+  const tracePath = trace.failures.length > 0 || candidates.length > 0
+    ? join(stateDir, "traces", `${safeFileName(trace.id)}.json`)
+    : null;
 
   if (tracePath) {
     await writeFileAtomic(tracePath, `${JSON.stringify(trace, null, 2)}\n`);
@@ -2964,6 +2972,7 @@ async function createSessionLearningSnapshot(stateDir, sessionId) {
     status: candidates.length > 0 ? "candidate" : "no_signal",
     failures: trace.failures.length,
     candidateIds: candidates.map((candidate) => candidate.id),
+    replacementCandidateIds: candidates.filter((candidate) => candidate.reason === "repair_efficacy_replacement").map((candidate) => candidate.id),
     promotionStatus: "not_promoted",
     replayRequired: candidates.length > 0,
   };
@@ -2975,9 +2984,105 @@ async function createSessionLearningSnapshot(stateDir, sessionId) {
     tracePath,
     failures: trace.failures.length,
     candidateIds: snapshot.candidateIds,
+    replacementCandidateIds: snapshot.replacementCandidateIds,
     promotionStatus: snapshot.promotionStatus,
     replayRequired: snapshot.replayRequired,
   };
+}
+
+function compileReplacementCandidates({ trace, events, precedents }) {
+  if (!traceEligibleAsSuccessfulPair(trace)) {
+    return [];
+  }
+
+  return suppressedRepairEfficacyIdsForTrace(trace)
+    .map((id) => replacementCandidateForPrecedent({ trace, events, precedents, id }))
+    .filter(Boolean);
+}
+
+function suppressedRepairEfficacyIdsForTrace(trace) {
+  return uniqueStrings((trace.session?.events ?? [])
+    .flatMap((event) => Array.isArray(event.suppressedInjections) ? event.suppressedInjections : [])
+    .filter((item) => ["stale_repair_efficacy", "retired_repair_efficacy"].includes(item.reason))
+    .map((item) => item.id));
+}
+
+function replacementCandidateForPrecedent({ trace, events, precedents, id }) {
+  const precedent = precedents.find((item) => item.id === id);
+  if (!precedent) {
+    return null;
+  }
+  if (!replacementCandidateOverlaps(trace, precedent)) {
+    return null;
+  }
+
+  const counterexamples = counterexamplesForPrecedent(events, id);
+  if (counterexamples.length === 0) {
+    return null;
+  }
+
+  const successfulValidation = successfulValidationForTrace(trace);
+  const scope = trace.scope ?? precedent.scope ?? "repo";
+  const candidateId = `cand_replace_${safeFileName(id)}_${safeFileName(trace.sessionId)}`;
+  const successfulPaths = commonPathPrefixes(trace.changedFiles ?? []);
+  const paths = uniqueStrings([
+    ...(Array.isArray(precedent.paths) ? precedent.paths : []),
+    ...successfulPaths,
+  ]);
+
+  return {
+    id: candidateId,
+    status: "candidate",
+    reason: "repair_efficacy_replacement",
+    replaces: [id],
+    scope,
+    trigger: precedent.trigger ?? triggerForTrace(trace),
+    lesson: `Precedent ${id} has counterexamples; replace it with the successful pattern from ${trace.id}.`,
+    artifact: precedent.artifact ?? "skill",
+    paths,
+    source_traces: [trace.id],
+    failure_types: ["repair_efficacy_replacement"],
+    counterexample_ids: counterexamples.map((item) => item.repairId ?? `${item.type}:${item.sessionId ?? "unknown"}`),
+    evidence: replacementEvidence({ precedent, trace, counterexamples, successfulValidation }),
+    injection: replacementInjection({ precedent, trace, successfulValidation }),
+    promotion_required: "Replay the stale precedent scenario with this replacement injected, then promote only with concrete improvement.",
+  };
+}
+
+function replacementCandidateOverlaps(trace, precedent) {
+  if (trace.scope && precedent.scope && trace.scope === precedent.scope) {
+    return true;
+  }
+
+  const precedentPrefixes = new Set([
+    ...commonPathPrefixes(precedent.paths ?? []),
+    ...(Array.isArray(precedent.paths) ? precedent.paths : []),
+  ]);
+  if (precedentPrefixes.size === 0) {
+    return false;
+  }
+
+  return commonPathPrefixes(trace.changedFiles ?? [])
+    .some((prefix) => precedentPrefixes.has(prefix));
+}
+
+function replacementEvidence({ precedent, trace, counterexamples, successfulValidation }) {
+  return uniqueStrings([
+    `suppressed stale repair efficacy: ${precedent.id}`,
+    `repair counterexamples: ${counterexamples.length}`,
+    ...(successfulValidation ? [`successful validation: ${successfulValidation.command} exited ${successfulValidation.exitCode}`] : []),
+    `successful session: ${trace.id}`,
+    `successful changed files: ${(trace.changedFiles ?? []).join(", ")}`,
+  ]);
+}
+
+function replacementInjection({ precedent, trace, successfulValidation }) {
+  const base = `Precedent ${precedent.id} has recent counterexamples; prefer the validated pattern from ${trace.id}.`;
+  if (successfulValidation?.command) {
+    return `${base} Run ${successfulValidation.command} before treating the replacement as safe.`;
+  }
+
+  return base;
 }
 
 async function promoteSessionPairs(stateDir, { successSessionId = null, requireFailureBeforeSuccess = false } = {}) {

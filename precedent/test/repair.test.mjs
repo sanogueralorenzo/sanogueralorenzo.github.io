@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -338,6 +338,113 @@ test("repair efficacy suppresses after two still-failing receipts and resets aft
   }
 });
 
+test("successful session after repair-efficacy suppression creates replacement candidate", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await recordStillFailingRepairCycle(stateDir, "failed-one", "retry-one");
+    await recordStillFailingRepairCycle(stateDir, "failed-two", "retry-two");
+
+    const context = await contextForWebhook(stateDir, { session: "replacement-session" });
+    assert.equal(context.suppressedInjections[0].reason, "stale_repair_efficacy");
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "replacement-session",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const outcome = await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "replacement-session",
+      success: true,
+      status: "success",
+    });
+
+    const candidateId = "cand_replace_prec_webhook_replay_boundary_replacement-session";
+    assert.equal(outcome.learning.status, "candidate");
+    assert.ok(outcome.learning.replacementCandidateIds.includes(candidateId));
+    assert.ok(outcome.learning.candidateIds.includes(candidateId));
+
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    const candidate = candidates.find((item) => item.id === candidateId);
+    assert.deepEqual(candidate.replaces, ["prec_webhook_replay_boundary"]);
+    assert.equal(candidate.reason, "repair_efficacy_replacement");
+    assert.ok(candidate.evidence.some((item) => item.includes("repair counterexamples")));
+    assert.ok(candidate.evidence.some((item) => item.includes("successful validation: pnpm test:webhooks exited 0")));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("replacement candidate requires clean validation", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await recordStillFailingRepairCycle(stateDir, "failed-one", "retry-one");
+    await recordStillFailingRepairCycle(stateDir, "failed-two", "retry-two");
+    await contextForWebhook(stateDir, { session: "no-validation-session" });
+
+    const outcome = await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "no-validation-session",
+      success: true,
+      status: "success",
+    });
+
+    assert.equal(outcome.learning.status, "no_signal");
+    assert.deepEqual(outcome.learning.replacementCandidateIds, []);
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    assert.deepEqual(candidates, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("replacement candidate requires scope or path overlap", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await recordStillFailingRepairCycle(stateDir, "failed-one", "retry-one");
+    await recordStillFailingRepairCycle(stateDir, "failed-two", "retry-two");
+    const context = await contextForWebhook(stateDir, {
+      session: "unrelated-success",
+      scope: "feature:billing",
+      changedFile: "features/billing/refunds.ts",
+      threshold: 1,
+    });
+    assert.equal(context.suppressedInjections[0].reason, "stale_repair_efficacy");
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "unrelated-success",
+      command: "pnpm test:billing",
+      exitCode: 0,
+    });
+    const outcome = await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "unrelated-success",
+      success: true,
+      status: "success",
+    });
+
+    assert.equal(outcome.learning.status, "no_signal");
+    assert.deepEqual(outcome.learning.replacementCandidateIds, []);
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    assert.deepEqual(candidates, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function repairBeforeRetry(stateDir, sessionId) {
   return runJson(["hook", "--state-dir", stateDir, "--json"], {
     schema_version: "precedent.v1",
@@ -383,19 +490,26 @@ async function recordRepairableDiff(stateDir, sessionId) {
   });
 }
 
-function contextForWebhook(stateDir) {
-  return runJson([
+function contextForWebhook(stateDir, options = {}) {
+  const args = [
     "context",
     "--state-dir",
     stateDir,
     "--task",
     "add webhook handler",
     "--scope",
-    "feature:webhooks",
+    options.scope ?? "feature:webhooks",
     "--changed-files",
-    "features/webhooks/providers/stripe.ts",
+    options.changedFile ?? "features/webhooks/providers/stripe.ts",
     "--json",
-  ]);
+  ];
+  if (options.session) {
+    args.push("--session", options.session);
+  }
+  if (options.threshold) {
+    args.push("--threshold", String(options.threshold));
+  }
+  return runJson(args);
 }
 
 async function promoteAndInjectWebhookPrecedent(stateDir, sessionId) {
@@ -470,4 +584,12 @@ function runProcess(args, stdinJson = null) {
       child.stdin.end();
     }
   });
+}
+
+async function readJsonLines(path) {
+  const content = await readFile(path, "utf8");
+  return content
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line));
 }
