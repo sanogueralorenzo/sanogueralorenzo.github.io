@@ -189,13 +189,15 @@ function parseGoal(header, bodyLines, file, startLine, endLine) {
   if (!named && !quoted) {
     throw parseError(file, startLine, header, `invalid goal declaration '${header}'`);
   }
+  const outputType = named && named[3] ? named[3].trim() : null;
 
   const goal = {
     kind: "Goal",
     name: named ? named[1] : slugify(quoted[1]),
     title: named ? null : quoted[1],
     parameters: named ? parseParameters(named[2], file, startLine, header) : [],
-    outputType: named && named[3] ? named[3].trim() : null,
+    outputType,
+    outputTypeSpan: parseOutputTypeSpan(outputType, file, startLine, header),
     context: [],
     capabilities: [],
     memory: [],
@@ -355,14 +357,15 @@ function parseStep(header, body, file, startLine, endLine) {
   if (!match) {
     throw parseError(file, startLine, header, `invalid step declaration '${header}'`);
   }
+  const outputType = match[3] ? match[3].trim() : null;
   const effects = [];
   const requirements = [];
   const checkpoints = [];
   const approvals = [];
   const timeouts = [];
   const retries = [];
-  if (match[3]) {
-    const effectOutput = match[3].trim().match(/^Effect<\s*([A-Za-z][A-Za-z0-9_.]*)/);
+  if (outputType) {
+    const effectOutput = outputType.match(/^Effect<\s*([A-Za-z][A-Za-z0-9_.]*)/);
     if (effectOutput) {
       effects.push(parseEffectUse(effectOutput[1], file, startLine, header));
     }
@@ -391,7 +394,8 @@ function parseStep(header, body, file, startLine, endLine) {
     kind: "Step",
     name: match[1],
     parameters: parseParameters(match[2] ?? "", file, startLine, header),
-    outputType: match[3] ? match[3].trim() : null,
+    outputType,
+    outputTypeSpan: parseOutputTypeSpan(outputType, file, startLine, header),
     effects,
     requirements,
     checkpoints,
@@ -656,9 +660,9 @@ function validateGoalTypes(goal, declaredTypes, diagnostics) {
       }));
     }
     seenParameters.set(parameter.name, parameter);
-    validateTypeRef(parameter.type, goal.span, declaredTypes, diagnostics);
+    validateTypeRef(parameter.type, parameter.span, declaredTypes, diagnostics);
   }
-  validateTypeRef(goal.outputType, goal.span, declaredTypes, diagnostics);
+  validateTypeRef(goal.outputType, goal.outputTypeSpan ?? goal.span, declaredTypes, diagnostics);
 
   const stepNames = new Map();
   for (const step of goal.steps) {
@@ -680,9 +684,9 @@ function validateGoalTypes(goal, declaredTypes, diagnostics) {
         }));
       }
       parameterNames.set(parameter.name, parameter);
-      validateTypeRef(parameter.type, step.span, declaredTypes, diagnostics);
+      validateTypeRef(parameter.type, parameter.span, declaredTypes, diagnostics);
     }
-    validateTypeRef(step.outputType, step.span, declaredTypes, diagnostics);
+    validateTypeRef(step.outputType, step.outputTypeSpan ?? step.span, declaredTypes, diagnostics);
   }
 }
 
@@ -836,6 +840,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       title: goal.title,
       parameters: goal.parameters,
       outputType: goal.outputType,
+      outputTypeSpan: goal.outputTypeSpan,
     }));
 
     const producersByType = new Map();
@@ -899,6 +904,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       nodes.push(node(id, "Step", step.name, step.span, {
         inputs: step.parameters,
         outputType: step.outputType,
+        outputTypeSpan: step.outputTypeSpan,
         effects: step.effects.map((effect) => effect.name),
         requirements: step.requirements.map((requirement) => requirement.value),
         checkpoints: step.checkpoints.map((checkpoint) => checkpoint.value),
@@ -1041,6 +1047,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     const completionId = `${goalId}:completion`;
     nodes.push(node(completionId, "Completion", goal.name, goal.span, {
       outputType: goal.outputType,
+      outputTypeSpan: goal.outputTypeSpan,
     }));
     edges.push(edge(goalId, completionId, "completes"));
     if (lastStepId) {
@@ -1120,6 +1127,23 @@ function parseParameters(text, file, lineNumber, rawLine = text) {
       span: span(file, lineNumber, startColumn, lineNumber, startColumn + trimmed.length),
     };
   });
+}
+
+function parseOutputTypeSpan(outputType, file, lineNumber, rawLine) {
+  if (!outputType) {
+    return null;
+  }
+  const arrowIndex = rawLine.indexOf("->");
+  if (arrowIndex < 0) {
+    return null;
+  }
+  const afterArrow = rawLine.slice(arrowIndex + 2);
+  const firstOutputChar = afterArrow.search(/\S/);
+  if (firstOutputChar < 0) {
+    return null;
+  }
+  const startColumn = arrowIndex + 2 + firstOutputChar + 1;
+  return span(file, lineNumber, startColumn, lineNumber, startColumn + outputType.length);
 }
 
 function extractTypeNames(typeRef) {

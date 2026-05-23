@@ -187,9 +187,13 @@ describe("intent static model CLI", () => {
     assert.equal(dependencyAst.goals[0].parameters[0].name, "request");
     assert.equal(dependencyAst.goals[0].parameters[0].span.start.line, 19);
     assert.equal(dependencyAst.goals[0].parameters[0].span.start.column, 30);
+    assert.equal(dependencyAst.goals[0].outputTypeSpan.start.line, 19);
+    assert.equal(dependencyAst.goals[0].outputTypeSpan.start.column, 55);
     assert.equal(dependencyAst.goals[0].steps[0].parameters[0].name, "input");
     assert.equal(dependencyAst.goals[0].steps[0].parameters[0].span.start.line, 37);
     assert.equal(dependencyAst.goals[0].steps[0].parameters[0].span.start.column, 22);
+    assert.equal(dependencyAst.goals[0].steps[0].outputTypeSpan.start.line, 37);
+    assert.equal(dependencyAst.goals[0].steps[0].outputTypeSpan.start.column, 45);
   });
 
   it("accepts valid fixtures", () => {
@@ -489,6 +493,8 @@ describe("intent static model CLI", () => {
     assert.equal(payload.ok, false);
     assert.equal(payload.diagnostics[0].code, "INTENT_TYPE_UNRESOLVED");
     assert.equal(payload.diagnostics[0].type, "MissingType");
+    assert.equal(payload.diagnostics[0].span.start.line, 16);
+    assert.equal(payload.diagnostics[0].span.start.column, 25);
   });
 
   it("rejects duplicate step names", () => {
@@ -595,6 +601,12 @@ describe("intent static model CLI", () => {
     assert.equal(kinds.has("Completion"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "GoalRequest"), true);
     assert.equal(graph.nodes.some((node) => {
+      return node.kind === "Goal"
+        && node.data.outputType === "VerifiedPatch"
+        && node.data.outputTypeSpan.start.line === 19
+        && node.data.outputTypeSpan.start.column === 55;
+    }), true);
+    assert.equal(graph.nodes.some((node) => {
       return node.kind === "Input"
         && node.data.scope === "goal"
         && node.label === "request"
@@ -607,6 +619,19 @@ describe("intent static model CLI", () => {
         && node.label === "input"
         && node.span.start.line === 37
         && node.span.start.column === 22;
+    }), true);
+    assert.equal(graph.nodes.some((node) => {
+      return node.kind === "Step"
+        && node.label === "inspect_request"
+        && node.data.outputType === "Finding"
+        && node.data.outputTypeSpan.start.line === 37
+        && node.data.outputTypeSpan.start.column === 45;
+    }), true);
+    assert.equal(graph.nodes.some((node) => {
+      return node.kind === "Completion"
+        && node.data.outputType === "VerifiedPatch"
+        && node.data.outputTypeSpan.start.line === 19
+        && node.data.outputTypeSpan.start.column === 55;
     }), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Finding"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "data" && edge.data.type === "Patch"), true);
