@@ -19,6 +19,7 @@ goal "read granted wildcard web domain" {
   plan {
     step read_docs -> WebPage {
       effect WebRead(url: "https://docs.example.com/guide")
+      memory cite session.evidence
     }
   }
 

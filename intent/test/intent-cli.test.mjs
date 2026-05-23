@@ -62,6 +62,7 @@ const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_wit
 const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memory_retention_unknown_until.intent", import.meta.url).pathname;
 const INVALID_MEMORY_ACCESS_UNDECLARED = new URL("../fixtures/invalid_memory_access_undeclared.intent", import.meta.url).pathname;
 const INVALID_MEMORY_KEY_UNDECLARED = new URL("../fixtures/invalid_memory_key_undeclared.intent", import.meta.url).pathname;
+const INVALID_PROVENANCE_MISSING = new URL("../fixtures/invalid_provenance_missing.intent", import.meta.url).pathname;
 const INVALID_STEP_POLICY_BAD_TIMEOUT = new URL("../fixtures/invalid_step_policy_bad_timeout.intent", import.meta.url).pathname;
 const INVALID_CHECKPOINT_EMPTY = new URL("../fixtures/invalid_checkpoint_empty.intent", import.meta.url).pathname;
 const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.intent", import.meta.url).pathname;
@@ -211,7 +212,12 @@ function defaultGraphNodeData(kind, data) {
     return { title: null, parameters: [], outputType: "Synthetic", outputTypeSpan: testSpan(1), ...normalizedData };
   }
   if (kind === "Completion") {
-    return { outputType: "Synthetic", outputTypeSpan: testSpan(1), ...normalizedData };
+    return {
+      outputType: "Synthetic",
+      outputTypeSpan: testSpan(1),
+      provenance: { required: false, requirements: [], invariants: [], citations: [] },
+      ...normalizedData,
+    };
   }
   if (kind === "Invariant") {
     return { assertion: "Deny", invariant: "synthetic", ...normalizedData };
@@ -1241,6 +1247,18 @@ describe("intent static model CLI", () => {
     assert.deepEqual(payload.diagnostics[0].declared_keys, ["summaries"]);
   });
 
+  it("rejects completion provenance requirements without final-step citations", () => {
+    const result = run(["check", INVALID_PROVENANCE_MISSING]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_PROVENANCE_MISSING");
+    assert.deepEqual(payload.diagnostics[0].requirements, ["all_outputs_cited"]);
+    assert.deepEqual(payload.diagnostics[0].invariants, ["uncited_external_claim"]);
+    assert.equal(payload.diagnostics[0].citations, 0);
+  });
+
   it("rejects invalid step policy syntax", () => {
     const result = run(["check", INVALID_STEP_POLICY_BAD_TIMEOUT]);
     const payload = JSON.parse(result.stdout);
@@ -1745,6 +1763,7 @@ describe("intent static model CLI", () => {
   it("emits memory access provenance edges", () => {
     const graph = runJson(["graph", VALID_MEMORY_FLOW_GRAPH]);
     const memory = graph.nodes.find((node) => node.kind === "Memory" && node.data.scope === "session");
+    const completion = graph.nodes.find((node) => node.kind === "Completion");
     const inspectStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "inspect");
     const draftStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "draft");
     const writeEdge = graph.edges.find((edge) => edge.kind === "writes");
@@ -1757,6 +1776,9 @@ describe("intent static model CLI", () => {
     assert.equal(memory.data.keys[0].type, "Record");
     assert.deepEqual(inspectStep.data.memoryAccesses, ["session.evidence", "session.decisions"]);
     assert.deepEqual(draftStep.data.memoryAccesses, ["session.evidence", "session.evidence"]);
+    assert.equal(completion.data.provenance.required, true);
+    assert.deepEqual(completion.data.provenance.requirements.map((requirement) => requirement.requirement), ["memory_provenance_complete"]);
+    assert.deepEqual(completion.data.provenance.citations.map((citation) => [citation.step, citation.target]), [["draft", "session.evidence"]]);
     assert.equal(writeEdge.from, inspectStep.id);
     assert.equal(writeEdge.to, memory.id);
     assert.equal(writeEdge.data.access, "write");
@@ -4138,6 +4160,33 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
       ],
     });
+    const missingCitationDiagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
+        {
+          id: "goal:demo:completion",
+          kind: "Completion",
+          label: "demo",
+          span: testSpan(4),
+          data: {
+            provenance: {
+              required: true,
+              requirements: [{ requirement: "all_outputs_cited", span: testSpan(3) }],
+              invariants: [],
+              citations: [{ memory: "session", key: null, target: "session", step: "a", span: testSpan(2) }],
+            },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    });
 
     assert.equal(missingProducesDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(missingProducesDiagnostics[0].completes_edges, 1);
@@ -4151,6 +4200,10 @@ describe("intent static model CLI", () => {
     assert.equal(missingVerifyAndGuardDiagnostics[0].verifies_edges, 0);
     assert.equal(missingVerifyAndGuardDiagnostics[0].guards_edges, 0);
     assert.equal(missingVerifyAndGuardDiagnostics[0].expected_guard_edges, 1);
+    assert.equal(missingCitationDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(missingCitationDiagnostics[0].provenance_required, true);
+    assert.equal(missingCitationDiagnostics[0].citation_edges, 0);
+    assert.equal(missingCitationDiagnostics[0].has_required_citation_edges, false);
   });
 
   it("validates graph completion payload diagnostics", () => {
@@ -4161,11 +4214,19 @@ describe("intent static model CLI", () => {
         { id: "goal:other:completion", kind: "Completion", label: "other", span: testSpan(2), data: { outputType: "Report", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
         { id: "goal:missing-span:completion", kind: "Completion", label: "missing span", span: testSpan(3), data: { outputType: "Report", outputTypeSpan: null } },
         { id: "goal:unexpected-span:completion", kind: "Completion", label: "unexpected span", span: testSpan(4), data: { outputType: null, outputTypeSpan: testSpan(4) } },
+        { id: "goal:missing-provenance:completion", kind: "Completion", label: "missing provenance", span: testSpan(5), data: { provenance: null } },
+        {
+          id: "goal:missing-citation:completion",
+          kind: "Completion",
+          label: "missing citation",
+          span: testSpan(6),
+          data: { provenance: { required: true, requirements: [], invariants: [], citations: [] } },
+        },
       ],
       edges: [],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_COMPLETION_INVALID" && "output_type_is_valid" in diagnostic);
 
-    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics.length, 6);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
     assert.equal(diagnostics[0].completion_id, "goal:demo:completion");
     assert.equal(diagnostics[0].output_type_is_valid, false);
@@ -4180,6 +4241,11 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[3].completion_id, "goal:unexpected-span:completion");
     assert.equal(diagnostics[3].output_type_is_valid, true);
     assert.equal(diagnostics[3].output_type_span_is_valid, false);
+    assert.equal(diagnostics[4].completion_id, "goal:missing-provenance:completion");
+    assert.equal(diagnostics[4].provenance_is_valid, false);
+    assert.equal(diagnostics[5].completion_id, "goal:missing-citation:completion");
+    assert.equal(diagnostics[5].provenance_is_valid, true);
+    assert.equal(diagnostics[5].provenance_has_required_citations, false);
   });
 
   it("validates graph typed edge contract diagnostics", () => {

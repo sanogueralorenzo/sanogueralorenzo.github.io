@@ -416,6 +416,14 @@ Next graph envelope validation milestone:
   supported `data.access`, and valid `sourceSpan` and `targetSpan` values.
   Malformed memory access edge payloads emit
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
+- Completion citation policy is enforced before graph execution. A goal with
+  `require all_outputs_cited`, `require memory_provenance_complete`, or
+  `deny uncited_external_claim` must have at least one `memory cite ...`
+  statement on the final completion-producing step. Missing final-step citation
+  coverage emits `INTENT_PROVENANCE_MISSING`. The graph builder copies those
+  triggers and final-step citation records into `Completion.data.provenance`,
+  and graph validation rejects malformed completion provenance or required
+  provenance with no citations using `INTENT_GRAPH_COMPLETION_INVALID`.
 - Runtime graph `authorizes` edges have a constrained role contract. An
   `authorizes` edge is valid only from `Capability` to `Goal` for capability
   ownership, or from `Capability` to an `Effect`, `Check`, or `Context` node
@@ -674,7 +682,9 @@ Next graph envelope validation milestone:
 - Runtime Completion node metadata is part of graph validation. `Completion`
   node data must carry `outputType` as `null` or a non-empty string and
   `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when
-  `outputType` is non-empty. Malformed Completion node payloads emit
+  `outputType` is non-empty. It must also carry `provenance` with a boolean
+  `required`, triggering verification requirements, triggering invariants, and
+  final-step memory citation records. Malformed Completion node payloads emit
   `INTENT_GRAPH_COMPLETION_INVALID` and make graph output non-executable. This
   runtime payload contract is separate from the existing
   completion-edge contract, which still requires `completes`, `produces`,
@@ -1498,6 +1508,15 @@ Rules:
 - Memory access graph edges with a keyed target must match a retained subject or
   explicit key on the referenced `Memory` node. Mismatches emit
   `INTENT_GRAPH_MEMORY_TARGET_INVALID`.
+- `require all_outputs_cited`, `require memory_provenance_complete`, and
+  `deny uncited_external_claim` are completion provenance triggers. The final
+  step must include at least one `memory cite ...` statement so the completion
+  can point at retained evidence. Missing coverage emits
+  `INTENT_PROVENANCE_MISSING`.
+- Graph `Completion` node data includes `provenance.required`,
+  `provenance.requirements`, `provenance.invariants`, and
+  `provenance.citations`. Required provenance with an empty citation list, or
+  malformed provenance records, emits `INTENT_GRAPH_COMPLETION_INVALID`.
 
 ## Trust Flow
 
@@ -1787,6 +1806,7 @@ Initial diagnostic families:
 - `INTENT_VERIFY_MISSING`
 - `INTENT_VERIFY_IMPURE`
 - `INTENT_VERIFY_UNDECLARED`
+- `INTENT_PROVENANCE_MISSING`
 - `INTENT_INVARIANT_VIOLATION`
 - `INTENT_TRUST_FLOW_UNSAFE`
 - `INTENT_MEMORY_UNDECLARED`
@@ -2500,9 +2520,11 @@ with non-empty `name` and `type` strings and a valid `span`, when `outputType`
 is neither `null` nor a non-empty string, or when `outputTypeSpan` is not
 `null` for a null `outputType` or a valid span for a non-empty `outputType`.
 Graph validation emits `INTENT_GRAPH_COMPLETION_INVALID` when a `Completion`
-node omits `outputType` or `outputTypeSpan` data, when `outputType` is neither
-`null` nor a non-empty string, or when `outputTypeSpan` is not `null` for a
-null `outputType` or a valid span for a non-empty `outputType`.
+node omits `outputType`, `outputTypeSpan`, or `provenance` data, when
+`outputType` is neither `null` nor a non-empty string, when `outputTypeSpan` is
+not `null` for a null `outputType` or a valid span for a non-empty
+`outputType`, or when required completion provenance has no final-step
+citations.
 Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
 multiple `Step` nodes does not have exactly one linear role-valid `precedes`
 chain across those steps, or when the `Step` producing `Completion` is not the
@@ -2830,9 +2852,11 @@ preventing ambiguous completion replay while preserving completion-specific
 diagnostics.
 Completion node data also carries `outputType` as `null` or a
 non-empty string and `outputTypeSpan` as `null` when `outputType` is `null` or
-a valid span when `outputType` is non-empty; malformed Completion payload data emits
-`INTENT_GRAPH_COMPLETION_INVALID` and makes graph output non-executable. This
-node payload contract is separate from the completion-edge contract. Graph
+a valid span when `outputType` is non-empty, plus `provenance` records for
+completion citation requirements, invariants, and final-step citations;
+malformed Completion payload data emits `INTENT_GRAPH_COMPLETION_INVALID` and
+makes graph output non-executable. This node payload contract is separate from
+the completion-edge contract. Graph
 validation emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a `Goal` node lacks its
 `${goal_id}:completion` `Completion` node, lacks exactly one outgoing

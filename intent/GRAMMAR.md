@@ -238,6 +238,11 @@ The graph builder emits `writes` edges from the owning `Step` to the `Memory`
 node, and emits `reads` or `cites` edges from the `Memory` node to the owning
 `Step`. These edges carry access metadata plus source and target spans so
 runtime provenance can distinguish memory mutation, consumption, and citation.
+When a goal requires `all_outputs_cited`, requires
+`memory_provenance_complete`, or denies `uncited_external_claim`, the final
+completion-producing step must contain at least one `memory cite ...`
+statement. Missing final-step citation coverage emits
+`INTENT_PROVENANCE_MISSING`.
 
 ## Expressions
 
@@ -563,6 +568,8 @@ The parser emits names and type reference strings; the checker owns binding.
   applicable `invariant` rules create `guards` edges to completion and every
   effect, checkpoint, and step requirement check in the same goal, and the last
   step in source order creates a `produces` edge.
+- Completion node data records whether citation provenance is required and the
+  final-step memory citations that satisfy it.
 
 ## Whitespace And Comments
 

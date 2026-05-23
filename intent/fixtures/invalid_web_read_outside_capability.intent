@@ -19,6 +19,7 @@ goal "read outside granted web domain" {
   plan {
     step read_reference -> WebPage {
       effect WebRead(url: "https://example.org/reference")
+      memory cite session.evidence
     }
   }
 

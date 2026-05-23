@@ -29,7 +29,9 @@ goal research_synthesis(question: ResearchQuestion) -> ResearchReport {
     }
     step extract_evidence(input: SourceSet) -> EvidenceTable
     step synthesize_answer(input: EvidenceTable) -> DraftAnswer
-    step verify_report(input: DraftAnswer) -> ResearchReport
+    step verify_report(input: DraftAnswer) -> ResearchReport {
+      memory cite session.evidence
+    }
   }
 
   verify {

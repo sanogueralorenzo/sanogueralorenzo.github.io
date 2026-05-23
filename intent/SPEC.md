@@ -220,6 +220,7 @@ A goal is complete only when:
 - Every required step succeeded or was explicitly waived.
 - Every required verification passed after the final relevant effect.
 - Every approval gate was satisfied.
-- Every output has provenance.
+- Every output has provenance; when the goal requires cited output or denies
+  uncited external claims, the final step must cite retained memory evidence.
 - No invariant is violated.
 - The final state was checkpointed.

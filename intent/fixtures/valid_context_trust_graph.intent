@@ -61,6 +61,7 @@ goal build_context_trust_graph() -> VerifiedContextTrustGraph {
     }
     step verify_context_trust_graph(input: ContextTrustGraph) -> VerifiedContextTrustGraph {
       require input.web.url != ""
+      memory cite session.evidence
       checkpoint "context trust graph verified"
     }
   }

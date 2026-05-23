@@ -260,6 +260,14 @@ Validation expectations:
   Unsupported endpoint roles emit `INTENT_GRAPH_MEMORY_ACCESS_INVALID`, and
   malformed payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`. Keyed target
   mismatches emit `INTENT_GRAPH_MEMORY_TARGET_INVALID`.
+- Completion citation policy is enforced by the checker and graph contract.
+  `require all_outputs_cited`, `require memory_provenance_complete`, or
+  `deny uncited_external_claim` requires the final completion-producing step to
+  declare at least one `memory cite ...` statement. Missing citation coverage
+  emits `INTENT_PROVENANCE_MISSING`. Completion node `data.provenance` records
+  the triggering requirements, invariants, and final-step citations; malformed
+  provenance payloads or required provenance with no citations emit
+  `INTENT_GRAPH_COMPLETION_INVALID`.
 - Runtime graph `produces` and `requires` edge payloads are typed contracts.
   The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -428,9 +436,11 @@ Validation expectations:
 - Graph `Completion` nodes carry runtime completion metadata. Completion node
   data must carry `outputType` as `null` or a non-empty string and
   `outputTypeSpan` as `null` when `outputType` is `null` or a valid span when
-  `outputType` is non-empty. Malformed Completion node payloads emit
-  `INTENT_GRAPH_COMPLETION_INVALID` and make graph output non-executable. This
-  runtime payload contract is separate from the existing
+  `outputType` is non-empty. It must also carry `provenance` with citation
+  requirements, invariants, and final-step memory citations. Malformed
+  Completion node payloads emit `INTENT_GRAPH_COMPLETION_INVALID` and make
+  graph output non-executable. This runtime payload contract is separate from
+  the existing
   completion-edge contract, which still requires `completes`, `produces`,
   `verifies`, and invariant `guards` edges.
 - Graph `Invariant` nodes are the next Phase 2 static-model milestone.

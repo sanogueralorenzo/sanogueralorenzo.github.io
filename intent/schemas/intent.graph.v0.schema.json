@@ -227,6 +227,76 @@
         }
       }
     },
+    "completion_provenance": {
+      "type": "object",
+      "required": ["required", "requirements", "invariants", "citations"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["requirement", "span"],
+            "additionalProperties": false,
+            "properties": {
+              "requirement": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              }
+            }
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["assertion", "invariant", "span"],
+            "additionalProperties": false,
+            "properties": {
+              "assertion": {
+                "enum": ["Require", "Deny"]
+              },
+              "invariant": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              }
+            }
+          }
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["memory", "key", "target", "step", "span"],
+            "additionalProperties": false,
+            "properties": {
+              "memory": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "key": {
+                "type": ["string", "null"]
+              },
+              "target": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "step": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              }
+            }
+          }
+        }
+      }
+    },
     "contract_arguments": {
       "type": "object",
       "additionalProperties": {
@@ -794,7 +864,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["outputType", "outputTypeSpan"],
+              "required": ["outputType", "outputTypeSpan", "provenance"],
               "additionalProperties": false,
               "properties": {
                 "outputType": {
@@ -809,6 +879,9 @@
                       "type": "null"
                     }
                   ]
+                },
+                "provenance": {
+                  "$ref": "#/$defs/completion_provenance"
                 }
               }
             }

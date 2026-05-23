@@ -30,6 +30,7 @@ goal memory_flow() -> Report {
 
   verify {
     require memory_provenance_complete
+    require no_policy_violations
   }
 
   invariant {

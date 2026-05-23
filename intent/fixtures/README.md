@@ -6,11 +6,11 @@ These fixtures exercise the Phase 2 static model parser and checker.
 
 - `valid_code_change.intent`: code-change goal with declared step output types, repository context, file and shell capabilities, allowed `FileWrite` and `ShellExec` calls, verification, and invariants.
 - `valid_checkpoint_graph.intent`: code-change goal with step body `checkpoint ...` lines, normal file and shell capabilities, checkpoint memory retention, verification, and invariants.
-- `valid_context_trust_graph.intent`: context graph goal with repository, web, and document sources, read-only file and web capabilities, memory retention, plan steps, verification, and trust invariants.
+- `valid_context_trust_graph.intent`: context graph goal with repository, web, and document sources, read-only file and web capabilities, memory retention, plan steps, final-step citation provenance, verification, and trust invariants.
 - `valid_dependency_graph.intent`: named goal input feeding the first step, followed by prior step outputs feeding later steps for graph dependency coverage.
-- `valid_research.intent`: research goal with declared source, claim, and report types, web and local document context, read-only capabilities, plan steps, citation verification, and invariants.
+- `valid_research.intent`: research goal with declared source, claim, and report types, web and local document context, read-only capabilities, plan steps, final-step citation provenance, citation verification, and invariants.
 - `valid_trust_flow_shell_literal.intent`: trust-flow goal where `ShellExec` uses a literal command declared by shell capability.
-- `valid_web_read_wildcard.intent`: web-read goal where `WebRead` targets a subdomain covered by a wildcard web domain grant.
+- `valid_web_read_wildcard.intent`: web-read goal where `WebRead` targets a subdomain covered by a wildcard web domain grant and cites retained evidence before completion.
 - `valid_git_push_branch.intent`: git goal where `GitPush` targets a branch covered by a normalized git push branch grant.
 - `valid_git_commit_message.intent`: git goal where `GitCommit` uses a message covered by a git commit message grant.
 - `valid_deploy_target.intent`: deploy goal where `Deploy` targets an environment covered by a deploy target grant, with memory retention, verification, and `deny production_deploy` invariants.
@@ -19,7 +19,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_step_requirements.intent`: code-change goal with step-local `require ...` guards before effects, normal file and shell capabilities, memory retention, verification, and invariants.
 - `valid_invariant_guard_graph.intent`: code-change goal with required and denied invariant rules intended to guard multiple graph targets, including file and shell effects plus step checkpoints, with normal capabilities, checkpoint memory retention, plan steps, and verification.
 - `valid_imports.intent`: import-focused parser fixture that preserves package and symbol import declarations with source spans while keeping imported names out of checker scope.
-- `valid_memory_flow_graph.intent`: memory provenance goal with step-local memory write, read, and citation access emitted as graph edges.
+- `valid_memory_flow_graph.intent`: memory provenance goal with step-local memory write, read, and final-step citation access emitted as graph edges and completion provenance.
 - `valid_step_approval_graph.intent`: code-change goal with step body `approval ...` lines before sensitive file-write and git-push effects, normal file, shell, and git capabilities, approval memory retention, verification, and invariants.
 - `valid_step_policy_graph.intent`: code-change goal with step body `timeout ...` and `retry ...` lines before file and shell effects, normal file and shell capabilities, memory retention, verification, and invariants.
 
@@ -51,6 +51,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_memory_retention_unknown_until.intent`: declares a parsed memory retention rule with unsupported lifecycle target `forever`, which should fail `INTENT_MEMORY_RETENTION_INVALID`.
 - `invalid_memory_access_undeclared.intent`: references undeclared memory from a step-local memory access statement, which should fail `INTENT_MEMORY_UNDECLARED`.
 - `invalid_memory_key_undeclared.intent`: references a memory key that is not declared by the memory block's retained subjects or explicit keys, which should fail `INTENT_MEMORY_KEY_UNDECLARED`.
+- `invalid_provenance_missing.intent`: requires cited completion output without a final-step `memory cite`, which should fail `INTENT_PROVENANCE_MISSING`.
 - `invalid_checkpoint_empty.intent`: declares an empty step checkpoint label, which should fail `INTENT_CHECKPOINT_INVALID` once checkpoint validation is enforced.
 - `invalid_approval_empty.intent`: declares an empty step approval label, which should fail `INTENT_APPROVAL_INVALID` once approval validation is enforced.
 - `invalid_step_policy_bad_timeout.intent`: declares a step timeout policy with unsupported duration `soon`, which should fail `INTENT_POLICY_INVALID` once policy validation is enforced.

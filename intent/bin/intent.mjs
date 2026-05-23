@@ -71,6 +71,8 @@ const GRAPH_EDGE_KINDS = new Set([
   "writes",
 ]);
 const TRUST_ZONES = new Set(["trusted", "untrusted", "unknown"]);
+const COMPLETION_PROVENANCE_REQUIREMENTS = new Set(["all_outputs_cited", "memory_provenance_complete"]);
+const COMPLETION_PROVENANCE_INVARIANTS = new Set(["uncited_external_claim"]);
 const EFFECT_CONTRACTS = [
   {
     id: "intent.effect.file.read.v0",
@@ -838,6 +840,7 @@ function checkIntent(ast) {
     validateStepApprovals(goal, diagnostics);
     validateMemoryAccesses(goal, diagnostics);
     validateVerifyRequirements(goal, diagnostics);
+    validateCompletionProvenance(goal, diagnostics);
     validateApprovalRequirements(goal, diagnostics);
 
     const capabilities = goal.capabilities.map((capability) => capability.family);
@@ -1245,6 +1248,58 @@ function validateVerifyRequirements(goal, diagnostics) {
   }
 }
 
+function validateCompletionProvenance(goal, diagnostics) {
+  const provenance = completionProvenance(goal);
+  if (!provenance.required || provenance.citations.length > 0) {
+    return;
+  }
+  const rule = provenance.requirements[0] ?? provenance.invariants[0] ?? null;
+  diagnostics.push(error("INTENT_PROVENANCE_MISSING", `goal '${goal.name}' requires completion provenance but no memory citation is declared.`, rule?.span ?? goal.span, {
+    goal: goal.name,
+    requirements: provenance.requirements.map((requirement) => requirement.requirement),
+    invariants: provenance.invariants.map((invariant) => invariant.invariant),
+    citations: provenance.citations.length,
+  }));
+}
+
+function completionProvenance(goal, citations = completionMemoryCitations(goal)) {
+  const requirements = goal.verify
+    .filter((requirement) => COMPLETION_PROVENANCE_REQUIREMENTS.has(requirement.value.trim()))
+    .map((requirement) => ({
+      requirement: requirement.value,
+      span: requirement.span,
+    }));
+  const invariants = goal.invariants
+    .filter((invariant) => invariant.kind === "Deny" && COMPLETION_PROVENANCE_INVARIANTS.has(invariant.value.trim()))
+    .map((invariant) => ({
+      assertion: invariant.kind,
+      invariant: invariant.value,
+      span: invariant.span,
+    }));
+  return {
+    required: requirements.length > 0 || invariants.length > 0,
+    requirements,
+    invariants,
+    citations,
+  };
+}
+
+function completionMemoryCitations(goal) {
+  const finalStep = goal.steps.at(-1);
+  if (!finalStep) {
+    return [];
+  }
+  return finalStep.memoryAccesses
+    .filter((memoryAccess) => memoryAccess.access === "cite")
+    .map((memoryAccess) => ({
+      memory: memoryAccess.memory,
+      key: memoryAccess.key,
+      target: memoryAccess.target,
+      step: finalStep.name,
+      span: memoryAccess.span,
+    }));
+}
+
 function buildGraph(ast, diagnostics = checkIntent(ast)) {
   const nodes = [];
   const edges = [];
@@ -1321,6 +1376,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     }
 
     const memoryIdsByReference = new Map();
+    const completionCitations = [];
     for (const [index, memory] of goal.memory.entries()) {
       const id = `${goalId}:memory:${index}`;
       nodes.push(node(id, "Memory", memory.name ?? memory.scope, memory.span, {
@@ -1477,6 +1533,15 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           sourceSpan: memoryAccess.access === "write" ? memoryAccess.span : memory.span,
           targetSpan: memoryAccess.access === "write" ? (declaredKey?.span ?? memory.span) : memoryAccess.span,
         };
+        if (memoryAccess.access === "cite") {
+          completionCitations.push({
+            memory: memoryAccess.memory,
+            key: memoryAccess.key,
+            target: memoryAccess.target,
+            step: step.name,
+            span: memoryAccess.span,
+          });
+        }
         if (memoryAccess.access === "write") {
           edges.push(edge(id, memory.id, "writes", payload));
         } else {
@@ -1519,13 +1584,15 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     }
 
     const completionId = `${goalId}:completion`;
+    const finalStep = goal.steps.at(-1);
+    const provenance = completionProvenance(goal, completionCitations.filter((citation) => citation.step === finalStep?.name));
     nodes.push(node(completionId, "Completion", goal.name, goal.span, {
       outputType: goal.outputType,
       outputTypeSpan: goal.outputTypeSpan,
+      provenance,
     }));
     edges.push(edge(goalId, completionId, "completes"));
     if (lastStepId) {
-      const finalStep = goal.steps.at(-1);
       edges.push(edge(lastStepId, completionId, "produces", {
         type: normalizeTypeRef(finalStep?.outputType),
         sourceSpan: finalStep?.outputTypeSpan ?? finalStep?.span,
@@ -2056,11 +2123,17 @@ function validateGraph(graph, options = {}) {
     const producingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "produces" && nodesById.get(graphEdge.from)?.kind === "Step");
     const verifyingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "verifies" && nodesById.get(graphEdge.from)?.kind === "Check");
     const guardingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "guards" && nodesById.get(graphEdge.from)?.kind === "Invariant");
+    const citationEdges = producingEdges.flatMap((graphEdge) => {
+      return (incomingEdgesByNode.get(graphEdge.from) ?? [])
+        .filter((candidate) => candidate.kind === "cites" && nodesById.get(candidate.from)?.kind === "Memory");
+    });
     const goalId = graphNode.id.endsWith(":completion") ? graphNode.id.slice(0, -":completion".length) : null;
     const expectedGuardEdges = goalId
       ? graphNodes.filter((candidate) => candidate.kind === "Invariant" && candidate.id.startsWith(`${goalId}:invariant:`)).length
       : guardingEdges.length;
-    if (completingEdges.length !== 1 || producingEdges.length !== 1 || verifyingEdges.length < 1 || guardingEdges.length !== expectedGuardEdges) {
+    const provenanceRequired = graphNode.data?.provenance?.required === true;
+    const hasRequiredCitationEdges = !provenanceRequired || citationEdges.length > 0;
+    if (completingEdges.length !== 1 || producingEdges.length !== 1 || verifyingEdges.length < 1 || guardingEdges.length !== expectedGuardEdges || !hasRequiredCitationEdges) {
       diagnostics.push(error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must have incoming completes, produces, verifies, and invariant guard edges.`, graphNode.span ?? fallbackSpan, {
         completion: graphNode.label,
         completion_id: graphNode.id,
@@ -2069,6 +2142,9 @@ function validateGraph(graph, options = {}) {
         verifies_edges: verifyingEdges.length,
         guards_edges: guardingEdges.length,
         expected_guard_edges: expectedGuardEdges,
+        provenance_required: provenanceRequired,
+        citation_edges: citationEdges.length,
+        has_required_citation_edges: hasRequiredCitationEdges,
       }));
     }
   }
@@ -2299,7 +2375,8 @@ function validateGraphCompletion(graphNode, graphSpan) {
   const outputTypeIsValid = graphNode.data.outputType === null
     || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
   const outputTypeSpanIsValid = isGraphOutputTypeSpanValid(graphNode.data.outputType, graphNode.data.outputTypeSpan);
-  if (outputTypeIsValid && outputTypeSpanIsValid) {
+  const provenanceDiagnostic = validateGraphCompletionProvenance(graphNode.data.provenance);
+  if (outputTypeIsValid && outputTypeSpanIsValid && !provenanceDiagnostic) {
     return null;
   }
   return error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must carry valid output contract data.`, graphNode.span ?? graphSpan, {
@@ -2307,7 +2384,59 @@ function validateGraphCompletion(graphNode, graphSpan) {
     completion_id: graphNode.id,
     output_type_is_valid: outputTypeIsValid,
     output_type_span_is_valid: outputTypeSpanIsValid,
+    provenance_is_valid: provenanceDiagnostic ? provenanceDiagnostic.provenance_is_valid : true,
+    provenance_required: provenanceDiagnostic ? provenanceDiagnostic.provenance_required : Boolean(graphNode.data.provenance?.required),
+    provenance_citations: Array.isArray(graphNode.data.provenance?.citations) ? graphNode.data.provenance.citations.length : null,
+    provenance_has_required_citations: provenanceDiagnostic ? provenanceDiagnostic.provenance_has_required_citations : true,
   });
+}
+
+function validateGraphCompletionProvenance(provenance) {
+  const provenanceIsValid = isPlainObject(provenance)
+    && typeof provenance.required === "boolean"
+    && Array.isArray(provenance.requirements)
+    && provenance.requirements.every(isGraphProvenanceRequirement)
+    && Array.isArray(provenance.invariants)
+    && provenance.invariants.every(isGraphProvenanceInvariant)
+    && Array.isArray(provenance.citations)
+    && provenance.citations.every(isGraphProvenanceCitation);
+  const provenanceHasRequiredCitations = provenanceIsValid
+    && (!provenance.required || provenance.citations.length > 0);
+  if (provenanceIsValid && provenanceHasRequiredCitations) {
+    return null;
+  }
+  return {
+    provenance_is_valid: provenanceIsValid,
+    provenance_required: isPlainObject(provenance) && typeof provenance.required === "boolean" ? provenance.required : null,
+    provenance_has_required_citations: provenanceHasRequiredCitations,
+  };
+}
+
+function isGraphProvenanceRequirement(value) {
+  return isPlainObject(value)
+    && typeof value.requirement === "string"
+    && value.requirement.trim() !== ""
+    && isSpan(value.span);
+}
+
+function isGraphProvenanceInvariant(value) {
+  return isPlainObject(value)
+    && (value.assertion === "Require" || value.assertion === "Deny")
+    && typeof value.invariant === "string"
+    && value.invariant.trim() !== ""
+    && isSpan(value.span);
+}
+
+function isGraphProvenanceCitation(value) {
+  return isPlainObject(value)
+    && typeof value.memory === "string"
+    && value.memory.trim() !== ""
+    && (value.key === null || (typeof value.key === "string" && value.key.trim() !== ""))
+    && typeof value.target === "string"
+    && value.target.trim() !== ""
+    && typeof value.step === "string"
+    && value.step.trim() !== ""
+    && isSpan(value.span);
 }
 
 function validateGraphInvariant(graphNode, graphSpan) {
