@@ -112,6 +112,11 @@ async function main() {
     return;
   }
 
+  if (command === "promote-pending") {
+    await promotePendingTrials();
+    return;
+  }
+
   if (command === "hook") {
     await runHook();
     return;
@@ -176,7 +181,7 @@ function parseArgs(rawArgs) {
       fail("empty flag is not valid");
     }
 
-    if (key === "json" || key === "help" || key === "dry-run" || key === "strict" || key === "promote-session-pairs" || key === "include-stale") {
+    if (key === "json" || key === "help" || key === "dry-run" || key === "strict" || key === "promote-session-pairs" || key === "include-stale" || key === "auto-promote") {
       parsed[key] = true;
       continue;
     }
@@ -808,6 +813,93 @@ async function runPromotionTrial() {
     ...replayResult,
     ...observed,
     replayAudit,
+  });
+}
+
+async function promotePendingTrials() {
+  const stateDir = statePath();
+  await ensureState(stateDir);
+  const dryRun = args["dry-run"] === true;
+  const limit = Number(args.limit ?? 3);
+  const events = await readJsonLines(join(stateDir, "events.jsonl"));
+  const queue = promotionTrialQueue(events);
+  const pending = queue.items
+    .filter((item) => item.status === "ready")
+    .slice(0, limit);
+  const results = [];
+
+  for (const item of pending) {
+    if (dryRun) {
+      results.push({
+        trialId: item.trialId,
+        candidateId: item.candidateId,
+        status: "dry_run",
+        command: item.command,
+      });
+      continue;
+    }
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "promotion_trial_started",
+      observedAt: new Date().toISOString(),
+      trialId: item.trialId,
+      candidateId: item.candidateId,
+      sourceEventId: item.sourceEventId,
+      sourceSessionId: item.sourceSessionId,
+      command: item.command,
+    });
+
+    try {
+      const observed = await runPrecedentChildJson(item.command.slice(2));
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "promotion_trial_completed",
+        observedAt: new Date().toISOString(),
+        trialId: item.trialId,
+        candidateId: item.candidateId,
+        sourceEventId: item.sourceEventId,
+        sourceSessionId: item.sourceSessionId,
+        promotedId: observed.promoted?.id ?? null,
+        rejectedId: observed.rejected?.id ?? null,
+        replayAuditStatus: observed.replayAudit?.status ?? null,
+        replayPath: observed.replayPath ?? null,
+        tracePath: observed.tracePath ?? null,
+      });
+      results.push({
+        trialId: item.trialId,
+        candidateId: item.candidateId,
+        status: observed.promoted ? "promoted" : "completed",
+        promotedId: observed.promoted?.id ?? null,
+        rejectedId: observed.rejected?.id ?? null,
+        replayAuditStatus: observed.replayAudit?.status ?? null,
+      });
+    } catch (error) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "promotion_trial_failed",
+        observedAt: new Date().toISOString(),
+        trialId: item.trialId,
+        candidateId: item.candidateId,
+        sourceEventId: item.sourceEventId,
+        sourceSessionId: item.sourceSessionId,
+        error: error.message,
+      });
+      results.push({
+        trialId: item.trialId,
+        candidateId: item.candidateId,
+        status: "failed",
+        error: error.message,
+      });
+    }
+  }
+
+  const afterEvents = dryRun ? events : await readJsonLines(join(stateDir, "events.jsonl"));
+  print({
+    ok: results.every((result) => result.status !== "failed"),
+    schema_version: "precedent.promote_pending.v1",
+    dryRun,
+    stateDir,
+    processed: results.length,
+    results,
+    queue: promotionTrialQueue(afterEvents),
   });
 }
 
@@ -1949,6 +2041,14 @@ function buildManifest(runtime, stateDir) {
     "$TRACE_OUT",
     "--json",
   ];
+  const promotionPendingCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "promote-pending",
+    "--state-dir",
+    stateDir,
+    "--json",
+  ];
   const warrantCommand = [
     "node",
     "precedent/bin/precedent.mjs",
@@ -2087,6 +2187,13 @@ function buildManifest(runtime, stateDir) {
         timeoutMs,
         failurePolicy,
       },
+      "promotion.pending": {
+        command: promotionPendingCommand,
+        stdin: [],
+        output: ["ok", "schema_version", "dryRun", "processed", "results", "queue"],
+        timeoutMs,
+        failurePolicy,
+      },
     },
   };
 }
@@ -2162,6 +2269,14 @@ async function attachRuntime() {
     "$BASELINE_COMMAND",
     "--trace-out",
     "$TRACE_OUT",
+    "--json",
+  ];
+  const promotionPendingCommand = [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "promote-pending",
+    "--state-dir",
+    stateDirArg,
     "--json",
   ];
 
@@ -2376,6 +2491,12 @@ async function attachRuntime() {
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
+      promotionPending: {
+        command: promotionPendingCommand,
+        output: ["ok", "schema_version", "dryRun", "processed", "results", "queue"],
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
     },
   });
 }
@@ -2454,6 +2575,14 @@ async function attachRunSession() {
     notes: args.notes ?? `attach-run validation exited ${validationResult.exitCode}`,
     attributedPrecedents,
   });
+  const autoPromotion = args["auto-promote"] === true
+    ? await runPrecedentChildJson([
+      "promote-pending",
+      "--state-dir",
+      stateDirArg,
+      "--json",
+    ])
+    : null;
 
   print({
     ok: true,
@@ -2471,6 +2600,7 @@ async function attachRunSession() {
     beforeTurn,
     validation,
     outcome,
+    autoPromotion,
     learning: outcome.learning ?? null,
   });
 }
@@ -2612,6 +2742,7 @@ async function reportState() {
     auditHealth: replayAuditHealth(replayAudit),
     replayAudit,
     candidateHintQueue: candidateHintQueue(candidates, precedents, stateDir),
+    promotionTrialQueue: promotionTrialQueue(events),
     repairHealth: repairHealthSummary(events, precedents),
     runtimeWiringHealth,
     warrantHealth,
@@ -2621,6 +2752,74 @@ async function reportState() {
       ...outcomeSummaryForPrecedent(events, precedent.id),
     })),
   });
+}
+
+function promotionTrialQueue(events) {
+  const terminalById = new Map();
+  for (const event of events) {
+    if ((event.type === "promotion_trial_completed" || event.type === "promotion_trial_failed") && event.trialId) {
+      terminalById.set(event.trialId, event);
+    }
+  }
+
+  const startedIds = new Set(events
+    .filter((event) => event.type === "promotion_trial_started" && event.trialId)
+    .map((event) => event.trialId));
+  const byId = new Map();
+  for (const event of events) {
+    if (!Array.isArray(event.promotionTrials)) {
+      continue;
+    }
+
+    for (const trial of event.promotionTrials) {
+      if (!trial?.id || !Array.isArray(trial.command) || trial.command.length < 3) {
+        continue;
+      }
+
+      byId.set(trial.id, {
+        trialId: trial.id,
+        candidateId: trial.candidateId ?? null,
+        sourceEventId: event.eventId ?? null,
+        sourceSessionId: event.sessionId ?? null,
+        reason: trial.reason ?? null,
+        baselineCommand: trial.baselineCommand ?? null,
+        rerunCommand: trial.rerunCommand ?? null,
+        traceOut: trial.traceOut ?? null,
+        command: trial.command,
+      });
+    }
+  }
+
+  const items = [...byId.values()]
+    .sort((left, right) => left.trialId.localeCompare(right.trialId))
+    .map((item) => {
+      const terminal = terminalById.get(item.trialId);
+      const status = terminal?.type === "promotion_trial_completed"
+        ? "completed"
+        : terminal?.type === "promotion_trial_failed"
+          ? "failed"
+          : startedIds.has(item.trialId)
+            ? "running"
+            : "ready";
+
+      return {
+        ...item,
+        status,
+        promotedId: terminal?.promotedId ?? null,
+        rejectedId: terminal?.rejectedId ?? null,
+        replayAuditStatus: terminal?.replayAuditStatus ?? null,
+        error: terminal?.error ?? null,
+      };
+    });
+
+  return {
+    total: items.length,
+    ready: items.filter((item) => item.status === "ready").length,
+    running: items.filter((item) => item.status === "running").length,
+    completed: items.filter((item) => item.status === "completed").length,
+    failed: items.filter((item) => item.status === "failed").length,
+    items,
+  };
 }
 
 async function replayAuditEntries(precedents, stateDir) {
@@ -7033,6 +7232,7 @@ Usage:
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent replay --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
   precedent promotion-trial --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
+  precedent promote-pending [--state-dir .precedent] [--dry-run]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
@@ -7041,7 +7241,7 @@ Usage:
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent attach [--runtime generic|codex] [--session session-id|--thread-id thread-id] --task "text"
-  precedent attach-run --task "text" --validation-command "cmd" [--session session-id|--thread-id thread-id] [--event-prefix id]
+  precedent attach-run --task "text" --validation-command "cmd" [--session session-id|--thread-id thread-id] [--event-prefix id] [--auto-promote]
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
@@ -7055,6 +7255,7 @@ Commands:
   compile   Mine observed raw traces into candidates, optionally promoting analogous session pairs.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   promotion-trial Run a candidate replay and immediately observe the promotion decision.
+  promote-pending Run queued promotion trial work orders emitted by validation hooks.
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
@@ -7062,7 +7263,7 @@ Commands:
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   attach    Emit a zero-touch runtime adapter contract for one session.
-  attach-run Run before-turn, validation, and outcome hooks for one ordinary session.
+  attach-run Run before-turn, validation, outcome, and optional queued promotion hooks.
   check     Validate local Precedent state for CI.
   prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.

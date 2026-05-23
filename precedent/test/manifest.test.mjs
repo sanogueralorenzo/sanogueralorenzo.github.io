@@ -57,6 +57,14 @@ test("manifest emits a generic runtime hook contract", async () => {
     "$TRACE_OUT",
     "--json",
   ]);
+  assert.deepEqual(manifest.actions["promotion.pending"].command, [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "promote-pending",
+    "--state-dir",
+    ".precedent",
+    "--json",
+  ]);
   assert.deepEqual(manifest.actions["warrant.issue"].command, [
     "node",
     "precedent/bin/precedent.mjs",
@@ -77,6 +85,7 @@ test("manifest emits a generic runtime hook contract", async () => {
   ]);
   assert.ok(manifest.actions["warrant.issue"].output.includes("warrantId"));
   assert.deepEqual(manifest.actions["promotion.trial"].output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
+  assert.ok(manifest.actions["promotion.pending"].output.includes("queue"));
   assert.deepEqual(manifest.hooks["context.before_turn"].command, [
     "node",
     "precedent/bin/precedent.mjs",
@@ -113,6 +122,7 @@ test("manifest reflects state dir and codex runtime", async () => {
   assert.equal(manifest.hooks["context.before_turn"].command[4], "/tmp/precedent-manifest");
   assert.equal(manifest.transports.loop.command[4], "/tmp/precedent-manifest");
   assert.equal(manifest.actions["promotion.trial"].command[4], "/tmp/precedent-manifest");
+  assert.equal(manifest.actions["promotion.pending"].command[4], "/tmp/precedent-manifest");
   assert.deepEqual(manifest.hooks["validation.after_run"].command, [
     "node",
     "precedent/bin/precedent.mjs",

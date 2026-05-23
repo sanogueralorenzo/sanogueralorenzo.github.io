@@ -138,6 +138,15 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "--json",
     ]);
     assert.deepEqual(first.adapter.promotionTrial.output, ["ok", "candidateId", "replay", "replayPath", "tracePath", "observed", "promoted", "rejected", "replayAudit"]);
+    assert.deepEqual(first.adapter.promotionPending.command, [
+      "node",
+      "precedent/bin/precedent.mjs",
+      "promote-pending",
+      "--state-dir",
+      stateDir,
+      "--json",
+    ]);
+    assert.ok(first.adapter.promotionPending.output.includes("queue"));
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(report.runtimeWiringHealth.fallbackAttachments, 1);
@@ -387,6 +396,8 @@ test("attach-run failed validation creates a replay-gated learning candidate", a
       stateDir,
       "--session",
       "failed-run",
+      "--event-prefix",
+      "failed-delivery",
       "--task",
       "add webhook handler",
       "--scope",
@@ -408,6 +419,81 @@ test("attach-run failed validation creates a replay-gated learning candidate", a
     const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     assert.equal(candidates.length, 1);
     assert.equal(candidates[0].id, "cand_feature_webhooks_wrong_test_command");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run auto-promotes queued validation replay plans", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+
+    await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "failed-run",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node -e \"console.error('wrong test command'); process.exit(1)\"",
+      "--json",
+    ]);
+
+    const run = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "success-run",
+      "--event-prefix",
+      "success-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node -e \"process.exit(0)\"",
+      "--auto-promote",
+      "--json",
+    ]);
+
+    assert.equal(run.validation.promotionTrials.length, 1);
+    assert.equal(run.autoPromotion.processed, 1);
+    assert.equal(run.autoPromotion.results[0].status, "promoted");
+    assert.equal(run.autoPromotion.queue.completed, 1);
+
+    const retry = await runJson(["promote-pending", "--state-dir", stateDir, "--json"]);
+    assert.equal(retry.processed, 0);
+    assert.equal(retry.queue.completed, 1);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    assert.equal(context.injections[0].id, "cand_feature_webhooks_wrong_test_command");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    assert.equal(report.promotionTrialQueue.completed, 1);
+    const check = await runJson(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    assert.equal(check.ok, true);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
