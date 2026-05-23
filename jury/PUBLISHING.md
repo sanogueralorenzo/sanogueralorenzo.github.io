@@ -27,6 +27,7 @@ The package must include these files before the package becomes publishable:
 - [bin/jury.mjs](bin/jury.mjs)
 - [scripts/check-package-manifest.mjs](scripts/check-package-manifest.mjs)
 - [schemas](schemas)
+- [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml)
 - [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml)
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml)
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml)
@@ -46,6 +47,16 @@ npm --prefix jury run package:manifest:check
 The manifest check runs `npm pack --dry-run --json` from the package root, equivalent to `cd jury && npm pack --dry-run --json`, and fails if the tarball would omit `release.json`, the CI adoption guide, any `release.json.ciAdoption.workflows[].path` file, or any required package file above.
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI reports a package manifest failure during release packaging.
+
+## Reusable CI Step
+
+Copy [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml) into `.github/workflows/` and call it before the publication job:
+
+```yaml
+jobs:
+  jury-package-manifest:
+    uses: ./.github/workflows/jury-package-manifest-check.yml
+```
 
 ## Failure Examples
 

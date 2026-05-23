@@ -1,0 +1,24 @@
+name: Jury package manifest check
+
+on:
+  workflow_call:
+    inputs:
+      package-dir:
+        type: string
+        default: jury
+      node-version:
+        type: string
+        default: "20"
+
+jobs:
+  package-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Check Jury package manifest
+        env:
+          JURY_PACKAGE_DIR: ${{ inputs.package-dir }}
+        run: npm --prefix "$JURY_PACKAGE_DIR" run package:manifest:check

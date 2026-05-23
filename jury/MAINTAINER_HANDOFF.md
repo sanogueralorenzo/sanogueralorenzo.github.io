@@ -10,6 +10,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml): producing-job workflow that signs a live bundle with an external CI private key secret.
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml): two-job workflow that downloads the signed producer artifact and verifies it with the key policy.
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml): reusable downstream workflow for signed trusted-producer bundle verification.
+- [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml): reusable workflow step that runs the package manifest check before publication.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, trusted key policy manifest, and untrusted-producer troubleshooting policy.
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
@@ -49,4 +50,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a reusable CI workflow step that runs the package manifest check before publication.
+Add a release workflow example that requires the package manifest check before npm publication.

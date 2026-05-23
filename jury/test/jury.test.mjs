@@ -406,6 +406,31 @@ test("trusted bundle workflow verifies and imports the signed key-policy fixture
   }
 });
 
+test("package manifest workflow runs before publication", { skip: skipNestedCiAdoptionTests }, async () => {
+  const checkout = await copyJuryCheckout();
+
+  try {
+    const workflow = await readFile(join(checkout, "jury/examples/ci/jury-package-manifest-check.yml"), "utf8");
+    const command = extractWorkflowSingleLineRun(workflow, "Check Jury package manifest");
+    const env = {
+      ...fixedEnv,
+      JURY_PACKAGE_DIR: "jury",
+    };
+
+    assert.ok(workflow.includes("workflow_call"));
+    assert.ok(workflow.includes("package-dir:"));
+    assert.ok(workflow.includes("node-version:"));
+    assert.ok(workflow.includes("actions/setup-node@v4"));
+    assert.equal(command, 'npm --prefix "$JURY_PACKAGE_DIR" run package:manifest:check');
+
+    const result = await runShell(command, checkout, env);
+    assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    assert.equal(JSON.parse(result.stdout.slice(result.stdout.indexOf("{"))).ok, true);
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
 test("CI example README points to the copyable workflow and portable artifacts", { skip: skipNestedCiAdoptionTests }, async () => {
   const readme = await readFile(join(repoRoot, "jury/examples/ci/README.md"), "utf8");
 
@@ -414,6 +439,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("jury-signed-review-gate.yml"));
   assert.ok(readme.includes("jury-signed-artifact-handoff.yml"));
   assert.ok(readme.includes("jury-trusted-bundle-verify.yml"));
+  assert.ok(readme.includes("jury-package-manifest-check.yml"));
   assert.ok(readme.includes("actions/download-artifact@v4"));
   assert.ok(readme.includes("secrets.JURY_CI_PRIVATE_KEY"));
   assert.ok(readme.includes("review-bundle.json"));
@@ -424,6 +450,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("jury.key_policy.v1"));
   assert.ok(readme.includes("actions/upload-artifact@v4"));
   assert.ok(readme.includes("uses: ./.github/workflows/jury-trusted-bundle-verify.yml"));
+  assert.ok(readme.includes('npm --prefix "$JURY_PACKAGE_DIR" run package:manifest:check'));
 });
 
 test("CI adoption guide chooses the supported workflow paths", async () => {
@@ -978,8 +1005,10 @@ test("release metadata references existing schemas, exports, and commands", asyn
 
   const publicationNotesPath = join(repoRoot, "jury", release.packagePublication.notes);
   const publicationNotes = await readFile(publicationNotesPath, "utf8");
+  await stat(join(repoRoot, "jury", release.packagePublication.workflow));
   assert.ok(publicationNotes.includes("private: true"));
   assert.ok(publicationNotes.includes("ciAdoption"));
+  assert.ok(publicationNotes.includes(release.packagePublication.workflow));
   assert.ok(publicationNotes.includes(release.packagePublication.manifestCheckCommand));
   assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
   assert.ok(publicationNotes.includes("--pack-manifest <npm-pack-json>"));
@@ -992,6 +1021,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   }
 
   assert.ok(release.packagePublication.requiredFiles.includes(release.ciAdoption.guide));
+  assert.ok(release.packagePublication.requiredFiles.includes(release.packagePublication.workflow));
   for (const workflow of release.ciAdoption.workflows) {
     assert.ok(release.packagePublication.requiredFiles.includes(workflow.path), `package publication should require ${workflow.path}`);
   }
@@ -1792,6 +1822,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "CI_ADOPTION.md",
     "release.json",
     "PUBLISHING.md",
+    "examples/ci/jury-package-manifest-check.yml",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
@@ -1867,6 +1898,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
+    "examples/ci/jury-package-manifest-check.yml",
     "examples/ci/fixtures/quickstart",
     "examples/ci/fixtures/key-policy",
     "examples/ci/fixtures/key-policy-rotation",
@@ -1921,7 +1953,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /release metadata/);
   assert.match(handoff, /package tarball manifest checks/);
   assert.match(handoff, /package manifest troubleshooting/);
-  assert.match(handoff, /reusable CI workflow step that runs the package manifest check before publication/);
+  assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
+  assert.match(handoff, /release workflow example that requires the package manifest check before npm publication/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
