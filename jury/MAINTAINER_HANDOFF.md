@@ -10,6 +10,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml): producing-job workflow that signs a live bundle with an external CI private key secret.
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml): two-job workflow that downloads the signed producer artifact and verifies it with the key policy.
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml): reusable downstream workflow for signed trusted-producer bundle verification.
+- [examples/ci/jury-code-change-adoption.yml](examples/ci/jury-code-change-adoption.yml): reusable workflow that publishes retry and accept code-change adoption bundles for downstream verification.
 - [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml): reusable workflow step that runs the package manifest check before publication.
 - [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml): release workflow example where npm publication depends on the package manifest check, package release evidence fixture validation, a downloaded and replayed release evidence audit artifact, a downloaded and replayed retained archive manifest artifact, and a downloaded dry-run publication record.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
@@ -46,6 +47,10 @@ The test suite covers the CI adoption guide, code-change adoption fixture, packa
 ## Current Hardening Step
 
 The code-change adoption fixture is available through [examples/code-change-adoption](examples/code-change-adoption). It proves the core `init`, `claim create`, `evidence add`, `critic run`, `judge`, `gate`, and `bundle export` path with a retry verdict, failing gate output, portable `review-bundle.retry.json` carrying actionable scope-critic next actions, scope correction evidence, resolved objection state, accept verdict, passing gate output, and portable `review-bundle.accept.json`.
+
+## Code-Change Adoption CI Workflow
+
+The reusable [examples/ci/jury-code-change-adoption.yml](examples/ci/jury-code-change-adoption.yml) workflow runs the code-change adoption fixture, verifies both retry and accept bundles with `bundle preflight`, runs a strict state check, and uploads `verdict.retry.json`, `gate.retry.json`, `review-bundle.retry.json`, `verdict.accept.json`, `gate.accept.json`, `review-bundle.accept.json`, and the fixture state JSONL files under the `jury-code-change-adoption` artifact for downstream verification. Downstream consumers can download that artifact, run `bundle preflight --bundle review-bundle.accept.json`, import it into `.jury-code-change-downstream`, gate `downstream-verdict.accept.json`, and run a strict check before trusting the accepted verdict.
 
 ## Release Archive Hardening
 
@@ -197,4 +202,4 @@ Curie (`019e54fa-5822-71d2-8aa1-f849b85b4665`) completed a read-only audit on 20
 
 ## Next Hardening Step
 
-Add a reusable CI workflow variant that runs the code-change adoption fixture and publishes retry and accept review bundles as artifacts for downstream verification.
+Add signed code-change adoption producer coverage so the reusable fixture workflow can emit attestable retry and accept bundles for cross-repository consumers.

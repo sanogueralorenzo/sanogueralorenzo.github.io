@@ -2,7 +2,7 @@
 
 Jury can run as a local, dependency-free CI gate. The state directory is disposable, while the emitted `verdict.json` can be uploaded as a build artifact.
 
-Use [../../CI_ADOPTION.md](../../CI_ADOPTION.md) to choose the right workflow. Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) when a second job should download and verify the signed artifact. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer. Copy [jury-package-manifest-check.yml](jury-package-manifest-check.yml) when publication CI should fail before packaging omits Jury CI adoption metadata. Copy [jury-npm-publish.yml](jury-npm-publish.yml) when npm publication should require that manifest check before `npm publish`.
+Use [../../CI_ADOPTION.md](../../CI_ADOPTION.md) to choose the right workflow. Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) when a second job should download and verify the signed artifact. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer. Copy [jury-code-change-adoption.yml](jury-code-change-adoption.yml) when a reusable workflow should publish retry and accept code-change adoption bundles for downstream verification. Copy [jury-package-manifest-check.yml](jury-package-manifest-check.yml) when publication CI should fail before packaging omits Jury CI adoption metadata. Copy [jury-npm-publish.yml](jury-npm-publish.yml) when npm publication should require that manifest check before `npm publish`.
 
 ```yaml
 name: Jury review gate
@@ -80,6 +80,19 @@ jobs:
 In production, keep the private signing key only in the producing job. The downstream job needs the signed bundle, `jury-key-policy.json`, and the public key referenced by the policy.
 
 Regenerate the checked-in key-policy fixtures with `npm --prefix jury run fixtures:key-policy`; CI can enforce drift with `npm --prefix jury run fixtures:key-policy:check`.
+
+## Code-Change Adoption Fixture
+
+[jury-code-change-adoption.yml](jury-code-change-adoption.yml) is a reusable workflow that runs [../code-change-adoption](../code-change-adoption), emits `verdict.retry.json`, `gate.retry.json`, `review-bundle.retry.json`, `verdict.accept.json`, `gate.accept.json`, `review-bundle.accept.json`, and uploads the state JSONL files so downstream jobs can verify both the actionable retry and the accepted review bundle.
+
+After `actions/download-artifact@v4` restores the `jury-code-change-adoption` artifact, a downstream job can verify and gate the accepted bundle:
+
+```shell
+node jury/bin/jury.mjs bundle preflight --bundle review-bundle.accept.json
+node jury/bin/jury.mjs bundle import --state-dir .jury-code-change-downstream --bundle review-bundle.accept.json --verdict-out downstream-verdict.accept.json
+node jury/bin/jury.mjs gate --state-dir .jury-code-change-downstream --claim claim_checkout_ready --verdict downstream-verdict.accept.json --json > downstream-gate.accept.json
+node jury/bin/jury.mjs check --state-dir .jury-code-change-downstream --strict
+```
 
 ## Package Publication Check
 

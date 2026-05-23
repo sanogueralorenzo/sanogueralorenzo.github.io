@@ -106,6 +106,20 @@
           "trusted-gate.json",
           ".jury-trusted/*.jsonl"
         ]
+      },
+      {
+        "variant": "reusable-code-change-adoption",
+        "path": "examples/ci/jury-code-change-adoption.yml",
+        "trustBoundary": "reusable code-change fixture artifact publication",
+        "artifacts": [
+          "verdict.retry.json",
+          "gate.retry.json",
+          "review-bundle.retry.json",
+          "verdict.accept.json",
+          "gate.accept.json",
+          "review-bundle.accept.json",
+          "${{ inputs.state-dir }}/*.jsonl"
+        ]
       }
     ]
   },
@@ -132,6 +146,7 @@
       "examples/ci/jury-signed-review-gate.yml",
       "examples/ci/jury-signed-artifact-handoff.yml",
       "examples/ci/jury-trusted-bundle-verify.yml",
+      "examples/ci/jury-code-change-adoption.yml",
       "examples/code-change-adoption",
       "examples/ci/fixtures/key-policy",
       "examples/ci/fixtures/package-release"

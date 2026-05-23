@@ -34,6 +34,7 @@ The package must include these files before the package becomes publishable:
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml)
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml)
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml)
+- [examples/ci/jury-code-change-adoption.yml](examples/ci/jury-code-change-adoption.yml)
 - [examples/code-change-adoption](examples/code-change-adoption)
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy)
 - [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release)

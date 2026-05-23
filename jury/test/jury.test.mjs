@@ -243,6 +243,67 @@ test("code-change adoption fixture produces portable retry and accept evidence",
   }
 });
 
+test("code-change adoption reusable workflow publishes retry and accept bundles", { skip: skipNestedCiAdoptionTests }, async () => {
+  const checkout = await copyJuryCheckout();
+
+  try {
+    const workflow = await readFile(join(checkout, "jury/examples/ci/jury-code-change-adoption.yml"), "utf8");
+    const testCommand = extractWorkflowSingleLineRun(workflow, "Run Jury tests");
+    const commands = extractWorkflowRunBlock(workflow, "Build Jury code-change adoption fixture");
+    const uploadPaths = extractWorkflowUploadPaths(workflow);
+
+    assert.deepEqual(new Set(uploadPaths), new Set([
+      "verdict.retry.json",
+      "gate.retry.json",
+      "review-bundle.retry.json",
+      "verdict.accept.json",
+      "gate.accept.json",
+      "review-bundle.accept.json",
+      "${{ inputs.state-dir }}/*.jsonl",
+    ]));
+
+    const testResult = await runShell(testCommand, checkout, nestedCiAdoptionEnv());
+    assert.equal(testResult.exitCode, 0, `${testCommand}\nstdout:\n${testResult.stdout}\nstderr:\n${testResult.stderr}`);
+
+    for (const command of commands) {
+      const result = await runShell(command, checkout, { ...fixedEnv, JURY_STATE_DIR: ".jury-code-change" });
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    for (const filename of ["verdict.retry.json", "gate.retry.json", "review-bundle.retry.json", "verdict.accept.json", "gate.accept.json", "review-bundle.accept.json"]) {
+      const generated = JSON.parse(await readFile(join(checkout, filename), "utf8"));
+      const expected = JSON.parse(await readFile(join(checkout, "jury/examples/code-change-adoption", filename), "utf8"));
+
+      assert.deepEqual(generated, expected, `${filename} should match code-change adoption fixture`);
+    }
+
+    const acceptedBundle = JSON.parse(await readFile(join(checkout, "review-bundle.accept.json"), "utf8"));
+    assert.equal(acceptedBundle.records.verdicts.find((item) => item.id === "verdict_claim_checkout_ready_accept").decision, "accept");
+
+    const downstreamImport = await runProcess([
+      "bundle", "import",
+      "--state-dir", join(checkout, ".jury-code-change-downstream"),
+      "--bundle", join(checkout, "review-bundle.accept.json"),
+      "--verdict-out", join(checkout, "downstream-verdict.accept.json"),
+    ], checkout);
+    const downstreamGate = await runProcess([
+      "gate",
+      "--state-dir", join(checkout, ".jury-code-change-downstream"),
+      "--claim", "claim_checkout_ready",
+      "--verdict", join(checkout, "downstream-verdict.accept.json"),
+    ], checkout);
+    const downstreamCheck = await runProcess(["check", "--state-dir", join(checkout, ".jury-code-change-downstream"), "--strict"], checkout);
+
+    assert.equal(downstreamImport.exitCode, 0, downstreamImport.stderr);
+    assert.equal(downstreamGate.exitCode, 0, downstreamGate.stderr);
+    assert.equal(JSON.parse(downstreamGate.stdout).decision, "accept");
+    assert.equal(downstreamCheck.exitCode, 0, downstreamCheck.stderr);
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
 test("quickstart commands produce a portable CI review from a clean checkout", { skip: skipNestedCiAdoptionTests }, async () => {
   const checkout = await copyJuryCheckout();
 
@@ -2742,6 +2803,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
       "signed-producer",
       "signed-artifact-handoff",
       "reusable-downstream-verifier",
+      "reusable-code-change-adoption",
     ],
   );
 
@@ -3895,6 +3957,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
+    "examples/ci/jury-code-change-adoption.yml",
     "examples/ci/fixtures/quickstart",
     "examples/code-change-adoption/README.md",
     "examples/code-change-adoption/verdict.retry.json",
@@ -4084,6 +4147,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
+    "examples/ci/jury-code-change-adoption.yml",
     "examples/ci/jury-package-manifest-check.yml",
     "examples/ci/jury-npm-publish.yml",
     "examples/ci/fixtures/quickstart",
@@ -4152,6 +4216,11 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
   assert.match(handoff, /downloads the signed producer artifact/);
+  assert.match(handoff, /reusable workflow that publishes retry and accept code-change adoption bundles for downstream verification/);
+  assert.match(handoff, /Code-Change Adoption CI Workflow/);
+  assert.match(handoff, /uploads `verdict\.retry\.json`, `gate\.retry\.json`, `review-bundle\.retry\.json`, `verdict\.accept\.json`, `gate\.accept\.json`, `review-bundle\.accept\.json`/);
+  assert.match(handoff, /bundle preflight --bundle review-bundle\.accept\.json/);
+  assert.match(handoff, /\.jury-code-change-downstream/);
   assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
   assert.match(handoff, /package publication notes/);
   assert.match(handoff, /code-change adoption fixture/);
@@ -4303,8 +4372,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /should require `jury-package-release-replay-summary-expiry-handoff\.json`/);
   assert.match(handoff, /requires the expiry handoff in both `retention\.artifacts` and `archiveEvidence`/);
   assert.match(handoff, /Next Hardening Step/);
-  assert.match(handoff, /reusable CI workflow variant/);
-  assert.match(handoff, /publishes retry and accept review bundles as artifacts/);
+  assert.match(handoff, /signed code-change adoption producer coverage/);
+  assert.match(handoff, /attestable retry and accept bundles/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
