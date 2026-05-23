@@ -41,6 +41,7 @@ const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_wit
 const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memory_retention_unknown_until.intent", import.meta.url).pathname;
 const INVALID_STEP_POLICY_BAD_TIMEOUT = new URL("../fixtures/invalid_step_policy_bad_timeout.intent", import.meta.url).pathname;
 const INVALID_CHECKPOINT_EMPTY = new URL("../fixtures/invalid_checkpoint_empty.intent", import.meta.url).pathname;
+const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
@@ -453,6 +454,17 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_CHECKPOINT_INVALID");
     assert.equal(payload.diagnostics[0].step, "patch_code");
     assert.equal(payload.diagnostics[0].checkpoint, "");
+  });
+
+  it("rejects empty step approval gate labels", () => {
+    const result = run(["check", INVALID_APPROVAL_EMPTY]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_APPROVAL_INVALID");
+    assert.equal(payload.diagnostics[0].step, "patch_code");
+    assert.equal(payload.diagnostics[0].approval, "");
   });
 
   it("rejects unresolved type references", () => {

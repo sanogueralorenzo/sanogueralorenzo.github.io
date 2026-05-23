@@ -518,6 +518,7 @@ function checkIntent(ast) {
     validateStepBindings(goal, diagnostics);
     validateStepPolicies(goal, diagnostics);
     validateStepCheckpoints(goal, diagnostics);
+    validateStepApprovals(goal, diagnostics);
     validateVerifyRequirements(goal, diagnostics);
     validateApprovalRequirements(goal, diagnostics);
 
@@ -752,6 +753,19 @@ function validateStepCheckpoints(goal, diagnostics) {
         diagnostics.push(error("INTENT_CHECKPOINT_INVALID", `step '${step.name}' has an empty checkpoint label.`, checkpoint.span, {
           step: step.name,
           checkpoint: checkpoint.value,
+        }));
+      }
+    }
+  }
+}
+
+function validateStepApprovals(goal, diagnostics) {
+  for (const step of goal.steps) {
+    for (const approval of step.approvals) {
+      if (!approval.value.trim()) {
+        diagnostics.push(error("INTENT_APPROVAL_INVALID", `step '${step.name}' has an empty approval gate label.`, approval.span, {
+          step: step.name,
+          approval: approval.value,
         }));
       }
     }
