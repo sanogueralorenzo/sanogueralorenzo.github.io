@@ -26,6 +26,9 @@ These fixtures exercise the Phase 2 static model parser and checker.
 ## Invalid
 
 - `invalid_goal_missing.intent`: declares package, import, and type declarations but no goal, which should fail `INTENT_GOAL_MISSING` at the source span.
+- `invalid_missing_package.intent`: starts with a type declaration instead of the required package declaration, which should fail `INTENT_PARSE_ERROR`.
+- `invalid_duplicate_package.intent`: declares two package declarations, which should fail `INTENT_PARSE_ERROR`.
+- `invalid_import_after_type.intent`: declares an import after a type declaration, which should fail `INTENT_PARSE_ERROR`.
 - `invalid_missing_verification.intent`: declares mutating effects but omits the required verification gate.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
 - `invalid_git_push_branch_mismatch.intent`: declares git push access for `main` but calls `GitPush(branch: "release")`.

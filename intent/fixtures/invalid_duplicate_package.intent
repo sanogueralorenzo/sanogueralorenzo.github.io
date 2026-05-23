@@ -1,0 +1,17 @@
+package fixtures.duplicate_package
+package fixtures.other
+
+type Report = {
+  body: String
+}
+
+goal duplicate_package() -> Report {
+  plan {
+    step draft -> Report {
+    }
+  }
+
+  verify {
+    require output.ready
+  }
+}

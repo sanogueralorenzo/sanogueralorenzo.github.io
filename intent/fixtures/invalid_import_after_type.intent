@@ -1,0 +1,18 @@
+package fixtures.import_after_type
+
+type Report = {
+  body: String
+}
+
+import fixtures.shared
+
+goal import_after_type() -> Report {
+  plan {
+    step draft -> Report {
+    }
+  }
+
+  verify {
+    require output.ready
+  }
+}

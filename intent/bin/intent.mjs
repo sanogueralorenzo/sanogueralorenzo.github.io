@@ -184,6 +184,7 @@ function parseIntent(source, file) {
   };
 
   let index = 0;
+  let importsClosed = false;
   while (index < lines.length) {
     const raw = lines[index];
     const line = stripComment(raw).trim();
@@ -193,24 +194,30 @@ function parseIntent(source, file) {
       continue;
     }
 
-    const packageMatch = line.match(/^package\s+([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)$/);
-    if (packageMatch) {
-      root.package = {
-        kind: "Package",
-        name: packageMatch[1],
-        span: lineSpan(file, lineNumber, raw),
-      };
+    if (line.startsWith("package ")) {
+      if (root.package) {
+        throw parseError(file, lineNumber, raw, "duplicate package declaration");
+      }
+      root.package = parsePackageDecl(line, file, lineNumber, raw);
       index += 1;
       continue;
     }
 
+    if (!root.package) {
+      throw parseError(file, lineNumber, raw, `expected package declaration before '${line}'`);
+    }
+
     if (line.startsWith("import ")) {
+      if (importsClosed) {
+        throw parseError(file, lineNumber, raw, "import declarations must appear before type or goal declarations");
+      }
       root.imports.push(parseImportDecl(line, file, lineNumber, raw));
       index += 1;
       continue;
     }
 
     if (line.startsWith("type ")) {
+      importsClosed = true;
       if (line.includes("{")) {
         const parsed = collectBlock(lines, index, file);
         root.types.push(parseTypeDecl(parsed.header, file, parsed.startLine, raw, parsed.body.map((entry) => entry.text).join("\n")));
@@ -223,6 +230,7 @@ function parseIntent(source, file) {
     }
 
     if (line.startsWith("goal ")) {
+      importsClosed = true;
       const parsed = collectBlock(lines, index, file);
       root.goals.push(parseGoal(parsed.header, parsed.body, file, parsed.startLine, parsed.endLine));
       index = parsed.nextIndex;
@@ -232,16 +240,19 @@ function parseIntent(source, file) {
     throw parseError(file, lineNumber, raw, `unexpected top-level statement '${line}'`);
   }
 
-  if (!root.package) {
-    root.package = {
-      kind: "Package",
-      name: "main",
-      implicit: true,
-      span: span(file, 1, 1),
-    };
-  }
-
   return root;
+}
+
+function parsePackageDecl(line, file, lineNumber, raw) {
+  const match = line.match(/^package\s+([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)$/);
+  if (!match) {
+    throw parseError(file, lineNumber, raw, `invalid package declaration '${line}'`);
+  }
+  return {
+    kind: "Package",
+    name: match[1],
+    span: lineSpan(file, lineNumber, raw),
+  };
 }
 
 function parseImportDecl(line, file, lineNumber, raw) {

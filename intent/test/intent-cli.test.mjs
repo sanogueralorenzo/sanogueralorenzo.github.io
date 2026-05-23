@@ -28,6 +28,9 @@ const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph
 const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.intent", import.meta.url).pathname;
 const VALID_TRUST_FLOW_SHELL_LITERAL = new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname;
 const INVALID_GOAL_MISSING = new URL("../fixtures/invalid_goal_missing.intent", import.meta.url).pathname;
+const INVALID_MISSING_PACKAGE = new URL("../fixtures/invalid_missing_package.intent", import.meta.url).pathname;
+const INVALID_DUPLICATE_PACKAGE = new URL("../fixtures/invalid_duplicate_package.intent", import.meta.url).pathname;
+const INVALID_IMPORT_AFTER_TYPE = new URL("../fixtures/invalid_import_after_type.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
@@ -534,6 +537,26 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_GOAL_MISSING");
     assert.equal(payload.diagnostics[0].span.start.line, 1);
     assert.equal(payload.diagnostics[0].span.start.column, 1);
+  });
+
+  it("rejects invalid file declaration shape", () => {
+    const missingPackage = run(["parse", INVALID_MISSING_PACKAGE]);
+    const duplicatePackage = run(["parse", INVALID_DUPLICATE_PACKAGE]);
+    const importAfterType = run(["parse", INVALID_IMPORT_AFTER_TYPE]);
+
+    const missingPayload = JSON.parse(missingPackage.stdout);
+    const duplicatePayload = JSON.parse(duplicatePackage.stdout);
+    const importPayload = JSON.parse(importAfterType.stdout);
+
+    assert.equal(missingPackage.status, 1);
+    assert.equal(missingPayload.diagnostics[0].code, "INTENT_PARSE_ERROR");
+    assert.match(missingPayload.diagnostics[0].message, /expected package declaration/);
+    assert.equal(duplicatePackage.status, 1);
+    assert.equal(duplicatePayload.diagnostics[0].code, "INTENT_PARSE_ERROR");
+    assert.match(duplicatePayload.diagnostics[0].message, /duplicate package declaration/);
+    assert.equal(importAfterType.status, 1);
+    assert.equal(importPayload.diagnostics[0].code, "INTENT_PARSE_ERROR");
+    assert.match(importPayload.diagnostics[0].message, /import declarations must appear before type or goal declarations/);
   });
 
   it("rejects effects without matching capabilities", () => {

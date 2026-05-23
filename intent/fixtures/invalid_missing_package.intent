@@ -1,0 +1,14 @@
+type Report = {
+  body: String
+}
+
+goal missing_package() -> Report {
+  plan {
+    step draft -> Report {
+    }
+  }
+
+  verify {
+    require output.ready
+  }
+}

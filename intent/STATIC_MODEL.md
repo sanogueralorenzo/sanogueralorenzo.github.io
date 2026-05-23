@@ -761,6 +761,9 @@ blocking diagnostics.
 - Bind package, file-local declarations, block-local names, step inputs, and
   goal state without implicit globals. Imports are parsed and preserved in this
   milestone, but they are not resolved into checker scope.
+- Require exactly one leading package declaration. Imports may appear only after
+  the package and before any type or goal declaration; the parser does not
+  synthesize an implicit package.
 - Reject duplicate type names in the file, duplicate goal names in the file,
   duplicate goal input names in a goal, duplicate step names in a goal, and
   duplicate step input names in a step.

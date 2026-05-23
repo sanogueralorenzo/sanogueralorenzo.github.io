@@ -114,9 +114,6 @@
         "name": {
           "$ref": "#/$defs/non_empty_string"
         },
-        "implicit": {
-          "type": "boolean"
-        },
         "span": {
           "$ref": "#/$defs/span"
         }
