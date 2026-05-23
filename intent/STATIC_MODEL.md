@@ -306,6 +306,9 @@ Next graph envelope validation milestone:
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.
+- Executable graph payloads must have `ok: true` and `diagnostics: []`.
+  `ok: false` or stale diagnostics mean the payload is a diagnostic artifact,
+  not an executable contract.
 
 ## Contract Validation
 
@@ -327,7 +330,8 @@ Expected validation behavior:
 - Parse, check, and graph stdout must validate against their matching schema
   files when schema validation is enabled.
 - A graph payload is executable only when it validates against
-  `intent.graph.v0.schema.json` and has `ok: true`.
+  `intent.graph.v0.schema.json`, has `ok: true`, and has an empty
+  `diagnostics` array.
 
 ## Checker Responsibilities
 

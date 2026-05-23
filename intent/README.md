@@ -88,6 +88,9 @@ Validation expectations:
   stable diagnostic codes and spans.
 - Graph JSON with `ok: false` is for tooling/debug output only and must not be
   treated as executable by a runtime.
+- Executable graph payloads must have `ok: true` and an empty `diagnostics`
+  array. `ok: false` or stale diagnostics make the graph a diagnostic artifact,
+  not an executable contract.
 - Static graph validators must accept only their supported `schema_version` and
   `ast_schema_version` pair. Missing or unsupported values for either field
   emit `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
