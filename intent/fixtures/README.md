@@ -46,7 +46,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_memory_without_retention.intent`: declares a memory block without any `retain ... until ...` retention rule.
 - `invalid_memory_retention_unknown_until.intent`: declares a parsed memory retention rule with unsupported lifecycle target `forever`, which should fail `INTENT_MEMORY_RETENTION_INVALID`.
 - `invalid_memory_access_undeclared.intent`: references undeclared memory from a step-local memory access statement, which should fail `INTENT_MEMORY_UNDECLARED`.
-- `invalid_memory_slot_undeclared.intent`: references a memory slot that is not declared by the memory block's retained subjects, which should fail `INTENT_MEMORY_SLOT_UNDECLARED`.
+- `invalid_memory_key_undeclared.intent`: references a memory key that is not declared by the memory block's retained subjects or explicit keys, which should fail `INTENT_MEMORY_KEY_UNDECLARED`.
 - `invalid_checkpoint_empty.intent`: declares an empty step checkpoint label, which should fail `INTENT_CHECKPOINT_INVALID` once checkpoint validation is enforced.
 - `invalid_approval_empty.intent`: declares an empty step approval label, which should fail `INTENT_APPROVAL_INVALID` once approval validation is enforced.
 - `invalid_step_policy_bad_timeout.intent`: declares a step timeout policy with unsupported duration `soon`, which should fail `INTENT_POLICY_INVALID` once policy validation is enforced.

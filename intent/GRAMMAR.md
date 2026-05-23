@@ -83,9 +83,11 @@ grant_arg       = identifier, ws, ":", ws, arg_value ;
 raw_capability_stmt = raw_text_until_terminator, line_end ;
 memory_block     = "memory", s, identifier, ws, "{", ws,
                    { memory_stmt, ws }, "}" ;
-memory_stmt      = retain_stmt | raw_memory_stmt ;
+memory_stmt      = retain_stmt | memory_key_stmt | raw_memory_stmt ;
 retain_stmt      = "retain", s, retain_subject, s, "until", s,
                    retain_until, line_end ;
+memory_key_stmt  = "key", s, identifier, [ ws, ":", ws, type_ref ],
+                   line_end ;
 retain_subject   = raw_text_until_until_keyword ;
 retain_until     = raw_text_until_terminator ;
 raw_memory_stmt  = raw_text_until_terminator, line_end ;
@@ -117,9 +119,10 @@ the exact grant line, so AST output, graph `Capability` node `grants`, and
 diagnostics/provenance can point to the grant instead of only the surrounding
 capability block. A capability body may contain `approval required`; the
 checker treats effects authorized by that capability as requiring a step-local
-`approval ...` gate. `memory` bodies are parsed as statement lists, and every
-`retain ... until ...` line is additionally parsed into structured
-`retentionRules` data with a retained subject span and an until-condition span.
+`approval ...` gate. `memory` bodies are parsed as statement lists, every
+`key ...` line is parsed into structured key metadata, and every `retain ...
+until ...` line is additionally parsed into structured `retentionRules` data
+with a retained subject span and an until-condition span.
 The checker accepts retention lifecycle targets only when the `until` value is
 `goal_complete`, `goal.completed`, or a simple duration such as `30d`, `12h`,
 `45m`, or `10s`.
@@ -217,13 +220,13 @@ span. The graph builder surfaces valid policies on the owning step node data,
 emits each statement as a `Policy` node, and creates `timeouts` or `retries`
 edges from that policy node to the owning `Step`.
 
-`memory read <memory>[.<slot>]`, `memory write <memory>[.<slot>]`, and
-`memory cite <memory>[.<slot>]` lines inside a step body are parsed as
+`memory read <memory>[.<key>]`, `memory write <memory>[.<key>]`, and
+`memory cite <memory>[.<key>]` lines inside a step body are parsed as
 step-local memory access statements. The checker rejects references whose
 memory name or scope is not declared in the goal with `INTENT_MEMORY_UNDECLARED`.
-When a memory access names a slot, that slot must match a retained subject in
-the referenced memory block; otherwise the checker emits
-`INTENT_MEMORY_SLOT_UNDECLARED`.
+When a memory access names a key, that key must match a retained subject or
+explicit `key` declaration in the referenced memory block; otherwise the
+checker emits `INTENT_MEMORY_KEY_UNDECLARED`.
 The graph builder emits `writes` edges from the owning `Step` to the `Memory`
 node, and emits `reads` or `cites` edges from the `Memory` node to the owning
 `Step`. These edges carry access metadata plus source and target spans so

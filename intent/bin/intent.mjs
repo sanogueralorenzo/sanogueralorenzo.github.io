@@ -378,6 +378,7 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
       name: headerParts[2] ?? null,
       retention: lines.filter((line) => line.text.startsWith("retain ")).map((line) => line.text),
       retentionRules: lines.filter((line) => line.text.startsWith("retain ")).map((line) => parseRetentionRule(line, file)),
+      keys: lines.filter((line) => line.text.startsWith("key ")).map((line) => parseMemoryKey(line, file)),
       statements: lines.map((line) => line.text),
       span: span(file, startLine, 1, endLine, 1),
     });
@@ -559,6 +560,41 @@ function parseRetentionRule(line, file) {
   };
 }
 
+function parseMemoryKey(line, file) {
+  const value = line.text.slice("key ".length).trim();
+  const match = value.match(/^([A-Za-z][A-Za-z0-9_]*)(?:\s*:\s*([A-Za-z][A-Za-z0-9_<>, ]*))?$/);
+  if (!match) {
+    throw parseError(file, line.lineNumber, line.raw, `invalid memory key '${line.text}'`);
+  }
+  const name = match[1];
+  const type = match[2]?.trim() ?? null;
+  return {
+    kind: "MemoryKey",
+    name,
+    type,
+    typeSpan: parseMemoryKeyTypeSpan(type, file, line.lineNumber, line.raw),
+    raw: line.text,
+    span: lineSpan(file, line.lineNumber, line.raw),
+  };
+}
+
+function parseMemoryKeyTypeSpan(type, file, lineNumber, rawLine) {
+  if (!type) {
+    return null;
+  }
+  const colonIndex = rawLine.indexOf(":");
+  if (colonIndex < 0) {
+    return null;
+  }
+  const afterColon = rawLine.slice(colonIndex + 1);
+  const firstTypeChar = afterColon.search(/\S/);
+  if (firstTypeChar < 0) {
+    return null;
+  }
+  const startColumn = colonIndex + 1 + firstTypeChar + 1;
+  return span(file, lineNumber, startColumn, lineNumber, startColumn + type.length);
+}
+
 function parseCheckpointStatement(line, file) {
   return statementNode("Checkpoint", unquote(line.text.slice("checkpoint ".length)), file, line.lineNumber, line.raw);
 }
@@ -578,13 +614,13 @@ function parseMemoryAccessStatement(line, file) {
     throw parseError(file, line.lineNumber, line.raw, `invalid memory access '${line.text}'`);
   }
   const memory = match[2];
-  const slot = match[3] ?? null;
+  const key = match[3] ?? null;
   return {
     kind: "MemoryAccess",
     access: match[1],
     memory,
-    slot,
-    target: slot ? `${memory}.${slot}` : memory,
+    key,
+    target: key ? `${memory}.${key}` : memory,
     span: lineSpan(file, line.lineNumber, line.raw),
   };
 }
@@ -795,20 +831,20 @@ function validateMemoryAccesses(goal, diagnostics) {
         }));
         continue;
       }
-      if (!access.slot) {
+      if (!access.key) {
         continue;
       }
-      const retentionSubjects = memoryRetentionSubjects(declaration.memory);
-      if (retentionSubjects.has(access.slot)) {
+      const declaredKeys = memoryDeclaredKeys(declaration.memory);
+      if (declaredKeys.has(access.key)) {
         continue;
       }
-      diagnostics.push(error("INTENT_MEMORY_SLOT_UNDECLARED", `step '${step.name}' references undeclared memory slot '${access.target}'.`, access.span, {
+      diagnostics.push(error("INTENT_MEMORY_KEY_UNDECLARED", `step '${step.name}' references undeclared memory key '${access.target}'.`, access.span, {
         step: step.name,
         memory: access.memory,
-        slot: access.slot,
+        key: access.key,
         access: access.access,
         target: access.target,
-        declared_keys: [...retentionSubjects.keys()],
+        declared_keys: [...declaredKeys.keys()],
       }));
     }
   }
@@ -840,6 +876,14 @@ function memoryRetentionSubjects(memory) {
     }
   }
   return subjects;
+}
+
+function memoryDeclaredKeys(memory) {
+  const keys = memoryRetentionSubjects(memory);
+  for (const key of memory.keys ?? []) {
+    keys.set(key.name, key);
+  }
+  return keys;
 }
 
 function validateGoalTypes(goal, declaredTypes, diagnostics) {
@@ -1100,6 +1144,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         scope: memory.scope,
         retention: memory.retention,
         retentionRules: memory.retentionRules ?? [],
+        keys: memory.keys ?? [],
       }));
       edges.push(edge(goalId, id, "declares"));
       memoryIdsByReference.set(memory.scope, { id, span: memory.span, memory });
@@ -1233,15 +1278,16 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         if (!memory) {
           continue;
         }
-        const retention = memoryAccess.slot ? memoryRetentionSubjects(memory.memory).get(memoryAccess.slot) : null;
+        const retention = memoryAccess.key ? memoryRetentionSubjects(memory.memory).get(memoryAccess.key) : null;
+        const declaredKey = memoryAccess.key ? memoryDeclaredKeys(memory.memory).get(memoryAccess.key) : null;
         const payload = {
           access: memoryAccess.access,
           memory: memoryAccess.memory,
-          slot: memoryAccess.slot,
+          key: memoryAccess.key,
           target: memoryAccess.target,
           retentionRef: retention?.raw ?? null,
           sourceSpan: memoryAccess.access === "write" ? memoryAccess.span : memory.span,
-          targetSpan: memoryAccess.access === "write" ? (retention?.span ?? memory.span) : memoryAccess.span,
+          targetSpan: memoryAccess.access === "write" ? (declaredKey?.span ?? memory.span) : memoryAccess.span,
         };
         if (memoryAccess.access === "write") {
           edges.push(edge(id, memory.id, "writes", payload));
@@ -2111,13 +2157,19 @@ function validateGraphMemory(graphNode, graphSpan) {
   }
   const retentionIsArray = Array.isArray(graphNode.data.retention);
   const retentionRulesIsArray = Array.isArray(graphNode.data.retentionRules);
+  const keysIsArray = Array.isArray(graphNode.data.keys);
   const retentionRulesNonempty = retentionRulesIsArray && graphNode.data.retentionRules.length > 0;
   const invalidRetentionIndexes = retentionRulesIsArray
     ? graphNode.data.retentionRules
         .map((retentionRule, retentionIndex) => isGraphRetentionRuleRecord(retentionRule) ? null : retentionIndex)
         .filter((retentionIndex) => retentionIndex !== null)
     : [];
-  if (retentionIsArray && retentionRulesNonempty && invalidRetentionIndexes.length === 0) {
+  const invalidKeyIndexes = keysIsArray
+    ? graphNode.data.keys
+        .map((key, keyIndex) => isGraphMemoryKeyRecord(key) ? null : keyIndex)
+        .filter((keyIndex) => keyIndex !== null)
+    : [];
+  if (retentionIsArray && retentionRulesNonempty && invalidRetentionIndexes.length === 0 && keysIsArray && invalidKeyIndexes.length === 0) {
     return null;
   }
   return error("INTENT_GRAPH_MEMORY_INVALID", `memory '${graphNode.label}' must carry valid retention lifecycle data.`, graphNode.span ?? graphSpan, {
@@ -2128,6 +2180,8 @@ function validateGraphMemory(graphNode, graphSpan) {
     retention_rules_is_array: retentionRulesIsArray,
     retention_rules_nonempty: retentionRulesNonempty,
     invalid_retention_indexes: invalidRetentionIndexes,
+    keys_is_array: keysIsArray,
+    invalid_key_indexes: invalidKeyIndexes,
   });
 }
 
@@ -2142,6 +2196,18 @@ function isGraphRetentionRuleRecord(value) {
     && typeof value.until.raw === "string"
     && value.until.raw.trim() !== ""
     && isSupportedRetentionUntil(value.until.raw);
+}
+
+function isGraphMemoryKeyRecord(value) {
+  return isPlainObject(value)
+    && value.kind === "MemoryKey"
+    && typeof value.name === "string"
+    && value.name.trim() !== ""
+    && (value.type === null || (typeof value.type === "string" && value.type.trim() !== ""))
+    && (value.typeSpan === null || isSpan(value.typeSpan))
+    && typeof value.raw === "string"
+    && value.raw.trim() !== ""
+    && isSpan(value.span);
 }
 
 function validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, fallbackSpan) {
@@ -2515,23 +2581,23 @@ function validateGraphMemoryTarget(nodesById, graphEdge, fallbackSpan) {
   const sourceNode = nodesById.get(graphEdge.from);
   const targetNode = nodesById.get(graphEdge.to);
   const memoryNode = sourceNode?.kind === "Memory" ? sourceNode : targetNode?.kind === "Memory" ? targetNode : null;
-  const slot = graphEdge.data?.slot;
-  if (!memoryNode || slot === null || slot === undefined) {
+  const key = graphEdge.data?.key;
+  if (!memoryNode || key === null || key === undefined) {
     return null;
   }
-  const declaredSlots = graphMemoryRetentionSubjects(memoryNode);
-  if (typeof slot === "string" && declaredSlots.has(slot)) {
+  const declaredKeys = graphMemoryDeclaredKeys(memoryNode);
+  if (typeof key === "string" && declaredKeys.has(key)) {
     return null;
   }
-  return error("INTENT_GRAPH_MEMORY_TARGET_INVALID", `${graphEdge.kind} edge '${graphEdge.from}' to '${graphEdge.to}' must target a retained memory slot.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+  return error("INTENT_GRAPH_MEMORY_TARGET_INVALID", `${graphEdge.kind} edge '${graphEdge.from}' to '${graphEdge.to}' must target a retained memory key.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
     edge: graphEdge.kind,
     from: graphEdge.from,
     to: graphEdge.to,
     memory_id: memoryNode.id,
     memory: graphEdge.data?.memory ?? null,
-    slot: typeof slot === "string" ? slot : null,
+    key: typeof key === "string" ? key : null,
     target: graphEdge.data?.target ?? null,
-    declared_keys: [...declaredSlots.keys()],
+    declared_keys: [...declaredKeys.keys()],
   });
 }
 
@@ -2543,6 +2609,16 @@ function graphMemoryRetentionSubjects(graphNode) {
     }
   }
   return subjects;
+}
+
+function graphMemoryDeclaredKeys(graphNode) {
+  const keys = graphMemoryRetentionSubjects(graphNode);
+  for (const key of graphNode.data?.keys ?? []) {
+    if (key?.name) {
+      keys.set(key.name, key);
+    }
+  }
+  return keys;
 }
 
 function validateGraphRequiresEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {

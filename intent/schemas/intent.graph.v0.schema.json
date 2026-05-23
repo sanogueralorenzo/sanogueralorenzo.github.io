@@ -160,6 +160,38 @@
         }
       }
     },
+    "memory_key": {
+      "type": "object",
+      "required": ["kind", "name", "type", "typeSpan", "raw", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "MemoryKey"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": ["string", "null"]
+        },
+        "typeSpan": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
     "spanned_text": {
       "type": "object",
       "required": ["raw", "span"],
@@ -482,7 +514,7 @@
             },
             "data": {
               "type": "object",
-              "required": ["scope", "retention", "retentionRules"],
+              "required": ["scope", "retention", "retentionRules", "keys"],
               "additionalProperties": false,
               "properties": {
                 "scope": {
@@ -498,6 +530,12 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/$defs/retention_rule"
+                  }
+                },
+                "keys": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/memory_key"
                   }
                 }
               }
@@ -953,7 +991,7 @@
             "memory": {
               "type": "string"
             },
-            "slot": {
+            "key": {
               "type": ["string", "null"]
             },
             "target": {

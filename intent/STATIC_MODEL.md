@@ -34,7 +34,7 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `StepPolicy`: structured `timeout ...` or `retry ...` step-body statement
   with policy kind, raw policy text, and source span.
 - `MemoryAccess`: structured `memory read`, `memory write`, or `memory cite`
-  step-body statement with access kind, memory reference, optional slot, target
+  step-body statement with access kind, memory reference, optional key, target
   string, and source span.
 - `VerifyBlock`: required or advisory completion checks.
 - `InvariantBlock`: always-on rules evaluated across completion, effects,
@@ -1334,13 +1334,15 @@ explicit. Each `memory` block must contain at least one parsed retention line:
 
 ```intent
 memory session audit_evidence {
+  key decision: Record
   retain test_report until goal.completed
 }
 ```
 
-The parser preserves every memory body line as raw text in `retention`. Lines
-matching `retain ... until ...` are also parsed into structured
-`retentionRules` entries:
+The parser preserves every memory body line as raw text in `statements`. Lines
+matching `key ...` are parsed into structured `keys` entries, and lines
+matching `retain ... until ...` are parsed into structured `retentionRules`
+entries:
 
 ```json
 {
@@ -1349,6 +1351,17 @@ matching `retain ... until ...` are also parsed into structured
   "until": { "raw": "goal.completed", "span": "loc.13" },
   "raw": "retain test_report until goal.completed",
   "span": "loc.11"
+}
+```
+
+```json
+{
+  "kind": "MemoryKey",
+  "name": "decision",
+  "type": "Record",
+  "typeSpan": "loc.10",
+  "raw": "key decision: Record",
+  "span": "loc.9"
 }
 ```
 
@@ -1362,13 +1375,18 @@ Rules:
 - A malformed `retain` line or unsupported lifecycle target emits
   `INTENT_MEMORY_RETENTION_INVALID`.
 - Retention entries are checker-owned lifecycle data, not opaque comments.
-- The graph builder emits `retentionRules` in the owning `Memory` node data so
-  runtimes can enforce retention without reparsing memory body text.
+- Memory keys are checker-owned addressable memory entries, not free-form
+  comments.
+- The graph builder emits `retentionRules` and `keys` in the owning `Memory`
+  node data so runtimes can enforce retention and key access without reparsing
+  memory body text.
 - Runtime graph validation also requires each `Memory` node to carry
-  `data.retention` as an array and `data.retentionRules` as a non-empty array.
-  Every structured retention rule must include non-empty `raw`, `subject.raw`,
-  and `until.raw` strings. Invalid graph memory lifecycle data emits
-  `INTENT_GRAPH_MEMORY_INVALID` and makes graph output non-executable.
+  `data.retention` as an array, `data.retentionRules` as a non-empty array, and
+  `data.keys` as an array. Every structured retention rule must include
+  non-empty `raw`, `subject.raw`, and `until.raw` strings, and every memory key
+  must include non-empty `name` and `raw` strings. Invalid graph memory
+  lifecycle or key data emits `INTENT_GRAPH_MEMORY_INVALID` and makes graph
+  output non-executable.
 
 ## Memory Access Provenance
 
@@ -1388,26 +1406,27 @@ plan {
 
 Rules:
 
-- `memory read <memory>[.<slot>]`, `memory write <memory>[.<slot>]`, and
-  `memory cite <memory>[.<slot>]` preserve the access kind, memory reference,
-  optional slot, target string, and source span on the owning step.
+- `memory read <memory>[.<key>]`, `memory write <memory>[.<key>]`, and
+  `memory cite <memory>[.<key>]` preserve the access kind, memory reference,
+  optional key, target string, and source span on the owning step.
 - The referenced memory name must match either the declared memory scope or
   explicit memory name in the same goal. Missing references emit
   `INTENT_MEMORY_UNDECLARED` at the memory access statement span.
-- When a memory access includes a slot, that slot must match one of the
-  referenced memory block's retained subjects. Missing slots emit
-  `INTENT_MEMORY_SLOT_UNDECLARED` at the memory access statement span.
+- When a memory access includes a key, that key must match one of the
+  referenced memory block's retained subjects or explicit memory keys. Missing
+  keys emit
+  `INTENT_MEMORY_KEY_UNDECLARED` at the memory access statement span.
 - The graph builder lists memory access targets on the owning `Step` node data.
 - `writes` edges go from the owning `Step` to the referenced `Memory` node.
   `reads` and `cites` edges go from the referenced `Memory` node to the owning
   `Step`.
-- Memory access edges carry `data.access`, `data.memory`, nullable `data.slot`,
+- Memory access edges carry `data.access`, `data.memory`, nullable `data.key`,
   `data.target`, nullable `data.retentionRef`, `sourceSpan`, and `targetSpan`.
   Missing or malformed payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
 - Unsupported memory access endpoint roles emit
   `INTENT_GRAPH_MEMORY_ACCESS_INVALID`.
-- Memory access graph edges with a slotted target must match a retained subject
-  on the referenced `Memory` node. Mismatches emit
+- Memory access graph edges with a keyed target must match a retained subject or
+  explicit key on the referenced `Memory` node. Mismatches emit
   `INTENT_GRAPH_MEMORY_TARGET_INVALID`.
 
 ## Trust Flow
@@ -1696,7 +1715,7 @@ Initial diagnostic families:
 - `INTENT_INVARIANT_VIOLATION`
 - `INTENT_TRUST_FLOW_UNSAFE`
 - `INTENT_MEMORY_UNDECLARED`
-- `INTENT_MEMORY_SLOT_UNDECLARED`
+- `INTENT_MEMORY_KEY_UNDECLARED`
 - `INTENT_MEMORY_UNSCOPED`
 - `INTENT_MEMORY_RETENTION_INVALID`
 - `INTENT_CHECKPOINT_INVALID`

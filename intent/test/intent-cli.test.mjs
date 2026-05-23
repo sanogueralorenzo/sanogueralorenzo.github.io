@@ -49,7 +49,7 @@ const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_imp
 const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_without_retention.intent", import.meta.url).pathname;
 const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memory_retention_unknown_until.intent", import.meta.url).pathname;
 const INVALID_MEMORY_ACCESS_UNDECLARED = new URL("../fixtures/invalid_memory_access_undeclared.intent", import.meta.url).pathname;
-const INVALID_MEMORY_SLOT_UNDECLARED = new URL("../fixtures/invalid_memory_slot_undeclared.intent", import.meta.url).pathname;
+const INVALID_MEMORY_KEY_UNDECLARED = new URL("../fixtures/invalid_memory_key_undeclared.intent", import.meta.url).pathname;
 const INVALID_STEP_POLICY_BAD_TIMEOUT = new URL("../fixtures/invalid_step_policy_bad_timeout.intent", import.meta.url).pathname;
 const INVALID_CHECKPOINT_EMPTY = new URL("../fixtures/invalid_checkpoint_empty.intent", import.meta.url).pathname;
 const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.intent", import.meta.url).pathname;
@@ -175,6 +175,7 @@ function defaultGraphNodeData(kind, data) {
       scope: "session",
       retention: ["retain evidence until goal_complete"],
       retentionRules: [{ raw: "retain evidence until goal_complete", subject: { raw: "evidence" }, until: { raw: "goal_complete" } }],
+      keys: [],
       ...normalizedData,
     };
   }
@@ -253,7 +254,7 @@ function defaultGraphEdgeData(edge, data) {
     return {
       access: edge.kind === "writes" ? "write" : edge.kind === "cites" ? "cite" : "read",
       memory: "session",
-      slot: "evidence",
+      key: "evidence",
       target: "session.evidence",
       sourceSpan: testSpan(1),
       targetSpan: testSpan(1),
@@ -447,11 +448,14 @@ describe("intent static model CLI", () => {
     assert.equal(importAst.imports[1].span.start.line, 4);
 
     const memoryAst = runJson(["parse", VALID_MEMORY_FLOW_GRAPH]);
+    assert.equal(memoryAst.goals[0].memory[0].keys[0].name, "decisions");
+    assert.equal(memoryAst.goals[0].memory[0].keys[0].type, "Record");
     assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[0].access, "write");
     assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[0].target, "session.evidence");
-    assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[0].span.start.line, 21);
+    assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[0].span.start.line, 22);
     assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[0].access, "read");
     assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[1].access, "cite");
+    assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[1].key, "decisions");
   });
 
   it("accepts valid fixtures", () => {
@@ -800,16 +804,16 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].target, "archive.evidence");
   });
 
-  it("rejects undeclared memory slots", () => {
-    const result = run(["check", INVALID_MEMORY_SLOT_UNDECLARED]);
+  it("rejects undeclared memory keys", () => {
+    const result = run(["check", INVALID_MEMORY_KEY_UNDECLARED]);
     const payload = JSON.parse(result.stdout);
 
     assert.equal(result.status, 1);
     assert.equal(payload.ok, false);
-    assert.equal(payload.diagnostics[0].code, "INTENT_MEMORY_SLOT_UNDECLARED");
+    assert.equal(payload.diagnostics[0].code, "INTENT_MEMORY_KEY_UNDECLARED");
     assert.equal(payload.diagnostics[0].step, "draft");
     assert.equal(payload.diagnostics[0].memory, "session");
-    assert.equal(payload.diagnostics[0].slot, "evidence");
+    assert.equal(payload.diagnostics[0].key, "evidence");
     assert.equal(payload.diagnostics[0].target, "session.evidence");
     assert.deepEqual(payload.diagnostics[0].declared_keys, ["summaries"]);
   });
@@ -1219,17 +1223,23 @@ describe("intent static model CLI", () => {
     const inspectStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "inspect");
     const draftStep = graph.nodes.find((node) => node.kind === "Step" && node.label === "draft");
     const writeEdge = graph.edges.find((edge) => edge.kind === "writes");
+    const keyWriteEdge = graph.edges.find((edge) => edge.kind === "writes" && edge.data.key === "decisions");
     const readEdge = graph.edges.find((edge) => edge.kind === "reads");
     const citeEdge = graph.edges.find((edge) => edge.kind === "cites");
 
     assert.equal(graph.ok, true);
-    assert.deepEqual(inspectStep.data.memoryAccesses, ["session.evidence"]);
+    assert.equal(memory.data.keys[0].name, "decisions");
+    assert.equal(memory.data.keys[0].type, "Record");
+    assert.deepEqual(inspectStep.data.memoryAccesses, ["session.evidence", "session.decisions"]);
     assert.deepEqual(draftStep.data.memoryAccesses, ["session.evidence", "session.evidence"]);
     assert.equal(writeEdge.from, inspectStep.id);
     assert.equal(writeEdge.to, memory.id);
     assert.equal(writeEdge.data.access, "write");
     assert.equal(writeEdge.data.target, "session.evidence");
     assert.equal(writeEdge.data.retentionRef, "retain evidence until 30d");
+    assert.equal(keyWriteEdge.from, inspectStep.id);
+    assert.equal(keyWriteEdge.to, memory.id);
+    assert.equal(keyWriteEdge.data.retentionRef, null);
     assert.equal(readEdge.from, memory.id);
     assert.equal(readEdge.to, draftStep.id);
     assert.equal(readEdge.data.access, "read");
@@ -2127,17 +2137,17 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
       ],
       edges: [
-        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "reads", data: { access: "read", memory: "session", slot: "evidence", target: "session.evidence", sourceSpan: testSpan(1), targetSpan: testSpan(2) } },
-        { from: "goal:demo:step:patch", to: "goal:demo:memory:0", kind: "writes", data: { access: "write", memory: "session", slot: "logs", target: "session.logs", sourceSpan: testSpan(2), targetSpan: testSpan(1) } },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:patch", kind: "reads", data: { access: "read", memory: "session", key: "evidence", target: "session.evidence", sourceSpan: testSpan(1), targetSpan: testSpan(2) } },
+        { from: "goal:demo:step:patch", to: "goal:demo:memory:0", kind: "writes", data: { access: "write", memory: "session", key: "logs", target: "session.logs", sourceSpan: testSpan(2), targetSpan: testSpan(1) } },
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_MEMORY_TARGET_INVALID");
 
     assert.equal(diagnostics.length, 2);
     assert.equal(diagnostics[0].edge, "reads");
-    assert.equal(diagnostics[0].slot, "evidence");
+    assert.equal(diagnostics[0].key, "evidence");
     assert.deepEqual(diagnostics[0].declared_keys, ["summaries"]);
     assert.equal(diagnostics[1].edge, "writes");
-    assert.equal(diagnostics[1].slot, "logs");
+    assert.equal(diagnostics[1].key, "logs");
   });
 
   it("validates graph trust metadata diagnostics", () => {

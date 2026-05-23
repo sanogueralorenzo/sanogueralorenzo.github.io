@@ -410,7 +410,7 @@
     },
     "memory": {
       "type": "object",
-      "required": ["kind", "scope", "name", "retention", "retentionRules", "statements", "span"],
+      "required": ["kind", "scope", "name", "retention", "retentionRules", "keys", "statements", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -434,11 +434,49 @@
             "$ref": "#/$defs/retention_rule"
           }
         },
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_key"
+          }
+        },
         "statements": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/non_empty_string"
           }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "memory_key": {
+      "type": "object",
+      "required": ["kind", "name", "type", "typeSpan", "raw", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "MemoryKey"
+        },
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "type": {
+          "$ref": "#/$defs/nullable_non_empty_string"
+        },
+        "typeSpan": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw": {
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -570,7 +608,7 @@
     },
     "memory_access": {
       "type": "object",
-      "required": ["kind", "access", "memory", "slot", "target", "span"],
+      "required": ["kind", "access", "memory", "key", "target", "span"],
       "additionalProperties": false,
       "properties": {
         "kind": {
@@ -582,7 +620,7 @@
         "memory": {
           "$ref": "#/$defs/non_empty_string"
         },
-        "slot": {
+        "key": {
           "$ref": "#/$defs/nullable_non_empty_string"
         },
         "target": {

@@ -12,6 +12,7 @@ goal memory_flow() -> Report {
   context repo("./")
 
   memory session {
+    key decisions: Record
     retain summaries until goal_complete
     retain evidence until 30d
   }
@@ -19,6 +20,7 @@ goal memory_flow() -> Report {
   plan {
     step inspect -> Finding {
       memory write session.evidence
+      memory write session.decisions
     }
     step draft(input: Finding) -> Report {
       memory read session.evidence
