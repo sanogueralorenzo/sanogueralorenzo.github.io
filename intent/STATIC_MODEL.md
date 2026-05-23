@@ -302,7 +302,7 @@ blocking diagnostics.
   capability.
 - Check simple capability constraints for file paths, shell commands, context
   source file paths, context source web domains, web/http read domains, and git
-  push branches or remotes.
+  push branches or remotes, and secret read names.
 - Treat effects covered by a capability with `approval required` as requiring a
   step-local `approval ...` gate, and emit `INTENT_APPROVAL_MISSING` when the
   owning step has no approval gate.
@@ -412,7 +412,7 @@ Rules:
 - Nested calls may be parsed as argument values, but the first capability
   milestone only checks literal file path, shell command, structured context web
   URL or domain, structured context documents path, web/http read URL or domain,
-  and git push branch or remote arguments.
+  git push branch or remote arguments, and secret read names.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -726,6 +726,21 @@ Web/http read constraints:
   `docs.example.com` and `api.docs.example.com`, but not `example.com`.
 - If no exact or wildcard domain grant covers the normalized URL host or domain
   argument, the checker emits `INTENT_CAPABILITY_DENIED`.
+
+Secret read constraints:
+
+- Secret read coverage is a Phase 2 static-model check only; it authorizes the
+  request shape and does not read, validate, serialize, or propagate secret
+  values.
+- Secret read effects use a named `name` argument as the constrained resource.
+- `SecretRead(name: "...")` is valid only when an in-scope capability grants
+  `secret read name: "..."`, written in source as
+  `capability secret { read name: "..." }`.
+- Secret names are normalized by trimming leading and trailing ASCII whitespace
+  before comparison. Matching is exact after normalization; wildcards, aliases,
+  environment expansion, and value inspection are unsupported.
+- If no secret grant covers the normalized name, the checker emits
+  `INTENT_CAPABILITY_DENIED`.
 
 Git push constraints:
 
@@ -1254,6 +1269,11 @@ node lists timeout summaries in `data.timeouts` and retry summaries in
 `data.retries`. Each timeout policy has one outgoing `timeouts` edge to that
 owning step, and each retry policy has one outgoing `retries` edge to that
 owning step.
+
+Secret reads are represented as `Effect` nodes the same way as other effect
+requests. The node data records family `secret`, action `read`, the normalized
+`name` argument, and unknown trust metadata. This is a Phase 2 static-model
+coverage check only; graph output must not contain secret values.
 
 Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required checks create `verifies` edges to completion.

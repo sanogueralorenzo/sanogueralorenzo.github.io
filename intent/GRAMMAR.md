@@ -234,6 +234,15 @@ capability grants and `git.push(remote: "...")` to in-scope
 normalized before comparison; if no grant covers the normalized argument, the
 checker emits `INTENT_CAPABILITY_DENIED`.
 
+Secret read effects are a Phase 2 static-model capability coverage check, not
+secret-value handling. A capability declaration such as
+`capability secret { read name: "DEPLOY_TOKEN" }` authorizes
+`SecretRead(name: "DEPLOY_TOKEN")`. Secret read arguments are normalized by
+name before comparison. A secret read outside the declared grants emits
+`INTENT_CAPABILITY_DENIED`. The graph builder emits secret reads as `Effect`
+nodes like other effects, with unknown trust because the static model does not
+inspect or propagate secret values.
+
 ## Lexical Rules
 
 ```ebnf
@@ -306,6 +315,10 @@ The parser emits names and type reference strings; the checker owns binding.
   in-scope `push branch: "..."` or `push remote: "..."` capability grants.
   Simple branch and remote names are normalized before comparison; if no grant
   covers the argument, the checker emits `INTENT_CAPABILITY_DENIED`.
+- Secret read effects bind `SecretRead(name: "...")` to in-scope
+  `capability secret { read name: "..." }` grants. Secret names are normalized
+  before comparison; if no grant covers the normalized name, the checker emits
+  `INTENT_CAPABILITY_DENIED`.
 - Shell command arguments must be literal or trusted before execution.
 - Nonliteral shell command arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.
