@@ -107,7 +107,7 @@
     },
     "grant": {
       "type": "object",
-      "required": ["action", "key", "value", "raw", "span"],
+      "required": ["action", "key", "value", "args", "raw", "span", "actionSpan"],
       "additionalProperties": false,
       "properties": {
         "action": {
@@ -119,6 +119,13 @@
         "value": {
           "type": "string"
         },
+        "args": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/grant_arg"
+          }
+        },
         "raw": {
           "$ref": "#/$defs/non_empty_string"
         },
@@ -127,6 +134,41 @@
         },
         "contractArgument": {
           "$ref": "#/$defs/non_empty_string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "actionSpan": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "grant_arg": {
+      "type": "object",
+      "required": ["key", "value", "kind", "keySpan", "valueSpan", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "keySpan": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valueSpan": {
+          "$ref": "#/$defs/span"
         },
         "span": {
           "$ref": "#/$defs/span"

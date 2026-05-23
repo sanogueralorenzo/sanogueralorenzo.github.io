@@ -137,8 +137,17 @@ function testGrant(action, key, value, line) {
     action,
     key,
     value,
+    args: [{
+      key,
+      value,
+      kind: "string",
+      keySpan: testSpan(line),
+      valueSpan: testSpan(line),
+      span: testSpan(line),
+    }],
     raw: `${action} ${key}: "${value}"`,
     span: testSpan(line),
+    actionSpan: testSpan(line),
   };
 }
 
@@ -656,6 +665,12 @@ describe("intent static model CLI", () => {
     assert.equal(ast.goals[0].capabilities[0].grants[0].raw, "read path: \"./src/**\"");
     assert.equal(ast.goals[0].capabilities[0].grants[0].span.file, VALID_CODE_CHANGE);
     assert.equal(ast.goals[0].capabilities[0].grants[0].span.start.line, 20);
+    assert.equal(ast.goals[0].capabilities[0].grants[0].actionSpan.start.column, 5);
+    assert.deepEqual(ast.goals[0].capabilities[0].grants[0].args.map((argument) => [argument.key, argument.value, argument.kind]), [
+      ["path", "./src/**", "string"],
+    ]);
+    assert.equal(ast.goals[0].capabilities[0].grants[0].args[0].keySpan.start.column, 10);
+    assert.equal(ast.goals[0].capabilities[0].grants[0].args[0].valueSpan.start.column, 16);
     assert.equal(ast.goals[0].span.file, VALID_CODE_CHANGE);
     assert.equal(ast.goals[0].span.start.line, 15);
 
@@ -794,7 +809,7 @@ describe("intent static model CLI", () => {
       "    read domain: \"example.com\"",
       "  }",
       "  capability git {",
-      "    push branch: \"main\"",
+      "    push branch: \"main\" remote: \"origin\"",
       "    commit message: \"ship fix\"",
       "  }",
       "  capability secret {",
@@ -816,7 +831,7 @@ describe("intent static model CLI", () => {
       "      effect Command(\"npm test\")",
       "      effect WebRead(url: \"https://example.com/research\")",
       "      effect http.get(\"https://example.com/status\")",
-      "      effect git.push(branch: \"refs/heads/main\")",
+      "      effect git.push(branch: \"refs/heads/main\", remote: \"origin\")",
       "      effect git.commit(message: \"ship fix\")",
       "      effect SecretRead(name: \"GITHUB_TOKEN\")",
       "      effect TicketUpdate(id: \"CODE-123\")",
@@ -863,6 +878,13 @@ describe("intent static model CLI", () => {
       assert.deepEqual(graphGrants.map((grant) => [grant.action, grant.key, grant.contractId, grant.contractArgument]), capabilityGrants.map((grant) => {
         return [grant.action, grant.key, grant.contractId, grant.contractArgument];
       }));
+      const gitPushGrant = capabilityGrants.find((grant) => grant.action === "push");
+      assert.deepEqual(gitPushGrant.args.map((argument) => [argument.key, argument.value, argument.kind]), [
+        ["branch", "main", "string"],
+        ["remote", "origin", "string"],
+      ]);
+      assert.equal(gitPushGrant.args[1].keySpan.start.column, source.split("\n")[17].indexOf("remote") + 1);
+      assert.equal(gitPushGrant.args[1].valueSpan.start.column, source.split("\n")[17].indexOf("\"origin\"") + 1);
       assert.deepEqual(effects.map((effect) => [effect.label, effect.data.family, effect.data.action]), [
         ["Effect.FileWrite", "file", "write"],
         ["WriteFile", "file", "write"],
@@ -893,7 +915,7 @@ describe("intent static model CLI", () => {
         { command: "_0" },
         { domain: "url" },
         { domain: "_0" },
-        { branch: "branch" },
+        { branch: "branch", remote: "remote" },
         { message: "message" },
         { name: "name" },
         { id: "id" },
@@ -907,7 +929,7 @@ describe("intent static model CLI", () => {
         [["command", "_0"]],
         [["domain", "url"]],
         [["domain", "_0"]],
-        [["branch", "branch"]],
+        [["branch", "branch"], ["remote", "remote"]],
         [["message", "message"]],
         [["name", "name"]],
         [["id", "id"]],

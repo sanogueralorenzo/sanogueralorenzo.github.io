@@ -116,9 +116,13 @@ or documents context source, the checker emits `INTENT_CONTEXT_UNDECLARED`.
 raw spanned lines. Grant lines such as `read path: "./src/**"` and parsed dotted
 grant calls such as `git.commit(message: "ship fix")` are also retained as
 structured grant objects. Each structured grant object must carry a `span` for
-the exact grant line, so AST output, graph `Capability` node `grants`, and
-diagnostics/provenance can point to the grant instead of only the surrounding
-capability block. A capability body may contain `approval required`; the
+the exact grant line, an `actionSpan`, and ordered `args` entries with key,
+value, kind, key span, value span, and full argument span. Multi-argument grants
+such as `push branch: "main" remote: "origin"` stay as one grant with multiple
+argument records, so AST output, graph `Capability` node `grants`, and
+diagnostics/provenance can point to the grant or constrained argument instead
+of only the surrounding capability block. A capability body may contain
+`approval required`; the
 checker treats effects authorized by that capability as requiring a step-local
 `approval ...` gate. `memory` bodies are parsed as statement lists, every
 `key ...` line is parsed into structured key metadata, and every `retain ...

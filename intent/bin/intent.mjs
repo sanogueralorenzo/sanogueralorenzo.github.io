@@ -518,7 +518,7 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
         action: null,
         name,
         constraints: lines.map((line) => line.text),
-        grants: lines.map((line) => parseCapabilityGrant(name, line.text, lineSpan(file, line.lineNumber, line.raw))).filter(Boolean),
+        grants: lines.map((line) => parseCapabilityGrant(name, line.text, lineSpan(file, line.lineNumber, line.raw), file, line.lineNumber, line.raw)).filter(Boolean),
         approvalRequired: hasApprovalRequired(lines),
         span: span(file, startLine, 1, endLine, 1),
       };
@@ -688,7 +688,7 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
     action,
     name: normalized,
     constraints: [normalized],
-    grants: [parseCapabilityGrant(family, normalized, lineSpan(file, lineNumber, raw))].filter(Boolean),
+    grants: [parseCapabilityGrant(family, normalized, lineSpan(file, lineNumber, raw), file, lineNumber, raw)].filter(Boolean),
     approvalRequired: /\bapproval\s*:\s*required\b|\bapproval\s+required\b/.test(normalized),
     span: lineSpan(file, lineNumber, raw),
   };
@@ -3116,7 +3116,13 @@ function isGraphGrantRecord(value, family = null) {
     && typeof value.value === "string"
     && typeof value.raw === "string"
     && value.raw.trim() !== ""
-    && isSpan(value.span);
+    && isSpan(value.span)
+    && isSpan(value.actionSpan)
+    && Array.isArray(value.args)
+    && value.args.length > 0
+    && value.args.every(isGrantArgumentRecord)
+    && value.args[0].key === value.key
+    && value.args[0].value === value.value;
   if (!baseIsValid) {
     return false;
   }
@@ -3132,6 +3138,18 @@ function isGraphGrantRecord(value, family = null) {
     && isFamilyMatch(contract.family, family)
     && contract.action === value.action
     && contract.arguments.some((argument) => argument.key === value.contractArgument && argument.key === value.key);
+}
+
+function isGrantArgumentRecord(value) {
+  return isPlainObject(value)
+    && typeof value.key === "string"
+    && value.key.trim() !== ""
+    && typeof value.value === "string"
+    && typeof value.kind === "string"
+    && value.kind.trim() !== ""
+    && (value.keySpan === null || isSpan(value.keySpan))
+    && isSpan(value.valueSpan)
+    && isSpan(value.span);
 }
 
 function validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {
@@ -4760,7 +4778,7 @@ function getAuthorizationContractDenial(access, capability, graphEdge) {
   for (const argument of expectedArguments) {
     const matchedGrant = (capability.grants ?? []).find((grant) => {
       return grant.action === access.action
-        && grant.key === argument.key
+        && grantArgumentForEffectArgument(argument, grant)
         && isGrantMatch(argument, grant);
     });
     if (!matchedGrant) continue;
@@ -4824,13 +4842,14 @@ function contractArgumentsEqual(left, right) {
 }
 
 function authorizationGrantRecord(argument, grant, sourceArgument) {
+  const grantArgument = grantArgumentForEffectArgument(argument, grant) ?? grant;
   return {
     argument: argument.key,
     sourceArgument,
     value: argument.value,
     grantAction: grant.action,
-    grantKey: grant.key,
-    grantValue: grant.value,
+    grantKey: grantArgument.key,
+    grantValue: grantArgument.value,
   };
 }
 
@@ -5478,48 +5497,95 @@ function extractTypeNames(typeRef) {
   return [...typeRef.matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)].map((match) => match[0]);
 }
 
-function parseCapabilityGrant(capabilityName, text, grantSpan) {
+function parseCapabilityGrant(capabilityName, text, grantSpan, file = grantSpan?.file ?? null, lineNumber = grantSpan?.start?.line ?? 1, raw = text) {
   const trimmed = text.trim();
   const family = capabilityFamily(capabilityName);
-  const match = trimmed.match(/^([a-z][a-z0-9_]*)\s+([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"$/);
-  if (match) {
-    return capabilityGrantRecord(family, match[1], match[2], match[3], trimmed, grantSpan);
+  const lineGrant = parseCapabilityLineGrant(family, trimmed, grantSpan, file, lineNumber, raw);
+  if (lineGrant) {
+    return lineGrant;
   }
 
   const dottedCall = trimmed.match(/^[a-z][a-z0-9_]*\.([a-z][a-z0-9_]*)\((.*)\)$/);
   if (dottedCall) {
-    const { values: args } = parseCallArgs(dottedCall[2]);
-    const key = args.paths ? "path"
-      : args.commands ? "command"
-        : args.domains ? "domain"
-          : args.branches ? "branch"
-            : args.remotes ? "remote"
-              : args.path ? "path"
-                : args.command ? "command"
-                  : args.domain ? "domain"
-                    : args.branch ? "branch"
-                      : args.remote ? "remote"
-                        : null;
-    const value = args.paths ?? args.commands ?? args.domains ?? args.branches ?? args.remotes
-      ?? args.path ?? args.command ?? args.domain ?? args.branch ?? args.remote ?? null;
-    if (key && typeof value === "string") {
-      return capabilityGrantRecord(family, dottedCall[1], key, value, trimmed, grantSpan);
+    const parsedArgs = parseCallArgs(trimmed, file, lineNumber, raw);
+    const args = parsedArgs.records.map((argument) => canonicalGrantArgument(family, dottedCall[1], argument));
+    if (args.length > 0) {
+      return capabilityGrantRecord(family, dottedCall[1], args, trimmed, grantSpan, grantActionSpan(trimmed, dottedCall[1], file, lineNumber, raw));
     }
   }
 
   return null;
 }
 
-function capabilityGrantRecord(family, action, key, value, raw, grantSpan) {
-  const contract = effectContractForGrant({ family, action, key });
+function parseCapabilityLineGrant(family, trimmed, grantSpan, file, lineNumber, raw) {
+  const action = /^([a-z][a-z0-9_]*)\b/.exec(trimmed)?.[1] ?? null;
+  if (!action) {
+    return null;
+  }
+  const argsText = trimmed.slice(action.length);
+  if (!argsText.trim()) {
+    return null;
+  }
+  const args = [];
+  const matcher = /\s+([a-z][a-z0-9_]*)\s*:\s*("[^"]*"|[a-z][a-z0-9_]*)/gy;
+  let cursor = 0;
+  let match = null;
+  while ((match = matcher.exec(argsText)) !== null) {
+    if (match.index !== cursor) {
+      return null;
+    }
+    const sourceKey = match[1];
+    const valueText = match[2];
+    const keyStart = action.length + match.index + match[0].indexOf(sourceKey);
+    const valueStart = action.length + match.index + match[0].lastIndexOf(valueText);
+    const parsed = parseCallArgumentValue(valueText, file, lineNumber, raw);
+    args.push(canonicalGrantArgument(family, action, {
+      key: sourceKey,
+      value: parsed.value,
+      kind: parsed.kind,
+      keySpan: sourceSpan(file, lineNumber, raw, trimmed, keyStart, sourceKey.length),
+      valueSpan: sourceSpan(file, lineNumber, raw, trimmed, valueStart, valueText.length),
+      span: sourceSpan(file, lineNumber, raw, trimmed, keyStart, valueStart + valueText.length - keyStart),
+    }));
+    cursor = matcher.lastIndex;
+  }
+  if (args.length === 0 || cursor !== argsText.length) {
+    return null;
+  }
+  return capabilityGrantRecord(family, action, args, trimmed, grantSpan, grantActionSpan(trimmed, action, file, lineNumber, raw));
+}
+
+function capabilityGrantRecord(family, action, args, raw, grantSpan, actionSpan) {
+  const [firstArg] = args;
+  const contract = effectContractForGrant({ family, action, key: firstArg.key });
   return {
     action,
-    key,
-    value,
+    key: firstArg.key,
+    value: firstArg.value,
+    args,
     raw,
     span: grantSpan,
-    ...(contract ? { contractId: contract.id, contractArgument: key } : {}),
+    actionSpan,
+    ...(contract ? { contractId: contract.id, contractArgument: firstArg.key } : {}),
   };
+}
+
+function canonicalGrantArgument(family, action, argument) {
+  const contractArgument = effectContractArgumentForGrant({ family, action, key: argument.key });
+  return {
+    ...argument,
+    key: contractArgument?.argument.key ?? argument.key,
+  };
+}
+
+function grantActionSpan(trimmed, action, file, lineNumber, raw) {
+  return sourceSpan(file, lineNumber, raw, trimmed, trimmed.indexOf(action), action.length);
+}
+
+function sourceSpan(file, lineNumber, raw, trimmed, trimmedStart, length) {
+  const rawTrimmedStart = raw.indexOf(trimmed);
+  const startIndex = (rawTrimmedStart >= 0 ? rawTrimmedStart : 0) + trimmedStart;
+  return span(file, lineNumber, startIndex + 1, lineNumber, startIndex + length + 1);
 }
 
 function hasApprovalRequired(lines) {
@@ -5530,9 +5596,10 @@ function parseCallArgs(text, file = null, lineNumber = 1, raw = text) {
   const values = {};
   const kinds = {};
   const spans = {};
+  const records = [];
   const envelope = callArgsEnvelope(text, file, lineNumber, raw);
   if (!envelope.text.trim()) {
-    return { values, kinds, spans };
+    return { values, kinds, spans, records };
   }
   let positionalIndex = 0;
   for (const argument of splitCallArguments(envelope.text, envelope.startIndex, file, lineNumber, raw)) {
@@ -5556,11 +5623,19 @@ function parseCallArgs(text, file = null, lineNumber = 1, raw = text) {
     const spanText = named ? trimmed : valueText;
     const argumentSpan = callArgSpan(file, lineNumber, raw, spanStart, spanText);
     if (argumentSpan) spans[key] = argumentSpan;
+    records.push({
+      key,
+      value: parsed.value,
+      kind: parsed.kind,
+      keySpan: named ? callArgSpan(file, lineNumber, raw, argumentIndex, key) : null,
+      valueSpan: callArgSpan(file, lineNumber, raw, valueIndex, valueText),
+      span: argumentSpan,
+    });
     if (!named) {
       positionalIndex += 1;
     }
   }
-  return { values, kinds, spans };
+  return { values, kinds, spans, records };
 }
 
 function callArgsEnvelope(text, file, lineNumber, raw) {
@@ -6032,11 +6107,22 @@ function effectContractForAccess(effect) {
 }
 
 function effectContractForGrant(grant) {
-  return EFFECT_CONTRACTS.find((contract) => {
-    return isFamilyMatch(contract.family, grant.family)
-      && contract.action === grant.action
-      && contract.arguments.some((argument) => argument.key === grant.key);
-  }) ?? null;
+  return effectContractArgumentForGrant(grant)?.contract ?? null;
+}
+
+function effectContractArgumentForGrant(grant) {
+  for (const contract of EFFECT_CONTRACTS) {
+    if (!isFamilyMatch(contract.family, grant.family) || contract.action !== grant.action) {
+      continue;
+    }
+    const argument = contract.arguments.find((candidate) => {
+      return candidate.key === grant.key || candidate.aliases.includes(grant.key);
+    });
+    if (argument) {
+      return { contract, argument };
+    }
+  }
+  return null;
 }
 
 function effectContractRegistry() {
@@ -6095,7 +6181,7 @@ function getCapabilityDenial(effect, capabilities) {
 
   for (const argument of argumentsToCheck) {
     const candidateGrants = familyCapabilities.flatMap((capability) => capability.grants ?? [])
-      .filter((grant) => grant.action === effect.action && grant.key === argument.key);
+      .filter((grant) => grant.action === effect.action && grantArgumentForEffectArgument(argument, grant));
 
     if (candidateGrants.length === 0) {
       return {
@@ -6114,7 +6200,7 @@ function getCapabilityDenial(effect, capabilities) {
       message: `effect '${effect.name}' ${argument.key} '${argument.value}' is outside declared capability grants.`,
       argument: argument.key,
       value: argument.value,
-      allowed: candidateGrants.map((grant) => grant.value),
+      allowed: candidateGrants.map((grant) => grantArgumentForEffectArgument(argument, grant)?.value).filter((value) => value !== undefined),
     };
   }
 
@@ -6129,18 +6215,11 @@ function authorizationEdgeData(effect, capability) {
   const grants = effectArguments(effect).map((argument) => {
     const grant = (capability.grants ?? []).find((candidate) => {
       return candidate.action === effect.action
-        && candidate.key === argument.key
+        && grantArgumentForEffectArgument(argument, candidate)
         && isGrantMatch(argument, candidate);
     });
     if (!grant) return null;
-    return {
-      argument: argument.key,
-      sourceArgument: contractArguments[argument.key] ?? argument.key,
-      value: argument.value,
-      grantAction: grant.action,
-      grantKey: grant.key,
-      grantValue: grant.value,
-    };
+    return authorizationGrantRecord(argument, grant, contractArguments[argument.key] ?? argument.key);
   }).filter(Boolean);
   return {
     contractId,
@@ -6370,28 +6449,39 @@ function normalizeEffectArgument(value, kind) {
 }
 
 function isGrantMatch(argument, grant) {
+  const grantArgument = grantArgumentForEffectArgument(argument, grant);
+  if (!grantArgument) {
+    return false;
+  }
   if (argument.key === "path") {
-    return isPathGrantMatch(argument.value, grant.value);
+    return isPathGrantMatch(argument.value, grantArgument.value);
   }
   if (argument.key === "domain") {
-    return isDomainGrantMatch(argument.value, grant.value);
+    return isDomainGrantMatch(argument.value, grantArgument.value);
   }
   if (argument.key === "branch" || argument.key === "remote") {
-    return normalizeRefName(argument.value) === normalizeRefName(grant.value);
+    return normalizeRefName(argument.value) === normalizeRefName(grantArgument.value);
   }
   if (argument.key === "message") {
-    return normalizeCommitMessage(argument.value) === normalizeCommitMessage(grant.value);
+    return normalizeCommitMessage(argument.value) === normalizeCommitMessage(grantArgument.value);
   }
   if (argument.key === "target") {
-    return normalizeDeployTarget(argument.value) === normalizeDeployTarget(grant.value);
+    return normalizeDeployTarget(argument.value) === normalizeDeployTarget(grantArgument.value);
   }
   if (argument.key === "name") {
-    return normalizeSecretName(argument.value) === normalizeSecretName(grant.value);
+    return normalizeSecretName(argument.value) === normalizeSecretName(grantArgument.value);
   }
   if (argument.key === "id") {
-    return normalizeTicketRef(argument.value) === normalizeTicketRef(grant.value);
+    return normalizeTicketRef(argument.value) === normalizeTicketRef(grantArgument.value);
   }
-  return normalizeCommand(argument.value) === normalizeCommand(grant.value);
+  return normalizeCommand(argument.value) === normalizeCommand(grantArgument.value);
+}
+
+function grantArgumentForEffectArgument(argument, grant) {
+  const args = Array.isArray(grant.args) && grant.args.length > 0
+    ? grant.args
+    : [{ key: grant.key, value: grant.value }];
+  return args.find((candidate) => candidate.key === argument.key) ?? null;
 }
 
 function isPathGrantMatch(value, pattern) {

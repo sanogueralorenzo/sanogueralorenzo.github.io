@@ -1132,15 +1132,29 @@ capability files {
   read path: "./src/**"
   file.read(path: "intent/STATIC_MODEL.md")
 }
+
+capability git {
+  push branch: "main" remote: "origin"
+}
 ```
 
 ```json
 {
   "kind": "CapabilityGrant",
-  "actionPath": "read",
-  "constraints": [{ "key": "path", "value": "./src/**", "span": "loc.8" }],
+  "action": "read",
+  "key": "path",
+  "value": "./src/**",
+  "args": [{
+    "key": "path",
+    "value": "./src/**",
+    "kind": "string",
+    "keySpan": "loc.8.key",
+    "valueSpan": "loc.8.value",
+    "span": "loc.8.arg"
+  }],
   "raw": "read path: \"./src/**\"",
-  "span": "loc.8"
+  "span": "loc.8",
+  "actionSpan": "loc.8.action"
 }
 ```
 
@@ -1149,9 +1163,14 @@ Rules:
 - `span` is required on every structured grant object.
 - The grant span covers the exact grant line, including the action path and
   constraint text, and excludes trailing unrelated whitespace.
-- Constraint values keep their own token spans for argument-level diagnostics.
-- Parsed dotted grant calls retain the dotted action path and ordered arguments
-  from the source call.
+- Each grant also carries an `actionSpan`.
+- Constraint arguments are ordered in `args`; each entry carries the canonical
+  key, source value, value kind, `keySpan`, `valueSpan`, and full argument
+  `span` for argument-level diagnostics.
+- Multi-argument grants such as `push branch: "main" remote: "origin"` remain a
+  single grant record whose `args` cover both constraints.
+- Parsed dotted grant calls retain the dotted action path and ordered argument
+  records from the source call.
 - Graph `Capability` node `data.grants` entries carry the same grant-level
   `span` as the AST `CapabilityGrant`.
 - Structured AST and graph grants that cover known effect adapter contracts
