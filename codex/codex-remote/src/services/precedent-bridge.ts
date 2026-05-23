@@ -5,7 +5,9 @@ import type { TurnProgressEvent } from "../adapters/app-server/client.js";
 
 export type PrecedentBridge = {
   beforeTurn: (input: PrecedentBeforeTurnInput) => Promise<PrecedentBeforeTurnResult>;
+  beforeRetry: (input: PrecedentBeforeRetryInput) => Promise<PrecedentBeforeRetryResult>;
   observeTurnEvent: (input: PrecedentTurnEventInput) => Promise<void>;
+  afterRetry: (input: PrecedentAfterRetryInput) => Promise<void>;
   afterTurn: (input: PrecedentAfterTurnInput) => Promise<void>;
 };
 
@@ -23,12 +25,31 @@ export type PrecedentBeforeTurnResult = {
   attributedPrecedents: string[];
 };
 
+export type PrecedentBeforeRetryInput = {
+  cwd: string;
+  threadId: string;
+  task: string;
+  attributedPrecedents: string[];
+};
+
+export type PrecedentBeforeRetryResult = {
+  repairBlock: string;
+  repairId: string | null;
+};
+
 export type PrecedentAfterTurnInput = {
   cwd: string;
   threadId: string;
   task: string;
   success: boolean;
   response: string;
+  attributedPrecedents: string[];
+};
+
+export type PrecedentAfterRetryInput = {
+  cwd: string;
+  threadId: string;
+  repairId: string;
   attributedPrecedents: string[];
 };
 
@@ -103,6 +124,34 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
         return emptyBeforeTurn(input.task);
       }
     },
+    beforeRetry: async (input) => {
+      try {
+        const result = await runner({
+          cwd: input.cwd,
+          args: [
+            "hook",
+            "--state-dir",
+            stateDir,
+            "--json",
+          ],
+          stdinJson: {
+            schema_version: "precedent.v1",
+            hook: "repair.before_retry",
+            sessionId: sessionIdForThread(input.cwd, input.threadId),
+            nextSessionId: sessionIdForThread(input.cwd, input.threadId),
+            task: input.task,
+            attributedPrecedents: input.attributedPrecedents,
+          },
+        }) as { repairBlock?: string; repairId?: string | null };
+        const repairBlock = typeof result.repairBlock === "string" ? result.repairBlock : "";
+        const repairId = typeof result.repairId === "string" && result.repairId.trim()
+          ? result.repairId
+          : null;
+        return { repairBlock, repairId };
+      } catch {
+        return emptyBeforeRetry();
+      }
+    },
     observeTurnEvent: async (input) => {
       try {
         const payload = turnEventHookPayload(input);
@@ -118,6 +167,29 @@ export function createPrecedentBridge(config: PrecedentBridgeConfig, runner: Jso
             "--json",
           ],
           stdinJson: payload,
+        });
+      } catch {
+        // Precedent is advisory; runtime turns must fail open.
+      }
+    },
+    afterRetry: async (input) => {
+      try {
+        await runner({
+          cwd: input.cwd,
+          args: [
+            "hook",
+            "--state-dir",
+            stateDir,
+            "--json",
+          ],
+          stdinJson: {
+            schema_version: "precedent.v1",
+            hook: "repair.after_retry",
+            sessionId: sessionIdForThread(input.cwd, input.threadId),
+            repairId: input.repairId,
+            repairSessionId: sessionIdForThread(input.cwd, input.threadId),
+            attributedPrecedents: input.attributedPrecedents,
+          },
         });
       } catch {
         // Precedent is advisory; runtime turns must fail open.
@@ -161,7 +233,9 @@ export function precedentBridgeConfigFromEnv(env: NodeJS.ProcessEnv): PrecedentB
 function disabledPrecedentBridge(): PrecedentBridge {
   return {
     beforeTurn: async (input) => emptyBeforeTurn(input.task),
+    beforeRetry: async () => emptyBeforeRetry(),
     observeTurnEvent: async () => {},
+    afterRetry: async () => {},
     afterTurn: async () => {},
   };
 }
@@ -173,6 +247,13 @@ function emptyBeforeTurn(task: string): PrecedentBeforeTurnResult {
     candidateHints: [],
     promotionTrials: [],
     attributedPrecedents: [],
+  };
+}
+
+function emptyBeforeRetry(): PrecedentBeforeRetryResult {
+  return {
+    repairBlock: "",
+    repairId: null,
   };
 }
 

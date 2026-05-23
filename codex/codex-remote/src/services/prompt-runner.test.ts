@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  sendMessageWithoutResumeWithTimeoutContinuation,
   sendMessageWithTimeoutContinuation,
 } from "../adapters/app-server/client.js";
 import { createPromptRunner } from "./prompt-runner.js";
@@ -30,7 +31,9 @@ describe("createPromptRunner", () => {
         promotionTrials: [],
         attributedPrecedents: ["prec_validation"],
       })),
+      beforeRetry: vi.fn(async () => ({ repairBlock: "", repairId: null })),
       observeTurnEvent: vi.fn(async () => {}),
+      afterRetry: vi.fn(async () => {}),
       afterTurn: vi.fn(async (input) => {
         afterTurns.push(input);
       }),
@@ -125,7 +128,9 @@ describe("createPromptRunner", () => {
         promotionTrials: [],
         attributedPrecedents: ["prec_validation"],
       })),
+      beforeRetry: vi.fn(async () => ({ repairBlock: "", repairId: null })),
       observeTurnEvent: vi.fn(async () => {}),
+      afterRetry: vi.fn(async () => {}),
       afterTurn: vi.fn(async (input) => {
         afterTurns.push(input);
       }),
@@ -153,6 +158,100 @@ describe("createPromptRunner", () => {
       attributedPrecedents: ["prec_validation"],
     }]);
     expect(sentMessages[0]).toContain("boom");
+  });
+
+  it("prepends repair context and records a retry receipt", async () => {
+    const sentMessages: string[] = [];
+    const afterRetries: unknown[] = [];
+    const bridge: PrecedentBridge = {
+      beforeTurn: vi.fn(async () => ({
+        task: "Precedent:\n- Run focused validation.\n\nship it",
+        contextBlock: "Precedent:\n- Run focused validation.",
+        candidateHints: [],
+        promotionTrials: [],
+        attributedPrecedents: ["prec_validation"],
+      })),
+      beforeRetry: vi.fn(async () => ({
+        repairBlock: "Precedent repair:\n- Re-run the focused validation.",
+        repairId: "repair_123",
+      })),
+      observeTurnEvent: vi.fn(async () => {}),
+      afterRetry: vi.fn(async (input) => {
+        afterRetries.push(input);
+      }),
+      afterTurn: vi.fn(async () => {}),
+    };
+    const runner = createPromptRunner({
+      store: { get: async () => "thread-1" } as never,
+      pendingNewSessionChats: new Set(),
+      getPendingNewSessionCwd: () => null,
+      clearPendingNewSessionCwd: () => {},
+      onThreadNotBound: async () => {},
+      getConversationOptions: () => ({ cwd: "/repo" }),
+      bindChatToThread: async () => {},
+      requestApprovalFromTelegram: async () => "accept",
+      precedentBridge: bridge,
+    });
+
+    await runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "ship it");
+
+    expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledWith(
+      "thread-1",
+      "Precedent repair:\n- Re-run the focused validation.\n\nPrecedent:\n- Run focused validation.\n\nship it",
+      expect.any(Object)
+    );
+    expect(afterRetries).toMatchObject([{
+      cwd: "/repo",
+      threadId: "thread-1",
+      repairId: "repair_123",
+      attributedPrecedents: ["prec_validation"],
+    }]);
+  });
+
+  it("reuses prepared repair context when falling back from a missing rollout", async () => {
+    vi.mocked(sendMessageWithTimeoutContinuation).mockRejectedValueOnce(new Error("no rollout found for thread id thread-1"));
+    vi.mocked(sendMessageWithoutResumeWithTimeoutContinuation).mockResolvedValueOnce({
+      status: "completed",
+      response: "fallback done",
+    });
+    const sentMessages: string[] = [];
+    const bridge: PrecedentBridge = {
+      beforeTurn: vi.fn(async () => ({
+        task: "Precedent:\n- Run focused validation.\n\nship it",
+        contextBlock: "Precedent:\n- Run focused validation.",
+        candidateHints: [],
+        promotionTrials: [],
+        attributedPrecedents: ["prec_validation"],
+      })),
+      beforeRetry: vi.fn(async () => ({
+        repairBlock: "Precedent repair:\n- Re-run the focused validation.",
+        repairId: "repair_123",
+      })),
+      observeTurnEvent: vi.fn(async () => {}),
+      afterRetry: vi.fn(async () => {}),
+      afterTurn: vi.fn(async () => {}),
+    };
+    const runner = createPromptRunner({
+      store: { get: async () => "thread-1" } as never,
+      pendingNewSessionChats: new Set(),
+      getPendingNewSessionCwd: () => null,
+      clearPendingNewSessionCwd: () => {},
+      onThreadNotBound: async () => {},
+      getConversationOptions: () => ({ cwd: "/repo" }),
+      bindChatToThread: async () => {},
+      requestApprovalFromTelegram: async () => "accept",
+      precedentBridge: bridge,
+    });
+
+    await runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "ship it");
+
+    expect(bridge.beforeRetry).toHaveBeenCalledTimes(1);
+    expect(sendMessageWithoutResumeWithTimeoutContinuation).toHaveBeenCalledWith(
+      "thread-1",
+      "Precedent repair:\n- Re-run the focused validation.\n\nPrecedent:\n- Run focused validation.\n\nship it",
+      expect.any(Object)
+    );
+    expect(sentMessages).toEqual(["fallback done"]);
   });
 });
 

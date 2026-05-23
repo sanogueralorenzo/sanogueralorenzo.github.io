@@ -52,6 +52,67 @@ describe("createPrecedentBridge", () => {
     })).resolves.toBeUndefined();
   });
 
+  it("returns repair context for retry prompts", async () => {
+    const calls: Array<{ args: string[]; stdinJson?: unknown }> = [];
+    const bridge = createPrecedentBridge({ enabled: true }, async (input) => {
+      calls.push({ args: input.args, stdinJson: input.stdinJson });
+      return {
+        repairBlock: "Precedent repair:\n- Re-run the focused validation.",
+        repairId: "repair_123",
+      };
+    });
+
+    const repair = await bridge.beforeRetry({
+      cwd: "/repo",
+      threadId: "thread-1",
+      task: "ship",
+      attributedPrecedents: ["prec_validation"],
+    });
+
+    expect(repair).toEqual({
+      repairBlock: "Precedent repair:\n- Re-run the focused validation.",
+      repairId: "repair_123",
+    });
+    expect(calls[0].stdinJson).toMatchObject({
+      schema_version: "precedent.v1",
+      hook: "repair.before_retry",
+      task: "ship",
+      attributedPrecedents: ["prec_validation"],
+    });
+  });
+
+  it("records retry receipts and fails open", async () => {
+    const calls: Array<{ args: string[]; stdinJson?: unknown }> = [];
+    const bridge = createPrecedentBridge({ enabled: true }, async (input) => {
+      calls.push({ args: input.args, stdinJson: input.stdinJson });
+      return {};
+    });
+
+    await bridge.afterRetry({
+      cwd: "/repo",
+      threadId: "thread-1",
+      repairId: "repair_123",
+      attributedPrecedents: ["prec_validation"],
+    });
+
+    expect(calls[0].stdinJson).toMatchObject({
+      schema_version: "precedent.v1",
+      hook: "repair.after_retry",
+      repairId: "repair_123",
+      attributedPrecedents: ["prec_validation"],
+    });
+
+    const failingBridge = createPrecedentBridge({ enabled: true }, async () => {
+      throw new Error("precedent unavailable");
+    });
+    await expect(failingBridge.afterRetry({
+      cwd: "/repo",
+      threadId: "thread-1",
+      repairId: "repair_123",
+      attributedPrecedents: [],
+    })).resolves.toBeUndefined();
+  });
+
   it("records completed command evidence through validation hooks", async () => {
     const calls: Array<{ args: string[]; stdinJson?: unknown }> = [];
     const bridge = createPrecedentBridge({ enabled: true }, async (input) => {

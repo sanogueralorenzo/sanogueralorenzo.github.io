@@ -69,6 +69,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
             success: true,
             attributedPrecedents: precedent.attributedPrecedents,
           });
+          await recordRepairReceipt(precedent);
         }
       });
     };
@@ -110,24 +111,20 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         return;
       }
 
+      const precedent = await preparePrecedentTurn(threadId, text);
+      failurePrecedent = precedent;
       try {
-        const precedent = await preparePrecedentTurn(threadId, text);
-        failurePrecedent = precedent;
         const turn = await sendMessageWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent));
         await finalizeTurn(turn, precedent);
         failurePrecedent = null;
         return;
       } catch (error) {
-        if (isNoRolloutFoundError(error)) {
-          failurePrecedent = null;
-        } else {
+        if (!isNoRolloutFoundError(error)) {
           throw error;
         }
       }
 
       try {
-        const precedent = await preparePrecedentTurn(threadId, text);
-        failurePrecedent = precedent;
         const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent));
         await finalizeTurn(firstTurn, precedent);
         failurePrecedent = null;
@@ -161,6 +158,20 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       success: false,
       attributedPrecedents: precedent.attributedPrecedents,
     });
+    await recordRepairReceipt(precedent);
+  }
+
+  async function recordRepairReceipt(precedent: PreparedPrecedentTurn): Promise<void> {
+    if (!deps.precedentBridge || !precedent.repair) {
+      return;
+    }
+
+    await deps.precedentBridge.afterRetry({
+      cwd: precedent.cwd,
+      threadId: precedent.threadId,
+      repairId: precedent.repair.repairId,
+      attributedPrecedents: precedent.attributedPrecedents,
+    });
   }
 
   async function preparePrecedentTurn(threadId: string, text: string): Promise<PreparedPrecedentTurn> {
@@ -171,6 +182,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         threadId,
         text,
         attributedPrecedents: [],
+        repair: null,
       };
     }
 
@@ -179,12 +191,25 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       threadId,
       task: text,
     });
+    const beforeRetry = await deps.precedentBridge.beforeRetry({
+      cwd: options.cwd,
+      threadId,
+      task: text,
+      attributedPrecedents: beforeTurn.attributedPrecedents,
+    });
+    const repair = beforeRetry.repairBlock && beforeRetry.repairId
+      ? {
+          repairBlock: beforeRetry.repairBlock,
+          repairId: beforeRetry.repairId,
+        }
+      : null;
 
     return {
       cwd: options.cwd,
       threadId,
-      text: beforeTurn.task,
+      text: repair ? `${repair.repairBlock}\n\n${beforeTurn.task}` : beforeTurn.task,
       attributedPrecedents: beforeTurn.attributedPrecedents,
+      repair,
     };
   }
 
@@ -245,6 +270,12 @@ type PreparedPrecedentTurn = {
   threadId: string;
   text: string;
   attributedPrecedents: string[];
+  repair: PreparedPrecedentRepair | null;
+};
+
+type PreparedPrecedentRepair = {
+  repairBlock: string;
+  repairId: string;
 };
 
 const EMPTY_CODEX_RESPONSE = "(Empty Codex response)";
