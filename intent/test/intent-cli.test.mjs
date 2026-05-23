@@ -139,6 +139,9 @@ function defaultGraphNodeData(kind, data) {
   if (kind === "Goal") {
     return { title: null, parameters: [], outputType: null, outputTypeSpan: null, ...normalizedData };
   }
+  if (kind === "Completion") {
+    return { outputType: null, outputTypeSpan: null, ...normalizedData };
+  }
   if (kind === "Memory") {
     return {
       scope: "session",
@@ -2188,6 +2191,27 @@ describe("intent static model CLI", () => {
     assert.equal(missingVerifyAndGuardDiagnostics[0].verifies_edges, 0);
     assert.equal(missingVerifyAndGuardDiagnostics[0].guards_edges, 0);
     assert.equal(missingVerifyAndGuardDiagnostics[0].expected_guard_edges, 1);
+  });
+
+  it("validates graph completion payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(1), data: { outputType: "", outputTypeSpan: null } },
+        { id: "goal:other:completion", kind: "Completion", label: "other", span: testSpan(2), data: { outputType: "Report", outputTypeSpan: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_COMPLETION_INVALID" && "output_type_is_valid" in diagnostic);
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(diagnostics[0].completion_id, "goal:demo:completion");
+    assert.equal(diagnostics[0].output_type_is_valid, false);
+    assert.equal(diagnostics[0].output_type_span_is_valid, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(diagnostics[1].completion_id, "goal:other:completion");
+    assert.equal(diagnostics[1].output_type_is_valid, true);
+    assert.equal(diagnostics[1].output_type_span_is_valid, false);
   });
 
   it("validates graph invariant guard diagnostics", () => {

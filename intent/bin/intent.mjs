@@ -1340,6 +1340,10 @@ function validateGraph(graph, options = {}) {
     if (goalDiagnostic) {
       diagnostics.push(goalDiagnostic);
     }
+    const completionDiagnostic = validateGraphCompletion(graphNode, graphSpan);
+    if (completionDiagnostic) {
+      diagnostics.push(completionDiagnostic);
+    }
     const capabilityDiagnostic = validateGraphCapability(graphNode, graphSpan);
     if (capabilityDiagnostic) {
       diagnostics.push(capabilityDiagnostic);
@@ -1770,6 +1774,24 @@ function validateGraphGoal(graphNode, graphSpan) {
     title_is_valid: titleIsValid,
     parameters_is_array: parametersIsArray,
     invalid_parameter_indexes: invalidParameterIndexes,
+    output_type_is_valid: outputTypeIsValid,
+    output_type_span_is_valid: outputTypeSpanIsValid,
+  });
+}
+
+function validateGraphCompletion(graphNode, graphSpan) {
+  if (graphNode.kind !== "Completion") {
+    return null;
+  }
+  const outputTypeIsValid = graphNode.data.outputType === null
+    || (typeof graphNode.data.outputType === "string" && graphNode.data.outputType.trim() !== "");
+  const outputTypeSpanIsValid = graphNode.data.outputTypeSpan === null || isSpan(graphNode.data.outputTypeSpan);
+  if (outputTypeIsValid && outputTypeSpanIsValid) {
+    return null;
+  }
+  return error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must carry valid output contract data.`, graphNode.span ?? graphSpan, {
+    completion: graphNode.label,
+    completion_id: graphNode.id,
     output_type_is_valid: outputTypeIsValid,
     output_type_span_is_valid: outputTypeSpanIsValid,
   });
