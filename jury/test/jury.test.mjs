@@ -626,6 +626,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   const guide = await readFile(join(repoRoot, "jury/TROUBLESHOOTING.md"), "utf8");
   const readme = await readFile(join(repoRoot, "jury/README.md"), "utf8");
   const checklist = await readFile(join(repoRoot, "jury/RELEASE_CHECKLIST.md"), "utf8");
+  const publishing = await readFile(join(repoRoot, "jury/PUBLISHING.md"), "utf8");
 
   for (const field of ["ok", "decision", "reason", "missing_fields", "unresolved_objections", "next_actions"]) {
     assert.ok(guide.includes(`\`${field}\``), `TROUBLESHOOTING.md should describe gate.${field}`);
@@ -637,8 +638,23 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
 
   assert.ok(readme.includes("TROUBLESHOOTING.md"));
   assert.ok(checklist.includes("TROUBLESHOOTING.md"));
+  assert.ok(checklist.includes("package manifest failure"));
+  assert.ok(publishing.includes("TROUBLESHOOTING.md"));
   assert.ok(guide.includes("jury-key-policy.untrusted-producer.json"));
   assert.ok(guide.includes("key policy has no trusted producer"));
+  assert.ok(guide.includes("Package Manifest Failure"));
+  assert.ok(guide.includes("npm --prefix jury run package:manifest:check"));
+  assert.ok(guide.includes("--pack-manifest npm-pack.json"));
+  assert.ok(guide.includes("checked_paths"));
+  assert.ok(guide.includes("missing"));
+  assert.ok(guide.includes("examples/ci/jury-trusted-bundle-verify.yml"));
+  assert.ok(guide.includes("examples/ci/fixtures/key-policy"));
+
+  const manifestCommands = extractShellBlock(guide, "Package Manifest Failure");
+  assert.deepEqual(manifestCommands, ["npm --prefix jury run package:manifest:check"]);
+  const manifestCheck = await runShell(manifestCommands[0]);
+  assert.equal(manifestCheck.exitCode, 0, manifestCheck.stderr);
+  assert.equal(JSON.parse(manifestCheck.stdout.slice(manifestCheck.stdout.indexOf("{"))).ok, true);
 });
 
 test("fixture verdicts cover accept, reject, retry, and human_decision gate paths", async () => {
@@ -1904,7 +1920,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /CI adoption metadata contract/);
   assert.match(handoff, /release metadata/);
   assert.match(handoff, /package tarball manifest checks/);
-  assert.match(handoff, /release packaging failure examples for omitted CI adoption metadata files/);
+  assert.match(handoff, /package manifest troubleshooting/);
+  assert.match(handoff, /reusable CI workflow step that runs the package manifest check before publication/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

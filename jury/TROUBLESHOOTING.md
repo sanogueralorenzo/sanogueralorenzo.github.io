@@ -41,6 +41,32 @@ node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --key-policy
 - `human_decision`: the claim needs explicit approval before the system should proceed.
 - stale verdict: the claim changed after `verdict.json` was written, so the verdict no longer matches current claim state.
 - downloaded artifact no longer trusted: the signed bundle may still verify cryptographically, but `bundle preflight --key-policy` rejects it when the bundle producer `source` or `revision` no longer matches reviewed policy metadata.
+- package manifest missing CI metadata: `npm --prefix jury run package:manifest:check` rejects a package tarball that omits `release.json`, `CI_ADOPTION.md`, supported workflow files, or required package files from [PUBLISHING.md](PUBLISHING.md).
+
+## Package Manifest Failure
+
+Use the package manifest check when CI package publication fails before publishing:
+
+```shell
+npm --prefix jury run package:manifest:check
+```
+
+The command runs `npm pack --dry-run --json` and prints `ok`, `checked_paths`, and `missing`. If `ok` is `false`, every entry in `missing` is a contract file that would be absent from the package tarball.
+
+Common missing paths:
+
+- `release.json`: release tooling cannot discover the CI adoption contract.
+- `CI_ADOPTION.md`: humans cannot inspect the selected CI workflow path from the package.
+- `examples/ci/jury-trusted-bundle-verify.yml`: downstream reusable verification cannot be copied from the package.
+- `examples/ci/fixtures/key-policy`: signed-bundle trust policy examples are absent.
+
+To debug a saved pack manifest without rerunning `npm pack`, replay it:
+
+```shell
+node jury/scripts/check-package-manifest.mjs --pack-manifest npm-pack.json
+```
+
+Fix the package file list or restore the omitted file, then rerun `npm --prefix jury run package:manifest:check`.
 
 ## Downloaded Artifact Trust Failure
 
