@@ -18,6 +18,7 @@ const SUPPORTED_EVENT_HOOKS = new Set([
   "validation.after_run",
   "diff.after_edit",
   "review.after_feedback",
+  "finalize.before_response",
   "outcome.after_task",
   "repair.before_retry",
   "repair.after_retry",
@@ -1208,6 +1209,10 @@ async function dispatchHookEvent(rawEvent) {
     return capturePrintedPayload(() => reviewAfterFeedbackEventHook(event));
   }
 
+  if (hook === "finalize.before_response") {
+    return capturePrintedPayload(() => finalizeBeforeResponseEventHook(event));
+  }
+
   if (hook === "outcome.after_task") {
     return capturePrintedPayload(() => outcomeAfterTaskEventHook(event));
   }
@@ -1686,6 +1691,79 @@ async function diffAfterEditEventHook(event) {
     guardResult,
     warrantResult,
     repairPrompt,
+    contextBlock,
+  });
+}
+
+async function finalizeBeforeResponseEventHook(event) {
+  const stateDir = statePath();
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
+  let finalization = null;
+  let contextBlock = "";
+  let sessionEvent = null;
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const existing = eventId ? await findSessionEventByEventId(stateDir, sessionId, eventId) : null;
+
+    if (existing?.event?.finalization) {
+      finalization = existing.event.finalization;
+      contextBlock = existing.event.contextBlock ?? "";
+      sessionEvent = {
+        sessionId,
+        path: existing.path,
+        event: existing.event,
+        receivedAt: existing.event.receivedAt,
+        deduped: true,
+      };
+      return;
+    }
+
+    const sessionEvents = await readSessionEvents(stateDir, sessionId);
+    const warrant = await finalizationWarrant(stateDir, sessionEvents, event.warrantId);
+    finalization = finalizeSessionDecision({
+      sessionEvents,
+      warrant,
+    });
+    contextBlock = formatFinalizeContextBlock(finalization);
+    sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId,
+      ...eventIdField(eventId),
+      deliveryId: stringOrNull(event.deliveryId),
+      warrantId: warrant?.warrantId ?? stringOrNull(event.warrantId),
+      finalization,
+      contextBlock,
+    });
+
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        ...eventIdField(eventId),
+        deliveryId: stringOrNull(event.deliveryId),
+        warrantId: warrant?.warrantId ?? stringOrNull(event.warrantId),
+        finalization,
+        contextBlock,
+      });
+    }
+  });
+
+  print({
+    schema_version: "precedent.finalize.v1",
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
+    sessionEventPath: sessionEvent.path,
+    decision: finalization.decision,
+    finalization,
     contextBlock,
   });
 }
@@ -2231,6 +2309,14 @@ function buildManifest(runtime, stateDir) {
         timeoutMs,
         failurePolicy,
       },
+      "finalize.before_response": {
+        command: hookCommand,
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "attributedPrecedents"],
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "decision", "finalization", "contextBlock"],
+        injectFrom: "contextBlock",
+        timeoutMs,
+        failurePolicy,
+      },
       "outcome.after_task": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "warrantId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
@@ -2436,6 +2522,13 @@ async function attachRuntime() {
           eventId: "$EVENT_ID",
         },
         {
+          phase: "beforeResponse",
+          hook: "finalize.before_response",
+          required: true,
+          injectFrom: "contextBlock",
+          eventId: "$EVENT_ID",
+        },
+        {
           phase: "afterOutcome",
           hook: "outcome.after_task",
           required: true,
@@ -2507,6 +2600,22 @@ async function attachRuntime() {
           changedFiles: "$CHANGED_FILES",
           reviewer: "$REVIEWER",
         },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      beforeResponse: {
+        command: hookCommand,
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "finalize.before_response",
+          sessionId,
+          eventId: "$EVENT_ID",
+          deliveryId: "$DELIVERY_ID",
+          warrantId: "$WARRANT_ID",
+          attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
+        },
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "decision", "finalization", "contextBlock"],
+        injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -2636,6 +2745,18 @@ async function attachRunSession() {
     stderr: validationResult.stderr,
     attributedPrecedents,
   });
+  const finalization = await runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "finalize.before_response",
+    sessionId,
+    ...eventIdField(eventPrefix ? `${eventPrefix}:finalize.before_response` : null),
+    attributedPrecedents,
+  });
   const success = args.success === undefined
     ? validationResult.exitCode === 0
     : hookBoolean(args.success, "attach-run.success", false);
@@ -2681,6 +2802,7 @@ async function attachRunSession() {
     attributedPrecedents,
     beforeTurn,
     validation,
+    finalization,
     outcome,
     autoPromotion,
     learning: outcome.learning ?? null,
@@ -4745,6 +4867,103 @@ async function warrantStatusForOutcome(stateDir, warrantId) {
   };
 }
 
+async function finalizationWarrant(stateDir, sessionEvents, explicitWarrantId) {
+  if (nonEmptyString(explicitWarrantId)) {
+    return findWarrant(stateDir, explicitWarrantId);
+  }
+
+  const latestIssued = sessionEvents
+    .filter((event) => event.warrant?.warrantId)
+    .at(-1);
+
+  if (latestIssued?.warrant) {
+    return latestIssued.warrant;
+  }
+
+  const latestReferencedId = sessionEvents
+    .map((event) => event.warrantId)
+    .filter(nonEmptyString)
+    .at(-1);
+
+  return latestReferencedId ? findWarrant(stateDir, latestReferencedId) : null;
+}
+
+function finalizeSessionDecision({ sessionEvents, warrant }) {
+  const turnEvents = eventsSinceLastOutcome(sessionEvents);
+  const warrantId = warrant?.warrantId ?? null;
+  const relatedEvents = warrantId
+    ? turnEvents.filter((event) => event.warrantId === warrantId || event.warrant?.warrantId === warrantId)
+    : turnEvents;
+  const warrantViolations = relatedEvents
+    .filter((event) => event.warrantResult?.status === "violated")
+    .flatMap((event) => event.warrantResult.violations ?? []);
+  const guardFailures = relatedEvents.flatMap((event) => event.guardResult?.failed ?? []);
+
+  if (warrantViolations.length > 0 || guardFailures.length > 0) {
+    return {
+      decision: "repair",
+      status: "blocked",
+      reason: "repair_required_before_response",
+      warrantId,
+      missingEvidence: [],
+      violations: warrantViolations,
+      guardFailures,
+    };
+  }
+
+  const requiredEvidence = (Array.isArray(warrant?.requiredEvidence) ? warrant.requiredEvidence : [])
+    .filter((item) => item.type === "validation_command" && nonEmptyString(item.command));
+  const satisfiedCommands = new Set(relatedEvents
+    .flatMap((event) => event.warrantResult?.satisfiedEvidence ?? [])
+    .map((item) => item.command)
+    .filter(Boolean));
+  for (const item of requiredEvidence) {
+    if (relatedEvents.some((event) =>
+      event.hook === "validation.after_run"
+      && String(event.command ?? "").includes(item.command)
+      && event.exitCode === 0)) {
+      satisfiedCommands.add(item.command);
+    }
+  }
+  const missingEvidence = requiredEvidence.filter((item) => !satisfiedCommands.has(item.command));
+  const latestValidation = relatedEvents
+    .filter((event) => event.hook === "validation.after_run")
+    .at(-1);
+
+  if (missingEvidence.length > 0 || (latestValidation && latestValidation.exitCode !== 0)) {
+    return {
+      decision: "validate",
+      status: "blocked",
+      reason: missingEvidence.length > 0 ? "missing_required_validation" : "latest_validation_failed",
+      warrantId,
+      missingEvidence,
+      violations: [],
+      guardFailures: [],
+      latestValidation: latestValidation
+        ? {
+          command: latestValidation.command,
+          exitCode: latestValidation.exitCode,
+        }
+        : null,
+    };
+  }
+
+  return {
+    decision: "ready",
+    status: "ready",
+    reason: "final_response_ready",
+    warrantId,
+    missingEvidence: [],
+    violations: [],
+    guardFailures: [],
+  };
+}
+
+function eventsSinceLastOutcome(events) {
+  const lastOutcomeIndex = events.findLastIndex((event) => event.hook === "outcome.after_task");
+  return lastOutcomeIndex >= 0 ? events.slice(lastOutcomeIndex + 1) : events;
+}
+
 function evaluatePrecedentGuards(precedents, hook, event) {
   const result = emptyGuardResult();
 
@@ -4875,6 +5094,34 @@ function formatGuardContextBlock(failedChecks) {
   return [
     "Precedent guard:",
     ...failedChecks.map((check) => `- ${check.message}`),
+  ].join("\n");
+}
+
+function formatFinalizeContextBlock(finalization) {
+  if (finalization.decision === "ready") {
+    return "";
+  }
+
+  if (finalization.decision === "validate") {
+    const commands = finalization.missingEvidence
+      .map((item) => item.command)
+      .filter(Boolean);
+    const latest = finalization.latestValidation?.command
+      ? [`Latest validation failed: ${finalization.latestValidation.command} exited ${finalization.latestValidation.exitCode}.`]
+      : [];
+    return [
+      "Precedent finalize:",
+      "- Run required validation before the final response.",
+      ...commands.map((command) => `- Required command: ${command}`),
+      ...latest.map((line) => `- ${line}`),
+    ].join("\n");
+  }
+
+  return [
+    "Precedent finalize:",
+    "- Repair the turn before the final response.",
+    ...finalization.violations.map((item) => `- Warrant violation: ${item.message}`),
+    ...finalization.guardFailures.map((item) => `- Guard warning: ${item.message}`),
   ].join("\n");
 }
 
@@ -7436,6 +7683,7 @@ Usage:
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
+  precedent hook < hook-event.json
   precedent loop [--state-dir .precedent]
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
@@ -7458,12 +7706,12 @@ Commands:
   promote-pending Run queued promotion trial work orders emitted by validation hooks.
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
-  hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
+  hook      Run a passive hook from JSON, including the before-response finalization gate.
   loop      Run a JSONL hook loop over stdin and emit one JSON response per line.
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   attach    Emit a zero-touch runtime adapter contract for one session.
-  attach-run Run before-turn, validation, outcome, and optional queued promotion hooks.
+  attach-run Run before-turn, validation, finalization, outcome, and optional queued promotion hooks.
   check     Validate local Precedent state for CI.
   prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.

@@ -59,6 +59,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "afterReview",
       "beforeRetry",
       "afterRetry",
+      "beforeResponse",
       "afterOutcome",
     ]);
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.hook), [
@@ -69,14 +70,17 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       "review.after_feedback",
       "repair.before_retry",
       "repair.after_retry",
+      "finalize.before_response",
       "outcome.after_task",
     ]);
     assert.deepEqual(first.adapter.lifecycle.filter((phase) => phase.required).map((phase) => phase.phase), [
       "beforeTurn",
+      "beforeResponse",
       "afterOutcome",
     ]);
     assert.equal(first.adapter.lifecycle[0].injectFrom, "contextBlock");
     assert.equal(first.adapter.lifecycle[5].injectFrom, "repairBlock");
+    assert.equal(first.adapter.lifecycle[7].injectFrom, "contextBlock");
     assert.deepEqual(first.adapter.warrant.command.slice(0, 5), [
       "node",
       "precedent/bin/precedent.mjs",
@@ -123,6 +127,12 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.afterRetry.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterRetry.stdin.repairId, "$REPAIR_ID");
     assert.equal(first.adapter.afterRetry.stdin.repairSessionId, "$REPAIR_SESSION_ID");
+    assert.deepEqual(first.adapter.beforeResponse.stdin.hook, "finalize.before_response");
+    assert.equal(first.adapter.beforeResponse.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.beforeResponse.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.beforeResponse.stdin.warrantId, "$WARRANT_ID");
+    assert.equal(first.adapter.beforeResponse.injectFrom, "contextBlock");
+    assert.ok(first.adapter.beforeResponse.output.includes("decision"));
     assert.deepEqual(first.adapter.promotionTrial.command, [
       "node",
       "precedent/bin/precedent.mjs",
@@ -468,6 +478,7 @@ test("attach-run auto-promotes queued validation replay plans", async () => {
     ]);
 
     assert.equal(run.validation.promotionTrials.length, 1);
+    assert.equal(run.finalization.decision, "ready");
     assert.equal(run.autoPromotion.processed, 1);
     assert.equal(run.autoPromotion.results[0].status, "promoted");
     assert.equal(run.autoPromotion.queue.completed, 1);

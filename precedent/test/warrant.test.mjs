@@ -83,6 +83,93 @@ test("warrant warns on escaped diffs and too many files", async () => {
   }
 });
 
+test("finalize.before_response gates missing validation and repairs", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const validateWarrant = await issueWebhookWarrant(stateDir, "finalize-validate-session");
+
+    const missing = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "finalize-validate-session",
+      eventId: "finalize-1",
+      warrantId: validateWarrant.warrantId,
+    });
+    const retried = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "finalize-validate-session",
+      eventId: "finalize-1",
+      warrantId: validateWarrant.warrantId,
+    });
+
+    assert.equal(missing.schema_version, "precedent.finalize.v1");
+    assert.equal(missing.decision, "validate");
+    assert.equal(missing.finalization.missingEvidence[0].command, "pnpm test:webhooks");
+    assert.match(missing.contextBlock, /Required command: pnpm test:webhooks/u);
+    assert.equal(retried.deduped, true);
+    assert.equal(retried.decision, "validate");
+
+    const repairWarrant = await issueWebhookWarrant(stateDir, "finalize-repair-session");
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "finalize-repair-session",
+      eventId: "diff-1",
+      warrantId: repairWarrant.warrantId,
+      changedFiles: ["features/billing/refunds.ts"],
+    });
+    const repair = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "finalize-repair-session",
+      eventId: "finalize-1",
+      warrantId: repairWarrant.warrantId,
+    });
+
+    assert.equal(repair.decision, "repair");
+    assert.ok(repair.finalization.violations.some((item) => item.type === "path_escape"));
+    assert.match(repair.contextBlock, /Repair the turn before the final response/u);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("finalize.before_response allows satisfied warrant responses", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const warrant = await issueWebhookWarrant(stateDir, "finalize-ready-session");
+
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "finalize-ready-session",
+      eventId: "validation-1",
+      warrantId: warrant.warrantId,
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const ready = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "finalize-ready-session",
+      eventId: "finalize-1",
+      warrantId: warrant.warrantId,
+    });
+
+    assert.equal(ready.decision, "ready");
+    assert.equal(ready.contextBlock, "");
+    assert.deepEqual(ready.finalization.missingEvidence, []);
+    assert.deepEqual(ready.finalization.violations, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("warrant closes satisfied outcomes with validation evidence", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
 

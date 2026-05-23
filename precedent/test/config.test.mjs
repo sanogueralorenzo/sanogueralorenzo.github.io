@@ -24,6 +24,7 @@ test("init creates deterministic versioned runtime config", async () => {
         "validation.after_run",
         "diff.after_edit",
         "review.after_feedback",
+        "finalize.before_response",
         "outcome.after_task",
         "repair.before_retry",
         "repair.after_retry",
