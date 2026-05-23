@@ -20,6 +20,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Review the `GITHUB_STEP_SUMMARY` entry for the verified `packageVersion`, `tarballName`, and `reviewedBy`.
 - [ ] Confirm `tarballName` matches the recorded `packageVersion` before `npm publish --provenance --access public`.
 - [ ] After publication, compare retained `jury-pack-dry-run-record.json` with `npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json`.
+- [ ] If downstream verification fails after publication, keep retained dry-run artifacts, mark the version failed, and ship a later patch version instead of republishing the same version.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when the dry-run artifact is stale or mismatched.
 - [ ] Store the npm publish token as `secrets.NPM_TOKEN` with scope limited to publishing `@sanogueralorenzo/jury`.
 - [ ] Expose `NODE_AUTH_TOKEN` only in the publish job after `needs: package-manifest` passes and the dry-run artifact verifies.

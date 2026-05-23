@@ -83,6 +83,17 @@ npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json
 
 The npm `version` must equal `packageVersion`. The npm `dist.tarball` URL must end with the retained `tarballName`. If either value differs, keep the release open and investigate before deleting the retained artifact.
 
+## Rollback After Downstream Verification Failure
+
+If `npm publish --provenance --access public` succeeds but downstream Jury verification later rejects the package, treat the published version as immutable. Do not rerun publication for the same version. Keep `jury-package-dry-run`, `jury-pack-dry-run-record.json`, the `GITHUB_STEP_SUMMARY`, and downstream failure artifacts until the replacement release passes.
+
+Record the failed package identity, mark the release failed, deprecate the bad version when registry policy allows it, and ship a new patch version after fixing the downstream verification issue:
+
+```shell
+npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json
+npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verification failed; use a later patch release."
+```
+
 ## npm Credentials and Provenance
 
 Before enabling publication, create `secrets.NPM_TOKEN` as an npm token limited to publishing `@sanogueralorenzo/jury`. The workflow maps that secret to `NODE_AUTH_TOKEN` only in the final publish step, after `needs: package-manifest` has passed and the downloaded dry-run record has verified. Keep package-manifest and dry-run-publication jobs token-free.

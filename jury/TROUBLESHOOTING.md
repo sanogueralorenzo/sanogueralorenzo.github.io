@@ -43,6 +43,7 @@ node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --key-policy
 - downloaded artifact no longer trusted: the signed bundle may still verify cryptographically, but `bundle preflight --key-policy` rejects it when the bundle producer `source` or `revision` no longer matches reviewed policy metadata.
 - package manifest missing CI metadata: `npm --prefix jury run package:manifest:check` rejects a package tarball that omits `release.json`, `CI_ADOPTION.md`, supported workflow files, or required package files from [PUBLISHING.md](PUBLISHING.md).
 - stale or mismatched dry-run publication artifact: `jury-pack-dry-run-record.json` was generated for a different package version or tarball name, so the publish job must stop before `NODE_AUTH_TOKEN` is exposed.
+- published package fails downstream verification: npm accepted the package and provenance, but downstream Jury bundle or package checks reject the published version.
 
 ## Package Manifest Failure
 
@@ -78,6 +79,17 @@ node -e 'const fs=require("node:fs"); const pkg=JSON.parse(fs.readFileSync("jury
 ```
 
 If the command fails, rerun `dry-run-publication` after `package-manifest` instead of reusing an older artifact. Do not map `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN` until the downloaded record verifies against the current `jury/package.json`.
+
+## Published Package Verification Failure
+
+Use this when npm publication succeeds but a downstream Jury verifier rejects the published package. Treat the version as immutable: keep the retained `jury-package-dry-run` artifact, `GITHUB_STEP_SUMMARY`, npm metadata output, and downstream failure logs together until a replacement release passes.
+
+```shell
+npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json
+npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verification failed; use a later patch release."
+```
+
+Do not rerun `npm publish` for the same `packageVersion`. Fix the downstream verification issue, bump the package version, rerun the full release checklist, and publish a new patch version.
 
 ## Downloaded Artifact Trust Failure
 

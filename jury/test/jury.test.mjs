@@ -764,6 +764,13 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("packageVersion did not match"));
   assert.ok(guide.includes("tarballName did not match"));
   assert.ok(guide.includes("NODE_AUTH_TOKEN"));
+  assert.ok(guide.includes("Published Package Verification Failure"));
+  assert.ok(guide.includes("published package fails downstream verification"));
+  assert.ok(guide.includes("Treat the version as immutable"));
+  assert.ok(guide.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
+  assert.ok(guide.includes("npm deprecate @sanogueralorenzo/jury@<packageVersion>"));
+  assert.ok(guide.includes("Do not rerun `npm publish` for the same `packageVersion`"));
+  assert.ok(guide.includes("publish a new patch version"));
   assert.ok(guide.includes("Package Manifest Failure"));
   assert.ok(guide.includes("npm --prefix jury run package:manifest:check"));
   assert.ok(guide.includes("--pack-manifest npm-pack.json"));
@@ -803,6 +810,12 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   } finally {
     await rm(checkout, { recursive: true, force: true });
   }
+
+  const publishedFailureCommands = extractShellBlock(guide, "Published Package Verification Failure");
+  assert.deepEqual(publishedFailureCommands, [
+    "npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json",
+    'npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verification failed; use a later patch release."',
+  ]);
 });
 
 test("fixture verdicts cover accept, reject, retry, and human_decision gate paths", async () => {
@@ -1144,7 +1157,11 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(publicationNotes.includes("dry_run_reviewer"));
   assert.ok(publicationNotes.includes("Post-Publication Comparison"));
+  assert.ok(publicationNotes.includes("Rollback After Downstream Verification Failure"));
   assert.ok(publicationNotes.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
+  assert.ok(publicationNotes.includes("npm deprecate @sanogueralorenzo/jury@<packageVersion>"));
+  assert.ok(publicationNotes.includes("Do not rerun publication for the same version"));
+  assert.ok(publicationNotes.includes("ship a new patch version"));
   assert.ok(publicationNotes.includes("dist.tarball"));
   assert.ok(publicationNotes.includes("must end with the retained `tarballName`"));
   assert.ok(publicationNotes.includes("packageVersion"));
@@ -1168,6 +1185,11 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.deepEqual(comparisonCommands, [
     'node -e "const fs=require(\'node:fs\'); const record=JSON.parse(fs.readFileSync(\'jury-pack-dry-run-record.json\',\'utf8\')); console.log(JSON.stringify({packageVersion: record.packageVersion, tarballName: record.tarballName}, null, 2));"',
     "npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json",
+  ]);
+  const rollbackCommands = extractShellBlock(publicationNotes, "Rollback After Downstream Verification Failure");
+  assert.deepEqual(rollbackCommands, [
+    "npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json",
+    'npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verification failed; use a later patch release."',
   ]);
   const comparisonDir = await tempState();
   try {
@@ -2067,6 +2089,8 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(checklist.includes("dry_run_reviewer"));
   assert.ok(checklist.includes("npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json"));
+  assert.ok(checklist.includes("downstream verification fails after publication"));
+  assert.ok(checklist.includes("ship a later patch version"));
   assert.ok(checklist.includes("packageVersion"));
   assert.ok(checklist.includes("tarballName"));
   assert.ok(checklist.includes("reviewedBy"));
@@ -2169,6 +2193,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /dry-run publication artifact handoff/);
   assert.match(handoff, /dry-run artifact retention expectations/);
   assert.match(handoff, /post-publication package metadata comparison guidance/);
+  assert.match(handoff, /downstream verification rollback notes/);
   assert.match(handoff, /dry-run publication summary output/);
   assert.match(handoff, /dry-run package summary reviewer audit notes/);
   assert.match(handoff, /stale dry-run artifact troubleshooting/);
@@ -2179,7 +2204,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /release rollback note for npm publication attempts that pass provenance but fail downstream verification/);
+  assert.match(handoff, /replacement patch supersedes a failed npm publication/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
