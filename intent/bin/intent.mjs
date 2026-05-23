@@ -1340,6 +1340,10 @@ function validateGraph(graph, options = {}) {
     if (memoryDiagnostic) {
       diagnostics.push(memoryDiagnostic);
     }
+    const inputDiagnostic = validateGraphInput(graphNode, graphSpan);
+    if (inputDiagnostic) {
+      diagnostics.push(inputDiagnostic);
+    }
     const policyDiagnostic = validateGraphPolicy(graphNode, graphSpan);
     if (policyDiagnostic) {
       diagnostics.push(policyDiagnostic);
@@ -1770,6 +1774,25 @@ function isGraphRetentionRuleRecord(value) {
     && typeof value.until.raw === "string"
     && value.until.raw.trim() !== ""
     && isSupportedRetentionUntil(value.until.raw);
+}
+
+function validateGraphInput(graphNode, graphSpan) {
+  if (graphNode.kind !== "Input") {
+    return null;
+  }
+  const scopeIsValid = graphNode.data.scope === "goal" || graphNode.data.scope === "step";
+  const typeIsNonempty = typeof graphNode.data.type === "string" && graphNode.data.type.trim() !== "";
+  if (scopeIsValid && typeIsNonempty) {
+    return null;
+  }
+  return error("INTENT_GRAPH_INPUT_INVALID", `input '${graphNode.label}' must carry valid typed binding data.`, graphNode.span ?? graphSpan, {
+    input: graphNode.label,
+    input_id: graphNode.id,
+    scope: typeof graphNode.data.scope === "string" ? graphNode.data.scope : null,
+    type: typeof graphNode.data.type === "string" ? graphNode.data.type : null,
+    scope_is_valid: scopeIsValid,
+    type_is_nonempty: typeIsNonempty,
+  });
 }
 
 function validateGraphPolicy(graphNode, graphSpan) {

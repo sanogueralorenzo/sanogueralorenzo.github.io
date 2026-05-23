@@ -141,6 +141,9 @@ function defaultGraphNodeData(kind, data) {
       ...normalizedData,
     };
   }
+  if (kind === "Input") {
+    return { scope: "goal", type: "Synthetic", ...normalizedData };
+  }
   if (kind === "Policy") {
     return { scope: "step", ownerStep: "patch", policyKind: "timeout", policy: "5m", ...normalizedData };
   }
@@ -1737,6 +1740,31 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].effect_arg_kinds_is_object, false);
     assert.equal(diagnostics[2].effect_arg_spans_is_object, true);
     assert.equal(diagnostics[2].effect_arg_spans_are_valid, false);
+  });
+
+  it("validates graph input binding payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "input:missing", kind: "Input", label: "missing input", span: testSpan(1), data: { scope: null, type: null } },
+        { id: "input:bad-scope", kind: "Input", label: "bad scope", span: testSpan(2), data: { scope: "job" } },
+        { id: "input:bad-type", kind: "Input", label: "bad type", span: testSpan(3), data: { type: "" } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_INPUT_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_INPUT_INVALID");
+    assert.equal(diagnostics[0].input_id, "input:missing");
+    assert.equal(diagnostics[0].scope_is_valid, false);
+    assert.equal(diagnostics[0].type_is_nonempty, false);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_INPUT_INVALID");
+    assert.equal(diagnostics[1].scope, "job");
+    assert.equal(diagnostics[1].scope_is_valid, false);
+    assert.equal(diagnostics[1].type_is_nonempty, true);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_INPUT_INVALID");
+    assert.equal(diagnostics[2].scope_is_valid, true);
+    assert.equal(diagnostics[2].type_is_nonempty, false);
   });
 
   it("validates graph step input binding diagnostics", () => {
