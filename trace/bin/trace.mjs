@@ -1956,21 +1956,36 @@ async function hookAgent(values) {
   await ensureTrace(root);
   const raw = await readStdin();
   const payload = parseOptionalJson(raw);
-  const adapter = normalizeAdapterName(args.adapter ?? args.source ?? payload?.adapter ?? payload?.agent ?? payload?.source);
-  const eventName = normalizeAgentEvent(adapter, args.event ?? firstPositional(values), payload);
-  const message = args.message ?? agentPayloadMessage(adapter, eventName, payload) ?? raw;
-  const role = args.role ?? payload?.role ?? inferRole(eventName);
-  const source = args.source ?? payload?.agent ?? payload?.source ?? adapter;
-  const sessionId = args.session ?? payload?.session_id ?? payload?.sessionId;
-  const event = await appendEvent(root, {
-    sessionId,
-    event: eventName,
-    role,
-    source,
-    adapter,
-    message,
+  const payloads = Array.isArray(payload) ? payload : [payload];
+  const events = [];
+
+  for (const item of payloads) {
+    const adapter = normalizeAdapterName(args.adapter ?? args.source ?? item?.adapter ?? item?.agent ?? item?.source);
+    const eventName = normalizeAgentEvent(adapter, args.event ?? firstPositional(values), item);
+    const message = args.message ?? agentPayloadMessage(adapter, eventName, item) ?? raw;
+    const role = args.role ?? item?.role ?? inferRole(eventName);
+    const source = args.source ?? item?.agent ?? item?.source ?? adapter;
+    const sessionId = args.session ?? item?.session_id ?? item?.sessionId;
+    events.push(await appendEvent(root, {
+      sessionId,
+      event: eventName,
+      role,
+      source,
+      adapter,
+      message,
+    }));
+  }
+
+  if (events.length === 1) {
+    const event = events[0];
+    print({ ok: true, session: event.session_id, event: event.event, source: event.source, adapter: event.adapter });
+    return;
+  }
+
+  print({
+    ok: true,
+    events: events.map((event) => ({ session: event.session_id, event: event.event, source: event.source, adapter: event.adapter })),
   });
-  print({ ok: true, session: event.session_id, event: event.event, source: event.source, adapter: event.adapter });
 }
 
 async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
@@ -2968,7 +2983,7 @@ function canonicalEventName(value) {
 
 function parseOptionalJson(raw) {
   const trimmed = raw.trim();
-  if (!trimmed.startsWith("{")) {
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
     return null;
   }
 
