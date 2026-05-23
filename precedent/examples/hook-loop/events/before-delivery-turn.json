@@ -1,0 +1,10 @@
+{
+  "hook": "context.before_turn",
+  "task": "add a webhook handler for provider delivery events",
+  "scope": "feature:webhooks",
+  "changedFiles": [
+    "features/webhooks/providers/delivery.ts"
+  ],
+  "limit": 2,
+  "threshold": 4
+}

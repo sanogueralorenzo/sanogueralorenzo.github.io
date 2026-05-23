@@ -147,6 +147,14 @@ Example event hook response:
 }
 ```
 
+There is also a runnable hook-loop example that uses temporary state and leaves the repo clean:
+
+```shell
+node precedent/examples/hook-loop/run.mjs
+```
+
+The example sends two `context.before_turn` events through `precedent hook`: the first returns an empty `contextBlock`, the failed trace is observed and promoted, then the follow-up turn receives a compact `Precedent:` block.
+
 It is intentionally small. The next build step is wiring these commands to real agent traces and PR review events.
 
 ## Killer Demo

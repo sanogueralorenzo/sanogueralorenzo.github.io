@@ -9,7 +9,10 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
 const cliPath = join(repoRoot, "precedent/bin/precedent.mjs");
+const eventsDir = join(__dirname, "events");
 const tracesDir = join(__dirname, "traces");
+const firstTurnEvent = join(eventsDir, "before-delivery-turn.json");
+const followupTurnEvent = join(eventsDir, "before-refund-turn.json");
 const failedTrace = join(tracesDir, "failed-webhook-turn.json");
 const followupTrace = join(tracesDir, "followup-webhook-turn.json");
 const stateDir = await mkdtemp(join(tmpdir(), "precedent-hook-loop-"));
@@ -17,13 +20,10 @@ const stateDir = await mkdtemp(join(tmpdir(), "precedent-hook-loop-"));
 try {
   const beforeFirstTurn = await runPrecedent([
     "hook",
-    "before-turn",
     "--state-dir",
     stateDir,
-    "--task",
-    "add a webhook handler for provider delivery events",
-    "--scope",
-    "feature:webhooks",
+    "--event-file",
+    firstTurnEvent,
     "--json",
   ]);
 
@@ -38,13 +38,10 @@ try {
 
   const beforeFollowupTurn = await runPrecedent([
     "hook",
-    "before-turn",
     "--state-dir",
     stateDir,
-    "--task",
-    "add a webhook handler for provider refund events",
-    "--scope",
-    "feature:webhooks",
+    "--event-file",
+    followupTurnEvent,
     "--json",
   ]);
 
@@ -64,9 +61,9 @@ try {
     "--json",
   ]);
 
-  assert(!beforeFirstTurn.injected, "first hook should not inject precedent");
-  assert(beforeFirstTurn.block === "", "first hook block should be empty");
-  assert(beforeFollowupTurn.injected, "follow-up hook should inject precedent");
+  assert(beforeFirstTurn.contextBlock === "", "first hook context block should be empty");
+  assert(beforeFirstTurn.injections.length === 0, "first hook should not inject precedent");
+  assert(beforeFollowupTurn.contextBlock.startsWith("Precedent:"), "follow-up hook should return a context block");
   assert(
     beforeFollowupTurn.injections.some((injection) => injection.id === "prec_webhook_provider_boundary"),
     "follow-up hook should inject webhook precedent",
@@ -79,9 +76,8 @@ try {
     hookLoop: [
       {
         hook: "context.before_turn",
-        task: beforeFirstTurn.task,
-        injected: beforeFirstTurn.injected,
-        block: beforeFirstTurn.block,
+        contextBlock: beforeFirstTurn.contextBlock,
+        injections: beforeFirstTurn.injections,
       },
       {
         hook: "conversation.observe",
@@ -89,9 +85,7 @@ try {
       },
       {
         hook: "context.before_turn",
-        task: beforeFollowupTurn.task,
-        injected: beforeFollowupTurn.injected,
-        block: beforeFollowupTurn.block,
+        contextBlock: beforeFollowupTurn.contextBlock,
         injections: beforeFollowupTurn.injections,
       },
       {
