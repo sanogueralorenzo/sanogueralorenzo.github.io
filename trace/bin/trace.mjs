@@ -2040,7 +2040,7 @@ async function runAgentCommand(action, values) {
 
   if (!action || action === "list" || action === "status") {
     const root = await repoRoot();
-    print({ ok: true, agents: await listAgentConfigs(root) });
+    print({ ok: true, schema_version: "trace.agent_list.v1", agents: await listAgentConfigs(root) });
     return;
   }
 
@@ -2060,7 +2060,7 @@ async function addAgent(name) {
   const file = agentConfigPath(root, agentName);
   await mkdir(dirname(file), { recursive: true });
   await writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
-  print({ ok: true, agent: agentName, config: relativePath(root, file), command: config.command });
+  print({ ok: true, schema_version: "trace.agent_add.v1", agent: agentName, config: relativePath(root, file), command: config.command });
 }
 
 async function addAllAgents() {
@@ -2074,7 +2074,7 @@ async function addAllAgents() {
     await writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
     agents.push({ agent: agentName, config: relativePath(root, file), command: config.command });
   }
-  print({ ok: true, agents });
+  print({ ok: true, schema_version: "trace.agent_add.v1", agents });
 }
 
 async function removeAgent(name) {
@@ -2087,7 +2087,7 @@ async function removeAgent(name) {
   const root = await repoRoot();
   const file = agentConfigPath(root, agentName);
   await rm(file, { force: true });
-  print({ ok: true, agent: agentName, removed: relativePath(root, file) });
+  print({ ok: true, schema_version: "trace.agent_remove.v1", agent: agentName, removed: relativePath(root, file) });
 }
 
 async function removeAllAgents() {
@@ -2098,7 +2098,7 @@ async function removeAllAgents() {
     await rm(file, { force: true });
     removed.push({ agent: agentName, removed: relativePath(root, file) });
   }
-  print({ ok: true, removed });
+  print({ ok: true, schema_version: "trace.agent_remove.v1", removed });
 }
 
 async function checkAgents(target) {
@@ -2132,7 +2132,7 @@ async function buildAgentCheckReport(root, target) {
   }
 
   const ok = contracts.length > 0 && contracts.every((contract) => contract.valid);
-  return { ok, agents: contracts };
+  return { ok, schema_version: "trace.agent_check.v1", agents: contracts };
 }
 
 function agentCheckNames(target, installed) {

@@ -1465,6 +1465,7 @@ test("agent add list remove manages local hook adapter configs", async () => {
     const added = await runTrace(repo, ["agent", "add", "codex"]);
     const addedPayload = JSON.parse(added.stdout);
     assert.equal(addedPayload.ok, true);
+    assert.equal(addedPayload.schema_version, "trace.agent_add.v1");
     assert.equal(addedPayload.agent, "codex");
     assert.equal(addedPayload.config, ".trace/agents/codex.json");
     assert.equal(addedPayload.command, "trace hook agent --adapter codex");
@@ -1482,6 +1483,7 @@ test("agent add list remove manages local hook adapter configs", async () => {
 
     const listed = await runTrace(repo, ["agent", "list"]);
     const listedPayload = JSON.parse(listed.stdout);
+    assert.equal(listedPayload.schema_version, "trace.agent_list.v1");
     assert.deepEqual(listedPayload.agents.map((agent) => agent.agent), ["codex"]);
     assert.equal(listedPayload.agents[0].valid, true);
     assert.equal(listedPayload.agents[0].contract.event, "tool");
@@ -1489,6 +1491,7 @@ test("agent add list remove manages local hook adapter configs", async () => {
 
     const checked = JSON.parse((await runTrace(repo, ["agent", "check", "codex"])).stdout);
     assert.equal(checked.ok, true);
+    assert.equal(checked.schema_version, "trace.agent_check.v1");
     assert.deepEqual(checked.agents.map((agent) => agent.agent), ["codex"]);
     assert.equal(checked.agents[0].event, "tool");
     assert.equal(checked.agents[0].fixture, "examples/codex-tool-call.json");
@@ -1501,7 +1504,8 @@ test("agent add list remove manages local hook adapter configs", async () => {
     assert.equal(statusPayload.install.installed, false);
     assert.equal(statusPayload.install.target, join(repo, "trace-bin", "trace"));
 
-    await runTrace(repo, ["agent", "remove", "codex"]);
+    const removedOne = JSON.parse((await runTrace(repo, ["agent", "remove", "codex"])).stdout);
+    assert.equal(removedOne.schema_version, "trace.agent_remove.v1");
     const removed = await runTrace(repo, ["agent", "list"]);
     assert.deepEqual(JSON.parse(removed.stdout).agents, []);
 
@@ -1510,6 +1514,7 @@ test("agent add list remove manages local hook adapter configs", async () => {
     assert.equal(gemini.command, "trace hook agent --adapter gemini");
 
     const all = JSON.parse((await runTrace(repo, ["agent", "add", "all"])).stdout);
+    assert.equal(all.schema_version, "trace.agent_add.v1");
     assert.deepEqual(all.agents.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
 
     const allListed = JSON.parse((await runTrace(repo, ["agent", "list"])).stdout);
@@ -1521,6 +1526,7 @@ test("agent add list remove manages local hook adapter configs", async () => {
     assert.deepEqual(allChecked.agents.map((agent) => agent.event), ["tool", "prompt", "response", "validation"]);
 
     const removedAll = JSON.parse((await runTrace(repo, ["agent", "remove", "all"])).stdout);
+    assert.equal(removedAll.schema_version, "trace.agent_remove.v1");
     assert.deepEqual(removedAll.removed.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
     assert.deepEqual(JSON.parse((await runTrace(repo, ["agent", "list"])).stdout).agents, []);
     const missing = await runTraceAllowFailure(repo, ["agent", "check", "all"]);
