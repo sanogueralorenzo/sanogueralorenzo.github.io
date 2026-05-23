@@ -319,10 +319,12 @@ because runtime edge resolution requires stable unique node ids. Graph
 validation emits `INTENT_GRAPH_NODE_DUPLICATE` when two graph nodes share the
 same id. Graph validation requires every edge endpoint to resolve to a node id
 emitted in the same payload and requires emitted graphs to be acyclic over
-dependency and execution edge kinds. Graph validation also emits
-`INTENT_GRAPH_STEP_PLAN_INVALID` when a `Step` node lacks exactly one incoming
-`plans` edge from its owning `Goal`, or when incoming `plans` edges are not from
-that owning `Goal`. Graph validation emits
+dependency and execution edge kinds. Graph validation emits
+`INTENT_GRAPH_PLAN_INVALID` when a `plans` edge does not go from a `Goal` node
+to a `Step` node. Graph validation emits `INTENT_GRAPH_STEP_PLAN_INVALID` when
+a `Step` node lacks exactly one incoming role-valid `plans` edge from its
+owning `Goal`, has duplicate incoming role-valid `plans` edges, or has an
+incoming role-valid `plans` edge from the wrong `Goal`. Graph validation emits
 `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with multiple `Step` nodes does
 not have exactly one linear `precedes` chain across those steps, or when the
 `Step` producing `Completion` is not the tail step of that chain. The graph
@@ -366,6 +368,16 @@ Next graph envelope validation milestone:
 - Executable graph edge records may carry `data`; when present it must be an
   object. Any `sourceSpan` or `targetSpan` inside edge `data` must be a valid
   span before runtime dependency or provenance logic can use it.
+- Runtime graph `plans` edges have a constrained role contract. A `plans` edge
+  is valid only from a `Goal` node to a `Step` node. Unsupported `plans`
+  endpoint roles emit `INTENT_GRAPH_PLAN_INVALID` and make graph output
+  non-executable. This generic role diagnostic is separate from step ownership
+  coverage: missing, duplicate, or wrong-owner incoming `plans` edges for a
+  `Step` remain `INTENT_GRAPH_STEP_PLAN_INVALID`; malformed `Goal` payloads
+  remain `INTENT_GRAPH_GOAL_INVALID`; and malformed `Step` payloads remain
+  `INTENT_GRAPH_STEP_INVALID`. Constraining the generic role prevents plan
+  topology from being replayed from ambiguous runtime-control edges while
+  preserving step-specific ownership diagnostics.
 - Runtime graph `declares` edges have a constrained role contract. A
   `declares` edge is valid only from `Type` to `Goal` for type availability or
   from `Goal` to `Memory` for goal-owned memory. Unsupported `declares`
@@ -1575,6 +1587,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_TYPE_DECLARE_INVALID`
 - `INTENT_GRAPH_GOAL_INVALID`
 - `INTENT_GRAPH_STEP_INVALID`
+- `INTENT_GRAPH_PLAN_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_NODE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
@@ -2005,6 +2018,13 @@ Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
 `informs`, `declares`, and `constrains`.
 Graph validation emits `INTENT_GRAPH_EDGE_KIND_INVALID` when an edge kind is
 not one of those runtime-supported Intent graph relationship kinds.
+Graph validation emits `INTENT_GRAPH_PLAN_INVALID` when a `plans` edge does not
+go from a `Goal` node to a `Step` node. Unsupported `plans` endpoint roles make
+graph output non-executable. This generic role diagnostic is separate from
+`INTENT_GRAPH_STEP_PLAN_INVALID`, `INTENT_GRAPH_GOAL_INVALID`, and
+`INTENT_GRAPH_STEP_INVALID`, and prevents plan topology from being replayed
+from ambiguous runtime-control edges while preserving step-specific ownership
+diagnostics.
 Graph validation emits `INTENT_GRAPH_DECLARE_INVALID` when a `declares` edge
 does not use one of the supported endpoint role pairs: `Type` to `Goal` for
 type availability or `Goal` to `Memory` for goal-owned memory. This role
@@ -2153,6 +2173,13 @@ Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
 multiple `Step` nodes does not have exactly one linear `precedes` chain across
 those steps, or when the `Step` producing `Completion` is not the tail step of
 that chain.
+Graph validation emits `INTENT_GRAPH_STEP_PLAN_INVALID` when a `Step` node
+lacks exactly one incoming role-valid `plans` edge from its owning `Goal`, has
+duplicate incoming role-valid `plans` edges, or has an incoming role-valid
+`plans` edge from the wrong `Goal`. Unsupported `plans` endpoint roles instead
+emit `INTENT_GRAPH_PLAN_INVALID`, malformed `Goal` payloads remain
+`INTENT_GRAPH_GOAL_INVALID`, and malformed `Step` payloads remain
+`INTENT_GRAPH_STEP_INVALID`.
 Graph validation emits `INTENT_GRAPH_CHECK_GATE_INVALID` when a `Check` node
 lacks exactly one outgoing role-valid `gates` edge to its owning `Goal`, when
 a goal-scoped verification `Check` lacks exactly one outgoing role-valid
@@ -2180,6 +2207,7 @@ above, whose edge endpoint does not resolve inside the same payload, whose
 `Goal` nodes omit valid runtime Goal node data, whose
 `Step` nodes omit valid runtime Step node data, whose
 `Completion` nodes omit valid runtime Completion node data, whose
+`plans` edges use unsupported endpoint roles, whose
 external `Context` source nodes lack required Capability authorization edges,
 whose `Capability` nodes omit valid runtime approval-policy data or valid
 ownership `authorizes` edges to their owning `Goal`, whose `Memory` nodes omit

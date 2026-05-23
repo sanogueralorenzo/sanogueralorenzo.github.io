@@ -139,6 +139,16 @@ Validation expectations:
 - Executable graph edge records may carry `data`; when present it must be an
   object. Edge `data.sourceSpan` and `data.targetSpan` payloads must be valid
   spans before runtime dependency or provenance logic can use them.
+- Runtime graph `plans` edges have a constrained role contract. A `plans` edge
+  is valid only from a `Goal` node to a `Step` node. Unsupported `plans`
+  endpoint roles emit `INTENT_GRAPH_PLAN_INVALID` and make graph output
+  non-executable. This generic role diagnostic is separate from step ownership
+  coverage: missing, duplicate, or wrong-owner incoming `plans` edges for a
+  `Step` remain `INTENT_GRAPH_STEP_PLAN_INVALID`; malformed `Goal` payloads
+  remain `INTENT_GRAPH_GOAL_INVALID`; and malformed `Step` payloads remain
+  `INTENT_GRAPH_STEP_INVALID`. Constraining the generic role prevents plan
+  topology from being replayed from ambiguous runtime-control edges while
+  preserving step-specific ownership diagnostics.
 - Runtime graph `declares` edges have a constrained role contract. A
   `declares` edge is valid only from `Type` to `Goal` for type availability or
   from `Goal` to `Memory` for goal-owned memory. Unsupported `declares`
