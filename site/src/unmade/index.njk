@@ -1,0 +1,52 @@
+---
+layout: base.njk
+title: Unmade
+description: A scrollable archive of things that almost existed.
+permalink: /unmade/
+---
+<main class="unmade-page">
+  <nav class="unmade-topbar" aria-label="Unmade navigation">
+    <a class="unmade-wordmark" href="/unmade/">Unmade</a>
+    <a class="unmade-home-link" href="/">Mario</a>
+  </nav>
+
+  <section class="unmade-hero">
+    <div class="unmade-hero-copy">
+      <p class="unmade-kicker">Scroll archive / things that almost existed</p>
+      <h1>Unmade</h1>
+      <p>Unsent messages, unbuilt projects, unfinished films, abandoned maps, unrealized inventions, alternate lives, lost plans, and private ideas that never found a surface.</p>
+    </div>
+    <div class="unmade-hero-object" aria-hidden="true">
+      <span>01</span>
+    </div>
+  </section>
+
+  <section class="unmade-sections" aria-label="Archive sections">
+    {% set sections = ["Unsent", "Unbuilt", "Unchosen", "Unfinished", "Unrecorded", "Unlived"] %}
+    {% for section in sections %}
+      <a href="#{{ section | lower }}" class="unmade-section-chip">{{ section }}</a>
+    {% endfor %}
+  </section>
+
+  <section class="unmade-intro">
+    <p>This is not a productivity site or a portfolio in the usual sense. It is a public index of possible things: fragments, case files, prototypes, scenes, notes, and artifacts from work that was imagined but not completed.</p>
+  </section>
+
+  <section class="unmade-stream" aria-label="Unmade entries">
+    {% for entry in collections.unmade | reverse %}
+      <article id="{{ entry.data.category | lower }}" class="unmade-card">
+        <a href="{{ entry.url }}" class="unmade-card-link">
+          <div class="unmade-card-main">
+            <p class="unmade-kicker">{{ entry.data.category }} / {{ entry.data.status }}</p>
+            <h2>{{ entry.data.title }}</h2>
+            <p>{{ entry.data.excerpt }}</p>
+          </div>
+          <div class="unmade-card-object unmade-object-{{ entry.data.visual }}" aria-hidden="true">
+            <span>{{ entry.data.mark }}</span>
+          </div>
+          <span class="unmade-card-arrow" aria-hidden="true">Open case</span>
+        </a>
+      </article>
+    {% endfor %}
+  </section>
+</main>
