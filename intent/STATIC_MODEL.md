@@ -315,6 +315,10 @@ Next graph envelope validation milestone:
   objects with string `from`, `to`, and `kind`. Malformed node or edge records
   emit stable graph shape diagnostics before endpoint, kind, or semantic
   validation.
+- Executable graph node `id`, `kind`, and `label` values and edge `from`,
+  `to`, and `kind` values must be non-empty after trimming. Blank identifiers
+  emit `INTENT_GRAPH_SHAPE_INVALID` before duplicate, endpoint, or edge-kind
+  validation.
 - Executable graph edge records may carry `data`; when present it must be an
   object. Any `sourceSpan` or `targetSpan` inside edge `data` must be a valid
   span before runtime dependency or provenance logic can use it.
@@ -1571,12 +1575,13 @@ owning `Step`.
 The next static graph contract milestone is rejection, not repair. Static graph
 validators must reject any graph with a missing or unsupported
 `schema_version` or `ast_schema_version`, missing or non-string `source` or
-`package`, whose `ok` value is not `true`, whose node or edge kind is outside
-the supported sets above, whose edge endpoint does not resolve inside the same
-payload, or whose required execution, data, authorization, approval, guard,
-verification, completion, and step-attachment relationships fail graph
-validation. Malformed graphs may be emitted for diagnostics, but they are never
-executable runtime contracts.
+`package`, whose `ok` value is not `true`, whose node `id`, `kind`, or `label`
+or edge `from`, `to`, or `kind` string is blank after trimming, whose node or
+edge kind is outside the supported sets above, whose edge endpoint does not
+resolve inside the same payload, or whose required execution, data,
+authorization, approval, guard, verification, completion, and step-attachment
+relationships fail graph validation. Malformed graphs may be emitted for
+diagnostics, but they are never executable runtime contracts.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that

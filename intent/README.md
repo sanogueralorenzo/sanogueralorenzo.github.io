@@ -110,6 +110,10 @@ Validation expectations:
   objects with string `from`, `to`, and `kind`. Malformed node or edge records
   emit stable graph shape diagnostics before endpoint, kind, or semantic
   validation.
+- Executable graph node `id`, `kind`, and `label` values and edge `from`,
+  `to`, and `kind` values must be non-empty after trimming. Blank identifiers
+  emit graph shape diagnostics before duplicate, endpoint, or edge-kind
+  validation.
 - Executable graph edge records may carry `data`; when present it must be an
   object. Edge `data.sourceSpan` and `data.targetSpan` payloads must be valid
   spans before runtime dependency or provenance logic can use them.
