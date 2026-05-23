@@ -665,10 +665,12 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
   remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
   explicit in the runtime graph instead of relying on id strings alone.
-- Runtime capability ownership edge contracts are the next Phase 2 static-model
-  milestone. Every graph `Capability` node must have exactly one outgoing
-  `authorizes` edge whose target is its owning `Goal`. Malformed, missing,
-  duplicate, or wrong-Goal capability ownership `authorizes` edges emit
+- Runtime capability ownership edges are explicit graph contracts. Every graph
+  `Capability` node must have exactly one outgoing `authorizes` edge whose
+  target is its owning `Goal`. Role-valid ownership edges carry capability
+  name, family, action, approval policy, goal name, and source/target spans
+  matching the source `Capability` and owning `Goal`. Malformed, missing,
+  duplicate, wrong-Goal, or stale capability ownership `authorizes` edges emit
   `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
   non-executable; malformed Capability node data remains
   `INTENT_GRAPH_CAPABILITY_INVALID`. This ownership edge is separate from
@@ -684,11 +686,13 @@ Next graph envelope validation milestone:
   payloads emit `INTENT_GRAPH_TYPE_INVALID` and make graph output
   non-executable because runtimes must not infer structural or alias type
   bodies.
-- Runtime type availability edge contracts are the next Phase 2 static-model
-  milestone. `Type` nodes are package/file-scoped runtime type metadata visible
-  to every `Goal` in the graph. Every `Type` node must have exactly one
-  outgoing `declares` edge to each `Goal` node. Missing, duplicate, or wrong
-  `Goal` coverage from a `Type` node emits
+- Runtime type availability edges are explicit graph contracts. `Type` nodes
+  are package/file-scoped runtime type metadata visible to every `Goal` in the
+  graph. Every `Type` node must have exactly one outgoing `declares` edge to
+  each `Goal` node. Role-valid type availability edges carry type name,
+  definition, goal name, and source/target spans matching the source `Type` and
+  target `Goal`. Missing, duplicate, wrong `Goal` coverage, or stale edge
+  metadata from a `Type` node emits
   `INTENT_GRAPH_TYPE_DECLARE_INVALID` and make graph output non-executable;
   malformed Type node data remains `INTENT_GRAPH_TYPE_INVALID`, and unsupported
   `declares` endpoint roles remain `INTENT_GRAPH_DECLARE_INVALID`. This makes
@@ -780,10 +784,12 @@ Next graph envelope validation milestone:
   `goal_complete`, `goal.completed`, or a bounded duration such as `30d`.
   Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
   the graph non-executable because runtimes must not infer retention policy.
-- Runtime memory ownership edge contracts are the next Phase 2 static-model
-  milestone. Every graph `Memory` node owned by a goal must have exactly one
-  incoming `declares` edge from its owning `Goal`. Missing, duplicate, or
-  wrong-Goal memory ownership `declares` edges emit
+- Runtime memory ownership edges are explicit graph contracts. Every graph
+  `Memory` node owned by a goal must have exactly one incoming `declares` edge
+  from its owning `Goal`. Role-valid memory ownership edges carry goal name,
+  memory label, memory scope, and source/target spans matching the owning
+  `Goal` and target `Memory`. Missing, duplicate, wrong-Goal, or stale memory
+  ownership `declares` edges emit
   `INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make graph output non-executable;
   malformed `Memory` node retention lifecycle data remains
   `INTENT_GRAPH_MEMORY_INVALID`, and unsupported `declares` endpoint roles
@@ -2576,7 +2582,9 @@ incoming Capability `authorizes` edges, while `repo` Context nodes do not.
 Graph validation emits `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` when a
 `Capability` node lacks exactly one outgoing `authorizes` edge to its owning
 `Goal`, or when any capability ownership `authorizes` edge targets another
-node. This ownership edge is separate from target authorization: Capability
+node, or when the role-valid ownership edge metadata does not match the source
+`Capability`, owning `Goal`, policy fields, and source/target spans. This
+ownership edge is separate from target authorization: Capability
 `authorizes` edges to `Effect`, `Check`, and external `Context` targets must
 be backed by matching grant records, unsupported target roles or
 non-Capability authorization edges emit `INTENT_GRAPH_AUTHORIZE_INVALID`,
@@ -2592,10 +2600,13 @@ target roles.
 Graph validation emits `INTENT_GRAPH_MEMORY_DECLARE_INVALID` when a `Memory`
 node lacks exactly one incoming `declares` edge from its owning `Goal`, or when
 any incoming `Goal` to `Memory` ownership `declares` edge is not from that
-owning `Goal`.
+owning `Goal`, or when the role-valid ownership edge metadata does not match
+the owning `Goal`, target `Memory`, memory scope, and source/target spans.
 Graph validation emits `INTENT_GRAPH_TYPE_DECLARE_INVALID` when a `Type` node
 lacks exactly one outgoing `declares` edge to each `Goal` node, has duplicate
-`declares` edges to a `Goal`, or has wrong `Goal` coverage.
+`declares` edges to a `Goal`, has wrong `Goal` coverage, or has role-valid
+availability edge metadata that does not match the source `Type`, target
+`Goal`, type definition, and source/target spans.
 Graph validation emits `INTENT_GRAPH_TYPE_INVALID` when a `Type` node omits
 `definition` data, or when `definition` is neither `null` nor a non-empty
 string representing the declared structural or alias body.
@@ -2702,8 +2713,11 @@ and every retention rule to include non-empty `raw`, `subject.raw`, and
 execution is considered. Each goal-owned `Memory` node must also have exactly
 one incoming `declares` edge from its owning `Goal`. Missing, duplicate, or
 wrong-Goal memory ownership `declares` edges emit
-`INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make the graph non-executable. This
-ownership contract is separate from memory payload validation:
+`INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make the graph non-executable. The
+role-valid edge must carry goal name, memory label, memory scope, and
+source/target spans matching the owning `Goal` and target `Memory`; metadata
+mismatches also emit `INTENT_GRAPH_MEMORY_DECLARE_INVALID`. This ownership
+contract is separate from memory payload validation:
 `INTENT_GRAPH_MEMORY_INVALID` remains the diagnostic for malformed retention
 lifecycle data. Unsupported `declares` endpoint roles emit
 `INTENT_GRAPH_DECLARE_INVALID`. The `declares` edge makes memory ownership
@@ -2783,9 +2797,11 @@ Malformed capability policy data emits
 runtime authorization and approval enforcement must not infer missing policy.
 Every graph `Capability` node must also have exactly one outgoing
 `authorizes` edge whose target is its owning `Goal`. Malformed, missing,
-duplicate, or wrong-Goal capability ownership `authorizes` edges emit
+duplicate, wrong-Goal, or stale capability ownership `authorizes` edges emit
 `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
-non-executable. This ownership edge is separate from runtime target
+non-executable. The role-valid edge must carry capability name, family, action,
+approval policy, goal name, and source/target spans matching the source
+`Capability` and owning `Goal`. This ownership edge is separate from runtime target
 authorization: Capability `authorizes` edges to `Effect`, `Check`, and
 external `Context` targets must be backed by matching grant records, and when
 the target carries adapter contract metadata the edge must carry matching
@@ -2803,8 +2819,11 @@ structural or alias body. Malformed Type node payloads emit
 runtimes must not infer structural or alias type bodies. Type nodes are
 package/file-scoped runtime metadata visible to every `Goal` in the graph, so
 each `Type` node must have exactly one outgoing `declares` edge to each `Goal`
-node. Missing, duplicate, or wrong `Goal` coverage from a `Type` node emits
-`INTENT_GRAPH_TYPE_DECLARE_INVALID` and make graph output non-executable.
+node. Missing, duplicate, wrong `Goal` coverage, or stale role-valid edge
+metadata from a `Type` node emits `INTENT_GRAPH_TYPE_DECLARE_INVALID` and make
+graph output non-executable. The role-valid edge must carry type name,
+definition, goal name, and source/target spans matching the source `Type` and
+target `Goal`.
 This edge contract is separate from Type node payload validation:
 `INTENT_GRAPH_TYPE_INVALID` remains the diagnostic for malformed Type node
 data. Unsupported `declares` endpoint roles emit

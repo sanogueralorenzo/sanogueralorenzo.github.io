@@ -1152,6 +1152,9 @@
             "goal": {
               "type": "string"
             },
+            "capability": {
+              "type": "string"
+            },
             "step": {
               "type": "string"
             },
@@ -1178,6 +1181,9 @@
             },
             "action": {
               "type": "string"
+            },
+            "approvalPolicy": {
+              "enum": ["none", "required"]
             },
             "contractId": {
               "type": ["string", "null"]
@@ -1212,6 +1218,9 @@
             "type": {
               "type": ["string", "null"]
             },
+            "definition": {
+              "type": ["string", "null"]
+            },
             "requirement": {
               "type": "string"
             },
@@ -1231,6 +1240,9 @@
               "enum": ["read", "write", "cite"]
             },
             "memory": {
+              "type": "string"
+            },
+            "memoryScope": {
               "type": "string"
             },
             "key": {

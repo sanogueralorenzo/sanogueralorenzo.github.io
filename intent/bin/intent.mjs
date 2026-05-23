@@ -1411,6 +1411,38 @@ function stepPrecedesEdgeData(previousStep, nextStep, previousIndex, nextIndex) 
   };
 }
 
+function typeDeclareEdgeData(typeDecl, goal) {
+  return {
+    type: typeDecl.name,
+    definition: typeDecl.definition,
+    goal: goal.name,
+    sourceSpan: typeDecl.span,
+    targetSpan: goal.span,
+  };
+}
+
+function memoryDeclareEdgeData(goal, memory) {
+  return {
+    goal: goal.name,
+    memory: memory.name ?? memory.scope,
+    memoryScope: memory.scope,
+    sourceSpan: goal.span,
+    targetSpan: memory.span,
+  };
+}
+
+function capabilityOwnerAuthorizationEdgeData(capability, goal) {
+  return {
+    capability: capability.name,
+    family: capability.family,
+    approvalPolicy: capability.approvalRequired ? "required" : "none",
+    goal: goal.name,
+    sourceSpan: capability.span,
+    targetSpan: goal.span,
+    ...(capability.action ? { action: capability.action } : {}),
+  };
+}
+
 function completionStepCheckpoints(goal) {
   const finalStep = goal.steps.at(-1);
   if (!finalStep) {
@@ -1532,7 +1564,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           definition: typeDecl.definition,
         }));
       }
-      edges.push(edge(typeId, goalId, "declares"));
+      edges.push(edge(typeId, goalId, "declares", typeDeclareEdgeData(typeDecl, goal)));
     }
 
     nodes.push(node(goalId, "Goal", goal.name, goal.span, {
@@ -1591,7 +1623,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         grants: capability.grants,
         approvalPolicy: capability.approvalRequired ? "required" : "none",
       }));
-      edges.push(edge(id, goalId, "authorizes"));
+      edges.push(edge(id, goalId, "authorizes", capabilityOwnerAuthorizationEdgeData(capability, goal)));
     }
 
     const memoryIdsByReference = new Map();
@@ -1604,7 +1636,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         retentionRules: memory.retentionRules ?? [],
         keys: memory.keys ?? [],
       }));
-      edges.push(edge(goalId, id, "declares"));
+      edges.push(edge(goalId, id, "declares", memoryDeclareEdgeData(goal, memory)));
       memoryIdsByReference.set(memory.scope, { id, span: memory.span, memory });
       if (memory.name) {
         memoryIdsByReference.set(memory.name, { id, span: memory.span, memory });
@@ -2571,16 +2603,22 @@ function validateGraphTypeDeclarations(nodesById, outgoingEdgesByNode, graphNode
   const declareEdges = (outgoingEdgesByNode.get(graphNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "declares");
   const declaredGoalCounts = new Map();
   const invalidTargetIds = [];
+  const invalidDeclareMetadata = [];
   for (const graphEdge of declareEdges) {
     if (!goalIdSet.has(graphEdge.to)) {
       invalidTargetIds.push(graphEdge.to);
       continue;
     }
+    const goalNode = nodesById.get(graphEdge.to);
+    const metadata = validateGraphTypeDeclareMetadata(graphEdge, graphNode, goalNode);
+    if (!typeDeclareMetadataIsValid(metadata)) {
+      invalidDeclareMetadata.push(metadata);
+    }
     declaredGoalCounts.set(graphEdge.to, (declaredGoalCounts.get(graphEdge.to) ?? 0) + 1);
   }
   const missingGoalIds = goalIds.filter((goalId) => !declaredGoalCounts.has(goalId));
   const duplicateGoalIds = goalIds.filter((goalId) => (declaredGoalCounts.get(goalId) ?? 0) > 1);
-  if (missingGoalIds.length === 0 && duplicateGoalIds.length === 0 && invalidTargetIds.length === 0) {
+  if (missingGoalIds.length === 0 && duplicateGoalIds.length === 0 && invalidTargetIds.length === 0 && invalidDeclareMetadata.length === 0) {
     return null;
   }
   return error("INTENT_GRAPH_TYPE_DECLARE_INVALID", `type '${graphNode.label}' must declare availability to every goal exactly once.`, graphNode.span ?? fallbackSpan, {
@@ -2591,6 +2629,7 @@ function validateGraphTypeDeclarations(nodesById, outgoingEdgesByNode, graphNode
     missing_goal_ids: missingGoalIds,
     duplicate_goal_ids: duplicateGoalIds,
     invalid_target_ids: invalidTargetIds,
+    invalid_declare_metadata: invalidDeclareMetadata,
   });
 }
 
@@ -3012,6 +3051,10 @@ function validateGraphCapabilityAuthorization(nodesById, outgoingEdgesByNode, gr
     return graphEdge.to !== ownerGoalId && nodesById.get(graphEdge.to)?.kind === "Goal";
   });
   if (ownerGoalAuthorizationEdges.length === 1 && wrongGoalAuthorizationEdges.length === 0) {
+    const metadataDiagnostic = validateGraphCapabilityOwnerAuthorizationMetadata(ownerGoalAuthorizationEdges[0], graphNode, ownerGoal, fallbackSpan);
+    if (metadataDiagnostic) {
+      return metadataDiagnostic;
+    }
     return null;
   }
   return error("INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID", `capability '${graphNode.label}' must authorize its owning goal exactly once.`, graphNode.span ?? fallbackSpan, {
@@ -3165,6 +3208,10 @@ function validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, f
     return graphEdge.from !== ownerGoalId && nodesById.get(graphEdge.from)?.kind === "Goal";
   });
   if (ownerGoalDeclareEdges.length === 1 && declareEdges.length === ownerGoalDeclareEdges.length) {
+    const metadataDiagnostic = validateGraphMemoryDeclareMetadata(ownerGoalDeclareEdges[0], ownerGoal, graphNode, fallbackSpan);
+    if (metadataDiagnostic) {
+      return metadataDiagnostic;
+    }
     return null;
   }
   return error("INTENT_GRAPH_MEMORY_DECLARE_INVALID", `memory '${graphNode.label}' must be declared by its owning goal exactly once.`, graphNode.span ?? fallbackSpan, {
@@ -4901,6 +4948,105 @@ function validateGraphStepPrecedesMetadata(graphEdge, previousStepNode, nextStep
     source_span_matches_previous_step: dataIsObject && spansEqual(data.sourceSpan, previousStepNode.span),
     target_span_matches_next_step: dataIsObject && spansEqual(data.targetSpan, nextStepNode.span),
   };
+}
+
+function validateGraphTypeDeclareMetadata(graphEdge, typeNode, goalNode) {
+  const data = graphEdge.data;
+  const dataIsObject = isPlainObject(data);
+  return {
+    edge: { from: graphEdge.from, to: graphEdge.to },
+    data_is_object: dataIsObject,
+    type_matches_source: dataIsObject && data.type === typeNode.label,
+    definition_matches_source: dataIsObject && (data.definition ?? null) === (typeNode.data?.definition ?? null),
+    goal_matches_target: dataIsObject && data.goal === goalNode.label,
+    source_span_matches_type: dataIsObject && spansEqual(data.sourceSpan, typeNode.span),
+    target_span_matches_goal: dataIsObject && spansEqual(data.targetSpan, goalNode.span),
+  };
+}
+
+function typeDeclareMetadataIsValid(metadata) {
+  return metadata.data_is_object
+    && metadata.type_matches_source
+    && metadata.definition_matches_source
+    && metadata.goal_matches_target
+    && metadata.source_span_matches_type
+    && metadata.target_span_matches_goal;
+}
+
+function validateGraphMemoryDeclareMetadata(graphEdge, goalNode, memoryNode, fallbackSpan) {
+  const data = graphEdge.data;
+  const dataIsObject = isPlainObject(data);
+  const goalMatchesSource = dataIsObject && data.goal === goalNode.label;
+  const memoryMatchesTarget = dataIsObject && data.memory === memoryNode.label;
+  const memoryScopeMatchesTarget = dataIsObject && data.memoryScope === memoryNode.data?.scope;
+  const sourceSpanMatchesGoal = dataIsObject && spansEqual(data.sourceSpan, goalNode.span);
+  const targetSpanMatchesMemory = dataIsObject && spansEqual(data.targetSpan, memoryNode.span);
+  if (
+    dataIsObject
+    && goalMatchesSource
+    && memoryMatchesTarget
+    && memoryScopeMatchesTarget
+    && sourceSpanMatchesGoal
+    && targetSpanMatchesMemory
+  ) {
+    return null;
+  }
+  return error("INTENT_GRAPH_MEMORY_DECLARE_INVALID", `declares edge '${graphEdge.from}' to '${graphEdge.to}' must carry memory ownership metadata matching its owning goal and target memory.`, edgeDiagnosticSpan(new Map([[goalNode.id, goalNode], [memoryNode.id, memoryNode]]), graphEdge, fallbackSpan), {
+    memory: memoryNode.label,
+    memory_id: memoryNode.id,
+    owner_goal_id: goalNode.id,
+    declares_edges: 1,
+    owner_goal_declares_edges: 1,
+    wrong_goal_declares_edges: 0,
+    declare_edge: { from: graphEdge.from, to: graphEdge.to, kind: graphEdge.kind },
+    data_is_object: dataIsObject,
+    goal_matches_source: goalMatchesSource,
+    memory_matches_target: memoryMatchesTarget,
+    memory_scope_matches_target: memoryScopeMatchesTarget,
+    source_span_matches_goal: sourceSpanMatchesGoal,
+    target_span_matches_memory: targetSpanMatchesMemory,
+  });
+}
+
+function validateGraphCapabilityOwnerAuthorizationMetadata(graphEdge, capabilityNode, goalNode, fallbackSpan) {
+  const data = graphEdge.data;
+  const dataIsObject = isPlainObject(data);
+  const capabilityMatchesSource = dataIsObject && data.capability === capabilityNode.label;
+  const familyMatchesSource = dataIsObject && data.family === capabilityNode.data?.family;
+  const actionMatchesSource = dataIsObject && (data.action ?? null) === (capabilityNode.data?.action ?? null);
+  const approvalPolicyMatchesSource = dataIsObject && data.approvalPolicy === capabilityNode.data?.approvalPolicy;
+  const goalMatchesTarget = dataIsObject && data.goal === goalNode.label;
+  const sourceSpanMatchesCapability = dataIsObject && spansEqual(data.sourceSpan, capabilityNode.span);
+  const targetSpanMatchesGoal = dataIsObject && spansEqual(data.targetSpan, goalNode.span);
+  if (
+    dataIsObject
+    && capabilityMatchesSource
+    && familyMatchesSource
+    && actionMatchesSource
+    && approvalPolicyMatchesSource
+    && goalMatchesTarget
+    && sourceSpanMatchesCapability
+    && targetSpanMatchesGoal
+  ) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID", `authorizes edge '${graphEdge.from}' to '${graphEdge.to}' must carry capability ownership metadata matching its source capability and owning goal.`, edgeDiagnosticSpan(new Map([[capabilityNode.id, capabilityNode], [goalNode.id, goalNode]]), graphEdge, fallbackSpan), {
+    capability: capabilityNode.label,
+    capability_id: capabilityNode.id,
+    owner_goal_id: goalNode.id,
+    authorizes_edges: 1,
+    owner_goal_authorizes_edges: 1,
+    wrong_goal_authorizes_edges: 0,
+    authorization_edge: { from: graphEdge.from, to: graphEdge.to, kind: graphEdge.kind },
+    data_is_object: dataIsObject,
+    capability_matches_source: capabilityMatchesSource,
+    family_matches_source: familyMatchesSource,
+    action_matches_source: actionMatchesSource,
+    approval_policy_matches_source: approvalPolicyMatchesSource,
+    goal_matches_target: goalMatchesTarget,
+    source_span_matches_capability: sourceSpanMatchesCapability,
+    target_span_matches_goal: targetSpanMatchesGoal,
+  });
 }
 
 function stepPrecedesMetadataIsValid(metadata) {

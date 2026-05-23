@@ -430,6 +430,43 @@ function defaultGraphEdgeData(edge, data, nodesById = new Map()) {
       };
     }
   }
+  if (edge.kind === "declares") {
+    const sourceNode = nodesById.get(edge.from);
+    const targetNode = nodesById.get(edge.to);
+    if (sourceNode?.kind === "Type" && targetNode?.kind === "Goal") {
+      return {
+        type: sourceNode.label,
+        definition: sourceNode.data?.definition ?? null,
+        goal: targetNode.label,
+        sourceSpan: sourceNode.span,
+        targetSpan: targetNode.span,
+      };
+    }
+    if (sourceNode?.kind === "Goal" && targetNode?.kind === "Memory") {
+      return {
+        goal: sourceNode.label,
+        memory: targetNode.label,
+        memoryScope: targetNode.data?.scope ?? "session",
+        sourceSpan: sourceNode.span,
+        targetSpan: targetNode.span,
+      };
+    }
+  }
+  if (edge.kind === "authorizes") {
+    const sourceNode = nodesById.get(edge.from);
+    const targetNode = nodesById.get(edge.to);
+    if (sourceNode?.kind === "Capability" && targetNode?.kind === "Goal") {
+      return {
+        capability: sourceNode.label,
+        family: sourceNode.data?.family ?? "synthetic",
+        approvalPolicy: sourceNode.data?.approvalPolicy ?? "none",
+        goal: targetNode.label,
+        sourceSpan: sourceNode.span,
+        targetSpan: targetNode.span,
+        ...(sourceNode.data?.action ? { action: sourceNode.data.action } : {}),
+      };
+    }
+  }
   if (edge.kind === "requires" && typeof edge.from === "string" && edge.from.includes(":requirement:")) {
     return { requirement: "synthetic" };
   }
@@ -1644,10 +1681,23 @@ describe("intent static model CLI", () => {
     const fileWriteRequest = graph.edges.find((edge) => edge.kind === "requests" && edge.to === fileWrite?.id);
     const planEdge = graph.edges.find((edge) => edge.kind === "plans");
     const precedesEdge = graph.edges.find((edge) => edge.kind === "precedes");
+    const typeDeclareEdge = graph.edges.find((edge) => edge.kind === "declares" && edge.from.startsWith("type:"));
+    const memoryDeclareEdge = graph.edges.find((edge) => edge.kind === "declares" && edge.to.includes(":memory:"));
+    const capabilityOwnerEdge = graph.edges.find((edge) => {
+      return edge.kind === "authorizes"
+        && edge.from.includes(":capability:")
+        && graph.nodes.find((node) => node.id === edge.to)?.kind === "Goal";
+    });
     const plannedGoal = graph.nodes.find((node) => node.id === planEdge?.from);
     const plannedStep = graph.nodes.find((node) => node.id === planEdge?.to);
     const previousStep = graph.nodes.find((node) => node.id === precedesEdge?.from);
     const nextStep = graph.nodes.find((node) => node.id === precedesEdge?.to);
+    const declaredType = graph.nodes.find((node) => node.id === typeDeclareEdge?.from);
+    const typeGoal = graph.nodes.find((node) => node.id === typeDeclareEdge?.to);
+    const memoryGoal = graph.nodes.find((node) => node.id === memoryDeclareEdge?.from);
+    const declaredMemory = graph.nodes.find((node) => node.id === memoryDeclareEdge?.to);
+    const owningCapability = graph.nodes.find((node) => node.id === capabilityOwnerEdge?.from);
+    const capabilityGoal = graph.nodes.find((node) => node.id === capabilityOwnerEdge?.to);
 
     assert.equal(graph.schema_version, "intent.graph.v0");
     assert.equal(graph.ok, true);
@@ -1687,6 +1737,22 @@ describe("intent static model CLI", () => {
     assert.equal(precedesEdge.data.nextIndex, precedesEdge.data.previousIndex + 1);
     assert.equal(precedesEdge.data.sourceSpan.start.line, previousStep.span.start.line);
     assert.equal(precedesEdge.data.targetSpan.start.line, nextStep.span.start.line);
+    assert.equal(Boolean(typeDeclareEdge), true);
+    assert.equal(typeDeclareEdge.data.type, declaredType.label);
+    assert.equal(typeDeclareEdge.data.goal, typeGoal.label);
+    assert.equal(typeDeclareEdge.data.sourceSpan.start.line, declaredType.span.start.line);
+    assert.equal(typeDeclareEdge.data.targetSpan.start.line, typeGoal.span.start.line);
+    assert.equal(Boolean(memoryDeclareEdge), true);
+    assert.equal(memoryDeclareEdge.data.goal, memoryGoal.label);
+    assert.equal(memoryDeclareEdge.data.memory, declaredMemory.label);
+    assert.equal(memoryDeclareEdge.data.memoryScope, declaredMemory.data.scope);
+    assert.equal(memoryDeclareEdge.data.targetSpan.start.line, declaredMemory.span.start.line);
+    assert.equal(Boolean(capabilityOwnerEdge), true);
+    assert.equal(capabilityOwnerEdge.data.capability, owningCapability.label);
+    assert.equal(capabilityOwnerEdge.data.family, owningCapability.data.family);
+    assert.equal(capabilityOwnerEdge.data.approvalPolicy, owningCapability.data.approvalPolicy);
+    assert.equal(capabilityOwnerEdge.data.goal, capabilityGoal.label);
+    assert.equal(capabilityOwnerEdge.data.sourceSpan.start.line, owningCapability.span.start.line);
     assert.equal(graph.edges.some((edge) => edge.kind === "gates"), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to.includes(":verify:")), true);
   });
@@ -3137,6 +3203,40 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].owner_goal_declares_edges, 2);
   });
 
+  it("validates graph memory declaration metadata diagnostics", () => {
+    const goalSpan = testSpan(1);
+    const memorySpan = testSpan(2);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: goalSpan },
+        { id: "goal:demo:memory:0", kind: "Memory", label: "session", span: memorySpan, data: { scope: "session" } },
+      ],
+      edges: [
+        {
+          from: "goal:demo",
+          to: "goal:demo:memory:0",
+          kind: "declares",
+          data: {
+            goal: "demo",
+            memory: "wrong",
+            memoryScope: "session",
+            sourceSpan: goalSpan,
+            targetSpan: memorySpan,
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_MEMORY_DECLARE_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].data_is_object, true);
+    assert.equal(diagnostics[0].goal_matches_source, true);
+    assert.equal(diagnostics[0].memory_matches_target, false);
+    assert.equal(diagnostics[0].memory_scope_matches_target, true);
+    assert.equal(diagnostics[0].source_span_matches_goal, true);
+    assert.equal(diagnostics[0].target_span_matches_memory, true);
+  });
+
   it("validates graph type declaration diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -3192,6 +3292,40 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].type_id, "type:duplicate");
     assert.deepEqual(diagnostics[2].duplicate_goal_ids, ["goal:demo"]);
     assert.equal(diagnostics[2].declares_edges, 3);
+  });
+
+  it("validates graph type availability declaration metadata diagnostics", () => {
+    const typeSpan = testSpan(1);
+    const goalSpan = testSpan(2);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "type:ticket", kind: "Type", label: "Ticket", span: typeSpan, data: { definition: "{ id: String }" } },
+        { id: "goal:demo", kind: "Goal", label: "demo", span: goalSpan },
+      ],
+      edges: [
+        {
+          from: "type:ticket",
+          to: "goal:demo",
+          kind: "declares",
+          data: {
+            type: "Ticket",
+            definition: "{ id: String }",
+            goal: "wrong",
+            sourceSpan: typeSpan,
+            targetSpan: goalSpan,
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPE_DECLARE_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].invalid_declare_metadata.length, 1);
+    assert.equal(diagnostics[0].invalid_declare_metadata[0].data_is_object, true);
+    assert.equal(diagnostics[0].invalid_declare_metadata[0].type_matches_source, true);
+    assert.equal(diagnostics[0].invalid_declare_metadata[0].goal_matches_target, false);
+    assert.equal(diagnostics[0].invalid_declare_metadata[0].source_span_matches_type, true);
+    assert.equal(diagnostics[0].invalid_declare_metadata[0].target_span_matches_goal, true);
   });
 
   it("validates graph goal typed contract diagnostics", () => {
@@ -4352,6 +4486,50 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].capability_id, "goal:demo:capability:duplicate");
     assert.equal(diagnostics[2].authorizes_edges, 2);
     assert.equal(diagnostics[2].owner_goal_authorizes_edges, 2);
+  });
+
+  it("validates graph capability ownership authorization metadata diagnostics", () => {
+    const capabilitySpan = testSpan(2);
+    const goalSpan = testSpan(1);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: goalSpan },
+        {
+          id: "goal:demo:capability:0",
+          kind: "Capability",
+          label: "file",
+          span: capabilitySpan,
+          data: { family: "file", action: "write", grants: [], approvalPolicy: "required" },
+        },
+      ],
+      edges: [
+        {
+          from: "goal:demo:capability:0",
+          to: "goal:demo",
+          kind: "authorizes",
+          data: {
+            capability: "file",
+            family: "file",
+            action: "write",
+            approvalPolicy: "none",
+            goal: "demo",
+            sourceSpan: capabilitySpan,
+            targetSpan: goalSpan,
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].data_is_object, true);
+    assert.equal(diagnostics[0].capability_matches_source, true);
+    assert.equal(diagnostics[0].family_matches_source, true);
+    assert.equal(diagnostics[0].action_matches_source, true);
+    assert.equal(diagnostics[0].approval_policy_matches_source, false);
+    assert.equal(diagnostics[0].goal_matches_target, true);
+    assert.equal(diagnostics[0].source_span_matches_capability, true);
+    assert.equal(diagnostics[0].target_span_matches_goal, true);
   });
 
   it("validates graph context informs diagnostics", () => {

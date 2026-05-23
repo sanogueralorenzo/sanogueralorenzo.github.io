@@ -430,11 +430,13 @@ Validation expectations:
   declared structural or alias body. Malformed Type node payloads emit
   `INTENT_GRAPH_TYPE_INVALID` and make graph output non-executable because
   runtimes must not infer structural or alias type bodies.
-- Runtime type availability edge contracts are the next Phase 2 static-model
-  milestone. `Type` nodes are package/file-scoped runtime type metadata visible
-  to every `Goal` in the graph. Every `Type` node must have exactly one
-  outgoing `declares` edge to each `Goal` node. Missing, duplicate, or wrong
-  `Goal` coverage from a `Type` node emits
+- Runtime type availability edges are explicit graph contracts. `Type` nodes
+  are package/file-scoped runtime type metadata visible to every `Goal` in the
+  graph. Every `Type` node must have exactly one outgoing `declares` edge to
+  each `Goal` node. Role-valid type availability edges carry type name,
+  definition, goal name, and source/target spans matching the source `Type` and
+  target `Goal`. Missing, duplicate, wrong `Goal` coverage, or stale edge
+  metadata from a `Type` node emits
   `INTENT_GRAPH_TYPE_DECLARE_INVALID` and make graph output non-executable;
   malformed Type node data remains `INTENT_GRAPH_TYPE_INVALID`, and unsupported
   `declares` endpoint roles remain `INTENT_GRAPH_DECLARE_INVALID`. This makes
@@ -546,10 +548,12 @@ Validation expectations:
   `span`. Malformed capability policy data emits `INTENT_GRAPH_CAPABILITY_INVALID`
   and makes the graph non-executable because runtime authorization and approval
   enforcement must not infer missing policy.
-- Runtime capability ownership edge contracts are the next Phase 2 static-model
-  milestone. Every graph `Capability` node must have exactly one outgoing
-  `authorizes` edge whose target is its owning `Goal`. Malformed, missing,
-  duplicate, or wrong-Goal capability ownership `authorizes` edges emit
+- Runtime capability ownership edges are explicit graph contracts. Every graph
+  `Capability` node must have exactly one outgoing `authorizes` edge whose
+  target is its owning `Goal`. Role-valid ownership edges carry capability
+  name, family, action, approval policy, goal name, and source/target spans
+  matching the source `Capability` and owning `Goal`. Malformed, missing,
+  duplicate, wrong-Goal, or stale capability ownership `authorizes` edges emit
   `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
   non-executable; malformed Capability node data remains
   `INTENT_GRAPH_CAPABILITY_INVALID`. This ownership edge is separate from
@@ -585,10 +589,12 @@ Validation expectations:
   `goal_complete`, `goal.completed`, or a bounded duration such as `30d`.
   Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
   the graph non-executable because runtime retention cannot be inferred.
-- Runtime memory ownership edge contracts are the next Phase 2 static-model
-  milestone. Every graph `Memory` node owned by a goal must have exactly one
-  incoming `declares` edge from its owning `Goal`. Missing, duplicate, or
-  wrong-Goal memory ownership `declares` edges emit
+- Runtime memory ownership edges are explicit graph contracts. Every graph
+  `Memory` node owned by a goal must have exactly one incoming `declares` edge
+  from its owning `Goal`. Role-valid memory ownership edges carry goal name,
+  memory label, memory scope, and source/target spans matching the owning
+  `Goal` and target `Memory`. Missing, duplicate, wrong-Goal, or stale memory
+  ownership `declares` edges emit
   `INTENT_GRAPH_MEMORY_DECLARE_INVALID` and make graph output non-executable;
   malformed `Memory` node retention lifecycle data remains
   `INTENT_GRAPH_MEMORY_INVALID`, and unsupported `declares` endpoint roles
