@@ -10,6 +10,9 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Review [PUBLISHING.md](PUBLISHING.md) before changing package publication settings.
 - [ ] Copy [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml) into `.github/workflows/` before publication CI.
 - [ ] Use [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) as the npm publication shape when releases need `needs: package-manifest`.
+- [ ] Store the npm publish token as `secrets.NPM_TOKEN` with scope limited to publishing `@sanogueralorenzo/jury`.
+- [ ] Expose `NODE_AUTH_TOKEN` only in the publish job after `needs: package-manifest` passes.
+- [ ] Keep `permissions.id-token: write` and `npm publish --provenance --access public` enabled for npm provenance.
 - [ ] Copy [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml) into `.github/workflows/`.
 - [ ] Copy [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml) when the producer must sign `review-bundle.signed.json` with `secrets.JURY_CI_PRIVATE_KEY`.
 - [ ] Copy [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml) when producer and consumer CI jobs need an artifact download handoff.

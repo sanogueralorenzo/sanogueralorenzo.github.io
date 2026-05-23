@@ -443,6 +443,7 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.includes("uses: ./.github/workflows/jury-package-manifest-check.yml"));
   assert.ok(workflow.includes("needs: package-manifest"));
   assert.ok(workflow.includes("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}"));
+  assert.ok(workflow.indexOf("needs: package-manifest") < workflow.indexOf("npm publish --provenance --access public"));
   assert.deepEqual(publishCommands, [
     'test -n "$NODE_AUTH_TOKEN"',
     'cd "$JURY_PACKAGE_DIR"',
@@ -1035,6 +1036,12 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes(release.packagePublication.releaseWorkflow));
   assert.ok(publicationNotes.includes(release.packagePublication.manifestCheckCommand));
   assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
+  assert.ok(publicationNotes.includes("secrets.NPM_TOKEN"));
+  assert.ok(publicationNotes.includes("NODE_AUTH_TOKEN"));
+  assert.ok(publicationNotes.includes("permissions.id-token: write"));
+  assert.ok(publicationNotes.includes("npm publish --provenance --access public"));
+  assert.ok(publicationNotes.includes("needs: package-manifest"));
+  assert.ok(publicationNotes.includes("package-manifest jobs token-free"));
   assert.ok(publicationNotes.includes("--pack-manifest <npm-pack-json>"));
   assert.ok(publicationNotes.includes('"missing": ["CI_ADOPTION.md"]'));
   assert.ok(publicationNotes.includes('"missing": ["examples/ci/jury-trusted-bundle-verify.yml"]'));
@@ -1890,6 +1897,12 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("ciAdoption"));
   assert.ok(checklist.includes("package publication"));
   assert.ok(checklist.includes("package:manifest:check"));
+  assert.ok(checklist.includes("secrets.NPM_TOKEN"));
+  assert.ok(checklist.includes("@sanogueralorenzo/jury"));
+  assert.ok(checklist.includes("NODE_AUTH_TOKEN"));
+  assert.ok(checklist.includes("needs: package-manifest"));
+  assert.ok(checklist.includes("permissions.id-token: write"));
+  assert.ok(checklist.includes("npm publish --provenance --access public"));
   for (const workflow of release.ciAdoption.workflows) {
     assert.ok(linkedTargets.includes(workflow.path), `RELEASE_CHECKLIST.md should link ${workflow.path}`);
   }
@@ -1976,13 +1989,14 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /downloads the signed producer artifact/);
   assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
   assert.match(handoff, /package publication notes/);
+  assert.match(handoff, /npm token and provenance release checklist guidance/);
   assert.match(handoff, /CI adoption metadata contract/);
   assert.match(handoff, /release metadata/);
   assert.match(handoff, /package tarball manifest checks/);
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check/);
-  assert.match(handoff, /npm token scope and provenance expectations/);
+  assert.match(handoff, /dry-run release publication checklist/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

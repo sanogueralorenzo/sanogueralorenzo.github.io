@@ -61,6 +61,12 @@ jobs:
 
 [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `publish` has `needs: package-manifest`, so `npm publish --provenance --access public` cannot run unless the package manifest check passes first. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
 
+## npm Credentials and Provenance
+
+Before enabling publication, create `secrets.NPM_TOKEN` as an npm token limited to publishing `@sanogueralorenzo/jury`. The workflow maps that secret to `NODE_AUTH_TOKEN` only in the `publish` job, after `needs: package-manifest` has passed. Keep package-manifest jobs token-free.
+
+Keep `permissions.id-token: write` and `npm publish --provenance --access public` together so the package is published with GitHub Actions provenance. If provenance is disabled or the id-token permission is removed, treat that as a release-blocking change and review it before publishing.
+
 ## Failure Examples
 
 If the tarball omits the CI adoption guide, the check exits non-zero and reports the missing contract path:
