@@ -1906,7 +1906,7 @@ async function runRedactCommand(action, values) {
 
   if (!action || action === "list") {
     const root = await repoRoot();
-    print({ ok: true, rules: customRules(await loadTraceConfig(root)) });
+    print({ ok: true, schema_version: "trace.redaction_rules.v1", rules: customRules(await loadTraceConfig(root)) });
     return;
   }
 
@@ -1928,7 +1928,7 @@ async function addRedactionRule(label, pattern) {
   const rules = customRules(config).filter((rule) => rule.label !== label);
   rules.push({ label, pattern });
   await writeTraceConfig(root, withCustomRules(config, rules));
-  print({ ok: true, label, pattern });
+  print({ ok: true, schema_version: "trace.redaction_rule.v1", action: "add", label, pattern });
 }
 
 async function removeRedactionRule(label) {
@@ -1941,7 +1941,7 @@ async function removeRedactionRule(label) {
   const config = await loadTraceConfig(root);
   const rules = customRules(config).filter((rule) => rule.label !== label);
   await writeTraceConfig(root, withCustomRules(config, rules));
-  print({ ok: true, label, rules: rules.length });
+  print({ ok: true, schema_version: "trace.redaction_rule.v1", action: "remove", label, rules: rules.length });
 }
 
 async function auditRedactionCommand() {
@@ -2000,6 +2000,7 @@ async function redactionAudit(root) {
 
   return {
     ok: findings.length === 0,
+    schema_version: "trace.redaction_audit.v1",
     scanned: [
       ...files.map((file) => relativePath(root, file)),
       ...checkpoints.filter((checkpoint) => checkpoint.raw).map((checkpoint) => `${CHECKPOINT_REF}:${checkpoint.path}`),

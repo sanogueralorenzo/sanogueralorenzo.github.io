@@ -312,4 +312,4 @@ trace redact audit
 trace redact remove codename
 ```
 
-Custom matches are replaced with labeled placeholders like `[REDACTED_CODENAME]` before raw events or commit memories are written. `trace redact preview` applies the active built-in and custom rules to text or stdin without writing state, so agents can verify local rules before capture. `trace redact audit` scans committed memories, local raw session files, and checkpoint ref payloads for unredacted secret assignments or configured custom patterns, and `trace doctor` includes the same audit.
+Custom matches are replaced with labeled placeholders like `[REDACTED_CODENAME]` before raw events or commit memories are written. Redaction rule and audit commands return schema-stable JSON for automation. `trace redact preview` applies the active built-in and custom rules to text or stdin without writing state, so agents can verify local rules before capture. `trace redact audit` scans committed memories, local raw session files, and checkpoint ref payloads for unredacted secret assignments or configured custom patterns, and `trace doctor` includes the same audit.

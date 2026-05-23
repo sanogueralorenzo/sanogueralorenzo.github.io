@@ -1312,8 +1312,11 @@ test("custom redaction rules apply to raw events and commit memories", async () 
     await git(repo, ["commit", "-m", "Add redact file"]);
 
     await runTrace(repo, ["init"]);
-    await runTrace(repo, ["redact", "add", "codename", "PROJECT-[A-Z]+"]);
+    const added = JSON.parse((await runTrace(repo, ["redact", "add", "codename", "PROJECT-[A-Z]+"])).stdout);
+    assert.equal(added.schema_version, "trace.redaction_rule.v1");
+    assert.equal(added.action, "add");
     const listed = JSON.parse((await runTrace(repo, ["redact", "list"])).stdout);
+    assert.equal(listed.schema_version, "trace.redaction_rules.v1");
     assert.deepEqual(listed.rules, [{ label: "codename", pattern: "PROJECT-[A-Z]+" }]);
 
     const preview = JSON.parse((await runTrace(repo, [
@@ -1354,6 +1357,7 @@ test("custom redaction rules apply to raw events and commit memories", async () 
 
     const audit = JSON.parse((await runTrace(repo, ["redact", "audit"])).stdout);
     assert.equal(audit.ok, true);
+    assert.equal(audit.schema_version, "trace.redaction_audit.v1");
     assert.deepEqual(audit.findings, []);
     assert.ok(audit.scanned.some((entry) => entry.includes("refs/trace/checkpoints:checkpoints/")));
 
@@ -1390,6 +1394,7 @@ test("custom redaction rules apply to raw events and commit memories", async () 
 
     await runTrace(repo, ["redact", "remove", "codename"]);
     const removed = JSON.parse((await runTrace(repo, ["redact", "list"])).stdout);
+    assert.equal(removed.schema_version, "trace.redaction_rules.v1");
     assert.deepEqual(removed.rules, []);
   } finally {
     await rm(repo, { recursive: true, force: true });
@@ -1438,6 +1443,7 @@ test("built-in redaction handles environment secrets and authorization headers",
     assert.equal(audit.exitCode, 1);
     const payload = JSON.parse(audit.stdout);
     assert.equal(payload.ok, false);
+    assert.equal(payload.schema_version, "trace.redaction_audit.v1");
     assert.ok(payload.findings.some((finding) => finding.rule === "secret-assignment" && finding.count >= 2));
   } finally {
     await rm(repo, { recursive: true, force: true });
