@@ -1,10 +1,3 @@
-# Jury CI Example
-
-Jury can run as a local, dependency-free CI gate. The state directory is disposable, while the emitted `verdict.json` can be uploaded as a build artifact.
-
-Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow.
-
-```yaml
 name: Jury review gate
 
 on:
@@ -44,6 +37,3 @@ jobs:
             verdict.json
             review-bundle.json
             .jury/*.jsonl
-```
-
-The gate exits non-zero unless the verdict is `accept`. When `--claim` is present, the gate output includes unresolved blocking objections and missing fields so CI logs show the exact reason for failure. `review-bundle.json` lets another job import and replay the same review state.

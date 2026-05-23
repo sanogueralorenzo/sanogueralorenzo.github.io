@@ -13,6 +13,7 @@ const fixturesDir = join(repoRoot, "jury/fixtures/verdicts");
 const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
 const releasePath = join(repoRoot, "jury/release.json");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
+const skipNestedCiAdoptionTests = process.env.JURY_SKIP_CI_ADOPTION_NESTED === "1";
 
 test("judge accepts a claim with passing evidence and no blocking objections", async () => {
   const stateDir = await tempState();
@@ -166,6 +167,70 @@ test("documented core flow commands stay in sync with CLI behavior", async () =>
     await rm(stateDir, { recursive: true, force: true });
     await rm(cwd, { recursive: true, force: true });
   }
+});
+
+test("quickstart commands produce a portable CI review from a clean checkout", { skip: skipNestedCiAdoptionTests }, async () => {
+  const checkout = await copyJuryCheckout();
+
+  try {
+    const quickstart = await readFile(join(checkout, "jury/QUICKSTART.md"), "utf8");
+    const commands = extractShellBlock(quickstart, "Jury Quickstart");
+    const replayCommands = extractShellBlock(quickstart, "To replay the portable bundle");
+
+    assert.equal(commands[0], "npm --prefix jury test");
+
+    for (const command of commands) {
+      const result = await runShell(command, checkout, nestedCiAdoptionEnv());
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    await assertAcceptedCiReview(checkout, ".jury", "verdict.json", "review-bundle.json");
+
+    for (const command of replayCommands) {
+      const result = await runShell(command, checkout);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    const importedVerdict = JSON.parse(await readFile(join(checkout, "imported-verdict.json"), "utf8"));
+    assert.equal(importedVerdict.decision, "accept");
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
+test("GitHub Actions example builds the documented verdict and review bundle", { skip: skipNestedCiAdoptionTests }, async () => {
+  const checkout = await copyJuryCheckout();
+
+  try {
+    const workflow = await readFile(join(checkout, "jury/examples/ci/jury-review-gate.yml"), "utf8");
+    const commands = extractWorkflowRunBlock(workflow, "Build Jury verdict and bundle");
+    const testCommand = extractWorkflowSingleLineRun(workflow, "Run Jury tests");
+
+    assert.ok(workflow.includes("actions/upload-artifact@v4"));
+
+    const testResult = await runShell(testCommand, checkout, nestedCiAdoptionEnv());
+    assert.equal(testResult.exitCode, 0, `${testCommand}\nstdout:\n${testResult.stdout}\nstderr:\n${testResult.stderr}`);
+
+    for (const command of commands) {
+      const result = await runShell(command, checkout);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    await assertAcceptedCiReview(checkout, ".jury", "verdict.json", "review-bundle.json");
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
+test("CI example README points to the copyable workflow and portable artifacts", { skip: skipNestedCiAdoptionTests }, async () => {
+  const readme = await readFile(join(repoRoot, "jury/examples/ci/README.md"), "utf8");
+
+  assert.ok(readme.includes("jury-review-gate.yml"));
+  assert.ok(readme.includes("review-bundle.json"));
+  assert.ok(readme.includes("actions/upload-artifact@v4"));
 });
 
 test("fixture verdicts cover accept, reject, retry, and human_decision gate paths", async () => {
@@ -549,6 +614,16 @@ function tempState() {
   return mkdtemp(join(tmpdir(), "jury-test-"));
 }
 
+function nestedCiAdoptionEnv() {
+  return { ...fixedEnv, JURY_SKIP_CI_ADOPTION_NESTED: "1" };
+}
+
+async function copyJuryCheckout() {
+  const checkout = await tempState();
+  await cp(join(repoRoot, "jury"), join(checkout, "jury"), { recursive: true });
+  return checkout;
+}
+
 function runJson(args, cwd = repoRoot) {
   return runProcess([...args, "--json"], cwd).then((result) => {
     if (result.exitCode !== 0) {
@@ -596,11 +671,11 @@ function materializeDocCommand(command, stateDir, verdictPath) {
   return materialized;
 }
 
-function runShell(command, cwd = repoRoot) {
+function runShell(command, cwd = repoRoot, env = fixedEnv) {
   return new Promise((resolveProcess) => {
     const child = spawn(command, {
       cwd,
-      env: fixedEnv,
+      env,
       shell: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -617,6 +692,65 @@ function runShell(command, cwd = repoRoot) {
       resolveProcess({ exitCode, stdout, stderr });
     });
   });
+}
+
+async function assertAcceptedCiReview(cwd, stateDir, verdictPath, bundlePath) {
+  const verdict = JSON.parse(await readFile(join(cwd, verdictPath), "utf8"));
+  const bundle = JSON.parse(await readFile(join(cwd, bundlePath), "utf8"));
+  const gate = await runShell(`node jury/bin/jury.mjs gate --state-dir ${shellQuote(stateDir)} --claim claim_ci_change --verdict ${shellQuote(verdictPath)} --json`, cwd);
+  const check = await runShell(`node jury/bin/jury.mjs check --state-dir ${shellQuote(stateDir)} --strict --json`, cwd);
+
+  assert.equal(verdict.decision, "accept");
+  assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+  assert.equal(bundle.claim_id, "claim_ci_change");
+  assert.equal(gate.exitCode, 0, gate.stderr);
+  assert.equal(JSON.parse(gate.stdout).ok, true);
+  assert.equal(check.exitCode, 0, check.stderr);
+  assert.ok(JSON.parse(check.stdout).checks.every((item) => item.ok));
+}
+
+function extractShellBlock(markdown, heading) {
+  const headingIndex = markdown.indexOf(heading);
+  assert.notEqual(headingIndex, -1, `${heading} heading should exist`);
+
+  const blockStart = markdown.indexOf("```shell\n", headingIndex);
+  assert.notEqual(blockStart, -1, `${heading} shell block should exist`);
+
+  const contentStart = blockStart + "```shell\n".length;
+  const blockEnd = markdown.indexOf("\n```", contentStart);
+  assert.notEqual(blockEnd, -1, `${heading} shell block should close`);
+
+  return markdown.slice(contentStart, blockEnd).split("\n").filter(Boolean);
+}
+
+function extractWorkflowRunBlock(workflow, stepName) {
+  const lines = workflow.split("\n");
+  const nameIndex = lines.findIndex((line) => line.trim() === `- name: ${stepName}`);
+  assert.notEqual(nameIndex, -1, `${stepName} step should exist`);
+
+  const runIndex = lines.findIndex((line, index) => index > nameIndex && line.trim() === "run: |");
+  assert.notEqual(runIndex, -1, `${stepName} run block should exist`);
+
+  const commands = [];
+  for (const line of lines.slice(runIndex + 1)) {
+    if (!line.startsWith("          ")) {
+      break;
+    }
+    commands.push(line.slice(10));
+  }
+
+  return commands.filter(Boolean);
+}
+
+function extractWorkflowSingleLineRun(workflow, stepName) {
+  const lines = workflow.split("\n");
+  const nameIndex = lines.findIndex((line) => line.trim() === `- name: ${stepName}`);
+  assert.notEqual(nameIndex, -1, `${stepName} step should exist`);
+
+  const runLine = lines.find((line, index) => index > nameIndex && line.trim().startsWith("run: "));
+  assert.ok(runLine, `${stepName} run command should exist`);
+
+  return runLine.trim().slice("run: ".length);
 }
 
 function shellQuote(value) {
