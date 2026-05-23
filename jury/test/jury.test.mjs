@@ -16,6 +16,7 @@ const ciQuickstartFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/quicks
 const ciKeyPolicyFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy");
 const ciKeyPolicyRotationFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy-rotation");
 const ciPackageReleaseFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/package-release");
+const codeChangeAdoptionFixturesDir = join(repoRoot, "jury/examples/code-change-adoption");
 const releasePath = join(repoRoot, "jury/release.json");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
 const skipNestedCiAdoptionTests = process.env.JURY_SKIP_CI_ADOPTION_NESTED === "1";
@@ -171,6 +172,57 @@ test("documented core flow commands stay in sync with CLI behavior", async () =>
   } finally {
     await rm(stateDir, { recursive: true, force: true });
     await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("code-change adoption fixture produces portable retry evidence", async () => {
+  const checkout = await copyJuryCheckout();
+
+  try {
+    const fixtureReadme = await readFile(join(checkout, "jury/examples/code-change-adoption/README.md"), "utf8");
+    const rootReadme = await readFile(join(checkout, "jury/README.md"), "utf8");
+    const examplesReadme = await readFile(join(checkout, "jury/examples/README.md"), "utf8");
+    const commands = extractShellBlock(fixtureReadme, "Code-Change Adoption Flow");
+
+    assert.ok(rootReadme.includes("examples/code-change-adoption"));
+    assert.ok(examplesReadme.includes("code-change-adoption"));
+    for (const requiredCommand of ["init", "claim create", "evidence add", "critic run", "judge", "gate", "bundle export", "bundle preflight", "check"]) {
+      assert.ok(commands.some((command) => command.includes(`jury.mjs ${requiredCommand}`)), `fixture should run ${requiredCommand}`);
+    }
+
+    for (const command of commands) {
+      const result = await runShell(command, checkout);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    const verdict = JSON.parse(await readFile(join(checkout, "verdict.retry.json"), "utf8"));
+    const gate = JSON.parse(await readFile(join(checkout, "gate.retry.json"), "utf8"));
+    const bundle = JSON.parse(await readFile(join(checkout, "review-bundle.retry.json"), "utf8"));
+
+    assert.equal(verdict.decision, "retry");
+    assert.deepEqual(verdict.evidence_ids, ["ev_jury_tests"]);
+    assert.deepEqual(verdict.objection_ids, ["obj_claim_checkout_ready_scope_out_of_scope_changes"]);
+    assert.ok(verdict.next_actions.some((action) => action.includes("docs/checkout-notes.md")));
+    assert.equal(gate.ok, false);
+    assert.equal(gate.decision, "retry");
+    assert.deepEqual(gate.unresolved_objections.map((item) => item.id), ["obj_claim_checkout_ready_scope_out_of_scope_changes"]);
+    assert.deepEqual(gate.next_actions, verdict.next_actions);
+    assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+    assert.equal(bundle.claim_id, "claim_checkout_ready");
+    assert.equal(bundle.provenance.revision, "code-change-adoption-fixture");
+    assert.equal(bundle.records.evidence[0].command, "npm --prefix jury test");
+    assert.equal(bundle.records.objections[0].raised_by, "critic:scope");
+    assert.equal(bundle.records.verdicts[0].decision, "retry");
+
+    for (const filename of ["verdict.retry.json", "gate.retry.json", "review-bundle.retry.json"]) {
+      const generated = JSON.parse(await readFile(join(checkout, filename), "utf8"));
+      const expected = JSON.parse(await readFile(join(checkout, "jury/examples/code-change-adoption", filename), "utf8"));
+
+      assert.deepEqual(generated, expected, `${filename} should match code-change adoption fixture`);
+    }
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
   }
 });
 
@@ -3827,6 +3879,10 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/jury-signed-artifact-handoff.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
+    "examples/code-change-adoption/README.md",
+    "examples/code-change-adoption/verdict.retry.json",
+    "examples/code-change-adoption/gate.retry.json",
+    "examples/code-change-adoption/review-bundle.retry.json",
     "MIGRATION.md",
     "TROUBLESHOOTING.md",
     "MAINTAINER_HANDOFF.md",
@@ -4011,6 +4067,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/jury-package-manifest-check.yml",
     "examples/ci/jury-npm-publish.yml",
     "examples/ci/fixtures/quickstart",
+    "examples/code-change-adoption",
     "examples/ci/fixtures/key-policy",
     "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/package-release",
@@ -4077,6 +4134,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /downloads the signed producer artifact/);
   assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
   assert.match(handoff, /package publication notes/);
+  assert.match(handoff, /code-change adoption fixture/);
+  assert.match(handoff, /portable `review-bundle\.retry\.json` carrying actionable scope-critic next actions/);
   assert.match(handoff, /dry-run release publication checklist guidance/);
   assert.match(handoff, /dry-run publication artifact handoff/);
   assert.match(handoff, /dry-run artifact retention expectations/);

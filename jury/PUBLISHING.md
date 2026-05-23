@@ -34,6 +34,7 @@ The package must include these files before the package becomes publishable:
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml)
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml)
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml)
+- [examples/code-change-adoption](examples/code-change-adoption)
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy)
 - [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release)
 
@@ -48,7 +49,7 @@ npm --prefix jury run package:manifest:check
 npm --prefix jury run fixtures:package-release:check
 ```
 
-The manifest check runs `npm pack --dry-run --json` from the package root, equivalent to `cd jury && npm pack --dry-run --json`, and fails if the tarball would omit `release.json`, the CI adoption guide, any `release.json.ciAdoption.workflows[].path` file, or any required package file above.
+The manifest check runs `npm pack --dry-run --json` from the package root, equivalent to `cd jury && npm pack --dry-run --json`, and fails if the tarball would omit `release.json`, the CI adoption guide, any `release.json.ciAdoption.workflows[].path` file, the code-change adoption fixture, or any required package file above.
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI reports a package manifest failure during release packaging.
 

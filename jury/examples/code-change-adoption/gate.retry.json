@@ -1,0 +1,16 @@
+{
+  "ok": false,
+  "decision": "retry",
+  "reason": "Blocking objections must be resolved before acceptance.",
+  "missing_fields": [],
+  "unresolved_objections": [
+    {
+      "id": "obj_claim_checkout_ready_scope_out_of_scope_changes",
+      "severity": "high",
+      "summary": "Changed files fall outside claim scope: docs/checkout-notes.md."
+    }
+  ],
+  "next_actions": [
+    "Resolve obj_claim_checkout_ready_scope_out_of_scope_changes: Changed files fall outside claim scope: docs/checkout-notes.md."
+  ]
+}

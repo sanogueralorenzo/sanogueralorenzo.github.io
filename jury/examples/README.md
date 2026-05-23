@@ -2,6 +2,10 @@
 
 These examples show how Jury can judge standalone agent claims.
 
+## Runnable Adoption Fixture
+
+[code-change-adoption](code-change-adoption) is the end-to-end local fixture for a code-change review. It runs `init`, `claim create`, `evidence add`, `critic run`, `judge`, `gate`, and `bundle export`, then preserves the retry verdict, failing gate output, and portable review bundle as checked-in artifacts.
+
 ## Code Change Gate
 
 Claim: "The checkout fix is ready to merge."
