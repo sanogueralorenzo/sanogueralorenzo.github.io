@@ -107,7 +107,15 @@ function validateTestGraph(graph) {
 function defaultGraphNodeData(kind, data) {
   const normalizedData = isPlainObject(data) ? data : {};
   if (kind === "Context") {
-    return { trust: { zone: "unknown", source: "synthetic" }, ...normalizedData };
+    return {
+      source: "repo",
+      args: {},
+      argKinds: {},
+      argSpans: {},
+      expression: "repo()",
+      trust: { zone: "unknown", source: "synthetic" },
+      ...normalizedData,
+    };
   }
   if (kind === "Effect") {
     return {
@@ -1660,6 +1668,33 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].args_is_object, false);
     assert.equal(diagnostics[2].arg_kinds_is_object, false);
     assert.equal(diagnostics[2].approval_required_is_boolean, false);
+  });
+
+  it("validates graph context source diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "context:missing", kind: "Context", label: "missing context", span: testSpan(1), data: { source: null } },
+        { id: "context:bad-spans", kind: "Context", label: "bad spans", span: testSpan(2), data: { argSpans: { path: "line 1" } } },
+        { id: "context:bad-shape", kind: "Context", label: "bad shape", span: testSpan(3), data: { source: "   ", expression: "", args: null, argKinds: null } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_CONTEXT_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_CONTEXT_INVALID");
+    assert.equal(diagnostics[0].context_id, "context:missing");
+    assert.equal(diagnostics[0].source_is_nonempty, false);
+    assert.equal(diagnostics[0].expression_is_nonempty, true);
+    assert.equal(diagnostics[0].arg_spans_are_valid, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_CONTEXT_INVALID");
+    assert.equal(diagnostics[1].arg_spans_is_object, true);
+    assert.equal(diagnostics[1].arg_spans_are_valid, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_CONTEXT_INVALID");
+    assert.equal(diagnostics[2].source_is_nonempty, false);
+    assert.equal(diagnostics[2].expression_is_nonempty, false);
+    assert.equal(diagnostics[2].args_is_object, false);
+    assert.equal(diagnostics[2].arg_kinds_is_object, false);
   });
 
   it("validates graph step input binding diagnostics", () => {

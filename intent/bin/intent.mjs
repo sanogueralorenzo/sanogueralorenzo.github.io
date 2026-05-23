@@ -1354,6 +1354,10 @@ function validateGraph(graph, options = {}) {
     if (effectDiagnostic) {
       diagnostics.push(effectDiagnostic);
     }
+    const contextDiagnostic = validateGraphContext(graphNode, graphSpan);
+    if (contextDiagnostic) {
+      diagnostics.push(contextDiagnostic);
+    }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
       diagnostics.push(trustDiagnostic);
@@ -1847,6 +1851,33 @@ function validateGraphEffect(graphNode, graphSpan) {
     arg_spans_is_object: argSpansIsObject,
     arg_spans_are_valid: argSpansAreValid,
     approval_required_is_boolean: approvalRequiredIsBoolean,
+  });
+}
+
+function validateGraphContext(graphNode, graphSpan) {
+  if (graphNode.kind !== "Context") {
+    return null;
+  }
+  const sourceIsNonempty = typeof graphNode.data.source === "string" && graphNode.data.source.trim() !== "";
+  const expressionIsNonempty = typeof graphNode.data.expression === "string" && graphNode.data.expression.trim() !== "";
+  const argsIsObject = isPlainObject(graphNode.data.args);
+  const argKindsIsObject = isPlainObject(graphNode.data.argKinds);
+  const argSpansIsObject = isPlainObject(graphNode.data.argSpans);
+  const argSpansAreValid = argSpansIsObject && Object.values(graphNode.data.argSpans).every(isSpan);
+  if (sourceIsNonempty && expressionIsNonempty && argsIsObject && argKindsIsObject && argSpansAreValid) {
+    return null;
+  }
+  return error("INTENT_GRAPH_CONTEXT_INVALID", `context '${graphNode.label}' must carry valid runtime source data.`, graphNode.span ?? graphSpan, {
+    context: graphNode.label,
+    context_id: graphNode.id,
+    source: typeof graphNode.data.source === "string" ? graphNode.data.source : null,
+    expression: typeof graphNode.data.expression === "string" ? graphNode.data.expression : null,
+    source_is_nonempty: sourceIsNonempty,
+    expression_is_nonempty: expressionIsNonempty,
+    args_is_object: argsIsObject,
+    arg_kinds_is_object: argKindsIsObject,
+    arg_spans_is_object: argSpansIsObject,
+    arg_spans_are_valid: argSpansAreValid,
   });
 }
 
