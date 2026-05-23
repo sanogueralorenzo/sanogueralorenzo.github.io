@@ -1751,18 +1751,28 @@ async function auditMemoryFiles(root) {
 
   for (const file of files) {
     const content = await readFile(file, "utf8");
+    const relative = relativePath(root, file);
+    const schema = content.match(/^Schema: `([^`]+)`/m)?.[1];
     const sha = content.match(/^Commit: `([^`]+)`/m)?.[1];
+    if (schema !== MEMORY_VERSION) {
+      invalidMemories.push({ file: relative, reason: `unsupported schema ${schema ?? "none"}` });
+    }
     if (!sha) {
-      invalidMemories.push({ file: relativePath(root, file), reason: "missing Commit field" });
+      invalidMemories.push({ file: relative, reason: "missing Commit field" });
       continue;
     }
 
     const expected = memoryPathFor(root, sha);
     if (file !== expected) {
       invalidMemories.push({
-        file: relativePath(root, file),
+        file: relative,
         reason: `expected ${relativePath(root, expected)}`,
       });
+    }
+    for (const sectionName of ["Intent", "Summary", "Decisions", "Files", "Validation", "Risks"]) {
+      if (section(content, sectionName) == null) {
+        invalidMemories.push({ file: relative, reason: `missing ${sectionName} section` });
+      }
     }
   }
 

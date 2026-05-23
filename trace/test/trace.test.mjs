@@ -238,6 +238,33 @@ test("check fails on uncommitted Trace memories and passes after committing them
   }
 });
 
+test("check rejects malformed committed memory files", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "malformed.txt"), "malformed\n");
+    await git(repo, ["add", "malformed.txt"]);
+    await git(repo, ["commit", "-m", "Add malformed memory target"]);
+    await runTrace(repo, ["init"]);
+
+    const sha = (await git(repo, ["rev-parse", "HEAD"])).stdout.trim();
+    const memoryDir = join(repo, ".trace/commits", sha.slice(0, 2));
+    await mkdir(memoryDir, { recursive: true });
+    await writeFile(join(memoryDir, `${sha}.md`), `# malformed\n\nSchema: \`trace.memory.v0\`\nCommit: \`${sha}\`\n\n## Intent\n\nbad\n`);
+
+    const checked = await runTraceAllowFailure(repo, ["check"]);
+    assert.equal(checked.exitCode, 1);
+    const payload = JSON.parse(checked.stdout);
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === "unsupported schema trace.memory.v0"));
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Summary section"));
+    assert.ok(payload.invalidMemories.some((entry) => entry.reason === "missing Risks section"));
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("doctor reports hook and local memory health without mutating caches", async () => {
   const repo = await tempRepo();
 
