@@ -517,6 +517,7 @@ function checkIntent(ast) {
     validateGoalTypes(goal, declaredTypes, diagnostics);
     validateStepBindings(goal, diagnostics);
     validateStepPolicies(goal, diagnostics);
+    validateStepCheckpoints(goal, diagnostics);
     validateVerifyRequirements(goal, diagnostics);
     validateApprovalRequirements(goal, diagnostics);
 
@@ -742,6 +743,19 @@ function isSupportedPolicyDuration(value) {
 
 function isSupportedRetryPolicy(value) {
   return /^max\s+[1-9][0-9]*$/.test(value.trim());
+}
+
+function validateStepCheckpoints(goal, diagnostics) {
+  for (const step of goal.steps) {
+    for (const checkpoint of step.checkpoints) {
+      if (!checkpoint.value.trim()) {
+        diagnostics.push(error("INTENT_CHECKPOINT_INVALID", `step '${step.name}' has an empty checkpoint label.`, checkpoint.span, {
+          step: step.name,
+          checkpoint: checkpoint.value,
+        }));
+      }
+    }
+  }
 }
 
 function validateVerifyRequirements(goal, diagnostics) {

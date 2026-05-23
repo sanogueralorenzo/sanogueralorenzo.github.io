@@ -1,0 +1,61 @@
+package fixtures.invalid_checkpoint_empty
+
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+type VerifiedPatch = {
+  patch: Patch
+}
+
+goal "reject empty checkpoint label" {
+  context repo("./")
+  context ticket("CODE-791")
+
+  capability file {
+    read path: "./src/**"
+    read path: "./test/**"
+    write path: "./src/**"
+    write path: "./test/**"
+  }
+
+  capability shell {
+    run command: "npm test"
+  }
+
+  memory session {
+    retain checkpoints until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_request -> Finding {
+      checkpoint "request inspected"
+    }
+    step patch_code(input: Finding) -> Patch {
+      require input.summary != ""
+      checkpoint ""
+      effect FileWrite(path: "./src/app.ts")
+      effect FileWrite(path: "./test/app.test.ts")
+      checkpoint "patch written"
+    }
+    step verify_patch(input: Patch) -> VerifiedPatch {
+      require input.files != []
+      effect ShellExec(command: "npm test")
+      checkpoint "verification complete"
+    }
+  }
+
+  verify {
+    require shell("npm test").exit_code == 0
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}
