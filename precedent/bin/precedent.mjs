@@ -2845,7 +2845,24 @@ async function readStoredTraces(tracesDir) {
 async function readReplayCount(replaysDir) {
   try {
     const entries = await readdir(replaysDir, { withFileTypes: true });
-    return entries.filter((entry) => entry.isDirectory()).length;
+    let count = 0;
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      try {
+        await access(join(replaysDir, entry.name, "replay.json"));
+        count += 1;
+      } catch (error) {
+        if (error.code !== "ENOENT") {
+          throw error;
+        }
+      }
+    }
+
+    return count;
   } catch (error) {
     if (error.code === "ENOENT") {
       return 0;
@@ -2985,16 +3002,36 @@ async function checkJsonLinesInDir(checks, dir, name) {
 }
 
 async function checkReplayArtifacts(checks, replaysDir) {
-  for (const file of await jsonFiles(replaysDir)) {
+  for (const file of await replayJsonFiles(replaysDir)) {
     try {
       const replay = parseJson(await readFile(file, "utf8"), file);
-      assertCheck(typeof replay.id === "string", checks, "replay", file, "replay.id is required");
-      assertCheck(typeof replay.baseline?.exitCode === "number", checks, "replay", file, "replay.baseline.exitCode is required");
-      assertCheck(typeof replay.rerun?.exitCode === "number", checks, "replay", file, "replay.rerun.exitCode is required");
-      checks.push({ ok: true, name: "replay", file });
+      validateReplayArtifact(replay, checks, file);
     } catch (error) {
       checks.push({ ok: false, name: "replay", file, message: error.message });
     }
+  }
+}
+
+function validateReplayArtifact(replay, checks, file) {
+  const before = checks.length;
+  assertCheck(typeof replay.id === "string", checks, "replay", file, "replay.id is required");
+  assertCheck(typeof replay.baseline?.exitCode === "number", checks, "replay", file, "replay.baseline.exitCode is required");
+  assertCheck(typeof replay.rerun?.exitCode === "number", checks, "replay", file, "replay.rerun.exitCode is required");
+  assertCheck(Number.isFinite(replay.promotion?.baseline_failures), checks, "replay", file, "replay.promotion.baseline_failures is required");
+  assertCheck(Number.isFinite(replay.promotion?.rerun_failures), checks, "replay", file, "replay.promotion.rerun_failures is required");
+
+  if (Number.isFinite(replay.promotion?.baseline_failures) && Number.isFinite(replay.promotion?.rerun_failures)) {
+    assertCheck(
+      replay.improved === (replay.promotion.baseline_failures > replay.promotion.rerun_failures),
+      checks,
+      "replay",
+      file,
+      "replay.improved must match promotion failure delta",
+    );
+  }
+
+  if (checks.length === before) {
+    checks.push({ ok: true, name: "replay", file });
   }
 }
 
@@ -3014,12 +3051,57 @@ async function checkPromotedPrecedents(checks, stateDir) {
     assertCheck(Array.isArray(precedent.evidence) && precedent.evidence.length > 0, checks, name, file, `precedent ${precedent.id} has no evidence`);
     assertCheck(Number.isFinite(precedent.promotion?.baseline_failures), checks, name, file, `precedent ${precedent.id} missing baseline_failures`);
     assertCheck(Number.isFinite(precedent.promotion?.rerun_failures), checks, name, file, `precedent ${precedent.id} missing rerun_failures`);
+    if (Number.isFinite(precedent.promotion?.baseline_failures) && Number.isFinite(precedent.promotion?.rerun_failures)) {
+      assertCheck(
+        precedent.promotion.baseline_failures > precedent.promotion.rerun_failures,
+        checks,
+        name,
+        file,
+        `precedent ${precedent.id} promotion must show baseline_failures greater than rerun_failures`,
+      );
+    }
+    await checkPrecedentReplayReceipt(precedent, checks, stateDir, file);
     checkPrecedentGuards(precedent, checks, file);
   }
 
   if (!checks.some((check) => check.name === "promoted_precedent" && !check.ok)) {
     checks.push({ ok: true, name: "promoted_precedent", file: join(stateDir, "precedents.jsonl") });
   }
+}
+
+async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {
+  if (!precedent.replay?.path) {
+    return;
+  }
+
+  const replayPath = resolve(precedent.replay.path);
+  if (!pathWithin(resolve(stateDir), replayPath)) {
+    checks.push({
+      ok: false,
+      name: "promoted_precedent_replay",
+      file,
+      message: `precedent ${precedent.id} replay.path must stay inside state dir`,
+    });
+    return;
+  }
+
+  try {
+    const replay = parseJson(await readFile(replayPath, "utf8"), replayPath);
+    assertCheck(replay.id === precedent.replay.id, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} replay id does not match receipt`);
+    assertCheck(replay.promotion?.baseline_failures === precedent.promotion?.baseline_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} baseline failure count does not match replay`);
+    assertCheck(replay.promotion?.rerun_failures === precedent.promotion?.rerun_failures, checks, "promoted_precedent_replay", file, `precedent ${precedent.id} rerun failure count does not match replay`);
+  } catch (error) {
+    checks.push({
+      ok: false,
+      name: "promoted_precedent_replay",
+      file,
+      message: `precedent ${precedent.id} replay receipt is invalid: ${error.message}`,
+    });
+  }
+}
+
+function pathWithin(parent, child) {
+  return child === parent || child.startsWith(`${parent}/`);
 }
 
 function checkPrecedentGuards(precedent, checks, file) {
@@ -3141,6 +3223,12 @@ async function jsonFiles(dir, suffix = ".json") {
 
     throw error;
   }
+}
+
+async function replayJsonFiles(replaysDir) {
+  return (await childDirs(replaysDir))
+    .map((dir) => join(dir, "replay.json"))
+    .sort();
 }
 
 async function allFiles(dir) {
