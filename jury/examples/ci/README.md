@@ -2,7 +2,7 @@
 
 Jury can run as a local, dependency-free CI gate. The state directory is disposable, while the emitted `verdict.json` can be uploaded as a build artifact.
 
-Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) when a second job should download and verify the signed artifact. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer.
+Use [../../CI_ADOPTION.md](../../CI_ADOPTION.md) to choose the right workflow. Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) when a second job should download and verify the signed artifact. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer.
 
 ```yaml
 name: Jury review gate

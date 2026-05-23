@@ -5,6 +5,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 ## Adoption Artifacts
 
 - [QUICKSTART.md](QUICKSTART.md): local clean-checkout command sequence.
+- [CI_ADOPTION.md](CI_ADOPTION.md): concise workflow chooser for unsigned, signed, artifact handoff, and reusable downstream CI paths.
 - [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml): copyable GitHub Actions workflow.
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml): producing-job workflow that signs a live bundle with an external CI private key secret.
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml): two-job workflow that downloads the signed producer artifact and verifies it with the key policy.
@@ -25,7 +26,7 @@ npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 ```
 
-The test suite covers the quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -45,4 +46,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a concise end-to-end CI adoption guide that chooses between unsigned, signed, artifact handoff, and reusable downstream workflows.
+Add release metadata for CI adoption guide paths and workflow variants.

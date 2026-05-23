@@ -409,6 +409,7 @@ test("trusted bundle workflow verifies and imports the signed key-policy fixture
 test("CI example README points to the copyable workflow and portable artifacts", { skip: skipNestedCiAdoptionTests }, async () => {
   const readme = await readFile(join(repoRoot, "jury/examples/ci/README.md"), "utf8");
 
+  assert.ok(readme.includes("../../CI_ADOPTION.md"));
   assert.ok(readme.includes("jury-review-gate.yml"));
   assert.ok(readme.includes("jury-signed-review-gate.yml"));
   assert.ok(readme.includes("jury-signed-artifact-handoff.yml"));
@@ -423,6 +424,45 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("jury.key_policy.v1"));
   assert.ok(readme.includes("actions/upload-artifact@v4"));
   assert.ok(readme.includes("uses: ./.github/workflows/jury-trusted-bundle-verify.yml"));
+});
+
+test("CI adoption guide chooses the supported workflow paths", async () => {
+  const guidePath = join(repoRoot, "jury/CI_ADOPTION.md");
+  const guide = await readFile(guidePath, "utf8");
+  const readme = await readFile(join(repoRoot, "jury/README.md"), "utf8");
+  const ciReadme = await readFile(join(repoRoot, "jury/examples/ci/README.md"), "utf8");
+  const linkedTargets = [...guide.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map((match) => match[1]);
+
+  for (const requiredLink of [
+    "examples/ci/jury-review-gate.yml",
+    "examples/ci/jury-signed-review-gate.yml",
+    "examples/ci/jury-signed-artifact-handoff.yml",
+    "examples/ci/jury-trusted-bundle-verify.yml",
+    "examples/ci/fixtures/key-policy",
+    "examples/ci/fixtures/key-policy-rotation",
+    "QUICKSTART.md",
+  ]) {
+    assert.ok(linkedTargets.includes(requiredLink), `CI_ADOPTION.md should link ${requiredLink}`);
+  }
+
+  for (const target of linkedTargets) {
+    await stat(join(dirname(guidePath), target));
+  }
+
+  for (const choice of [
+    "Single-job verdict and portable review state",
+    "Single producer job with signed output",
+    "Producer and consumer jobs in one workflow",
+    "Reusable downstream verifier",
+    "actions/download-artifact@v4",
+    "secrets.JURY_CI_PRIVATE_KEY",
+    "npm --prefix jury run fixtures:key-policy:check",
+  ]) {
+    assert.ok(guide.includes(choice), `CI_ADOPTION.md should mention ${choice}`);
+  }
+
+  assert.ok(readme.includes("CI_ADOPTION.md"));
+  assert.ok(ciReadme.includes("../../CI_ADOPTION.md"));
 });
 
 test("key policy CI fixtures verify and import a signed review bundle", async () => {
@@ -1615,6 +1655,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
 
   for (const requiredLink of [
     "QUICKSTART.md",
+    "CI_ADOPTION.md",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
@@ -1676,6 +1717,7 @@ test("maintainer handoff references current adoption artifacts and validation co
 
   for (const requiredLink of [
     "QUICKSTART.md",
+    "CI_ADOPTION.md",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
@@ -1705,6 +1747,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   }
 
   assert.match(handoff, /validates imported bundles before local state is created or mutated/);
+  assert.match(handoff, /workflow chooser for unsigned, signed, artifact handoff, and reusable downstream CI paths/);
   assert.match(handoff, /before local state is created or mutated/);
   assert.match(handoff, /producer metadata, provenance, record, cross-reference, and trust policy errors/);
   assert.match(handoff, /expected producer name, producer version, source, and revision pattern/);
@@ -1724,7 +1767,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
   assert.match(handoff, /downloads the signed producer artifact/);
-  assert.match(handoff, /end-to-end CI adoption guide/);
+  assert.match(handoff, /release metadata for CI adoption guide paths/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

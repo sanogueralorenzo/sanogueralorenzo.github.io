@@ -18,6 +18,7 @@ The long-term target is a shared review protocol that can sit behind code change
 - [ROADMAP.md](ROADMAP.md): the path from concept note to a runnable local CLI.
 - [CLI.md](CLI.md): concise local command reference and diagnostics.
 - [QUICKSTART.md](QUICKSTART.md): clean-checkout commands for producing a verdict and review bundle.
+- [CI_ADOPTION.md](CI_ADOPTION.md): choosing unsigned, signed, artifact handoff, or reusable downstream CI workflows.
 - [MIGRATION.md](MIGRATION.md): moving local Jury state into shared CI artifacts.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): v1 adoption checklist tying quickstart, CI, fixtures, and migration together.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): CI failure modes and artifact inspection examples.
