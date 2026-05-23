@@ -107,6 +107,7 @@
   },
   "packagePublication": {
     "notes": "PUBLISHING.md",
+    "manifestCheckCommand": "npm --prefix jury run package:manifest:check",
     "packDryRunCommand": "cd jury && npm pack --dry-run --json",
     "requiredFiles": [
       "package.json",
@@ -116,6 +117,7 @@
       "MIGRATION.md",
       "README.md",
       "bin/jury.mjs",
+      "scripts/check-package-manifest.mjs",
       "schemas",
       "examples/ci/jury-review-gate.yml",
       "examples/ci/jury-signed-review-gate.yml",

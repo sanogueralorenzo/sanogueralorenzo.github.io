@@ -896,6 +896,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.equal(release.name, packageJson.name);
   assert.equal(release.version, packageJson.version);
   assert.equal(packageJson.private, true);
+  assert.equal(packageJson.scripts["package:manifest:check"], "node scripts/check-package-manifest.mjs");
   assert.equal(release.cli.entrypoint, "bin/jury.mjs");
   assert.deepEqual(release.state.files, [
     "claims.jsonl",
@@ -963,6 +964,7 @@ test("release metadata references existing schemas, exports, and commands", asyn
   const publicationNotes = await readFile(publicationNotesPath, "utf8");
   assert.ok(publicationNotes.includes("private: true"));
   assert.ok(publicationNotes.includes("ciAdoption"));
+  assert.ok(publicationNotes.includes(release.packagePublication.manifestCheckCommand));
   assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
 
   for (const relativePath of release.packagePublication.requiredFiles) {
@@ -973,6 +975,15 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(release.packagePublication.requiredFiles.includes(release.ciAdoption.guide));
   for (const workflow of release.ciAdoption.workflows) {
     assert.ok(release.packagePublication.requiredFiles.includes(workflow.path), `package publication should require ${workflow.path}`);
+  }
+
+  const manifestCheck = await runShell("node jury/scripts/check-package-manifest.mjs");
+  assert.equal(manifestCheck.exitCode, 0, manifestCheck.stderr);
+  const manifestPayload = JSON.parse(manifestCheck.stdout);
+  assert.equal(manifestPayload.ok, true);
+  assert.deepEqual(manifestPayload.missing, []);
+  for (const relativePath of release.packagePublication.requiredFiles) {
+    assert.ok(manifestPayload.checked_paths.includes(relativePath), `manifest check should cover ${relativePath}`);
   }
 
   for (const commandName of ["judge", "gate", "bundle export", "bundle preflight", "bundle import", "check", "demo code-change"]) {
@@ -1759,6 +1770,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
 
   assert.ok(checklist.includes("ciAdoption"));
   assert.ok(checklist.includes("package publication"));
+  assert.ok(checklist.includes("package:manifest:check"));
   for (const workflow of release.ciAdoption.workflows) {
     assert.ok(linkedTargets.includes(workflow.path), `RELEASE_CHECKLIST.md should link ${workflow.path}`);
   }
@@ -1813,6 +1825,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.deepEqual(commands, [
     "npm --prefix jury test",
     "npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json",
+    "npm --prefix jury run package:manifest:check",
   ]);
 
   for (const artifact of ["verdict.json", "gate.json", "review-bundle.json"]) {
@@ -1844,7 +1857,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package publication notes/);
   assert.match(handoff, /CI adoption metadata contract/);
   assert.match(handoff, /release metadata/);
-  assert.match(handoff, /tarball manifest check for the CI adoption metadata contract/);
+  assert.match(handoff, /package tarball manifest checks/);
+  assert.match(handoff, /release packaging failure examples for omitted CI adoption metadata files/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

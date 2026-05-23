@@ -25,6 +25,7 @@ The package must include these files before the package becomes publishable:
 - [MIGRATION.md](MIGRATION.md)
 - [README.md](README.md)
 - [bin/jury.mjs](bin/jury.mjs)
+- [scripts/check-package-manifest.mjs](scripts/check-package-manifest.mjs)
 - [schemas](schemas)
 - [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml)
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml)
@@ -39,7 +40,7 @@ Run these commands before removing `private: true` or publishing a package tarba
 ```shell
 npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-package-publication --json
-cd jury && npm pack --dry-run --json
+npm --prefix jury run package:manifest:check
 ```
 
-Review the dry-run file list and confirm every `release.json.ciAdoption.workflows[].path` file and every required package file above is present.
+The manifest check runs `npm pack --dry-run --json` from the package root, equivalent to `cd jury && npm pack --dry-run --json`, and fails if the tarball would omit `release.json`, the CI adoption guide, any `release.json.ciAdoption.workflows[].path` file, or any required package file above.

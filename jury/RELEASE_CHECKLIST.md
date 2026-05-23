@@ -59,6 +59,7 @@ Expected fixture files:
 ```shell
 npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-release-readiness --json
+npm --prefix jury run package:manifest:check
 ```
 
-The release is ready when the quickstart, workflow, fixture sync tests, migration path, and strict check all pass against the same artifact contract.
+The release is ready when the quickstart, workflow, fixture sync tests, migration path, tarball manifest check, and strict check all pass against the same artifact contract.
