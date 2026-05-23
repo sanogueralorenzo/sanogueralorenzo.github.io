@@ -118,6 +118,14 @@ For a failed publication, retain `jury-package-dry-run`, `jury-package-release-e
 
 Each retained audit must also record artifact provenance: `github-actions` as the source, `jury-npm-publish.yml` as the workflow, the source revision, the run id, the source jobs that produced `jury-package-dry-run` and `jury-package-release-evidence`, the `retentionDays: 90` value from the workflow, and the file list uploaded by each artifact. Before closing a failed or replacement release, compare the promoted files with that provenance so retained evidence cannot silently mix artifacts from another workflow run or revision.
 
+Export the retained release archive manifest before closing the failed release record:
+
+```shell
+npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --manifest-out retained-package-release-evidence-manifest.json
+```
+
+The exported `jury.package_release_archive_manifest.v1` manifest combines the failed publication identity, replacement patch identity, retention requirements, and artifact provenance into one file that can travel with the release record or incident archive.
+
 Keep the promoted evidence until at least 180 days after replacement downstream verification passes. Do not delete the failed-version evidence when the replacement publishes; the replacement audit depends on the failed `packageVersion`, failed `tarballName`, deprecation evidence, downstream failure gate, source revision, and workflow run id to prove supersedence.
 
 ## npm Credentials and Provenance

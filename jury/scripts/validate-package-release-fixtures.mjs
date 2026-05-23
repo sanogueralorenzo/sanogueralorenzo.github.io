@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,9 +26,14 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
+if (args.manifestOut) {
+  await writeFile(args.manifestOut, `${JSON.stringify(buildArchiveManifest(), null, 2)}\n`);
+}
+
 process.stdout.write(`${JSON.stringify({
   ok: true,
   schema: "schemas/package-release-evidence.schema.json",
+  manifestOut: args.manifestOut ?? null,
   fixtures: [
     "rollback-audit.json",
     "replacement-patch-audit.json",
@@ -44,7 +49,7 @@ async function readJson(path) {
 }
 
 function parseArgs(argv) {
-  const parsed = { fixtureDir: null };
+  const parsed = { fixtureDir: null, manifestOut: null };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -54,6 +59,15 @@ function parseArgs(argv) {
         fail("missing value for --fixture-dir");
       }
       parsed.fixtureDir = value;
+      index += 1;
+      continue;
+    }
+    if (arg === "--manifest-out") {
+      const value = argv[index + 1];
+      if (!value) {
+        fail("missing value for --manifest-out");
+      }
+      parsed.manifestOut = value;
       index += 1;
       continue;
     }
@@ -338,6 +352,54 @@ function retentionProvenanceErrors(audit, label) {
   }
 
   return errors;
+}
+
+function buildArchiveManifest() {
+  const retentionArtifacts = [...new Set([
+    ...rollback.retention.artifacts,
+    ...replacement.retention.artifacts,
+  ])];
+  const provenanceArtifacts = new Map();
+  for (const artifact of [
+    ...rollback.retention.provenance.artifacts,
+    ...replacement.retention.provenance.artifacts,
+  ]) {
+    provenanceArtifacts.set(artifact.name, artifact);
+  }
+
+  return {
+    schema_version: "jury.package_release_archive_manifest.v1",
+    package: rollback.package,
+    failed: {
+      packageVersion: failedRecord.packageVersion,
+      tarballName: failedRecord.tarballName,
+      dryRunRecord: rollback.failed.dryRunRecord,
+      npmView: rollback.failed.npmView,
+      downstreamGate: rollback.failed.downstreamGate,
+      rollbackAudit: "rollback-audit.json",
+      deprecation: rollback.deprecation,
+    },
+    replacement: {
+      packageVersion: replacement.replacement.packageVersion,
+      npmView: replacement.replacement.npmView,
+      distTarball: replacement.replacement.distTarball,
+      downstreamGate: replacement.replacement.downstreamGate,
+      replacementAudit: "replacement-patch-audit.json",
+    },
+    retention: {
+      policy: rollback.retention.policy,
+      storage: rollback.retention.storage,
+      retainUntil: rollback.retention.retainUntil,
+      artifacts: retentionArtifacts,
+    },
+    provenance: {
+      source: rollback.retention.provenance.source,
+      workflow: rollback.retention.provenance.workflow,
+      runId: rollback.retention.provenance.runId,
+      sourceRevision: rollback.retention.provenance.sourceRevision,
+      artifacts: [...provenanceArtifacts.values()],
+    },
+  };
 }
 
 function fail(message) {
