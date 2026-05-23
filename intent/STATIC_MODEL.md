@@ -382,12 +382,18 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
-- Runtime Goal node metadata is the next Phase 2 static-model milestone.
-  `Goal` node data must carry `title` as `null` or a non-empty string,
-  `parameters` as an array of valid parameter records with non-empty `name` and
-  `type` strings and valid spans, `outputType` as `null` or a non-empty string,
-  and `outputTypeSpan` as `null` or a valid span. Malformed Goal node payloads
-  emit `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
+- Runtime Type node metadata is the next Phase 2 static-model milestone.
+  `Type` node data must carry `definition` as `null` or a non-empty string
+  representing the declared structural or alias body. Malformed Type node
+  payloads emit `INTENT_GRAPH_TYPE_INVALID` and make graph output
+  non-executable because runtimes must not infer structural or alias type
+  bodies.
+- Runtime Goal node metadata is part of graph validation. `Goal` node data must
+  carry `title` as `null` or a non-empty string, `parameters` as an array of
+  valid parameter records with non-empty `name` and `type` strings and valid
+  spans, `outputType` as `null` or a non-empty string, and `outputTypeSpan` as
+  `null` or a valid span. Malformed Goal node payloads emit
+  `INTENT_GRAPH_GOAL_INVALID` and make graph output non-executable because
   runtimes must not infer goal titles, inputs, output types, or provenance.
 - Runtime Step node metadata is part of graph validation. `Step` node data must
   carry arrays for `inputs`, `effects`, `requirements`,
@@ -1292,6 +1298,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
 - `INTENT_GRAPH_POLICY_INVALID`
+- `INTENT_GRAPH_TYPE_INVALID`
 - `INTENT_GRAPH_GOAL_INVALID`
 - `INTENT_GRAPH_STEP_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
@@ -1691,9 +1698,9 @@ node id. It is an intermediate contract for a local runtime.
 }
 ```
 
-Required node kinds are `Goal`, `Input`, `Context`, `Capability`, `Memory`,
-`Step`, `Effect`, `Check`, `Invariant`, `Approval`, `Checkpoint`, `Policy`, and
-`Completion`.
+Required node kinds are `Goal`, `Type`, `Input`, `Context`, `Capability`,
+`Memory`, `Step`, `Effect`, `Check`, `Invariant`, `Approval`, `Checkpoint`,
+`Policy`, and `Completion`.
 Graph validation emits `INTENT_GRAPH_NODE_KIND_INVALID` when a graph node kind
 is not one of those runtime-supported Intent graph node kinds.
 
@@ -1745,6 +1752,9 @@ not from a `Capability`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
+Graph validation emits `INTENT_GRAPH_TYPE_INVALID` when a `Type` node omits
+`definition` data, or when `definition` is neither `null` nor a non-empty
+string representing the declared structural or alias body.
 Graph validation emits `INTENT_GRAPH_GOAL_INVALID` when a `Goal` node omits
 `title`, `parameters`, `outputType`, or `outputTypeSpan` data, when `title` is
 neither `null` nor a non-empty string, when any goal parameter is not a valid
@@ -1775,6 +1785,7 @@ validators must reject any graph with a missing or unsupported
 schema-level structural strings are empty, whose runtime structural strings are
 blank after trimming, whose node or edge kind is outside the supported sets
 above, whose edge endpoint does not resolve inside the same payload, whose
+`Type` nodes omit valid runtime Type node data, whose
 `Goal` nodes omit valid runtime Goal node data, whose
 `Step` nodes omit valid runtime Step node data, whose
 `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
@@ -1841,6 +1852,12 @@ Capability nodes are also runtime policy inputs. Graph validation requires
 emits `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable
 because runtime authorization and approval enforcement must not infer missing
 policy.
+
+Type nodes carry the runtime graph contract for declared types. Their data must
+include `definition` as `null` or a non-empty string representing the declared
+structural or alias body. Malformed Type node payloads emit
+`INTENT_GRAPH_TYPE_INVALID` and make graph output non-executable because
+runtimes must not infer structural or alias type bodies.
 
 Goal nodes carry the runtime graph contract for requested work. Their data must
 include `title`, `parameters`, `outputType`, and `outputTypeSpan`. `title` may
