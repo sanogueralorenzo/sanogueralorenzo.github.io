@@ -15,6 +15,7 @@ const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
 const ciQuickstartFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/quickstart");
 const ciKeyPolicyFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy");
 const ciKeyPolicyRotationFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy-rotation");
+const ciPackageReleaseFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/package-release");
 const releasePath = join(repoRoot, "jury/release.json");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
 const skipNestedCiAdoptionTests = process.env.JURY_SKIP_CI_ADOPTION_NESTED === "1";
@@ -702,6 +703,57 @@ test("key policy rotation fixtures accept old and new keys during overlap", asyn
 
   const driftCheck = await runShell("npm --prefix jury run fixtures:key-policy:check");
   assert.equal(driftCheck.exitCode, 0, driftCheck.stderr);
+});
+
+test("package release evidence fixtures cover rollback and replacement audits", async () => {
+  const readFixture = (name) => readFile(join(ciPackageReleaseFixturesDir, name), "utf8").then(JSON.parse);
+  const readme = await readFile(join(ciPackageReleaseFixturesDir, "README.md"), "utf8");
+  const dryRunRecord = await readFixture("jury-pack-dry-run-record.json");
+  const failedNpmView = await readFixture("failed-npm-view.json");
+  const failedGate = await readFixture("downstream-failure-gate.json");
+  const rollbackAudit = await readFixture("rollback-audit.json");
+  const replacementNpmView = await readFixture("replacement-npm-view.json");
+  const replacementGate = await readFixture("replacement-downstream-gate.json");
+  const replacementAudit = await readFixture("replacement-patch-audit.json");
+  const publicationNotes = await readFile(join(repoRoot, "jury/PUBLISHING.md"), "utf8");
+  const replacementCommands = extractShellBlock(publicationNotes, "Replacement Patch Evidence");
+
+  assert.ok(readme.includes("rollback-audit.json"));
+  assert.ok(readme.includes("replacement-patch-audit.json"));
+  assert.ok(readme.includes("downstream verification passes"));
+  assert.equal(rollbackAudit.schema_version, "jury.package_release_evidence.v1");
+  assert.equal(rollbackAudit.audit_type, "failed-publication-rollback");
+  assert.equal(replacementAudit.schema_version, "jury.package_release_evidence.v1");
+  assert.equal(replacementAudit.audit_type, "replacement-patch-supersedence");
+  assert.equal(rollbackAudit.failed.packageVersion, dryRunRecord.packageVersion);
+  assert.equal(rollbackAudit.failed.tarballName, dryRunRecord.tarballName);
+  assert.equal(replacementAudit.failed.packageVersion, dryRunRecord.packageVersion);
+  assert.equal(replacementAudit.failed.tarballName, dryRunRecord.tarballName);
+  assert.equal(failedNpmView.version, dryRunRecord.packageVersion);
+  assert.ok(failedNpmView.dist.tarball.endsWith(dryRunRecord.tarballName));
+  assert.equal(failedGate.ok, false);
+  assert.equal(failedGate.decision, "reject");
+  assert.equal(rollbackAudit.deprecation.allowed, true);
+  assert.ok(rollbackAudit.deprecation.command.includes("@sanogueralorenzo/jury@0.1.0"));
+  assert.equal(rollbackAudit.requiredNextAudit, "replacement-patch-audit.json");
+  assert.notEqual(replacementAudit.replacement.packageVersion, dryRunRecord.packageVersion);
+  assert.equal(replacementNpmView.version, replacementAudit.replacement.packageVersion);
+  assert.equal(replacementNpmView.dist.tarball, replacementAudit.replacement.distTarball);
+  assert.ok(!replacementAudit.replacement.distTarball.endsWith(dryRunRecord.tarballName));
+  assert.equal(replacementGate.ok, true);
+  assert.equal(replacementGate.decision, "accept");
+  assert.ok(replacementAudit.checks.includes("replacement downstream verification passed"));
+  assert.ok(replacementCommands[1].startsWith("node -e "));
+  assert.ok(!replacementCommands[1].includes("npm view"));
+
+  const fixtureAudit = await runShell(replacementCommands[1], ciPackageReleaseFixturesDir);
+  assert.equal(fixtureAudit.exitCode, 0, fixtureAudit.stderr);
+  assert.deepEqual(JSON.parse(fixtureAudit.stdout), {
+    failedPackageVersion: "0.1.0",
+    failedTarballName: "sanogueralorenzo-jury-0.1.0.tgz",
+    replacementPackageVersion: "0.1.1",
+    replacementTarball: "https://registry.npmjs.org/@sanogueralorenzo/jury/-/sanogueralorenzo-jury-0.1.1.tgz",
+  });
 });
 
 test("troubleshooting failure examples stay executable", async () => {
@@ -2111,6 +2163,15 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json",
     "examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json",
     "examples/ci/fixtures/key-policy-rotation/README.md",
+    "examples/ci/fixtures/package-release",
+    "examples/ci/fixtures/package-release/README.md",
+    "examples/ci/fixtures/package-release/jury-pack-dry-run-record.json",
+    "examples/ci/fixtures/package-release/failed-npm-view.json",
+    "examples/ci/fixtures/package-release/downstream-failure-gate.json",
+    "examples/ci/fixtures/package-release/rollback-audit.json",
+    "examples/ci/fixtures/package-release/replacement-npm-view.json",
+    "examples/ci/fixtures/package-release/replacement-downstream-gate.json",
+    "examples/ci/fixtures/package-release/replacement-patch-audit.json",
   ]) {
     assert.ok(linkedTargets.includes(requiredLink), `RELEASE_CHECKLIST.md should link ${requiredLink}`);
   }
@@ -2140,6 +2201,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("replacement `dist.tarball`"));
   assert.ok(checklist.includes("replacement downstream verification pass"));
   assert.ok(checklist.includes("failed-version deprecation result"));
+  assert.ok(checklist.includes("package publication rollback evidence"));
   assert.ok(checklist.includes("packageVersion"));
   assert.ok(checklist.includes("tarballName"));
   assert.ok(checklist.includes("reviewedBy"));
@@ -2191,6 +2253,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/fixtures/quickstart",
     "examples/ci/fixtures/key-policy",
     "examples/ci/fixtures/key-policy-rotation",
+    "examples/ci/fixtures/package-release",
     "MIGRATION.md",
     "RELEASE_CHECKLIST.md",
     "PUBLISHING.md",
@@ -2232,6 +2295,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /CI migration overlap window/);
   assert.match(handoff, /revoked-old policy/);
   assert.match(handoff, /rejects stale old-key bundles after cutover/);
+  assert.match(handoff, /failed publication rollback and replacement patch supersedence audits/);
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
@@ -2244,6 +2308,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /post-publication package metadata comparison guidance/);
   assert.match(handoff, /downstream verification rollback notes/);
   assert.match(handoff, /replacement patch supersedence evidence/);
+  assert.match(handoff, /package release evidence fixture examples/);
   assert.match(handoff, /dry-run publication summary output/);
   assert.match(handoff, /dry-run package summary reviewer audit notes/);
   assert.match(handoff, /stale dry-run artifact troubleshooting/);
@@ -2254,7 +2319,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check and a downloaded dry-run publication record/);
-  assert.match(handoff, /package release evidence fixture examples for rollback and replacement patch audits/);
+  assert.match(handoff, /schema validation for package release evidence audit fixtures/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

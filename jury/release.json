@@ -127,7 +127,8 @@
       "examples/ci/jury-signed-review-gate.yml",
       "examples/ci/jury-signed-artifact-handoff.yml",
       "examples/ci/jury-trusted-bundle-verify.yml",
-      "examples/ci/fixtures/key-policy"
+      "examples/ci/fixtures/key-policy",
+      "examples/ci/fixtures/package-release"
     ]
   },
   "ciArtifacts": [

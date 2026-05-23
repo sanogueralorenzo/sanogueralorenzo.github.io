@@ -91,7 +91,7 @@ npm deprecate @sanogueralorenzo/jury@<packageVersion> "Downstream Jury verificat
 
 Do not rerun `npm publish` for the same `packageVersion`. Fix the downstream verification issue, bump the package version, rerun the full release checklist, and publish a new patch version.
 
-Before closing the incident, attach replacement patch evidence from [PUBLISHING.md](PUBLISHING.md). The evidence must include the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, downstream verification pass for the replacement, and the failed-version deprecation result when registry policy allows it.
+Before closing the incident, attach replacement patch evidence from [PUBLISHING.md](PUBLISHING.md). The evidence must include the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, downstream verification pass for the replacement, and the failed-version deprecation result when registry policy allows it. Use [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release) as the rollback and replacement patch audit example.
 
 ## Downloaded Artifact Trust Failure
 

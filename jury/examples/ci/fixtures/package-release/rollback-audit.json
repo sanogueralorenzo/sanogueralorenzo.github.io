@@ -1,0 +1,19 @@
+{
+  "schema_version": "jury.package_release_evidence.v1",
+  "audit_type": "failed-publication-rollback",
+  "package": "@sanogueralorenzo/jury",
+  "failed": {
+    "packageVersion": "0.1.0",
+    "tarballName": "sanogueralorenzo-jury-0.1.0.tgz",
+    "dryRunRecord": "jury-pack-dry-run-record.json",
+    "npmView": "failed-npm-view.json",
+    "downstreamGate": "downstream-failure-gate.json"
+  },
+  "deprecation": {
+    "attempted": true,
+    "allowed": true,
+    "command": "npm deprecate @sanogueralorenzo/jury@0.1.0 \"Downstream Jury verification failed; use a later patch release.\"",
+    "result": "failed version points consumers to a later patch release"
+  },
+  "requiredNextAudit": "replacement-patch-audit.json"
+}

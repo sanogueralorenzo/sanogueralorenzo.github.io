@@ -33,6 +33,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Compare generated outputs with [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart).
 - [ ] Verify signed bundle handoff with [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy).
 - [ ] Review [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation) before rotating producer signing keys.
+- [ ] Compare package publication rollback evidence with [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release).
 - [ ] `npm --prefix jury run fixtures:key-policy:check` passes before release.
 - [ ] Follow [MIGRATION.md](MIGRATION.md) when handing artifacts between jobs.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI emits `reject`, `retry`, `human_decision`, or a package manifest failure.
@@ -71,6 +72,14 @@ Expected fixture files:
 - [examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json](examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json)
 - [examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json](examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json)
 - [examples/ci/fixtures/key-policy-rotation/README.md](examples/ci/fixtures/key-policy-rotation/README.md)
+- [examples/ci/fixtures/package-release/README.md](examples/ci/fixtures/package-release/README.md)
+- [examples/ci/fixtures/package-release/jury-pack-dry-run-record.json](examples/ci/fixtures/package-release/jury-pack-dry-run-record.json)
+- [examples/ci/fixtures/package-release/failed-npm-view.json](examples/ci/fixtures/package-release/failed-npm-view.json)
+- [examples/ci/fixtures/package-release/downstream-failure-gate.json](examples/ci/fixtures/package-release/downstream-failure-gate.json)
+- [examples/ci/fixtures/package-release/rollback-audit.json](examples/ci/fixtures/package-release/rollback-audit.json)
+- [examples/ci/fixtures/package-release/replacement-npm-view.json](examples/ci/fixtures/package-release/replacement-npm-view.json)
+- [examples/ci/fixtures/package-release/replacement-downstream-gate.json](examples/ci/fixtures/package-release/replacement-downstream-gate.json)
+- [examples/ci/fixtures/package-release/replacement-patch-audit.json](examples/ci/fixtures/package-release/replacement-patch-audit.json)
 
 ## Validation
 

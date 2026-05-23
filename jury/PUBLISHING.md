@@ -34,6 +34,7 @@ The package must include these files before the package becomes publishable:
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml)
 - [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml)
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy)
+- [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release)
 
 ## Pre-Publication Check
 
@@ -104,6 +105,8 @@ node -e 'const fs=require("node:fs"); const failed=JSON.parse(fs.readFileSync("j
 ```
 
 Keep that output with the replacement downstream verification pass, the failed-version deprecation result when available, and the retained failed `jury-package-dry-run` artifact. The evidence bundle is complete only when it records the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, downstream verifier pass, and whether the failed version was deprecated.
+
+Use [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release) as a local audit reference. It contains `rollback-audit.json` for the failed immutable publication and `replacement-patch-audit.json` for the later patch that supersedes it.
 
 ## npm Credentials and Provenance
 
