@@ -22,10 +22,10 @@
       "const": "intent.ast.v0"
     },
     "source": {
-      "type": "string"
+      "$ref": "#/$defs/non_empty_string"
     },
     "package": {
-      "type": "string"
+      "$ref": "#/$defs/non_empty_string"
     },
     "ok": {
       "type": "boolean"
@@ -50,13 +50,17 @@
     }
   },
   "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
     "span": {
       "type": "object",
       "required": ["file", "start", "end"],
       "additionalProperties": false,
       "properties": {
         "file": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "start": {
           "$ref": "#/$defs/position"
@@ -255,13 +259,13 @@
       "required": ["id", "kind", "label", "span", "data"],
       "properties": {
         "id": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "kind": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "label": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"
@@ -883,12 +887,13 @@
       "additionalProperties": false,
       "properties": {
         "from": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "to": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "kind": {
+          "minLength": 1,
           "enum": [
             "authorizes",
             "approves",

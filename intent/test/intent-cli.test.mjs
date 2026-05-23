@@ -172,6 +172,9 @@ function validateAgainst(schema, value, root, path, errors) {
   if (typeof value === "number" && schema.minimum !== undefined && value < schema.minimum) {
     errors.push(`${path} must be >= ${schema.minimum}`);
   }
+  if (typeof value === "string" && schema.minLength !== undefined && value.length < schema.minLength) {
+    errors.push(`${path} length must be >= ${schema.minLength}`);
+  }
   if (schema.required && isPlainObject(value)) {
     for (const key of schema.required) {
       if (!(key in value)) {
@@ -1761,5 +1764,35 @@ describe("intent static model CLI", () => {
     assert.deepEqual(validateSchema(graphSchema, contextGraph), []);
     assert.deepEqual(validateSchema(graphSchema, secretGraph), []);
     assert.deepEqual(validateSchema(graphSchema, ticketGraph), []);
+  });
+
+  it("rejects empty structural graph strings in the schema", () => {
+    const graphSchema = readJson(GRAPH_SCHEMA);
+    const graph = {
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "",
+      package: "",
+      ok: true,
+      diagnostics: [],
+      nodes: [
+        { id: "", kind: "Type", label: "", span: testSpan(1), data: { definition: null } },
+      ],
+      edges: [
+        { from: "", to: "", kind: "declares" },
+      ],
+    };
+    const blankBaseNode = { id: "", kind: "", label: "", span: testSpan(2), data: {} };
+    const baseNodeErrors = [];
+    validateAgainst(graphSchema.$defs.base_node, blankBaseNode, graphSchema, "$defs.base_node", baseNodeErrors);
+    const errors = validateSchema(graphSchema, graph);
+
+    assert(errors.includes("$.source length must be >= 1"));
+    assert(errors.includes("$.package length must be >= 1"));
+    assert(errors.includes("$.edges[0].from length must be >= 1"));
+    assert(errors.includes("$.edges[0].to length must be >= 1"));
+    assert(baseNodeErrors.includes("$defs.base_node.id length must be >= 1"));
+    assert(baseNodeErrors.includes("$defs.base_node.kind length must be >= 1"));
+    assert(baseNodeErrors.includes("$defs.base_node.label length must be >= 1"));
   });
 });
