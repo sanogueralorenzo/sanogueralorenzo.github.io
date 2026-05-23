@@ -1,0 +1,22 @@
+{
+  "id": "2026-05-23-webhook-no-evidence",
+  "task": "add a webhook handler for provider delivery events",
+  "scope": "feature:webhooks",
+  "outcome": "claimed_repair",
+  "failures": [
+    "wrong test command"
+  ],
+  "precedent": {
+    "id": "prec_webhook_no_evidence",
+    "scope": "feature:webhooks",
+    "trigger": "task mentions webhook handler",
+    "lesson": "Webhook changes should follow the provider boundary.",
+    "artifact": "skill",
+    "evidence": [],
+    "injection": "For webhook changes in this repo: keep provider-specific logic inside the webhook provider boundary.",
+    "promotion": {
+      "baseline_failures": 1,
+      "rerun_failures": 0
+    }
+  }
+}

@@ -71,6 +71,7 @@ Each precedent is small, auditable, and tied to evidence:
   "trigger": "task mentions webhook payload handling",
   "lesson": "Webhook payload fields from external providers may be absent; preserve existing nullable parsing helpers.",
   "artifact": "skill",
+  "paths": ["features/webhooks", "webhooks/providers"],
   "source_trace": "runs/2026-05-23-add-webhook-handler.json",
   "evidence": ["review-comment: missed nullable field", "test: webhook payload fixture failed"],
   "injection": "Before editing webhook handlers, inspect existing nullable payload helpers and reuse them.",
@@ -92,6 +93,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent observe`: ingests an agent trace, PR diff, validation log, or review thread.
 - `precedent compile`: turns repeated failure modes into candidate artifacts.
 - `precedent inject`: returns the relevant precedent for the current task context.
+- `precedent hook`: reads a passive hook event and returns an insertable context block.
 - `precedent replay`: reruns a baseline agent task with and without injected precedent.
 - `precedent report`: prints before/after metrics.
 
@@ -109,6 +111,9 @@ This repository includes a small dependency-free prototype:
 node precedent/bin/precedent.mjs init
 node precedent/bin/precedent.mjs observe --trace precedent/examples/webhook-trace.json
 node precedent/bin/precedent.mjs inject --task "add another webhook handler" --scope feature:webhooks
+echo '{"hook":"context.before_turn","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"]}' | node precedent/bin/precedent.mjs hook
+node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
+node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
 node precedent/bin/precedent.mjs report
 ```
 
@@ -116,7 +121,31 @@ The prototype models the hook loop with local state in `.precedent/`:
 
 - `observe` is the passive hook ingesting an agent trace.
 - `inject` is the before-turn hook returning relevant precedent.
+- `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
+- `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
 - `report` shows the local precedent ledger.
+
+`observe` has a promotion gate: a candidate precedent is recorded as an event but is not injected later unless it has concrete evidence and measured replay improvement where `baseline_failures` is greater than `rerun_failures`.
+
+Example event hook response:
+
+```json
+{
+  "ok": true,
+  "hook": "context.before_turn",
+  "contextBlock": "Precedent:\n- For webhook changes in this repo: run pnpm test:webhooks, keep provider-specific logic inside the webhook provider boundary, and reuse existing nullable payload helpers.",
+  "injections": [
+    {
+      "id": "prec_webhook_provider_boundary",
+      "score": 16,
+      "scope": "feature:webhooks",
+      "artifact": "skill",
+      "injection": "For webhook changes in this repo: run pnpm test:webhooks, keep provider-specific logic inside the webhook provider boundary, and reuse existing nullable payload helpers.",
+      "sourceTrace": "2026-05-23-add-webhook-handler"
+    }
+  ]
+}
+```
 
 It is intentionally small. The next build step is wiring these commands to real agent traces and PR review events.
 

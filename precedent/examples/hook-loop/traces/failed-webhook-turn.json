@@ -1,8 +1,24 @@
 {
-  "id": "2026-05-23-add-webhook-handler",
+  "id": "2026-05-23-webhook-delivery-failed-turn",
   "task": "add a webhook handler for provider delivery events",
   "scope": "feature:webhooks",
   "outcome": "failed_then_repaired",
+  "hooks": {
+    "context.before_turn": {
+      "injections": []
+    },
+    "validation.after_run": {
+      "command": "pnpm test",
+      "result": "failed",
+      "evidence": "webhook payload fixture failed because provider field was absent"
+    },
+    "review.after_feedback": {
+      "comments": [
+        "Provider-specific logic leaked into the shared webhook handler.",
+        "Use pnpm test:webhooks for this feature slice."
+      ]
+    }
+  },
   "failures": [
     "wrong test command",
     "provider-specific logic added outside webhook provider boundary",
@@ -14,10 +30,6 @@
     "trigger": "task mentions webhook handler, webhook payload, or provider event",
     "lesson": "Webhook provider changes must use the provider boundary and nullable payload helpers.",
     "artifact": "skill",
-    "paths": [
-      "features/webhooks",
-      "webhooks/providers"
-    ],
     "evidence": [
       "review-comment: provider-specific logic leaked into shared handler",
       "test: nullable payload fixture failed",
