@@ -1,0 +1,39 @@
+package fixtures.invalid_duplicate_step_input
+
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+type VerifiedPatch = {
+  patch: Patch
+}
+
+goal inspect_duplicate_step_input(finding: Finding, patch: Patch) -> VerifiedPatch {
+  context repo("./")
+
+  capability file {
+    read path: "./src/**"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step verify_patch(input: Finding, input: Patch) -> VerifiedPatch
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

@@ -45,6 +45,8 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_step_policy_bad_timeout.intent`: declares a step timeout policy with unsupported duration `soon`, which should fail `INTENT_POLICY_INVALID` once policy validation is enforced.
 - `invalid_duplicate_type_name.intent`: declares the same top-level type name twice.
 - `invalid_duplicate_goal_name.intent`: declares the same top-level goal name twice.
+- `invalid_duplicate_goal_input.intent`: declares the same goal input name twice and should fail `INTENT_NAME_DUPLICATE` at the duplicate parameter span.
+- `invalid_duplicate_step_input.intent`: declares the same step input name twice and should fail `INTENT_NAME_DUPLICATE` at the duplicate parameter span.
 - `invalid_unsupported_goal_statement.intent`: declares an otherwise valid-looking goal with unsupported raw goal statement `delegate reviewer`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.
