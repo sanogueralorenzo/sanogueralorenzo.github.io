@@ -13,6 +13,8 @@ const MEMORY_VERSION = "trace.memory.v1";
 const CHECKPOINT_REF = "refs/trace/checkpoints";
 const HOOK_START = "# trace:start";
 const HOOK_END = "# trace:end";
+const AGENT_CONFIG_VERSION = "trace.agent.v1";
+const SUPPORTED_AGENTS = new Set(["codex", "claude-code", "generic"]);
 const command = process.argv[2] ?? "help";
 const subcommand = process.argv[3]?.startsWith("--") ? null : process.argv[3] ?? null;
 const rawArgs = process.argv.slice(subcommand ? 4 : 3);
@@ -53,6 +55,11 @@ async function main() {
 
   if (command === "capture") {
     await captureEvent();
+    return;
+  }
+
+  if (command === "agent") {
+    await runAgentCommand(subcommand, rawArgs);
     return;
   }
 
@@ -167,6 +174,7 @@ async function printStatus() {
   const prepareHook = await fileIncludes(join(await gitHooksDir(), "prepare-commit-msg"), HOOK_START);
   const postHook = await fileIncludes(join(await gitHooksDir(), "post-commit"), HOOK_START);
   const configExists = await exists(join(root, TRACE_DIR, "config.json"));
+  const agents = await listAgentConfigs(root);
   print({
     ok: true,
     repo: root,
@@ -175,6 +183,7 @@ async function printStatus() {
       prepareCommitMsg: prepareHook,
       postCommit: postHook,
     },
+    agents,
     rawStorage: join(common, "trace", "sessions"),
     checkpointRef: CHECKPOINT_REF,
   });
@@ -228,6 +237,107 @@ async function captureEvent() {
     source: args.source ?? "manual",
   });
   print({ ok: true, session: event.session_id, event: event.event });
+}
+
+async function runAgentCommand(action, values) {
+  if (action === "add" || action === "install") {
+    await addAgent(values[0] ?? args.name);
+    return;
+  }
+
+  if (action === "remove" || action === "rm") {
+    await removeAgent(values[0] ?? args.name);
+    return;
+  }
+
+  if (!action || action === "list" || action === "status") {
+    const root = await repoRoot();
+    print({ ok: true, agents: await listAgentConfigs(root) });
+    return;
+  }
+
+  fail(`unknown agent command: ${action}`);
+}
+
+async function addAgent(name) {
+  const agentName = normalizeAgentName(name);
+  const root = await repoRoot();
+  await ensureTrace(root);
+  const config = agentConfig(agentName);
+  const file = agentConfigPath(root, agentName);
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, `${JSON.stringify(config, null, 2)}\n`);
+  print({ ok: true, agent: agentName, config: relativePath(root, file), command: config.command });
+}
+
+async function removeAgent(name) {
+  const agentName = normalizeAgentName(name);
+  const root = await repoRoot();
+  const file = agentConfigPath(root, agentName);
+  await rm(file, { force: true });
+  print({ ok: true, agent: agentName, removed: relativePath(root, file) });
+}
+
+function normalizeAgentName(name) {
+  if (!name) {
+    fail(`agent name is required: ${Array.from(SUPPORTED_AGENTS).join(", ")}`);
+  }
+
+  if (!SUPPORTED_AGENTS.has(name)) {
+    fail(`unsupported agent ${name}: expected ${Array.from(SUPPORTED_AGENTS).join(", ")}`);
+  }
+
+  return name;
+}
+
+function agentConfig(name) {
+  return {
+    schema_version: AGENT_CONFIG_VERSION,
+    agent: name,
+    command: `trace hook agent --source ${name}`,
+    events: ["prompt", "decision", "validation", "risk", "note"],
+    stdin: "json-or-text",
+  };
+}
+
+function agentConfigPath(root, name) {
+  return join(root, TRACE_DIR, "agents", `${name}.json`);
+}
+
+async function listAgentConfigs(root) {
+  const dir = join(root, TRACE_DIR, "agents");
+  if (!await exists(dir)) {
+    return [];
+  }
+
+  const agents = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) {
+      continue;
+    }
+
+    const file = join(dir, entry.name);
+    const configPath = relativePath(root, file);
+    try {
+      const config = JSON.parse(await readFile(file, "utf8"));
+      agents.push({
+        agent: config.agent ?? entry.name.replace(/\.json$/, ""),
+        config: configPath,
+        command: config.command ?? null,
+        valid: config.schema_version === AGENT_CONFIG_VERSION,
+      });
+    } catch (error) {
+      agents.push({
+        agent: entry.name.replace(/\.json$/, ""),
+        config: configPath,
+        command: null,
+        valid: false,
+        error: error.message,
+      });
+    }
+  }
+
+  return agents.sort((left, right) => left.agent.localeCompare(right.agent));
 }
 
 async function appendEvent(root, input) {
@@ -693,6 +803,9 @@ Usage:
   trace init
   trace enable
   trace capture --event prompt --role user --message "why this change exists"
+  trace agent add <codex|claude-code|generic>
+  trace agent list
+  trace agent remove <codex|claude-code|generic>
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace log [--limit 20]
@@ -826,5 +939,13 @@ function inferRole(eventName) {
 }
 
 function firstPositional(values) {
-  return values.find((value) => !value.startsWith("--")) ?? null;
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value.startsWith("--")) {
+      index += 1;
+      continue;
+    }
+    return value;
+  }
+  return null;
 }

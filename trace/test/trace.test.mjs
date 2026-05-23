@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -117,6 +117,84 @@ test("check fails on uncommitted Trace memories and passes after committing them
     const cleanPayload = JSON.parse(clean.stdout);
     assert.equal(cleanPayload.ok, true);
     assert.equal(cleanPayload.uncommitted.length, 0);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("agent add list remove manages local hook adapter configs", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await runTrace(repo, ["init"]);
+
+    const added = await runTrace(repo, ["agent", "add", "codex"]);
+    const addedPayload = JSON.parse(added.stdout);
+    assert.equal(addedPayload.ok, true);
+    assert.equal(addedPayload.agent, "codex");
+    assert.equal(addedPayload.config, ".trace/agents/codex.json");
+    assert.equal(addedPayload.command, "trace hook agent --source codex");
+
+    const config = JSON.parse(await readFile(join(repo, ".trace/agents/codex.json"), "utf8"));
+    assert.equal(config.schema_version, "trace.agent.v1");
+    assert.equal(config.agent, "codex");
+    assert.deepEqual(config.events, ["prompt", "decision", "validation", "risk", "note"]);
+
+    const listed = await runTrace(repo, ["agent", "list"]);
+    const listedPayload = JSON.parse(listed.stdout);
+    assert.deepEqual(listedPayload.agents.map((agent) => agent.agent), ["codex"]);
+
+    const status = await runTrace(repo, ["status"]);
+    const statusPayload = JSON.parse(status.stdout);
+    assert.deepEqual(statusPayload.agents.map((agent) => agent.agent), ["codex"]);
+
+    await runTrace(repo, ["agent", "remove", "codex"]);
+    const removed = await runTrace(repo, ["agent", "list"]);
+    assert.deepEqual(JSON.parse(removed.stdout).agents, []);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("agent command validates names and reports malformed configs", async () => {
+  const repo = await tempRepo();
+
+  try {
+    const missing = await runTraceAllowFailure(repo, ["agent", "add"]);
+    assert.equal(missing.exitCode, 1);
+    assert.match(missing.stderr, /agent name is required/);
+
+    const unsupported = await runTraceAllowFailure(repo, ["agent", "add", "unknown"]);
+    assert.equal(unsupported.exitCode, 1);
+    assert.match(unsupported.stderr, /unsupported agent unknown/);
+
+    await runTrace(repo, ["init"]);
+    await mkdir(join(repo, ".trace/agents"), { recursive: true });
+    await writeFile(join(repo, ".trace/agents/bad.json"), "{bad json");
+    const listed = await runTrace(repo, ["agent", "list"]);
+    const payload = JSON.parse(listed.stdout);
+    assert.equal(payload.agents[0].agent, "bad");
+    assert.equal(payload.agents[0].valid, false);
+    assert.match(payload.agents[0].error, /JSON/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("generated agent command captures source without treating it as event", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await runTrace(repo, ["agent", "add", "codex"]);
+    await runTraceWithInput(repo, ["hook", "agent", "--source", "codex"], "plain hook payload");
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
+    const session = await readFile(join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`), "utf8");
+    const event = JSON.parse(session.trim());
+    assert.equal(event.event, "agent");
+    assert.equal(event.source, "codex");
+    assert.equal(event.message, "plain hook payload");
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

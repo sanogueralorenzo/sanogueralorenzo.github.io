@@ -52,6 +52,7 @@ The current CLI is intentionally small and local-first:
 ./trace/install.sh
 trace init
 trace enable
+trace agent add codex
 trace capture --event prompt --role user --message "why this change exists"
 trace record --validation "npm test"
 trace show HEAD
@@ -67,6 +68,7 @@ From a checkout, the same commands can be run without installing:
 ```shell
 node trace/bin/trace.mjs init
 node trace/bin/trace.mjs enable
+node trace/bin/trace.mjs agent add codex
 node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
 node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
@@ -91,3 +93,11 @@ printf '{"session_id":"abc","agent":"codex","prompt":"why this task exists"}' \
 ```
 
 The hook accepts JSON or plain text on stdin and records it into the local raw session store. Specific agent adapters can later translate Claude, Codex, Gemini, or other hook payloads into the same event shape without changing the memory format.
+
+`trace agent add codex`, `trace agent add claude-code`, and `trace agent add generic` create small local adapter specs under `.trace/agents/`. The specs document the command an agent integration should call:
+
+```shell
+trace hook agent --source codex
+```
+
+This keeps the first version agent-agnostic while making the hook contract explicit and reviewable.
