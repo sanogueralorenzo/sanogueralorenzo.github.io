@@ -34,7 +34,7 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.deepEqual(manifest.hooks["context.after_inject"].stdin, ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "contextBlockHash", "inserted", "reason"]);
   assert.deepEqual(manifest.hooks["context.after_inject"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "contextInjectionAck"]);
   assert.deepEqual(manifest.hooks["conversation.observe"].stdin, ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"]);
-  assert.deepEqual(manifest.hooks["conversation.observe"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"]);
+  assert.deepEqual(manifest.hooks["conversation.observe"].output, ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"]);
   assert.equal(manifest.hooks["conversation.observe"].injectFrom, "contextBlock");
   assert.deepEqual(manifest.hooks["review.after_feedback"].stdin, ["schema_version", "hook", "sessionId", "eventId", "comments", "changedFiles", "reviewer"]);
   assert.equal(manifest.hooks["review.after_feedback"].failurePolicy, "fail_open");
@@ -176,6 +176,7 @@ test("manifest emits a generic runtime hook contract", async () => {
   ]);
   assert.equal(manifest.actions["preflight.prompt"].injectFrom, "prompt");
   assert.equal(manifest.actions["session.resume"].injectFrom, "contextBlock");
+  assert.ok(manifest.actions["preflight.prompt"].output.includes("observationAck"));
   assert.ok(manifest.actions["preflight.prompt"].output.includes("injectionAck"));
   assert.ok(manifest.actions["session.resume"].output.includes("pendingDelivery"));
   assert.ok(manifest.actions["session.resume"].output.includes("recommendedAction"));

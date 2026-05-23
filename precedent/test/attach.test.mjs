@@ -118,6 +118,8 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.ok(first.adapter.conversationObserve.output.includes("correctionSafetyReceipt"));
     assert.ok(first.adapter.conversationObserve.output.includes("assumptionReceipt"));
     assert.ok(first.adapter.conversationObserve.output.includes("turnDirectiveReceipt"));
+    assert.ok(first.adapter.conversationObserve.output.includes("contextBlockHash"));
+    assert.ok(first.adapter.conversationObserve.output.includes("deliveryReceipt"));
     assert.deepEqual(first.adapter.preflight.command.slice(0, 5), [
       "node",
       "precedent/bin/precedent.mjs",
@@ -126,6 +128,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
       stateDir,
     ]);
     assert.equal(first.adapter.preflight.injectFrom, "prompt");
+    assert.ok(first.adapter.preflight.output.includes("observationAck"));
     assert.ok(first.adapter.preflight.output.includes("injectionAck"));
     assert.deepEqual(first.adapter.resume.command.slice(0, 5), [
       "node",

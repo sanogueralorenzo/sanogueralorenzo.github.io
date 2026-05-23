@@ -364,6 +364,54 @@ test("strict check surfaces context injection acknowledgement drift", async () =
   }
 });
 
+test("strict check requires acknowledgement for conversation observe context deliveries", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    const observed = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "observe-ack-session",
+      eventId: "message-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{
+        role: "user",
+        content: "Use pnpm test:webhooks, not pnpm test.",
+      }],
+    });
+
+    const unacked = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const unackedPayload = JSON.parse(unacked.stdout);
+    const unackedRuntimeCheck = unackedPayload.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(unacked.exitCode, 1);
+    assert.equal(unackedRuntimeCheck.ok, false);
+    assert.equal(unackedRuntimeCheck.unackedDeliveries, 1);
+    assert.equal(unackedRuntimeCheck.details.unackedDeliveries[0].deliveryId, observed.deliveryReceipt.deliveryId);
+
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "observe-ack-session",
+      eventId: "message-1:context.after_inject",
+      deliveryId: observed.deliveryReceipt.deliveryId,
+      contextBlockHash: observed.contextBlockHash,
+      inserted: true,
+    });
+
+    const acked = await runJson(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const ackedRuntimeCheck = acked.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(acked.ok, true);
+    assert.equal(ackedRuntimeCheck.unackedDeliveries, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("check validates nested replay artifacts", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

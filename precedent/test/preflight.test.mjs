@@ -91,6 +91,51 @@ test("preflight prepends acknowledged context and stays idempotent", async () =>
   }
 });
 
+test("preflight acknowledges observed conversation context", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-preflight-test-"));
+
+  try {
+    const args = [
+      "preflight",
+      "--state-dir",
+      stateDir,
+      "--prompt",
+      "Use pnpm test:webhooks, not pnpm test.",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--session",
+      "observed-preflight-session",
+      "--event-prefix",
+      "observed-delivery-1",
+      "--json",
+    ];
+    const first = await runJson(args);
+    const retry = await runJson(args);
+
+    assert.match(first.prompt, /^Precedent correction:/u);
+    assert.equal(first.beforeTurn.deliveryReceipt, null);
+    assert.equal(first.injectionAck.status, "not_needed");
+    assert.equal(first.observationAck.status, "accepted");
+    assert.equal(first.observationAck.ack.contextInjectionAck.contextBlockHash, first.observation.contextBlockHash);
+    assert.equal(retry.observationAck.ack.deduped, true);
+
+    const events = (await readFile(join(stateDir, "sessions/observed-preflight-session.jsonl"), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    assert.deepEqual(events.map((event) => event.hook), [
+      "conversation.observe",
+      "context.export",
+      "context.after_inject",
+    ]);
+    assert.equal(events[2].deliveryId, first.observation.deliveryReceipt.deliveryId);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   const traceOut = join(stateDir, "webhook-replay-trace.json");
   await runJson([

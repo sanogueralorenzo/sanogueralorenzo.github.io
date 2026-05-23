@@ -394,6 +394,48 @@ test("conversation observe quarantines unsafe or untrusted corrections", async (
   }
 });
 
+test("conversation observe emits an acknowledged delivery receipt for insertable context", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const observed = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "observe-delivery",
+      eventId: "message-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+      messages: [{
+        role: "user",
+        content: "Use pnpm test:webhooks, not pnpm test.",
+      }],
+    });
+
+    assert.equal(observed.contextBlockHash.length, 64);
+    assert.equal(observed.deliveryReceipt.sessionId, "observe-delivery");
+    assert.equal(observed.deliveryReceipt.eventId, "message-1");
+    assert.equal(observed.deliveryReceipt.contextBlockHash, observed.contextBlockHash);
+    assert.deepEqual(observed.deliveryReceipt.injectedPrecedentIds, []);
+
+    const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "observe-delivery",
+      eventId: "message-1:context.after_inject",
+      deliveryId: observed.deliveryReceipt.deliveryId,
+      contextBlockHash: observed.contextBlockHash,
+      inserted: true,
+    });
+    assert.equal(ack.contextInjectionAck.status, "accepted");
+    assert.equal(ack.contextInjectionAck.expectedContextBlockHash, observed.contextBlockHash);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("conversation observe captures explicit assistant assumptions as session-local verification context", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
 

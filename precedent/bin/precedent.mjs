@@ -2274,13 +2274,22 @@ async function conversationObserveEventHook(event) {
     formatAssumptionContextBlock(acceptedAssumptionSignals),
     formatTurnDirectiveContextBlock(directiveSummary(acceptedTurnDirectives)),
   ].filter(Boolean).join("\n");
+  const observedAt = new Date().toISOString();
+  const deliveryReceipt = deliveryReceiptFor({
+    sessionId,
+    eventId,
+    injections: [],
+    contextBlock,
+    issuedAt: observedAt,
+  });
+  const blockHash = contextBlockHash(contextBlock);
   let sessionEvent = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
-      receivedAt: new Date().toISOString(),
+      receivedAt: observedAt,
       hook: event.hook,
       sessionId,
       ...eventIdField(eventId),
@@ -2298,6 +2307,8 @@ async function conversationObserveEventHook(event) {
       acceptedTurnDirectives,
       turnDirectiveReceipt,
       contextBlock,
+      contextBlockHash: blockHash,
+      deliveryReceipt,
     });
 
     if (!sessionEvent.deduped) {
@@ -2320,6 +2331,8 @@ async function conversationObserveEventHook(event) {
         acceptedTurnDirectives: sessionEvent.event.acceptedTurnDirectives,
         turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
         contextBlock: sessionEvent.event.contextBlock,
+        contextBlockHash: sessionEvent.event.contextBlockHash,
+        deliveryReceipt: sessionEvent.event.deliveryReceipt,
       });
     }
   });
@@ -2348,6 +2361,8 @@ async function conversationObserveEventHook(event) {
     turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
     turnDirectives: directiveSummary(sessionEvent.event.acceptedTurnDirectives),
     contextBlock: sessionEvent.event.contextBlock,
+    contextBlockHash: sessionEvent.event.contextBlockHash,
+    deliveryReceipt: sessionEvent.event.deliveryReceipt,
   });
 }
 
@@ -3264,7 +3279,7 @@ function buildManifest(runtime, stateDir) {
       "conversation.observe": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -3332,7 +3347,7 @@ function buildManifest(runtime, stateDir) {
       "preflight.prompt": {
         command: preflightCommand,
         stdin: [],
-        output: ["ok", "schema_version", "prompt", "contextBlocks", "attributedPrecedents", "deliveryId", "contextBlockHash", "observation", "beforeTurn", "injectionAck"],
+        output: ["ok", "schema_version", "prompt", "contextBlocks", "attributedPrecedents", "deliveryId", "contextBlockHash", "observation", "beforeTurn", "observationAck", "injectionAck"],
         injectFrom: "prompt",
         timeoutMs,
         failurePolicy,
@@ -3638,7 +3653,7 @@ async function attachRuntime() {
       },
       conversationObserve: {
         command: hookCommand,
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"],
         injectFrom: "contextBlock",
         stdin: {
           schema_version: SCHEMA_VERSION,
@@ -3656,7 +3671,7 @@ async function attachRuntime() {
       },
       preflight: {
         command: preflightCommand,
-        output: ["ok", "schema_version", "prompt", "contextBlocks", "attributedPrecedents", "deliveryId", "contextBlockHash", "observation", "beforeTurn", "injectionAck"],
+        output: ["ok", "schema_version", "prompt", "contextBlocks", "attributedPrecedents", "deliveryId", "contextBlockHash", "observation", "beforeTurn", "observationAck", "injectionAck"],
         injectFrom: "prompt",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -4089,6 +4104,14 @@ async function preflightPrompt() {
     "json",
     "--json",
   ]);
+  const observationAck = await runAttachInjectionAck({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:conversation.observe:context.after_inject` : null,
+    deliveryReceipt: observed.deliveryReceipt,
+    contextBlockHash: observed.contextBlockHash,
+    inserted: observed.contextBlock ? true : false,
+  });
   const injectionAck = await runAttachInjectionAck({
     stateDirArg,
     sessionId,
@@ -4121,6 +4144,7 @@ async function preflightPrompt() {
     contextBlockHash: beforeTurn.contextBlockHash,
     observation: observed,
     beforeTurn,
+    observationAck,
     injectionAck,
   };
 
@@ -6573,7 +6597,7 @@ async function runtimeWiringHealthSummary(stateDir, events) {
     const injectedEvents = hookEvents.filter((event) => Array.isArray(event.injections) && event.injections.length > 0);
     const outcomeEvents = hookEvents.filter((event) => event.hook === "outcome.after_task");
     const contextDeliveries = hookEvents
-      .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export")
+      .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export" || event.hook === "conversation.observe")
       .map((event) => event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null)
       .filter((receipt) => receipt?.deliveryId && receipt.contextBlockHash);
     const ackEvents = hookEvents.filter((event) => event.hook === "context.after_inject" && event.contextInjectionAck);
