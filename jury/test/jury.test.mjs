@@ -868,6 +868,7 @@ test("troubleshooting failure examples stay executable", async () => {
 test("troubleshooting guide documents gate and bundle inspection fields", async () => {
   const guide = await readFile(join(repoRoot, "jury/TROUBLESHOOTING.md"), "utf8");
   const readme = await readFile(join(repoRoot, "jury/README.md"), "utf8");
+  const ciReadme = await readFile(join(repoRoot, "jury/examples/ci/README.md"), "utf8");
   const checklist = await readFile(join(repoRoot, "jury/RELEASE_CHECKLIST.md"), "utf8");
   const publishing = await readFile(join(repoRoot, "jury/PUBLISHING.md"), "utf8");
 
@@ -912,12 +913,49 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("missing"));
   assert.ok(guide.includes("examples/ci/jury-trusted-bundle-verify.yml"));
   assert.ok(guide.includes("examples/ci/fixtures/key-policy"));
+  assert.ok(guide.includes("Package Release Evidence Replay Failure"));
+  assert.ok(guide.includes("package-release-evidence-replay"));
+  assert.ok(guide.includes("jury-package-release-evidence"));
+  assert.ok(guide.includes("JURY_PACKAGE_RELEASE_EVIDENCE_DIR"));
+  assert.ok(guide.includes("--fixture-dir <downloaded-artifact-dir>"));
+  assert.ok(guide.includes("missing package release evidence files"));
+  assert.ok(guide.includes("replacement-patch-audit.json.checks is required"));
+  assert.ok(guide.includes("dry-run-publication"));
+  assert.ok(ciReadme.includes("JURY_PACKAGE_RELEASE_EVIDENCE_DIR"));
+  assert.ok(checklist.includes("If package release evidence replay fails"));
+  assert.ok(publishing.includes("package release evidence replay failure"));
 
   const manifestCommands = extractShellBlock(guide, "Package Manifest Failure");
   assert.deepEqual(manifestCommands, ["npm --prefix jury run package:manifest:check"]);
   const manifestCheck = await runShell(manifestCommands[0]);
   assert.equal(manifestCheck.exitCode, 0, manifestCheck.stderr);
   assert.equal(JSON.parse(manifestCheck.stdout.slice(manifestCheck.stdout.indexOf("{"))).ok, true);
+
+  const evidenceReplayCommands = extractShellBlock(guide, "Package Release Evidence Replay Failure");
+  assert.deepEqual(evidenceReplayCommands, [
+    "npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>",
+    'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const required=["README.md","jury-pack-dry-run-record.json","failed-npm-view.json","downstream-failure-gate.json","rollback-audit.json","replacement-npm-view.json","replacement-downstream-gate.json","replacement-patch-audit.json"]; const missing=required.filter((file)=>!fs.existsSync(`${dir}/${file}`)); if (missing.length) throw new Error(`missing package release evidence files: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, artifact:"jury-package-release-evidence", files: required}, null, 2));\' <downloaded-artifact-dir>',
+  ]);
+  const replayRoot = await tempState();
+  const replayDir = join(replayRoot, "package-release-evidence");
+  try {
+    await cp(ciPackageReleaseFixturesDir, replayDir, { recursive: true });
+
+    const replayCheck = await runShell(evidenceReplayCommands[0].replace("<downloaded-artifact-dir>", shellQuote(replayDir)));
+    assert.equal(replayCheck.exitCode, 0, replayCheck.stderr);
+    assert.equal(JSON.parse(replayCheck.stdout.slice(replayCheck.stdout.indexOf("{"))).ok, true);
+
+    const fileCheck = await runShell(evidenceReplayCommands[1].replace("<downloaded-artifact-dir>", shellQuote(replayDir)));
+    assert.equal(fileCheck.exitCode, 0, fileCheck.stderr);
+    assert.equal(JSON.parse(fileCheck.stdout).artifact, "jury-package-release-evidence");
+
+    await rm(join(replayDir, "replacement-patch-audit.json"));
+    const missingFileCheck = await runShell(evidenceReplayCommands[1].replace("<downloaded-artifact-dir>", shellQuote(replayDir)));
+    assert.equal(missingFileCheck.exitCode, 1);
+    assert.match(missingFileCheck.stderr, /missing package release evidence files: replacement-patch-audit\.json/);
+  } finally {
+    await rm(replayRoot, { recursive: true, force: true });
+  }
 
   const dryRunArtifactCommands = extractShellBlock(guide, "Dry-Run Publication Artifact Failure");
   assert.equal(dryRunArtifactCommands.length, 1);
@@ -2431,9 +2469,13 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /release workflow example where npm publication depends on the package manifest check, package release evidence fixture validation, a downloaded and replayed release evidence audit artifact, and a downloaded dry-run publication record/);
   assert.match(handoff, /package release evidence artifact upload guidance/);
   assert.match(handoff, /package release evidence artifact download and replay guidance/);
+  assert.match(handoff, /Package release evidence replay troubleshooting now covers/);
+  assert.match(handoff, /JURY_PACKAGE_RELEASE_EVIDENCE_DIR/);
+  assert.match(handoff, /replacement-patch-audit\.json\.checks is required/);
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
+  assert.match(handoff, /package release evidence retention policy for failed and replacement release artifacts/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

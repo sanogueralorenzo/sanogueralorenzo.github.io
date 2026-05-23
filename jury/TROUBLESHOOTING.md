@@ -43,6 +43,7 @@ node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json --key-policy
 - downloaded artifact no longer trusted: the signed bundle may still verify cryptographically, but `bundle preflight --key-policy` rejects it when the bundle producer `source` or `revision` no longer matches reviewed policy metadata.
 - package manifest missing CI metadata: `npm --prefix jury run package:manifest:check` rejects a package tarball that omits `release.json`, `CI_ADOPTION.md`, supported workflow files, or required package files from [PUBLISHING.md](PUBLISHING.md).
 - stale or mismatched dry-run publication artifact: `jury-pack-dry-run-record.json` was generated for a different package version or tarball name, so the publish job must stop before `NODE_AUTH_TOKEN` is exposed.
+- package release evidence replay failed: `package-release-evidence-replay` downloaded the wrong `jury-package-release-evidence` artifact path, the artifact is missing rollback or replacement audit files, or the uploaded audit data no longer satisfies the package release evidence schema.
 - published package fails downstream verification: npm accepted the package and provenance, but downstream Jury bundle or package checks reject the published version.
 
 ## Package Manifest Failure
@@ -69,6 +70,17 @@ node jury/scripts/check-package-manifest.mjs --pack-manifest npm-pack.json
 ```
 
 Fix the package file list or restore the omitted file, then rerun `npm --prefix jury run package:manifest:check`.
+
+## Package Release Evidence Replay Failure
+
+Use this when `package-release-evidence-replay` fails after downloading `jury-package-release-evidence`. First confirm `JURY_PACKAGE_RELEASE_EVIDENCE_DIR` points at the downloaded artifact directory, then replay the audit and inspect the artifact contents locally:
+
+```shell
+npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>
+node -e 'const fs=require("node:fs"); const dir=process.argv[1]; const required=["README.md","jury-pack-dry-run-record.json","failed-npm-view.json","downstream-failure-gate.json","rollback-audit.json","replacement-npm-view.json","replacement-downstream-gate.json","replacement-patch-audit.json"]; const missing=required.filter((file)=>!fs.existsSync(`${dir}/${file}`)); if (missing.length) throw new Error(`missing package release evidence files: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, artifact:"jury-package-release-evidence", files: required}, null, 2));' <downloaded-artifact-dir>
+```
+
+If the replay command reports a schema field such as `replacement-patch-audit.json.checks is required`, rerun `package-release-fixtures` from the same revision and upload a fresh artifact. If file inspection reports `missing package release evidence files`, fix the `actions/download-artifact` path or `JURY_PACKAGE_RELEASE_EVIDENCE_DIR`. If relationship errors remain, compare `rollback-audit.json` and `replacement-patch-audit.json` with `jury-pack-dry-run-record.json`, npm metadata, and downstream gate files before allowing `dry-run-publication`.
 
 ## Dry-Run Publication Artifact Failure
 
