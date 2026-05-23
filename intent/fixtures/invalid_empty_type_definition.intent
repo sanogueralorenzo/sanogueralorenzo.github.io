@@ -1,0 +1,12 @@
+package fixtures.invalid_empty_type_definition
+
+type Empty =
+
+goal empty_type_definition() -> Report {
+  plan {
+    step finish -> Report
+  }
+  verify {
+    require no_policy_violations
+  }
+}

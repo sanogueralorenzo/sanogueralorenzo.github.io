@@ -57,7 +57,9 @@ contribute types or declarations to checker scope yet.
 
 Type declarations are line-based in the first prototype. The optional
 definition is preserved as raw text and is not parsed into record fields,
-aliases, enum cases, or generic parameters yet.
+aliases, enum cases, or generic parameters yet. `type Name` means no
+definition was declared; `type Name =` and empty multiline type bodies are
+parse errors rather than empty-string definitions.
 
 Goal signature params are goal inputs. The parser preserves their source order,
 names, types, and parameter spans so the checker can emit graph input nodes,

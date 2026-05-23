@@ -39,6 +39,7 @@ const INVALID_GOAL_MISSING = new URL("../fixtures/invalid_goal_missing.intent", 
 const INVALID_MISSING_PACKAGE = new URL("../fixtures/invalid_missing_package.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_PACKAGE = new URL("../fixtures/invalid_duplicate_package.intent", import.meta.url).pathname;
 const INVALID_IMPORT_AFTER_TYPE = new URL("../fixtures/invalid_import_after_type.intent", import.meta.url).pathname;
+const INVALID_EMPTY_TYPE_DEFINITION = new URL("../fixtures/invalid_empty_type_definition.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_UNKNOWN_EFFECT_CONTRACT = new URL("../fixtures/invalid_unknown_effect_contract.intent", import.meta.url).pathname;
@@ -1172,10 +1173,12 @@ describe("intent static model CLI", () => {
     const missingPackage = run(["parse", INVALID_MISSING_PACKAGE]);
     const duplicatePackage = run(["parse", INVALID_DUPLICATE_PACKAGE]);
     const importAfterType = run(["parse", INVALID_IMPORT_AFTER_TYPE]);
+    const emptyTypeDefinition = run(["parse", INVALID_EMPTY_TYPE_DEFINITION]);
 
     const missingPayload = JSON.parse(missingPackage.stdout);
     const duplicatePayload = JSON.parse(duplicatePackage.stdout);
     const importPayload = JSON.parse(importAfterType.stdout);
+    const emptyTypePayload = JSON.parse(emptyTypeDefinition.stdout);
 
     assert.equal(missingPackage.status, 1);
     assert.equal(missingPayload.diagnostics[0].code, "INTENT_PARSE_ERROR");
@@ -1186,6 +1189,10 @@ describe("intent static model CLI", () => {
     assert.equal(importAfterType.status, 1);
     assert.equal(importPayload.diagnostics[0].code, "INTENT_PARSE_ERROR");
     assert.match(importPayload.diagnostics[0].message, /import declarations must appear before type or goal declarations/);
+    assert.equal(emptyTypeDefinition.status, 1);
+    assert.equal(emptyTypePayload.diagnostics[0].code, "INTENT_PARSE_ERROR");
+    assert.match(emptyTypePayload.diagnostics[0].message, /empty definition/);
+    assert.equal(emptyTypePayload.diagnostics[0].span.start.line, 3);
   });
 
   it("rejects effects without matching capabilities", () => {

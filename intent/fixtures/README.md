@@ -30,6 +30,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_missing_package.intent`: starts with a type declaration instead of the required package declaration, which should fail `INTENT_PARSE_ERROR`.
 - `invalid_duplicate_package.intent`: declares two package declarations, which should fail `INTENT_PARSE_ERROR`.
 - `invalid_import_after_type.intent`: declares an import after a type declaration, which should fail `INTENT_PARSE_ERROR`.
+- `invalid_empty_type_definition.intent`: declares `type Empty =` with no retained definition body, which should fail `INTENT_PARSE_ERROR` instead of emitting schema-invalid AST.
 - `invalid_missing_verification.intent`: declares mutating effects but omits the required verification gate.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
 - `invalid_unknown_effect_contract.intent`: uses an effect name that has a matching-looking capability family but no v0 adapter contract, which should fail `INTENT_EFFECT_UNKNOWN`.

@@ -75,6 +75,9 @@ Rules:
 
 - Type names must begin with an uppercase ASCII letter.
 - Type declarations are visible to every goal in the same file.
+- `type Name` records `definition: null`; `type Name =` and empty multiline
+  type bodies emit `INTENT_PARSE_ERROR` instead of producing schema-invalid
+  empty definition strings.
 - Import declarations are parsed and preserved for tooling provenance, but they
   do not contribute types or declarations to checker scope in this milestone.
 - Type graph nodes are package/file-scoped runtime metadata and must declare

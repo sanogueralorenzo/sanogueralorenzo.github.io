@@ -423,6 +423,12 @@ function parseTypeDecl(line, file, lineNumber, raw, body = null) {
   if (!match) {
     throw parseError(file, lineNumber, raw, `invalid type declaration '${line}'`);
   }
+  if (body !== null && body.trim() === "") {
+    throw parseError(file, lineNumber, raw, `type declaration '${match[1]}' has an empty definition`);
+  }
+  if (body === null && match[2] !== undefined && match[2].trim() === "") {
+    throw parseError(file, lineNumber, raw, `type declaration '${match[1]}' has an empty definition`);
+  }
   return {
     kind: "Type",
     name: match[1],
