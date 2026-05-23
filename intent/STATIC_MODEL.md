@@ -381,6 +381,11 @@ Next graph envelope validation milestone:
   `goal_complete`, `goal.completed`, or a bounded duration such as `30d`.
   Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
   the graph non-executable because runtimes must not infer retention policy.
+- Runtime step policy metadata is part of graph validation. `Policy` nodes must
+  carry `data.policyKind` as `timeout` or `retry`, non-empty `data.policy`, and
+  non-empty `data.ownerStep`. Malformed step execution policy data emits
+  `INTENT_GRAPH_POLICY_INVALID` and makes the graph non-executable because
+  runtimes must not infer timeout or retry behavior.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.
@@ -814,6 +819,9 @@ Rules:
 - Invalid timeout or retry policy syntax emits `INTENT_POLICY_INVALID` at the
   policy line span.
 - Each step policy emits one graph `Policy` node whose span is the policy line.
+- Each graph `Policy` node records `data.policyKind` as `timeout` or `retry`,
+  `data.policy` as the non-empty raw policy text, and `data.ownerStep` as the
+  non-empty owning step id.
 - The owning `Step` node data lists timeout and retry summaries in source
   order.
 - The graph builder creates a `timeouts` edge from each timeout `Policy` node
@@ -1190,6 +1198,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_TRUST_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
+- `INTENT_GRAPH_POLICY_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_NODE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
@@ -1645,7 +1654,8 @@ schema-level structural strings are empty, whose runtime structural strings are
 blank after trimming, whose node or edge kind is outside the supported sets
 above, whose edge endpoint does not resolve inside the same payload, whose
 `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
-nodes omit valid runtime retention lifecycle data, or whose required
+nodes omit valid runtime retention lifecycle data, whose `Policy` nodes omit
+valid runtime step execution policy data, or whose required
 execution, data, authorization, approval, guard, verification, completion, and
 step-attachment relationships fail graph validation. Blank envelope provenance
 emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge
@@ -1721,7 +1731,10 @@ Step policy nodes are `Policy` nodes scoped to one owning step. The owning step
 node lists timeout summaries in `data.timeouts` and retry summaries in
 `data.retries`. Each timeout policy has one outgoing `timeouts` edge to that
 owning step, and each retry policy has one outgoing `retries` edge to that
-owning step.
+owning step. Runtime graph validation also requires `data.policyKind` to be
+`timeout` or `retry`, `data.policy` to be non-empty, and `data.ownerStep` to be
+non-empty; malformed records emit `INTENT_GRAPH_POLICY_INVALID` and make graph
+output non-executable.
 
 Git commits are represented as `Effect` nodes the same way as other effect
 requests. The node data records family `git`, action `commit`, the normalized

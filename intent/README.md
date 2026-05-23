@@ -155,6 +155,12 @@ Validation expectations:
   must be an array. Malformed capability policy data emits
   `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
   runtime authorization and approval enforcement must not infer missing policy.
+- Graph `Policy` nodes are runtime execution-policy inputs. They must carry
+  valid step execution data: `data.policyKind` must be either `timeout` or
+  `retry`, `data.policy` must be non-empty, and `data.ownerStep` must be
+  non-empty. Malformed step policy data emits `INTENT_GRAPH_POLICY_INVALID`
+  and makes the graph non-executable because runtimes must not infer timeout or
+  retry behavior.
 - Graph `Memory` nodes are runtime lifecycle inputs. They must carry raw
   `data.retention` as an array and structured `data.retentionRules` as a
   non-empty array. Each retention rule must include non-empty `raw`,
