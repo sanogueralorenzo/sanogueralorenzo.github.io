@@ -10,13 +10,26 @@ const evidenceSchemaPath = join(packageRoot, "schemas/package-release-evidence.s
 const archiveManifestSchemaPath = join(packageRoot, "schemas/package-release-archive-manifest.schema.json");
 const evidenceSchema = await readJson(evidenceSchemaPath);
 const archiveManifestSchema = await readJson(archiveManifestSchemaPath);
-const rollback = await readFixture("rollback-audit.json");
-const replacement = await readFixture("replacement-patch-audit.json");
-const failedRecord = await readFixture("jury-pack-dry-run-record.json");
-const failedNpmView = await readFixture("failed-npm-view.json");
-const failedGate = await readFixture("downstream-failure-gate.json");
-const replacementNpmView = await readFixture("replacement-npm-view.json");
-const replacementGate = await readFixture("replacement-downstream-gate.json");
+const fixtureRead = await readRequiredFixtures([
+  "rollback-audit.json",
+  "replacement-patch-audit.json",
+  "jury-pack-dry-run-record.json",
+  "failed-npm-view.json",
+  "downstream-failure-gate.json",
+  "replacement-npm-view.json",
+  "replacement-downstream-gate.json",
+]);
+if (fixtureRead.errors.length > 0) {
+  process.stderr.write(`${fixtureRead.errors.join("\n")}\n`);
+  process.exit(1);
+}
+const rollback = fixtureRead.fixtures.get("rollback-audit.json");
+const replacement = fixtureRead.fixtures.get("replacement-patch-audit.json");
+const failedRecord = fixtureRead.fixtures.get("jury-pack-dry-run-record.json");
+const failedNpmView = fixtureRead.fixtures.get("failed-npm-view.json");
+const failedGate = fixtureRead.fixtures.get("downstream-failure-gate.json");
+const replacementNpmView = fixtureRead.fixtures.get("replacement-npm-view.json");
+const replacementGate = fixtureRead.fixtures.get("replacement-downstream-gate.json");
 const archiveManifest = tryBuildArchiveManifest();
 const errors = [
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", rollback, "rollback-audit.json"),
@@ -25,11 +38,14 @@ const errors = [
   ...relationshipErrors(),
 ];
 if (args.verifyManifest) {
-  const manifest = await readJson(args.verifyManifest);
-  errors.push(
-    ...schemaDocumentErrors(archiveManifestSchema, "jury.package_release_archive_manifest.v1", manifest, args.verifyManifest),
-    ...(archiveManifest.value ? manifestVerificationErrors(manifest, archiveManifest.value, args.verifyManifest) : []),
-  );
+  const manifestRead = await readVerificationManifest(args.verifyManifest);
+  errors.push(...manifestRead.errors);
+  if (manifestRead.value) {
+    errors.push(
+      ...schemaDocumentErrors(archiveManifestSchema, "jury.package_release_archive_manifest.v1", manifestRead.value, args.verifyManifest),
+      ...(archiveManifest.value ? manifestVerificationErrors(manifestRead.value, archiveManifest.value, args.verifyManifest) : []),
+    );
+  }
 }
 
 if (errors.length > 0) {
@@ -53,8 +69,32 @@ process.stdout.write(`${JSON.stringify({
   ],
 }, null, 2)}\n`);
 
-async function readFixture(name) {
-  return readJson(join(fixtureDir, name));
+async function readRequiredFixtures(names) {
+  const fixtures = new Map();
+  const errors = [];
+  for (const name of names) {
+    try {
+      fixtures.set(name, await readJson(join(fixtureDir, name)));
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        errors.push(`${name} is required in package release evidence directory ${fixtureDir}`);
+      } else {
+        errors.push(`${name} could not be read: ${error.message}`);
+      }
+    }
+  }
+  return { fixtures, errors };
+}
+
+async function readVerificationManifest(path) {
+  try {
+    return { value: await readJson(path), errors: [] };
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return { value: null, errors: [`${path} is required for retained package release manifest verification`] };
+    }
+    return { value: null, errors: [`${path} could not be read: ${error.message}`] };
+  }
 }
 
 async function readJson(path) {

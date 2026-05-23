@@ -132,7 +132,7 @@ Before closing the release archive, verify the retained manifest against the arc
 npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest retained-package-release-evidence-manifest.json
 ```
 
-Export and verification both validate the manifest against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json). The verification fails if the manifest no longer matches the retained rollback audit, replacement audit, dry-run record, registry metadata, downstream gates, retention policy, or artifact provenance.
+Export and verification both validate the manifest against [schemas/package-release-archive-manifest.schema.json](schemas/package-release-archive-manifest.schema.json). The verification fails if the manifest no longer matches the retained rollback audit, replacement audit, dry-run record, registry metadata, downstream gates, retention policy, or artifact provenance. Use the retained package release manifest replay failure section in [TROUBLESHOOTING.md](TROUBLESHOOTING.md) before replacing or closing the archived manifest.
 
 Keep the promoted evidence until at least 180 days after replacement downstream verification passes. Do not delete the failed-version evidence when the replacement publishes; the replacement audit depends on the failed `packageVersion`, failed `tarballName`, deprecation evidence, downstream failure gate, source revision, and workflow run id to prove supersedence.
 

@@ -1082,9 +1082,21 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("missing package release evidence files"));
   assert.ok(guide.includes("replacement-patch-audit.json.checks is required"));
   assert.ok(guide.includes("dry-run-publication"));
+  assert.ok(guide.includes("Retained Package Release Manifest Replay Failure"));
+  assert.ok(guide.includes("retained package release manifest replay failed"));
+  assert.ok(guide.includes("--verify-manifest <retained-manifest>"));
+  assert.ok(guide.includes("retained-package-release-evidence-manifest.json"));
+  assert.ok(guide.includes("schema_version must equal jury.package_release_archive_manifest.v1"));
+  assert.ok(guide.includes("must contain an item matching required archive evidence"));
+  assert.ok(guide.includes("missing retained archive evidence"));
+  assert.ok(guide.includes("replacement-patch-audit.json is required in package release evidence directory"));
+  assert.ok(guide.includes("missing retained package release evidence files"));
+  assert.ok(guide.includes("is required for retained package release manifest verification"));
   assert.ok(ciReadme.includes("JURY_PACKAGE_RELEASE_EVIDENCE_DIR"));
   assert.ok(checklist.includes("If package release evidence replay fails"));
+  assert.ok(checklist.includes("If retained package release manifest replay fails"));
   assert.ok(publishing.includes("package release evidence replay failure"));
+  assert.ok(publishing.includes("retained package release manifest replay failure"));
 
   const manifestCommands = extractShellBlock(guide, "Package Manifest Failure");
   assert.deepEqual(manifestCommands, ["npm --prefix jury run package:manifest:check"]);
@@ -1116,6 +1128,63 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
     assert.match(missingFileCheck.stderr, /missing package release evidence files: replacement-patch-audit\.json/);
   } finally {
     await rm(replayRoot, { recursive: true, force: true });
+  }
+
+  const retainedManifestCommands = extractShellBlock(guide, "Retained Package Release Manifest Replay Failure");
+  assert.deepEqual(retainedManifestCommands, [
+    "npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir> --verify-manifest <retained-manifest>",
+    'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const required=["README.md","jury-pack-dry-run-record.json","failed-npm-view.json","downstream-failure-gate.json","rollback-audit.json","replacement-npm-view.json","replacement-downstream-gate.json","replacement-patch-audit.json"]; const missing=required.filter((file)=>!fs.existsSync(`${dir}/${file}`)); if (missing.length) throw new Error(`missing retained package release evidence files: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, artifact:"retained-package-release-evidence", files: required}, null, 2));\' <retained-evidence-dir>',
+    'node -e \'const fs=require("node:fs"); const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const summary={schema_version:manifest.schema_version,failedPackageVersion:manifest.failed?.packageVersion,replacementPackageVersion:manifest.replacement?.packageVersion,retentionArtifacts:manifest.retention?.artifacts,provenanceArtifacts:(manifest.provenance?.artifacts??[]).map((artifact)=>artifact.name)}; console.log(JSON.stringify(summary,null,2));\' <retained-manifest>',
+    'node -e \'const fs=require("node:fs"); const manifest=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const required=["jury-package-dry-run","jury-package-release-evidence","rollback-audit.json","replacement-patch-audit.json"]; const missing=required.filter((artifact)=>!manifest.retention?.artifacts?.includes(artifact)); const provenanceMissing=["jury-package-dry-run","jury-package-release-evidence"].filter((name)=>!(manifest.provenance?.artifacts??[]).some((artifact)=>artifact.name===name)); if (missing.length || provenanceMissing.length) throw new Error(`missing retained archive evidence: retention=${missing.join(", ") || "none"} provenance=${provenanceMissing.join(", ") || "none"}`); console.log(JSON.stringify({ok:true, retentionArtifacts: required, provenanceArtifacts:["jury-package-dry-run","jury-package-release-evidence"]}, null, 2));\' <retained-manifest>',
+  ]);
+  const manifestReplayRoot = await tempState();
+  const retainedEvidenceDir = join(manifestReplayRoot, "retained-evidence");
+  const retainedManifestPath = join(manifestReplayRoot, "retained-package-release-evidence-manifest.json");
+  try {
+    await cp(ciPackageReleaseFixturesDir, retainedEvidenceDir, { recursive: true });
+    const exportManifest = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(retainedEvidenceDir)} --manifest-out ${shellQuote(retainedManifestPath)}`);
+    assert.equal(exportManifest.exitCode, 0, exportManifest.stderr);
+    const retainedCommand = (command) => command
+      .replaceAll("<retained-evidence-dir>", shellQuote(retainedEvidenceDir))
+      .replaceAll("<retained-manifest>", shellQuote(retainedManifestPath));
+
+    const manifestReplay = await runShell(retainedCommand(retainedManifestCommands[0]));
+    assert.equal(manifestReplay.exitCode, 0, manifestReplay.stderr);
+    const missingManifestReplay = await runShell(retainedManifestCommands[0]
+      .replaceAll("<retained-evidence-dir>", shellQuote(retainedEvidenceDir))
+      .replaceAll("<retained-manifest>", shellQuote(join(manifestReplayRoot, "missing-retained-manifest.json"))));
+    assert.equal(missingManifestReplay.exitCode, 1);
+    assert.match(missingManifestReplay.stderr, /missing-retained-manifest\.json is required for retained package release manifest verification/);
+    assert.doesNotMatch(missingManifestReplay.stderr, /ENOENT/);
+    const retainedFileCheck = await runShell(retainedCommand(retainedManifestCommands[1]));
+    assert.equal(retainedFileCheck.exitCode, 0, retainedFileCheck.stderr);
+    assert.equal(JSON.parse(retainedFileCheck.stdout).artifact, "retained-package-release-evidence");
+    const manifestSummary = await runShell(retainedCommand(retainedManifestCommands[2]));
+    assert.equal(manifestSummary.exitCode, 0, manifestSummary.stderr);
+    assert.equal(JSON.parse(manifestSummary.stdout).schema_version, "jury.package_release_archive_manifest.v1");
+    const retainedArchiveCheck = await runShell(retainedCommand(retainedManifestCommands[3]));
+    assert.equal(retainedArchiveCheck.exitCode, 0, retainedArchiveCheck.stderr);
+    assert.equal(JSON.parse(retainedArchiveCheck.stdout).ok, true);
+
+    const manifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
+    manifest.retention.artifacts = manifest.retention.artifacts.filter((artifact) => artifact !== "replacement-patch-audit.json");
+    await writeFile(retainedManifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const missingArchiveCheck = await runShell(retainedCommand(retainedManifestCommands[3]));
+    assert.equal(missingArchiveCheck.exitCode, 1);
+    assert.match(missingArchiveCheck.stderr, /missing retained archive evidence: retention=replacement-patch-audit\.json provenance=none/);
+
+    await rm(join(retainedEvidenceDir, "failed-npm-view.json"));
+    const missingFailedNpmViewCheck = await runShell(retainedCommand(retainedManifestCommands[1]));
+    assert.equal(missingFailedNpmViewCheck.exitCode, 1);
+    assert.match(missingFailedNpmViewCheck.stderr, /missing retained package release evidence files: failed-npm-view\.json/);
+
+    await rm(join(retainedEvidenceDir, "replacement-patch-audit.json"));
+    const missingRetainedFileReplay = await runShell(retainedCommand(retainedManifestCommands[0]));
+    assert.equal(missingRetainedFileReplay.exitCode, 1);
+    assert.match(missingRetainedFileReplay.stderr, /replacement-patch-audit\.json is required in package release evidence directory/);
+    assert.doesNotMatch(missingRetainedFileReplay.stderr, /ENOENT/);
+  } finally {
+    await rm(manifestReplayRoot, { recursive: true, force: true });
   }
 
   const dryRunArtifactCommands = extractShellBlock(guide, "Dry-Run Publication Artifact Failure");
@@ -2562,6 +2631,10 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("--manifest-out retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("--verify-manifest retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("schemas/package-release-archive-manifest.schema.json"));
+  assert.ok(checklist.includes("If retained package release manifest replay fails"));
+  assert.ok(checklist.includes("manifest identity"));
+  assert.ok(checklist.includes("required archive evidence"));
+  assert.ok(checklist.includes("provenance artifacts"));
   assert.ok(checklist.includes("180 days after replacement downstream verification passes"));
   assert.ok(checklist.includes("package publication rollback evidence"));
   assert.ok(checklist.includes("fixtures:package-release:check"));
@@ -2675,11 +2748,18 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence retention policy for failed and replacement release artifacts/);
   assert.match(handoff, /package release artifact provenance checks for retained failed and replacement evidence/);
   assert.match(handoff, /Retained package release evidence manifest export is available/);
+  assert.match(handoff, /Manifest Replay Troubleshooting/);
+  assert.match(handoff, /Retained package release evidence manifest replay troubleshooting now covers/);
   assert.match(handoff, /JSON schema contract for retained package release archive manifests/);
   assert.match(handoff, /jury\.package_release_archive_manifest\.v1/);
   assert.match(handoff, /schemas\/package-release-archive-manifest\.schema\.json/);
   assert.match(handoff, /--manifest-out retained-package-release-evidence-manifest\.json/);
   assert.match(handoff, /--verify-manifest retained-package-release-evidence-manifest\.json/);
+  assert.match(handoff, /schema_version must equal jury\.package_release_archive_manifest\.v1/);
+  assert.match(handoff, /does not match retained package release evidence/);
+  assert.match(handoff, /retained file presence checks/);
+  assert.match(handoff, /missing retained manifest diagnostics/);
+  assert.match(handoff, /missing retained file diagnostics/);
   assert.match(handoff, /retentionDays: 90/);
   assert.match(handoff, /source revision/);
   assert.match(handoff, /90 days/);
@@ -2708,7 +2788,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest replay troubleshooting for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest CI handoff example for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
