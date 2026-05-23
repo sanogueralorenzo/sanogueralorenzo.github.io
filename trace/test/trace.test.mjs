@@ -106,6 +106,21 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(showJson.memory.checkpoint, /^[0-9a-f]+$/);
     assert.match(showJson.memory.session, /^[A-Za-z0-9-]+$/);
 
+    const showPath = join(repo, "trace-show.md");
+    const showWrite = JSON.parse((await runTrace(repo, ["show", "HEAD", "--output", showPath])).stdout);
+    assert.equal(showWrite.schema_version, "trace.show_output.v1");
+    assert.equal(showWrite.commit, payload.commit);
+    assert.equal(showWrite.output, showPath);
+    assert.equal(showWrite.bytes, (await readFile(showPath, "utf8")).length);
+    assert.match(await readFile(showPath, "utf8"), /Use committed Markdown for reviewable memory/);
+
+    const showJsonPath = join(repo, "trace-show.json");
+    const showJsonWrite = JSON.parse((await runTrace(repo, ["show", "HEAD", "--json", "--output", showJsonPath])).stdout);
+    assert.equal(showJsonWrite.schema_version, "trace.show_output.v1");
+    const showJsonFile = JSON.parse(await readFile(showJsonPath, "utf8"));
+    assert.equal(showJsonFile.schema_version, "trace.memory_detail.v1");
+    assert.equal(showJsonFile.memory.commit, payload.commit);
+
     const search = await runTrace(repo, ["search", "reviewable"]);
     assert.match(search.stdout, /\.trace\/commits\//);
 

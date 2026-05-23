@@ -2382,13 +2382,33 @@ async function showMemory(commitish) {
     fail(`memory not found for commit ${sha}`);
   }
   const content = await readFile(memoryPath, "utf8");
-  if (args.json) {
-    const { mtimeMs: _mtimeMs, ...memory } = memoryLogRecord(root, memoryPath, content, (await stat(memoryPath)).mtimeMs);
-    print({ ok: true, schema_version: "trace.memory_detail.v1", memory });
+  const detail = await memoryDetail(root, memoryPath, content);
+  const document = args.json ? `${JSON.stringify(detail, null, 2)}\n` : content;
+  if (args.output) {
+    const outputPath = resolve(args.output);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, document);
+    print({
+      ok: true,
+      schema_version: "trace.show_output.v1",
+      commit: sha,
+      output: args.output,
+      bytes: Buffer.byteLength(document),
+    });
     return;
   }
 
-  process.stdout.write(content);
+  if (args.json) {
+    process.stdout.write(document);
+    return;
+  }
+
+  process.stdout.write(document);
+}
+
+async function memoryDetail(root, memoryPath, content) {
+  const { mtimeMs: _mtimeMs, ...memory } = memoryLogRecord(root, memoryPath, content, (await stat(memoryPath)).mtimeMs);
+  return { ok: true, schema_version: "trace.memory_detail.v1", memory };
 }
 
 async function reviewMemories() {
@@ -3979,7 +3999,7 @@ Usage:
   trace coverage [range] [--agents] [--checkpoints] [--strict-memory]
   trace ci [range] [--agents] [--checkpoints] [--strict-memory]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--strict] [--dry-run]
-  trace show [commit] [--json]
+  trace show [commit] [--json] [--output FILE]
   trace review [--all] [--json] [--output FILE]
   trace log [--limit 20] [--json]
   trace index
