@@ -281,10 +281,12 @@ most nodes and edges:
 ```
 
 Required top-level fields are `schema_version`, `ast_schema_version`, `source`,
-`package`, `ok`, `diagnostics`, `nodes`, and `edges`. Node ids are stable within
-one graph payload. Graph validation requires every edge endpoint to resolve to
-a node id emitted in the same payload and requires emitted graphs to be acyclic
-over dependency and execution edge kinds. Graph validation also emits
+`package`, `ok`, `diagnostics`, `nodes`, and `edges`. Node ids are stable and
+unique within one graph payload because runtime edge resolution requires stable
+unique node ids. Graph validation emits `INTENT_GRAPH_NODE_DUPLICATE` when two
+graph nodes share the same id. Graph validation requires every edge endpoint to
+resolve to a node id emitted in the same payload and requires emitted graphs to
+be acyclic over dependency and execution edge kinds. Graph validation also emits
 `INTENT_GRAPH_STEP_PLAN_INVALID` when a `Step` node lacks exactly one incoming
 `plans` edge from its owning `Goal`, or when incoming `plans` edges are not from
 that owning `Goal`. Graph validation emits
@@ -1083,6 +1085,7 @@ Initial diagnostic families:
 - `INTENT_MEMORY_RETENTION_INVALID`
 - `INTENT_CHECKPOINT_INVALID`
 - `INTENT_POLICY_INVALID`
+- `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_EDGE_UNRESOLVED`
 - `INTENT_GRAPH_INPUT_UNBOUND`
 - `INTENT_GRAPH_CYCLE`

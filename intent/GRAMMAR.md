@@ -356,6 +356,9 @@ The parser emits names and type reference strings; the checker owns binding.
   same normalized type are `INTENT_STEP_INPUT_UNRESOLVED`.
 - Goal params become `input` graph nodes with goal scope.
 - Step params become `input` graph nodes with step scope.
+- Graph validation emits `INTENT_GRAPH_NODE_DUPLICATE` when two graph nodes
+  share the same id because runtime edge resolution requires stable unique node
+  ids.
 - A bound step input creates a `data` edge from the matching goal input or
   earlier step output to that step input node.
 - Context calls preserve source name, args, argKinds, argSpans, expression, and
@@ -488,7 +491,9 @@ The parser emits names and type reference strings; the checker owns binding.
   `approves` edge to its owning `Step` or to an approval-required `Effect` in
   that same step, a `Checkpoint` without a `checkpoints` edge from its owning
   `Step`, or a `Policy` without its `timeouts` or `retries` edge to its owning
-  `Step` emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
+  `Step` emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`; two graph nodes with the
+  same id emit `INTENT_GRAPH_NODE_DUPLICATE` because runtime edge resolution
+  requires stable unique node ids.
 - Graph nodes and edges record trust metadata where it helps downstream
   runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.
