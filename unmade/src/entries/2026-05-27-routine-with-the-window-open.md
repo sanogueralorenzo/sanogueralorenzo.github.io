@@ -10,11 +10,20 @@ status: unlived routine
 visual: routine
 mark: "06"
 trace: A wake time, three quiet tasks, and a cup left unnamed.
-question: How many lives begin as schedules nobody keeps?
+materials: Wake-time note, chipped cup, window latch mark, and a checklist with three boxes never ticked in the same week.
+provenance: Found in a planner where the same morning was copied forward until the handwriting became impatient.
+question: How many lives begin as schedules nobody keeps, and how many end there too?
 permalink: /unmade/routine-with-the-window-open/
 ---
 
-The routine was modest: open the window before checking anything, drink water, write one sentence, stand in the changing light long enough to notice it changing.
+The routine was modest: open the window before checking anything, drink water, write one sentence, stand in the changing light long enough to notice it changing. Its ambition was not productivity but a different first allegiance.
+
+The checklist failed because the phone was closer than the window, and because ordinary life is skilled at entering through the smallest available habit. Still, the routine was copied forward as if repetition on paper could soften the body into compliance.
 
 It never became real, but it stayed near the edge of possibility, waiting for a morning that did not negotiate.
 
+## Case Notes
+
+The routine is Unlived because it is a complete life in miniature. It contains a philosophy of attention, a relationship to weather, and a refusal to let the day be assigned by notification.
+
+The unresolved question is whether a person changes by choosing a new life, or by moving one object closer than another.
