@@ -502,6 +502,28 @@ function remediationAuditHandoffErrors() {
   const driftEvidence = (remediationAudit.drift?.evidence ?? []).map((record) => record.path);
   const restoredEvidence = (remediationAudit.remediation?.restoredEvidence ?? []).map((record) => record.path);
   const verificationCommands = remediationAudit.verification?.commands ?? [];
+  const requiredRetainedWith = [
+    "archive-drift-remediation-audit.json",
+    "rollback-audit.json",
+    "replacement-patch-audit.json",
+    "retained-package-release-evidence-manifest.json",
+    "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+  ];
+  const availableRetainedWith = new Set([
+    "retained-package-release-evidence-manifest.json",
+    ...archiveEvidenceFiles,
+  ]);
+
+  for (const retained of requiredRetainedWith) {
+    if (!remediationAuditHandoff.retainedWith?.includes(retained)) {
+      errors.push(`archive drift remediation audit handoff retainedWith must include ${retained}`);
+    }
+  }
+  for (const retained of remediationAuditHandoff.retainedWith ?? []) {
+    if (!availableRetainedWith.has(retained)) {
+      errors.push(`archive drift remediation audit handoff retainedWith ${retained} is not retained package release evidence`);
+    }
+  }
 
   if (remediationAuditHandoff.failedPackageVersion !== failedRecord.packageVersion) {
     errors.push("archive drift remediation audit handoff failedPackageVersion must match dry-run record");

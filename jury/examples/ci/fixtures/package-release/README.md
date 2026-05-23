@@ -41,6 +41,8 @@ Retain the failed and replacement evidence until at least 180 days after replace
 
 [archive-drift-remediation-audit-handoff.json](archive-drift-remediation-audit-handoff.json) is the reviewed handoff fixture for retaining `archive-drift-remediation-audit.json` with failed and replacement release archives. It records the retained manifest, companion failed and replacement release audits, drifted evidence, restored evidence, verification commands, regenerated manifest, diff review, workflow run id, source revision, approving maintainer, and approval time before the release archive closes.
 
+If the remediation audit handoff schema fails, use [../../../../TROUBLESHOOTING.md](../../../../TROUBLESHOOTING.md) to inspect the required schema version, `sourceAudit`, `sourceManifest`, retained companion records, failed and replacement package identity, drift evidence, restored evidence, verification commands, workflow run id, source revision, reviewing maintainer, and approval time before closing the failed or replacement release archive.
+
 ## Replay Summary Expiry Handoff
 
 [jury-package-release-replay-summary-expiry-handoff.json](jury-package-release-replay-summary-expiry-handoff.json) is the reviewed handoff fixture for a missing `jury-package-release-replay-summary` CI artifact after the 90-day expiry. It records the reconstructed summary path, retained inputs, failed package version, replacement package version, and reviewing maintainer.
