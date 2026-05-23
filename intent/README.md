@@ -68,7 +68,8 @@ Every successful command writes formatted JSON to stdout and includes a stable
 - `check`: emits `intent.check.v0`, a diagnostic envelope with `ok` and
   `diagnostics`.
 - `graph`: emits `intent.graph.v0`, an execution graph envelope with
-  `ast_schema_version`, `ok`, `diagnostics`, `nodes`, and `edges`.
+  `ast_schema_version`, `source`, `package`, `ok`, `diagnostics`, `nodes`, and
+  `edges`.
 
 The schema files for the contract milestone are expected at these paths:
 
@@ -94,6 +95,10 @@ Validation expectations:
 - Static graph validators must accept only their supported `schema_version` and
   `ast_schema_version` pair. Missing or unsupported values for either field
   emit `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
+- Executable graph payloads must include string `source` and `package` fields
+  before runtime validation continues. Missing or non-string envelope
+  provenance emits `INTENT_GRAPH_SHAPE_INVALID` so diagnostics, provenance, and
+  package-scoped graph ids have stable origins.
 - Static graph runtimes accept only the supported node and edge kinds documented
   in `STATIC_MODEL.md`; every edge `from` and `to` endpoint must resolve to a
   node id in the same payload.

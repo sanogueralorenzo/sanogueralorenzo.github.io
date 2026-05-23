@@ -281,12 +281,13 @@ most nodes and edges:
 ```
 
 Required top-level fields are `schema_version`, `ast_schema_version`, `source`,
-`package`, `ok`, `diagnostics`, `nodes`, and `edges`. Node ids are stable and
-unique within one graph payload because runtime edge resolution requires stable
-unique node ids. Graph validation emits `INTENT_GRAPH_NODE_DUPLICATE` when two
-graph nodes share the same id. Graph validation requires every edge endpoint to
-resolve to a node id emitted in the same payload and requires emitted graphs to
-be acyclic over dependency and execution edge kinds. Graph validation also emits
+`package`, `ok`, `diagnostics`, `nodes`, and `edges`; `source` and `package`
+must be strings. Node ids are stable and unique within one graph payload
+because runtime edge resolution requires stable unique node ids. Graph
+validation emits `INTENT_GRAPH_NODE_DUPLICATE` when two graph nodes share the
+same id. Graph validation requires every edge endpoint to resolve to a node id
+emitted in the same payload and requires emitted graphs to be acyclic over
+dependency and execution edge kinds. Graph validation also emits
 `INTENT_GRAPH_STEP_PLAN_INVALID` when a `Step` node lacks exactly one incoming
 `plans` edge from its owning `Goal`, or when incoming `plans` edges are not from
 that owning `Goal`. Graph validation emits
@@ -303,6 +304,10 @@ Next graph envelope validation milestone:
   `intent.ast.v0`.
 - An unsupported or missing envelope version emits the stable diagnostic code
   `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
+- Executable graph payloads must include string `source` and `package` fields
+  before runtime validation continues. Missing or non-string envelope
+  provenance emits `INTENT_GRAPH_SHAPE_INVALID` so diagnostics, provenance, and
+  package-scoped graph ids have stable origins.
 - Executable graph payloads must include `nodes` and `edges` arrays. Missing
   or non-array collections emit `INTENT_GRAPH_SHAPE_INVALID`.
 - Executable graph payloads must contain object node records with string `id`,
@@ -1565,12 +1570,13 @@ owning `Step`.
 
 The next static graph contract milestone is rejection, not repair. Static graph
 validators must reject any graph with a missing or unsupported
-`schema_version` or `ast_schema_version`, whose `ok` value is not `true`, whose
-node or edge kind is outside the supported sets above, whose edge endpoint does
-not resolve inside the same payload, or whose required execution, data,
-authorization, approval, guard, verification, completion, and step-attachment
-relationships fail graph validation. Malformed graphs may be emitted for
-diagnostics, but they are never executable runtime contracts.
+`schema_version` or `ast_schema_version`, missing or non-string `source` or
+`package`, whose `ok` value is not `true`, whose node or edge kind is outside
+the supported sets above, whose edge endpoint does not resolve inside the same
+payload, or whose required execution, data, authorization, approval, guard,
+verification, completion, and step-attachment relationships fail graph
+validation. Malformed graphs may be emitted for diagnostics, but they are never
+executable runtime contracts.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
