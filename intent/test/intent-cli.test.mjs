@@ -1100,6 +1100,40 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_INPUT_UNBOUND");
   });
 
+  it("validates graph completion edge diagnostics", () => {
+    const missingProducesDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(2) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+      ],
+    });
+    const duplicateProducesDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:a", kind: "Step", label: "a", span: testSpan(2) },
+        { id: "goal:demo:step:b", kind: "Step", label: "b", span: testSpan(3) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:a", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:step:b", to: "goal:demo:completion", kind: "produces" },
+      ],
+    });
+
+    assert.equal(missingProducesDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(missingProducesDiagnostics[0].completes_edges, 1);
+    assert.equal(missingProducesDiagnostics[0].produces_edges, 0);
+    assert.equal(duplicateProducesDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(duplicateProducesDiagnostics[0].completes_edges, 1);
+    assert.equal(duplicateProducesDiagnostics[0].produces_edges, 2);
+  });
+
   it("validates CLI outputs against versioned schemas", () => {
     const astSchema = readJson(AST_SCHEMA);
     const checkSchema = readJson(CHECK_SCHEMA);

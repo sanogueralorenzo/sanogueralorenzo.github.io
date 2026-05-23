@@ -1165,6 +1165,7 @@ function validateGraph(graph) {
   const fallbackSpan = graph.nodes[0]?.span ?? span(graph.source ?? "graph", 1, 1);
   const outgoing = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
   const incomingDataCounts = new Map();
+  const incomingCompletionEdges = new Map();
 
   for (const graphEdge of graph.edges) {
     const missing = ["from", "to"].filter((endpoint) => !nodesById.has(graphEdge[endpoint]));
@@ -1178,6 +1179,11 @@ function validateGraph(graph) {
       continue;
     }
     outgoing.get(graphEdge.from).push(graphEdge.to);
+    if (nodesById.get(graphEdge.to)?.kind === "Completion") {
+      const completionEdges = incomingCompletionEdges.get(graphEdge.to) ?? [];
+      completionEdges.push(graphEdge);
+      incomingCompletionEdges.set(graphEdge.to, completionEdges);
+    }
     if (graphEdge.kind === "data") {
       const sourceNode = nodesById.get(graphEdge.from);
       const targetNode = nodesById.get(graphEdge.to);
@@ -1194,6 +1200,23 @@ function validateGraph(graph) {
         continue;
       }
       incomingDataCounts.set(graphEdge.to, (incomingDataCounts.get(graphEdge.to) ?? 0) + 1);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Completion") {
+      continue;
+    }
+    const incomingEdges = incomingCompletionEdges.get(graphNode.id) ?? [];
+    const completingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "completes" && nodesById.get(graphEdge.from)?.kind === "Goal");
+    const producingEdges = incomingEdges.filter((graphEdge) => graphEdge.kind === "produces" && nodesById.get(graphEdge.from)?.kind === "Step");
+    if (completingEdges.length !== 1 || producingEdges.length !== 1) {
+      diagnostics.push(error("INTENT_GRAPH_COMPLETION_INVALID", `completion '${graphNode.label}' must have one incoming completes edge from a goal and one incoming produces edge from a step.`, graphNode.span ?? fallbackSpan, {
+        completion: graphNode.label,
+        completion_id: graphNode.id,
+        completes_edges: completingEdges.length,
+        produces_edges: producingEdges.length,
+      }));
     }
   }
 
