@@ -30,10 +30,10 @@ The test suite covers the quickstart, GitHub Actions workflow commands, fixture 
 
 Trust policy flags on `bundle preflight` and `bundle import` let CI allow or reject bundles by expected producer name, producer version, source, and revision pattern.
 
+## Signed Attestations
+
+Signed bundle attestations are available through `bundle export --attest-key`, `bundle export --attest-private-key`, `bundle preflight --verify-attestation-key`, `bundle preflight --verify-attestation-public-key`, and the matching `bundle import` verification flags. CI should combine attestation verification with trust policy flags before importing third-party bundles.
+
 ## Next Hardening Step
 
-Signed bundle attestations are available through `bundle export --attest-key`, `bundle preflight --verify-attestation-key`, and `bundle import --verify-attestation-key`. CI should combine attestation verification with trust policy flags before importing third-party bundles.
-
-## Next Hardening Step
-
-Add asymmetric signing support so CI can verify producer identity with public keys instead of sharing an HMAC secret across jobs.
+Add key rotation metadata so CI can accept more than one public key during producer key rollover.

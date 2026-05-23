@@ -57,3 +57,5 @@ Use [release.json](release.json) to discover supported schema files, state files
 Run `bundle preflight` before `bundle import` for third-party bundles. Preflight reports all bundle validation errors it can find and exits before creating or mutating `.jury/` state. Import consumers should enforce `--expect-producer-name`, `--expect-producer-version`, `--expect-source`, and `--expect-revision-pattern` before trusting the bundle.
 
 For stronger CI handoff, export with `--attest-key "$JURY_BUNDLE_ATTEST_KEY" --attestation-key-id ci`, then require `--require-attestation true --verify-attestation-key "$JURY_BUNDLE_ATTEST_KEY" --expect-attestation-key-id ci` during preflight and import.
+
+For public-key verification, export with `--attest-private-key ci-private.pem --attestation-key-id ci`, then verify with `--require-attestation true --verify-attestation-public-key ci-public.pem --expect-attestation-key-id ci`.

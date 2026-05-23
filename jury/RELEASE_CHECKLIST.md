@@ -19,7 +19,8 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] `gate.json` exists and has `ok: true`.
 - [ ] `node jury/bin/jury.mjs bundle preflight --bundle review-bundle.json` passes before import.
 - [ ] `bundle preflight` uses producer trust policy flags before importing third-party bundles.
-- [ ] Third-party bundles are signed with `--attest-key` and verified with `--verify-attestation-key`.
+- [ ] Internal shared-secret bundles are signed with `--attest-key` and verified with `--verify-attestation-key`.
+- [ ] Third-party or cross-job producers are signed with `--attest-private-key` and verified with `--verify-attestation-public-key`.
 - [ ] `.jury/*.jsonl` exists when raw append-only audit state is needed.
 
 Expected fixture files:

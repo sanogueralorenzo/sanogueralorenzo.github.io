@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { mkdir, readFile, writeFile, appendFile, rm, readdir } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, createPrivateKey, createPublicKey, createSign, createVerify, timingSafeEqual } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -473,9 +474,16 @@ async function exportBundle() {
     records,
   });
   const attestKey = args["attest-key"] ?? process.env.JURY_BUNDLE_ATTEST_KEY;
+  const attestPrivateKey = args["attest-private-key"] ?? process.env.JURY_BUNDLE_ATTEST_PRIVATE_KEY;
+
+  if (attestKey && attestPrivateKey) {
+    fail("use either --attest-key or --attest-private-key, not both");
+  }
 
   if (attestKey) {
     bundle.attestation = signBundle(bundle, attestKey, args["attestation-key-id"] ?? process.env.JURY_BUNDLE_ATTEST_KEY_ID ?? "local");
+  } else if (attestPrivateKey) {
+    bundle.attestation = signBundleWithPrivateKey(bundle, attestPrivateKey, args["attestation-key-id"] ?? process.env.JURY_BUNDLE_ATTEST_KEY_ID ?? "local");
   }
 
   validateReviewBundle(bundle);
@@ -995,8 +1003,13 @@ function trustPolicyErrors(bundle) {
 function attestationPolicyErrors(bundle) {
   const errors = [];
   const verifyKey = args["verify-attestation-key"] ?? process.env.JURY_BUNDLE_VERIFY_KEY;
+  const verifyPublicKey = args["verify-attestation-public-key"] ?? process.env.JURY_BUNDLE_VERIFY_PUBLIC_KEY;
 
-  if ((args["require-attestation"] === "true" || verifyKey) && !bundle.attestation) {
+  if (verifyKey && verifyPublicKey) {
+    errors.push("use either --verify-attestation-key or --verify-attestation-public-key, not both");
+  }
+
+  if ((args["require-attestation"] === "true" || verifyKey || verifyPublicKey) && !bundle.attestation) {
     errors.push("bundle.attestation is required");
     return errors;
   }
@@ -1010,12 +1023,24 @@ function attestationPolicyErrors(bundle) {
   }
 
   if (!verifyKey) {
-    return errors;
+    if (!verifyPublicKey) {
+      return errors;
+    }
+  } else if (bundle.attestation.type !== "hmac-sha256") {
+    errors.push(`bundle.attestation.type expected hmac-sha256 for HMAC verification, got ${bundle.attestation.type ?? "missing"}`);
+  } else {
+    const expected = bundleSignature(bundle, verifyKey);
+    if (!constantTimeEqual(bundle.attestation.signature, expected)) {
+      errors.push("bundle.attestation.signature verification failed");
+    }
   }
 
-  const expected = bundleSignature(bundle, verifyKey);
-  if (!constantTimeEqual(bundle.attestation.signature, expected)) {
-    errors.push("bundle.attestation.signature verification failed");
+  if (verifyPublicKey) {
+    if (bundle.attestation.type !== "rsa-sha256") {
+      errors.push(`bundle.attestation.type expected rsa-sha256 for public key verification, got ${bundle.attestation.type ?? "missing"}`);
+    } else if (!verifyBundleWithPublicKey(bundle, verifyPublicKey)) {
+      errors.push("bundle.attestation.signature verification failed");
+    }
   }
 
   return errors;
@@ -1030,8 +1055,61 @@ function signBundle(bundle, key, keyId) {
   };
 }
 
+function signBundleWithPrivateKey(bundle, keySource, keyId) {
+  const privateKey = loadRsaPrivateKey(keySource);
+  const signer = createSign("sha256");
+  signer.update(canonicalJson(unsignedBundle(bundle)));
+  signer.end();
+  return {
+    type: "rsa-sha256",
+    key_id: keyId,
+    signed_at: now(),
+    signature: signer.sign(privateKey, "base64"),
+  };
+}
+
 function bundleSignature(bundle, key) {
   return createHmac("sha256", key).update(canonicalJson(unsignedBundle(bundle))).digest("hex");
+}
+
+function verifyBundleWithPublicKey(bundle, keySource) {
+  try {
+    const publicKey = loadRsaPublicKey(keySource);
+    const verifier = createVerify("sha256");
+    verifier.update(canonicalJson(unsignedBundle(bundle)));
+    verifier.end();
+    return verifier.verify(publicKey, bundle.attestation.signature, "base64");
+  } catch {
+    return false;
+  }
+}
+
+function loadRsaPrivateKey(source) {
+  const privateKey = createPrivateKey(loadKeyMaterial(source));
+
+  if (privateKey.asymmetricKeyType !== "rsa") {
+    fail(`attestation private key must be RSA, got ${privateKey.asymmetricKeyType ?? "unknown"}`);
+  }
+
+  return privateKey;
+}
+
+function loadRsaPublicKey(source) {
+  const publicKey = createPublicKey(loadKeyMaterial(source));
+
+  if (publicKey.asymmetricKeyType !== "rsa") {
+    throw new Error(`attestation public key must be RSA, got ${publicKey.asymmetricKeyType ?? "unknown"}`);
+  }
+
+  return publicKey;
+}
+
+function loadKeyMaterial(source) {
+  if (source.includes("-----BEGIN ")) {
+    return source;
+  }
+
+  return readFileSync(resolve(source), "utf8");
 }
 
 function unsignedBundle(bundle) {
@@ -1104,7 +1182,7 @@ function validateBundleProvenance(provenance) {
 
 function validateBundleAttestation(attestation) {
   requireObject(attestation, "bundle.attestation");
-  requireEnum(attestation.type, ["hmac-sha256"], "bundle.attestation.type");
+  requireEnum(attestation.type, ["hmac-sha256", "rsa-sha256"], "bundle.attestation.type");
   requireString(attestation.key_id, "bundle.attestation.key_id");
   requireString(attestation.signed_at, "bundle.attestation.signed_at");
   requireString(attestation.signature, "bundle.attestation.signature");
@@ -1661,9 +1739,9 @@ Commands:
   jury status --claim <id>
   jury judge --claim <id> [--out verdict.json] [--require-human-approval true]
   jury gate --verdict verdict.json [--claim <id>]
-  jury bundle export --claim <id> --out review-bundle.json [--attest-key secret]
-  jury bundle preflight --bundle review-bundle.json [--require-attestation true] [--verify-attestation-key secret] [--expect-producer-name name] [--expect-producer-version version] [--expect-source source] [--expect-revision-pattern pattern]
-  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json] [--require-attestation true] [--verify-attestation-key secret]
+  jury bundle export --claim <id> --out review-bundle.json [--attest-key secret] [--attest-private-key private.pem]
+  jury bundle preflight --bundle review-bundle.json [--require-attestation true] [--verify-attestation-key secret] [--verify-attestation-public-key public.pem] [--expect-producer-name name]
+  jury bundle import --bundle review-bundle.json [--verdict-out verdict.json] [--require-attestation true] [--verify-attestation-key secret] [--verify-attestation-public-key public.pem]
   jury check --strict
   jury demo code-change`);
 }

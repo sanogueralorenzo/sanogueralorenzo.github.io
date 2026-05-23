@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
 import { mkdtemp, rm, readFile, writeFile, appendFile, cp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -760,6 +761,122 @@ test("bundle attestation signs exports and rejects bad or tampered signatures be
   }
 });
 
+test("bundle asymmetric attestation verifies producer identity with a public key", async () => {
+  const sourceDir = await tempState();
+  const cwd = await tempState();
+  const importDir = join(cwd, "asymmetric-import-state");
+  const privateKeyPath = join(cwd, "ci-private.pem");
+  const publicKeyPath = join(cwd, "ci-public.pem");
+  const wrongPublicKeyPath = join(cwd, "wrong-public.pem");
+  const ecPrivateKeyPath = join(cwd, "ec-private.pem");
+  const ecPublicKeyPath = join(cwd, "ec-public.pem");
+  const signedBundlePath = join(cwd, "asymmetric-review-bundle.json");
+  const tamperedBundlePath = join(cwd, "asymmetric-tampered-review-bundle.json");
+
+  try {
+    const pair = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    const wrongPair = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    const ecPair = generateKeyPairSync("ec", {
+      namedCurve: "P-256",
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    await writeFile(privateKeyPath, pair.privateKey);
+    await writeFile(publicKeyPath, pair.publicKey);
+    await writeFile(wrongPublicKeyPath, wrongPair.publicKey);
+    await writeFile(ecPrivateKeyPath, ecPair.privateKey);
+    await writeFile(ecPublicKeyPath, ecPair.publicKey);
+
+    await runJson(["init", "--state-dir", sourceDir]);
+    await runJson(["claim", "create", "--state-dir", sourceDir, "--id", "claim_asymmetric_bundle", "--summary", "asymmetric bundle is ready", "--scope", "jury"]);
+    await runJson(["evidence", "add", "--state-dir", sourceDir, "--id", "ev_asymmetric_tests", "--claim", "claim_asymmetric_bundle", "--type", "command", "--command", "npm --prefix jury test", "--exit-code", "0"]);
+    const bundle = await runJson([
+      "bundle", "export",
+      "--state-dir", sourceDir,
+      "--claim", "claim_asymmetric_bundle",
+      "--out", signedBundlePath,
+      "--attest-private-key", privateKeyPath,
+      "--attestation-key-id", "ci-public",
+    ]);
+
+    assert.equal(bundle.attestation.type, "rsa-sha256");
+    assert.equal(bundle.attestation.key_id, "ci-public");
+    assert.equal(bundle.attestation.signed_at, "2026-05-23T00:00:00.000Z");
+    assert.match(bundle.attestation.signature, /^[A-Za-z0-9+/=]+$/);
+
+    const trusted = await runProcess([
+      "bundle", "preflight",
+      "--bundle", signedBundlePath,
+      "--require-attestation", "true",
+      "--verify-attestation-public-key", publicKeyPath,
+      "--expect-attestation-key-id", "ci-public",
+    ]);
+
+    assert.equal(trusted.exitCode, 0, trusted.stderr);
+    assert.equal(JSON.parse(trusted.stdout).ok, true);
+
+    const imported = await runProcess([
+      "bundle", "import",
+      "--state-dir", importDir,
+      "--bundle", signedBundlePath,
+      "--require-attestation", "true",
+      "--verify-attestation-public-key", publicKeyPath,
+      "--expect-attestation-key-id", "ci-public",
+    ]);
+
+    assert.equal(imported.exitCode, 0, imported.stderr);
+    assert.equal(JSON.parse(imported.stdout).ok, true);
+
+    await rm(importDir, { recursive: true, force: true });
+
+    const wrongKey = await runProcess(["bundle", "preflight", "--state-dir", importDir, "--bundle", signedBundlePath, "--verify-attestation-public-key", wrongPublicKeyPath]);
+    const wrongKeyPayload = JSON.parse(wrongKey.stdout);
+
+    assert.equal(wrongKey.exitCode, 1);
+    assert.ok(wrongKeyPayload.errors.includes("bundle.attestation.signature verification failed"));
+    await assertPathMissing(importDir);
+
+    const wrongTypeKey = await runProcess(["bundle", "preflight", "--state-dir", importDir, "--bundle", signedBundlePath, "--verify-attestation-public-key", ecPublicKeyPath]);
+    const wrongTypeKeyPayload = JSON.parse(wrongTypeKey.stdout);
+
+    assert.equal(wrongTypeKey.exitCode, 1);
+    assert.ok(wrongTypeKeyPayload.errors.includes("bundle.attestation.signature verification failed"));
+    await assertPathMissing(importDir);
+
+    const ecSigned = await runProcess([
+      "bundle", "export",
+      "--state-dir", sourceDir,
+      "--claim", "claim_asymmetric_bundle",
+      "--attest-private-key", ecPrivateKeyPath,
+    ]);
+
+    assert.equal(ecSigned.exitCode, 1);
+    assert.match(ecSigned.stderr, /attestation private key must be RSA, got ec/);
+
+    const tampered = JSON.parse(await readFile(signedBundlePath, "utf8"));
+    tampered.records.evidence[0].summary = "tampered asymmetric evidence";
+    await writeFile(tamperedBundlePath, `${JSON.stringify(tampered, null, 2)}\n`);
+
+    const tamperedResult = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", tamperedBundlePath, "--require-attestation", "true", "--verify-attestation-public-key", publicKeyPath]);
+    const tamperedPayload = JSON.parse(tamperedResult.stdout);
+
+    assert.equal(tamperedResult.exitCode, 1);
+    assert.ok(tamperedPayload.errors.includes("bundle.attestation.signature verification failed"));
+    await assertPathMissing(importDir);
+  } finally {
+    await rm(sourceDir, { recursive: true, force: true });
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test("review bundle exports from local state and imports into fresh state", async () => {
   const sourceDir = await tempState();
   const importedDir = await tempState();
@@ -865,6 +982,9 @@ test("review bundle schema references the stable record schemas", async () => {
   assert.deepEqual(schema.properties.producer.required, ["name", "version", "command"]);
   assert.deepEqual(schema.properties.provenance.required, ["source", "revision", "workflow", "run_id"]);
   assert.deepEqual(schema.properties.attestation.required, ["type", "key_id", "signed_at", "signature"]);
+  assert.deepEqual(schema.properties.attestation.properties.type.enum, ["hmac-sha256", "rsa-sha256"]);
+  assert.equal(schema.properties.attestation.properties.signed_at.format, "date-time");
+  assert.equal(schema.properties.attestation.allOf.length, 2);
   assert.equal(properties.claims.items.$ref, "claim.schema.json");
   assert.equal(properties.checks.items.$ref, "check.schema.json");
   assert.equal(properties.evidence.items.$ref, "evidence.schema.json");
@@ -967,8 +1087,10 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /producer metadata, provenance, record, cross-reference, and trust policy errors/);
   assert.match(handoff, /expected producer name, producer version, source, and revision pattern/);
   assert.match(handoff, /bundle export --attest-key/);
+  assert.match(handoff, /bundle export --attest-private-key/);
   assert.match(handoff, /bundle preflight --verify-attestation-key/);
-  assert.match(handoff, /asymmetric signing support/);
+  assert.match(handoff, /bundle preflight --verify-attestation-public-key/);
+  assert.match(handoff, /key rotation metadata/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

@@ -32,11 +32,21 @@
       "type": "object",
       "required": ["type", "key_id", "signed_at", "signature"],
       "properties": {
-        "type": { "const": "hmac-sha256" },
+        "type": { "enum": ["hmac-sha256", "rsa-sha256"] },
         "key_id": { "type": "string", "minLength": 1 },
-        "signed_at": { "type": "string", "minLength": 1 },
+        "signed_at": { "type": "string", "format": "date-time", "minLength": 1 },
         "signature": { "type": "string", "minLength": 1 }
       },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "hmac-sha256" } }, "required": ["type"] },
+          "then": { "properties": { "signature": { "pattern": "^[0-9a-f]{64}$" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "rsa-sha256" } }, "required": ["type"] },
+          "then": { "properties": { "signature": { "pattern": "^[A-Za-z0-9+/]+={0,2}$" } } }
+        }
+      ],
       "additionalProperties": true
     },
     "records": {
