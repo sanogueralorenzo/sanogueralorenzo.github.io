@@ -158,7 +158,6 @@ The first prototype should focus on code-change review because it has concrete e
 - Can verdicts become training data for better future critics?
 - What is the right threshold for requiring human approval?
 - How should Jury represent disagreement when two reviewers make defensible but incompatible claims?
-- Which verdict fields should remain stable enough for other systems to integrate later?
 
 ## Long-Term Vision
 
@@ -173,4 +172,4 @@ Instead of asking whether an agent sounds confident, a system can ask:
 - Who accepted those risks?
 - Can another agent or human audit the verdict later?
 
-The first version should stand on its own: a small, strict verdict system for claims, objections, evidence, waivers, and decisions. Future integrations can plug into that boundary after the core review model proves useful by itself.
+The first version should stand on its own: a small, strict verdict system for claims, objections, evidence, waivers, and decisions.
