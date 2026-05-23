@@ -150,6 +150,21 @@ Validation expectations:
   malformed node payloads remain `INTENT_GRAPH_TYPE_INVALID` or
   `INTENT_GRAPH_MEMORY_INVALID`. Constraining the generic role prevents
   `declares` from becoming an ambiguous catch-all edge during runtime replay.
+- Runtime graph `authorizes` edges have a constrained role contract. An
+  `authorizes` edge is valid only from `Capability` to `Goal` for capability
+  ownership, or when it targets an `Effect`, `Check`, or `Context` node for
+  runtime authorization. `authorizes` edges to unsupported target roles, and
+  non-Capability `authorizes` edges to `Goal`, emit
+  `INTENT_GRAPH_AUTHORIZE_INVALID` and make graph output non-executable. This
+  generic role diagnostic is separate from source- and coverage-specific
+  diagnostics: missing, duplicate, or wrong owning-Goal capability ownership
+  remains `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID`; missing or
+  non-Capability incoming authorization for `Effect`, verification `Check`, or
+  external `Context` remains `INTENT_GRAPH_AUTHORIZATION_INVALID`; and
+  malformed node payloads keep their existing node diagnostics. Constraining
+  the generic role prevents `authorizes` from becoming an ambiguous catch-all
+  edge during runtime replay while preserving target-specific authorization
+  diagnostics.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
   milestone. The `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -329,8 +344,9 @@ Validation expectations:
   `INTENT_GRAPH_CAPABILITY_INVALID`. This ownership edge is separate from
   runtime target authorization: Capability `authorizes` edges to `Effect`,
   `Check`, and external `Context` targets remain valid target authorization
-  edges, and malformed or missing target authorization still emits
-  `INTENT_GRAPH_AUTHORIZATION_INVALID`.
+  edges, unsupported target roles or non-Capability edges to `Goal` emit
+  `INTENT_GRAPH_AUTHORIZE_INVALID`, and malformed or missing target
+  authorization still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`.
 - Graph `Approval` nodes are runtime approval gates. They must carry valid step
   gate data: `data.approval` must be non-empty and `data.ownerStep` must be
   non-empty. Malformed approval gate data emits `INTENT_GRAPH_APPROVAL_INVALID`
