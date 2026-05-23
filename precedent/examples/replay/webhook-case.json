@@ -30,6 +30,20 @@
     "evidence": [
       "review-comment: provider-specific logic leaked into shared handler"
     ],
-    "injection": "For webhook changes in this repo: run pnpm test:webhooks, keep provider-specific logic inside the webhook provider boundary, and reuse existing nullable payload helpers."
+    "injection": "For webhook changes in this repo: run pnpm test:webhooks, keep provider-specific logic inside the webhook provider boundary, and reuse existing nullable payload helpers.",
+    "guards": [
+      {
+        "id": "guard_webhook_paths",
+        "type": "changed_files_within_paths",
+        "paths": ["features/webhooks", "webhooks/providers"],
+        "message": "Keep webhook provider edits inside the webhook boundary."
+      },
+      {
+        "id": "guard_webhook_validation",
+        "type": "required_validation_command",
+        "command": "pnpm test:webhooks",
+        "message": "Run pnpm test:webhooks for webhook changes."
+      }
+    ]
   }
 }

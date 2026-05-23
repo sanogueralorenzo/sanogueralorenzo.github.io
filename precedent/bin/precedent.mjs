@@ -9,6 +9,10 @@ const DEFAULT_STATE_DIR = ".precedent";
 const SCHEMA_VERSION = "precedent.v1";
 const CONFIG_SCHEMA_VERSION = "precedent.config.v1";
 const ADAPTER_SCHEMA_VERSION = "precedent.adapter.v1";
+const SUPPORTED_GUARD_TYPES = new Set([
+  "changed_files_within_paths",
+  "required_validation_command",
+]);
 const SUPPORTED_EVENT_HOOKS = new Set([
   "context.before_turn",
   "validation.after_run",
@@ -763,10 +767,19 @@ async function validationAfterRunEventHook(event) {
   const commandText = requireString(event.command, "event.command");
   const exitCode = requireNumber(event.exitCode, "event.exitCode");
   const failureSignals = validationFailureSignals(event, exitCode);
+  let guardResult = emptyGuardResult();
+  let contextBlock = "";
   let sessionEvent = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
+    const activePrecedents = await activePrecedentsForSession(stateDir, sessionId);
+    guardResult = evaluatePrecedentGuards(activePrecedents, "validation.after_run", {
+      command: commandText,
+      exitCode,
+      failureSignals,
+    });
+    contextBlock = formatGuardContextBlock(guardResult.failed);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -778,6 +791,8 @@ async function validationAfterRunEventHook(event) {
       failureSignals,
       stdout: typeof event.stdout === "string" ? event.stdout : "",
       stderr: typeof event.stderr === "string" ? event.stderr : "",
+      guardResult,
+      contextBlock,
     });
 
     await appendJsonLine(join(stateDir, "events.jsonl"), {
@@ -788,6 +803,7 @@ async function validationAfterRunEventHook(event) {
       command: commandText,
       exitCode,
       failureSignals,
+      guardResult,
     });
   });
 
@@ -804,6 +820,8 @@ async function validationAfterRunEventHook(event) {
       stdoutPath: sessionEvent.event.stdoutPath ?? null,
       stderrPath: sessionEvent.event.stderrPath ?? null,
     },
+    guardResult,
+    contextBlock,
   });
 }
 
@@ -812,10 +830,18 @@ async function diffAfterEditEventHook(event) {
   const sessionId = requireString(event.sessionId, "event.sessionId");
   const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
   const breadthSignals = diffBreadthSignals(event, changedFiles);
+  let guardResult = emptyGuardResult();
+  let contextBlock = "";
   let sessionEvent = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
+    const activePrecedents = await activePrecedentsForSession(stateDir, sessionId);
+    guardResult = evaluatePrecedentGuards(activePrecedents, "diff.after_edit", {
+      changedFiles,
+      breadthSignals,
+    });
+    contextBlock = formatGuardContextBlock(guardResult.failed);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -825,6 +851,8 @@ async function diffAfterEditEventHook(event) {
       linesAdded: numberOrNull(event.linesAdded),
       linesDeleted: numberOrNull(event.linesDeleted),
       breadthSignals,
+      guardResult,
+      contextBlock,
     });
 
     await appendJsonLine(join(stateDir, "events.jsonl"), {
@@ -834,6 +862,7 @@ async function diffAfterEditEventHook(event) {
       sessionId,
       changedFiles,
       breadthSignals,
+      guardResult,
     });
   });
 
@@ -847,6 +876,8 @@ async function diffAfterEditEventHook(event) {
       changedFiles,
       breadthSignals,
     },
+    guardResult,
+    contextBlock,
   });
 }
 
@@ -1316,6 +1347,7 @@ function normalizePrecedent(precedent, traceId) {
     evidence: Array.isArray(precedent.evidence) ? precedent.evidence : [],
     injection: requireString(precedent.injection, "precedent.injection"),
     promotion: precedent.promotion ?? {},
+    guards: Array.isArray(precedent.guards) ? precedent.guards : [],
   };
 }
 
@@ -1604,6 +1636,7 @@ async function activeInjectionIdsForSession(stateDir, sessionId) {
   for (const event of events) {
     if (event.hook === "outcome.after_task") {
       ids.length = 0;
+      continue;
     }
 
     if (event.hook === "context.before_turn" || event.hook === "context.export") {
@@ -1612,6 +1645,149 @@ async function activeInjectionIdsForSession(stateDir, sessionId) {
   }
 
   return uniqueStrings(ids);
+}
+
+async function activePrecedentsForSession(stateDir, sessionId) {
+  const activeIds = new Set(await activeInjectionIdsForSession(stateDir, sessionId));
+  if (activeIds.size === 0) {
+    return [];
+  }
+
+  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+  return precedents.filter((precedent) => activeIds.has(precedent.id));
+}
+
+function evaluatePrecedentGuards(precedents, hook, event) {
+  const result = emptyGuardResult();
+
+  for (const precedent of precedents) {
+    for (const guard of Array.isArray(precedent.guards) ? precedent.guards : []) {
+      if (!SUPPORTED_GUARD_TYPES.has(guard.type)) {
+        result.skipped.push(formatGuardCheck({
+          precedent,
+          guard,
+          status: "unknown",
+          message: guard.message ?? `Unsupported guard type: ${guard.type}`,
+          evidence: [],
+        }));
+        continue;
+      }
+
+      if (guard.type === "changed_files_within_paths" && hook === "diff.after_edit") {
+        const allowedPaths = Array.isArray(guard.paths) ? guard.paths : [];
+        const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : [];
+        const outsidePaths = changedFiles.filter((file) => !allowedPaths.some((path) => pathMatchesGuardPath(file, path)));
+
+        if (outsidePaths.length > 0) {
+          result.failed.push(formatGuardCheck({
+            precedent,
+            guard,
+            status: "warn",
+            message: guard.message ?? `Keep edits inside ${allowedPaths.join(", ")}.`,
+            evidence: outsidePaths,
+          }));
+        } else {
+          result.passed.push(formatGuardCheck({
+            precedent,
+            guard,
+            status: "pass",
+            message: guard.message ?? `Changed files are inside ${allowedPaths.join(", ")}.`,
+            evidence: changedFiles,
+          }));
+        }
+        continue;
+      }
+
+      if (guard.type === "required_validation_command" && hook === "validation.after_run") {
+        const command = typeof guard.command === "string" ? guard.command : "";
+        const allowedExitCodes = Array.isArray(guard.allowedExitCodes) ? guard.allowedExitCodes : [0];
+
+        if (command && String(event.command ?? "").includes(command) && allowedExitCodes.includes(event.exitCode)) {
+          result.passed.push(formatGuardCheck({
+            precedent,
+            guard,
+            status: "pass",
+            message: guard.message ?? `Validation command passed: ${command}.`,
+            evidence: [`${event.command} exited ${event.exitCode}`],
+          }));
+        } else {
+          result.failed.push(formatGuardCheck({
+            precedent,
+            guard,
+            status: "warn",
+            message: guard.message ?? `Run ${command}.`,
+            evidence: [`expected ${command}`, `actual ${event.command ?? "(missing)"} exited ${event.exitCode}`],
+          }));
+        }
+        continue;
+      }
+
+      result.pending.push(formatGuardCheck({
+        precedent,
+        guard,
+        status: "unknown",
+        message: guard.message ?? `Guard ${guard.id ?? guard.type} waits for ${guardHookForType(guard.type)}.`,
+        evidence: [],
+      }));
+    }
+  }
+
+  result.checked = result.passed.length + result.failed.length + result.pending.length + result.skipped.length;
+  result.ok = result.failed.length === 0;
+  result.decision = result.failed.length > 0 ? "feedback" : "none";
+  return result;
+}
+
+function emptyGuardResult() {
+  return {
+    ok: true,
+    decision: "none",
+    checked: 0,
+    passed: [],
+    failed: [],
+    pending: [],
+    skipped: [],
+  };
+}
+
+function pathMatchesGuardPath(file, guardPath) {
+  return file === guardPath || file.startsWith(`${guardPath}/`);
+}
+
+function formatGuardCheck({ precedent, guard, status, message, evidence }) {
+  return {
+    id: guard.id ?? null,
+    precedentId: precedent.id,
+    guardId: guard.id ?? null,
+    type: guard.type,
+    status,
+    severity: guard.severity ?? "warning",
+    message,
+    evidence,
+  };
+}
+
+function guardHookForType(type) {
+  if (type === "changed_files_within_paths") {
+    return "diff.after_edit";
+  }
+
+  if (type === "required_validation_command") {
+    return "validation.after_run";
+  }
+
+  return "a supported hook";
+}
+
+function formatGuardContextBlock(failedChecks) {
+  if (failedChecks.length === 0) {
+    return "";
+  }
+
+  return [
+    "Precedent guard:",
+    ...failedChecks.map((check) => `- ${check.message}`),
+  ].join("\n");
 }
 
 async function appendSessionEvent(stateDir, rawEvent) {
@@ -2432,10 +2608,35 @@ async function checkPromotedPrecedents(checks, stateDir) {
     assertCheck(Array.isArray(precedent.evidence) && precedent.evidence.length > 0, checks, name, file, `precedent ${precedent.id} has no evidence`);
     assertCheck(Number.isFinite(precedent.promotion?.baseline_failures), checks, name, file, `precedent ${precedent.id} missing baseline_failures`);
     assertCheck(Number.isFinite(precedent.promotion?.rerun_failures), checks, name, file, `precedent ${precedent.id} missing rerun_failures`);
+    checkPrecedentGuards(precedent, checks, file);
   }
 
   if (!checks.some((check) => check.name === "promoted_precedent" && !check.ok)) {
     checks.push({ ok: true, name: "promoted_precedent", file: join(stateDir, "precedents.jsonl") });
+  }
+}
+
+function checkPrecedentGuards(precedent, checks, file) {
+  if (precedent.guards === undefined) {
+    return;
+  }
+
+  assertCheck(Array.isArray(precedent.guards), checks, "precedent_guard", file, `precedent ${precedent.id} guards must be an array`);
+  if (!Array.isArray(precedent.guards)) {
+    return;
+  }
+
+  for (const guard of precedent.guards) {
+    assertCheck(typeof guard.id === "string" && guard.id.length > 0, checks, "precedent_guard", file, `precedent ${precedent.id} guard.id is required`);
+    assertCheck(SUPPORTED_GUARD_TYPES.has(guard.type), checks, "precedent_guard", file, `precedent ${precedent.id} guard ${guard.id ?? "(missing)"} type is unsupported`);
+
+    if (guard.type === "changed_files_within_paths") {
+      assertCheck(Array.isArray(guard.paths) && guard.paths.length > 0, checks, "precedent_guard", file, `precedent ${precedent.id} guard ${guard.id} paths are required`);
+    }
+
+    if (guard.type === "required_validation_command") {
+      assertCheck(typeof guard.command === "string" && guard.command.length > 0, checks, "precedent_guard", file, `precedent ${precedent.id} guard ${guard.id} command is required`);
+    }
   }
 }
 
