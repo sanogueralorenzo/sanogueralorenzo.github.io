@@ -601,6 +601,30 @@ a {
   background: #7da0b0;
 }
 
+.unmade-object-memo {
+  background: #d8d0c6;
+}
+
+.unmade-object-soft-machine {
+  background: #b96d5a;
+}
+
+.unmade-object-interface {
+  background: #99aaa4;
+}
+
+.unmade-object-manual {
+  background: #e6ddca;
+}
+
+.unmade-object-sensor {
+  background: #6f9fbc;
+}
+
+.unmade-object-routine {
+  background: #c9b56f;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
