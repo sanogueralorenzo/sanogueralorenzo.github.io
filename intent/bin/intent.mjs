@@ -543,7 +543,9 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
 
   if (normalized === "invariant") {
     for (const line of meaningfulLines(body)) {
-      if (line.text.startsWith("deny ")) {
+      if (line.text.startsWith("require ")) {
+        goal.invariants.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
+      } else if (line.text.startsWith("deny ")) {
         goal.invariants.push(statementNode("Deny", line.text.slice("deny ".length), file, line.lineNumber, line.raw));
       } else {
         goal.rawBlocks.push(statementNode("RawInvariantStatement", line.text, file, line.lineNumber, line.raw));

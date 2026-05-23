@@ -514,6 +514,11 @@ describe("intent static model CLI", () => {
     assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[0].access, "read");
     assert.equal(memoryAst.goals[0].steps[1].memoryAccesses[1].access, "cite");
     assert.equal(memoryAst.goals[0].steps[0].memoryAccesses[1].key, "decisions");
+
+    const invariantAst = runJson(["parse", VALID_INVARIANT_GUARD_GRAPH]);
+    assert.equal(invariantAst.goals[0].invariants[0].kind, "Require");
+    assert.equal(invariantAst.goals[0].invariants[0].value, "reversible_operations_cited");
+    assert.equal(invariantAst.goals[0].invariants[1].kind, "Deny");
   });
 
   it("emits UTF-8 byte offsets in parsed source spans", () => {
@@ -1401,7 +1406,7 @@ describe("intent static model CLI", () => {
     assert.equal(invariant.status, 1);
     assert.equal(invariantPayload.ok, false);
     assert.equal(invariantPayload.diagnostics[0].code, "INTENT_UNSUPPORTED_SYNTAX");
-    assert.equal(invariantPayload.diagnostics[0].syntax, "require no_policy_violations");
+    assert.equal(invariantPayload.diagnostics[0].syntax, "ensure no_policy_violations");
     assert.equal(invariantPayload.diagnostics[0].block, "invariant");
     assert.equal(invariantPayload.diagnostics[0].span.start.line, 17);
     assert.equal(invariantPayload.diagnostics[0].span.start.column, 5);
@@ -1648,6 +1653,12 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === timeout.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === retry.id), true);
     assert.equal(graph.edges.some((edge) => edge.kind === "guards" && edge.from === invariant.id && edge.to === requirement.id), true);
+
+    const requiredGraph = runJson(["graph", VALID_INVARIANT_GUARD_GRAPH]);
+    const requireInvariant = requiredGraph.nodes.find((node) => node.kind === "Invariant" && node.data.assertion === "Require");
+    assert.equal(requireInvariant.data.invariant, "reversible_operations_cited");
+    assert.equal(requiredGraph.edges.some((edge) => edge.kind === "constrains" && edge.from === requireInvariant.id), true);
+    assert.equal(requiredGraph.edges.some((edge) => edge.kind === "guards" && edge.from === requireInvariant.id && edge.to.endsWith(":completion")), true);
   });
 
   it("emits step approvals as approval nodes and edges", () => {

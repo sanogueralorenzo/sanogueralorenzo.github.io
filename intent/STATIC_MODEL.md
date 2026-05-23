@@ -1341,10 +1341,10 @@ Rules:
 
 ## Invariant Guards
 
-Invariant blocks contain always-on `deny ...` statements. Each statement emits
-one graph `Invariant` node whose span is the `deny ...` line. Invariant node
-data must carry `assertion` as `Require` or `Deny` and `invariant` as a
-non-empty string. Malformed Invariant node payloads emit
+Invariant blocks contain always-on `require ...` and `deny ...` statements.
+Each statement emits one graph `Invariant` node whose span is the source line.
+Invariant node data must carry `assertion` as `Require` or `Deny` and
+`invariant` as a non-empty string. Malformed Invariant node payloads emit
 `INTENT_GRAPH_INVARIANT_INVALID` and make graph output non-executable because
 runtimes must not infer always-on rule polarity or identity.
 
@@ -1380,6 +1380,9 @@ Rules:
 - The invariant edge role contracts prevent invariant edges from being replayed
   as ambiguous runtime-control edges while preserving invariant-specific
   coverage diagnostics.
+- `Require` invariants are parsed, emitted, and guarded as runtime contracts;
+  this milestone does not add source-checker enforcement beyond graph
+  visibility.
 - Enforce `deny production_deploy` by rejecting any `Deploy` effect whose
   normalized `target` is `production` with `INTENT_INVARIANT_VIOLATION` at the
   invariant line span.

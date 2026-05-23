@@ -55,6 +55,7 @@ goal "apply invariant guarded graph change" {
   }
 
   invariant {
+    require reversible_operations_cited
     deny secret_write
     deny unrelated_file_write
     deny uncheckpointed_irreversible_effect

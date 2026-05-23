@@ -17,7 +17,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_secret_read.intent`: secret-read goal where `SecretRead` targets a secret name covered by a secret read grant, with memory retention, verification, and invariants.
 - `valid_ticket_update.intent`: ticket-update goal where `TicketUpdate` targets a ticket id covered by a ticket update grant, with memory retention, verification, and invariants.
 - `valid_step_requirements.intent`: code-change goal with step-local `require ...` guards before effects, normal file and shell capabilities, memory retention, verification, and invariants.
-- `valid_invariant_guard_graph.intent`: code-change goal with invariant rules intended to guard multiple graph targets, including file and shell effects plus step checkpoints, with normal capabilities, checkpoint memory retention, plan steps, and verification.
+- `valid_invariant_guard_graph.intent`: code-change goal with required and denied invariant rules intended to guard multiple graph targets, including file and shell effects plus step checkpoints, with normal capabilities, checkpoint memory retention, plan steps, and verification.
 - `valid_imports.intent`: import-focused parser fixture that preserves package and symbol import declarations with source spans while keeping imported names out of checker scope.
 - `valid_memory_flow_graph.intent`: memory provenance goal with step-local memory write, read, and citation access emitted as graph edges.
 - `valid_step_approval_graph.intent`: code-change goal with step body `approval ...` lines before sensitive file-write and git-push effects, normal file, shell, and git capabilities, approval memory retention, verification, and invariants.
@@ -62,7 +62,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_unsupported_plan_statement.intent`: declares an unsupported non-`step` line in `plan`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
 - `invalid_unsupported_step_statement.intent`: declares an unsupported line inside a step body, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
 - `invalid_unsupported_verify_statement.intent`: declares an unsupported non-`require` line in `verify`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
-- `invalid_unsupported_invariant_statement.intent`: declares an unsupported non-`deny` line in `invariant`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
+- `invalid_unsupported_invariant_statement.intent`: declares an unsupported non-`require` or non-`deny` line in `invariant`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
 - `invalid_goal_output_type_mismatch.intent`: declares goal output `ExpectedReport` but the final plan step outputs `DraftPatch`, which should fail `INTENT_TYPE_MISMATCH` at the final step output type span.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.

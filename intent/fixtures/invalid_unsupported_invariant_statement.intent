@@ -14,6 +14,6 @@ goal reject_unsupported_invariant_statement() -> Report {
   }
 
   invariant {
-    require no_policy_violations
+    ensure no_policy_violations
   }
 }

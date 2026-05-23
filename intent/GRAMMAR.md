@@ -93,10 +93,11 @@ retain_until     = raw_text_until_terminator ;
 raw_memory_stmt  = raw_text_until_terminator, line_end ;
 plan_block       = "plan", ws, "{", ws, { step_decl, ws }, "}" ;
 verify_block     = "verify", ws, "{", ws, { require_stmt, ws }, "}" ;
-invariant_block  = "invariant", ws, "{", ws, { deny_stmt, ws }, "}" ;
+invariant_block  = "invariant", ws, "{", ws, { invariant_stmt, ws }, "}" ;
 
 require_stmt     = "require", s, raw_expr, line_end ;
 deny_stmt        = "deny", s, raw_expr, line_end ;
+invariant_stmt   = require_stmt | deny_stmt ;
 ```
 
 `context` is a single-line declaration in this milestone. The `context <call>`
@@ -128,17 +129,18 @@ The checker accepts retention lifecycle targets only when the `until` value is
 `45m`, or `10s`.
 `plan` accepts only `step` declarations. Step bodies accept only `effect`,
 `require`, `approval`, `checkpoint`, `timeout`, `retry`, and `memory` lines.
-`verify` accepts only `require`; `invariant` accepts only `deny`. Any other
-non-empty line in those strict blocks is retained as unsupported syntax and
-emits `INTENT_UNSUPPORTED_SYNTAX` at that statement span instead of being
-ignored.
+`verify` accepts only `require`; `invariant` accepts `require` and `deny`.
+Any other non-empty line in those strict blocks is retained as unsupported
+syntax and emits `INTENT_UNSUPPORTED_SYNTAX` at that statement span instead of
+being ignored.
 
-Each `deny ...` line inside an `invariant` block is parsed as an invariant
-statement. The graph builder emits each invariant statement as an `Invariant`
-node and creates `guards` edges from that node to the goal completion node and
-to every effect, step checkpoint, and step requirement check in the same goal.
-This keeps always-on rules visible across side effects and recovery boundaries.
-The enforced invariant rules are `deny production_deploy`, which rejects
+Each `require ...` or `deny ...` line inside an `invariant` block is parsed as
+an invariant statement with assertion polarity preserved. The graph builder
+emits each invariant statement as an `Invariant` node and creates `guards`
+edges from that node to the goal completion node and to every effect, step
+checkpoint, and step requirement check in the same goal. This keeps always-on
+rules visible across side effects and recovery boundaries. The enforced
+invariant rules are currently deny rules: `deny production_deploy`, which rejects
 `Deploy` effects targeting `production`; `deny secret_write`, which rejects
 file write effects whose path or name looks like a secret, for example `.env`,
 `secret`, `token`, `credential`, `key`, or `password`; and
