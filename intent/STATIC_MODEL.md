@@ -331,6 +331,8 @@ blocking diagnostics.
   containing step.
 - Parse step-body `checkpoint ...` lines as step checkpoints owned by their
   containing step.
+- Emit `INTENT_CHECKPOINT_INVALID` at the checkpoint line span when a
+  checkpoint label is empty after trimming.
 - Parse step-body `timeout ...` and `retry ...` lines as step policy
   statements owned by their containing step, and emit `INTENT_POLICY_INVALID`
   when policy syntax is invalid.
@@ -595,6 +597,10 @@ Rules:
 - The owning `Step` node data lists checkpoint summaries in source order.
 - The graph builder creates a `checkpoints` edge from the owning `Step` to each
   checkpoint `Checkpoint` node.
+- Checkpoint labels must be non-empty after trimming.
+- An empty checkpoint label, including `checkpoint ""`, emits
+  `INTENT_CHECKPOINT_INVALID` at the checkpoint line span and makes graph
+  output non-executable.
 - Step checkpoints do not create `verifies` edges to the goal `Completion`
   node and do not replace memory retention rules.
 
@@ -962,6 +968,7 @@ Initial diagnostic families:
 - `INTENT_TRUST_FLOW_UNSAFE`
 - `INTENT_MEMORY_UNSCOPED`
 - `INTENT_MEMORY_RETENTION_INVALID`
+- `INTENT_CHECKPOINT_INVALID`
 - `INTENT_POLICY_INVALID`
 - `INTENT_GRAPH_CYCLE`
 
@@ -1362,6 +1369,9 @@ not completion checks and must not create `verifies` edges to the goal
 Step checkpoint nodes are `Checkpoint` nodes scoped to one owning step. The
 owning step node lists them in its `data.checkpoints` array, and each
 checkpoint has one incoming `checkpoints` edge from that owning step.
+Checkpoint labels must be non-empty after trimming; a graph with an empty
+checkpoint label is non-executable because the checker must emit
+`INTENT_CHECKPOINT_INVALID`.
 
 Step approval nodes are `Approval` nodes scoped to one owning step. The owning
 step node lists them in its `data.approvals` array, and each approval has one

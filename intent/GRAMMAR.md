@@ -179,7 +179,10 @@ step-local approval gate is present, the checker emits
 statements. They are not memory retention declarations and do not become
 goal-level verification checks. The graph builder emits each step checkpoint as
 a `Checkpoint` node, lists it on the owning step node data, and creates a
-`checkpoints` edge from the owning `Step` to that `Checkpoint`.
+`checkpoints` edge from the owning `Step` to that `Checkpoint`. Checkpoint
+labels must be non-empty after trimming. An empty checkpoint label, including
+`checkpoint ""`, emits `INTENT_CHECKPOINT_INVALID` at the checkpoint line span
+and makes graph output non-executable.
 
 `timeout <duration>` and `retry <raw policy>` lines inside a step body are
 parsed as step policy statements and represented on the owning `StepDecl`. The
@@ -404,7 +407,9 @@ The parser emits names and type reference strings; the checker owns binding.
   by `approves` edges from each approval node to that step.
 - Step-body `checkpoint ...` lines become graph `Checkpoint` nodes. They are
   listed on the owning step node data and connected by `checkpoints` edges from
-  that step.
+  that step. Checkpoint labels must be non-empty after trimming. Empty labels
+  such as `checkpoint ""` are `INTENT_CHECKPOINT_INVALID` at the checkpoint
+  line span and make graph output non-executable.
 - Step-body `timeout ...` and `retry ...` lines become graph `Policy` nodes.
   Timeout values must be simple positive durations such as `10s`, `5m`, `2h`,
   or `1d`; retry policies must be `max N` with a positive integer. Invalid
