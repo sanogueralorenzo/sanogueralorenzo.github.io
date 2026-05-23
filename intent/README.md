@@ -202,15 +202,28 @@ Validation expectations:
   `INTENT_GRAPH_COMPLETION_INVALID`. Constraining the generic roles prevents
   verification edges from becoming ambiguous runtime-control edges while
   preserving check-specific gate coverage diagnostics.
+- Runtime graph `completes` and `produces` edges have constrained completion
+  delivery role contracts. A `completes` edge is valid only from a `Goal` node
+  to a `Completion` node. Unsupported `completes` endpoint roles emit
+  `INTENT_GRAPH_COMPLETE_INVALID` and make graph output non-executable. A
+  `produces` edge is valid only from a `Step` node to a `Completion` node.
+  Unsupported `produces` endpoint roles emit `INTENT_GRAPH_PRODUCE_INVALID` and
+  make graph output non-executable. These generic role diagnostics are separate
+  from `INTENT_GRAPH_COMPLETION_INVALID`,
+  `INTENT_GRAPH_GOAL_COMPLETION_INVALID`, and
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`. Constraining the generic completion
+  delivery roles prevents ambiguous completion replay while preserving
+  completion-specific diagnostics.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
-  milestone. The `produces` edge from the final executable `Step` to
+  milestone. The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
   `targetSpan` values. `sourceSpan` points to the final step output, and
   `targetSpan` points to the goal output. Malformed `produces` edge payloads
   emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
   non-executable; wrong completion edge counts remain
-  `INTENT_GRAPH_COMPLETION_INVALID`, and wrong final-step sequencing or
-  endpoint roles remain step sequence diagnostics.
+  `INTENT_GRAPH_COMPLETION_INVALID`, unsupported endpoint roles emit
+  `INTENT_GRAPH_PRODUCE_INVALID`, and wrong final-step sequencing remains
+  `INTENT_GRAPH_STEP_SEQUENCE_INVALID`.
 - Runtime graph `requires` edge payloads are the next Phase 2 static-model
   milestone. Step-input `requires` edges from an `Input` node to its owning
   `Step` must carry non-empty `parameter`, non-empty `type`, and a valid

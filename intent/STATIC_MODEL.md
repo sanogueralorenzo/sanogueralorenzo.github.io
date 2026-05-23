@@ -325,6 +325,14 @@ to a `Step` node. Graph validation emits `INTENT_GRAPH_STEP_PLAN_INVALID` when
 a `Step` node lacks exactly one incoming role-valid `plans` edge from its
 owning `Goal`, has duplicate incoming role-valid `plans` edges, or has an
 incoming role-valid `plans` edge from the wrong `Goal`. Graph validation emits
+`INTENT_GRAPH_COMPLETE_INVALID` when a `completes` edge does not go from a
+`Goal` node to a `Completion` node. Graph validation emits
+`INTENT_GRAPH_PRODUCE_INVALID` when a `produces` edge does not go from a
+`Step` node to a `Completion` node. These generic completion delivery role
+diagnostics are separate from `INTENT_GRAPH_COMPLETION_INVALID`,
+`INTENT_GRAPH_GOAL_COMPLETION_INVALID`, and
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and prevent ambiguous completion replay
+while preserving completion-specific diagnostics. Graph validation emits
 `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with multiple `Step` nodes does
 not have exactly one linear `precedes` chain across those steps, or when the
 `Step` producing `Completion` is not the tail step of that chain. The graph
@@ -431,15 +439,28 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_COMPLETION_INVALID`. Constraining the generic roles prevents
   verification edges from becoming ambiguous runtime-control edges while
   preserving check-specific gate coverage diagnostics.
+- Runtime graph `completes` and `produces` edges have constrained completion
+  delivery role contracts. A `completes` edge is valid only from a `Goal` node
+  to a `Completion` node. Unsupported `completes` endpoint roles emit
+  `INTENT_GRAPH_COMPLETE_INVALID` and make graph output non-executable. A
+  `produces` edge is valid only from a `Step` node to a `Completion` node.
+  Unsupported `produces` endpoint roles emit `INTENT_GRAPH_PRODUCE_INVALID` and
+  make graph output non-executable. These generic role diagnostics are separate
+  from `INTENT_GRAPH_COMPLETION_INVALID`,
+  `INTENT_GRAPH_GOAL_COMPLETION_INVALID`, and
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`. Constraining the generic completion
+  delivery roles prevents ambiguous completion replay while preserving
+  completion-specific diagnostics.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
-  milestone. The `produces` edge from the final executable `Step` to
+  milestone. The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
   `targetSpan` values. `sourceSpan` points to the final step output, and
   `targetSpan` points to the goal output. Malformed `produces` edge payloads
   emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
   non-executable; wrong completion edge counts remain
-  `INTENT_GRAPH_COMPLETION_INVALID`, and wrong final-step sequencing or
-  endpoint roles remain step sequence diagnostics.
+  `INTENT_GRAPH_COMPLETION_INVALID`, unsupported endpoint roles emit
+  `INTENT_GRAPH_PRODUCE_INVALID`, and wrong final-step sequencing remains
+  `INTENT_GRAPH_STEP_SEQUENCE_INVALID`.
 - Runtime graph `requires` edge payloads are the next Phase 2 static-model
   milestone. Step-input `requires` edges from an `Input` node to its owning
   `Step` must carry non-empty `parameter`, non-empty `type`, and a valid
@@ -1595,6 +1616,8 @@ Initial diagnostic families:
 - `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`
 - `INTENT_GRAPH_DECLARE_INVALID`
 - `INTENT_GRAPH_REQUEST_INVALID`
+- `INTENT_GRAPH_COMPLETE_INVALID`
+- `INTENT_GRAPH_PRODUCE_INVALID`
 - `INTENT_GRAPH_DATA_INVALID`
 - `INTENT_GRAPH_INPUT_INVALID`
 - `INTENT_GRAPH_INPUT_SUPPLY_INVALID`
@@ -2059,6 +2082,15 @@ diagnostics are separate from `INTENT_GRAPH_CHECK_GATE_INVALID`,
 `INTENT_GRAPH_CHECK_INVALID`, and `INTENT_GRAPH_COMPLETION_INVALID`, and
 prevent verification edges from becoming ambiguous runtime-control edges while
 preserving check-specific gate coverage diagnostics.
+Graph validation emits `INTENT_GRAPH_COMPLETE_INVALID` when a `completes` edge
+does not go from a `Goal` node to a `Completion` node. Graph validation emits
+`INTENT_GRAPH_PRODUCE_INVALID` when a `produces` edge does not go from a
+`Step` node to a `Completion` node. Unsupported `completes` or `produces`
+endpoint roles make graph output non-executable. These generic completion
+delivery role diagnostics are separate from
+`INTENT_GRAPH_COMPLETION_INVALID`, `INTENT_GRAPH_GOAL_COMPLETION_INVALID`, and
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and prevent ambiguous completion replay
+while preserving completion-specific diagnostics.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
@@ -2102,15 +2134,19 @@ or valid `sourceSpan` or `targetSpan` values, or when a step attachment edge
 payload omits non-empty `data.approval`, `data.policy`, or `data.checkpoint`
 values,
 emits
+`INTENT_GRAPH_COMPLETE_INVALID` when a `completes` edge has unsupported
+endpoint roles, emits `INTENT_GRAPH_PRODUCE_INVALID` when a `produces` edge has
+unsupported endpoint roles, emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a
 `Goal` node lacks its `${goal_id}:completion` `Completion` node, lacks exactly
-one outgoing `completes` edge to that node, or has `completes` edges to another
-completion, emits `INTENT_GRAPH_COMPLETION_INVALID` when a
-`Completion` node does not have exactly one incoming `completes` edge from a
-`Goal`, exactly one incoming `produces` edge from a `Step`, at least one
-incoming `verifies` edge from a `Check` node, or a `guards` edge count that
-does not match the goal's `Invariant` nodes, and emits `INTENT_GRAPH_CYCLE` for
-cyclic graph edges. Graph validation emits
+one outgoing role-valid `completes` edge to that node, or has role-valid
+`completes` edges to another completion, emits
+`INTENT_GRAPH_COMPLETION_INVALID` when a
+`Completion` node does not have exactly one incoming role-valid `completes`
+edge from a `Goal`, exactly one incoming role-valid `produces` edge from a
+`Step`, at least one incoming `verifies` edge from a `Check` node, or a
+`guards` edge count that does not match the goal's `Invariant` nodes, and emits
+`INTENT_GRAPH_CYCLE` for cyclic graph edges. Graph validation emits
 `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID` when an `Invariant` node lacks
 exactly one outgoing `constrains` edge to its owning `Goal`, or when any
 outgoing `constrains` edge targets another node. Graph validation emits
@@ -2424,6 +2460,13 @@ the plan creates a `produces` edge to completion. That edge must carry
 non-empty `data.type`, `data.sourceSpan` for the final step output, and
 `data.targetSpan` for the goal output. Malformed `produces` edge payloads emit
 `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output non-executable.
+`completes` is valid only as `Goal` to `Completion`; unsupported endpoint roles
+emit `INTENT_GRAPH_COMPLETE_INVALID`. `produces` is valid only as `Step` to
+`Completion`; unsupported endpoint roles emit `INTENT_GRAPH_PRODUCE_INVALID`.
+These generic completion delivery role diagnostics are separate from
+`INTENT_GRAPH_COMPLETION_INVALID`, `INTENT_GRAPH_GOAL_COMPLETION_INVALID`, and
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, preventing ambiguous completion replay
+while preserving completion-specific diagnostics.
 Completion node data also carries `outputType` as `null` or a
 non-empty string and `outputTypeSpan` as `null` or a valid span; malformed
 Completion payload data emits
@@ -2432,13 +2475,15 @@ node payload contract is separate from the completion-edge contract. Graph
 validation emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a `Goal` node lacks its
 `${goal_id}:completion` `Completion` node, lacks exactly one outgoing
-`completes` edge to that node, or has `completes` edges to another completion.
+role-valid `completes` edge to that node, or has role-valid `completes` edges
+to another completion.
 Graph validation emits
 `INTENT_GRAPH_COMPLETION_INVALID` unless each `Completion` node has exactly one
-incoming `completes` edge from a `Goal` and exactly one incoming `produces` edge
-from a `Step`, at least one incoming `verifies` edge from a `Check` node, and a
-`guards` edge count that matches the goal's `Invariant` nodes. Wrong final-step
-sequencing or endpoint roles remain step sequence diagnostics. Graph validation
+incoming role-valid `completes` edge from a `Goal` and exactly one incoming
+role-valid `produces` edge from a `Step`, at least one incoming `verifies` edge
+from a `Check` node, and a `guards` edge count that matches the goal's
+`Invariant` nodes. Wrong final-step
+sequencing remains `INTENT_GRAPH_STEP_SEQUENCE_INVALID`. Graph validation
 emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node lacks exactly
 one incoming `requests` edge from its owning `Step`, or when any incoming
 `requests` edge is not from that owning `Step`. `requests` edges to unsupported
