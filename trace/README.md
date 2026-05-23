@@ -104,6 +104,7 @@ trace recall --json "auth retry"
 trace summary main..HEAD
 trace branch-summary feature --base main
 trace pr-body main..HEAD
+trace pr-body main..HEAD --output trace-pr-body.md
 trace release-notes v1.0.0..HEAD
 trace pr-body main..HEAD --json
 trace checkpoint list
@@ -183,6 +184,7 @@ node trace/bin/trace.mjs recall --json "auth retry"
 node trace/bin/trace.mjs summary main..HEAD
 node trace/bin/trace.mjs branch-summary feature --base main
 node trace/bin/trace.mjs pr-body main..HEAD
+node trace/bin/trace.mjs pr-body main..HEAD --output trace-pr-body.md
 node trace/bin/trace.mjs release-notes v1.0.0..HEAD
 node trace/bin/trace.mjs pr-body main..HEAD --json
 node trace/bin/trace.mjs checkpoint list
@@ -226,7 +228,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. Add `--agents`, `--checkpoints`, or `--strict-memory` to preview the same adapter contract, checkpoint integrity, and memory quality findings that CI can gate on without turning the report command itself into a failing gate. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails when committed memory files are malformed, contain unredacted secrets, or when raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed. Add `--agents` to make CI also run the installed adapter contract fixtures for every supported first-class agent, `--checkpoints` to require a present, valid `refs/trace/checkpoints` ref with checkpoint payloads for covered memories in the checked range, and `--strict-memory` to require committed memories to contain intent, decision, and validation signals.
 
-`trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories, including the future-agent handoff section. Branch, PR, and release text are generated views, not the canonical memory store. Add `--json` to emit the same memory-derived summary as structured data for agents and CI automation, including per-commit memory path, checkpoint, session, files, validation, risks, and handoff.
+`trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories, including the future-agent handoff section. Branch, PR, and release text are generated views, not the canonical memory store. Add `--json` to emit the same memory-derived summary as structured data for agents and CI automation, including per-commit memory path, checkpoint, session, files, validation, risks, and handoff. Add `--output <file>` to write the derived Markdown or JSON to a file while stdout returns a small schema-stable write result.
 
 `trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change, ranks matches by term frequency, and can search all memory text or a specific field such as `intent`, `summary`, `decisions`, `responses`, `tools`, `files`, `checkpoint`, `session`, `validation`, `risks`, or `handoff`. Use `--json` and `--limit` when agents need structured local search results with score, commit, memory path, checkpoint, and session identity.
 

@@ -296,6 +296,24 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(releaseNotes.stdout, /## Validation\n\n- node --test/);
     assert.match(releaseNotes.stdout, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
 
+    const prBodyPath = join(repo, "trace-pr-body.md");
+    const prBodyWrite = JSON.parse((await runTrace(repo, ["pr-body", "HEAD", "--output", prBodyPath])).stdout);
+    assert.equal(prBodyWrite.schema_version, "trace.summary_output.v1");
+    assert.equal(prBodyWrite.kind, "pr");
+    assert.equal(prBodyWrite.output, prBodyPath);
+    assert.equal(prBodyWrite.bytes, (await readFile(prBodyPath, "utf8")).length);
+    assert.match(await readFile(prBodyPath, "utf8"), /# Trace PR Summary/);
+    assert.match(await readFile(prBodyPath, "utf8"), /Use committed Markdown for reviewable memory/);
+
+    const summaryJsonPath = join(repo, "trace-summary.json");
+    const summaryJsonWrite = JSON.parse((await runTrace(repo, ["summary", "HEAD", "--json", "--output", summaryJsonPath])).stdout);
+    assert.equal(summaryJsonWrite.schema_version, "trace.summary_output.v1");
+    assert.equal(summaryJsonWrite.kind, "range");
+    const summaryJsonFile = JSON.parse(await readFile(summaryJsonPath, "utf8"));
+    assert.equal(summaryJsonFile.schema_version, "trace.summary.v1");
+    assert.equal(summaryJsonFile.kind, "range");
+    assert.deepEqual(summaryJsonFile.decisions, ["Use committed Markdown for reviewable memory"]);
+
     const ref = await git(repo, ["rev-parse", "--verify", "refs/trace/checkpoints"]);
     assert.match(ref.stdout.trim(), /^[0-9a-f]{40}$/);
   } finally {

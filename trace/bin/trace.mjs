@@ -2772,7 +2772,7 @@ async function buildSearchIndex(root, files = null) {
 async function summarizeRange(range, options = {}) {
   const root = await repoRoot();
   const memories = await memoriesForRange(root, range);
-  writeSummaryDocument(range, memories, options);
+  await writeSummaryDocument(range, memories, options);
 }
 
 async function summarizeBranch(branch) {
@@ -2786,7 +2786,7 @@ async function summarizeBranch(branch) {
   const resolvedBranch = await git(["rev-parse", "--abbrev-ref", branch], { cwd: root, allowFailure: true }) || branch;
   const range = `${mergeBase}..${branch}`;
   const memories = await memoriesForRange(root, range);
-  writeSummaryDocument(range, memories, {
+  await writeSummaryDocument(range, memories, {
     branchSummary: true,
     branch: resolvedBranch,
     base,
@@ -2826,12 +2826,33 @@ async function memoriesForRange(root, range) {
   return memories;
 }
 
-function writeSummaryDocument(range, memories, options = {}) {
-  if (args.json) {
-    print(summaryPayload(range, memories, options));
+async function writeSummaryDocument(range, memories, options = {}) {
+  const payload = summaryPayload(range, memories, options);
+  const document = args.json ? `${JSON.stringify(payload, null, 2)}\n` : renderSummaryMarkdown(range, memories, options);
+  if (args.output) {
+    const outputPath = resolve(args.output);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, document);
+    print({
+      ok: true,
+      schema_version: "trace.summary_output.v1",
+      kind: payload.kind,
+      range,
+      output: args.output,
+      bytes: Buffer.byteLength(document),
+    });
     return;
   }
 
+  if (args.json) {
+    process.stdout.write(document);
+    return;
+  }
+
+  process.stdout.write(document);
+}
+
+function renderSummaryMarkdown(range, memories, options = {}) {
   const title = options.releaseNotes ? "Trace Release Notes" : options.prBody ? "Trace PR Summary" : "Trace Summary";
   const summaryTitle = options.branchSummary ? "Trace Branch Summary" : title;
   const lines = [`# ${summaryTitle}`, ""];
@@ -2891,7 +2912,7 @@ function writeSummaryDocument(range, memories, options = {}) {
     lines.push("", "## Review Notes", "", "Use `trace show <commit>` for the full memory attached to each commit.");
   }
 
-  process.stdout.write(`${lines.join("\n")}\n`);
+  return `${lines.join("\n")}\n`;
 }
 
 function summaryPayload(range, memories, options = {}) {
@@ -3737,10 +3758,10 @@ Usage:
   trace index
   trace search [--field intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
   trace recall [query] [--field intent|summary|decisions|responses|tools|files|validation|risks|handoff] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
-  trace summary [range] [--json]
-  trace branch-summary [branch] [--base main] [--json]
-  trace pr-body [range] [--json]
-  trace release-notes [range] [--json]
+  trace summary [range] [--json] [--output FILE]
+  trace branch-summary [branch] [--base main] [--json] [--output FILE]
+  trace pr-body [range] [--json] [--output FILE]
+  trace release-notes [range] [--json] [--output FILE]
   trace hook pre-commit
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic] [--dry-run]
   trace doctor [--strict-memory]

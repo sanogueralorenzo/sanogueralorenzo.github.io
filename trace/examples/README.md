@@ -46,6 +46,7 @@ trace show HEAD
 trace search --field decisions "storage"
 trace search --field handoff "preserve"
 trace pr-body main..HEAD
+trace pr-body main..HEAD --output trace-pr-body.md
 trace release-notes v1.0.0..HEAD
 ```
 
