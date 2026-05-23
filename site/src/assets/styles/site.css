@@ -721,6 +721,30 @@ a {
   background: #e6dccd;
 }
 
+.unmade-object-note {
+  background: #eee5d8;
+}
+
+.unmade-object-blackboard {
+  background: #8fa59e;
+}
+
+.unmade-object-classroom {
+  background: #c9b56f;
+}
+
+.unmade-object-syllabus {
+  background: #e2d7c6;
+}
+
+.unmade-object-lecture {
+  background: #b75c46;
+}
+
+.unmade-object-locker {
+  background: #789cad;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }

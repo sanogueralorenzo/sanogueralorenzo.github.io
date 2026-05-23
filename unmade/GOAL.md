@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-The public skeleton is in place: a scrollable archive at `/unmade/`, reusable full case pages, and ten entry batches spanning every section.
+The public skeleton is in place: a scrollable archive at `/unmade/`, reusable full case pages, and eleven entry batches spanning every section.
 
 ## Expansion Loop
 
@@ -19,4 +19,4 @@ Each batch should keep the archive navigable, add at least one memorable artifac
 
 ## Next Expansion Focus
 
-Add an eleventh randomized batch that feels educational and haunted by study: one unsent teacher note, one unbuilt learning device, one unchosen class, one unfinished syllabus, one unrecorded lecture, and one unlived school year.
+Add a twelfth randomized batch that feels medical and tender: one unsent diagnosis letter, one unbuilt recovery instrument, one unchosen treatment room, one unfinished care protocol, one unrecorded waiting room, and one unlived convalescence.

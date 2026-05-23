@@ -21,6 +21,8 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
 
     await runTrace(repo, ["init"]);
     await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "remember why app text exists"]);
+    await runTrace(repo, ["capture", "--event", "response", "--role", "assistant", "--message", "created a minimal text fixture"]);
+    await runTrace(repo, ["capture", "--event", "tool", "--message", "git commit wrote app.txt"]);
     await runTrace(repo, ["capture", "--event", "decision", "--message", "Use committed Markdown for reviewable memory"]);
     const record = await runTrace(repo, ["record", "--validation", "node --test"]);
     const payload = JSON.parse(record.stdout);
@@ -31,6 +33,8 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const show = await runTrace(repo, ["show", "HEAD"]);
     assert.match(show.stdout, /remember why app text exists/);
     assert.match(show.stdout, /Use committed Markdown/);
+    assert.match(show.stdout, /## Responses\n\n- created a minimal text fixture/);
+    assert.match(show.stdout, /## Tool Activity\n\n- git commit wrote app.txt/);
     assert.match(show.stdout, /node --test/);
 
     const search = await runTrace(repo, ["search", "reviewable"]);
@@ -298,12 +302,13 @@ test("agent add list remove manages local hook adapter configs", async () => {
     assert.equal(addedPayload.ok, true);
     assert.equal(addedPayload.agent, "codex");
     assert.equal(addedPayload.config, ".trace/agents/codex.json");
-    assert.equal(addedPayload.command, "trace hook agent --source codex");
+    assert.equal(addedPayload.command, "trace hook agent --adapter codex");
 
     const config = JSON.parse(await readFile(join(repo, ".trace/agents/codex.json"), "utf8"));
     assert.equal(config.schema_version, "trace.agent.v1");
     assert.equal(config.agent, "codex");
-    assert.deepEqual(config.events, ["prompt", "decision", "validation", "risk", "note"]);
+    assert.equal(config.adapter, "codex");
+    assert.deepEqual(config.events, ["prompt", "response", "tool", "decision", "validation", "risk", "note"]);
 
     const listed = await runTrace(repo, ["agent", "list"]);
     const listedPayload = JSON.parse(listed.stdout);
@@ -319,7 +324,47 @@ test("agent add list remove manages local hook adapter configs", async () => {
 
     const gemini = JSON.parse((await runTrace(repo, ["agent", "add", "gemini"])).stdout);
     assert.equal(gemini.agent, "gemini");
-    assert.equal(gemini.command, "trace hook agent --source gemini");
+    assert.equal(gemini.command, "trace hook agent --adapter gemini");
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle events", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await runTrace(repo, ["init"]);
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "codex"], JSON.stringify({
+      session_id: "adapter-session",
+      type: "tool_call",
+      tool_name: "shell",
+      arguments: "npm test",
+    }));
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "claude-code"], JSON.stringify({
+      session_id: "adapter-session",
+      hook_event_name: "UserPromptSubmit",
+      prompt: "explain the storage tradeoff",
+    }));
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "gemini"], JSON.stringify({
+      session_id: "adapter-session",
+      kind: "model_response",
+      content: "memory summary completed",
+    }));
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "generic", "validation"], JSON.stringify({
+      session_id: "adapter-session",
+      message: "npm --prefix trace test passed",
+    }));
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const session = await readFile(join(repo, commonDir, "trace/sessions/adapter-session.jsonl"), "utf8");
+    const events = session.trim().split("\n").map((line) => JSON.parse(line));
+    assert.deepEqual(events.map((event) => event.event), ["tool", "prompt", "response", "validation"]);
+    assert.deepEqual(events.map((event) => event.adapter), ["codex", "claude-code", "gemini", "generic"]);
+    assert.match(events[0].message, /codex tool shell input=npm test/);
+    assert.equal(events[1].message, "explain the storage tradeoff");
+    assert.equal(events[2].message, "memory summary completed");
+    assert.equal(events[3].message, "npm --prefix trace test passed");
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -361,8 +406,9 @@ test("generated agent command captures source without treating it as event", asy
     const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
     const session = await readFile(join(repo, commonDir, `trace/sessions/${sessionId}.jsonl`), "utf8");
     const event = JSON.parse(session.trim());
-    assert.equal(event.event, "agent");
+    assert.equal(event.event, "note");
     assert.equal(event.source, "codex");
+    assert.equal(event.adapter, "codex");
     assert.equal(event.message, "plain hook payload");
   } finally {
     await rm(repo, { recursive: true, force: true });
