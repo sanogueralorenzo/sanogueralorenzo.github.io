@@ -230,6 +230,71 @@ test("GitHub Actions example builds the documented verdict and review bundle", {
   }
 });
 
+test("signed producer workflow signs a live review bundle with an external key", { skip: skipNestedCiAdoptionTests }, async () => {
+  const checkout = await copyJuryCheckout();
+  const secretDir = await tempState();
+
+  try {
+    const workflow = await readFile(join(checkout, "jury/examples/ci/jury-signed-review-gate.yml"), "utf8");
+    const testCommand = extractWorkflowSingleLineRun(workflow, "Run Jury tests");
+    const writeKeyCommands = extractWorkflowRunBlock(workflow, "Write Jury signing key");
+    const commands = extractWorkflowRunBlock(workflow, "Build signed Jury verdict and bundle");
+    const cleanupCommand = extractWorkflowSingleLineRun(workflow, "Remove Jury signing key");
+    const pair = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
+    const privateKeyPath = join(secretDir, "jury-ci-private.pem");
+    const publicKeyPath = join(secretDir, "jury-ci-public.pem");
+    const env = {
+      ...nestedCiAdoptionEnv(),
+      JURY_CI_PRIVATE_KEY: pair.privateKey,
+      JURY_PRIVATE_KEY_PATH: privateKeyPath,
+      JURY_ATTESTATION_KEY_ID: "ci-producer",
+    };
+
+    await writeFile(publicKeyPath, pair.publicKey);
+
+    assert.ok(workflow.includes("secrets.JURY_CI_PRIVATE_KEY"));
+    assert.ok(workflow.includes("${{ runner.temp }}/jury-ci-private.pem"));
+    assert.ok(workflow.includes("--attest-private-key \"$JURY_PRIVATE_KEY_PATH\""));
+    assert.ok(workflow.includes("review-bundle.signed.json"));
+    assert.ok(workflow.includes("if: always()"));
+    assert.ok(!workflow.includes("BEGIN PRIVATE KEY"));
+
+    const testResult = await runShell(testCommand, checkout, env);
+    assert.equal(testResult.exitCode, 0, `${testCommand}\nstdout:\n${testResult.stdout}\nstderr:\n${testResult.stderr}`);
+
+    for (const command of writeKeyCommands) {
+      const result = await runShell(command, checkout, env);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    for (const command of commands) {
+      const result = await runShell(command, checkout, env);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    const bundle = JSON.parse(await readFile(join(checkout, "review-bundle.signed.json"), "utf8"));
+    assert.equal(bundle.attestation.type, "rsa-sha256");
+    assert.equal(bundle.attestation.key_id, "ci-producer");
+
+    const verify = await runShell(`node jury/bin/jury.mjs bundle preflight --bundle review-bundle.signed.json --verify-attestation-public-key ${shellQuote(publicKeyPath)}`, checkout, fixedEnv);
+    assert.equal(verify.exitCode, 0, verify.stderr);
+    assert.equal(JSON.parse(verify.stdout).ok, true);
+
+    const cleanup = await runShell(cleanupCommand, checkout, env);
+    assert.equal(cleanup.exitCode, 0, cleanup.stderr);
+    await assertPathMissing(privateKeyPath);
+  } finally {
+    await rm(secretDir, { recursive: true, force: true });
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
 test("trusted bundle workflow verifies and imports the signed key-policy fixture", { skip: skipNestedCiAdoptionTests }, async () => {
   const checkout = await copyJuryCheckout();
 
@@ -273,8 +338,11 @@ test("CI example README points to the copyable workflow and portable artifacts",
   const readme = await readFile(join(repoRoot, "jury/examples/ci/README.md"), "utf8");
 
   assert.ok(readme.includes("jury-review-gate.yml"));
+  assert.ok(readme.includes("jury-signed-review-gate.yml"));
   assert.ok(readme.includes("jury-trusted-bundle-verify.yml"));
+  assert.ok(readme.includes("secrets.JURY_CI_PRIVATE_KEY"));
   assert.ok(readme.includes("review-bundle.json"));
+  assert.ok(readme.includes("review-bundle.signed.json"));
   assert.ok(readme.includes("gate.json"));
   assert.ok(readme.includes("fixtures/key-policy"));
   assert.ok(readme.includes("jury.key_policy.v1"));
@@ -1412,6 +1480,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   for (const requiredLink of [
     "QUICKSTART.md",
     "examples/ci/jury-review-gate.yml",
+    "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
     "MIGRATION.md",
@@ -1462,6 +1531,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   for (const requiredLink of [
     "QUICKSTART.md",
     "examples/ci/jury-review-gate.yml",
+    "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
     "examples/ci/fixtures/key-policy",
@@ -1500,8 +1570,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /revoked_at/);
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
-  assert.match(handoff, /downstream trusted-producer verification workflow/);
-  assert.match(handoff, /external CI private key secret/);
+  assert.match(handoff, /signs a live bundle with an external CI private key secret/);
+  assert.match(handoff, /key-policy rotation example/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

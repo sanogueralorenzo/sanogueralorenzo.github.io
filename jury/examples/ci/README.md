@@ -2,7 +2,7 @@
 
 Jury can run as a local, dependency-free CI gate. The state directory is disposable, while the emitted `verdict.json` can be uploaded as a build artifact.
 
-Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer.
+Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer.
 
 ```yaml
 name: Jury review gate
@@ -49,7 +49,13 @@ jobs:
 
 The gate exits non-zero unless the verdict is `accept`. When `--claim` is present, the gate output includes unresolved blocking objections and missing fields so CI logs show the exact reason for failure. [fixtures/quickstart](fixtures/quickstart) shows the expected `verdict.json`, `review-bundle.json`, and `gate.json` outputs. `review-bundle.json` lets another job import and replay the same review state.
 
-[fixtures/key-policy](fixtures/key-policy) provides a signed review bundle, public key, and `jury.key_policy.v1` manifest for copyable trusted-producer verification in a downstream job. [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) is the reusable workflow form of that handoff.
+[fixtures/key-policy](fixtures/key-policy) provides a signed review bundle, public key, and `jury.key_policy.v1` manifest for copyable trusted-producer verification in a downstream job. [jury-signed-review-gate.yml](jury-signed-review-gate.yml) signs the producer bundle with an external CI private key secret, and [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) is the reusable workflow form of the downstream handoff.
+
+## Signed Producer Workflow
+
+Use [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job should emit `review-bundle.signed.json` from the live CI state. Configure `JURY_CI_PRIVATE_KEY` as a repository or organization secret containing a PEM RSA private key. Optionally set `JURY_ATTESTATION_KEY_ID` as a repository variable so the downstream `jury-key-policy.json` can select the matching public key.
+
+The workflow writes the key to `$RUNNER_TEMP`, signs with `--attest-private-key`, runs `bundle preflight --require-attestation true`, removes the key in an `always()` cleanup step, and uploads only the signed bundle, verdict, gate output, and append-only state.
 
 ## Trusted Producer Handoff
 

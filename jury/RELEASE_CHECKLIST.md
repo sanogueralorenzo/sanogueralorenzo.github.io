@@ -6,6 +6,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 
 - [ ] Run [QUICKSTART.md](QUICKSTART.md) from a clean checkout.
 - [ ] Copy [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml) into `.github/workflows/`.
+- [ ] Copy [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml) when the producer must sign `review-bundle.signed.json` with `secrets.JURY_CI_PRIVATE_KEY`.
 - [ ] Copy [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml) into `.github/workflows/` for downstream trusted-producer verification.
 - [ ] Compare generated outputs with [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart).
 - [ ] Verify signed bundle handoff with [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy).
@@ -24,6 +25,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] `bundle preflight` uses producer trust policy flags before importing third-party bundles.
 - [ ] Internal shared-secret bundles are signed with `--attest-key` and verified with `--verify-attestation-key`.
 - [ ] Third-party or cross-job producers are signed with `--attest-private-key` and verified with `--verify-attestation-public-key`.
+- [ ] CI private signing keys stay in secrets and are written only to runner temp paths during producer jobs.
 - [ ] CI consumers use `--key-policy jury-key-policy.json` when producer trust and public keys need to be reviewed as one manifest.
 - [ ] Key policy entries include `valid_from`/`valid_until` for rotation windows or `revoked_at`/`revoked_reason` for retired keys.
 - [ ] Key-policy preflight output is reviewed when debugging producer/key selection, especially `key_policy.matching_producers` and `key_policy.considered_keys`.
