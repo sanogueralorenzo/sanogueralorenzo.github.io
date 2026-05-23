@@ -906,11 +906,12 @@ async function readCheckpointPayloads(root) {
   const paths = (await git(["ls-tree", "-r", "--name-only", CHECKPOINT_REF], { cwd: root })).split("\n").filter(Boolean);
   const checkpoints = [];
   for (const path of paths.filter((entry) => entry.startsWith("checkpoints/") && entry.endsWith(".json"))) {
+    let raw = "";
     try {
-      const raw = await git(["show", `${CHECKPOINT_REF}:${path}`], { cwd: root });
+      raw = await git(["show", `${CHECKPOINT_REF}:${path}`], { cwd: root });
       checkpoints.push({ path, raw, payload: JSON.parse(raw) });
     } catch (error) {
-      checkpoints.push({ path, payload: null, error: error.message });
+      checkpoints.push({ path, raw, payload: null, error: error.message });
     }
   }
 
@@ -1313,22 +1314,38 @@ async function redactionAudit(root) {
   });
 
   for (const file of files) {
-    const content = await readFile(file, "utf8");
-    const relative = relativePath(root, file);
-    const builtin = countUnredactedAssignments(content);
-    if (builtin > 0) {
-      findings.push({ file: relative, rule: "secret-assignment", count: builtin });
-    }
+    auditRedactionContent(findings, customAuditRules, relativePath(root, file), await readFile(file, "utf8"));
+  }
 
-    for (const rule of customAuditRules) {
-      const count = countMatches(content, rule.pattern);
-      if (count > 0) {
-        findings.push({ file: relative, rule: rule.label, count });
-      }
+  const checkpoints = await readCheckpointPayloads(root);
+  for (const checkpoint of checkpoints) {
+    if (checkpoint.raw) {
+      auditRedactionContent(findings, customAuditRules, `${CHECKPOINT_REF}:${checkpoint.path}`, checkpoint.raw);
     }
   }
 
-  return { ok: findings.length === 0, scanned: files.map((file) => relativePath(root, file)), findings };
+  return {
+    ok: findings.length === 0,
+    scanned: [
+      ...files.map((file) => relativePath(root, file)),
+      ...checkpoints.filter((checkpoint) => checkpoint.raw).map((checkpoint) => `${CHECKPOINT_REF}:${checkpoint.path}`),
+    ],
+    findings,
+  };
+}
+
+function auditRedactionContent(findings, customAuditRules, file, content) {
+  const builtin = countUnredactedAssignments(content);
+  if (builtin > 0) {
+    findings.push({ file, rule: "secret-assignment", count: builtin });
+  }
+
+  for (const rule of customAuditRules) {
+    const count = countMatches(content, rule.pattern);
+    if (count > 0) {
+      findings.push({ file, rule: rule.label, count });
+    }
+  }
 }
 
 async function runAgentCommand(action, values) {

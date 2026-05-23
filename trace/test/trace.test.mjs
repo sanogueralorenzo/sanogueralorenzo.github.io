@@ -811,7 +811,7 @@ test("custom redaction rules apply to raw events and commit memories", async () 
       "--message",
       "ship PROJECT-ORION with token=visible-secret",
     ]);
-    await runTrace(repo, ["record", "--validation", "PROJECT-ORION validation"]);
+    const record = JSON.parse((await runTrace(repo, ["record", "--validation", "PROJECT-ORION validation"])).stdout);
 
     const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
     const sessionId = (await readFile(join(repo, commonDir, "trace/current_session"), "utf8")).trim();
@@ -828,6 +828,28 @@ test("custom redaction rules apply to raw events and commit memories", async () 
     const audit = JSON.parse((await runTrace(repo, ["redact", "audit"])).stdout);
     assert.equal(audit.ok, true);
     assert.deepEqual(audit.findings, []);
+    assert.ok(audit.scanned.some((entry) => entry.includes("refs/trace/checkpoints:checkpoints/")));
+
+    const checkpointPath = `checkpoints/${record.checkpoint}.json`;
+    const rawCheckpoint = JSON.parse((await git(repo, ["show", `refs/trace/checkpoints:${checkpointPath}`])).stdout);
+    rawCheckpoint.note = "PROJECT-ORION token=visible-secret";
+    const checkpointHead = (await git(repo, ["rev-parse", "refs/trace/checkpoints"])).stdout.trim();
+    const tamperedPath = join(repo, "tampered-redaction-checkpoint.json");
+    const tamperIndex = join(repo, "redaction-tamper-index");
+    const tamperEnv = { GIT_INDEX_FILE: tamperIndex };
+    await writeFile(tamperedPath, `${JSON.stringify(rawCheckpoint, null, 2)}\n`);
+    await gitWithEnv(repo, ["read-tree", "refs/trace/checkpoints^{tree}"], tamperEnv);
+    const tamperedBlob = (await git(repo, ["hash-object", "-w", tamperedPath])).stdout.trim();
+    await gitWithEnv(repo, ["update-index", "--add", "--cacheinfo", `100644,${tamperedBlob},${checkpointPath}`], tamperEnv);
+    const tamperedTree = (await gitWithEnv(repo, ["write-tree"], tamperEnv)).stdout.trim();
+    const tamperedCommit = (await gitWithEnv(repo, ["commit-tree", tamperedTree, "-p", checkpointHead, "-m", "Tamper redaction checkpoint"], tamperEnv)).stdout.trim();
+    await git(repo, ["update-ref", "refs/trace/checkpoints", tamperedCommit]);
+
+    const failedCheckpointAudit = await runTraceAllowFailure(repo, ["redact", "audit"]);
+    assert.equal(failedCheckpointAudit.exitCode, 1);
+    const failedCheckpointPayload = JSON.parse(failedCheckpointAudit.stdout);
+    assert.ok(failedCheckpointPayload.findings.some((finding) => finding.file.includes("refs/trace/checkpoints:checkpoints/") && finding.rule === "codename"));
+    assert.ok(failedCheckpointPayload.findings.some((finding) => finding.file.includes("refs/trace/checkpoints:checkpoints/") && finding.rule === "secret-assignment"));
 
     const sha = (await git(repo, ["rev-parse", "HEAD"])).stdout.trim();
     const memoryPath = join(repo, ".trace/commits", sha.slice(0, 2), `${sha}.md`);
