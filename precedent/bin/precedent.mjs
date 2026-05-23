@@ -2240,6 +2240,8 @@ async function repairAfterRetryEventHook(event) {
   const sessionId = requireString(event.sessionId, "event.sessionId");
   const eventId = hookEventId(event);
   const repairId = typeof event.repairId === "string" ? event.repairId.trim() : "";
+  const retryStartedAt = nonEmptyString(event.retryStartedAt) ? event.retryStartedAt.trim() : null;
+  const retryStartedAtMs = Date.parse(retryStartedAt ?? "");
   let repairReceipt = null;
   let suppressedRepairs = [];
   let sessionEvent = null;
@@ -2273,7 +2275,8 @@ async function repairAfterRetryEventHook(event) {
             failureSource: null,
           };
         } else {
-          const retryEvents = await readSessionEvents(stateDir, sessionId);
+          const retryEvents = (await readSessionEvents(stateDir, sessionId))
+            .filter((item) => !Number.isFinite(retryStartedAtMs) || eventTime(item) >= retryStartedAtMs);
           if (!hasRepairRetryEvidence(retryEvents)) {
             suppressedRepairs = [{ reason: "missing_retry_evidence" }];
             repairReceipt = {
@@ -2316,6 +2319,7 @@ async function repairAfterRetryEventHook(event) {
         ...eventIdField(eventId),
         repairId: repairReceipt.id,
         repairSessionId: repairReceipt.repairSessionId,
+        retryStartedAt,
         repairReceipt,
         suppressedRepairs,
         attributedPrecedents,
@@ -2330,6 +2334,7 @@ async function repairAfterRetryEventHook(event) {
           ...eventIdField(eventId),
           repairId: repairReceipt.id,
           repairSessionId: repairReceipt.repairSessionId,
+          retryStartedAt,
           repairReceipt,
           suppressedRepairs,
           attributedPrecedents,
@@ -2577,7 +2582,7 @@ function buildManifest(runtime, stateDir) {
       },
       "repair.after_retry": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "repairId", "repairSessionId", "attributedPrecedents"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "repairId", "repairSessionId", "retryStartedAt", "attributedPrecedents"],
         output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairReceipt", "suppressedRepairs"],
         timeoutMs,
         failurePolicy,
@@ -2958,6 +2963,7 @@ async function attachRuntime() {
           eventId: "$EVENT_ID",
           repairId: "$REPAIR_ID",
           repairSessionId: "$REPAIR_SESSION_ID",
+          retryStartedAt: "$RETRY_STARTED_AT",
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
         output: ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairReceipt", "suppressedRepairs"],
@@ -3007,6 +3013,18 @@ async function attachRunSession() {
   if (!retryRepairId && retryRepairSessionId) {
     fail("attach-run --repair-session-id requires --repair-id");
   }
+  const retryRepairTarget = retryRepairId
+    ? {
+      source: "explicit",
+      repairId: retryRepairId,
+      repairSessionId: retryRepairSessionId,
+    }
+    : await attachPendingRepairTarget({
+      stateDirArg,
+      sessionId,
+      eventId: eventPrefix ? `${eventPrefix}:repair.after_retry` : null,
+    });
+  const retryStartedAt = new Date().toISOString();
 
   const beforeTurn = await runPrecedentChildJson([
     "context",
@@ -3118,8 +3136,8 @@ async function attachRunSession() {
     stateDirArg,
     sessionId,
     eventId: eventPrefix ? `${eventPrefix}:repair.after_retry` : null,
-    repairId: retryRepairId,
-    repairSessionId: retryRepairSessionId,
+    repairTarget: retryRepairTarget,
+    retryStartedAt,
     attributedPrecedents,
   });
   const autoPromotion = args["auto-promote"] === true
@@ -3293,14 +3311,18 @@ function runAttachRepairReceipt({
   stateDirArg,
   sessionId,
   eventId,
-  repairId,
-  repairSessionId,
+  repairTarget,
+  retryStartedAt,
   attributedPrecedents,
 }) {
+  const repairId = repairTarget?.repairId ?? null;
+  const repairSessionId = repairTarget?.repairSessionId ?? null;
+
   if (!repairId) {
     return {
       status: "not_requested",
       receipt: null,
+      repairSource: "none",
     };
   }
 
@@ -3316,14 +3338,62 @@ function runAttachRepairReceipt({
     ...eventIdField(eventId),
     repairId,
     repairSessionId,
+    retryStartedAt,
     attributedPrecedents,
   }).then((receipt) => ({
     status: receipt.repairReceipt?.status ?? "unresolved",
     receipt,
     repairId,
     repairSessionId,
+    repairSource: repairTarget.source,
     suppressedRepairs: receipt.suppressedRepairs ?? [],
   }));
+}
+
+async function attachPendingRepairTarget({ stateDirArg, sessionId, eventId }) {
+  try {
+    await ensureState(stateDirArg);
+
+    if (eventId) {
+      const existing = await findSessionEventByEventId(stateDirArg, sessionId, eventId);
+      if (existing?.event?.hook === "repair.after_retry" && existing.event.repairId) {
+        return {
+          source: "deduped_receipt",
+          repairId: existing.event.repairId,
+          repairSessionId: existing.event.repairSessionId ?? sessionId,
+        };
+      }
+    }
+
+    const sessionEvents = await readSessionEvents(stateDirArg, sessionId);
+    const globalEvents = await readJsonLines(join(stateDirArg, "events.jsonl"));
+    const receiptKeys = new Set(globalEvents
+      .filter((event) => event.hook === "repair.after_retry" && event.repairReceipt)
+      .map((event) => repairReceiptKey({
+        repairId: event.repairReceipt.id ?? event.repairId,
+        repairSessionId: event.repairReceipt.repairSessionId ?? event.repairSessionId ?? sessionId,
+      })));
+    const repair = sessionEvents
+      .filter((event) => event.hook === "repair.before_retry" && event.repairId)
+      .filter((event) => !receiptKeys.has(repairReceiptKey({
+        repairId: event.repairId,
+        repairSessionId: event.sessionId ?? sessionId,
+      })))
+      .sort((left, right) => eventTime(left) - eventTime(right))
+      .at(-1);
+
+    if (!repair) {
+      return null;
+    }
+
+    return {
+      source: "pending_repair",
+      repairId: repair.repairId,
+      repairSessionId: repair.sessionId ?? sessionId,
+    };
+  } catch (error) {
+    return null;
+  }
 }
 
 function runAttachIdle({ stateDirArg, sessionId, eventId }) {
@@ -5952,6 +6022,10 @@ async function findRepairBeforeRetryEvent(stateDir, repairId, repairSessionId) {
 
   return (await readSessionEvents(stateDir, event.sessionId))
     .find((item) => item.hook === "repair.before_retry" && item.repairId === repairId) ?? event;
+}
+
+function repairReceiptKey({ repairId, repairSessionId }) {
+  return `${repairId ?? ""}:${repairSessionId ?? ""}`;
 }
 
 function hasRepairRetryEvidence(events) {

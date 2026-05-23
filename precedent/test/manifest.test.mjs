@@ -49,7 +49,7 @@ test("manifest emits a generic runtime hook contract", async () => {
   assert.deepEqual(manifest.hooks["repair.before_retry"].stdin, ["schema_version", "hook", "sessionId", "eventId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"]);
   assert.deepEqual(manifest.hooks["repair.before_retry"].output, ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairId", "repairBlock", "repairSource", "suppressedRepairs"]);
   assert.equal(manifest.hooks["repair.before_retry"].injectFrom, "repairBlock");
-  assert.deepEqual(manifest.hooks["repair.after_retry"].stdin, ["schema_version", "hook", "sessionId", "eventId", "repairId", "repairSessionId", "attributedPrecedents"]);
+  assert.deepEqual(manifest.hooks["repair.after_retry"].stdin, ["schema_version", "hook", "sessionId", "eventId", "repairId", "repairSessionId", "retryStartedAt", "attributedPrecedents"]);
   assert.deepEqual(manifest.hooks["repair.after_retry"].output, ["schema_version", "ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "repairReceipt", "suppressedRepairs"]);
   assert.deepEqual(manifest.actions["promotion.trial"].command, [
     "node",
