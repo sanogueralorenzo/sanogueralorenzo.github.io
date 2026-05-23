@@ -13,6 +13,7 @@ const cliPath = join(repoRoot, "jury/bin/jury.mjs");
 const fixturesDir = join(repoRoot, "jury/fixtures/verdicts");
 const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
 const ciQuickstartFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/quickstart");
+const ciKeyPolicyFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy");
 const releasePath = join(repoRoot, "jury/release.json");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
 const skipNestedCiAdoptionTests = process.env.JURY_SKIP_CI_ADOPTION_NESTED === "1";
@@ -235,7 +236,63 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("jury-review-gate.yml"));
   assert.ok(readme.includes("review-bundle.json"));
   assert.ok(readme.includes("gate.json"));
+  assert.ok(readme.includes("fixtures/key-policy"));
+  assert.ok(readme.includes("jury.key_policy.v1"));
   assert.ok(readme.includes("actions/upload-artifact@v4"));
+});
+
+test("key policy CI fixtures verify and import a signed review bundle", async () => {
+  const stateDir = await tempState();
+  const downstreamDir = await tempState();
+  const bundlePath = join(ciKeyPolicyFixturesDir, "review-bundle.signed.json");
+  const policyPath = join(ciKeyPolicyFixturesDir, "jury-key-policy.json");
+  const publicKeyPath = join(ciKeyPolicyFixturesDir, "ci-public.pem");
+  const readme = await readFile(join(ciKeyPolicyFixturesDir, "README.md"), "utf8");
+  const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
+  const policy = JSON.parse(await readFile(policyPath, "utf8"));
+  const publicKey = await readFile(publicKeyPath, "utf8");
+
+  try {
+    assert.equal(bundle.schema_version, "jury.review_bundle.v1");
+    assert.equal(bundle.attestation.type, "rsa-sha256");
+    assert.equal(bundle.attestation.key_id, "ci-fixture");
+    assert.equal(policy.schema_version, "jury.key_policy.v1");
+    assert.equal(policy.producers[0].keys[0].public_key_path, "ci-public.pem");
+    assert.match(publicKey, /BEGIN PUBLIC KEY/);
+    assert.ok(readme.includes("bundle preflight --bundle"));
+    assert.ok(readme.includes("bundle import --state-dir"));
+
+    const preflight = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", policyPath]);
+    const preflightPayload = JSON.parse(preflight.stdout);
+
+    assert.equal(preflight.exitCode, 0, preflight.stderr);
+    assert.equal(preflightPayload.ok, true);
+    assert.deepEqual(preflightPayload.key_policy.matching_producers.map((producer) => producer.producer_index), [0]);
+    assert.deepEqual(preflightPayload.key_policy.considered_keys.map((key) => key.status), ["verified"]);
+
+    const imported = await runProcess(["bundle", "import", "--state-dir", stateDir, "--bundle", bundlePath, "--key-policy", policyPath, "--verdict-out", join(stateDir, "imported-verdict.json")]);
+    const importedPayload = JSON.parse(imported.stdout);
+    const gate = await runProcess(["gate", "--state-dir", stateDir, "--claim", "claim_ci_change", "--verdict", join(stateDir, "imported-verdict.json")]);
+
+    assert.equal(imported.exitCode, 0, imported.stderr);
+    assert.equal(importedPayload.ok, true);
+    assert.equal(gate.exitCode, 0, gate.stderr);
+    assert.equal(JSON.parse(gate.stdout).ok, true);
+
+    const copiedFixtureDir = join(downstreamDir, "key-policy");
+    await cp(ciKeyPolicyFixturesDir, copiedFixtureDir, { recursive: true });
+
+    const copiedPreflight = await runProcess(["bundle", "preflight", "--bundle", join(copiedFixtureDir, "review-bundle.signed.json"), "--key-policy", join(copiedFixtureDir, "jury-key-policy.json")]);
+    const copiedImportDir = join(downstreamDir, "imported-state");
+    const copiedImport = await runProcess(["bundle", "import", "--state-dir", copiedImportDir, "--bundle", join(copiedFixtureDir, "review-bundle.signed.json"), "--key-policy", join(copiedFixtureDir, "jury-key-policy.json"), "--verdict-out", join(downstreamDir, "imported-verdict.json")]);
+
+    assert.equal(copiedPreflight.exitCode, 0, copiedPreflight.stderr);
+    assert.equal(JSON.parse(copiedPreflight.stdout).key_policy.considered_keys[0].status, "verified");
+    assert.equal(copiedImport.exitCode, 0, copiedImport.stderr);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+    await rm(downstreamDir, { recursive: true, force: true });
+  }
 });
 
 test("troubleshooting failure examples stay executable", async () => {
@@ -1309,6 +1366,11 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/quickstart/verdict.json",
     "examples/ci/fixtures/quickstart/review-bundle.json",
     "examples/ci/fixtures/quickstart/gate.json",
+    "examples/ci/fixtures/key-policy",
+    "examples/ci/fixtures/key-policy/jury-key-policy.json",
+    "examples/ci/fixtures/key-policy/ci-public.pem",
+    "examples/ci/fixtures/key-policy/review-bundle.signed.json",
+    "examples/ci/fixtures/key-policy/README.md",
   ]) {
     assert.ok(linkedTargets.includes(requiredLink), `RELEASE_CHECKLIST.md should link ${requiredLink}`);
   }
@@ -1347,6 +1409,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "QUICKSTART.md",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/fixtures/quickstart",
+    "examples/ci/fixtures/key-policy",
     "MIGRATION.md",
     "RELEASE_CHECKLIST.md",
     "TROUBLESHOOTING.md",
@@ -1382,7 +1445,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /revoked_at/);
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
-  assert.match(handoff, /reusable CI fixture/);
+  assert.match(handoff, /fixture generation automation/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

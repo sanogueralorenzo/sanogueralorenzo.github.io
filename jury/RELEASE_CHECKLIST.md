@@ -7,6 +7,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Run [QUICKSTART.md](QUICKSTART.md) from a clean checkout.
 - [ ] Copy [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml) into `.github/workflows/`.
 - [ ] Compare generated outputs with [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart).
+- [ ] Verify signed bundle handoff with [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy).
 - [ ] Follow [MIGRATION.md](MIGRATION.md) when handing artifacts between jobs.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI emits `reject`, `retry`, or `human_decision`.
 - [ ] Read [MAINTAINER_HANDOFF.md](MAINTAINER_HANDOFF.md) before transferring ownership.
@@ -31,6 +32,10 @@ Expected fixture files:
 - [examples/ci/fixtures/quickstart/verdict.json](examples/ci/fixtures/quickstart/verdict.json)
 - [examples/ci/fixtures/quickstart/review-bundle.json](examples/ci/fixtures/quickstart/review-bundle.json)
 - [examples/ci/fixtures/quickstart/gate.json](examples/ci/fixtures/quickstart/gate.json)
+- [examples/ci/fixtures/key-policy/jury-key-policy.json](examples/ci/fixtures/key-policy/jury-key-policy.json)
+- [examples/ci/fixtures/key-policy/ci-public.pem](examples/ci/fixtures/key-policy/ci-public.pem)
+- [examples/ci/fixtures/key-policy/review-bundle.signed.json](examples/ci/fixtures/key-policy/review-bundle.signed.json)
+- [examples/ci/fixtures/key-policy/README.md](examples/ci/fixtures/key-policy/README.md)
 
 ## Validation
 

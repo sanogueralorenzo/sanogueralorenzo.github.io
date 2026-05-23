@@ -7,6 +7,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [QUICKSTART.md](QUICKSTART.md): local clean-checkout command sequence.
 - [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml): copyable GitHub Actions workflow.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
+- [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, and key policy manifest for trusted-producer verification.
 - [MIGRATION.md](MIGRATION.md): artifact handoff and bundle replay path.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): release-readiness checklist.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): failure-mode inspection and retry/reject examples.
@@ -40,4 +41,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a reusable CI fixture for key-policy manifests and signed bundles.
+Add fixture generation automation so signed key-policy examples can be regenerated without manually creating temporary keys.
