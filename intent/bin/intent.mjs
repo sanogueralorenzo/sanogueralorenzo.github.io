@@ -147,6 +147,21 @@ function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isSpan(value) {
+  return isPlainObject(value)
+    && typeof value.file === "string"
+    && isPosition(value.start)
+    && isPosition(value.end);
+}
+
+function isPosition(value) {
+  return isPlainObject(value)
+    && Number.isInteger(value.line)
+    && value.line >= 1
+    && Number.isInteger(value.column)
+    && value.column >= 1;
+}
+
 function parseIntent(source, file) {
   const lines = source.split(/\r?\n/);
   sourceLineOffsets.set(path.normalize(file), computeLineOffsets(source));
@@ -1234,7 +1249,7 @@ function validateGraph(graph, options = {}) {
       || typeof graphNode.id !== "string"
       || typeof graphNode.kind !== "string"
       || typeof graphNode.label !== "string"
-      || !isPlainObject(graphNode.span)
+      || !isSpan(graphNode.span)
       || !isPlainObject(graphNode.data)
     ) {
       diagnostics.push(error("INTENT_GRAPH_NODE_INVALID", `graph node must be an object with string id, kind, label, span, and data fields.`, graphNode?.span ?? span(graph.source ?? "graph", 1, 1), {
@@ -1242,7 +1257,7 @@ function validateGraph(graph, options = {}) {
         node_id: isPlainObject(graphNode) ? graphNode.id ?? null : null,
         node_kind: isPlainObject(graphNode) ? graphNode.kind ?? null : null,
         label_is_string: isPlainObject(graphNode) && typeof graphNode.label === "string",
-        span_is_object: isPlainObject(graphNode) && isPlainObject(graphNode.span),
+        span_is_valid: isPlainObject(graphNode) && isSpan(graphNode.span),
         data_is_object: isPlainObject(graphNode) && isPlainObject(graphNode.data),
       }));
       continue;

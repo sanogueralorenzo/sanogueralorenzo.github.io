@@ -1200,7 +1200,8 @@ describe("intent static model CLI", () => {
         "bad",
         { id: "node:missing-kind", label: "bad", span: testSpan(2), data: {} },
         { id: "node:missing-payload", kind: "Type", span: testSpan(3) },
-        { id: "node:a", kind: "Type", label: "a", span: testSpan(4), data: {} },
+        { id: "node:bad-span", kind: "Type", label: "bad span", span: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } }, data: {} },
+        { id: "node:a", kind: "Type", label: "a", span: testSpan(5), data: {} },
       ],
       edges: [
         "bad",
@@ -1208,7 +1209,7 @@ describe("intent static model CLI", () => {
       ],
     });
 
-    assert.equal(diagnostics.length, 5);
+    assert.equal(diagnostics.length, 6);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_NODE_INVALID");
     assert.equal(diagnostics[0].node_index, 0);
     assert.equal(diagnostics[0].node_id, null);
@@ -1218,25 +1219,29 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].node_id, "node:missing-kind");
     assert.equal(diagnostics[1].node_kind, null);
     assert.equal(diagnostics[1].label_is_string, true);
-    assert.equal(diagnostics[1].span_is_object, true);
+    assert.equal(diagnostics[1].span_is_valid, true);
     assert.equal(diagnostics[1].data_is_object, true);
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_NODE_INVALID");
     assert.equal(diagnostics[2].node_index, 2);
     assert.equal(diagnostics[2].node_id, "node:missing-payload");
     assert.equal(diagnostics[2].node_kind, "Type");
     assert.equal(diagnostics[2].label_is_string, false);
-    assert.equal(diagnostics[2].span_is_object, true);
+    assert.equal(diagnostics[2].span_is_valid, true);
     assert.equal(diagnostics[2].data_is_object, false);
-    assert.equal(diagnostics[3].code, "INTENT_GRAPH_EDGE_INVALID");
-    assert.equal(diagnostics[3].edge_index, 0);
-    assert.equal(diagnostics[3].edge, null);
-    assert.equal(diagnostics[3].from, null);
-    assert.equal(diagnostics[3].to, null);
+    assert.equal(diagnostics[3].code, "INTENT_GRAPH_NODE_INVALID");
+    assert.equal(diagnostics[3].node_index, 3);
+    assert.equal(diagnostics[3].node_id, "node:bad-span");
+    assert.equal(diagnostics[3].span_is_valid, false);
     assert.equal(diagnostics[4].code, "INTENT_GRAPH_EDGE_INVALID");
-    assert.equal(diagnostics[4].edge_index, 1);
-    assert.equal(diagnostics[4].edge, "requests");
-    assert.equal(diagnostics[4].from, "node:a");
-    assert.equal(diagnostics[4].to, 1);
+    assert.equal(diagnostics[4].edge_index, 0);
+    assert.equal(diagnostics[4].edge, null);
+    assert.equal(diagnostics[4].from, null);
+    assert.equal(diagnostics[4].to, null);
+    assert.equal(diagnostics[5].code, "INTENT_GRAPH_EDGE_INVALID");
+    assert.equal(diagnostics[5].edge_index, 1);
+    assert.equal(diagnostics[5].edge, "requests");
+    assert.equal(diagnostics[5].from, "node:a");
+    assert.equal(diagnostics[5].to, 1);
   });
 
   it("validates graph node kind diagnostics", () => {
