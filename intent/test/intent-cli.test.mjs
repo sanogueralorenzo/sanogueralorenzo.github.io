@@ -45,6 +45,8 @@ const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.inten
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
+const INVALID_DUPLICATE_GOAL_NAME = new URL("../fixtures/invalid_duplicate_goal_name.intent", import.meta.url).pathname;
+const INVALID_DUPLICATE_TYPE_NAME = new URL("../fixtures/invalid_duplicate_type_name.intent", import.meta.url).pathname;
 
 function runJson(args) {
   const output = execFileSync("node", [CLI, ...args], { encoding: "utf8" });
@@ -497,6 +499,27 @@ describe("intent static model CLI", () => {
     assert.equal(payload.ok, false);
     assert.equal(payload.diagnostics[0].code, "INTENT_NAME_DUPLICATE");
     assert.equal(payload.diagnostics[0].name, "inspect_request");
+  });
+
+  it("rejects duplicate top-level names", () => {
+    const duplicateGoal = run(["check", INVALID_DUPLICATE_GOAL_NAME]);
+    const duplicateGoalPayload = JSON.parse(duplicateGoal.stdout);
+    const duplicateType = run(["check", INVALID_DUPLICATE_TYPE_NAME]);
+    const duplicateTypePayload = JSON.parse(duplicateType.stdout);
+
+    assert.equal(duplicateGoal.status, 1);
+    assert.equal(duplicateGoalPayload.ok, false);
+    assert.equal(duplicateGoalPayload.diagnostics[0].code, "INTENT_NAME_DUPLICATE");
+    assert.equal(duplicateGoalPayload.diagnostics[0].name, "duplicate_goal");
+    assert.equal(duplicateGoalPayload.diagnostics[0].span.start.line, 33);
+    assert.equal(duplicateGoalPayload.diagnostics[0].previous_span.start.line, 7);
+
+    assert.equal(duplicateType.status, 1);
+    assert.equal(duplicateTypePayload.ok, false);
+    assert.equal(duplicateTypePayload.diagnostics[0].code, "INTENT_NAME_DUPLICATE");
+    assert.equal(duplicateTypePayload.diagnostics[0].name, "Finding");
+    assert.equal(duplicateTypePayload.diagnostics[0].span.start.line, 7);
+    assert.equal(duplicateTypePayload.diagnostics[0].previous_span.start.line, 3);
   });
 
   it("rejects step inputs that are not produced yet", () => {

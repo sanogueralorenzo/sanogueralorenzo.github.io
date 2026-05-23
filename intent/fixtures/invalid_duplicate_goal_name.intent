@@ -4,7 +4,7 @@ type Finding = {
   summary: String
 }
 
-goal duplicate_goal -> Finding {
+goal duplicate_goal() -> Finding {
   context repo("./")
 
   capability file {
@@ -30,7 +30,7 @@ goal duplicate_goal -> Finding {
   }
 }
 
-goal duplicate_goal -> Finding {
+goal duplicate_goal() -> Finding {
   context repo("./")
 
   capability file {
