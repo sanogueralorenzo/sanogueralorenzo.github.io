@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "operation": "replacement_casing",
+  "cases": [
+    {
+      "name": "capitalized source target capitalizes replacement",
+      "sourceText": "Hey Mia, can you review this?",
+      "instruction": "replace Mia with john",
+      "editedOutput": "Hey john, can you review this?",
+      "expected": "Hey John, can you review this?"
+    },
+    {
+      "name": "lowercase source target leaves replacement unchanged",
+      "sourceText": "buy milk",
+      "instruction": "replace milk with oat",
+      "editedOutput": "buy oat milk",
+      "expected": "buy oat milk"
+    },
+    {
+      "name": "non-replace instruction leaves output unchanged",
+      "sourceText": "Hey Mia, can you review this?",
+      "instruction": "make this friendlier",
+      "editedOutput": "Hey john, can you review this?",
+      "expected": "Hey john, can you review this?"
+    }
+  ]
+}

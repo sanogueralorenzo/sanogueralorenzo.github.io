@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "operation": "deterministic_edits",
+  "cases": [
+    {
+      "name": "clear all clears source",
+      "sourceText": "Buy milk",
+      "instruction": "clear everything",
+      "expected": {
+        "output": "",
+        "applied": true,
+        "intent": "DELETE_ALL",
+        "scope": "ALL",
+        "commandKind": "CLEAR_ALL",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "no op keeps source",
+      "sourceText": "Buy milk",
+      "instruction": "never mind",
+      "expected": {
+        "output": "Buy milk",
+        "applied": false,
+        "intent": "GENERAL",
+        "scope": "ALL",
+        "commandKind": "NO_OP",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "delete first target",
+      "sourceText": "milk bread milk eggs milk",
+      "instruction": "delete first milk",
+      "expected": {
+        "output": "bread milk eggs milk",
+        "applied": true,
+        "intent": "GENERAL",
+        "scope": "FIRST",
+        "commandKind": "DELETE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace last target",
+      "sourceText": "milk bread milk eggs milk",
+      "instruction": "replace last milk with oat",
+      "expected": {
+        "output": "milk bread milk eggs oat",
+        "applied": true,
+        "intent": "REPLACE",
+        "scope": "LAST",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 1,
+        "ruleConfidence": "HIGH",
+        "noMatchDetected": false
+      }
+    },
+    {
+      "name": "replace no match reports metadata",
+      "sourceText": "Please buy milk.",
+      "instruction": "replace bread with rice",
+      "expected": {
+        "output": "Please buy milk.",
+        "applied": false,
+        "intent": "REPLACE",
+        "scope": "ALL",
+        "commandKind": "REPLACE_TERM",
+        "matchedCount": 0,
+        "ruleConfidence": "LOW",
+        "noMatchDetected": true
+      }
+    }
+  ],
+  "nullCases": [
+    {
+      "name": "blank source returns null",
+      "sourceText": "",
+      "instruction": "delete milk"
+    },
+    {
+      "name": "blank instruction returns null",
+      "sourceText": "Buy milk",
+      "instruction": ""
+    },
+    {
+      "name": "general rewrite request returns null",
+      "sourceText": "Buy milk",
+      "instruction": "make this friendlier"
+    },
+    {
+      "name": "ambiguous pronoun target returns null",
+      "sourceText": "Buy milk",
+      "instruction": "delete it"
+    }
+  ]
+}

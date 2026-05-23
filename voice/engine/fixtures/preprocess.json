@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "operation": "preprocess",
+  "cases": [
+    {
+      "name": "blank input returns empty unchanged result",
+      "input": " \n\t ",
+      "expectedText": "",
+      "expectedChanged": false,
+      "expectedAppliedRuleIds": []
+    },
+    {
+      "name": "independent compose rules apply in order",
+      "input": "um meet meet me in 5 mins",
+      "expectedText": "meet me in 5 minutes",
+      "expectedChanged": true,
+      "expectedAppliedRuleIds": [
+        "FILLER",
+        "ADJACENT_DUPLICATE",
+        "MINUTES_NORMALIZATION"
+      ]
+    },
+    {
+      "name": "correction turn runs before number conversion",
+      "input": "at five, no at six",
+      "expectedText": "at 6",
+      "expectedChanged": true,
+      "expectedAppliedRuleIds": [
+        "CORRECTION_TURN",
+        "NUMBER_WORDS_TO_DIGITS"
+      ]
+    }
+  ]
+}

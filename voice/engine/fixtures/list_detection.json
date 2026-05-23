@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "operation": "list_detection",
+  "cases": [
+    {
+      "name": "explicit bullets are list-like",
+      "input": "- milk\n- eggs",
+      "expected": true
+    },
+    {
+      "name": "shopping delimited items are list-like",
+      "input": "buy milk, eggs, bananas, bread",
+      "expected": true
+    },
+    {
+      "name": "compact multiline items are list-like",
+      "input": "milk\neggs\nbread",
+      "expected": true
+    },
+    {
+      "name": "ordinary prose is not list-like",
+      "input": "I can make it at 5pm and bring the document.",
+      "expected": false
+    },
+    {
+      "name": "blank input is not list-like",
+      "input": "   ",
+      "expected": false
+    }
+  ]
+}

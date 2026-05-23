@@ -41,6 +41,21 @@ The stable API contract is documented in [API.md](API.md). Any platform binding
 must preserve that contract and pass equivalent conformance tests before it is
 treated as compatible.
 
+## Conformance Fixtures
+
+Cross-platform fixtures live in `fixtures/*.json`. They are the source of truth
+for binding compatibility and cover preprocess, normalization, postprocess, edit
+analysis, deterministic edits, list detection, and replacement casing.
+
+Every platform binding should add a small test runner that:
+
+- Loads the fixture JSON files without rewriting or reordering cases.
+- Calls the platform-native engine API for each case.
+- Compares structured outputs exactly, including rule IDs, enum strings, null
+  edit results, ordering, and boolean flags.
+- Keeps platform-specific bridge encodings private; fixture assertions should use
+  public structured values.
+
 Run the engine tests from the repository root:
 
 ```shell

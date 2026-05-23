@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "operation": "postprocess",
+  "cases": [
+    {
+      "name": "blank original returns cleaned candidate",
+      "originalText": "",
+      "modelOutput": "hello",
+      "listMode": false,
+      "expected": "Hello"
+    },
+    {
+      "name": "blank candidate falls back to original",
+      "originalText": "buy milk and bread",
+      "modelOutput": "",
+      "listMode": false,
+      "expected": "buy milk and bread"
+    },
+    {
+      "name": "safe candidate is returned",
+      "originalText": "buy milk and bread today",
+      "modelOutput": "buy milk and bread today",
+      "listMode": false,
+      "expected": "Buy milk and bread today"
+    },
+    {
+      "name": "assistant reply falls back to original",
+      "originalText": "buy milk and bread",
+      "modelOutput": "Sure, buy milk and bread",
+      "listMode": false,
+      "expected": "buy milk and bread"
+    },
+    {
+      "name": "low overlap candidate falls back to original",
+      "originalText": "buy milk and bread today",
+      "modelOutput": "schedule a dentist appointment tomorrow",
+      "listMode": false,
+      "expected": "buy milk and bread today"
+    }
+  ]
+}

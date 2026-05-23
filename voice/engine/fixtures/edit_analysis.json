@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "operation": "edit_analysis",
+  "cases": [
+    {
+      "name": "blank instruction is general",
+      "instruction": "   ",
+      "expectedNormalizedInstruction": "",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
+    },
+    {
+      "name": "delete all command is delete intent",
+      "instruction": "clear everything please",
+      "expectedNormalizedInstruction": "clear everything please",
+      "expectedIntent": "DELETE_ALL",
+      "expectedStrictEditCommand": true
+    },
+    {
+      "name": "replace correction prefers final replacement",
+      "instruction": "replace milk with oat milk no, make it almond milk",
+      "expectedNormalizedInstruction": "replace milk with almond milk",
+      "expectedIntent": "REPLACE",
+      "expectedStrictEditCommand": true
+    },
+    {
+      "name": "update number is replace intent",
+      "instruction": "update number to 6:30",
+      "expectedNormalizedInstruction": "update number to 6:30",
+      "expectedIntent": "REPLACE",
+      "expectedStrictEditCommand": true
+    },
+    {
+      "name": "loose conversational replace is not strict",
+      "instruction": "actually can we replace milk with oat milk",
+      "expectedNormalizedInstruction": "actually can we replace milk with oat milk",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
+    },
+    {
+      "name": "general rewrite request is not strict",
+      "instruction": "make this professional",
+      "expectedNormalizedInstruction": "make this professional",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
+    }
+  ],
+  "allowBlankOutputCases": [
+    {
+      "intent": "DELETE_ALL",
+      "expected": true
+    },
+    {
+      "intent": "GENERAL",
+      "expected": false
+    },
+    {
+      "intent": "REPLACE",
+      "expected": false
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "operation": "normalization",
+  "composeInputCases": [
+    {
+      "name": "blank compose input returns empty",
+      "input": " \n\t ",
+      "expected": ""
+    },
+    {
+      "name": "compose input collapses whitespace",
+      "input": "  hello   world  ",
+      "expected": "hello world"
+    }
+  ],
+  "instructionInputCases": [
+    {
+      "name": "instruction input collapses whitespace",
+      "input": "  replace   milk   with   oat milk  ",
+      "expected": "replace milk with oat milk"
+    }
+  ],
+  "composeOutputCases": [
+    {
+      "name": "compose output capitalizes and normalizes spoken digits",
+      "input": "hello. bring one two three",
+      "expected": "Hello. Bring 123"
+    }
+  ],
+  "cleanModelOutputCases": [
+    {
+      "name": "clean model output removes labels and quotes",
+      "input": "cleaned: `\"hello there\"`",
+      "bulletMode": false,
+      "expected": "Hello there"
+    },
+    {
+      "name": "clean model output flattens bullets outside bullet mode",
+      "input": "- apple\n- milk\n- avocado",
+      "bulletMode": false,
+      "expected": "Apple milk avocado"
+    },
+    {
+      "name": "clean model output preserves bullets in bullet mode",
+      "input": "- apple\n- milk",
+      "bulletMode": true,
+      "expected": "- Apple\n- Milk"
+    },
+    {
+      "name": "clean model output returns empty for blank input",
+      "input": "   ",
+      "bulletMode": false,
+      "expected": ""
+    }
+  ]
+}

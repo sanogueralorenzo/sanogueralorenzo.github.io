@@ -1932,6 +1932,186 @@ static MULTI_NEWLINE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\n{3,}").unwrap())
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct FixtureFile<T> {
+        version: u32,
+        operation: String,
+        cases: Vec<T>,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct PreprocessFixture {
+        name: String,
+        input: String,
+        expected_text: String,
+        expected_changed: bool,
+        expected_applied_rule_ids: Vec<String>,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct NormalizationFixtures {
+        version: u32,
+        operation: String,
+        compose_input_cases: Vec<TextFixture>,
+        instruction_input_cases: Vec<TextFixture>,
+        compose_output_cases: Vec<TextFixture>,
+        clean_model_output_cases: Vec<CleanModelOutputFixture>,
+    }
+
+    #[derive(Deserialize)]
+    struct TextFixture {
+        name: String,
+        input: String,
+        expected: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct CleanModelOutputFixture {
+        name: String,
+        input: String,
+        bullet_mode: bool,
+        expected: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct PostprocessFixture {
+        name: String,
+        original_text: String,
+        model_output: String,
+        list_mode: bool,
+        expected: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct EditAnalysisFixtures {
+        version: u32,
+        operation: String,
+        cases: Vec<EditAnalysisFixture>,
+        allow_blank_output_cases: Vec<AllowBlankOutputFixture>,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct EditAnalysisFixture {
+        name: String,
+        instruction: String,
+        expected_normalized_instruction: String,
+        expected_intent: String,
+        expected_strict_edit_command: bool,
+    }
+
+    #[derive(Deserialize)]
+    struct AllowBlankOutputFixture {
+        intent: String,
+        expected: bool,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct DeterministicEditFixtures {
+        version: u32,
+        operation: String,
+        cases: Vec<DeterministicEditFixture>,
+        null_cases: Vec<NullEditFixture>,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct DeterministicEditFixture {
+        name: String,
+        source_text: String,
+        instruction: String,
+        expected: ExpectedDeterministicEdit,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ExpectedDeterministicEdit {
+        output: String,
+        applied: bool,
+        intent: String,
+        scope: String,
+        command_kind: String,
+        matched_count: usize,
+        rule_confidence: String,
+        no_match_detected: bool,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct NullEditFixture {
+        name: String,
+        source_text: String,
+        instruction: String,
+    }
+
+    #[derive(Deserialize)]
+    struct BooleanFixture {
+        name: String,
+        input: String,
+        expected: bool,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ReplacementCasingFixture {
+        name: String,
+        source_text: String,
+        instruction: String,
+        edited_output: String,
+        expected: String,
+    }
+
+    fn parse_fixture<T>(json: &str) -> FixtureFile<T>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        let file: FixtureFile<T> = serde_json::from_str(json).expect("fixture json should parse");
+        assert_eq!(1, file.version);
+        file
+    }
+
+    fn parse_edit_intent(value: &str) -> EditIntent {
+        match value {
+            "GENERAL" => EditIntent::General,
+            "DELETE_ALL" => EditIntent::DeleteAll,
+            "REPLACE" => EditIntent::Replace,
+            _ => panic!("unknown edit intent: {value}"),
+        }
+    }
+
+    fn assert_deterministic_edit(
+        case_name: &str,
+        actual: DeterministicEditResult,
+        expected: ExpectedDeterministicEdit,
+    ) {
+        assert_eq!(expected.output, actual.output, "{case_name}");
+        assert_eq!(expected.applied, actual.applied, "{case_name}");
+        assert_eq!(expected.intent, actual.intent.as_str(), "{case_name}");
+        assert_eq!(expected.scope, actual.scope.as_str(), "{case_name}");
+        assert_eq!(
+            expected.command_kind,
+            actual.command_kind.as_str(),
+            "{case_name}"
+        );
+        assert_eq!(expected.matched_count, actual.matched_count, "{case_name}");
+        assert_eq!(
+            expected.rule_confidence,
+            actual.rule_confidence.as_str(),
+            "{case_name}"
+        );
+        assert_eq!(
+            expected.no_match_detected, actual.no_match_detected,
+            "{case_name}"
+        );
+    }
 
     #[test]
     fn preprocess_applies_rules_in_order() {
@@ -1980,199 +2160,172 @@ mod tests {
     }
 
     #[test]
-    fn contract_normalization_operations_handle_blank_and_spacing() {
-        assert_eq!("", normalize_compose_input(" \n\t "));
-        assert_eq!("hello world", normalize_compose_input("  hello   world  "));
-        assert_eq!(
-            "replace milk with oat milk",
-            normalize_instruction_input("  replace   milk   with   oat milk  ")
-        );
-        assert_eq!(
-            "Hello. Bring 123",
-            normalize_compose_output_text("hello. bring one two three")
-        );
+    fn conformance_preprocess_matches_fixtures() {
+        let file: FixtureFile<PreprocessFixture> =
+            parse_fixture(include_str!("../fixtures/preprocess.json"));
+        assert_eq!("preprocess", file.operation);
+
+        for case in file.cases {
+            let result = preprocess(&case.input);
+            assert_eq!(case.expected_text, result.text, "{}", case.name);
+            assert_eq!(case.expected_changed, result.changed, "{}", case.name);
+            assert_eq!(
+                case.expected_applied_rule_ids, result.applied_rules,
+                "{}",
+                case.name
+            );
+        }
     }
 
     #[test]
-    fn contract_clean_model_output_handles_labels_quotes_and_bullets() {
-        assert_eq!(
-            "Hello there",
-            clean_model_output("cleaned: `\"hello there\"`", false)
-        );
-        assert_eq!(
-            "Apple milk avocado",
-            clean_model_output("- apple\n- milk\n- avocado", false)
-        );
-        assert_eq!(
-            "- Apple\n- Milk",
-            clean_model_output("- apple\n- milk", true)
-        );
-        assert_eq!("", clean_model_output("   ", false));
+    fn conformance_normalization_matches_fixtures() {
+        let file: NormalizationFixtures =
+            serde_json::from_str(include_str!("../fixtures/normalization.json"))
+                .expect("normalization fixture json should parse");
+        assert_eq!(1, file.version);
+        assert_eq!("normalization", file.operation);
+
+        for case in file.compose_input_cases {
+            assert_eq!(
+                case.expected,
+                normalize_compose_input(&case.input),
+                "{}",
+                case.name
+            );
+        }
+        for case in file.instruction_input_cases {
+            assert_eq!(
+                case.expected,
+                normalize_instruction_input(&case.input),
+                "{}",
+                case.name
+            );
+        }
+        for case in file.compose_output_cases {
+            assert_eq!(
+                case.expected,
+                normalize_compose_output_text(&case.input),
+                "{}",
+                case.name
+            );
+        }
+        for case in file.clean_model_output_cases {
+            assert_eq!(
+                case.expected,
+                clean_model_output(&case.input, case.bullet_mode),
+                "{}",
+                case.name
+            );
+        }
     }
 
     #[test]
-    fn contract_postprocess_returns_candidate_or_original_by_guard() {
-        assert_eq!("Hello", postprocess("", "hello", false));
-        assert_eq!(
-            "buy milk and bread",
-            postprocess("buy milk and bread", "", false)
-        );
-        assert_eq!(
-            "Buy milk and bread today",
-            postprocess(
-                "buy milk and bread today",
-                "buy milk and bread today",
-                false
-            )
-        );
-        assert_eq!(
-            "buy milk and bread today",
-            postprocess(
-                "buy milk and bread today",
-                "schedule a dentist appointment tomorrow",
-                false
-            )
-        );
+    fn conformance_postprocess_matches_fixtures() {
+        let file: FixtureFile<PostprocessFixture> =
+            parse_fixture(include_str!("../fixtures/postprocess.json"));
+        assert_eq!("postprocess", file.operation);
+
+        for case in file.cases {
+            assert_eq!(
+                case.expected,
+                postprocess(&case.original_text, &case.model_output, case.list_mode),
+                "{}",
+                case.name
+            );
+        }
     }
 
     #[test]
-    fn contract_analyze_instruction_returns_normalized_instruction_and_intent() {
-        let blank = analyze_instruction("   ");
-        assert_eq!("", blank.normalized_instruction);
-        assert_eq!(EditIntent::General, blank.intent);
+    fn conformance_edit_analysis_matches_fixtures() {
+        let file: EditAnalysisFixtures =
+            serde_json::from_str(include_str!("../fixtures/edit_analysis.json"))
+                .expect("edit analysis fixture json should parse");
+        assert_eq!(1, file.version);
+        assert_eq!("edit_analysis", file.operation);
 
-        let delete_all = analyze_instruction("clear everything please");
-        assert_eq!("clear everything please", delete_all.normalized_instruction);
-        assert_eq!(EditIntent::DeleteAll, delete_all.intent);
+        for case in file.cases {
+            let analysis = analyze_instruction(&case.instruction);
+            assert_eq!(
+                case.expected_normalized_instruction, analysis.normalized_instruction,
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                case.expected_intent,
+                analysis.intent.as_str(),
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                case.expected_strict_edit_command,
+                is_strict_edit_command(&case.instruction),
+                "{}",
+                case.name
+            );
+        }
 
-        let replace = analyze_instruction("replace milk with oat milk no, make it almond milk");
-        assert_eq!(
-            "replace milk with almond milk",
-            replace.normalized_instruction
-        );
-        assert_eq!(EditIntent::Replace, replace.intent);
-
-        let update_number = analyze_instruction("update number to 6:30");
-        assert_eq!(
-            "update number to 6:30",
-            update_number.normalized_instruction
-        );
-        assert_eq!(EditIntent::Replace, update_number.intent);
+        for case in file.allow_blank_output_cases {
+            assert_eq!(
+                case.expected,
+                should_allow_blank_output(parse_edit_intent(&case.intent)),
+                "{}",
+                case.intent
+            );
+        }
     }
 
     #[test]
-    fn contract_strict_edit_command_is_start_anchored() {
-        assert!(is_strict_edit_command("replace milk with oat milk"));
-        assert!(is_strict_edit_command("please remove milk"));
-        assert!(is_strict_edit_command("actually never mind"));
-        assert!(is_strict_edit_command("update number to 6:30"));
-        assert!(!is_strict_edit_command(
-            "actually can we replace milk with oat milk"
-        ));
-        assert!(!is_strict_edit_command("make this professional"));
-        assert!(!is_strict_edit_command("   "));
+    fn conformance_deterministic_edits_match_fixtures() {
+        let file: DeterministicEditFixtures =
+            serde_json::from_str(include_str!("../fixtures/deterministic_edits.json"))
+                .expect("deterministic edit fixture json should parse");
+        assert_eq!(1, file.version);
+        assert_eq!("deterministic_edits", file.operation);
+
+        for case in file.cases {
+            let actual = try_apply_deterministic_edit(&case.source_text, &case.instruction)
+                .unwrap_or_else(|| panic!("expected deterministic edit result: {}", case.name));
+            assert_deterministic_edit(&case.name, actual, case.expected);
+        }
+
+        for case in file.null_cases {
+            assert!(
+                try_apply_deterministic_edit(&case.source_text, &case.instruction).is_none(),
+                "{}",
+                case.name
+            );
+        }
     }
 
     #[test]
-    fn contract_blank_output_only_allowed_for_delete_all() {
-        assert!(should_allow_blank_output(EditIntent::DeleteAll));
-        assert!(!should_allow_blank_output(EditIntent::General));
-        assert!(!should_allow_blank_output(EditIntent::Replace));
+    fn conformance_list_detection_matches_fixtures() {
+        let file: FixtureFile<BooleanFixture> =
+            parse_fixture(include_str!("../fixtures/list_detection.json"));
+        assert_eq!("list_detection", file.operation);
+
+        for case in file.cases {
+            assert_eq!(case.expected, looks_like_list(&case.input), "{}", case.name);
+        }
     }
 
     #[test]
-    fn contract_deterministic_edit_clear_all_and_no_op_metadata() {
-        let clear = try_apply_deterministic_edit("Buy milk", "clear everything")
-            .expect("clear command should parse");
-        assert_eq!("", clear.output);
-        assert!(clear.applied);
-        assert_eq!(EditIntent::DeleteAll, clear.intent);
-        assert_eq!(CommandScope::All, clear.scope);
-        assert_eq!(CommandKind::ClearAll, clear.command_kind);
-        assert_eq!(1, clear.matched_count);
-        assert_eq!(RuleConfidence::High, clear.rule_confidence);
-        assert!(!clear.no_match_detected);
+    fn conformance_replacement_casing_matches_fixtures() {
+        let file: FixtureFile<ReplacementCasingFixture> =
+            parse_fixture(include_str!("../fixtures/replacement_casing.json"));
+        assert_eq!("replacement_casing", file.operation);
 
-        let no_op = try_apply_deterministic_edit("Buy milk", "never mind")
-            .expect("no-op command should parse");
-        assert_eq!("Buy milk", no_op.output);
-        assert!(!no_op.applied);
-        assert_eq!(EditIntent::General, no_op.intent);
-        assert_eq!(CommandScope::All, no_op.scope);
-        assert_eq!(CommandKind::NoOp, no_op.command_kind);
-        assert_eq!(1, no_op.matched_count);
-        assert_eq!(RuleConfidence::High, no_op.rule_confidence);
-        assert!(!no_op.no_match_detected);
-    }
-
-    #[test]
-    fn contract_deterministic_edit_scopes_and_no_match_metadata() {
-        let delete_first =
-            try_apply_deterministic_edit("milk bread milk eggs milk", "delete first milk")
-                .expect("delete first should parse");
-        assert_eq!("bread milk eggs milk", delete_first.output);
-        assert_eq!(CommandScope::First, delete_first.scope);
-        assert_eq!(CommandKind::DeleteTerm, delete_first.command_kind);
-        assert_eq!(1, delete_first.matched_count);
-
-        let replace_last =
-            try_apply_deterministic_edit("milk bread milk eggs milk", "replace last milk with oat")
-                .expect("replace last should parse");
-        assert_eq!("milk bread milk eggs oat", replace_last.output);
-        assert_eq!(EditIntent::Replace, replace_last.intent);
-        assert_eq!(CommandScope::Last, replace_last.scope);
-        assert_eq!(CommandKind::ReplaceTerm, replace_last.command_kind);
-
-        let no_match = try_apply_deterministic_edit("Please buy milk.", "replace bread with rice")
-            .expect("no-match command should return metadata");
-        assert_eq!("Please buy milk.", no_match.output);
-        assert!(!no_match.applied);
-        assert_eq!(0, no_match.matched_count);
-        assert_eq!(RuleConfidence::Low, no_match.rule_confidence);
-        assert!(no_match.no_match_detected);
-    }
-
-    #[test]
-    fn contract_deterministic_edit_returns_none_for_unsupported_or_ambiguous_input() {
-        assert!(try_apply_deterministic_edit("", "delete milk").is_none());
-        assert!(try_apply_deterministic_edit("Buy milk", "").is_none());
-        assert!(try_apply_deterministic_edit("Buy milk", "make this friendlier").is_none());
-        assert!(try_apply_deterministic_edit("Buy milk", "delete it").is_none());
-    }
-
-    #[test]
-    fn contract_list_detection_is_stable_for_list_and_prose_inputs() {
-        assert!(looks_like_list("- milk\n- eggs"));
-        assert!(looks_like_list("buy milk, eggs, bananas, bread"));
-        assert!(looks_like_list("milk\neggs\nbread"));
-        assert!(!looks_like_list(
-            "I can make it at 5pm and bring the document."
-        ));
-        assert!(!looks_like_list("   "));
-    }
-
-    #[test]
-    fn contract_post_replace_capitalization_only_applies_for_capitalized_target() {
-        assert_eq!(
-            "Hey John, can you review this?",
-            post_replace_capitalization(
-                "Hey Mia, can you review this?",
-                "replace Mia with john",
-                "Hey john, can you review this?",
-            )
-        );
-        assert_eq!(
-            "buy oat milk",
-            post_replace_capitalization("buy milk", "replace milk with oat", "buy oat milk")
-        );
-        assert_eq!(
-            "Hey john, can you review this?",
-            post_replace_capitalization(
-                "Hey Mia, can you review this?",
-                "make this friendlier",
-                "Hey john, can you review this?",
-            )
-        );
+        for case in file.cases {
+            assert_eq!(
+                case.expected,
+                post_replace_capitalization(
+                    &case.source_text,
+                    &case.instruction,
+                    &case.edited_output
+                ),
+                "{}",
+                case.name
+            );
+        }
     }
 
     #[test]
