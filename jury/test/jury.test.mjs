@@ -895,7 +895,6 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.equal(release.schema_version, "jury.release.v1");
   assert.equal(release.name, packageJson.name);
   assert.equal(release.version, packageJson.version);
-  assert.equal(packageJson.private, true);
   assert.equal(release.cli.entrypoint, "bin/jury.mjs");
   assert.deepEqual(release.state.files, [
     "claims.jsonl",
@@ -957,22 +956,6 @@ test("release metadata references existing schemas, exports, and commands", asyn
     } else {
       assert.deepEqual(new Set(workflow.artifacts), new Set(uploadPaths));
     }
-  }
-
-  const publicationNotesPath = join(repoRoot, "jury", release.packagePublication.notes);
-  const publicationNotes = await readFile(publicationNotesPath, "utf8");
-  assert.ok(publicationNotes.includes("private: true"));
-  assert.ok(publicationNotes.includes("ciAdoption"));
-  assert.ok(publicationNotes.includes(release.packagePublication.packDryRunCommand));
-
-  for (const relativePath of release.packagePublication.requiredFiles) {
-    await stat(join(repoRoot, "jury", relativePath));
-    assert.ok(publicationNotes.includes(relativePath), `PUBLISHING.md should mention ${relativePath}`);
-  }
-
-  assert.ok(release.packagePublication.requiredFiles.includes(release.ciAdoption.guide));
-  for (const workflow of release.ciAdoption.workflows) {
-    assert.ok(release.packagePublication.requiredFiles.includes(workflow.path), `package publication should require ${workflow.path}`);
   }
 
   for (const commandName of ["judge", "gate", "bundle export", "bundle preflight", "bundle import", "check", "demo code-change"]) {
@@ -1718,7 +1701,6 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "QUICKSTART.md",
     "CI_ADOPTION.md",
     "release.json",
-    "PUBLISHING.md",
     "examples/ci/jury-review-gate.yml",
     "examples/ci/jury-signed-review-gate.yml",
     "examples/ci/jury-signed-artifact-handoff.yml",
@@ -1758,13 +1740,11 @@ test("release checklist links the adoption path and valid artifacts", async () =
   }
 
   assert.ok(checklist.includes("ciAdoption"));
-  assert.ok(checklist.includes("package publication"));
   for (const workflow of release.ciAdoption.workflows) {
     assert.ok(linkedTargets.includes(workflow.path), `RELEASE_CHECKLIST.md should link ${workflow.path}`);
   }
 
   assert.ok(readme.includes("RELEASE_CHECKLIST.md"));
-  assert.ok(readme.includes("PUBLISHING.md"));
   assert.ok(readme.includes("CI workflow variants"));
 
   const verdict = JSON.parse(await readFile(join(ciQuickstartFixturesDir, "verdict.json"), "utf8"));
@@ -1798,7 +1778,6 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/fixtures/key-policy-rotation",
     "MIGRATION.md",
     "RELEASE_CHECKLIST.md",
-    "PUBLISHING.md",
     "release.json",
     "TROUBLESHOOTING.md",
   ]) {
@@ -1841,10 +1820,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
   assert.match(handoff, /downloads the signed producer artifact/);
   assert.match(handoff, /machine-readable CI adoption guide path and workflow variant metadata/);
-  assert.match(handoff, /package publication notes/);
-  assert.match(handoff, /CI adoption metadata contract/);
   assert.match(handoff, /release metadata/);
-  assert.match(handoff, /tarball manifest check for the CI adoption metadata contract/);
+  assert.match(handoff, /package publication notes for the CI adoption metadata contract/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

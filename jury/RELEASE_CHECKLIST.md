@@ -7,7 +7,6 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Run [QUICKSTART.md](QUICKSTART.md) from a clean checkout.
 - [ ] Choose a workflow path with [CI_ADOPTION.md](CI_ADOPTION.md).
 - [ ] Verify [release.json](release.json) lists the selected `ciAdoption` workflow variant.
-- [ ] Review [PUBLISHING.md](PUBLISHING.md) before changing package publication settings.
 - [ ] Copy [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml) into `.github/workflows/`.
 - [ ] Copy [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml) when the producer must sign `review-bundle.signed.json` with `secrets.JURY_CI_PRIVATE_KEY`.
 - [ ] Copy [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml) when producer and consumer CI jobs need an artifact download handoff.
