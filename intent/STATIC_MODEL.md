@@ -419,6 +419,17 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
+- Runtime context source authorization edge contracts are the next Phase 2
+  static-model milestone. Runtime `Context` nodes with `data.source` equal to
+  `web` or `documents` must have one or more incoming `authorizes` edges from
+  `Capability` nodes. `repo` Context nodes remain local/trusted and do not
+  require graph authorization edges. Malformed, missing, or non-Capability
+  authorization edges for external context sources emit
+  `INTENT_GRAPH_AUTHORIZATION_INVALID` and make graph output non-executable;
+  malformed Context node data remains `INTENT_GRAPH_CONTEXT_INVALID`, and
+  malformed trust metadata remains `INTENT_GRAPH_TRUST_INVALID`. This makes
+  external context source access explicit in the runtime graph instead of
+  relying only on source checker results.
 - Runtime Type node metadata is part of graph validation. `Type` node data must
   carry `definition` as `null` or a non-empty string
   representing the declared structural or alias body. Malformed Type node
@@ -560,10 +571,11 @@ blocking diagnostics.
   emit `INTENT_TYPE_MISMATCH` at the final step output type span.
 - Assign first-prototype trust zones to source values. Repo contexts are
   trusted local sources and are not capability-enforced yet; structured
-  `context documents(...)` sources are trusted local sources that require
-  `file read path` capability coverage; structured `context web(...)` sources
-  are untrusted external sources that require `web read domain` capability
-  coverage; literals and checker-approved policy outputs are trusted.
+  `context documents(...)` sources require `file read path` capability
+  coverage and produce trusted local values after authorization; structured
+  `context web(...)` sources are untrusted external sources that require
+  `web read domain` capability coverage; literals and checker-approved policy
+  outputs are trusted.
 - Type check expressions, inputs, outputs, context values, state values, step
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
@@ -836,9 +848,9 @@ Rules:
 - `expression` is the original context call text.
 - Repo contexts are trusted local source values in the first checker prototype
   and are not capability-enforced yet.
-- Structured `context documents(...)` declarations are trusted local source
-  values. They use the first positional argument or a named `path` argument and
-  must be covered by an in-scope `file read path: "..."` capability grant.
+- Structured `context documents(...)` declarations are external source values.
+  They use the first positional argument or a named `path` argument and must be
+  covered by an in-scope `file read path: "..."` capability grant.
 - Structured `context web(...)` declarations are untrusted external source
   values. They use the first positional argument or a named `url` or `domain`
   argument and must be covered by an in-scope `web read domain: "..."`
@@ -858,6 +870,13 @@ Rules:
   source spans for every `data.argSpans` value. Malformed context source records
   emit `INTENT_GRAPH_CONTEXT_INVALID`; malformed context trust records remain
   `INTENT_GRAPH_TRUST_INVALID`.
+- Runtime `Context` nodes with `data.source` equal to `web` or `documents` must
+  have one or more incoming `authorizes` edges from `Capability` nodes. `repo`
+  Context nodes remain local/trusted and do not require graph authorization
+  edges. Malformed, missing, or non-Capability authorization edges for external
+  context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes external
+  context source access explicit in the runtime graph instead of relying only on
+  source checker results.
 
 ## Step Requirements
 
@@ -1119,8 +1138,8 @@ Trust zones:
 Rules:
 
 - Web context declarations produce untrusted values by default.
-- Documents context declarations produce trusted local values after matching
-  `file read path` capability coverage.
+- Documents context declarations produce trusted local values only after
+  matching `file read path` capability coverage.
 - Repo context declarations produce trusted local values and are not
   capability-enforced yet.
 - Trust propagates through step input binding and graph `data` edges.
@@ -1882,9 +1901,11 @@ outgoing `constrains` edge targets another node. Graph validation emits
 edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped `Check`
 node in the same goal.
 Graph validation emits `INTENT_GRAPH_AUTHORIZATION_INVALID` when an `Effect`
-node or verification `Check` node with `data.effect` lacks an incoming
-`authorizes` edge from a `Capability`, or when its incoming `authorizes` edge is
-not from a `Capability`.
+node, verification `Check` node with `data.effect`, or external `Context` node
+with `data.source` equal to `web` or `documents` lacks one or more incoming
+`authorizes` edges from `Capability` nodes, or when any required incoming
+`authorizes` edge is not from a `Capability`. `repo` Context nodes remain
+local/trusted and do not require graph authorization edges.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
@@ -1933,7 +1954,8 @@ above, whose edge endpoint does not resolve inside the same payload, whose
 `Goal` nodes omit valid runtime Goal node data, whose
 `Step` nodes omit valid runtime Step node data, whose
 `Completion` nodes omit valid runtime Completion node data, whose
-`Capability` nodes omit valid runtime approval-policy data, whose `Memory`
+external `Context` source nodes lack required Capability authorization edges,
+whose `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
 nodes omit valid runtime retention lifecycle data, whose `Policy` nodes omit
 valid runtime step execution policy data, whose `Approval` nodes omit valid
 runtime step gate data, or whose required
@@ -1962,12 +1984,16 @@ validation treats `Context` nodes as non-executable source bindings: `source`
 and `expression` must be non-empty strings, `args`, `argKinds`, and `argSpans`
 must be objects, and every `argSpans` value must be a valid source span.
 Malformed context source records emit `INTENT_GRAPH_CONTEXT_INVALID` and make
-the graph non-executable. Repo, doc, and file context nodes use trusted local
-trust metadata. Web context nodes and browser/page state use untrusted external
-trust metadata. Runtime validation requires every `Context` node trust record to
-carry zone `trusted`, `untrusted`, or `unknown`, a non-empty `source`, and an
-optional non-empty `argument`; malformed trust records emit
-`INTENT_GRAPH_TRUST_INVALID`.
+the graph non-executable. Runtime `Context` nodes with `data.source` equal to
+`web` or `documents` must have one or more incoming `authorizes` edges from
+`Capability` nodes. Malformed, missing, or non-Capability authorization edges
+for those external context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID` and
+make the graph non-executable. `repo` Context nodes remain local/trusted and do
+not require graph authorization edges. Web context nodes and browser/page state
+use untrusted external trust metadata. Runtime validation requires every
+`Context` node trust record to carry zone `trusted`, `untrusted`, or `unknown`,
+a non-empty `source`, and an optional non-empty `argument`; malformed trust
+records emit `INTENT_GRAPH_TRUST_INVALID`.
 
 Effect nodes carry normalized runtime adapter call data: `family`, `action`,
 `args`, `argKinds`, `argSpans`, `expression`, `approvalRequired`, and trust
