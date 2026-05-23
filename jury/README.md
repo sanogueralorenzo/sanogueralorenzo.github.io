@@ -16,6 +16,7 @@ The long-term target is a shared review protocol that can sit behind code change
 
 - [SPEC.md](SPEC.md): the claim, objection, evidence, waiver, and verdict model.
 - [ROADMAP.md](ROADMAP.md): the path from concept note to a runnable local CLI.
+- [CLI.md](CLI.md): concise local command reference and diagnostics.
 - [examples/README.md](examples/README.md): concrete review gates for code, research, deployment, and tool-use claims.
 
 ## Core Idea

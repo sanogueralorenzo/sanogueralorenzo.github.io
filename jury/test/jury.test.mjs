@@ -290,6 +290,85 @@ test("check rejects malformed durable check records", async () => {
   }
 });
 
+test("check reports malformed cross-references across claims and verdicts", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    const claim = await runJson(["claim", "create", "--state-dir", stateDir, "--id", "claim_one", "--summary", "claim one"]);
+    const other = await runJson(["claim", "create", "--state-dir", stateDir, "--id", "claim_two", "--summary", "claim two"]);
+    const evidence = await runJson(["evidence", "add", "--state-dir", stateDir, "--claim", other.id, "--type", "manual", "--source", "note", "--summary", "other evidence"]);
+
+    await appendFile(join(stateDir, "checks.jsonl"), `${JSON.stringify({
+      schema_version: "jury.check.v1",
+      id: "check_bad_ref",
+      claim_id: claim.id,
+      type: "verifier",
+      required: true,
+      status: "pending",
+      assigned_to: "verifier:local",
+      summary: "bad reference",
+      evidence_ids: [evidence.id, "ev_missing"],
+      resolution: null,
+      created_at: "2026-05-23T00:00:00.000Z",
+      updated_at: "2026-05-23T00:00:00.000Z",
+    })}\n`);
+    await appendFile(join(stateDir, "verdicts.jsonl"), `${JSON.stringify({
+      schema_version: "jury.verdict.v1",
+      id: "verdict_bad_ref",
+      claim_id: claim.id,
+      claim_version: 99,
+      decision: "accept",
+      reason: "bad fixture",
+      next_actions: [],
+      evidence_ids: [evidence.id],
+      objection_ids: ["obj_missing"],
+      waiver_ids: [],
+      check_ids: ["check_missing"],
+      decided_by: "judge:test",
+      decided_at: "2026-05-23T00:00:00.000Z",
+    })}\n`);
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const consistency = payload.checks.find((check) => check.name === "state_consistency");
+
+    assert.equal(result.exitCode, 1);
+    assert.equal(consistency.ok, false);
+    assert.match(consistency.message, /check check_bad_ref evidence_ids references missing record ev_missing/);
+    assert.match(consistency.message, /check check_bad_ref evidence_ids references ev_claim_two_note from claim claim_two/);
+    assert.match(consistency.message, /verdict verdict_bad_ref claim_version 99 does not match current claim version 1/);
+    assert.match(consistency.message, /verdict verdict_bad_ref objection_ids references missing record obj_missing/);
+    assert.match(consistency.message, /verdict verdict_bad_ref check_ids references missing record check_missing/);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("gate reports CI-friendly consistency diagnostics for stale verdicts", async () => {
+  const stateDir = await tempState();
+
+  try {
+    await runJson(["init", "--state-dir", stateDir]);
+    const claim = await runJson(["claim", "create", "--state-dir", stateDir, "--id", "claim_ci", "--summary", "CI change is ready", "--scope", "jury"]);
+    await runJson(["evidence", "add", "--state-dir", stateDir, "--claim", claim.id, "--type", "command", "--command", "node --test jury/test/*.test.mjs", "--exit-code", "0"]);
+    await runJson(["judge", "--state-dir", stateDir, "--claim", claim.id, "--out", join(stateDir, "verdict.json")]);
+    await runJson(["claim", "transition", "--state-dir", stateDir, "--claim", claim.id, "--status", "screening"]);
+
+    const result = await runProcess(["gate", "--state-dir", stateDir, "--claim", claim.id, "--verdict", join(stateDir, "verdict.json"), "--json"]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.exitCode, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.reason, "Verdict does not match current claim state.");
+    assert.deepEqual(payload.consistency_errors, ["verdict.claim_version 1 does not match current claim version 2"]);
+    assert.deepEqual(payload.missing_fields, []);
+    assert.deepEqual(payload.unresolved_objections, []);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
+
 function tempState() {
   return mkdtemp(join(tmpdir(), "jury-test-"));
 }

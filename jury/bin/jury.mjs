@@ -422,6 +422,13 @@ async function gateVerdict() {
   validateVerdict(verdict);
   const review = args.claim ? await reviewForClaim(stateDir(), args.claim) : null;
   const details = review ? gateDetails(review, verdict) : gateDetailsFromVerdict(verdict);
+  const consistency = review ? gateConsistency(review, verdict) : [];
+
+  if (consistency.length > 0) {
+    print({ ok: false, decision: verdict.decision, reason: "Verdict does not match current claim state.", consistency_errors: consistency, ...details });
+    process.exitCode = 1;
+    return;
+  }
 
   if (verdict.decision !== "accept") {
     print({ ok: false, decision: verdict.decision, reason: verdict.reason, ...details });
@@ -450,6 +457,7 @@ async function checkState() {
   }
 
   checks.push(await checkSchemaFiles());
+  checks.push(await checkStateConsistency(dir));
 
   const ok = checks.every((check) => check.ok);
   print({ ok, checks });
@@ -570,6 +578,25 @@ function gateDetails(review, verdict) {
   };
 }
 
+function gateConsistency(review, verdict) {
+  const errors = [];
+
+  if (verdict.claim_id !== review.claim.id) {
+    errors.push(`verdict.claim_id ${verdict.claim_id} does not match claim ${review.claim.id}`);
+  }
+
+  if (verdict.claim_version !== review.claim.version) {
+    errors.push(`verdict.claim_version ${verdict.claim_version} does not match current claim version ${review.claim.version}`);
+  }
+
+  errors.push(...missingReferences("verdict.evidence_ids", verdict.evidence_ids, new Set(review.evidence.map((item) => item.id))));
+  errors.push(...missingReferences("verdict.objection_ids", verdict.objection_ids, new Set(review.objections.map((item) => item.id))));
+  errors.push(...missingReferences("verdict.waiver_ids", verdict.waiver_ids, new Set(review.waivers.map((item) => item.id))));
+  errors.push(...missingReferences("verdict.check_ids", verdict.check_ids ?? [], new Set(review.checks.map((item) => item.id))));
+
+  return errors;
+}
+
 function gateDetailsFromVerdict(verdict) {
   return {
     missing_fields: [],
@@ -614,6 +641,95 @@ async function checkSchemaFiles() {
   } catch (error) {
     return { name: "schema_files", ok: false, message: error.message };
   }
+}
+
+async function checkStateConsistency(dir) {
+  try {
+    const claims = latestById(await readJsonl(fileFor(dir, "claims")));
+    const checks = latestById(await readJsonl(fileFor(dir, "checks")));
+    const evidence = latestById(await readJsonl(fileFor(dir, "evidence")));
+    const objections = latestById(await readJsonl(fileFor(dir, "objections")));
+    const waivers = latestById(await readJsonl(fileFor(dir, "waivers")));
+    const verdicts = latestById(await readJsonl(fileFor(dir, "verdicts")));
+    const errors = [];
+
+    for (const check of checks.values()) {
+      assertKnownClaim(errors, "check", check.id, check.claim_id, claims);
+      errors.push(...missingReferences(`check ${check.id} evidence_ids`, check.evidence_ids, evidence));
+      errors.push(...crossClaimReferences(`check ${check.id} evidence_ids`, check.claim_id, check.evidence_ids, evidence));
+    }
+
+    for (const item of evidence.values()) {
+      assertKnownClaim(errors, "evidence", item.id, item.claim_id, claims);
+    }
+
+    for (const objection of objections.values()) {
+      assertKnownClaim(errors, "objection", objection.id, objection.claim_id, claims);
+      errors.push(...missingReferences(`objection ${objection.id} evidence_ids`, objection.evidence_ids, evidence));
+      errors.push(...crossClaimReferences(`objection ${objection.id} evidence_ids`, objection.claim_id, objection.evidence_ids, evidence));
+    }
+
+    for (const waiver of waivers.values()) {
+      assertKnownClaim(errors, "waiver", waiver.id, waiver.claim_id, claims);
+
+      const objection = objections.get(waiver.objection_id);
+
+      if (!objection) {
+        errors.push(`waiver ${waiver.id} references missing objection ${waiver.objection_id}`);
+      } else if (objection.claim_id !== waiver.claim_id) {
+        errors.push(`waiver ${waiver.id} references objection ${waiver.objection_id} from claim ${objection.claim_id}`);
+      }
+    }
+
+    for (const verdict of verdicts.values()) {
+      const claim = claims.get(verdict.claim_id);
+
+      if (!claim) {
+        errors.push(`verdict ${verdict.id} references missing claim ${verdict.claim_id}`);
+        continue;
+      }
+
+      if (verdict.claim_version !== claim.version) {
+        errors.push(`verdict ${verdict.id} claim_version ${verdict.claim_version} does not match current claim version ${claim.version}`);
+      }
+
+      errors.push(...missingReferences(`verdict ${verdict.id} evidence_ids`, verdict.evidence_ids, evidence));
+      errors.push(...missingReferences(`verdict ${verdict.id} objection_ids`, verdict.objection_ids, objections));
+      errors.push(...missingReferences(`verdict ${verdict.id} waiver_ids`, verdict.waiver_ids, waivers));
+      errors.push(...missingReferences(`verdict ${verdict.id} check_ids`, verdict.check_ids ?? [], checks));
+      errors.push(...crossClaimReferences(`verdict ${verdict.id} evidence_ids`, verdict.claim_id, verdict.evidence_ids, evidence));
+      errors.push(...crossClaimReferences(`verdict ${verdict.id} objection_ids`, verdict.claim_id, verdict.objection_ids, objections));
+      errors.push(...crossClaimReferences(`verdict ${verdict.id} waiver_ids`, verdict.claim_id, verdict.waiver_ids, waivers));
+      errors.push(...crossClaimReferences(`verdict ${verdict.id} check_ids`, verdict.claim_id, verdict.check_ids ?? [], checks));
+    }
+
+    if (errors.length > 0) {
+      return { name: "state_consistency", ok: false, message: errors.join("; ") };
+    }
+
+    return { name: "state_consistency", ok: true };
+  } catch (error) {
+    return { name: "state_consistency", ok: false, message: error.message };
+  }
+}
+
+function assertKnownClaim(errors, recordType, recordId, claimId, claims) {
+  if (!claims.has(claimId)) {
+    errors.push(`${recordType} ${recordId} references missing claim ${claimId}`);
+  }
+}
+
+function missingReferences(field, ids, records) {
+  return ids
+    .filter((id) => !records.has(id))
+    .map((id) => `${field} references missing record ${id}`);
+}
+
+function crossClaimReferences(field, claimId, ids, records) {
+  return ids
+    .map((id) => records.get(id))
+    .filter((record) => record && record.claim_id !== claimId)
+    .map((record) => `${field} references ${record.id} from claim ${record.claim_id}`);
 }
 
 async function withValidationErrors(action) {
