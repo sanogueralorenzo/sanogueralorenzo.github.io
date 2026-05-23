@@ -143,6 +143,12 @@ Validation expectations:
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
   depend on source locations.
+- Runtime trust metadata is part of graph validation. `Context` and `Effect`
+  nodes, plus verification `Check` nodes with `data.effect`, must carry valid
+  `trust` records with zone `trusted`, `untrusted`, or `unknown`, a non-empty
+  `source`, and an optional non-empty `argument`. Malformed trust metadata
+  emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
+  runtime trust sinks must not infer missing or malformed trust.
 - A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,
   cycles, missing authorization or approval edges, or invalid completion gates is
   malformed and must be rejected before execution.

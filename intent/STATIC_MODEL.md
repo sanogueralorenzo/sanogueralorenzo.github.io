@@ -368,6 +368,12 @@ Next graph envelope validation milestone:
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
   depend on source locations.
+- Runtime trust metadata is part of graph validation. `Context` and `Effect`
+  nodes, plus verification `Check` nodes with `data.effect`, must carry valid
+  `trust` records with zone `trusted`, `untrusted`, or `unknown`, a non-empty
+  `source`, and an optional non-empty `argument`. Malformed trust metadata
+  emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
+  runtime trust sinks must not infer missing or malformed trust.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.
@@ -1639,12 +1645,20 @@ also non-executable because the checker must emit
 Context nodes carry the same structured source call data as `ContextDecl`:
 `source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Repo, doc,
 and file context nodes use trusted local trust metadata. Web context nodes and
-browser/page state use untrusted external trust metadata.
+browser/page state use untrusted external trust metadata. Runtime validation
+requires every `Context` node trust record to carry zone `trusted`,
+`untrusted`, or `unknown`, a non-empty `source`, and an optional non-empty
+`argument`; malformed records emit `INTENT_GRAPH_TRUST_INVALID`.
 
 Effect nodes carry normalized effect call data: `family`, `action`, `args`,
 `argKinds`, `argSpans`, `expression`, and trust metadata when applicable.
 Verification shell `Check` nodes carry the same effect data under
 `data.effect`, so diagnostics can point to the exact denied command argument.
+Runtime validation requires `Effect` node trust and verification `Check`
+`data.effect.trust` records to use the same trust shape as `Context` nodes.
+Missing or malformed trust metadata emits `INTENT_GRAPH_TRUST_INVALID` and
+makes the graph non-executable because runtime trust sinks must not infer trust
+for effect execution.
 
 Capability nodes carry normalized grants and any approval policy parsed from
 the capability block. A body line of `approval required` is represented as
