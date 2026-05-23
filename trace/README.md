@@ -66,6 +66,7 @@ trace search "auth retry"
 trace search --field decisions "retry"
 trace search --field files "auth"
 trace summary main..HEAD
+trace branch-summary feature --base main
 trace pr-body main..HEAD
 trace release-notes v1.0.0..HEAD
 trace checkpoint list
@@ -96,6 +97,7 @@ node trace/bin/trace.mjs search "auth retry"
 node trace/bin/trace.mjs search --field decisions "retry"
 node trace/bin/trace.mjs search --field files "auth"
 node trace/bin/trace.mjs summary main..HEAD
+node trace/bin/trace.mjs branch-summary feature --base main
 node trace/bin/trace.mjs pr-body main..HEAD
 node trace/bin/trace.mjs release-notes v1.0.0..HEAD
 node trace/bin/trace.mjs checkpoint list
@@ -119,7 +121,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace ci <range>` is the CI gate for that model. It fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
 
-`trace summary <range>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. PR and release text are generated views, not the canonical memory store.
+`trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. Branch, PR, and release text are generated views, not the canonical memory store.
 
 `trace index` builds a rebuildable search cache in the git common directory, outside the project tree. `trace search` rebuilds that cache when committed memories change and can search all memory text or a specific field such as `decisions`, `files`, `validation`, or `risks`.
 

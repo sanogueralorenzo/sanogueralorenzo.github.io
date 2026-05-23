@@ -116,6 +116,11 @@ async function main() {
     return;
   }
 
+  if (command === "branch-summary" || command === "branch") {
+    await summarizeBranch(subcommand ?? args.branch ?? "HEAD");
+    return;
+  }
+
   if (command === "pr-body" || command === "pr") {
     await summarizeRange(subcommand ?? args.range ?? defaultSummaryRange(), { prBody: true });
     return;
@@ -952,6 +957,48 @@ async function buildSearchIndex(root, files = null) {
 
 async function summarizeRange(range, options = {}) {
   const root = await repoRoot();
+  const memories = await memoriesForRange(root, range);
+  writeSummaryDocument(range, memories, options);
+}
+
+async function summarizeBranch(branch) {
+  const root = await repoRoot();
+  const base = args.base ?? await defaultBranchBase(root, branch);
+  const mergeBase = await git(["merge-base", base, branch], { cwd: root, allowFailure: true });
+  if (!mergeBase) {
+    fail(`could not find merge-base for ${base} and ${branch}`);
+  }
+
+  const resolvedBranch = await git(["rev-parse", "--abbrev-ref", branch], { cwd: root, allowFailure: true }) || branch;
+  const range = `${mergeBase}..${branch}`;
+  const memories = await memoriesForRange(root, range);
+  writeSummaryDocument(range, memories, {
+    branchSummary: true,
+    branch: resolvedBranch,
+    base,
+  });
+}
+
+async function defaultBranchBase(root, branch) {
+  const upstream = await git(["rev-parse", "--abbrev-ref", `${branch}@{upstream}`], { cwd: root, allowFailure: true });
+  if (upstream) {
+    return upstream;
+  }
+
+  for (const candidate of ["origin/main", "origin/master", "main", "master"]) {
+    if (candidate === branch) {
+      continue;
+    }
+    const exists = await git(["rev-parse", "--verify", `${candidate}^{commit}`], { cwd: root, allowFailure: true });
+    if (exists) {
+      return candidate;
+    }
+  }
+
+  fail("branch summary needs --base when no upstream, main, or master base exists");
+}
+
+async function memoriesForRange(root, range) {
   const commits = (await git(["rev-list", "--reverse", range], { cwd: root })).split("\n").filter(Boolean);
   const memories = [];
 
@@ -962,8 +1009,17 @@ async function summarizeRange(range, options = {}) {
     }
   }
 
+  return memories;
+}
+
+function writeSummaryDocument(range, memories, options = {}) {
   const title = options.releaseNotes ? "Trace Release Notes" : options.prBody ? "Trace PR Summary" : "Trace Summary";
-  const lines = [`# ${title}`, "", `Range: \`${range}\``];
+  const summaryTitle = options.branchSummary ? "Trace Branch Summary" : title;
+  const lines = [`# ${summaryTitle}`, ""];
+  if (options.branchSummary) {
+    lines.push(`Branch: \`${options.branch}\``, `Base: \`${options.base}\``);
+  }
+  lines.push(`Range: \`${range}\``);
   if (memories.length === 0) {
     lines.push("", "No Trace memories found for this range.", "");
   } else if (options.releaseNotes) {
@@ -993,6 +1049,11 @@ async function summarizeRange(range, options = {}) {
 
     lines.push("", "## Decisions", "");
     appendMergedSection(lines, memories, "Decisions");
+
+    if (options.branchSummary) {
+      lines.push("", "## Changed Files", "");
+      appendMergedSection(lines, memories, "Files");
+    }
 
     lines.push("", "## Validation", "");
     appendMergedSection(lines, memories, "Validation");
@@ -1558,6 +1619,7 @@ Usage:
   trace index
   trace search [--field decisions|files|validation|risks] <query>
   trace summary [range]
+  trace branch-summary [branch] [--base main]
   trace pr-body [range]
   trace release-notes [range]
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic]

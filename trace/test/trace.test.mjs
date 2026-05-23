@@ -116,6 +116,39 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
   }
 });
 
+test("branch summary derives branch context from committed memories", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "base.txt"), "base\n");
+    await git(repo, ["add", "base.txt"]);
+    await git(repo, ["commit", "-m", "Create base"]);
+    await git(repo, ["checkout", "-b", "feature/trace-memory"]);
+
+    await writeFile(join(repo, "branch.txt"), "branch\n");
+    await git(repo, ["add", "branch.txt"]);
+    await git(repo, ["commit", "-m", "Add branch memory"]);
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "summarize this feature branch"]);
+    await runTrace(repo, ["capture", "--event", "decision", "--message", "Derive branch text from commit memories"]);
+    await runTrace(repo, ["record", "--validation", "node --test"]);
+    await git(repo, ["add", ".trace"]);
+    await git(repo, ["commit", "-m", "Commit branch Trace memory"]);
+
+    const summary = await runTrace(repo, ["branch-summary", "feature/trace-memory", "--base", "main"]);
+    assert.match(summary.stdout, /Trace Branch Summary/);
+    assert.match(summary.stdout, /Branch: `feature\/trace-memory`/);
+    assert.match(summary.stdout, /Base: `main`/);
+    assert.match(summary.stdout, /summarize this feature branch/);
+    assert.match(summary.stdout, /Derive branch text from commit memories/);
+    assert.match(summary.stdout, /branch\.txt/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("record distills noisy raw sessions into compact memories", async () => {
   const repo = await tempRepo();
 
