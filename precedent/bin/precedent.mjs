@@ -68,6 +68,11 @@ async function main() {
     return;
   }
 
+  if (command === "manifest") {
+    await printManifest();
+    return;
+  }
+
   if (command === "report") {
     await reportState();
     return;
@@ -716,6 +721,55 @@ async function runValidationCommand() {
   });
 
   process.exit(result.exitCode);
+}
+
+async function printManifest() {
+  const runtime = args.runtime ?? "generic";
+
+  if (!["generic", "codex"].includes(runtime)) {
+    fail(`unsupported runtime: ${runtime}`);
+  }
+
+  const stateDir = args["state-dir"] ?? DEFAULT_STATE_DIR;
+  const baseCommand = ["node", "precedent/bin/precedent.mjs", "hook", "--state-dir", stateDir, "--json"];
+
+  print({
+    schema_version: SCHEMA_VERSION,
+    runtime,
+    stateDir,
+    requiredEnv: [],
+    hooks: {
+      "context.before_turn": {
+        command: baseCommand,
+        stdin: ["schema_version", "hook", "sessionId", "task", "scope", "changedFiles", "limit", "threshold", "allowRepeat"],
+        output: ["ok", "hook", "sessionId", "contextBlock", "injections", "suppressedInjections"],
+        injectFrom: "contextBlock",
+        timeoutMs: 1500,
+        failurePolicy: "fail_open",
+      },
+      "validation.after_run": {
+        command: baseCommand,
+        stdin: ["schema_version", "hook", "sessionId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals"],
+        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "validation"],
+        timeoutMs: 1500,
+        failurePolicy: "fail_open",
+      },
+      "diff.after_edit": {
+        command: baseCommand,
+        stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals"],
+        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff"],
+        timeoutMs: 1500,
+        failurePolicy: "fail_open",
+      },
+      "outcome.after_task": {
+        command: baseCommand,
+        stdin: ["schema_version", "hook", "sessionId", "success", "status", "retries", "tokenEstimate", "notes", "precedent", "replay"],
+        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "outcome"],
+        timeoutMs: 1500,
+        failurePolicy: "fail_open",
+      },
+    },
+  });
 }
 
 async function reportState() {
@@ -1692,6 +1746,7 @@ Usage:
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
+  precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent report [--state-dir .precedent]
 
 Commands:
@@ -1703,6 +1758,7 @@ Commands:
   explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
   run       Run a validation command and capture it as a session hook event.
+  manifest  Emit the machine-readable runtime hook contract.
   report    Summarize local precedent state.
 `);
 }
