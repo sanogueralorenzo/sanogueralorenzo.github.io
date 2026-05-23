@@ -44,6 +44,7 @@ const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verifi
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_UNKNOWN_EFFECT_CONTRACT = new URL("../fixtures/invalid_unknown_effect_contract.intent", import.meta.url).pathname;
 const INVALID_EFFECT_ARGUMENT_TYPE = new URL("../fixtures/invalid_effect_argument_type.intent", import.meta.url).pathname;
+const INVALID_CAPABILITY_GRANT_ARGUMENT_TYPE = new URL("../fixtures/invalid_capability_grant_argument_type.intent", import.meta.url).pathname;
 const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
 const INVALID_APPROVAL_REQUIRED_MISSING = new URL("../fixtures/invalid_approval_required_missing.intent", import.meta.url).pathname;
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
@@ -1240,6 +1241,24 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].kind, "integer");
     assert.equal(payload.diagnostics[0].span.start.line, 11);
     assert.equal(payload.diagnostics[0].span.start.column, 24);
+  });
+
+  it("rejects non-string capability grant arguments before capability matching", () => {
+    const result = run(["check", INVALID_CAPABILITY_GRANT_ARGUMENT_TYPE]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics.length, 1);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_GRANT_INVALID");
+    assert.equal(payload.diagnostics[0].capability, "shell");
+    assert.equal(payload.diagnostics[0].family, "shell");
+    assert.equal(payload.diagnostics[0].action, "run");
+    assert.equal(payload.diagnostics[0].argument, "command");
+    assert.equal(payload.diagnostics[0].value, "30");
+    assert.equal(payload.diagnostics[0].kind, "integer");
+    assert.equal(payload.diagnostics[0].span.start.line, 7);
+    assert.equal(payload.diagnostics[0].span.start.column, 18);
   });
 
   it("rejects file writes outside declared path grants", () => {

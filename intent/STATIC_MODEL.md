@@ -885,6 +885,8 @@ blocking diagnostics.
 - Reject effect calls that do not resolve to a v0 effect adapter contract
   before capability matching, then reject known effect calls not covered by an
   in-scope capability.
+- Reject non-string and non-list contract-backed capability grant arguments
+  with `INTENT_CAPABILITY_GRANT_INVALID` before capability matching.
 - Check simple capability constraints for file paths, shell commands, context
   source file paths, context source web domains, web/http read domains, and git
   commit messages, git push branches or remotes, secret read names, ticket
@@ -1186,7 +1188,9 @@ Rules:
 - Constraint arguments are ordered in `args`; each entry carries the canonical
   key, source value, value kind, `keySpan`, `valueSpan`, and full argument
   `span` for argument-level diagnostics. Grant values may be strings, string
-  lists, positive integers, durations, or identifiers.
+  lists, positive integers, durations, or identifiers. Contract-backed grant
+  constraints must be strings or string lists in v0; other parsed value kinds
+  emit `INTENT_CAPABILITY_GRANT_INVALID`.
 - Each grant carries `approvalRequired`; it is true when the grant contains
   `approval: required`.
 - Multi-argument grants such as `push branch: "main" remote: "origin"` remain a
@@ -1933,6 +1937,7 @@ Initial diagnostic families:
 - `INTENT_TYPE_MISMATCH`
 - `INTENT_STEP_INPUT_UNRESOLVED`
 - `INTENT_EFFECT_UNDECLARED`
+- `INTENT_CAPABILITY_GRANT_INVALID`
 - `INTENT_EFFECT_ARGUMENT_INVALID`
 - `INTENT_CONTEXT_ARGUMENT_INVALID`
 - `INTENT_CAPABILITY_DENIED`

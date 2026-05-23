@@ -855,6 +855,7 @@ function checkIntent(ast) {
     }
 
     validateUnsupportedSyntax(goal, diagnostics);
+    const invalidCapabilityGrantCount = validateCapabilityGrants(goal, diagnostics);
     validateEffectContracts(goal, diagnostics);
     validateMemory(goal, diagnostics);
     validateContextSources(goal, diagnostics);
@@ -875,6 +876,9 @@ function checkIntent(ast) {
     const capabilities = goal.capabilities.map((capability) => capability.family);
     for (const step of goal.steps) {
       for (const effect of step.effects) {
+        if (invalidCapabilityGrantCount > 0) {
+          continue;
+        }
         if (!isResolvedEffectContract(effect)) {
           continue;
         }
@@ -930,6 +934,35 @@ function checkIntent(ast) {
   }
 
   return diagnostics;
+}
+
+function validateCapabilityGrants(goal, diagnostics) {
+  let invalidCount = 0;
+  for (const capability of goal.capabilities) {
+    for (const grant of capability.grants ?? []) {
+      for (const argument of grant.args ?? []) {
+        const contractArgument = effectContractArgumentForGrant({
+          family: capability.family,
+          action: grant.action,
+          key: argument.key,
+        });
+        if (!contractArgument || argument.kind === "string" || argument.kind === "string_list") {
+          continue;
+        }
+        invalidCount += 1;
+        diagnostics.push(error("INTENT_CAPABILITY_GRANT_INVALID", `capability '${capability.name}' grant '${grant.raw}' argument '${argument.key}' must be a string or string list for v0 contract '${contractArgument.contract.id}'.`, argument.valueSpan ?? argument.span ?? grant.span ?? capability.span, {
+          capability: capability.name,
+          family: capability.family,
+          action: grant.action,
+          argument: argument.key,
+          value: stringifyDiagnosticValue(argument.value),
+          kind: argument.kind,
+          contractId: contractArgument.contract.id,
+        }));
+      }
+    }
+  }
+  return invalidCount;
 }
 
 function validateEffectContracts(goal, diagnostics) {

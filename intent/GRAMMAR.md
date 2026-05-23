@@ -345,6 +345,9 @@ registry is also emitted as
 entry with `contractId` and canonical-to-source `contractArguments`.
 Structured capability grants that cover known adapter operations carry the same
 stable contract id plus the canonical `contractArgument`.
+Contract-backed grant arguments must be strings or string lists; numeric,
+duration, and identifier values emit `INTENT_CAPABILITY_GRANT_INVALID` before
+capability matching.
 The registry also declares `risk` and `checkpoint` metadata. Read-only
 contracts have no checkpoint trigger. Irreversible contracts declare
 `requiredWhen: ["deny:uncheckpointed_irreversible_effect"]` with
