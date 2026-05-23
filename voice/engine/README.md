@@ -24,12 +24,22 @@ Expected engine contents:
 The current engine implementation is a Rust crate that exposes deterministic processing through:
 
 - `preprocess(input)`
+- `normalize_compose_input(text)`
+- `normalize_instruction_input(text)`
+- `clean_model_output(text, bullet_mode)`
+- `normalize_compose_output_text(text)`
 - `postprocess(original_text, model_output, list_mode)`
 - `analyze_instruction(instruction_text)`
+- `is_strict_edit_command(instruction_text)`
+- `should_allow_blank_output(intent)`
 - `try_apply_deterministic_edit(source_text, instruction_text)`
 - `looks_like_list(text)`
 - `post_replace_capitalization(source_text, instruction_text, edited_output)`
 - JNI bindings used by the Android app.
+
+The stable API contract is documented in [API.md](API.md). Any platform binding
+must preserve that contract and pass equivalent conformance tests before it is
+treated as compatible.
 
 Run the engine tests from the repository root:
 

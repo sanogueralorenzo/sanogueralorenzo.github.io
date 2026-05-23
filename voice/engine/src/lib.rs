@@ -1978,4 +1978,208 @@ mod tests {
             postprocess("buy milk and bread", "Sure, buy milk and bread", false)
         );
     }
+
+    #[test]
+    fn contract_normalization_operations_handle_blank_and_spacing() {
+        assert_eq!("", normalize_compose_input(" \n\t "));
+        assert_eq!("hello world", normalize_compose_input("  hello   world  "));
+        assert_eq!(
+            "replace milk with oat milk",
+            normalize_instruction_input("  replace   milk   with   oat milk  ")
+        );
+        assert_eq!(
+            "Hello. Bring 123",
+            normalize_compose_output_text("hello. bring one two three")
+        );
+    }
+
+    #[test]
+    fn contract_clean_model_output_handles_labels_quotes_and_bullets() {
+        assert_eq!(
+            "Hello there",
+            clean_model_output("cleaned: `\"hello there\"`", false)
+        );
+        assert_eq!(
+            "Apple milk avocado",
+            clean_model_output("- apple\n- milk\n- avocado", false)
+        );
+        assert_eq!(
+            "- Apple\n- Milk",
+            clean_model_output("- apple\n- milk", true)
+        );
+        assert_eq!("", clean_model_output("   ", false));
+    }
+
+    #[test]
+    fn contract_postprocess_returns_candidate_or_original_by_guard() {
+        assert_eq!("Hello", postprocess("", "hello", false));
+        assert_eq!(
+            "buy milk and bread",
+            postprocess("buy milk and bread", "", false)
+        );
+        assert_eq!(
+            "Buy milk and bread today",
+            postprocess(
+                "buy milk and bread today",
+                "buy milk and bread today",
+                false
+            )
+        );
+        assert_eq!(
+            "buy milk and bread today",
+            postprocess(
+                "buy milk and bread today",
+                "schedule a dentist appointment tomorrow",
+                false
+            )
+        );
+    }
+
+    #[test]
+    fn contract_analyze_instruction_returns_normalized_instruction_and_intent() {
+        let blank = analyze_instruction("   ");
+        assert_eq!("", blank.normalized_instruction);
+        assert_eq!(EditIntent::General, blank.intent);
+
+        let delete_all = analyze_instruction("clear everything please");
+        assert_eq!("clear everything please", delete_all.normalized_instruction);
+        assert_eq!(EditIntent::DeleteAll, delete_all.intent);
+
+        let replace = analyze_instruction("replace milk with oat milk no, make it almond milk");
+        assert_eq!(
+            "replace milk with almond milk",
+            replace.normalized_instruction
+        );
+        assert_eq!(EditIntent::Replace, replace.intent);
+
+        let update_number = analyze_instruction("update number to 6:30");
+        assert_eq!(
+            "update number to 6:30",
+            update_number.normalized_instruction
+        );
+        assert_eq!(EditIntent::Replace, update_number.intent);
+    }
+
+    #[test]
+    fn contract_strict_edit_command_is_start_anchored() {
+        assert!(is_strict_edit_command("replace milk with oat milk"));
+        assert!(is_strict_edit_command("please remove milk"));
+        assert!(is_strict_edit_command("actually never mind"));
+        assert!(is_strict_edit_command("update number to 6:30"));
+        assert!(!is_strict_edit_command(
+            "actually can we replace milk with oat milk"
+        ));
+        assert!(!is_strict_edit_command("make this professional"));
+        assert!(!is_strict_edit_command("   "));
+    }
+
+    #[test]
+    fn contract_blank_output_only_allowed_for_delete_all() {
+        assert!(should_allow_blank_output(EditIntent::DeleteAll));
+        assert!(!should_allow_blank_output(EditIntent::General));
+        assert!(!should_allow_blank_output(EditIntent::Replace));
+    }
+
+    #[test]
+    fn contract_deterministic_edit_clear_all_and_no_op_metadata() {
+        let clear = try_apply_deterministic_edit("Buy milk", "clear everything")
+            .expect("clear command should parse");
+        assert_eq!("", clear.output);
+        assert!(clear.applied);
+        assert_eq!(EditIntent::DeleteAll, clear.intent);
+        assert_eq!(CommandScope::All, clear.scope);
+        assert_eq!(CommandKind::ClearAll, clear.command_kind);
+        assert_eq!(1, clear.matched_count);
+        assert_eq!(RuleConfidence::High, clear.rule_confidence);
+        assert!(!clear.no_match_detected);
+
+        let no_op = try_apply_deterministic_edit("Buy milk", "never mind")
+            .expect("no-op command should parse");
+        assert_eq!("Buy milk", no_op.output);
+        assert!(!no_op.applied);
+        assert_eq!(EditIntent::General, no_op.intent);
+        assert_eq!(CommandScope::All, no_op.scope);
+        assert_eq!(CommandKind::NoOp, no_op.command_kind);
+        assert_eq!(1, no_op.matched_count);
+        assert_eq!(RuleConfidence::High, no_op.rule_confidence);
+        assert!(!no_op.no_match_detected);
+    }
+
+    #[test]
+    fn contract_deterministic_edit_scopes_and_no_match_metadata() {
+        let delete_first =
+            try_apply_deterministic_edit("milk bread milk eggs milk", "delete first milk")
+                .expect("delete first should parse");
+        assert_eq!("bread milk eggs milk", delete_first.output);
+        assert_eq!(CommandScope::First, delete_first.scope);
+        assert_eq!(CommandKind::DeleteTerm, delete_first.command_kind);
+        assert_eq!(1, delete_first.matched_count);
+
+        let replace_last =
+            try_apply_deterministic_edit("milk bread milk eggs milk", "replace last milk with oat")
+                .expect("replace last should parse");
+        assert_eq!("milk bread milk eggs oat", replace_last.output);
+        assert_eq!(EditIntent::Replace, replace_last.intent);
+        assert_eq!(CommandScope::Last, replace_last.scope);
+        assert_eq!(CommandKind::ReplaceTerm, replace_last.command_kind);
+
+        let no_match = try_apply_deterministic_edit("Please buy milk.", "replace bread with rice")
+            .expect("no-match command should return metadata");
+        assert_eq!("Please buy milk.", no_match.output);
+        assert!(!no_match.applied);
+        assert_eq!(0, no_match.matched_count);
+        assert_eq!(RuleConfidence::Low, no_match.rule_confidence);
+        assert!(no_match.no_match_detected);
+    }
+
+    #[test]
+    fn contract_deterministic_edit_returns_none_for_unsupported_or_ambiguous_input() {
+        assert!(try_apply_deterministic_edit("", "delete milk").is_none());
+        assert!(try_apply_deterministic_edit("Buy milk", "").is_none());
+        assert!(try_apply_deterministic_edit("Buy milk", "make this friendlier").is_none());
+        assert!(try_apply_deterministic_edit("Buy milk", "delete it").is_none());
+    }
+
+    #[test]
+    fn contract_list_detection_is_stable_for_list_and_prose_inputs() {
+        assert!(looks_like_list("- milk\n- eggs"));
+        assert!(looks_like_list("buy milk, eggs, bananas, bread"));
+        assert!(looks_like_list("milk\neggs\nbread"));
+        assert!(!looks_like_list(
+            "I can make it at 5pm and bring the document."
+        ));
+        assert!(!looks_like_list("   "));
+    }
+
+    #[test]
+    fn contract_post_replace_capitalization_only_applies_for_capitalized_target() {
+        assert_eq!(
+            "Hey John, can you review this?",
+            post_replace_capitalization(
+                "Hey Mia, can you review this?",
+                "replace Mia with john",
+                "Hey john, can you review this?",
+            )
+        );
+        assert_eq!(
+            "buy oat milk",
+            post_replace_capitalization("buy milk", "replace milk with oat", "buy oat milk")
+        );
+        assert_eq!(
+            "Hey john, can you review this?",
+            post_replace_capitalization(
+                "Hey Mia, can you review this?",
+                "make this friendlier",
+                "Hey john, can you review this?",
+            )
+        );
+    }
+
+    #[test]
+    fn contract_jni_text_fields_replace_field_separator() {
+        assert_eq!(
+            "hello world",
+            sanitize_field(&format!("hello{FIELD_SEPARATOR}world"))
+        );
+    }
 }
