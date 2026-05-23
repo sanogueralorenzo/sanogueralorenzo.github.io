@@ -10,11 +10,20 @@ status: failed product
 visual: product
 mark: "0"
 trace: A landing page draft, battery estimates, and a refund button.
-question: Would anyone buy time back from the same market that took it?
+materials: Product mockup, lithium battery estimate, refund button copy, and a deleted pricing table.
+provenance: Recovered from a launch folder where every screenshot showed the device turned off.
+question: Would anyone buy time back from the same market that trained them to lose it?
 permalink: /unmade/product-that-returned-your-time/
 ---
 
-The pitch was perfect and therefore suspicious: a small object that measured attention loss, translated it into visible debt, and forced every connected screen to ask permission before taking more.
+The pitch was perfect and therefore suspicious: a small object that measured attention loss, translated it into visible debt, and forced every connected screen to ask permission before taking more. Its display did not show productivity. It showed what the day might have become.
+
+The team argued over whether the device should vibrate, glow, lock, or shame. The best prototype did nothing except sit beside the phone like a small accusation.
 
 It failed at the prototype stage because the product's best feature was refusing to become a product.
 
+## Case Notes
+
+The failed product is interesting because its ethics undermine its business model. A successful version would make itself unnecessary. A profitable version would have to keep the wound open.
+
+The unresolved question is whether liberation can be sold without becoming another subscription to the problem.

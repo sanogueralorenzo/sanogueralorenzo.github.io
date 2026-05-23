@@ -9,11 +9,23 @@ category: Unrecorded
 status: impossible photograph
 visual: photo
 mark: "∞"
+image: /unmade/assets/images/room-from-outside-time.png
+imageAlt: An impossible room image layered with traces from multiple years at once.
 trace: A shot list, exposure notes, and no possible camera position.
-question: What would a room reveal if sequence stopped protecting it?
+materials: Exposure notes, wall measurements, moving labels, dust-shadow sketches, and a key photographed in six positions.
+provenance: Reconstructed from a shot list written for a camera that could not exist.
+question: What would a room reveal if sequence stopped protecting everyone who had passed through it?
 permalink: /unmade/photograph-of-the-room-from-outside-time/
 ---
 
-The image was supposed to flatten years into one exposure: mattress on the floor, bare walls, birthday tape, moving boxes, dust, sun damage, a key on the counter before anyone had arrived.
+The image was supposed to flatten years into one exposure: mattress on the floor, bare walls, birthday tape, moving boxes, dust, sun damage, a key on the counter before anyone had arrived. It would show the room before memory had time to arrange itself into eras.
+
+The shot list treats the impossible as a technical problem. Aperture for old paint. Exposure for future dust. Focus distance measured from the moment the room first became someone else's.
 
 No camera could take it. The photograph survives as a demand for a machine that would not respect before and after.
+
+## Case Notes
+
+The artifact is classed as Unrecorded because the desired record exceeds the tools of recording. A normal photograph protects time by choosing one instant. This proposed image would remove that protection.
+
+The unresolved question is whether any room could survive being seen all at once.

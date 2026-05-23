@@ -10,11 +10,20 @@ status: collapsed diagram
 visual: diagram
 mark: "□"
 trace: Twelve arrows, three crossed-out openings, and no final sentence.
-question: When does structure become another way to hide?
+materials: Graph paper, correction tape, blue pencil, and a ruler used hard enough to tear one intersection.
+provenance: Found folded into quarters inside an envelope marked with no address, only a date.
+question: When does structure stop clarifying harm and become the most elegant way to avoid it?
 permalink: /unmade/diagram-for-an-apology/
 ---
 
-The diagram started with a plain sentence and branched into conditions: if they remembered, if they laughed, if they said it was too late, if they had already built a life around not hearing it.
+The diagram started with a plain sentence and branched into conditions: if they remembered, if they laughed, if they said it was too late, if they had already built a life around not hearing it. Each branch attempted to protect the speaker from a different kind of consequence.
+
+The apology became less direct every time the drawing became more beautiful. Rectangles multiplied. Arrows nested inside arrows. The page began to resemble a transit map for a city where no train reached the person waiting.
 
 By the end, the apology had become architecture. The only honest line was the one without an arrow.
 
+## Case Notes
+
+The diagram is filed under Unsent because its core failure is not design but delivery. It contains effort, fear, intelligence, and control, all arranged to delay a sentence that should have remained small.
+
+The unresolved question is whether preparation can become a moral substitute for action, especially when the preparation looks disciplined enough to admire.
