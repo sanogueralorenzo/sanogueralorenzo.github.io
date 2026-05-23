@@ -55,6 +55,10 @@ The package release fixture directory includes [examples/ci/fixtures/package-rel
 
 Run `npm --prefix jury run fixtures:package-release:drift` before handing off package release fixtures. It verifies the checked-in retained archive manifest still matches the failed publication archive evidence, replacement patch archive evidence, retention policy, artifact provenance, and archive evidence digests.
 
+## Archive Drift Remediation
+
+When archive drift appears, restore the changed failed or replacement archive evidence before regenerating the retained manifest. Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to identify whether the drift belongs to failed publication evidence, replacement patch evidence, or the dry-run package identity, then regenerate with `--manifest-out`, review the diff, rerun `--verify-manifest`, and record the approving maintainer in the release or incident record before replacing the archived manifest.
+
 ## Manifest Replay Troubleshooting
 
 Retained package release evidence manifest replay troubleshooting now covers `--verify-manifest` failures for failed and replacement release archives. It documents local replay against the retained evidence directory, retained file presence checks, manifest identity inspection, required archive evidence checks, missing retained manifest diagnostics, missing retained file diagnostics, missing retention artifact diagnostics, missing provenance artifact diagnostics, schema failures such as `schema_version must equal jury.package_release_archive_manifest.v1`, and mismatch failures such as `does not match retained package release evidence`.
@@ -89,4 +93,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation guidance for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record for failed and replacement release archives.

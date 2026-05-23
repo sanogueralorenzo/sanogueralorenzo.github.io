@@ -132,7 +132,7 @@ Check the retained archive fixture for drift before publication:
 npm --prefix jury run fixtures:package-release:drift
 ```
 
-The drift check compares the checked-in retained archive manifest with the current failed and replacement release archive evidence. It fails when the rollback audit, replacement audit, dry-run record, npm metadata, downstream gates, retention policy, artifact provenance, or archive evidence digest changes without regenerating the manifest.
+The drift check compares the checked-in retained archive manifest with the current failed and replacement release archive evidence. It fails when the rollback audit, replacement audit, dry-run record, npm metadata, downstream gates, retention policy, artifact provenance, or archive evidence digest changes without regenerating the manifest. When it fails, follow the retained package release archive drift remediation section in [TROUBLESHOOTING.md](TROUBLESHOOTING.md): restore missing or changed archive evidence first, regenerate the manifest only from the restored evidence directory, review the diff, and record the approving maintainer before replacing the archived copy.
 
 Before closing the release archive, verify the retained manifest against the archived evidence:
 
