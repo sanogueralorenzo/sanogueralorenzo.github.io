@@ -925,6 +925,18 @@ async function outcomeAfterTaskEventHook(event) {
     });
 
     learning = await createSessionLearningSnapshot(stateDir, sessionId);
+    if (sessionEvent.event.success === true) {
+      const promoted = await promoteSessionPairs(stateDir, {
+        successSessionId: sessionId,
+        requireFailureBeforeSuccess: true,
+      });
+      learning = {
+        ...learning,
+        promotionStatus: promoted.length > 0 ? "promoted" : "not_promoted",
+        promoted,
+        promotedIds: promoted.map((item) => item.id),
+      };
+    }
   });
 
   print({
@@ -1854,6 +1866,9 @@ async function traceFromSession(stateDir, sessionId) {
   const validations = events.filter((event) => event.hook === "validation.after_run");
   const diffs = events.filter((event) => event.hook === "diff.after_edit");
   const outcomes = events.filter((event) => event.hook === "outcome.after_task");
+  const receivedTimes = events
+    .map((event) => Date.parse(event.receivedAt ?? ""))
+    .filter((timestamp) => Number.isFinite(timestamp));
   const lastBeforeTurn = beforeTurns.at(-1) ?? {};
   const lastOutcome = outcomes.at(-1) ?? {};
   const changedFiles = uniqueStrings([
@@ -1905,6 +1920,8 @@ async function traceFromSession(stateDir, sessionId) {
       path: sessionFile,
       eventCount: events.length,
       hooks: uniqueStrings(events.map((event) => event.hook).filter(Boolean)),
+      startedAt: receivedTimes.length > 0 ? new Date(Math.min(...receivedTimes)).toISOString() : null,
+      completedAt: receivedTimes.length > 0 ? new Date(Math.max(...receivedTimes)).toISOString() : null,
       events: events.map(sessionTraceEvent),
     },
     ...(lastOutcome.precedent ? { precedent: lastOutcome.precedent } : {}),
@@ -1968,18 +1985,25 @@ async function createSessionLearningSnapshot(stateDir, sessionId) {
   };
 }
 
-async function promoteSessionPairs(stateDir) {
+async function promoteSessionPairs(stateDir, { successSessionId = null, requireFailureBeforeSuccess = false } = {}) {
   const traces = await sessionTraces(stateDir);
   const failed = traces.filter((trace) => traceOutcomeFailed(trace) && trace.failures.length > 0);
-  const succeeded = traces.filter((trace) => traceOutcomeSucceeded(trace));
+  const succeeded = traces
+    .filter((trace) => traceEligibleAsSuccessfulPair(trace))
+    .filter((trace) => !successSessionId || trace.sessionId === successSessionId);
   const promoted = [];
 
-  for (const failedTrace of failed) {
-    const successTrace = succeeded.find((trace) => tracesAreAnalogous(failedTrace, trace));
-    if (!successTrace) {
+  for (const successTrace of succeeded) {
+    const failedTrace = failed.find((trace) =>
+      trace.sessionId !== successTrace.sessionId
+      &&
+      tracesAreAnalogous(trace, successTrace)
+      && (!requireFailureBeforeSuccess || traceCompletedBefore(trace, successTrace)),
+    );
+
+    if (!failedTrace) {
       continue;
     }
-
     const precedent = precedentFromSessionPair(failedTrace, successTrace);
     const assessment = assessPromotionCandidate(precedent);
     if (!assessment.ok) {
@@ -2029,6 +2053,23 @@ function traceOutcomeFailed(trace) {
 
 function traceOutcomeSucceeded(trace) {
   return trace.outcome === "success" || trace.outcome === "passed" || trace.outcome === "done";
+}
+
+function traceEligibleAsSuccessfulPair(trace) {
+  return traceOutcomeSucceeded(trace)
+    && trace.failures.length === 0
+    && successfulValidationForTrace(trace) !== null;
+}
+
+function traceCompletedBefore(left, right) {
+  const leftTime = Date.parse(left.session?.completedAt ?? "");
+  const rightTime = Date.parse(right.session?.completedAt ?? "");
+
+  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) {
+    return false;
+  }
+
+  return leftTime <= rightTime;
 }
 
 function tracesAreAnalogous(failedTrace, successTrace) {

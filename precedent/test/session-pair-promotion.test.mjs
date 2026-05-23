@@ -50,6 +50,146 @@ test("compile promotes analogous failed and successful ordinary sessions", async
   }
 });
 
+test("successful outcome automatically promotes an earlier analogous failure", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await recordFailedSession(stateDir);
+    const successOutcome = await recordSuccessfulSession(stateDir);
+
+    assert.equal(successOutcome.learning.promotionStatus, "promoted");
+    assert.deepEqual(successOutcome.learning.promotedIds, ["prec_feature_webhooks_wrong_test_command_wrong_repo_slice"]);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/github.ts",
+      "--json",
+    ]);
+    assert.equal(context.injections.length, 1);
+    assert.equal(context.injections[0].id, "prec_feature_webhooks_wrong_test_command_wrong_repo_slice");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("successful outcome does not promote a later failure", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    const successOutcome = await recordSuccessfulSession(stateDir);
+    await recordFailedSession(stateDir);
+
+    assert.equal(successOutcome.learning.promotionStatus, "not_promoted");
+    assert.deepEqual(successOutcome.learning.promotedIds, []);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.deepEqual(precedents, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("noisy successful session cannot promote itself", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "noisy-success",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/github.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "noisy-success",
+      changedFiles: ["features/billing/refunds.ts"],
+      breadthSignals: ["wrong repo slice"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "noisy-success",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "noisy-success",
+      success: true,
+      status: "success",
+      notes: "passed after noisy edit",
+    });
+    const compiled = await runJson(["compile", "--state-dir", stateDir, "--promote-session-pairs", "--json"]);
+
+    assert.deepEqual(outcome.learning.promoted, []);
+    assert.deepEqual(compiled.promoted, []);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.deepEqual(precedents, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("failed session does not pair with a successful session that still has failures", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await recordFailedSession(stateDir);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "noisy-success",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/github.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "noisy-success",
+      changedFiles: ["features/billing/refunds.ts"],
+      breadthSignals: ["wrong repo slice"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "noisy-success",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "noisy-success",
+      success: true,
+      status: "success",
+      notes: "passed but still had boundary warnings",
+    });
+    const compiled = await runJson(["compile", "--state-dir", stateDir, "--promote-session-pairs", "--json"]);
+
+    assert.deepEqual(outcome.learning.promoted, []);
+    assert.deepEqual(compiled.promoted, []);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    assert.deepEqual(precedents, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("session-pair promotion is idempotent", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-pair-test-"));
 
@@ -70,6 +210,11 @@ test("session-pair promotion is idempotent", async () => {
 });
 
 async function recordSessionPair(stateDir) {
+  await recordFailedSession(stateDir);
+  await recordSuccessfulSession(stateDir);
+}
+
+async function recordFailedSession(stateDir) {
   await hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "context.before_turn",
@@ -101,7 +246,9 @@ async function recordSessionPair(stateDir) {
     status: "failure",
     notes: "edited outside webhook boundary and ran the wrong test command",
   });
+}
 
+async function recordSuccessfulSession(stateDir) {
   await hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "context.before_turn",
@@ -124,7 +271,7 @@ async function recordSessionPair(stateDir) {
     exitCode: 0,
     stdout: "passed",
   });
-  await hook(stateDir, {
+  return hook(stateDir, {
     schema_version: "precedent.v1",
     hook: "outcome.after_task",
     sessionId: "success-session",
