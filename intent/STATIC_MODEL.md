@@ -364,6 +364,13 @@ Next graph envelope validation milestone:
 - Executable graph edge records may carry `data`; when present it must be an
   object. Any `sourceSpan` or `targetSpan` inside edge `data` must be a valid
   span before runtime dependency or provenance logic can use it.
+- Runtime graph `data` edge payloads are the next Phase 2 static-model
+  milestone. Because these edges bind a producer to a typed step input, each
+  `data` edge payload must carry non-empty `parameter`, non-empty `type`, and
+  valid `sourceSpan` and `targetSpan` values. Malformed `data` edge payloads
+  emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
+  non-executable; endpoint direction and endpoint type errors remain
+  `INTENT_GRAPH_DATA_INVALID`.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
@@ -649,12 +656,13 @@ Every successful binding is also emitted as graph data dependency:
 - Each step input is attached to its owning step by graph edges instead of
   inferred ownership metadata.
 - A step input bound to a goal input creates a `data` edge from the goal input
-  node to the step input node. Its edge `data` may include `sourceSpan` for the
-  goal parameter and `targetSpan` for the step parameter.
+  node to the step input node. Its edge `data` must include non-empty
+  `parameter`, non-empty `type`, `sourceSpan` for the goal parameter, and
+  `targetSpan` for the step parameter.
 - A step input bound to an earlier step output creates a `data` edge from the
-  producing step node to the step input node. Its edge `data` may include
-  `sourceSpan` for the producing output type and `targetSpan` for the step
-  parameter.
+  producing step node to the step input node. Its edge `data` must include
+  non-empty `parameter`, non-empty `type`, `sourceSpan` for the producing
+  output type, and `targetSpan` for the step parameter.
 - A step input node creates a `requires` edge to its owning step, so execution
   waits for the bound value before the step can run. Its edge `data` may include
   `targetSpan` for the required step parameter.
@@ -1331,6 +1339,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_NODE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_UNRESOLVED`
+- `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`
 - `INTENT_GRAPH_DATA_INVALID`
 - `INTENT_GRAPH_INPUT_INVALID`
 - `INTENT_GRAPH_INPUT_UNBOUND`
@@ -1748,9 +1757,10 @@ contracts. If multiple prior values have the same type, the checker selects the
 nearest prior value in source order and emits the chosen edge deterministically.
 Parameter data embedded in `Goal`, `Step`, `Input`, `data`, and `requires` graph
 payloads retains the declaring parameter `span`.
-Graph `data` edge payloads may also include `sourceSpan` and `targetSpan` for
-the two bound parameters, while graph `requires` edge payloads may include
-`targetSpan` for the required input parameter.
+Graph `data` edge payloads must include non-empty `parameter`, non-empty
+`type`, and valid `sourceSpan` and `targetSpan` values for the two bound
+parameters, while graph `requires` edge payloads may include `targetSpan` for
+the required input parameter.
 Graph `produces` edge payloads that connect the final executable step to
 completion may include `sourceSpan` for the final step output type and
 `targetSpan` for the goal output type.
@@ -1761,6 +1771,9 @@ Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
 `data.scope` or `data.type` payloads, emits `INTENT_GRAPH_INPUT_UNBOUND` when a
 step `Input` node does not have exactly one incoming `data` edge or lacks its
 `requires` edge to the owning step, emits
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a `data` edge payload omits non-empty
+`parameter` or `type` values or valid `sourceSpan` or `targetSpan` values,
+emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a
 `Goal` node lacks its `${goal_id}:completion` `Completion` node, lacks exactly
 one outgoing `completes` edge to that node, or has `completes` edges to another
