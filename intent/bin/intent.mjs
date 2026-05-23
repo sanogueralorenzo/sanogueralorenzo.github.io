@@ -422,13 +422,14 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
 
 function parseContextSource(text, file, lineNumber, raw) {
   const source = text.match(/^([a-z][a-z0-9_]*)\s*\(/)?.[1] ?? firstWord(text);
-  const parsedArgs = parseCallArgs(text);
+  const parsedArgs = parseCallArgs(text, file, lineNumber, raw);
   return {
     kind: "ContextSource",
     value: text,
     source,
     args: parsedArgs.values,
     argKinds: parsedArgs.kinds,
+    argSpans: parsedArgs.spans,
     expression: text,
     trust: contextTrust(source),
     span: lineSpan(file, lineNumber, raw),
@@ -436,7 +437,7 @@ function parseContextSource(text, file, lineNumber, raw) {
 }
 
 function parseEffectUse(text, file, lineNumber, raw) {
-  const parsedArgs = parseCallArgs(text);
+  const parsedArgs = parseCallArgs(text, file, lineNumber, raw);
   const name = text.match(/^([A-Za-z][A-Za-z0-9_.]*)/)?.[1] ?? text;
   return {
     kind: "EffectUse",
@@ -445,6 +446,7 @@ function parseEffectUse(text, file, lineNumber, raw) {
     action: effectAction(name),
     args: parsedArgs.values,
     argKinds: parsedArgs.kinds,
+    argSpans: parsedArgs.spans,
     expression: text,
     span: lineSpan(file, lineNumber, raw),
   };
@@ -853,6 +855,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         source: context.source,
         args: context.args,
         argKinds: context.argKinds,
+        argSpans: context.argSpans,
         expression: context.expression,
         trust: context.trust,
       }));
@@ -1011,6 +1014,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           action: effectUse.action,
           args: effectUse.args,
           argKinds: effectUse.argKinds,
+          argSpans: effectUse.argSpans,
           trust: effectTrust(effectUse),
           expression: effectUse.expression,
           approvalRequired,
@@ -1055,6 +1059,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
           action: effect.action,
           args: effect.args,
           argKinds: effect.argKinds,
+          argSpans: effect.argSpans,
           trust: effectTrust(effect),
         },
       } : {}));
@@ -1168,25 +1173,41 @@ function hasApprovalRequired(lines) {
   return lines.some((line) => /^approval\s+required$/.test(line.text) || /^approval\s*:\s*required$/.test(line.text));
 }
 
-function parseCallArgs(text) {
+function parseCallArgs(text, file = null, lineNumber = 1, raw = text) {
   const values = {};
   const kinds = {};
+  const spans = {};
   for (const match of text.matchAll(/([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"/g)) {
     values[match[1]] = match[2];
     kinds[match[1]] = "string";
+    const argumentSpan = callArgSpan(file, lineNumber, raw, text, match.index, match[0]);
+    if (argumentSpan) spans[match[1]] = argumentSpan;
   }
   for (const match of text.matchAll(/([a-z][a-z0-9_]*)\s*:\s*([a-z][a-z0-9_]*)\b/g)) {
     if (!(match[1] in values)) {
       values[match[1]] = match[2];
       kinds[match[1]] = "identifier";
+      const argumentSpan = callArgSpan(file, lineNumber, raw, text, match.index, match[0]);
+      if (argumentSpan) spans[match[1]] = argumentSpan;
     }
   }
-  const positional = text.match(/\(\s*"([^"]*)"/);
+  const positional = /\(\s*"([^"]*)"/.exec(text);
   if (positional) {
     values._0 = positional[1];
     kinds._0 = "string";
+    const argumentSpan = callArgSpan(file, lineNumber, raw, text, positional.index + positional[0].indexOf("\""), `"${positional[1]}"`);
+    if (argumentSpan) spans._0 = argumentSpan;
   }
-  return { values, kinds };
+  return { values, kinds, spans };
+}
+
+function callArgSpan(file, lineNumber, raw, text, textIndex, fallbackText) {
+  if (!file) {
+    return null;
+  }
+  const rawOffset = raw.indexOf(text);
+  const startIndex = (rawOffset >= 0 ? rawOffset : 0) + textIndex;
+  return span(file, lineNumber, startIndex + 1, lineNumber, startIndex + fallbackText.length + 1);
 }
 
 function normalizeTypeRef(typeRef) {
@@ -1293,6 +1314,8 @@ function verificationEffect(requirement) {
   if (!command) {
     return null;
   }
+  const rawPrefix = " ".repeat(requirement.span.start.column + "require ".length - 1);
+  const parsedArgs = parseCallArgs(shellCall[0], requirement.span.file, requirement.span.start.line, `${rawPrefix}${requirement.value}`);
   return {
     kind: "EffectUse",
     name: "shell",
@@ -1303,6 +1326,9 @@ function verificationEffect(requirement) {
     },
     argKinds: {
       command: "string",
+    },
+    argSpans: {
+      command: parsedArgs.spans.command ?? parsedArgs.spans._0,
     },
     expression: requirement.value,
     span: requirement.span,

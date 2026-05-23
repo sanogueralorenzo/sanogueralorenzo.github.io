@@ -170,7 +170,11 @@ describe("intent static model CLI", () => {
     assert.equal(ast.goals[0].memory[0].retentionRules[0].until.raw, "goal_complete");
     assert.equal(ast.goals[0].context[0].source, "repo");
     assert.equal(ast.goals[0].context[0].args._0, "./");
+    assert.equal(ast.goals[0].context[0].argSpans._0.start.line, 16);
+    assert.equal(ast.goals[0].context[0].argSpans._0.start.column, 16);
     assert.equal(ast.goals[0].context[0].trust.zone, "trusted");
+    assert.equal(ast.goals[0].steps[1].effects[0].argSpans.path.start.line, 39);
+    assert.equal(ast.goals[0].steps[1].effects[0].argSpans.path.start.column, 24);
     assert.equal(ast.goals[0].capabilities[0].grants[0].raw, "read path: \"./src/**\"");
     assert.equal(ast.goals[0].capabilities[0].grants[0].span.file, VALID_CODE_CHANGE);
     assert.equal(ast.goals[0].capabilities[0].grants[0].span.start.line, 20);
@@ -508,6 +512,8 @@ describe("intent static model CLI", () => {
   it("emits an execution graph with goal, capability, step, and check nodes", () => {
     const graph = runJson(["graph", VALID_CODE_CHANGE]);
     const kinds = new Set(graph.nodes.map((node) => node.kind));
+    const fileWrite = graph.nodes.find((node) => node.kind === "Effect" && node.data.args.path === "./src/app.ts");
+    const shellCheck = graph.nodes.find((node) => node.kind === "Check" && node.data.effect?.args.command === "npm test");
 
     assert.equal(graph.schema_version, "intent.graph.v0");
     assert.equal(graph.ok, true);
@@ -517,10 +523,14 @@ describe("intent static model CLI", () => {
     assert.equal(kinds.has("Effect"), true);
     assert.equal(kinds.has("Step"), true);
     assert.equal(kinds.has("Check"), true);
-    assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.args.path === "./src/app.ts"), true);
+    assert.equal(Boolean(fileWrite), true);
+    assert.equal(fileWrite.data.argSpans.path.start.line, 39);
+    assert.equal(fileWrite.data.argSpans.path.start.column, 24);
     assert.equal(graph.nodes.some((node) => node.kind === "Effect" && node.data.trust.zone === "trusted"), true);
     assert.equal(graph.nodes.some((node) => node.kind === "Memory" && node.data.retentionRules[0].subject.raw === "summaries"), true);
-    assert.equal(graph.nodes.some((node) => node.kind === "Check" && node.data.effect?.args.command === "npm test"), true);
+    assert.equal(Boolean(shellCheck), true);
+    assert.equal(shellCheck.data.effect.argSpans.command.start.line, 49);
+    assert.equal(shellCheck.data.effect.argSpans.command.start.column, 19);
     assert.equal(graph.nodes.some((node) => node.kind === "Capability" && node.data.grants.some((grant) => {
       return grant.value === "npm test" && grant.span?.start?.line === 27;
     })), true);
@@ -538,6 +548,8 @@ describe("intent static model CLI", () => {
     assert.equal(graph.ok, true);
     assert.equal(repoContext.data.args._0, "./");
     assert.equal(repoContext.data.argKinds._0, "string");
+    assert.equal(repoContext.data.argSpans._0.start.line, 28);
+    assert.equal(repoContext.data.argSpans._0.start.column, 16);
     assert.equal(repoContext.data.expression, "repo(\"./\")");
     assert.equal(repoContext.data.trust.zone, "trusted");
     assert.equal(repoContext.data.trust.source, "local_context");
