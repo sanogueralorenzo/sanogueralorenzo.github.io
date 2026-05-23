@@ -112,6 +112,7 @@ trace check
 trace check --checkpoints
 trace coverage main..HEAD
 trace ci main..HEAD --agents --checkpoints
+trace ci main..HEAD --strict-memory
 ```
 
 From a checkout, the same commands can be run without installing:
@@ -172,6 +173,7 @@ node trace/bin/trace.mjs doctor
 node trace/bin/trace.mjs check
 node trace/bin/trace.mjs coverage main..HEAD
 node trace/bin/trace.mjs ci main..HEAD
+node trace/bin/trace.mjs ci main..HEAD --strict-memory
 ```
 
 `trace enable` installs managed `pre-commit`, `prepare-commit-msg`, and `post-commit` git hook blocks. The pre-commit hook blocks raw transcript or checkpoint-shaped files from being committed under `.trace/`. The prepare hook adds `Trace-Checkpoint` and `Trace-Session` trailers to the commit message. The post-commit hook writes a compact memory file under `.trace/commits/` and stores the raw checkpoint payload on the local `refs/trace/checkpoints` git ref.
@@ -188,7 +190,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace session start [session-id]` starts or switches the current local lifecycle session without writing raw data into the project tree and records a local lifecycle note. `trace session end [session-id]` records the close note, then clears the current session pointer without deleting raw session events, which keeps the next task from accidentally reusing stale context. `trace session list`, `trace session current`, and `trace session show <session>` inspect the local raw lifecycle store in the git common directory. `trace session recap <session>` turns the local raw events into a redacted Markdown or JSON preview using the same prompt, response, tool, decision, validation, risk, and note taxonomy that commit memory generation uses. `trace session check <session>` fails when a session only contains local lifecycle notes and reports warnings for missing intent, decision, or validation signals before an agent records memory; add `--strict` to fail on those missing intent, decision, or validation warnings too. This gives agents a way to debug capture coverage and event shape without writing transcripts into the project tree.
 
-`trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails when committed memory files are malformed, contain unredacted secrets, or when raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed. Add `--agents` to make CI also run the installed adapter contract fixtures for every supported first-class agent, and `--checkpoints` to require a present, valid `refs/trace/checkpoints` ref with checkpoint payloads for covered memories in the checked range.
+`trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails when committed memory files are malformed, contain unredacted secrets, or when raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed. Add `--agents` to make CI also run the installed adapter contract fixtures for every supported first-class agent, `--checkpoints` to require a present, valid `refs/trace/checkpoints` ref with checkpoint payloads for covered memories in the checked range, and `--strict-memory` to require committed memories to contain intent, decision, and validation signals.
 
 `trace summary <range>`, `trace branch-summary <branch> --base <base>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories, including the future-agent handoff section. Branch, PR, and release text are generated views, not the canonical memory store. Add `--json` to emit the same memory-derived summary as structured data for agents and CI automation, including per-commit memory path, checkpoint, session, files, validation, risks, and handoff.
 

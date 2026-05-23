@@ -222,7 +222,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run", "check-session", "strict", "all", "agents", "checkpoints"].includes(key)) {
+    if (["json", "help", "dry-run", "check-session", "strict", "strict-memory", "all", "agents", "checkpoints"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -502,7 +502,7 @@ async function memoryTargetsForFiles(root, files) {
 
 async function runCiCheck(range) {
   const root = await repoRoot();
-  const report = await buildCoverageReport(root, range, { agents: args.agents, checkpoints: args.checkpoints });
+  const report = await buildCoverageReport(root, range, { agents: args.agents, checkpoints: args.checkpoints, strictMemory: args["strict-memory"] });
   print(report);
 
   if (!report.ok) {
@@ -512,7 +512,7 @@ async function runCiCheck(range) {
 
 async function runCoverageReport(range) {
   const root = await repoRoot();
-  print(await buildCoverageReport(root, range));
+  print(await buildCoverageReport(root, range, { strictMemory: args["strict-memory"] }));
 }
 
 async function buildCoverageReport(root, range, options = {}) {
@@ -547,12 +547,14 @@ async function buildCoverageReport(root, range, options = {}) {
   const redaction = await redactionAudit(root);
   const agentContracts = options.agents ? await buildAgentCheckReport(root, "all") : null;
   const checkpointIntegrity = options.checkpoints ? await checkpointIntegrityReport(root, coveredMemories) : null;
+  const memoryQuality = options.strictMemory ? await strictMemoryQualityReport(root, coveredMemories) : null;
   const ok = missingMemories.length === 0
     && unsafeFiles.length === 0
     && memoryAudit.invalidMemories.length === 0
     && redaction.findings.length === 0
     && (agentContracts?.ok ?? true)
-    && (checkpointIntegrity?.ok ?? true);
+    && (checkpointIntegrity?.ok ?? true)
+    && (memoryQuality?.ok ?? true);
   const memoryTotal = coveredMemories.length + missingMemories.length;
   return {
     ok,
@@ -570,6 +572,33 @@ async function buildCoverageReport(root, range, options = {}) {
     redactionFindings: redaction.findings,
     agentContracts,
     checkpointIntegrity,
+    memoryQuality,
+  };
+}
+
+async function strictMemoryQualityReport(root, coveredMemories) {
+  const findings = [];
+
+  for (const memory of coveredMemories) {
+    const file = join(root, memory.memory);
+    const content = await readFile(file, "utf8");
+    const record = memoryRecord(content);
+    if (!record.intent) {
+      findings.push({ file: memory.memory, commit: memory.commit, reason: "missing intent signal" });
+    }
+    if (record.decisions.length === 0) {
+      findings.push({ file: memory.memory, commit: memory.commit, reason: "missing decision signal" });
+    }
+    if (record.validation.length === 0) {
+      findings.push({ file: memory.memory, commit: memory.commit, reason: "missing validation signal" });
+    }
+  }
+
+  return {
+    ok: findings.length === 0,
+    strict: true,
+    checked: coveredMemories.length,
+    findings,
   };
 }
 
@@ -3384,7 +3413,7 @@ Usage:
   trace redact audit
   trace redact remove <label>
   trace coverage [range]
-  trace ci [range] [--agents] [--checkpoints]
+  trace ci [range] [--agents] [--checkpoints] [--strict-memory]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--strict] [--dry-run]
   trace show [commit] [--json]
   trace review [--all] [--json]

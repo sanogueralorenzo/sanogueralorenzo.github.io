@@ -51,6 +51,12 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(payload.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
     assert.equal(payload.sessionCheck.ok, true);
 
+    const strictMemoryCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--strict-memory"])).stdout);
+    assert.equal(strictMemoryCi.ok, true);
+    assert.equal(strictMemoryCi.memoryQuality.ok, true);
+    assert.equal(strictMemoryCi.memoryQuality.checked, 1);
+    assert.deepEqual(strictMemoryCi.memoryQuality.findings, []);
+
     const show = await runTrace(repo, ["show", "HEAD"]);
     assert.match(show.stdout, /remember why app text exists/);
     assert.match(show.stdout, /Use committed Markdown/);
@@ -717,7 +723,16 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.deepEqual(coveredPayload.redactionFindings, []);
     assert.equal(coveredPayload.agentContracts, null);
     assert.equal(coveredPayload.checkpointIntegrity, null);
+    assert.equal(coveredPayload.memoryQuality, null);
     assert.deepEqual(coveredPayload.commits.map((commit) => commit.status), ["covered", "skipped"]);
+
+    const strictMemory = await runTraceAllowFailure(repo, ["ci", "HEAD", "--strict-memory"]);
+    assert.equal(strictMemory.exitCode, 1);
+    const strictMemoryPayload = JSON.parse(strictMemory.stdout);
+    assert.equal(strictMemoryPayload.ok, false);
+    assert.equal(strictMemoryPayload.memoryQuality.ok, false);
+    assert.equal(strictMemoryPayload.memoryQuality.checked, 1);
+    assert.ok(strictMemoryPayload.memoryQuality.findings.some((finding) => finding.reason === "missing decision signal"));
 
     const withCheckpoints = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--checkpoints"])).stdout);
     assert.equal(withCheckpoints.ok, true);
