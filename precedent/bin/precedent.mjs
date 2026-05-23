@@ -19,6 +19,7 @@ const SUPPORTED_EVENT_HOOKS = new Set([
   "diff.after_edit",
   "review.after_feedback",
   "outcome.after_task",
+  "repair.before_retry",
 ]);
 const STALE_SIGNAL_THRESHOLD = 2;
 const RETIRE_SIGNAL_THRESHOLD = 4;
@@ -654,6 +655,11 @@ async function eventHook() {
     return;
   }
 
+  if (hook === "repair.before_retry") {
+    await repairBeforeRetryEventHook(event);
+    return;
+  }
+
   fail(`unsupported hook: ${hook}`);
 }
 
@@ -1052,6 +1058,73 @@ async function outcomeAfterTaskEventHook(event) {
   });
 }
 
+async function repairBeforeRetryEventHook(event) {
+  const stateDir = statePath();
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  let repairBlock = "";
+  let repairSource = null;
+  let suppressedRepairs = [];
+  let sessionEvent = null;
+
+  try {
+    const locked = await withStateLock(stateDir, async () => {
+      await ensureState(stateDir);
+      const events = await readSessionEvents(stateDir, sessionId);
+      const candidate = latestRepairCandidate(events);
+      if (!candidate) {
+        suppressedRepairs = [{ reason: events.length === 0 ? "empty_session" : "no_repair_candidate" }];
+        return;
+      }
+
+      repairBlock = candidate.repairBlock;
+      repairSource = candidate.repairSource;
+      sessionEvent = await appendSessionEvent(stateDir, {
+        type: "hook_event",
+        receivedAt: new Date().toISOString(),
+        hook: event.hook,
+        sessionId,
+        nextSessionId: typeof event.nextSessionId === "string" ? event.nextSessionId : null,
+        repairBlock,
+        repairSource,
+        suppressedRepairs,
+        attributedPrecedents: candidate.attributedPrecedents,
+      });
+
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        nextSessionId: sessionEvent.event.nextSessionId,
+        repairSource,
+        attributedPrecedents: candidate.attributedPrecedents,
+      });
+    }, { failOpen: true });
+
+    if (locked?.lockTimeout) {
+      repairBlock = "";
+      repairSource = null;
+      suppressedRepairs = [{ reason: "lock_timeout" }];
+    }
+  } catch (error) {
+    repairBlock = "";
+    repairSource = null;
+    suppressedRepairs = [{ reason: "repair_unavailable", message: error.message }];
+  }
+
+  print({
+    schema_version: "precedent.repair.v1",
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: Boolean(sessionEvent),
+    sessionEventPath: sessionEvent?.path ?? null,
+    repairBlock: sessionEvent?.event?.repairBlock ?? repairBlock,
+    repairSource,
+    suppressedRepairs,
+  });
+}
+
 async function runValidationCommand() {
   const sessionId = requireString(args.session, "run.session");
 
@@ -1176,6 +1249,13 @@ function buildManifest(runtime, stateDir) {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "outcome"],
+        timeoutMs,
+        failurePolicy,
+      },
+      "repair.before_retry": {
+        command: hookCommand,
+        stdin: ["schema_version", "hook", "sessionId", "nextSessionId", "task", "finalMessage", "scope", "changedFiles", "retry", "attributedPrecedents"],
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairBlock", "repairSource", "suppressedRepairs"],
         timeoutMs,
         failurePolicy,
       },
@@ -1310,6 +1390,25 @@ async function attachRuntime() {
           notes: "$NOTES",
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      beforeRetry: {
+        command: hookCommand,
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "repair.before_retry",
+          sessionId,
+          nextSessionId: "$NEXT_SESSION_ID",
+          task: taskSource.task,
+          finalMessage: "$FINAL_MESSAGE",
+          scope: scope || null,
+          changedFiles,
+          retry: "$RETRY",
+          attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
+        },
+        output: ["schema_version", "ok", "hook", "sessionId", "recorded", "sessionEventPath", "repairBlock", "repairSource", "suppressedRepairs"],
+        injectFrom: "repairBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -2178,6 +2277,134 @@ function formatRepairContextBlock(repairPrompt) {
     lines.push(`- Suggested validation: ${repairPrompt.suggestedValidation}`);
   }
   return lines.join("\n");
+}
+
+function latestRepairCandidate(events) {
+  const lastRepairAt = Math.max(
+    0,
+    ...events
+      .filter((event) => event.hook === "repair.before_retry")
+      .map(eventTime),
+  );
+  const candidates = events
+    .filter((event) => lastRepairAt === 0 || eventTime(event) > lastRepairAt)
+    .filter((event) => event.hook !== "repair.before_retry")
+    .map(repairCandidateForEvent)
+    .filter(Boolean)
+    .sort((left, right) => eventTime(left.event) - eventTime(right.event));
+
+  return candidates.at(-1) ?? null;
+}
+
+function repairCandidateForEvent(event) {
+  if (event.hook === "diff.after_edit" && event.repairPrompt) {
+    return {
+      event,
+      repairBlock: event.contextBlock || formatRepairContextBlock(event.repairPrompt),
+      repairSource: {
+        hook: event.hook,
+        receivedAt: event.receivedAt ?? null,
+        kind: "diff_repair",
+        guardId: event.repairPrompt.guardId ?? null,
+      },
+      attributedPrecedents: repairAttributedPrecedents(event),
+    };
+  }
+
+  if (event.hook === "validation.after_run" && (event.exitCode !== 0 || hasFailedGuards(event))) {
+    return {
+      event,
+      repairBlock: repairBlockForFailedValidation(event),
+      repairSource: {
+        hook: event.hook,
+        receivedAt: event.receivedAt ?? null,
+        kind: "failed_validation",
+        command: event.command ?? null,
+        exitCode: Number.isFinite(event.exitCode) ? event.exitCode : null,
+      },
+      attributedPrecedents: repairAttributedPrecedents(event),
+    };
+  }
+
+  if (event.hook === "outcome.after_task" && event.success === false) {
+    return {
+      event,
+      repairBlock: repairBlockForFailedOutcome(event),
+      repairSource: {
+        hook: event.hook,
+        receivedAt: event.receivedAt ?? null,
+        kind: "failed_outcome",
+        status: event.status ?? null,
+      },
+      attributedPrecedents: repairAttributedPrecedents(event),
+    };
+  }
+
+  return null;
+}
+
+function repairBlockForFailedValidation(event) {
+  const lines = [
+    "Precedent repair:",
+    `- Validation failed: ${event.command ?? "validation command"}${Number.isFinite(event.exitCode) ? ` exited ${event.exitCode}` : ""}.`,
+  ];
+  const signals = Array.isArray(event.failureSignals) ? event.failureSignals : [];
+  if (signals.length > 0) {
+    lines.push(`- Failure signals: ${signals.slice(0, 3).join(", ")}`);
+  }
+  const summary = event.stderrSummary || event.stdoutSummary;
+  if (typeof summary === "string" && summary.trim().length > 0) {
+    lines.push(`- Evidence: ${summary.trim()}`);
+  }
+  lines.push("- Repair: Fix the validation failure, then rerun the same validation.");
+  return lines.join("\n");
+}
+
+function repairBlockForFailedOutcome(event) {
+  const lines = [
+    "Precedent repair:",
+    `- Outcome failed: ${event.status ?? "failure"}.`,
+  ];
+  if (typeof event.notes === "string" && event.notes.trim().length > 0) {
+    lines.push(`- Evidence: ${summarizeText(event.notes)}`);
+  }
+  if (Array.isArray(event.changedFiles) && event.changedFiles.length > 0) {
+    lines.push(`- Changed files: ${event.changedFiles.slice(0, 5).join(", ")}`);
+  }
+  if (Number.isFinite(event.retries)) {
+    lines.push(`- Retry: ${event.retries}`);
+  }
+  lines.push("- Repair: Address the failed outcome before continuing.");
+  return lines.join("\n");
+}
+
+function hasFailedGuards(event) {
+  return Array.isArray(event.guardResult?.failed) && event.guardResult.failed.length > 0;
+}
+
+function repairAttributedPrecedents(event) {
+  return uniqueStrings([
+    ...(Array.isArray(event.attributedPrecedents) ? event.attributedPrecedents : []),
+    ...(event.repairPrompt?.precedentId ? [event.repairPrompt.precedentId] : []),
+    ...guardPrecedentIds(event.guardResult),
+  ]);
+}
+
+function guardPrecedentIds(guardResult) {
+  if (!guardResult || typeof guardResult !== "object") {
+    return [];
+  }
+
+  return uniqueStrings([
+    ...guardPrecedentIdsFromChecks(guardResult.failed),
+    ...guardPrecedentIdsFromChecks(guardResult.passed),
+    ...guardPrecedentIdsFromChecks(guardResult.pending),
+    ...guardPrecedentIdsFromChecks(guardResult.skipped),
+  ]);
+}
+
+function guardPrecedentIdsFromChecks(checks) {
+  return Array.isArray(checks) ? checks.map((check) => check.precedentId).filter(Boolean) : [];
 }
 
 async function appendSessionEvent(stateDir, rawEvent) {

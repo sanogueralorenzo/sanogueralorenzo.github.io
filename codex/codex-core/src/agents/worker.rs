@@ -151,6 +151,13 @@ struct PrecedentContext {
     injected_precedent_ids: Vec<String>,
 }
 
+#[derive(Deserialize)]
+struct PrecedentRepairOutput {
+    schema_version: String,
+    #[serde(rename = "repairBlock")]
+    repair_block: Option<String>,
+}
+
 struct CaffeinateGuard {
     child: Child,
 }
@@ -224,9 +231,18 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
 
     let mut iteration: u64 = 0;
     let loop_run_id = uuid::Uuid::new_v4().to_string();
+    let mut pending_repair_block: Option<String> = None;
     loop {
         iteration += 1;
-        let turn = prepare_precedent_turn(&cwd, &prompt, &args, &loop_run_id, iteration);
+        let repair_block = pending_repair_block.take();
+        let turn = prepare_precedent_turn(
+            &cwd,
+            &prompt,
+            &args,
+            &loop_run_id,
+            iteration,
+            repair_block.as_deref(),
+        );
         println!("[loop {iteration}] Running codex exec...");
         let diff_before = capture_precedent_diff_snapshot(&cwd);
         let result = match run_codex_exec_iteration(&cwd, &turn.prompt, &args) {
@@ -299,6 +315,20 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
 
         if should_stop_after_iteration(iteration, &args) {
             break;
+        }
+
+        if let Some(session_id) = turn.attempt_session_id.as_deref() {
+            let next_session_id = precedent_session_id(&loop_run_id, iteration + 1);
+            pending_repair_block = fetch_precedent_repair_before_retry(
+                &cwd,
+                &args,
+                session_id,
+                &next_session_id,
+                &turn.injected_precedent_ids,
+                &prompt,
+                &result.final_message,
+                iteration,
+            );
         }
 
         thread::sleep(Duration::from_secs(args.interval_seconds));
@@ -477,10 +507,11 @@ fn prepare_precedent_turn(
     args: &WorkerLoopArgs,
     loop_run_id: &str,
     iteration: u64,
+    repair_block: Option<&str>,
 ) -> LoopPrecedentTurn {
     if args.precedent_state_dir.is_none() {
         return LoopPrecedentTurn {
-            prompt: prompt.to_string(),
+            prompt: prompt_with_precedent_blocks(prompt, repair_block, None),
             attempt_session_id: None,
             injected_precedent_ids: Vec::new(),
         };
@@ -492,11 +523,11 @@ fn prepare_precedent_turn(
     let prompt = match fetch_precedent_context(cwd, args, &context_session_id, prompt) {
         Ok(context) => {
             injected_precedent_ids = context.injected_precedent_ids;
-            prompt_with_precedent_context(prompt, context.context_block.as_deref())
+            prompt_with_precedent_blocks(prompt, repair_block, context.context_block.as_deref())
         }
         Err(error) => {
             eprintln!("[loop {iteration}] Precedent context unavailable: {error}");
-            prompt.to_string()
+            prompt_with_precedent_blocks(prompt, repair_block, None)
         }
     };
 
@@ -581,6 +612,95 @@ fn fetch_precedent_context(
             .filter(|id| !id.is_empty())
             .collect(),
     })
+}
+
+fn fetch_precedent_repair_before_retry(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    next_session_id: &str,
+    injected_precedent_ids: &[String],
+    task: &str,
+    final_message: &str,
+    retry: u64,
+) -> Option<String> {
+    match try_fetch_precedent_repair_before_retry(
+        cwd,
+        args,
+        session_id,
+        next_session_id,
+        injected_precedent_ids,
+        task,
+        final_message,
+        retry,
+    ) {
+        Ok(repair_block) => repair_block,
+        Err(error) => {
+            eprintln!("[precedent {session_id}] repair unavailable: {error}");
+            None
+        }
+    }
+}
+
+fn try_fetch_precedent_repair_before_retry(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    next_session_id: &str,
+    injected_precedent_ids: &[String],
+    task: &str,
+    final_message: &str,
+    retry: u64,
+) -> Result<Option<String>> {
+    let state_dir = args
+        .precedent_state_dir
+        .as_ref()
+        .context("precedent state dir is not configured")?;
+    let mut cmd = precedent_command(cwd, &args.precedent_bin);
+    cmd.arg("hook");
+    cmd.arg("--state-dir");
+    cmd.arg(state_dir);
+    cmd.arg("--json");
+    let payload = json!({
+        "schema_version": "precedent.v1",
+        "hook": "repair.before_retry",
+        "sessionId": session_id,
+        "nextSessionId": next_session_id,
+        "task": task,
+        "finalMessage": final_message,
+        "scope": args.precedent_scope.as_deref().unwrap_or(""),
+        "changedFiles": precedent_changed_files(args),
+        "retry": retry,
+        "attributedPrecedents": injected_precedent_ids,
+    });
+    let stdin = serde_json::to_string(&payload).context("failed to serialize Precedent repair")?;
+    let output = output_with_timeout(
+        cmd,
+        Some(&stdin),
+        Duration::from_millis(DEFAULT_PRECEDENT_TIMEOUT_MS),
+    )
+    .context("repair hook command failed")?;
+    if !output.status.success() {
+        bail!(
+            "repair hook exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    let parsed: PrecedentRepairOutput =
+        serde_json::from_slice(&output.stdout).context("repair hook returned invalid JSON")?;
+    if parsed.schema_version != "precedent.repair.v1" {
+        bail!(
+            "repair hook returned unsupported schema {}",
+            parsed.schema_version
+        );
+    }
+
+    Ok(parsed
+        .repair_block
+        .map(|block| block.trim().to_string())
+        .filter(|block| !block.is_empty()))
 }
 
 fn record_precedent_outcome(
@@ -1034,6 +1154,24 @@ fn prompt_with_precedent_context(prompt: &str, context_block: Option<&str>) -> S
     }
 }
 
+fn prompt_with_precedent_blocks(
+    prompt: &str,
+    repair_block: Option<&str>,
+    context_block: Option<&str>,
+) -> String {
+    let blocks: Vec<&str> = [repair_block, context_block]
+        .into_iter()
+        .flatten()
+        .map(str::trim)
+        .filter(|block| !block.is_empty())
+        .collect();
+    if blocks.is_empty() {
+        return prompt.to_string();
+    }
+
+    format!("{}\n\n{prompt}", blocks.join("\n\n"))
+}
+
 fn precedent_loop_session_id(loop_run_id: &str) -> String {
     format!("codex-core-worker-loop-{loop_run_id}")
 }
@@ -1140,8 +1278,8 @@ fn unique_temp_file_path(prefix: &str, extension: &str) -> PathBuf {
 mod tests {
     use super::{
         DEFAULT_PRECEDENT_VALIDATION_TIMEOUT_MS, WorkerLoopArgs, precedent_loop_session_id,
-        precedent_session_id, prompt_with_precedent_context, resolve_loop_prompt,
-        validate_worker_loop_args, worker_loop,
+        precedent_session_id, prompt_with_precedent_blocks, prompt_with_precedent_context,
+        resolve_loop_prompt, validate_worker_loop_args, worker_loop,
     };
     use std::env;
     use std::fs;
@@ -1240,6 +1378,18 @@ mod tests {
                 Some("Precedent:\n- Run focused tests.")
             ),
             "Precedent:\n- Run focused tests.\n\noriginal prompt"
+        );
+    }
+
+    #[test]
+    fn prompt_wrapping_prepends_repair_before_context() {
+        assert_eq!(
+            prompt_with_precedent_blocks(
+                "original prompt",
+                Some("Precedent repair:\n- Fix bad path."),
+                Some("Precedent:\n- Run focused tests."),
+            ),
+            "Precedent repair:\n- Fix bad path.\n\nPrecedent:\n- Run focused tests.\n\noriginal prompt"
         );
     }
 
@@ -1439,7 +1589,12 @@ if [ "$1" = "context" ]; then
   exit 0
 fi
 if [ "$1" = "hook" ]; then
-  cat >> '{}'
+  payload=$(cat)
+  if printf '%s' "$payload" | grep -q 'repair.before_retry'; then
+    printf '%s\n' '{{"schema_version":"precedent.repair.v1","ok":true,"repairBlock":""}}'
+    exit 0
+  fi
+  printf '%s' "$payload" >> '{}'
   printf '\n' >> '{}'
   printf '%s\n' '{{"ok":true}}'
   exit 0
@@ -1883,6 +2038,206 @@ exit 2
         assert_eq!(lines.len(), 1);
         assert!(lines[0].contains(r#""hook":"outcome.after_task""#));
         assert!(!hooks.contains(r#""hook":"diff.after_edit""#));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_prepends_repair_block_once_on_next_retry() {
+        let dir = temp_test_dir("precedent-worker-repair-retry");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let prompt_capture = dir.join("prompts.txt");
+        let repair_capture = dir.join("repair.json");
+        let codex_counter = dir.join("codex-count.txt");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            &format!(
+                r#"#!/bin/sh
+out=""
+prompt=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "exec" ]; then
+    shift
+    prompt="$1"
+    shift
+    continue
+  fi
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s\n---prompt---\n' "$prompt" >> '{}'
+count=0
+if [ -f '{}' ]; then
+  count=$(cat '{}')
+fi
+count=$((count + 1))
+printf '%s' "$count" > '{}'
+if [ "$count" -eq 1 ]; then
+  printf '%s' 'keep going' > "$out"
+else
+  printf '%s' 'LOOP_DONE from fake codex' > "$out"
+fi
+"#,
+                prompt_capture.display(),
+                codex_counter.display(),
+                codex_counter.display(),
+                codex_counter.display()
+            ),
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Normal context.","injections":[{{"id":"prec_repo_lesson"}}]}}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  payload=$(cat)
+  if printf '%s' "$payload" | grep -q 'repair.before_retry'; then
+    printf '%s' "$payload" > '{}'
+    printf '%s\n' '{{"schema_version":"precedent.repair.v1","ok":true,"repairBlock":"Precedent repair:\n- Fix bad path."}}'
+    exit 0
+  fi
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                repair_capture.display()
+            ),
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.interval_seconds = 1;
+        args.max_iterations = Some(2);
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let prompts_text = fs::read_to_string(prompt_capture).unwrap();
+        let prompts: Vec<&str> = prompts_text
+            .split("\n---prompt---\n")
+            .filter(|prompt| !prompt.trim().is_empty())
+            .collect();
+        assert_eq!(prompts.len(), 2);
+        assert!(!prompts[0].contains("Precedent repair:"));
+        assert!(prompts[1].starts_with("Precedent repair:\n- Fix bad path."));
+        assert_eq!(prompts_text.matches("Precedent repair:").count(), 1);
+        assert!(prompts[1].contains("Precedent:\n- Normal context."));
+        assert!(
+            prompts[1].find("Precedent repair:") < prompts[1].find("Precedent:\n- Normal context.")
+        );
+
+        let repair_payload = fs::read_to_string(repair_capture).unwrap();
+        assert!(repair_payload.contains(r#""sessionId":"codex-core-worker-loop-"#));
+        assert!(repair_payload.contains(r#"-1""#));
+        assert!(repair_payload.contains(r#""nextSessionId":"codex-core-worker-loop-"#));
+        assert!(repair_payload.contains(r#"-2""#));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_fails_open_when_repair_before_retry_fails() {
+        let dir = temp_test_dir("precedent-worker-repair-fail-open");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let prompt_capture = dir.join("prompts.txt");
+        let codex_counter = dir.join("codex-count.txt");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            &format!(
+                r#"#!/bin/sh
+out=""
+prompt=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "exec" ]; then
+    shift
+    prompt="$1"
+    shift
+    continue
+  fi
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s\n---prompt---\n' "$prompt" >> '{}'
+count=0
+if [ -f '{}' ]; then
+  count=$(cat '{}')
+fi
+count=$((count + 1))
+printf '%s' "$count" > '{}'
+if [ "$count" -eq 1 ]; then
+  printf '%s' 'keep going' > "$out"
+else
+  printf '%s' 'LOOP_DONE from fake codex' > "$out"
+fi
+"#,
+                prompt_capture.display(),
+                codex_counter.display(),
+                codex_counter.display(),
+                codex_counter.display()
+            ),
+        );
+        write_executable(
+            &precedent_bin,
+            r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Normal context.","injections":[]}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  payload=$(cat)
+  if printf '%s' "$payload" | grep -q 'repair.before_retry'; then
+    printf '%s\n' 'not-json'
+    exit 0
+  fi
+  printf '%s\n' '{"ok":true}'
+  exit 0
+fi
+exit 2
+"#,
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.interval_seconds = 1;
+        args.max_iterations = Some(2);
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let prompts_text = fs::read_to_string(prompt_capture).unwrap();
+        let prompts: Vec<&str> = prompts_text
+            .split("\n---prompt---\n")
+            .filter(|prompt| !prompt.trim().is_empty())
+            .collect();
+        assert_eq!(prompts.len(), 2);
+        assert!(!prompts[1].contains("Precedent repair:"));
+        assert!(prompts[1].starts_with("Precedent:\n- Normal context."));
 
         let _ = fs::remove_dir_all(dir);
     }
