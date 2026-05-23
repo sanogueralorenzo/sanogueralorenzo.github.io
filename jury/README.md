@@ -4,7 +4,13 @@ Jury is a typed adversarial review layer for AI agents.
 
 It treats every important agent outcome as a claim that must survive challenge before it is accepted. A proposing agent can say that a task is complete, a change is safe, or a deployment is ready, but Jury requires critics, verifiers, and policy checks to test that claim against evidence.
 
-The goal is simple: AI systems should not only produce answers. They should prove that their answers can withstand structured objection.
+## Main Goal
+
+Jury's goal is to become the reusable decision boundary for agentic work: given an `Intent` goal, relevant `Precedent` memory, current evidence, and known risks, it produces a durable verdict that says whether the claim should be accepted, rejected, retried, or escalated to a human.
+
+It should keep going beyond a single review by making every verdict useful to the next run. Accepted verdicts become evidence of what good completion looked like. Rejected and retried verdicts become structured failure data that Precedent can learn from. Human-decision verdicts become explicit approval boundaries that future Intent goals can declare up front.
+
+The long-term target is a shared review protocol that can sit behind code changes, research reports, deployments, incident response, autonomous tool use, and multi-agent workflows without being tied to one runtime.
 
 ## Core Idea
 
