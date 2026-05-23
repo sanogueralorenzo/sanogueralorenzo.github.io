@@ -1649,7 +1649,7 @@ async function sessionRecap(root, sessionId, events, limit) {
     counts: eventCounts(events),
     sections: {
       agents: await recapItems(root, agents, limit),
-      lifecycle: await recapItems(root, lifecycle, limit),
+      lifecycle: await recapAllItems(root, lifecycle),
       prompts: await recapItems(root, prompts, limit),
       responses: await recapItems(root, responses, limit),
       tools: await recapItems(root, tools, limit),
@@ -3390,7 +3390,7 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
   const summaryEvents = [...responses, ...tools, ...notes].slice(-3);
   const intent = await conciseMemoryText(root, overrides.intent ?? prompts.at(-1) ?? subject);
   const agentLines = await formatMemoryList(root, agents, "No agent adapters recorded.");
-  const lifecycleLines = await formatMemoryList(root, lifecycle, "No lifecycle events recorded.");
+  const lifecycleLines = await formatMemoryList(root, lifecycle, "No lifecycle events recorded.", { limit: Infinity });
   const summary = await formatMemoryList(root, summaryEvents.length > 0 ? summaryEvents : [subject]);
   const decisionLines = await formatMemoryList(root, decisions, "Not recorded.");
   const responseLines = await formatMemoryList(root, responses, "Not recorded.");
@@ -4170,13 +4170,22 @@ function appendCommitList(lines, memories) {
   }
 }
 
-async function formatMemoryList(root, values, fallback = "Not recorded.") {
+async function recapAllItems(root, values) {
+  const redacted = [];
+  for (const item of compactMemoryItems(values)) {
+    redacted.push(await conciseMemoryText(root, item));
+  }
+  return redacted;
+}
+
+async function formatMemoryList(root, values, fallback = "Not recorded.", options = {}) {
   const items = compactMemoryItems(values);
   if (items.length === 0) {
     return `- ${fallback}`;
   }
 
-  const visible = items.slice(0, MEMORY_SECTION_LIMIT);
+  const limit = options.limit ?? MEMORY_SECTION_LIMIT;
+  const visible = limit === Infinity ? items : items.slice(0, limit);
   const lines = [];
   for (const item of visible) {
     lines.push(`- ${await conciseMemoryText(root, item)}`);

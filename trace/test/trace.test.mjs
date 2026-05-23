@@ -1685,7 +1685,17 @@ test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle ev
 
     const lifecycleRecap = JSON.parse((await runTrace(repo, ["session", "recap", "adapter-session", "--field", "lifecycle", "--json"])).stdout);
     assert.deepEqual(Object.keys(lifecycleRecap.sections), ["lifecycle"]);
-    assert.deepEqual(lifecycleRecap.sections.lifecycle, ["total: 8", "prompt: 1", "response: 1", "tool: 1", "decision: 1"]);
+    assert.deepEqual(lifecycleRecap.sections.lifecycle, ["total: 8", "prompt: 1", "response: 1", "tool: 1", "decision: 1", "validation: 2", "risk: 1", "note: 1"]);
+
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "adapter.txt"), "adapter\n");
+    await git(repo, ["add", "adapter.txt"]);
+    await git(repo, ["commit", "-m", "Add adapter memory target"]);
+    await runTrace(repo, ["record", "--session", "adapter-session"]);
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.match(memory, /## Lifecycle\n\n- total: 8\n- prompt: 1\n- response: 1\n- tool: 1\n- decision: 1\n- validation: 2\n- risk: 1\n- note: 1/);
+    assert.doesNotMatch(sectionText(memory, "Lifecycle"), /omitted/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
