@@ -48,6 +48,8 @@ const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_st
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_GOAL_NAME = new URL("../fixtures/invalid_duplicate_goal_name.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_TYPE_NAME = new URL("../fixtures/invalid_duplicate_type_name.intent", import.meta.url).pathname;
+const INVALID_DUPLICATE_GOAL_INPUT = new URL("../fixtures/invalid_duplicate_goal_input.intent", import.meta.url).pathname;
+const INVALID_DUPLICATE_STEP_INPUT = new URL("../fixtures/invalid_duplicate_step_input.intent", import.meta.url).pathname;
 const INVALID_UNSUPPORTED_GOAL_STATEMENT = new URL("../fixtures/invalid_unsupported_goal_statement.intent", import.meta.url).pathname;
 
 function runJson(args) {
@@ -549,6 +551,29 @@ describe("intent static model CLI", () => {
     assert.equal(duplicateTypePayload.diagnostics[0].name, "Finding");
     assert.equal(duplicateTypePayload.diagnostics[0].span.start.line, 7);
     assert.equal(duplicateTypePayload.diagnostics[0].previous_span.start.line, 3);
+  });
+
+  it("rejects duplicate parameter names", () => {
+    const duplicateGoalInput = run(["check", INVALID_DUPLICATE_GOAL_INPUT]);
+    const duplicateGoalInputPayload = JSON.parse(duplicateGoalInput.stdout);
+    const duplicateStepInput = run(["check", INVALID_DUPLICATE_STEP_INPUT]);
+    const duplicateStepInputPayload = JSON.parse(duplicateStepInput.stdout);
+
+    assert.equal(duplicateGoalInput.status, 1);
+    assert.equal(duplicateGoalInputPayload.ok, false);
+    assert.equal(duplicateGoalInputPayload.diagnostics[0].code, "INTENT_NAME_DUPLICATE");
+    assert.equal(duplicateGoalInputPayload.diagnostics[0].name, "input");
+    assert.equal(duplicateGoalInputPayload.diagnostics[0].span.start.line, 7);
+    assert.equal(duplicateGoalInputPayload.diagnostics[0].span.start.column, 51);
+    assert.equal(duplicateGoalInputPayload.diagnostics[0].previous_span.start.column, 35);
+
+    assert.equal(duplicateStepInput.status, 1);
+    assert.equal(duplicateStepInputPayload.ok, false);
+    assert.equal(duplicateStepInputPayload.diagnostics[0].code, "INTENT_NAME_DUPLICATE");
+    assert.equal(duplicateStepInputPayload.diagnostics[0].name, "input");
+    assert.equal(duplicateStepInputPayload.diagnostics[0].span.start.line, 28);
+    assert.equal(duplicateStepInputPayload.diagnostics[0].span.start.column, 35);
+    assert.equal(duplicateStepInputPayload.diagnostics[0].previous_span.start.column, 19);
   });
 
   it("rejects unsupported goal statements", () => {
