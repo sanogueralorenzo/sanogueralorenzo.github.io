@@ -1026,13 +1026,16 @@ Rules:
 - `argSpans` maps `_0`, `_1`, and other positional keys or named argument keys
   to the exact argument token span. It is required for context calls, effect
   calls, and verification shell calls.
-- Literal string, number, and boolean values are normalized for checking while
-  retaining raw token spans.
-- Nested calls may be parsed as argument values, but the first capability
-  milestone only checks literal file path, shell command, structured context web
-  URL or domain, structured context documents path, web/http read URL or domain,
-  git commit messages, git push branch or remote arguments, secret read names,
-  ticket update ids, and deploy targets.
+- `intent.ast.v0` supports comma-separated positional and named string
+  literals plus single-segment lowercase identifiers, retained in keyed object
+  maps such as `_0`, `_1`, `path`, or `command`.
+- Number, boolean, dotted identifier-path, and nested-call arguments are
+  reserved for the next schema version and emit `INTENT_PARSE_ERROR` when used
+  inside a parsed v0 call.
+- The first capability milestone checks literal file path, shell command,
+  structured context web URL or domain, structured context documents path,
+  web/http read URL or domain, git commit messages, git push branch or remote
+  arguments, secret read names, ticket update ids, and deploy targets.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.

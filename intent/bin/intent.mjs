@@ -3878,36 +3878,96 @@ function parseCallArgs(text, file = null, lineNumber = 1, raw = text) {
   const values = {};
   const kinds = {};
   const spans = {};
-  for (const match of text.matchAll(/([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"/g)) {
-    values[match[1]] = match[2];
-    kinds[match[1]] = "string";
-    const argumentSpan = callArgSpan(file, lineNumber, raw, text, match.index, match[0]);
-    if (argumentSpan) spans[match[1]] = argumentSpan;
+  const envelope = callArgsEnvelope(text, file, lineNumber, raw);
+  if (!envelope.text.trim()) {
+    return { values, kinds, spans };
   }
-  for (const match of text.matchAll(/([a-z][a-z0-9_]*)\s*:\s*([a-z][a-z0-9_]*)\b/g)) {
-    if (!(match[1] in values)) {
-      values[match[1]] = match[2];
-      kinds[match[1]] = "identifier";
-      const argumentSpan = callArgSpan(file, lineNumber, raw, text, match.index, match[0]);
-      if (argumentSpan) spans[match[1]] = argumentSpan;
+  let positionalIndex = 0;
+  for (const argument of splitCallArguments(envelope.text, envelope.startIndex, file, lineNumber, raw)) {
+    const trimmed = argument.text.trim();
+    if (!trimmed) {
+      throw parseError(file, lineNumber, raw, "empty call argument");
     }
-  }
-  const positional = /\(\s*"([^"]*)"/.exec(text);
-  if (positional) {
-    values._0 = positional[1];
-    kinds._0 = "string";
-    const argumentSpan = callArgSpan(file, lineNumber, raw, text, positional.index + positional[0].indexOf("\""), `"${positional[1]}"`);
-    if (argumentSpan) spans._0 = argumentSpan;
+    const argumentLeading = argument.text.indexOf(trimmed);
+    const argumentIndex = argument.startIndex + argumentLeading;
+    const named = /^([a-z][a-z0-9_]*)\s*:/.exec(trimmed);
+    const colonIndex = named ? trimmed.indexOf(":") : -1;
+    const key = named ? named[1] : `_${positionalIndex}`;
+    const valueSource = named ? trimmed.slice(colonIndex + 1) : trimmed;
+    const valueLeading = valueSource.search(/\S/);
+    const valueText = valueLeading >= 0 ? valueSource.slice(valueLeading).trim() : "";
+    const valueIndex = named ? argumentIndex + colonIndex + 1 + valueLeading : argumentIndex;
+    const parsed = parseCallArgumentValue(valueText, file, lineNumber, raw);
+    values[key] = parsed.value;
+    kinds[key] = parsed.kind;
+    const spanStart = named ? argumentIndex : valueIndex;
+    const spanText = named ? trimmed : valueText;
+    const argumentSpan = callArgSpan(file, lineNumber, raw, spanStart, spanText);
+    if (argumentSpan) spans[key] = argumentSpan;
+    if (!named) {
+      positionalIndex += 1;
+    }
   }
   return { values, kinds, spans };
 }
 
-function callArgSpan(file, lineNumber, raw, text, textIndex, fallbackText) {
+function callArgsEnvelope(text, file, lineNumber, raw) {
+  const openIndex = text.indexOf("(");
+  if (openIndex === -1) {
+    if (!/[,:"]/.test(text)) {
+      return { text: "", startIndex: 0 };
+    }
+    return { text, startIndex: 0 };
+  }
+  const closeIndex = text.lastIndexOf(")");
+  if (closeIndex < openIndex) {
+    throw parseError(file, lineNumber, raw, `unterminated call expression '${text}'`);
+  }
+  if (text.slice(closeIndex + 1).trim() !== "") {
+    throw parseError(file, lineNumber, raw, `unsupported call expression '${text}'`);
+  }
+  return { text: text.slice(openIndex + 1, closeIndex), startIndex: openIndex + 1 };
+}
+
+function splitCallArguments(text, startIndex, file, lineNumber, raw) {
+  const args = [];
+  let inString = false;
+  let partStart = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (!inString && char === ",") {
+      args.push({ text: text.slice(partStart, index), startIndex: startIndex + partStart });
+      partStart = index + 1;
+    }
+  }
+  if (inString) {
+    throw parseError(file, lineNumber, raw, "unterminated string literal in call argument");
+  }
+  args.push({ text: text.slice(partStart), startIndex: startIndex + partStart });
+  return args;
+}
+
+function parseCallArgumentValue(value, file, lineNumber, raw) {
+  const stringLiteral = /^"([^"]*)"$/.exec(value);
+  if (stringLiteral) {
+    return { kind: "string", value: stringLiteral[1] };
+  }
+  if (/^[a-z][a-z0-9_]*$/.test(value)) {
+    return { kind: "identifier", value };
+  }
+  throw parseError(file, lineNumber, raw, `unsupported call argument '${value}'`);
+}
+
+function callArgSpan(file, lineNumber, raw, textIndex, fallbackText) {
   if (!file) {
     return null;
   }
-  const rawOffset = raw.indexOf(text);
-  const startIndex = (rawOffset >= 0 ? rawOffset : 0) + textIndex;
+  const rawIndex = raw.indexOf(fallbackText, textIndex);
+  const startIndex = rawIndex >= 0 ? rawIndex : textIndex;
   return span(file, lineNumber, startIndex + 1, lineNumber, startIndex + fallbackText.length + 1);
 }
 

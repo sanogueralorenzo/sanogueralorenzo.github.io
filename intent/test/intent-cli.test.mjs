@@ -522,6 +522,81 @@ describe("intent static model CLI", () => {
     }
   });
 
+  it("parses v0 comma-separated call arguments with exact keyed spans", () => {
+    const dir = mkdtempSync(join(tmpdir(), "intent-call-args-"));
+    const file = join(dir, "call_args.intent");
+    const sourceLines = [
+      "package fixtures.call_args",
+      "type Report = Result",
+      "goal call_args() -> Report {",
+      "  context repo(\"./\", \"./docs\", mode: trusted_source)",
+      "  plan {",
+      "    step write -> Report {",
+      "      effect FileWrite(\"./fallback\", path: \"./src/app.ts\", content: input)",
+      "    }",
+      "  }",
+      "  verify {",
+      "    require no_policy_violations",
+      "  }",
+      "}",
+    ];
+    writeFileSync(file, sourceLines.join("\n"), "utf8");
+
+    try {
+      const ast = runJson(["parse", file]);
+      const context = ast.goals[0].context[0];
+      const effect = ast.goals[0].steps[0].effects[0];
+
+      assert.equal(context.args._0, "./");
+      assert.equal(context.args._1, "./docs");
+      assert.equal(context.args.mode, "trusted_source");
+      assert.equal(context.argKinds._1, "string");
+      assert.equal(context.argKinds.mode, "identifier");
+      assert.equal(context.argSpans._1.start.column, sourceLines[3].indexOf("\"./docs\"") + 1);
+      assert.equal(context.argSpans.mode.start.column, sourceLines[3].indexOf("mode: trusted_source") + 1);
+      assert.equal(effect.args._0, "./fallback");
+      assert.equal(effect.args.path, "./src/app.ts");
+      assert.equal(effect.args.content, "input");
+      assert.equal(effect.argKinds.content, "identifier");
+      assert.equal(effect.argSpans._0.start.column, sourceLines[6].indexOf("\"./fallback\"") + 1);
+      assert.equal(effect.argSpans.path.start.column, sourceLines[6].indexOf("path:") + 1);
+      assert.equal(effect.argSpans.content.start.column, sourceLines[6].indexOf("content:") + 1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects unsupported v0 call argument syntax", () => {
+    const dir = mkdtempSync(join(tmpdir(), "intent-call-args-invalid-"));
+    const file = join(dir, "invalid_call_args.intent");
+    const source = [
+      "package fixtures.invalid_call_args",
+      "type Report = Result",
+      "goal invalid_call_args() -> Report {",
+      "  context repo(123)",
+      "  plan {",
+      "    step done -> Report",
+      "  }",
+      "  verify {",
+      "    require no_policy_violations",
+      "  }",
+      "}",
+    ].join("\n");
+    writeFileSync(file, source, "utf8");
+
+    try {
+      const result = run(["parse", file]);
+      const payload = JSON.parse(result.stdout);
+
+      assert.equal(result.status, 1);
+      assert.equal(payload.diagnostics[0].code, "INTENT_PARSE_ERROR");
+      assert.equal(payload.diagnostics[0].message, "unsupported call argument '123'");
+      assert.equal(payload.diagnostics[0].span.start.line, 4);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("accepts valid fixtures", () => {
     const codeChange = runJson(["check", VALID_CODE_CHANGE]);
     const checkpointGraph = runJson(["check", VALID_CHECKPOINT_GRAPH]);

@@ -256,9 +256,13 @@ contains a parseable call expression, the parser emits both the raw text and a
 spanned `CallExpr` with the callee path, ordered arguments, optional argument
 names, argument kinds, literal values, and nested call values.
 
-Unsupported argument syntax inside a parsed call is `INTENT_PARSE_ERROR`.
-Unsupported expression syntax outside the call envelope remains raw text unless
-the surrounding grammar requires a call expression.
+The `intent.ast.v0` parser accepts comma-separated positional and named string
+literals plus single-segment lowercase identifiers. Unsupported argument
+syntax inside a parsed v0 call, including numbers, booleans, dotted
+identifiers, and nested calls, is `INTENT_PARSE_ERROR`; those argument kinds
+are reserved for the next schema version. Unsupported expression syntax outside
+the call envelope remains raw text unless the surrounding grammar requires a
+call expression.
 
 Examples of parseable effect calls:
 
