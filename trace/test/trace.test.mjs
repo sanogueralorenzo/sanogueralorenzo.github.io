@@ -465,6 +465,28 @@ test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle ev
   }
 });
 
+test("documented example agent payloads are accepted by adapters", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await runTrace(repo, ["init"]);
+    const examplesDir = join(repoRoot, "trace/examples");
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "codex"], await readFile(join(examplesDir, "codex-tool-call.json"), "utf8"));
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "claude-code"], await readFile(join(examplesDir, "claude-code-user-prompt.json"), "utf8"));
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "gemini"], await readFile(join(examplesDir, "gemini-model-response.json"), "utf8"));
+
+    const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
+    const session = await readFile(join(repo, commonDir, "trace/sessions/example-session.jsonl"), "utf8");
+    const events = session.trim().split("\n").map((line) => JSON.parse(line));
+    assert.deepEqual(events.map((event) => event.event), ["tool", "prompt", "response"]);
+    assert.match(events[0].message, /codex tool shell input=npm --prefix trace test/);
+    assert.match(events[1].message, /Trace memory storage model/);
+    assert.match(events[2].message, /verified the Trace tests/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("agent command validates names and reports malformed configs", async () => {
   const repo = await tempRepo();
 

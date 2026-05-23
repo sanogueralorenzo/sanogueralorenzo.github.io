@@ -1,0 +1,5 @@
+{
+  "session_id": "example-session",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "Capture why the Trace memory storage model changed."
+}

@@ -136,6 +136,8 @@ printf '{"kind":"model_response","content":"implemented the requested change"}' 
 
 The hook accepts JSON or plain text on stdin and records it into the local raw session store. The Codex, Claude Code, Gemini, and generic adapters normalize provider payloads into Trace lifecycle events: prompt, response, tool, decision, validation, risk, and note. Tool payloads are compacted into one-line activity entries, while full raw session data stays in the git common directory.
 
+See `trace/examples/` for complete local workflows covering adapter capture, commit memory review, PR/release summaries, and CI checks.
+
 `trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, and `--uninstall` removes it.
 
 `trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create small local adapter specs under `.trace/agents/`. The specs document the command an agent integration should call:
