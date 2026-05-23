@@ -15,7 +15,12 @@ const SUPPORTED_EVENT_HOOKS = new Set([
 
 const command = process.argv[2] ?? "help";
 const hookName = command === "hook" && process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : null;
-const args = parseArgs(process.argv.slice(command === "hook" && hookName ? 4 : 3));
+const runSeparatorIndex = command === "run" ? process.argv.indexOf("--", 3) : -1;
+const runCommandArgs = command === "run" && runSeparatorIndex >= 0 ? process.argv.slice(runSeparatorIndex + 1) : [];
+const rawArgs = command === "run" && runSeparatorIndex >= 0
+  ? process.argv.slice(3, runSeparatorIndex)
+  : process.argv.slice(command === "hook" && hookName ? 4 : 3);
+const args = parseArgs(rawArgs);
 
 async function main() {
   if (command === "help" || args.help) {
@@ -55,6 +60,11 @@ async function main() {
 
   if (command === "hook") {
     await runHook();
+    return;
+  }
+
+  if (command === "run") {
+    await runValidationCommand();
     return;
   }
 
@@ -482,9 +492,16 @@ async function contextBeforeTurnEventHook(event) {
   const limit = Number(args.limit ?? event.limit ?? 2);
   const threshold = Number(args.threshold ?? event.threshold ?? 4);
   const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
-  const matches = rankPrecedents(precedents, context)
+  const rankedMatches = rankPrecedents(precedents, context)
     .filter((precedent) => precedent.score >= threshold)
     .slice(0, limit);
+  const selected = await suppressRepeatedSessionInjections({
+    stateDir,
+    sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
+    matches: rankedMatches,
+    allowRepeat: event.allowRepeat === true,
+  });
+  const matches = selected.matches;
   const contextBlock = formatInjectionBlock(matches);
 
   const hookEvent = {
@@ -496,12 +513,14 @@ async function contextBeforeTurnEventHook(event) {
     scope: context.scope || null,
     changedFiles: context.changedFiles,
     threshold,
+    allowRepeat: event.allowRepeat === true,
     injections: matches.map((match) => match.id),
     injectionMatches: matches.map((match) => ({
       id: match.id,
       score: match.score,
       reasons: match.matchReasons ?? [],
     })),
+    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
   };
 
   await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
@@ -518,6 +537,7 @@ async function contextBeforeTurnEventHook(event) {
     hook: event.hook,
     sessionId: sessionEvent?.sessionId ?? null,
     injections: matches.map(formatInjection),
+    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
     contextBlock,
   });
 }
@@ -652,6 +672,50 @@ async function outcomeAfterTaskEventHook(event) {
       tokenEstimate: sessionEvent.event.tokenEstimate,
     },
   });
+}
+
+async function runValidationCommand() {
+  const sessionId = requireString(args.session, "run.session");
+
+  if (runSeparatorIndex < 0 || runCommandArgs.length === 0) {
+    fail("run requires --session <id> -- <command>");
+  }
+
+  const stateDir = statePath();
+  await ensureState(stateDir);
+
+  const startedAt = Date.now();
+  const result = await spawnPassthrough(runCommandArgs);
+  const durationMs = Date.now() - startedAt;
+  const commandText = shellQuoteCommand(runCommandArgs);
+  const failureSignals = validationFailureSignals({
+    stderr: result.stderr,
+  }, result.exitCode);
+  const sessionEvent = await appendSessionEvent(stateDir, {
+    type: "hook_event",
+    receivedAt: new Date().toISOString(),
+    hook: "validation.after_run",
+    sessionId,
+    command: commandText,
+    exitCode: result.exitCode,
+    durationMs,
+    failureSignals,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  });
+
+  await appendJsonLine(join(stateDir, "events.jsonl"), {
+    type: "hook_event",
+    receivedAt: sessionEvent.receivedAt,
+    hook: "validation.after_run",
+    sessionId,
+    command: commandText,
+    exitCode: result.exitCode,
+    durationMs,
+    failureSignals,
+  });
+
+  process.exit(result.exitCode);
 }
 
 async function reportState() {
@@ -856,6 +920,43 @@ function formatInjection(match) {
   };
 }
 
+function formatSuppressedInjection(match) {
+  return {
+    id: match.id,
+    score: match.score,
+    reason: "already_injected_in_session",
+  };
+}
+
+async function suppressRepeatedSessionInjections({ stateDir, sessionId, matches, allowRepeat }) {
+  if (!sessionId || allowRepeat || matches.length === 0) {
+    return { matches, suppressed: [] };
+  }
+
+  const priorEvents = await readSessionEvents(stateDir, sessionId);
+  const priorInjectedIds = new Set(
+    priorEvents
+      .filter((event) => event.hook === "context.before_turn")
+      .flatMap((event) => Array.isArray(event.injections) ? event.injections : []),
+  );
+  const selected = [];
+  const suppressed = [];
+
+  for (const match of matches) {
+    if (priorInjectedIds.has(match.id)) {
+      suppressed.push(match);
+      continue;
+    }
+
+    selected.push(match);
+  }
+
+  return {
+    matches: selected,
+    suppressed,
+  };
+}
+
 function promotionReason(precedent) {
   const baselineFailures = precedent.promotion?.baseline_failures;
   const rerunFailures = precedent.promotion?.rerun_failures;
@@ -974,6 +1075,14 @@ async function appendSessionEvent(stateDir, rawEvent) {
     event,
     receivedAt: event.receivedAt,
   };
+}
+
+async function readSessionEvents(stateDir, sessionId) {
+  if (!sessionId) {
+    return [];
+  }
+
+  return readJsonLines(join(stateDir, "sessions", `${safeFileName(sessionId)}.jsonl`));
 }
 
 async function traceFromSession(stateDir, sessionId) {
@@ -1243,6 +1352,40 @@ function spawnShell(command, cwd) {
       });
     });
   });
+}
+
+function spawnPassthrough(commandArgs) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(commandArgs[0], commandArgs.slice(1), {
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+      process.stdout.write(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+      process.stderr.write(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (exitCode) => {
+      resolvePromise({
+        exitCode: exitCode ?? 1,
+        stdout,
+        stderr,
+      });
+    });
+  });
+}
+
+function shellQuoteCommand(commandArgs) {
+  return commandArgs
+    .map((arg) => /^[a-zA-Z0-9_./:=@+-]+$/u.test(arg) ? arg : JSON.stringify(arg))
+    .join(" ");
 }
 
 function buildReplayTrace(replayCase, replay, replayPath) {
@@ -1548,6 +1691,7 @@ Usage:
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
+  precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent report [--state-dir .precedent]
 
 Commands:
@@ -1558,6 +1702,7 @@ Commands:
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
+  run       Run a validation command and capture it as a session hook event.
   report    Summarize local precedent state.
 `);
 }

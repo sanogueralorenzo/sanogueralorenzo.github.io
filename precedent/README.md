@@ -95,6 +95,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent inject`: returns the relevant precedent for the current task context.
 - `precedent hook`: reads a passive hook event and returns an insertable context block.
 - `precedent replay`: reruns a baseline agent task with and without injected precedent.
+- `precedent explain`: audits why a precedent was promoted or rejected.
 - `precedent report`: prints before/after metrics.
 
 The first version should support one repo, five seeded tasks, one baseline coding agent, and three failure classes:
@@ -117,6 +118,7 @@ node precedent/bin/precedent.mjs hook before-turn --task "add another webhook ha
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
 node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","sessionId":"demo","command":"pnpm test:webhooks","exitCode":1,"stderr":"nullable payload test failed"}' | node precedent/bin/precedent.mjs hook
+node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs observe --session demo
 node precedent/bin/precedent.mjs report
 ```
@@ -128,8 +130,10 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
 - Every injection includes `matchReasons`, so a runtime can show why Precedent injected memory instead of treating it as opaque prompt context.
-- `explain` returns promotion evidence, matching inputs, and recent injection history for one precedent id.
+- Session hooks suppress a precedent after it has already been injected once in the same session; pass `"allowRepeat": true` only when a runtime intentionally wants repeated context.
+- `explain` returns the promotion reason, source trace or session, replay delta, evidence, matching scope and paths, and recent injection history for one precedent id.
 - Hook events can carry `sessionId`. Precedent appends them to `.precedent/sessions/<sessionId>.jsonl`, so ordinary conversations can be observed without a handcrafted trace file.
+- `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
@@ -140,6 +144,35 @@ Promotion is idempotent. Re-observing the same promoted precedent updates the ex
 
 All JSON inputs use an explicit v1 schema marker. `observe`, `hook`, and `replay` reject missing or unknown schema versions with an exact field error.
 
+Example explain response:
+
+```json
+{
+  "ok": true,
+  "id": "prec_webhook_replay_boundary",
+  "promotionStatus": "promoted",
+  "promotionReason": "verified replay improved from 1 baseline failure(s) to 0 rerun failure(s)",
+  "source": {
+    "traceId": "webhook-replay-improves-replay",
+    "sessionId": null,
+    "replayId": "webhook-replay-improves",
+    "replayPath": "/tmp/precedent/replays/webhook-replay-improves/replay.json"
+  },
+  "replay": {
+    "baselineFailures": 1,
+    "rerunFailures": 0,
+    "failureDelta": 1
+  },
+  "matching": {
+    "scope": "feature:webhooks",
+    "trigger": "task mentions webhook handler, webhook payload, or provider event",
+    "artifact": "skill",
+    "paths": ["features/webhooks", "webhooks/providers"]
+  },
+  "injections": []
+}
+```
+
 Example event hook response:
 
 ```json
@@ -147,6 +180,7 @@ Example event hook response:
   "ok": true,
   "hook": "context.before_turn",
   "contextBlock": "Precedent:\n- For webhook changes in this repo: run pnpm test:webhooks, keep provider-specific logic inside the webhook provider boundary, and reuse existing nullable payload helpers.",
+  "suppressedInjections": [],
   "injections": [
     {
       "id": "prec_webhook_provider_boundary",

@@ -104,7 +104,12 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     ]);
     assert.equal(explained.promotionStatus, "promoted");
     assert.match(explained.promotionReason, /1 baseline failure\(s\) to 0 rerun failure\(s\)/u);
+    assert.equal(explained.source.traceId, "webhook-replay-improves-replay");
+    assert.equal(explained.source.replayId, "webhook-replay-improves");
+    assert.equal(explained.replay.failureDelta, 1);
     assert.equal(explained.matching.scope, "feature:webhooks");
+    assert.deepEqual(explained.matching.paths, ["features/webhooks", "webhooks/providers"]);
+    assert.ok(explained.evidence.includes("replay: baseline exited 1"));
     assert.equal(explained.injections.length, 1);
     assert.equal(explained.injections[0].task, "add another webhook handler");
 
@@ -210,6 +215,21 @@ test("replay without improvement is observed but not promoted", async () => {
       "precedent.promotion must show baseline_failures greater than rerun_failures",
     ]);
 
+    const explained = await runPrecedent([
+      "explain",
+      "--state-dir",
+      stateDir,
+      "--id",
+      "prec_webhook_replay_no_improvement",
+      "--json",
+    ]);
+    assert.equal(explained.promotionStatus, "rejected");
+    assert.match(explained.promotionReason, /baseline_failures greater than rerun_failures/u);
+    assert.equal(explained.replay.baselineFailures, 1);
+    assert.equal(explained.replay.rerunFailures, 1);
+    assert.deepEqual(explained.injections, []);
+    assert.equal(explained.rejectionEvents.length, 1);
+
     const inject = await runPrecedent([
       "inject",
       "--state-dir",
@@ -221,6 +241,27 @@ test("replay without improvement is observed but not promoted", async () => {
       "--json",
     ]);
     assert.deepEqual(inject.injections, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("explain fails clearly for unknown precedent ids", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-replay-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const result = await runPrecedentResult([
+      "explain",
+      "--state-dir",
+      stateDir,
+      "--id",
+      "prec_missing",
+      "--json",
+    ]);
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /unknown precedent id: prec_missing/u);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -251,6 +292,30 @@ function runPrecedent(args) {
       }
 
       resolvePromise(JSON.parse(stdout));
+    });
+  });
+}
+
+function runPrecedentResult(args) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [cliPath, ...args], {
+      cwd: repoRoot,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (exitCode) => {
+      resolvePromise({ exitCode, stdout, stderr });
     });
   });
 }
