@@ -326,6 +326,13 @@ Effects that change durable external state should declare one of:
 - `irreversible`: cannot be undone and therefore needs stronger approval and verification.
 - `none`: no rollback is needed because the effect has no durable side effect.
 
+In the v0 static model, the portable effect contract registry exposes the
+checker-facing subset of this policy as `risk` and `checkpoint`. Read-only
+contracts declare `risk: "read_only"` with no checkpoint trigger. Contracts
+that can change external state declare `risk: "irreversible"` and require
+`source_order_after_effect` coverage when a goal denies
+`uncheckpointed_irreversible_effect`.
+
 Example:
 
 ```intent

@@ -24,7 +24,7 @@
     },
     "contract": {
       "type": "object",
-      "required": ["id", "family", "action", "match", "arguments"],
+      "required": ["id", "family", "action", "risk", "checkpoint", "match", "arguments"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -36,6 +36,12 @@
         "action": {
           "$ref": "#/$defs/non_empty_string"
         },
+        "risk": {
+          "enum": ["read_only", "irreversible"]
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/checkpoint_policy"
+        },
         "match": {
           "$ref": "#/$defs/match"
         },
@@ -44,6 +50,29 @@
           "items": {
             "$ref": "#/$defs/argument"
           }
+        }
+      }
+    },
+    "checkpoint_policy": {
+      "type": "object",
+      "required": ["requiredWhen", "coverage"],
+      "additionalProperties": false,
+      "properties": {
+        "requiredWhen": {
+          "type": "array",
+          "items": {
+            "enum": ["deny:uncheckpointed_irreversible_effect"]
+          }
+        },
+        "coverage": {
+          "oneOf": [
+            {
+              "const": "source_order_after_effect"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },

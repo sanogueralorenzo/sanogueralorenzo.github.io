@@ -75,7 +75,8 @@ Every successful command writes formatted JSON to stdout and includes a stable
   `ast_schema_version`, `source`, `package`, `ok`, `diagnostics`, `nodes`, and
   `edges`.
 - `contracts`: emits `intent.effect-contracts.v0`, the effect adapter contract
-  registry used to normalize effect calls before checking and graph emission.
+  registry used to normalize effect calls and expose risk/checkpoint policy
+  before checking and graph emission.
 
 The schema files for the contract milestone are expected at these paths:
 
@@ -272,8 +273,10 @@ Validation expectations:
   `require final_state_checkpointed` and `require checkpointed_final_state`
   require the final completion-producing step to declare at least one
   `checkpoint ...` statement. `deny uncheckpointed_irreversible_effect`
-  separately requires each irreversible effect to have a later checkpoint in
-  goal source order. Missing checkpoint coverage emits
+  separately requires each effect whose selected contract has
+  `risk: "irreversible"` and checkpoint coverage
+  `source_order_after_effect` to have a later checkpoint in goal source order.
+  Missing checkpoint coverage emits
   `INTENT_CHECKPOINT_MISSING`. Completion node `data.checkpoint` records the
   triggering final-state requirements and final-step checkpoints; malformed
   checkpoint payloads or required checkpoint metadata with no checkpoint

@@ -328,6 +328,11 @@ contracts explicit. The registry is also emitted as
 entry with `contractId` and canonical-to-source `contractArguments`.
 Structured capability grants that cover known adapter operations carry the same
 stable contract id plus the canonical `contractArgument`.
+The registry also declares `risk` and `checkpoint` metadata. Read-only
+contracts have no checkpoint trigger. Irreversible contracts declare
+`requiredWhen: ["deny:uncheckpointed_irreversible_effect"]` with
+`coverage: "source_order_after_effect"`, which the checker uses for
+source-order checkpoint coverage.
 
 Git commit effects use a named `message` constrained argument. The checker
 binds `GitCommit(message: "...")` and `git.commit(message: "...")` to in-scope

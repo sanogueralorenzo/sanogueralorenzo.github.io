@@ -75,13 +75,14 @@ const COMPLETION_PROVENANCE_REQUIREMENTS = new Set(["all_outputs_cited", "memory
 const COMPLETION_PROVENANCE_INVARIANTS = new Set(["uncited_external_claim"]);
 const COMPLETION_CHECKPOINT_REQUIREMENTS = new Set(["final_state_checkpointed", "checkpointed_final_state"]);
 const COMPLETION_CHECKPOINT_INVARIANTS = new Set([]);
-const IRREVERSIBLE_EFFECTS = new Set(["deploy:deploy", "file:write", "git:commit", "git:push", "shell:run", "ticket:update"]);
 const EFFECT_CONTRACTS = [
   {
     id: "intent.effect.file.read.v0",
     family: "file",
     action: "read",
     match: { exact: ["FileRead", "ReadFile", "fs.read", "file.read"] },
+    risk: "read_only",
+    checkpoint: { requiredWhen: [], coverage: null },
     arguments: [
       { key: "path", aliases: ["path", "paths", "_0"], normalize: "path" },
     ],
@@ -91,6 +92,8 @@ const EFFECT_CONTRACTS = [
     family: "file",
     action: "write",
     match: { exact: ["FileWrite", "WriteFile", "fs.write", "file.write"] },
+    risk: "irreversible",
+    checkpoint: { requiredWhen: ["deny:uncheckpointed_irreversible_effect"], coverage: "source_order_after_effect" },
     arguments: [
       {
         key: "path",
@@ -105,6 +108,8 @@ const EFFECT_CONTRACTS = [
     family: "shell",
     action: "run",
     match: { exact: ["ShellExec", "shell.exec", "Command"] },
+    risk: "irreversible",
+    checkpoint: { requiredWhen: ["deny:uncheckpointed_irreversible_effect"], coverage: "source_order_after_effect" },
     arguments: [
       {
         key: "command",
@@ -119,6 +124,8 @@ const EFFECT_CONTRACTS = [
     family: "web",
     action: "read",
     match: { exact: ["Http", "HttpGet", "Web", "WebRead", "web.read", "http.get", "http.request"] },
+    risk: "read_only",
+    checkpoint: { requiredWhen: [], coverage: null },
     arguments: [
       { key: "domain", aliases: ["domain", "domains"], normalize: "domain" },
       { key: "domain", aliases: ["url", "urls", "_0"], normalize: "url_domain" },
@@ -129,6 +136,8 @@ const EFFECT_CONTRACTS = [
     family: "git",
     action: "push",
     match: { exact: ["GitPush", "git.push"] },
+    risk: "irreversible",
+    checkpoint: { requiredWhen: ["deny:uncheckpointed_irreversible_effect"], coverage: "source_order_after_effect" },
     arguments: [
       {
         key: "branch",
@@ -149,6 +158,8 @@ const EFFECT_CONTRACTS = [
     family: "git",
     action: "commit",
     match: { exact: ["GitCommit", "git.commit"] },
+    risk: "irreversible",
+    checkpoint: { requiredWhen: ["deny:uncheckpointed_irreversible_effect"], coverage: "source_order_after_effect" },
     arguments: [
       {
         key: "message",
@@ -163,6 +174,8 @@ const EFFECT_CONTRACTS = [
     family: "deploy",
     action: "deploy",
     match: { exact: ["Deploy"], prefix: ["deploy."] },
+    risk: "irreversible",
+    checkpoint: { requiredWhen: ["deny:uncheckpointed_irreversible_effect"], coverage: "source_order_after_effect" },
     arguments: [
       {
         key: "target",
@@ -177,6 +190,8 @@ const EFFECT_CONTRACTS = [
     family: "ticket",
     action: "update",
     match: { exact: ["Ticket", "TicketUpdate"], prefix: ["ticket."] },
+    risk: "irreversible",
+    checkpoint: { requiredWhen: ["deny:uncheckpointed_irreversible_effect"], coverage: "source_order_after_effect" },
     arguments: [
       { key: "id", aliases: ["id", "_0"], normalize: "ticket", trustSink: "ticket id" },
     ],
@@ -186,6 +201,8 @@ const EFFECT_CONTRACTS = [
     family: "secret",
     action: "read",
     match: { exact: ["SecretRead", "Secret"], prefix: ["secret."] },
+    risk: "read_only",
+    checkpoint: { requiredWhen: [], coverage: null },
     arguments: [
       {
         key: "name",
@@ -1431,7 +1448,9 @@ function isEventAfter(candidate, reference) {
 }
 
 function isIrreversibleEffect(effect) {
-  return IRREVERSIBLE_EFFECTS.has(`${effect.family}:${effect.action}`);
+  const contract = effectContractForAccess(effect);
+  return contract?.risk === "irreversible"
+    && contract.checkpoint.requiredWhen.includes("deny:uncheckpointed_irreversible_effect");
 }
 
 function spanStartOffset(value) {
@@ -5060,6 +5079,8 @@ function effectContractRegistry() {
       id: contract.id,
       family: contract.family,
       action: contract.action,
+      risk: contract.risk,
+      checkpoint: contract.checkpoint,
       match: {
         exact: contract.match.exact ?? [],
         prefix: contract.match.prefix ?? [],

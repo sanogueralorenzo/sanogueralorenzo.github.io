@@ -774,6 +774,25 @@ describe("intent static model CLI", () => {
     assert(registry.contracts.every((contract) => {
       return contract.match.exact.length + contract.match.prefix.length > 0;
     }));
+    const contractsById = new Map(registry.contracts.map((contract) => [contract.id, contract]));
+    assert.deepEqual(contractsById.get("intent.effect.file.read.v0").checkpoint, { requiredWhen: [], coverage: null });
+    assert.equal(contractsById.get("intent.effect.file.read.v0").risk, "read_only");
+    assert.deepEqual(contractsById.get("intent.effect.web.read.v0").checkpoint, { requiredWhen: [], coverage: null });
+    assert.equal(contractsById.get("intent.effect.secret.read.v0").risk, "read_only");
+    for (const id of [
+      "intent.effect.file.write.v0",
+      "intent.effect.shell.run.v0",
+      "intent.effect.git.push.v0",
+      "intent.effect.git.commit.v0",
+      "intent.effect.deploy.deploy.v0",
+      "intent.effect.ticket.update.v0",
+    ]) {
+      assert.equal(contractsById.get(id).risk, "irreversible");
+      assert.deepEqual(contractsById.get(id).checkpoint, {
+        requiredWhen: ["deny:uncheckpointed_irreversible_effect"],
+        coverage: "source_order_after_effect",
+      });
+    }
   });
 
   it("rejects unsupported v0 call argument syntax", () => {
@@ -1781,6 +1800,7 @@ describe("intent static model CLI", () => {
     assert.equal(deployEffect.data.family, "deploy");
     assert.equal(deployEffect.data.action, "deploy");
     assert.equal(deployEffect.data.args.target, "staging");
+    assert.equal("risk" in deployEffect.data, false);
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to === deployEffect.id), true);
   });
 

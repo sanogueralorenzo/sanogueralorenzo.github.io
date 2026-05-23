@@ -1076,6 +1076,11 @@ Rules:
   capability grants that map to a known adapter contract also carry
   `contractId` and `contractArgument`, allowing authorization checks to reject
   stale or mismatched grant references.
+- Effect contract entries are the source of truth for checkpoint risk. Each
+  contract has `risk` as `read_only` or `irreversible` plus a `checkpoint`
+  policy with `requiredWhen` triggers and a nullable `coverage`. Graph Effect
+  nodes keep only invocation data and the selected `contractId`; runtimes use
+  the registry to resolve risk instead of trusting duplicated node metadata.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -1532,13 +1537,14 @@ Rules:
   completion checkpoint triggers. The final step must include at least one
   `checkpoint ...` statement so runtime resume can restart from a named
   final-state boundary. Missing coverage emits `INTENT_CHECKPOINT_MISSING`.
-- `deny uncheckpointed_irreversible_effect` requires every irreversible effect
-  to be followed by a non-empty `checkpoint ...` later in the goal source
-  order. In v0, irreversible effects are `FileWrite`, `ShellExec`, `GitCommit`,
-  `GitPush`, `Deploy`, and `TicketUpdate`; `FileRead`, `WebRead`, and
-  `SecretRead` are not checkpoint-covered irreversible effects. A checkpoint
-  before the effect does not count, while one later checkpoint may cover
-  multiple prior irreversible effects. Missing source-order coverage emits
+- `deny uncheckpointed_irreversible_effect` requires every effect whose
+  selected contract declares `risk: "irreversible"` and checkpoint coverage
+  `source_order_after_effect` to be followed by a non-empty `checkpoint ...`
+  later in the goal source order. In v0, checkpoint-covered contracts are file
+  write, shell run, git commit, git push, deploy, and ticket update; file read,
+  web read, and secret read are `read_only`. A checkpoint before the effect
+  does not count, while one later checkpoint may cover multiple prior
+  irreversible effects. Missing source-order coverage emits
   `INTENT_CHECKPOINT_MISSING` at the effect span.
 - Graph `Completion` node data includes `checkpoint.required`,
   `checkpoint.requirements`, `checkpoint.invariants`, and
