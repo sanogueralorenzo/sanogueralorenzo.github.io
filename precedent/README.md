@@ -153,6 +153,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
 - `attach` emits a session-scoped adapter contract with a before-turn command, after-validation hook command, after-diff hook command, after-outcome hook command, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
+- `review.after_feedback` records review comments as high-signal session evidence, so missed contracts can become candidates and later promoted precedents without handcrafted traces.
 - `diff.after_edit` and `validation.after_run` evaluate advisory guards only for precedents already injected into the same session. v1 supports `changed_files_within_paths` and `required_validation_command`; warnings are returned as `guardResult` plus a compact `Precedent guard:` context block and never block the underlying hook.
 - `outcome.after_task` now closes the headless capture loop: it snapshots the session into `.precedent/traces/session-<id>.json`, upserts deterministic candidates into `.precedent/candidates.jsonl` when failures or guard warnings exist, and returns a `learning` object. When a clean successful session follows an analogous failed session, it automatically promotes a replay-style precedent; otherwise candidates remain non-injectable until existing replay promotion gates create a promoted precedent.
 - `check` verifies config, ledgers, traces, sessions, replay artifacts, replay failure deltas, promoted-precedent replay receipts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
@@ -182,6 +183,7 @@ Minimal config:
     "context.before_turn",
     "validation.after_run",
     "diff.after_edit",
+    "review.after_feedback",
     "outcome.after_task"
   ]
 }
@@ -335,6 +337,18 @@ After validation runs:
   "command": "pnpm test:webhooks",
   "exitCode": 1,
   "stderr": "nullable payload test failed"
+}
+```
+
+After review feedback:
+
+```json
+{
+  "schema_version": "precedent.v1",
+  "hook": "review.after_feedback",
+  "sessionId": "demo",
+  "comments": ["missed nullable payload contract"],
+  "changedFiles": ["features/webhooks/providers/stripe.ts"]
 }
 ```
 

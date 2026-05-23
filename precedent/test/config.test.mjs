@@ -23,6 +23,7 @@ test("init creates deterministic versioned runtime config", async () => {
         "context.before_turn",
         "validation.after_run",
         "diff.after_edit",
+        "review.after_feedback",
         "outcome.after_task",
       ],
       failurePolicy: "fail_open",

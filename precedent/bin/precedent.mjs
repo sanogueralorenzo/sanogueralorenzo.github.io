@@ -17,6 +17,7 @@ const SUPPORTED_EVENT_HOOKS = new Set([
   "context.before_turn",
   "validation.after_run",
   "diff.after_edit",
+  "review.after_feedback",
   "outcome.after_task",
 ]);
 const DEFAULT_CONFIG = {
@@ -631,6 +632,11 @@ async function eventHook() {
     return;
   }
 
+  if (hook === "review.after_feedback") {
+    await reviewAfterFeedbackEventHook(event);
+    return;
+  }
+
   if (hook === "outcome.after_task") {
     await outcomeAfterTaskEventHook(event);
     return;
@@ -887,6 +893,53 @@ async function diffAfterEditEventHook(event) {
   });
 }
 
+async function reviewAfterFeedbackEventHook(event) {
+  const stateDir = statePath();
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const comments = reviewComments(event);
+  const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
+  let sessionEvent = null;
+
+  if (comments.length === 0) {
+    fail("event.comments must include at least one review comment");
+  }
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId,
+      reviewer: typeof event.reviewer === "string" ? event.reviewer : null,
+      comments,
+      changedFiles,
+    });
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "hook_event",
+      receivedAt: sessionEvent.receivedAt,
+      hook: event.hook,
+      sessionId,
+      reviewer: sessionEvent.event.reviewer,
+      comments,
+      changedFiles,
+    });
+  });
+
+  print({
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: true,
+    sessionEventPath: sessionEvent.path,
+    review: {
+      comments,
+      changedFiles,
+    },
+  });
+}
+
 async function outcomeAfterTaskEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
@@ -1071,6 +1124,13 @@ function buildManifest(runtime, stateDir) {
         timeoutMs,
         failurePolicy,
       },
+      "review.after_feedback": {
+        command: hookCommand,
+        stdin: ["schema_version", "hook", "sessionId", "comments", "changedFiles", "reviewer"],
+        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "review"],
+        timeoutMs,
+        failurePolicy,
+      },
       "outcome.after_task": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "success", "status", "retries", "tokenEstimate", "notes", "precedent", "replay"],
@@ -1172,6 +1232,19 @@ async function attachRuntime() {
           changedFiles: "$CHANGED_FILES",
           linesAdded: "$LINES_ADDED",
           linesDeleted: "$LINES_DELETED",
+        },
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      afterReview: {
+        command: hookCommand,
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "review.after_feedback",
+          sessionId,
+          comments: "$COMMENTS",
+          changedFiles: "$CHANGED_FILES",
+          reviewer: "$REVIEWER",
         },
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1909,6 +1982,7 @@ async function traceFromSession(stateDir, sessionId) {
   const beforeTurns = events.filter((event) => event.hook === "context.before_turn");
   const validations = events.filter((event) => event.hook === "validation.after_run");
   const diffs = events.filter((event) => event.hook === "diff.after_edit");
+  const reviews = events.filter((event) => event.hook === "review.after_feedback");
   const outcomes = events.filter((event) => event.hook === "outcome.after_task");
   const receivedTimes = events
     .map((event) => Date.parse(event.receivedAt ?? ""))
@@ -1918,6 +1992,7 @@ async function traceFromSession(stateDir, sessionId) {
   const changedFiles = uniqueStrings([
     ...beforeTurns.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
     ...diffs.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
+    ...reviews.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : []),
   ]);
   const validationFailures = validations
     .filter((event) => event.exitCode !== 0)
@@ -1931,10 +2006,13 @@ async function traceFromSession(stateDir, sessionId) {
   const outcomeFailures = outcomes
     .filter((event) => event.success === false && typeof event.notes === "string" && event.notes.trim().length > 0)
     .map((event) => `outcome: ${event.notes}`);
+  const reviewFailures = reviews
+    .flatMap((event) => Array.isArray(event.comments) ? event.comments : [])
+    .map((comment) => `review: ${comment}`);
   const guardFailures = events
     .flatMap((event) => Array.isArray(event.guardResult?.failed) ? event.guardResult.failed : [])
     .map(formatGuardFailureForTrace);
-  const failures = [...validationFailures, ...diffFailures, ...guardFailures, ...outcomeFailures];
+  const failures = [...validationFailures, ...diffFailures, ...reviewFailures, ...guardFailures, ...outcomeFailures];
   const failedValidation = validations.find((event) => event.exitCode !== 0);
   const validationEvidence = failedValidation
     ? {
@@ -1945,6 +2023,12 @@ async function traceFromSession(stateDir, sessionId) {
         failedValidation.stderrSummary,
         failedValidation.stdoutSummary,
       ].filter(Boolean).join(" - "),
+    }
+    : null;
+  const reviewEvidence = reviews.length > 0
+    ? {
+      comments: reviews.flatMap((event) => Array.isArray(event.comments) ? event.comments : []),
+      changedFiles: uniqueStrings(reviews.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : [])),
     }
     : null;
 
@@ -1959,6 +2043,7 @@ async function traceFromSession(stateDir, sessionId) {
     failures,
     hooks: {
       ...(validationEvidence ? { "validation.after_run": validationEvidence } : {}),
+      ...(reviewEvidence ? { "review.after_feedback": reviewEvidence } : {}),
     },
     session: {
       path: sessionFile,
@@ -1980,6 +2065,7 @@ function sessionTraceEvent(event) {
     task: event.task ?? null,
     scope: event.scope ?? null,
     changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : [],
+    comments: Array.isArray(event.comments) ? event.comments : [],
     command: event.command ?? null,
     exitCode: Number.isFinite(event.exitCode) ? event.exitCode : null,
     success: typeof event.success === "boolean" ? event.success : null,
@@ -2242,6 +2328,7 @@ function sessionPairEvidence(failedTrace, successTrace, replayPath) {
     `failed changed files: ${(failedTrace.changedFiles ?? []).join(", ")}`,
     `successful changed files: ${(successTrace.changedFiles ?? []).join(", ")}`,
     `outcome delta: ${failedTrace.outcome} to ${successTrace.outcome}`,
+    ...collectTraceEvidence(failedTrace),
     ...failedTrace.failures.map((failure) => `failure: ${failure}`),
   ]);
 }
@@ -2360,6 +2447,24 @@ function hookBoolean(value, name, defaultValue) {
   }
 
   fail(`${name} must be a boolean or "true"/"false"`);
+}
+
+function reviewComments(event) {
+  if (Array.isArray(event.comments)) {
+    return event.comments
+      .map((comment) => String(comment).trim())
+      .filter((comment) => comment.length > 0);
+  }
+
+  if (typeof event.comment === "string" && event.comment.trim().length > 0) {
+    return [event.comment.trim()];
+  }
+
+  if (typeof event.comments === "string" && event.comments.trim().length > 0) {
+    return [event.comments.trim()];
+  }
+
+  return [];
 }
 
 function parseListArg(value) {
