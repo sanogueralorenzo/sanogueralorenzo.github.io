@@ -15,7 +15,7 @@ node jury/bin/jury.mjs critic run --state-dir .jury --claim claim_ci_change --ro
 node jury/bin/jury.mjs critic run --state-dir .jury --claim claim_ci_change --role scope --changed-files jury/bin/jury.mjs,jury/test/jury.test.mjs
 node jury/bin/jury.mjs check update --state-dir .jury --id check_ci_tests --status passed --evidence ev_ci_tests --resolution "Jury tests passed"
 node jury/bin/jury.mjs judge --state-dir .jury --claim claim_ci_change --out verdict.json
-node jury/bin/jury.mjs gate --state-dir .jury --claim claim_ci_change --verdict verdict.json
+node jury/bin/jury.mjs gate --state-dir .jury --claim claim_ci_change --verdict verdict.json --json > gate.json
 node jury/bin/jury.mjs bundle export --state-dir .jury --claim claim_ci_change --out review-bundle.json
 node jury/bin/jury.mjs check --state-dir .jury --strict
 ```
@@ -24,6 +24,7 @@ Expected artifacts:
 
 - `verdict.json`: the gate decision.
 - `review-bundle.json`: portable `jury.review_bundle.v1` state for another CI job or reviewer.
+- `gate.json`: the CI gate result.
 - `.jury/*.jsonl`: local append-only audit state.
 
 To replay the portable bundle in a fresh state directory:

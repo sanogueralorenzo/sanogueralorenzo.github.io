@@ -1,0 +1,19 @@
+{
+  "schema_version": "jury.verdict.v1",
+  "id": "verdict_claim_ci_change_accept",
+  "claim_id": "claim_ci_change",
+  "claim_version": 3,
+  "decision": "accept",
+  "reason": "Required evidence passed and no blocking objections remain open.",
+  "next_actions": [],
+  "evidence_ids": [
+    "ev_ci_tests"
+  ],
+  "objection_ids": [],
+  "waiver_ids": [],
+  "check_ids": [
+    "check_ci_tests"
+  ],
+  "decided_by": "judge:local",
+  "decided_at": "2026-05-23T00:00:00.000Z"
+}

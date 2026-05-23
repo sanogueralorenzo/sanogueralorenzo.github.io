@@ -11,6 +11,7 @@ const repoRoot = resolve(__dirname, "../..");
 const cliPath = join(repoRoot, "jury/bin/jury.mjs");
 const fixturesDir = join(repoRoot, "jury/fixtures/verdicts");
 const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
+const ciQuickstartFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/quickstart");
 const releasePath = join(repoRoot, "jury/release.json");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
 const skipNestedCiAdoptionTests = process.env.JURY_SKIP_CI_ADOPTION_NESTED === "1";
@@ -185,7 +186,8 @@ test("quickstart commands produce a portable CI review from a clean checkout", {
       assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
     }
 
-    await assertAcceptedCiReview(checkout, ".jury", "verdict.json", "review-bundle.json");
+    await assertAcceptedCiReview(checkout, ".jury", "verdict.json", "review-bundle.json", "gate.json");
+    await assertQuickstartFixturesMatch(checkout);
 
     for (const command of replayCommands) {
       const result = await runShell(command, checkout);
@@ -219,7 +221,8 @@ test("GitHub Actions example builds the documented verdict and review bundle", {
       assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
     }
 
-    await assertAcceptedCiReview(checkout, ".jury", "verdict.json", "review-bundle.json");
+    await assertAcceptedCiReview(checkout, ".jury", "verdict.json", "review-bundle.json", "gate.json");
+    await assertQuickstartFixturesMatch(checkout);
   } finally {
     await rm(checkout, { recursive: true, force: true });
   }
@@ -230,6 +233,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
 
   assert.ok(readme.includes("jury-review-gate.yml"));
   assert.ok(readme.includes("review-bundle.json"));
+  assert.ok(readme.includes("gate.json"));
   assert.ok(readme.includes("actions/upload-artifact@v4"));
 });
 
@@ -694,19 +698,28 @@ function runShell(command, cwd = repoRoot, env = fixedEnv) {
   });
 }
 
-async function assertAcceptedCiReview(cwd, stateDir, verdictPath, bundlePath) {
+async function assertAcceptedCiReview(cwd, stateDir, verdictPath, bundlePath, gatePath) {
   const verdict = JSON.parse(await readFile(join(cwd, verdictPath), "utf8"));
   const bundle = JSON.parse(await readFile(join(cwd, bundlePath), "utf8"));
-  const gate = await runShell(`node jury/bin/jury.mjs gate --state-dir ${shellQuote(stateDir)} --claim claim_ci_change --verdict ${shellQuote(verdictPath)} --json`, cwd);
+  const gate = JSON.parse(await readFile(join(cwd, gatePath), "utf8"));
   const check = await runShell(`node jury/bin/jury.mjs check --state-dir ${shellQuote(stateDir)} --strict --json`, cwd);
 
   assert.equal(verdict.decision, "accept");
   assert.equal(bundle.schema_version, "jury.review_bundle.v1");
   assert.equal(bundle.claim_id, "claim_ci_change");
-  assert.equal(gate.exitCode, 0, gate.stderr);
-  assert.equal(JSON.parse(gate.stdout).ok, true);
+  assert.equal(gate.ok, true);
+  assert.equal(gate.decision, "accept");
   assert.equal(check.exitCode, 0, check.stderr);
   assert.ok(JSON.parse(check.stdout).checks.every((item) => item.ok));
+}
+
+async function assertQuickstartFixturesMatch(cwd) {
+  for (const filename of ["verdict.json", "review-bundle.json", "gate.json"]) {
+    const generated = JSON.parse(await readFile(join(cwd, filename), "utf8"));
+    const expected = JSON.parse(await readFile(join(ciQuickstartFixturesDir, filename), "utf8"));
+
+    assert.deepEqual(generated, expected, `${filename} should match quickstart fixture`);
+  }
 }
 
 function extractShellBlock(markdown, heading) {

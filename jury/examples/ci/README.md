@@ -33,7 +33,7 @@ jobs:
           node jury/bin/jury.mjs critic run --state-dir .jury --claim claim_ci_change --role scope --changed-files jury/bin/jury.mjs,jury/test/jury.test.mjs
           node jury/bin/jury.mjs check update --state-dir .jury --id check_ci_tests --status passed --evidence ev_ci_tests --resolution "Jury tests passed"
           node jury/bin/jury.mjs judge --state-dir .jury --claim claim_ci_change --out verdict.json
-          node jury/bin/jury.mjs gate --state-dir .jury --claim claim_ci_change --verdict verdict.json
+          node jury/bin/jury.mjs gate --state-dir .jury --claim claim_ci_change --verdict verdict.json --json > gate.json
           node jury/bin/jury.mjs bundle export --state-dir .jury --claim claim_ci_change --out review-bundle.json
           node jury/bin/jury.mjs check --state-dir .jury --strict
       - name: Upload Jury artifacts
@@ -43,7 +43,8 @@ jobs:
           path: |
             verdict.json
             review-bundle.json
+            gate.json
             .jury/*.jsonl
 ```
 
-The gate exits non-zero unless the verdict is `accept`. When `--claim` is present, the gate output includes unresolved blocking objections and missing fields so CI logs show the exact reason for failure. `review-bundle.json` lets another job import and replay the same review state.
+The gate exits non-zero unless the verdict is `accept`. When `--claim` is present, the gate output includes unresolved blocking objections and missing fields so CI logs show the exact reason for failure. [fixtures/quickstart](fixtures/quickstart) shows the expected `verdict.json`, `review-bundle.json`, and `gate.json` outputs. `review-bundle.json` lets another job import and replay the same review state.
