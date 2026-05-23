@@ -323,7 +323,8 @@ async function injectPrecedent() {
       changedFiles: parseListArg(args["changed-files"]),
     }),
   });
-  const matches = selected.matches.slice(0, Number(args.limit ?? runtimeConfig.maxInjections));
+  const applicabilitySelected = suppressApplicabilityInjections(selected.matches);
+  const matches = applicabilitySelected.matches.slice(0, Number(args.limit ?? runtimeConfig.maxInjections));
 
   print({
     task,
@@ -334,8 +335,12 @@ async function injectPrecedent() {
       matchReasons: match.matchReasons ?? [],
       injection: match.injection,
       sourceTrace: match.source_trace,
+      applicabilityReceipt: match.applicabilityReceipt,
     })),
-    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
+    suppressedInjections: [
+      ...selected.suppressed.map(formatSuppressedInjection),
+      ...applicabilitySelected.suppressed.map(formatSuppressedInjection),
+    ],
   });
 }
 
@@ -383,16 +388,16 @@ async function exportContext() {
       matches: rankPrecedents(precedents, context)
         .filter((precedent) => precedent.score >= threshold),
     });
-    const rankedMatches = replayAuditSelected.matches.slice(0, limit);
     const lifecycleSelected = suppressLifecycleInjections({
       events,
-      matches: rankedMatches,
+      matches: replayAuditSelected.matches.slice(0, limit),
       includeStale: args["include-stale"] === "true" || args["include-stale"] === true,
     });
+    const applicabilitySelected = suppressApplicabilityInjections(lifecycleSelected.matches);
     const selected = await suppressRepeatedSessionInjections({
       stateDir,
       sessionId: args.session ?? null,
-      matches: lifecycleSelected.matches,
+      matches: applicabilitySelected.matches,
       allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
     });
     const contextBlock = formatInjectionBlock(selected.matches);
@@ -406,6 +411,7 @@ async function exportContext() {
     const suppressedInjections = [
       ...replayAuditSelected.suppressed.map(formatSuppressedInjection),
       ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
+      ...applicabilitySelected.suppressed.map(formatSuppressedInjection),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
     const revisionBriefs = revisionBriefsForSuppressed(events, lifecycleSelected.suppressed);
@@ -574,10 +580,11 @@ async function issueWarrant() {
       matches: replayAuditSelected.matches.slice(0, limit),
       includeStale: args["include-stale"] === "true" || args["include-stale"] === true,
     });
+    const applicabilitySelected = suppressApplicabilityInjections(lifecycleSelected.matches);
     const selected = await suppressRepeatedSessionInjections({
       stateDir,
       sessionId,
-      matches: lifecycleSelected.matches,
+      matches: applicabilitySelected.matches,
       allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
     });
     const candidateHints = candidateHintsForContext({
@@ -1296,8 +1303,12 @@ async function beforeTurnHook() {
       matches: rankPrecedents(precedents, context)
         .filter((precedent) => precedent.score >= threshold),
     });
-    matches = selected.matches.slice(0, limit);
-    suppressed = selected.suppressed.map(formatSuppressedInjection);
+    const applicabilitySelected = suppressApplicabilityInjections(selected.matches);
+    matches = applicabilitySelected.matches.slice(0, limit);
+    suppressed = [
+      ...selected.suppressed.map(formatSuppressedInjection),
+      ...applicabilitySelected.suppressed.map(formatSuppressedInjection),
+    ];
     block = formatInjectionBlock(matches);
     const event = {
       type: "context_before_turn",
@@ -1391,16 +1402,18 @@ async function contextBeforeTurnEventHook(event) {
       matches: replayAuditSelected.matches.slice(0, limit),
       includeStale: event.includeStale === true,
     });
+    const applicabilitySelected = suppressApplicabilityInjections(lifecycleSelected.matches);
     const selected = await suppressRepeatedSessionInjections({
       stateDir,
       sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
-      matches: lifecycleSelected.matches,
+      matches: applicabilitySelected.matches,
       allowRepeat: event.allowRepeat === true,
     });
     matches = selected.matches;
     suppressed = [
       ...replayAuditSelected.suppressed.map(formatSuppressedInjection),
       ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
+      ...applicabilitySelected.suppressed.map(formatSuppressedInjection),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
     revisionBriefs = revisionBriefsForSuppressed(events, lifecycleSelected.suppressed);
@@ -3459,6 +3472,7 @@ function rankPrecedents(precedents, context) {
         ...precedent,
         score: match.score,
         matchReasons: match.reasons,
+        applicabilityReceipt: applicabilityReceiptForMatch(match.reasons),
       };
     })
     .filter((precedent) => precedent.score > 0)
@@ -3533,6 +3547,39 @@ function scorePrecedent(precedent, context) {
   return { score, reasons };
 }
 
+function applicabilityReceiptForMatch(reasons) {
+  const anchors = reasons
+    .filter((reason) => reason.type === "scope_match" || reason.type === "path_match")
+    .map((reason) => reason.type);
+
+  return {
+    status: anchors.length > 0 ? "anchored" : "unanchored",
+    anchors: uniqueStrings(anchors),
+    required: ["scope_match", "path_match"],
+  };
+}
+
+function suppressApplicabilityInjections(matches) {
+  const selected = [];
+  const suppressed = [];
+
+  for (const match of matches) {
+    const receipt = match.applicabilityReceipt ?? applicabilityReceiptForMatch(match.matchReasons ?? []);
+    if (receipt.status === "anchored") {
+      selected.push({ ...match, applicabilityReceipt: receipt });
+      continue;
+    }
+
+    suppressed.push({
+      ...match,
+      applicabilityReceipt: receipt,
+      suppressionReason: "applicability_unanchored",
+    });
+  }
+
+  return { matches: selected, suppressed };
+}
+
 function formatInjectionBlock(matches) {
   if (matches.length === 0) {
     return "";
@@ -3556,6 +3603,7 @@ function formatInjection(match) {
     artifact: match.artifact,
     injection: redactSecrets(match.injection).value,
     sourceTrace: match.source_trace,
+    applicabilityReceipt: match.applicabilityReceipt ?? null,
   };
 }
 
@@ -3565,6 +3613,9 @@ function formatSuppressedInjection(match, events = null) {
     score: match.score,
     reason: match.suppressionReason ?? "already_injected_in_session",
   };
+  if (match.applicabilityReceipt) {
+    formatted.applicabilityReceipt = match.applicabilityReceipt;
+  }
   if (match.suppressionReason === "replay_audit_failed") {
     formatted.replayAuditStatus = match.replayAuditStatus ?? null;
     formatted.replayAuditMessages = Array.isArray(match.replayAuditMessages) ? match.replayAuditMessages : [];
@@ -3789,8 +3840,7 @@ function candidateHintsForContext({ candidates, precedents, context, stateDir, s
   return candidates
     .filter((candidate) =>
       candidate.status === "candidate"
-      && !promotedIds.has(candidate.id)
-      && (candidateOverlapsContext(candidate, context) || scorePrecedent(candidate, context).score > 0))
+      && !promotedIds.has(candidate.id))
     .map((candidate) => {
       const match = scorePrecedent(candidate, context);
 
@@ -3798,8 +3848,10 @@ function candidateHintsForContext({ candidates, precedents, context, stateDir, s
         ...candidate,
         score: match.score,
         matchReasons: match.reasons,
+        applicabilityReceipt: applicabilityReceiptForMatch(match.reasons),
       };
     })
+    .filter((candidate) => candidate.score > 0 && candidate.applicabilityReceipt.status === "anchored")
     .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
     .slice(0, limit)
     .map((candidate) => formatCandidateHint(candidate, stateDir, sessionId));
@@ -3842,6 +3894,7 @@ function formatCandidateHint(candidate, stateDir, sessionId) {
     replayRequired: true,
     promotionRequired: candidate.promotion_required ?? "Replay before promotion.",
     matchReasons: candidate.matchReasons ?? [],
+    applicabilityReceipt: candidate.applicabilityReceipt ?? null,
     suggestedAction: "Run a promotion trial with a failing baseline command before trusting this candidate.",
     artifact: {
       path: artifact.path,

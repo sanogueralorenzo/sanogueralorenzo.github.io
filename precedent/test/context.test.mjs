@@ -70,6 +70,57 @@ test("context supports task files and markdown output", async () => {
   }
 });
 
+test("context and inject suppress text-only unanchored precedent matches", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-context-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const genericTask = "run test webhooks provider boundary nullable payload helpers";
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      genericTask,
+      "--json",
+    ]);
+
+    assert.equal(context.contextBlock, "");
+    assert.deepEqual(context.injections, []);
+    assert.equal(context.suppressedInjections[0].reason, "applicability_unanchored");
+    assert.equal(context.suppressedInjections[0].applicabilityReceipt.status, "unanchored");
+
+    const inject = await runJson([
+      "inject",
+      "--state-dir",
+      stateDir,
+      "--task",
+      genericTask,
+      "--json",
+    ]);
+    assert.deepEqual(inject.injections, []);
+    assert.equal(inject.suppressedInjections[0].reason, "applicability_unanchored");
+
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "generic-session",
+      "--event-id",
+      "generic-warrant",
+      "--task",
+      genericTask,
+      "--json",
+    ]);
+    assert.deepEqual(warrant.sources.precedentIds, []);
+    assert.deepEqual(warrant.requiredEvidence, []);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("context suppresses repeated session injections", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-context-test-"));
 
@@ -238,6 +289,16 @@ test("context surfaces non-injectable candidate hints", async () => {
     assert.equal(report.candidateHintQueue.blocked, 1);
     assert.equal(report.candidateHintQueue.items[0].candidateId, "cand_feature_webhooks_wrong_test_command");
     assert.match(report.candidateHintQueue.items[0].artifact.path, /artifacts\/cand_feature_webhooks_wrong_test_command\/SKILL\.md$/u);
+
+    const generic = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "wrong test command webhook provider boundary",
+      "--json",
+    ]);
+    assert.deepEqual(generic.candidateHints, []);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
