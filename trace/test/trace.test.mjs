@@ -274,6 +274,8 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.equal(sessionRecapJson.session, payload.session);
     assert.equal(sessionRecapJson.events, 4);
     assert.equal(sessionRecapJson.commitMemoryEvents, 4);
+    assert.deepEqual(sessionRecapJson.sections.agents, []);
+    assert.deepEqual(sessionRecapJson.sections.lifecycle, ["total: 4", "prompt: 1", "response: 1", "tool: 1", "decision: 1"]);
     assert.deepEqual(sessionRecapJson.sections.prompts, ["remember why app text exists"]);
     assert.deepEqual(sessionRecapJson.sections.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(sessionRecapJson.sections.handoff, ["Preserve the decision: Use committed Markdown for reviewable memory"]);
@@ -1676,6 +1678,14 @@ test("agent adapters normalize Codex Claude Code Gemini and generic lifecycle ev
     const shown = JSON.parse((await runTrace(repo, ["session", "show", "adapter-session", "--limit", "2"])).stdout);
     assert.equal(shown.session, "adapter-session");
     assert.deepEqual(shown.events.map((event) => event.event), ["note", "validation"]);
+
+    const agentRecap = await runTrace(repo, ["session", "recap", "adapter-session", "--field", "agents"]);
+    assert.match(agentRecap.stdout, /Field: `agents`/);
+    assert.match(agentRecap.stdout, /## Agents\n\n- adapter: codex\n- adapter: claude-code\n- adapter: gemini\n- adapter: generic/);
+
+    const lifecycleRecap = JSON.parse((await runTrace(repo, ["session", "recap", "adapter-session", "--field", "lifecycle", "--json"])).stdout);
+    assert.deepEqual(Object.keys(lifecycleRecap.sections), ["lifecycle"]);
+    assert.deepEqual(lifecycleRecap.sections.lifecycle, ["total: 8", "prompt: 1", "response: 1", "tool: 1", "decision: 1"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

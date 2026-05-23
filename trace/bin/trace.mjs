@@ -1635,6 +1635,8 @@ async function sessionRecap(root, sessionId, events, limit) {
     ...extracted.risks,
   ];
   const notes = commitMemoryEvents.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map(eventMessage);
+  const agents = memoryAgentItems(commitMemoryEvents);
+  const lifecycle = memoryLifecycleItems(commitMemoryEvents);
 
   return {
     ok: true,
@@ -1646,6 +1648,8 @@ async function sessionRecap(root, sessionId, events, limit) {
     omittedLifecycleEvents: events.length - commitMemoryEvents.length,
     counts: eventCounts(events),
     sections: {
+      agents: await recapItems(root, agents, limit),
+      lifecycle: await recapItems(root, lifecycle, limit),
       prompts: await recapItems(root, prompts, limit),
       responses: await recapItems(root, responses, limit),
       tools: await recapItems(root, tools, limit),
@@ -1820,6 +1824,16 @@ function normalizeRecapField(value) {
     intents: "prompts",
     prompt: "prompts",
     prompts: "prompts",
+    agent: "agents",
+    agents: "agents",
+    adapter: "agents",
+    adapters: "agents",
+    source: "agents",
+    sources: "agents",
+    lifecycle: "lifecycle",
+    event: "lifecycle",
+    events: "lifecycle",
+    counts: "lifecycle",
     response: "responses",
     responses: "responses",
     tool: "tools",
@@ -1845,6 +1859,8 @@ function normalizeRecapField(value) {
 
 function recapSectionEntries(field = "all") {
   const entries = [
+    ["agents", "Agents"],
+    ["lifecycle", "Lifecycle"],
     ["prompts", "Intent Signals"],
     ["responses", "Responses"],
     ["tools", "Tool Activity"],
@@ -4004,7 +4020,7 @@ Usage:
   trace session list
   trace session current
   trace session show <session> [--limit 20]
-  trace session recap [session] [--field intent|responses|tools|decisions|validation|risks|handoff|notes] [--limit 5] [--json] [--output FILE]
+  trace session recap [session] [--field agents|lifecycle|intent|responses|tools|decisions|validation|risks|handoff|notes] [--limit 5] [--json] [--output FILE]
   trace session check [session] [--strict] [--json]
   trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list
