@@ -15,7 +15,9 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
   expression, freshness policy, access mode, trust zone/source, and optional
   capability coverage.
 - `CapabilityDecl`: named permission grant with family, action, constraints,
-  and optional approval policy.
+  structured grant objects, and optional approval policy.
+- `CapabilityGrant`: structured capability body grant with action path,
+  constraints, raw text, and source span.
 - `MemoryDecl`: scoped state or retained evidence with one or more retention
   lifecycle rules.
 - `MemoryRetention`: structured `retain ... until ...` rule with retained
@@ -98,6 +100,8 @@ Rules:
 - Offsets are zero-based UTF-8 byte offsets for tools.
 - Spans include leading keywords and exclude trailing unrelated whitespace.
 - Generated graph nodes keep `span` from the AST node that caused them.
+- Structured capability grants keep `span` from the exact grant line that
+  caused the grant object, not from the surrounding capability block.
 
 ## JSON Output Contracts
 
@@ -304,6 +308,9 @@ blocking diagnostics.
   source file paths, context source web domains, web/http read domains, and git
   commit messages, git push branches or remotes, secret read names, ticket
   update ids, and deploy targets.
+- Preserve grant-level source spans when capability body grants are parsed, and
+  use those spans in AST output, graph capability grants, allowed-grant
+  diagnostics, and provenance metadata.
 - Treat effects covered by a capability with `approval required` as requiring a
   step-local `approval ...` gate, and emit `INTENT_APPROVAL_MISSING` when the
   owning step has no approval gate.
@@ -420,6 +427,41 @@ Rules:
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
+
+## Capability Grants
+
+Capability bodies preserve every body line as raw text. Body lines that match a
+supported grant shape are also parsed into structured `CapabilityGrant` entries:
+
+```intent
+capability files {
+  read path: "./src/**"
+  file.read(path: "intent/STATIC_MODEL.md")
+}
+```
+
+```json
+{
+  "kind": "CapabilityGrant",
+  "actionPath": "read",
+  "constraints": [{ "key": "path", "value": "./src/**", "span": "loc.8" }],
+  "raw": "read path: \"./src/**\"",
+  "span": "loc.8"
+}
+```
+
+Rules:
+
+- `span` is required on every structured grant object.
+- The grant span covers the exact grant line, including the action path and
+  constraint text, and excludes trailing unrelated whitespace.
+- Constraint values keep their own token spans for argument-level diagnostics.
+- Parsed dotted grant calls retain the dotted action path and ordered arguments
+  from the source call.
+- Graph `Capability` node `data.grants` entries carry the same grant-level
+  `span` as the AST `CapabilityGrant`.
+- Diagnostics and provenance that mention allowed grants must use the
+  grant-level span when a structured grant is available.
 
 ## Context Sources
 
@@ -1300,7 +1342,10 @@ browser/page state use untrusted external trust metadata.
 
 Capability nodes carry normalized grants and any approval policy parsed from
 the capability block. A body line of `approval required` is represented as
-`data.approvalPolicy: "required"` on the `Capability` node.
+`data.approvalPolicy: "required"` on the `Capability` node. Each structured
+entry in `data.grants` carries the source `span` of its grant line, so
+capability authorization, diagnostics, and runtime provenance can point to the
+grant that authorized an effect or context source.
 
 Step requirement nodes are `Check` nodes scoped to one owning step. They create
 `requires` edges into that step and `gates` edges to the owning goal. They are
@@ -1358,4 +1403,5 @@ unviolated.
 The runtime must treat the graph as authoritative: it may execute only graph
 nodes, may invoke only authorized effects, must preserve guard and approval
 edges, and must record provenance back to the source span for every final
-output.
+output. When an output is authorized by a capability grant, provenance should
+prefer the grant object's `span` over the enclosing `Capability` node span.

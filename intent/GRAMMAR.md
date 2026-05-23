@@ -62,8 +62,16 @@ dependency edges.
 context_block    = "context", s, call_expr, line_end ;
 capability_block = "capability", s, identifier, ws, "{", ws,
                    { capability_stmt, ws }, "}" ;
-capability_stmt  = capability_approval_stmt | raw_capability_stmt ;
+capability_stmt  = capability_approval_stmt
+                 | capability_grant_stmt
+                 | raw_capability_stmt ;
 capability_approval_stmt = "approval", s, "required", line_end ;
+capability_grant_stmt = capability_line_grant_stmt
+                      | capability_call_grant_stmt ;
+capability_line_grant_stmt = identifier_path, s, [ grant_arg, { s, grant_arg } ],
+                             line_end ;
+capability_call_grant_stmt = call_expr, line_end ;
+grant_arg       = identifier, ws, ":", ws, arg_value ;
 raw_capability_stmt = raw_text_until_terminator, line_end ;
 memory_block     = "memory", s, identifier, ws, "{", ws,
                    { memory_stmt, ws }, "}" ;
@@ -93,7 +101,12 @@ are treated as trusted local sources and must be covered by an in-scope
 `file read path` capability. If no matching capability covers a structured web
 or documents context source, the checker emits `INTENT_CONTEXT_UNDECLARED`.
 `capability` bodies are parsed as statement lists whose items are preserved as
-raw spanned lines. A capability body may contain `approval required`; the
+raw spanned lines. Grant lines such as `read path: "./src/**"` and parsed dotted
+grant calls such as `git.commit(message: "ship fix")` are also retained as
+structured grant objects. Each structured grant object must carry a `span` for
+the exact grant line, so AST output, graph `Capability` node `grants`, and
+diagnostics/provenance can point to the grant instead of only the surrounding
+capability block. A capability body may contain `approval required`; the
 checker treats effects authorized by that capability as requiring a step-local
 `approval ...` gate. `memory` bodies are parsed as statement lists, and every
 `retain ... until ...` line is additionally parsed into structured
