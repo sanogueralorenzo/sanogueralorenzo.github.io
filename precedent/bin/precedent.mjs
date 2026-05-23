@@ -596,6 +596,7 @@ async function issueWarrant() {
     let matches = [];
     let candidateHints = [];
     let deliveryReceipt = null;
+    let deliveryAck = null;
 
     if (explicitDeliveryId) {
       deliveryReceipt = await findDeliveryReceipt(stateDir, explicitDeliveryId);
@@ -604,6 +605,10 @@ async function issueWarrant() {
       }
       if (deliveryReceipt.sessionId !== sessionId) {
         fail(`warrant --delivery-id session mismatch: ${deliveryReceipt.sessionId} !== ${sessionId}`);
+      }
+      deliveryAck = await findContextInjectionAck(stateDir, explicitDeliveryId);
+      if (deliveryAck?.status !== "accepted") {
+        fail(`warrant --delivery-id is not accepted by context.after_inject: ${deliveryAck?.status ?? "missing_ack"}`);
       }
       matches = precedentsForDeliveryReceipt(precedents, deliveryReceipt);
     } else {
@@ -648,6 +653,7 @@ async function issueWarrant() {
       matches,
       candidateHints,
       deliveryReceipt,
+      deliveryAck,
       turnDirectives,
     });
     const sessionEvent = await appendSessionEvent(stateDir, {
@@ -662,6 +668,7 @@ async function issueWarrant() {
       warrantId: warrant.warrantId,
       warrant,
       deliveryReceipt,
+      deliveryAck,
       turnDirectives,
     });
 
@@ -4866,7 +4873,7 @@ function contextBlockHash(contextBlock) {
   return sha256Text(typeof contextBlock === "string" ? contextBlock : "");
 }
 
-function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt, turnDirectives }) {
+function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt, deliveryAck, turnDirectives }) {
   const directives = turnDirectives ?? emptyTurnDirectives();
   const allowed = {
     paths: warrantAllowedPaths(matches, context, directives),
@@ -4923,6 +4930,7 @@ function warrantForContext({ sessionId, eventId, issuedAt, task, context, matche
     ],
     sources,
     deliveryReceipt,
+    deliveryAck: deliveryAck ?? null,
     status: "issued",
   }).value;
 }
@@ -5663,6 +5671,7 @@ function guardChecksWithStatus(checks, status, observedAt, hook, sessionId) {
 async function activeInjectionIdsForSession(stateDir, sessionId) {
   const events = await readSessionEvents(stateDir, sessionId);
   const ids = [];
+  const acceptedDeliveryIds = acceptedContextDeliveryIds(events);
 
   for (const event of events) {
     if (event.hook === "outcome.after_task") {
@@ -5671,6 +5680,10 @@ async function activeInjectionIdsForSession(stateDir, sessionId) {
     }
 
     if (event.hook === "context.before_turn" || event.hook === "context.export") {
+      const receipt = event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null;
+      if (receipt?.deliveryId && !acceptedDeliveryIds.has(receipt.deliveryId)) {
+        continue;
+      }
       ids.push(...(Array.isArray(event.injections) ? event.injections : []));
     }
   }
@@ -5707,7 +5720,8 @@ async function precedentIdsForDelivery(stateDir, deliveryId) {
   }
 
   const receipt = await findDeliveryReceipt(stateDir, deliveryId.trim());
-  return Array.isArray(receipt?.injectedPrecedentIds) ? receipt.injectedPrecedentIds : [];
+  const ack = receipt ? await findContextInjectionAck(stateDir, deliveryId.trim()) : null;
+  return ack?.status === "accepted" && Array.isArray(receipt?.injectedPrecedentIds) ? receipt.injectedPrecedentIds : [];
 }
 
 async function findDeliveryReceipt(stateDir, deliveryId) {
@@ -5721,6 +5735,35 @@ async function findDeliveryReceipt(stateDir, deliveryId) {
   }
 
   return null;
+}
+
+async function findContextInjectionAck(stateDir, deliveryId) {
+  if (!nonEmptyString(deliveryId)) {
+    return null;
+  }
+
+  for (const entry of await runtimeSessionEntries(stateDir)) {
+    const ack = entry.events
+      .filter((event) =>
+        event.hook === "context.after_inject"
+        && event.contextInjectionAck?.deliveryId === deliveryId)
+      .map((event) => event.contextInjectionAck)
+      .at(-1);
+    if (ack) {
+      return ack;
+    }
+  }
+
+  return null;
+}
+
+function acceptedContextDeliveryIds(events) {
+  return new Set((events ?? [])
+    .filter((event) =>
+      event.hook === "context.after_inject"
+      && event.contextInjectionAck?.status === "accepted"
+      && nonEmptyString(event.contextInjectionAck.deliveryId))
+    .map((event) => event.contextInjectionAck.deliveryId));
 }
 
 function precedentsForDeliveryReceipt(precedents, receipt) {

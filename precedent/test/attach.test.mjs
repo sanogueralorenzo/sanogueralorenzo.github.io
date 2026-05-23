@@ -263,6 +263,15 @@ test("attach contract drives injection and outcome attribution", async () => {
     assert.equal(secondTurn.injections.length, 0);
     assert.equal(secondTurn.suppressedInjections.length, 1);
 
+    await runJsonFromCommand(adapter.adapter.afterInject.command, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: adapter.sessionId,
+      eventId: "ack-1",
+      deliveryId: firstTurn.deliveryReceipt.deliveryId,
+      contextBlockHash: firstTurn.contextBlockHash,
+      inserted: true,
+    });
     await runJsonFromCommand(adapter.adapter.afterValidation.command, {
       schema_version: "precedent.v1",
       hook: "validation.after_run",
@@ -362,6 +371,7 @@ test("attach-run executes an ordinary session with automatic attribution", async
     assert.equal(run.injectionAck.status, "accepted");
     assert.equal(run.injectionAck.ack.contextInjectionAck.contextBlockHash, run.beforeTurn.contextBlockHash);
     assert.equal(run.warrant.deliveryReceipt.deliveryId, run.beforeTurn.deliveryReceipt.deliveryId);
+    assert.equal(run.warrant.deliveryAck.status, "accepted");
     assert.equal(run.warrant.sources.precedentIds[0], "prec_webhook_replay_boundary");
     assert.equal(run.warrant.requiredEvidence[0].command, "pnpm test:webhooks");
     assert.equal(run.validation.validation.exitCode, 0);

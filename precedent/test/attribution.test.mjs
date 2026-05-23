@@ -189,6 +189,15 @@ test("delivery receipts preserve outcome attribution across runtime sessions", a
 
     await runJson(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "delivery-origin",
+      eventId: "ack-1",
+      deliveryId: context.deliveryReceipt.deliveryId,
+      contextBlockHash: context.contextBlockHash,
+      inserted: true,
+    });
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
       hook: "outcome.after_task",
       sessionId: "delivery-outcome",
       deliveryId: context.deliveryReceipt.deliveryId,
@@ -201,6 +210,95 @@ test("delivery receipts preserve outcome attribution across runtime sessions", a
     assert.equal(health.injectionCount, 1);
     assert.equal(health.successCount, 1);
     assert.equal(health.failureCount, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("delivery receipts require accepted injection acknowledgements for attribution", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--session",
+      "unacked-delivery-origin",
+      "--event-id",
+      "turn-1",
+      "--json",
+    ]);
+    assert.equal(context.injections.length, 1);
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "unacked-delivery-outcome",
+      deliveryId: context.deliveryReceipt.deliveryId,
+      success: true,
+      notes: "delivery was never acknowledged",
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.injectionCount, 1);
+    assert.equal(health.successCount, 0);
+    assert.equal(report.runtimeWiringHealth.unackedDeliveries, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("rejected delivery acknowledgements do not count as attribution", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--session",
+      "rejected-delivery-origin",
+      "--event-id",
+      "turn-1",
+      "--json",
+    ]);
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "rejected-delivery-origin",
+      eventId: "ack-1",
+      deliveryId: context.deliveryReceipt.deliveryId,
+      contextBlockHash: context.contextBlockHash,
+      inserted: false,
+      reason: "host dropped context",
+    });
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "rejected-delivery-outcome",
+      deliveryId: context.deliveryReceipt.deliveryId,
+      success: true,
+      notes: "rejected delivery should not attribute",
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.successCount, 0);
+    assert.equal(report.runtimeWiringHealth.rejectedInjectionAcks, 1);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

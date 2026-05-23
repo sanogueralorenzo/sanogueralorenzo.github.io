@@ -90,6 +90,15 @@ test("warrant can bind to an already delivered context receipt", async () => {
     ]);
     assert.equal(beforeTurn.injections.length, 1);
     assert.equal(repeated.injections.length, 0);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "delivery-bound-session",
+      eventId: "ack-1",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      contextBlockHash: beforeTurn.contextBlockHash,
+      inserted: true,
+    });
 
     const warrant = await runJson([
       "warrant",
@@ -111,8 +120,112 @@ test("warrant can bind to an already delivered context receipt", async () => {
     ]);
 
     assert.equal(warrant.deliveryReceipt.deliveryId, beforeTurn.deliveryReceipt.deliveryId);
+    assert.equal(warrant.deliveryAck.status, "accepted");
     assert.deepEqual(warrant.sources.precedentIds, ["prec_webhook_replay_boundary"]);
     assert.equal(warrant.requiredEvidence[0].command, "pnpm test:webhooks");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("warrant rejects unacknowledged delivery receipts", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "unacked-delivery",
+      "--event-id",
+      "turn-1-context",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    const result = await runProcess([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "unacked-delivery",
+      "--event-id",
+      "turn-1-warrant",
+      "--delivery-id",
+      beforeTurn.deliveryReceipt.deliveryId,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /missing_ack/u);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("warrant rejects mismatched delivery acknowledgements", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-warrant-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "mismatched-delivery",
+      "--event-id",
+      "turn-1-context",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "mismatched-delivery",
+      eventId: "ack-1",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      contextBlockHash: "0".repeat(64),
+      inserted: true,
+    });
+    const result = await runProcess([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "mismatched-delivery",
+      "--event-id",
+      "turn-1-warrant",
+      "--delivery-id",
+      beforeTurn.deliveryReceipt.deliveryId,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /mismatch/u);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
