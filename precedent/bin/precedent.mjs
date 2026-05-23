@@ -1633,7 +1633,15 @@ async function conversationObserveEventHook(event) {
   const eventId = hookEventId(event);
   const messages = conversationMessages(event);
   const correctionSignals = conversationCorrectionSignals(messages);
-  const contextBlock = formatCorrectionContextBlock(correctionSignals);
+  const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
+  const correctionSafetyReceipt = correctionSafetyReceiptFor({
+    event,
+    messages,
+    correctionSignals,
+    changedFiles,
+  });
+  const acceptedCorrectionSignals = correctionSafetyReceipt.status === "accepted" ? correctionSignals : [];
+  const contextBlock = formatCorrectionContextBlock(acceptedCorrectionSignals);
   let sessionEvent = null;
 
   await withStateLock(stateDir, async () => {
@@ -1646,9 +1654,11 @@ async function conversationObserveEventHook(event) {
       ...eventIdField(eventId),
       task: typeof event.task === "string" ? event.task : null,
       scope: typeof event.scope === "string" ? event.scope : null,
-      changedFiles: Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles),
+      changedFiles,
       messages,
       correctionSignals,
+      acceptedCorrectionSignals,
+      correctionSafetyReceipt,
       contextBlock,
     });
 
@@ -1663,6 +1673,8 @@ async function conversationObserveEventHook(event) {
         scope: sessionEvent.event.scope,
         changedFiles: sessionEvent.event.changedFiles,
         correctionSignals: sessionEvent.event.correctionSignals,
+        acceptedCorrectionSignals: sessionEvent.event.acceptedCorrectionSignals,
+        correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
         contextBlock: sessionEvent.event.contextBlock,
       });
     }
@@ -1678,7 +1690,10 @@ async function conversationObserveEventHook(event) {
     observation: {
       messages: sessionEvent.event.messages,
       correctionSignals: sessionEvent.event.correctionSignals,
+      acceptedCorrectionSignals: sessionEvent.event.acceptedCorrectionSignals,
+      correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
     },
+    correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
     contextBlock: sessionEvent.event.contextBlock,
   });
 }
@@ -2366,7 +2381,7 @@ function buildManifest(runtime, stateDir) {
       "conversation.observe": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "contextBlock"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -2635,7 +2650,7 @@ async function attachRuntime() {
       },
       conversationObserve: {
         command: hookCommand,
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "contextBlock"],
         injectFrom: "contextBlock",
         stdin: {
           schema_version: SCHEMA_VERSION,
@@ -3513,6 +3528,7 @@ async function checkState() {
   await checkReplayArtifacts(checks, join(stateDir, "replays"));
   await checkPromotedPrecedents(checks, stateDir);
   await checkRepairReceipts(checks, stateDir);
+  await checkCorrectionSafety(checks, stateDir, args.strict === true);
   await checkRuntimeWiring(checks, stateDir, args.strict === true);
   await checkWarrants(checks, stateDir, args.strict === true);
   await checkNoRawSecrets(checks, stateDir);
@@ -5867,7 +5883,7 @@ async function traceFromSession(stateDir, sessionId) {
     .flatMap((event) => Array.isArray(event.comments) ? event.comments : [])
     .map((comment) => `review: ${comment}`);
   const observationFailures = observations
-    .flatMap((event) => Array.isArray(event.correctionSignals) ? event.correctionSignals : [])
+    .flatMap((event) => Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : [])
     .map(formatCorrectionFailureForTrace);
   const guardFailures = events
     .flatMap((event) => Array.isArray(event.guardResult?.failed) ? event.guardResult.failed : [])
@@ -5894,6 +5910,8 @@ async function traceFromSession(stateDir, sessionId) {
   const observationEvidence = observations.length > 0
     ? {
       correctionSignals: observations.flatMap((event) => Array.isArray(event.correctionSignals) ? event.correctionSignals : []),
+      acceptedCorrectionSignals: observations.flatMap((event) => Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : []),
+      safetyReceipts: observations.map((event) => event.correctionSafetyReceipt).filter(Boolean),
       changedFiles: uniqueStrings(observations.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : [])),
     }
     : null;
@@ -5935,6 +5953,8 @@ function sessionTraceEvent(event) {
     comments: Array.isArray(event.comments) ? event.comments : [],
     messages: Array.isArray(event.messages) ? event.messages : [],
     correctionSignals: Array.isArray(event.correctionSignals) ? event.correctionSignals : [],
+    acceptedCorrectionSignals: Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : [],
+    correctionSafetyReceipt: event.correctionSafetyReceipt ?? null,
     command: event.command ?? null,
     exitCode: Number.isFinite(event.exitCode) ? event.exitCode : null,
     success: typeof event.success === "boolean" ? event.success : null,
@@ -6518,12 +6538,14 @@ function conversationMessages(event) {
       if (typeof message === "string") {
         return {
           role: "user",
+          trusted: true,
           content: message.trim(),
         };
       }
 
       return {
         role: typeof message?.role === "string" && message.role.trim().length > 0 ? message.role.trim() : "unknown",
+        trusted: typeof message?.trusted === "boolean" ? message.trusted : message?.role === "user",
         content: typeof message?.content === "string" ? message.content.trim() : "",
       };
     })
@@ -6553,6 +6575,60 @@ function conversationCorrectionSignals(messages) {
   }
 
   return uniqueBy(signals.filter((signal) => signal.expected && signal.actual), (signal) => `${signal.type}:${signal.expected}:${signal.actual}`);
+}
+
+function correctionSafetyReceiptFor({ event, messages, correctionSignals, changedFiles }) {
+  if (correctionSignals.length === 0) {
+    return {
+      status: "no_correction",
+      accepted: false,
+      reasons: [],
+      anchors: [],
+      commandSafety: [],
+      trustedSources: [],
+    };
+  }
+
+  const trustedSources = uniqueStrings(messages
+    .filter((message) => message.role === "user" && message.trusted !== false)
+    .map((message) => message.role));
+  const anchors = uniqueStrings([
+    ...(nonEmptyString(event.scope) ? ["scope"] : []),
+    ...(changedFiles.length > 0 ? ["path"] : []),
+  ]);
+  const commandSafety = correctionSignals.flatMap((signal) => {
+    if (signal.type !== "command_correction") {
+      return [];
+    }
+
+    return [
+      {
+        field: "expected",
+        command: signal.expected,
+        ...replayCommandSafety(signal.expected),
+      },
+      {
+        field: "actual",
+        command: signal.actual,
+        ...replayCommandSafety(signal.actual),
+      },
+    ];
+  });
+  const unsafeCommands = commandSafety.filter((item) => !item.safe);
+  const reasons = [
+    ...(trustedSources.length === 0 ? ["untrusted_source"] : []),
+    ...(anchors.length === 0 ? ["unanchored_context"] : []),
+    ...unsafeCommands.map((item) => `${item.field}_${item.reason}`),
+  ];
+
+  return {
+    status: reasons.length === 0 ? "accepted" : "quarantined",
+    accepted: reasons.length === 0,
+    reasons,
+    anchors,
+    commandSafety,
+    trustedSources,
+  };
 }
 
 function commandCorrectionSignal(expected, actual, role) {
@@ -6944,7 +7020,7 @@ function collectTraceEvidence(trace) {
   }
 
   const observation = trace.hooks?.["conversation.observe"];
-  for (const signal of Array.isArray(observation?.correctionSignals) ? observation.correctionSignals : []) {
+  for (const signal of Array.isArray(observation?.acceptedCorrectionSignals) ? observation.acceptedCorrectionSignals : []) {
     if (signal.type === "command_correction") {
       evidence.push(`conversation-correction: use ${signal.expected} instead of ${signal.actual}`);
     }
@@ -7572,6 +7648,52 @@ async function checkRepairReceipts(checks, stateDir) {
         : missingRetryEvidence.length > 0
           ? "resolved repair receipt lacks retry evidence"
           : undefined,
+  });
+}
+
+async function checkCorrectionSafety(checks, stateDir, strict) {
+  const file = join(stateDir, "sessions");
+  const violations = [];
+
+  for (const sessionFile of await jsonFiles(file, ".jsonl")) {
+    let events = [];
+    try {
+      events = await readJsonLinesForCheck(sessionFile);
+    } catch (error) {
+      checks.push({ ok: false, name: "correction_safety", file: sessionFile, message: error.message });
+      continue;
+    }
+
+    for (const event of events.filter((item) => item.hook === "conversation.observe")) {
+      const signals = Array.isArray(event.correctionSignals) ? event.correctionSignals : [];
+      if (signals.length === 0) {
+        continue;
+      }
+
+      const receipt = event.correctionSafetyReceipt;
+      if (!receipt || !["accepted", "quarantined", "no_correction"].includes(receipt.status)) {
+        violations.push({ sessionId: event.sessionId, eventId: event.eventId ?? null, reason: "missing_correction_safety_receipt" });
+      }
+      for (const signal of signals) {
+        if (!nonEmptyString(signal.source)) {
+          violations.push({ sessionId: event.sessionId, eventId: event.eventId ?? null, reason: "missing_correction_source" });
+        }
+      }
+      if (receipt?.status === "accepted" && (!Array.isArray(receipt.anchors) || receipt.anchors.length === 0)) {
+        violations.push({ sessionId: event.sessionId, eventId: event.eventId ?? null, reason: "accepted_correction_without_anchor" });
+      }
+    }
+  }
+
+  checks.push({
+    ok: !strict || violations.length === 0,
+    name: "correction_safety",
+    file,
+    strict,
+    violations,
+    message: strict && violations.length > 0
+      ? "conversation correction signals require safety receipts, trust source, and anchors"
+      : undefined,
   });
 }
 
