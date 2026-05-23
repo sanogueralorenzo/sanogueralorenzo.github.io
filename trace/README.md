@@ -84,6 +84,7 @@ trace record --validation "npm test"
 trace show HEAD
 trace show HEAD --json
 trace review
+trace review --output trace-review.md
 trace log
 trace log --json --limit 20
 trace index
@@ -175,6 +176,7 @@ node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
 node trace/bin/trace.mjs show HEAD --json
 node trace/bin/trace.mjs review
+node trace/bin/trace.mjs review --output trace-review.md
 node trace/bin/trace.mjs log
 node trace/bin/trace.mjs log --json --limit 20
 node trace/bin/trace.mjs index
@@ -236,7 +238,7 @@ node trace/bin/trace.mjs ci main..HEAD --strict-memory
 
 This keeps the project tree focused on reviewable memories while raw checkpoint data stays outside the normal branch history unless someone explicitly pushes the Trace ref.
 
-Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace review` shows the pending memory review queue with checkpoint/session identity, intent, summary, decisions, affected files, validation, risks, and future-agent handoff before those files are committed. `trace check` fails when Trace memory files are uncommitted, use an unsupported schema, point at a commit that is not reachable, are stored at the wrong commit-derived path, are missing checkpoint/session metadata, or are missing required sections, which makes that handoff explicit instead of silently pretending the memory is already durable. Add `--checkpoints` to also require a present, valid checkpoint ref with payloads for committed memories, and `--strict-memory` to require committed memories to contain intent, decision, and validation signals.
+Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace review` shows the pending memory review queue with checkpoint/session identity, intent, summary, decisions, affected files, validation, risks, and future-agent handoff before those files are committed. Add `--output <file>` to write that redacted review queue as Markdown or JSON while stdout returns a small schema-stable write result. `trace check` fails when Trace memory files are uncommitted, use an unsupported schema, point at a commit that is not reachable, are stored at the wrong commit-derived path, are missing checkpoint/session metadata, or are missing required sections, which makes that handoff explicit instead of silently pretending the memory is already durable. Add `--checkpoints` to also require a present, valid checkpoint ref with payloads for committed memories, and `--strict-memory` to require committed memories to contain intent, decision, and validation signals.
 
 `trace record` and the post-commit hook distill raw session events into compact commit memory. When a commit already has `Trace-Checkpoint` or `Trace-Session` trailers, `trace record` reuses those identities so manual recording stays aligned with hook-created commits. Repeated events are deduplicated, local session lifecycle notes are kept in the raw checkpoint but excluded from the reviewable summary, adapter/source provenance is promoted into the reviewable `Agents` section, event counts are promoted into the reviewable `Lifecycle` section, long entries are truncated, noisy sections are capped with an explicit omitted-events line, and labeled response lines such as `Decision:`, `Validation:`, and `Risk:` are promoted into the right memory sections. A short `Handoff` section is derived from the visible decision, validation, risks, and changed files so future agents know what to preserve or recheck while the full checkpoint remains available on the Trace ref. `trace record` emits a schema-stable JSON result with structured `memoryPreview` and `checkpointPreview` alongside write results, and `trace record --dry-run` previews the same Markdown and previews without writing `.trace/commits/` or updating `refs/trace/checkpoints`. Use `trace record --check-session` to fail before writing when the selected session only contains local lifecycle notes, and `trace record --check-session --strict` when the session must include intent, decision, and validation signals.
 

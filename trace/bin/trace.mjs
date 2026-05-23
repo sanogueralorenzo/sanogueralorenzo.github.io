@@ -2407,18 +2407,48 @@ async function reviewMemories() {
   }
 
   memories.sort((left, right) => right.created.localeCompare(left.created) || left.path.localeCompare(right.path));
-
-  if (args.json) {
-    print({ ok: true, mode: args.all ? "all" : "pending", memories });
+  const payload = reviewPayload(args.all ? "all" : "pending", memories);
+  const document = args.json ? `${JSON.stringify(payload, null, 2)}\n` : renderMemoryReview(payload);
+  if (args.output) {
+    const outputPath = resolve(args.output);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, document);
+    print({
+      ok: true,
+      schema_version: "trace.review_output.v1",
+      mode: payload.mode,
+      output: args.output,
+      memories: memories.length,
+      bytes: Buffer.byteLength(document),
+    });
     return;
   }
 
-  const lines = ["# Trace Memory Review", "", `Mode: ${args.all ? "all memories" : "pending memories"}`, `Memories: ${memories.length}`, ""];
-  if (memories.length === 0) {
-    lines.push(args.all ? "No Trace memories found." : "No pending Trace memories found.", "");
+  if (args.json) {
+    process.stdout.write(document);
+    return;
   }
 
-  for (const memory of memories) {
+  process.stdout.write(document);
+}
+
+function reviewPayload(mode, memories) {
+  return {
+    ok: true,
+    schema_version: "trace.review.v1",
+    mode,
+    memories,
+  };
+}
+
+function renderMemoryReview(payload) {
+  const all = payload.mode === "all";
+  const lines = ["# Trace Memory Review", "", `Mode: ${all ? "all memories" : "pending memories"}`, `Memories: ${payload.memories.length}`, ""];
+  if (payload.memories.length === 0) {
+    lines.push(all ? "No Trace memories found." : "No pending Trace memories found.", "");
+  }
+
+  for (const memory of payload.memories) {
     lines.push(`## ${memory.commit.slice(0, 12)} ${memory.title}`, "");
     lines.push(`Memory: \`${memory.path}\``);
     lines.push(`Status: ${memory.status}`);
@@ -2436,7 +2466,7 @@ async function reviewMemories() {
     lines.push("");
   }
 
-  process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 async function pendingMemoryStatuses(root) {
@@ -3950,7 +3980,7 @@ Usage:
   trace ci [range] [--agents] [--checkpoints] [--strict-memory]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--strict] [--dry-run]
   trace show [commit] [--json]
-  trace review [--all] [--json]
+  trace review [--all] [--json] [--output FILE]
   trace log [--limit 20] [--json]
   trace index
   trace search [--field agents|lifecycle|intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] [--output FILE] <query>

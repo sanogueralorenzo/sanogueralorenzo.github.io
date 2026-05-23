@@ -682,6 +682,7 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.match(review.stdout, /## Handoff\n\n- Last known validation: node --test/);
 
     const reviewJson = JSON.parse((await runTrace(repo, ["review", "--json"])).stdout);
+    assert.equal(reviewJson.schema_version, "trace.review.v1");
     assert.equal(reviewJson.mode, "pending");
     assert.equal(reviewJson.memories.length, 1);
     assert.equal(reviewJson.memories[0].status, "untracked");
@@ -689,6 +690,23 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.match(reviewJson.memories[0].session, /^[A-Za-z0-9-]+$/);
     assert.equal(reviewJson.memories[0].files, "- `check.txt`");
     assert.match(reviewJson.memories[0].handoff, /Last known validation: node --test/);
+
+    const reviewPath = join(repo, "trace-review.md");
+    const reviewWrite = JSON.parse((await runTrace(repo, ["review", "--output", reviewPath])).stdout);
+    assert.equal(reviewWrite.schema_version, "trace.review_output.v1");
+    assert.equal(reviewWrite.mode, "pending");
+    assert.equal(reviewWrite.output, reviewPath);
+    assert.equal(reviewWrite.memories, 1);
+    assert.equal(reviewWrite.bytes, (await readFile(reviewPath, "utf8")).length);
+    assert.match(await readFile(reviewPath, "utf8"), /# Trace Memory Review/);
+    assert.match(await readFile(reviewPath, "utf8"), /check committed trace state/);
+
+    const reviewJsonPath = join(repo, "trace-review.json");
+    const reviewJsonWrite = JSON.parse((await runTrace(repo, ["review", "--json", "--output", reviewJsonPath])).stdout);
+    assert.equal(reviewJsonWrite.schema_version, "trace.review_output.v1");
+    const reviewJsonFile = JSON.parse(await readFile(reviewJsonPath, "utf8"));
+    assert.equal(reviewJsonFile.schema_version, "trace.review.v1");
+    assert.equal(reviewJsonFile.memories.length, 1);
 
     const dirty = await runTraceAllowFailure(repo, ["check"]);
     assert.equal(dirty.exitCode, 1);
