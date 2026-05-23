@@ -193,6 +193,25 @@ function relationshipErrors() {
   if (rollback.requiredNextAudit !== "replacement-patch-audit.json") {
     errors.push("rollback audit must require replacement-patch-audit.json");
   }
+  for (const artifact of [
+    "jury-package-dry-run",
+    "jury-package-release-evidence",
+    "jury-pack-dry-run-record.json",
+    "failed-npm-view.json",
+    "downstream-failure-gate.json",
+    "rollback-audit.json",
+    "GITHUB_STEP_SUMMARY",
+  ]) {
+    if (!rollback.retention?.artifacts?.includes(artifact)) {
+      errors.push(`rollback retention must include ${artifact}`);
+    }
+  }
+  if (rollback.retention?.retainUntil !== "180 days after replacement downstream verification passes") {
+    errors.push("rollback retention must keep evidence until 180 days after replacement downstream verification passes");
+  }
+  if (rollback.retention?.storage !== "release record or incident archive") {
+    errors.push("rollback retention storage must be release record or incident archive");
+  }
   if (replacement.failed.packageVersion !== failedRecord.packageVersion) {
     errors.push("replacement audit failed packageVersion must match dry-run record");
   }
@@ -216,6 +235,28 @@ function relationshipErrors() {
   }
   if (Array.isArray(replacement.checks) && !replacement.checks.includes("failed version deprecation result recorded when available")) {
     errors.push("replacement audit must record the deprecation evidence check");
+  }
+  for (const artifact of [
+    "jury-package-dry-run",
+    "jury-package-release-evidence",
+    "jury-pack-dry-run-record.json",
+    "failed-npm-view.json",
+    "downstream-failure-gate.json",
+    "rollback-audit.json",
+    "replacement-npm-view.json",
+    "replacement-downstream-gate.json",
+    "replacement-patch-audit.json",
+    "GITHUB_STEP_SUMMARY",
+  ]) {
+    if (!replacement.retention?.artifacts?.includes(artifact)) {
+      errors.push(`replacement retention must include ${artifact}`);
+    }
+  }
+  if (replacement.retention?.retainUntil !== "180 days after replacement downstream verification passes") {
+    errors.push("replacement retention must keep evidence until 180 days after replacement downstream verification passes");
+  }
+  if (replacement.retention?.storage !== "release record or incident archive") {
+    errors.push("replacement retention storage must be release record or incident archive");
   }
 
   return errors;

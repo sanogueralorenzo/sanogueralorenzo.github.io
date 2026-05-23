@@ -73,7 +73,7 @@ jobs:
     uses: ./.github/workflows/jury-package-manifest-check.yml
 ```
 
-[examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `package-release-fixtures` runs `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check` before any publication dry run, uploads `jury-package-release-evidence` with rollback and replacement audit examples, `package-release-evidence-replay` downloads that artifact and replays it with `--fixture-dir`, `dry-run-publication` has `needs: package-manifest` and `needs: package-release-evidence-replay`, uploads `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as `jury-package-dry-run`, and keeps both artifacts for 30 days with `retention-days: 30`. If the replay job fails, use the package release evidence replay failure section in [TROUBLESHOOTING.md](TROUBLESHOOTING.md) before reusing or replacing the uploaded audit artifact. `publish` downloads and verifies the dry-run artifact before the step that maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`. The workflow requires `dry_run_reviewer`; the verification step writes `packageVersion`, `tarballName`, and `reviewedBy` to `GITHUB_STEP_SUMMARY` so the release page records the package identity and who reviewed it before credentials were exposed. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
+[examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `package-release-fixtures` runs `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check` before any publication dry run, uploads `jury-package-release-evidence` with rollback and replacement audit examples, `package-release-evidence-replay` downloads that artifact and replays it with `--fixture-dir`, `dry-run-publication` has `needs: package-manifest` and `needs: package-release-evidence-replay`, uploads `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as `jury-package-dry-run`, and keeps both CI artifacts for 90 days with `retention-days: 90`. If the replay job fails, use the package release evidence replay failure section in [TROUBLESHOOTING.md](TROUBLESHOOTING.md) before reusing or replacing the uploaded audit artifact. `publish` downloads and verifies the dry-run artifact before the step that maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`. The workflow requires `dry_run_reviewer`; the verification step writes `packageVersion`, `tarballName`, and `reviewedBy` to `GITHUB_STEP_SUMMARY` so the release page records the package identity and who reviewed it before credentials were exposed. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
 
 ## Post-Publication Comparison
 
@@ -109,6 +109,14 @@ node -e 'const fs=require("node:fs"); const failed=JSON.parse(fs.readFileSync("j
 Keep that output with the replacement downstream verification pass, the failed-version deprecation result when available, and the retained failed `jury-package-dry-run` artifact. The evidence bundle is complete only when it records the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, downstream verifier pass, and whether the failed version was deprecated.
 
 Use [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release) as a local audit reference. It contains `rollback-audit.json` for the failed immutable publication and `replacement-patch-audit.json` for the later patch that supersedes it.
+
+## Release Evidence Retention Policy
+
+GitHub Actions artifacts are temporary release transport, not the long-term record for a failed publication. The workflow keeps `jury-package-dry-run` and `jury-package-release-evidence` for 90 days so maintainers have time to investigate, but a failed or replacement release must promote the evidence into the release record or incident archive before those artifacts expire.
+
+For a failed publication, retain `jury-package-dry-run`, `jury-package-release-evidence`, `jury-pack-dry-run-record.json`, `failed-npm-view.json`, `downstream-failure-gate.json`, `rollback-audit.json`, and the `GITHUB_STEP_SUMMARY`. For the replacement patch, retain those failed-version artifacts plus `replacement-npm-view.json`, `replacement-downstream-gate.json`, `replacement-patch-audit.json`, and any failed-version deprecation result.
+
+Keep the promoted evidence until at least 180 days after replacement downstream verification passes. Do not delete the failed-version evidence when the replacement publishes; the replacement audit depends on the failed `packageVersion`, failed `tarballName`, deprecation evidence, and downstream failure gate to prove supersedence.
 
 ## npm Credentials and Provenance
 

@@ -9,6 +9,23 @@
     "npmView": "failed-npm-view.json",
     "deprecationEvidence": "rollback-audit.json"
   },
+  "retention": {
+    "policy": "jury.package_release_retention.v1",
+    "storage": "release record or incident archive",
+    "retainUntil": "180 days after replacement downstream verification passes",
+    "artifacts": [
+      "jury-package-dry-run",
+      "jury-package-release-evidence",
+      "jury-pack-dry-run-record.json",
+      "failed-npm-view.json",
+      "downstream-failure-gate.json",
+      "rollback-audit.json",
+      "replacement-npm-view.json",
+      "replacement-downstream-gate.json",
+      "replacement-patch-audit.json",
+      "GITHUB_STEP_SUMMARY"
+    ]
+  },
   "replacement": {
     "packageVersion": "0.1.1",
     "npmView": "replacement-npm-view.json",

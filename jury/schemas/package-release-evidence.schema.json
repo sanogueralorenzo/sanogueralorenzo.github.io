@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Jury Package Release Evidence",
   "type": "object",
-  "required": ["schema_version", "audit_type", "package", "failed"],
+  "required": ["schema_version", "audit_type", "package", "failed", "retention"],
   "properties": {
     "schema_version": { "const": "jury.package_release_evidence.v1" },
     "audit_type": {
@@ -19,6 +19,21 @@
         "npmView": { "type": "string", "minLength": 1 },
         "downstreamGate": { "type": "string", "minLength": 1 },
         "deprecationEvidence": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "retention": {
+      "type": "object",
+      "required": ["policy", "storage", "retainUntil", "artifacts"],
+      "properties": {
+        "policy": { "const": "jury.package_release_retention.v1" },
+        "storage": { "const": "release record or incident archive" },
+        "retainUntil": { "type": "string", "minLength": 1 },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
       },
       "additionalProperties": false
     },

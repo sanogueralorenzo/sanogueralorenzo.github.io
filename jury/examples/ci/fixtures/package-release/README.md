@@ -21,6 +21,12 @@ The failed version is not republished. The audit records the deprecation command
 
 The replacement evidence is complete only when the replacement `packageVersion` differs from the failed `packageVersion`, the replacement `dist.tarball` does not end with the failed `tarballName`, downstream verification passes, and the failed-version deprecation result is recorded when available.
 
+## Retention Policy
+
+Both audit files include `retention.policy: jury.package_release_retention.v1`. The policy requires maintainers to promote temporary `jury-package-dry-run` and `jury-package-release-evidence` CI artifacts into the release record or incident archive before the 90-day artifact expiry.
+
+Retain the failed and replacement evidence until at least 180 days after replacement downstream verification passes. The replacement audit depends on the failed `packageVersion`, failed `tarballName`, failed downstream gate, rollback audit, replacement npm metadata, replacement downstream gate, and failed-version deprecation result.
+
 ## Validation
 
 Run the fixture check after changing these files:

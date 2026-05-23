@@ -33,7 +33,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jury-package-release-evidence
-          retention-days: 30
+          retention-days: 90
           path: |
             jury/examples/ci/fixtures/package-release/README.md
             jury/examples/ci/fixtures/package-release/jury-pack-dry-run-record.json
@@ -82,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jury-package-dry-run
-          retention-days: 30
+          retention-days: 90
           path: |
             jury-pack-dry-run.json
             jury-pack-dry-run-record.json

@@ -18,7 +18,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.
 - [ ] Record the dry-run tarball name from `jury-pack-dry-run.json` as `tarballName`, for example `sanogueralorenzo-jury-0.1.0.tgz`.
 - [ ] Upload `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as the `jury-package-dry-run` CI artifact.
-- [ ] Keep the `jury-package-dry-run` artifact for 30 days with `retention-days: 30`.
+- [ ] Keep `jury-package-dry-run` and `jury-package-release-evidence` CI artifacts for 90 days with `retention-days: 90`.
 - [ ] Download and verify the `jury-package-dry-run` artifact before any step maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`.
 - [ ] Set `dry_run_reviewer` to the person who reviewed the verified package summary.
 - [ ] Review the `GITHUB_STEP_SUMMARY` entry for the verified `packageVersion`, `tarballName`, and `reviewedBy`.
@@ -26,6 +26,8 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] After publication, compare retained `jury-pack-dry-run-record.json` with `npm view @sanogueralorenzo/jury@<packageVersion> version dist.tarball --json`.
 - [ ] If downstream verification fails after publication, keep retained dry-run artifacts, mark the version failed, and ship a later patch version instead of republishing the same version.
 - [ ] For replacement patches after failed publication, record the failed `packageVersion`, failed `tarballName`, replacement `packageVersion`, replacement `dist.tarball`, replacement downstream verification pass, and failed-version deprecation result when available.
+- [ ] Promote failed and replacement release evidence from temporary CI artifacts into the release record or incident archive before the 90-day artifact expiry.
+- [ ] Retain promoted failed and replacement release evidence until at least 180 days after replacement downstream verification passes.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when the dry-run artifact is stale or mismatched.
 - [ ] Store the npm publish token as `secrets.NPM_TOKEN` with scope limited to publishing `@sanogueralorenzo/jury`.
 - [ ] Expose `NODE_AUTH_TOKEN` only in the publish job after `needs: package-manifest` passes and the dry-run artifact verifies.

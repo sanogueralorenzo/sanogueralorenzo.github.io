@@ -9,6 +9,20 @@
     "npmView": "failed-npm-view.json",
     "downstreamGate": "downstream-failure-gate.json"
   },
+  "retention": {
+    "policy": "jury.package_release_retention.v1",
+    "storage": "release record or incident archive",
+    "retainUntil": "180 days after replacement downstream verification passes",
+    "artifacts": [
+      "jury-package-dry-run",
+      "jury-package-release-evidence",
+      "jury-pack-dry-run-record.json",
+      "failed-npm-view.json",
+      "downstream-failure-gate.json",
+      "rollback-audit.json",
+      "GITHUB_STEP_SUMMARY"
+    ]
+  },
   "deprecation": {
     "attempted": true,
     "allowed": true,
