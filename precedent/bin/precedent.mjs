@@ -409,7 +409,8 @@ async function exportContext() {
       matches: applicabilitySelected.matches,
       allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
     });
-    const contextBlock = formatInjectionBlock(selected.matches);
+    const turnDirectives = await activeTurnDirectivesForSession(stateDir, args.session ?? null);
+    const contextBlock = formatRuntimeContextBlock(selected.matches, turnDirectives);
     const observedAt = new Date().toISOString();
     const deliveryReceipt = deliveryReceiptFor({
       sessionId: args.session ?? null,
@@ -457,6 +458,7 @@ async function exportContext() {
       promotionTrials,
       candidateHints,
       deliveryReceipt,
+      turnDirectives,
     };
     payload = {
       schema_version: "precedent.context.v1",
@@ -467,6 +469,7 @@ async function exportContext() {
       promotionTrials,
       candidateHints,
       deliveryReceipt,
+      turnDirectives,
       source: {
         command: "context",
         task,
@@ -501,6 +504,7 @@ async function exportContext() {
         promotionTrials: exportEvent.promotionTrials,
         candidateHints: exportEvent.candidateHints,
         deliveryReceipt: exportEvent.deliveryReceipt,
+        turnDirectives: exportEvent.turnDirectives,
         contextPayload: payload,
       });
       payload.sessionEventPath = stored.path;
@@ -517,6 +521,7 @@ async function exportContext() {
       promotionTrials: [],
       candidateHints: [],
       deliveryReceipt: null,
+      turnDirectives: emptyTurnDirectives(),
       recorded: false,
       deduped: false,
       sessionEventPath: null,
@@ -603,6 +608,7 @@ async function issueWarrant() {
       stateDir,
       sessionId,
     });
+    const turnDirectives = await activeTurnDirectivesForSession(stateDir, sessionId);
     const issuedAt = new Date().toISOString();
     const deliveryReceipt = deliveryReceiptFor({
       sessionId,
@@ -619,6 +625,7 @@ async function issueWarrant() {
       matches: selected.matches,
       candidateHints,
       deliveryReceipt,
+      turnDirectives,
     });
     const sessionEvent = await appendSessionEvent(stateDir, {
       type: "warrant_issued",
@@ -632,6 +639,7 @@ async function issueWarrant() {
       warrantId: warrant.warrantId,
       warrant,
       deliveryReceipt,
+      turnDirectives,
     });
 
     if (!sessionEvent.deduped) {
@@ -1388,6 +1396,7 @@ async function contextBeforeTurnEventHook(event) {
   let revisionBriefs = [];
   let promotionTrials = [];
   let candidateHints = [];
+  let turnDirectives = emptyTurnDirectives();
   let deliveryReceipt = null;
   let contextBlock = "";
   let injections = [];
@@ -1403,6 +1412,7 @@ async function contextBeforeTurnEventHook(event) {
         revisionBriefs = payload.revisionBriefs ?? [];
         promotionTrials = payload.promotionTrials ?? [];
         candidateHints = payload.candidateHints ?? [];
+        turnDirectives = payload.turnDirectives ?? emptyTurnDirectives();
         deliveryReceipt = payload.deliveryReceipt ?? null;
         contextBlock = payload.contextBlock ?? "";
         injections = payload.injections ?? [];
@@ -1459,7 +1469,8 @@ async function contextBeforeTurnEventHook(event) {
       stateDir,
       sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
     });
-    contextBlock = formatInjectionBlock(matches);
+    turnDirectives = await activeTurnDirectivesForSession(stateDir, sessionId);
+    contextBlock = formatRuntimeContextBlock(matches, turnDirectives);
     deliveryReceipt = deliveryReceiptFor({
       sessionId,
       eventId,
@@ -1488,6 +1499,7 @@ async function contextBeforeTurnEventHook(event) {
       revisionBriefs,
       promotionTrials,
       candidateHints,
+      turnDirectives,
       deliveryReceipt,
     };
     injections = matches.map(formatInjection);
@@ -1500,6 +1512,7 @@ async function contextBeforeTurnEventHook(event) {
       revisionBriefs,
       promotionTrials,
       candidateHints,
+      turnDirectives,
       deliveryReceipt,
       contextBlock,
     };
@@ -1518,6 +1531,7 @@ async function contextBeforeTurnEventHook(event) {
       revisionBriefs = sessionEvent.event.contextPayload?.revisionBriefs ?? revisionBriefs;
       promotionTrials = sessionEvent.event.contextPayload?.promotionTrials ?? promotionTrials;
       candidateHints = sessionEvent.event.contextPayload?.candidateHints ?? candidateHints;
+      turnDirectives = sessionEvent.event.contextPayload?.turnDirectives ?? turnDirectives;
       deliveryReceipt = sessionEvent.event.contextPayload?.deliveryReceipt ?? deliveryReceipt;
       contextBlock = sessionEvent.event.contextPayload?.contextBlock ?? contextBlock;
       injections = sessionEvent.event.contextPayload?.injections ?? injections;
@@ -1529,6 +1543,7 @@ async function contextBeforeTurnEventHook(event) {
     revisionBriefs = [];
     promotionTrials = [];
     candidateHints = [];
+    turnDirectives = emptyTurnDirectives();
     deliveryReceipt = null;
     injections = [];
   }
@@ -1545,6 +1560,7 @@ async function contextBeforeTurnEventHook(event) {
     revisionBriefs,
     promotionTrials,
     candidateHints,
+    turnDirectives,
     deliveryReceipt,
     contextBlock,
   });
@@ -1657,6 +1673,7 @@ async function conversationObserveEventHook(event) {
   const eventId = hookEventId(event);
   const messages = conversationMessages(event);
   const correctionSignals = conversationCorrectionSignals(messages);
+  const turnDirectiveSignals = conversationTurnDirectiveSignals(messages);
   const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
   const correctionSafetyReceipt = correctionSafetyReceiptFor({
     event,
@@ -1664,8 +1681,13 @@ async function conversationObserveEventHook(event) {
     correctionSignals,
     changedFiles,
   });
+  const turnDirectiveReceipt = turnDirectiveReceiptFor({ messages, turnDirectiveSignals });
   const acceptedCorrectionSignals = correctionSafetyReceipt.status === "accepted" ? correctionSignals : [];
-  const contextBlock = formatCorrectionContextBlock(acceptedCorrectionSignals);
+  const acceptedTurnDirectives = turnDirectiveReceipt.status === "accepted" ? turnDirectiveSignals : [];
+  const contextBlock = [
+    formatCorrectionContextBlock(acceptedCorrectionSignals),
+    formatTurnDirectiveContextBlock(directiveSummary(acceptedTurnDirectives)),
+  ].filter(Boolean).join("\n");
   let sessionEvent = null;
 
   await withStateLock(stateDir, async () => {
@@ -1683,6 +1705,9 @@ async function conversationObserveEventHook(event) {
       correctionSignals,
       acceptedCorrectionSignals,
       correctionSafetyReceipt,
+      turnDirectiveSignals,
+      acceptedTurnDirectives,
+      turnDirectiveReceipt,
       contextBlock,
     });
 
@@ -1699,6 +1724,9 @@ async function conversationObserveEventHook(event) {
         correctionSignals: sessionEvent.event.correctionSignals,
         acceptedCorrectionSignals: sessionEvent.event.acceptedCorrectionSignals,
         correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
+        turnDirectiveSignals: sessionEvent.event.turnDirectiveSignals,
+        acceptedTurnDirectives: sessionEvent.event.acceptedTurnDirectives,
+        turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
         contextBlock: sessionEvent.event.contextBlock,
       });
     }
@@ -1716,8 +1744,13 @@ async function conversationObserveEventHook(event) {
       correctionSignals: sessionEvent.event.correctionSignals,
       acceptedCorrectionSignals: sessionEvent.event.acceptedCorrectionSignals,
       correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
+      turnDirectiveSignals: sessionEvent.event.turnDirectiveSignals,
+      acceptedTurnDirectives: sessionEvent.event.acceptedTurnDirectives,
+      turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
     },
     correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
+    turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
+    turnDirectives: directiveSummary(sessionEvent.event.acceptedTurnDirectives),
     contextBlock: sessionEvent.event.contextBlock,
   });
 }
@@ -1737,15 +1770,20 @@ async function diffAfterEditEventHook(event) {
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents, event.deliveryId);
+    const turnDirectives = await activeTurnDirectivesForSession(stateDir, sessionId);
     guardResult = evaluatePrecedentGuards(activePrecedents, "diff.after_edit", {
       changedFiles,
       breadthSignals,
     });
-    warrantResult = evaluateWarrantDiff(await findWarrant(stateDir, event.warrantId), {
+    const diffEvidence = {
       changedFiles,
       linesAdded: numberOrNull(event.linesAdded),
       linesDeleted: numberOrNull(event.linesDeleted),
-    });
+    };
+    warrantResult = mergeWarrantResults(
+      evaluateWarrantDiff(await findWarrant(stateDir, event.warrantId), diffEvidence),
+      evaluateTurnDirectiveDiff(turnDirectives, diffEvidence),
+    );
     repairPrompt = repairPromptForDiffGuard({
       guardResult,
       activePrecedents,
@@ -1753,7 +1791,9 @@ async function diffAfterEditEventHook(event) {
       diffSummary: event.diffSummary,
       unifiedDiff: event.unifiedDiff ?? event.diff,
     });
-    contextBlock = formatRepairContextBlock(repairPrompt) || formatGuardContextBlock(guardResult.failed);
+    contextBlock = formatRepairContextBlock(repairPrompt)
+      || formatWarrantContextBlock(warrantResult)
+      || formatGuardContextBlock(guardResult.failed);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -2516,7 +2556,7 @@ function buildManifest(runtime, stateDir) {
           "--format",
           "json",
         ],
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -2524,7 +2564,7 @@ function buildManifest(runtime, stateDir) {
       "conversation.observe": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -2799,14 +2839,14 @@ async function attachRuntime() {
       beforeTurn: {
         command: beforeTurnCommand,
         eventId: "$EVENT_ID",
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
       conversationObserve: {
         command: hookCommand,
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "contextBlock"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock"],
         injectFrom: "contextBlock",
         stdin: {
           schema_version: SCHEMA_VERSION,
@@ -4650,10 +4690,11 @@ function deliveryReceiptFor({ sessionId, eventId, injections, issuedAt }) {
   };
 }
 
-function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt }) {
+function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt, turnDirectives }) {
+  const directives = turnDirectives ?? emptyTurnDirectives();
   const allowed = {
-    paths: warrantAllowedPaths(matches, context),
-    maxFiles: Number(args["max-files"] ?? 6),
+    paths: warrantAllowedPaths(matches, context, directives),
+    maxFiles: directives.noEdit ? 0 : Number(args["max-files"] ?? 6),
     maxLinesChanged: Number(args["max-lines-changed"] ?? 400),
   };
   const requiredEvidence = warrantRequiredEvidence(matches);
@@ -4687,7 +4728,12 @@ function warrantForContext({ sessionId, eventId, issuedAt, task, context, matche
     contextBlock: formatInjectionBlock(matches),
     allowed,
     requiredEvidence,
+    turnDirectives: directives,
     forbidden: [
+      ...(directives.noEdit ? [{
+        type: "no_edit",
+        message: "Do not edit files in this turn.",
+      }] : []),
       {
         type: "path_escape",
         message: allowed.paths.length > 0
@@ -4705,7 +4751,11 @@ function warrantForContext({ sessionId, eventId, issuedAt, task, context, matche
   }).value;
 }
 
-function warrantAllowedPaths(matches, context) {
+function warrantAllowedPaths(matches, context, directives = emptyTurnDirectives()) {
+  if (Array.isArray(directives.allowedPaths) && directives.allowedPaths.length > 0) {
+    return uniqueStrings(directives.allowedPaths).slice(0, 12);
+  }
+
   const guardPaths = matches.flatMap((match) => (Array.isArray(match.guards) ? match.guards : [])
     .filter((guard) => guard.type === "changed_files_within_paths")
     .flatMap((guard) => Array.isArray(guard.paths) ? guard.paths : []));
@@ -5473,6 +5523,7 @@ function evaluateWarrantDiff(warrant, event) {
 
   const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : [];
   const allowedPaths = Array.isArray(warrant.allowed?.paths) ? warrant.allowed.paths : [];
+  const turnDirectives = warrant.turnDirectives ?? emptyTurnDirectives();
   const outsidePaths = allowedPaths.length > 0
     ? changedFiles.filter((file) => !allowedPaths.some((path) => pathMatchesGuardPath(file, path)))
     : [];
@@ -5481,6 +5532,11 @@ function evaluateWarrantDiff(warrant, event) {
   const linesChanged = (Number.isFinite(event.linesAdded) ? event.linesAdded : 0)
     + (Number.isFinite(event.linesDeleted) ? event.linesDeleted : 0);
   const violations = [
+    ...(turnDirectives.noEdit && changedFiles.length > 0 ? [{
+      type: "no_edit",
+      message: `Turn directive forbids file edits; changed files: ${changedFiles.join(", ")}`,
+      evidence: changedFiles,
+    }] : []),
     ...(outsidePaths.length > 0 ? [{
       type: "path_escape",
       message: `Changed files outside warrant paths: ${outsidePaths.join(", ")}`,
@@ -5510,6 +5566,51 @@ function evaluateWarrantDiff(warrant, event) {
       message: "Diff stayed within warrant limits.",
       evidence: changedFiles,
     }] : [],
+  };
+}
+
+function evaluateTurnDirectiveDiff(turnDirectives, event) {
+  const directives = turnDirectives ?? emptyTurnDirectives();
+  if (!directives.noEdit && directives.allowedPaths.length === 0) {
+    return null;
+  }
+
+  const warrant = {
+    warrantId: null,
+    allowed: {
+      paths: directives.allowedPaths,
+      maxFiles: directives.noEdit ? 0 : Number.POSITIVE_INFINITY,
+      maxLinesChanged: Number.POSITIVE_INFINITY,
+    },
+    turnDirectives: directives,
+  };
+
+  return evaluateWarrantDiff(warrant, event);
+}
+
+function mergeWarrantResults(primary, fallback) {
+  if (!primary) {
+    return fallback;
+  }
+  if (!fallback) {
+    return primary;
+  }
+
+  const violations = uniqueBy([
+    ...(Array.isArray(primary.violations) ? primary.violations : []),
+    ...(Array.isArray(fallback.violations) ? fallback.violations : []),
+  ], (item) => `${item.type}:${item.message}`);
+  const passed = uniqueBy([
+    ...(Array.isArray(primary.passed) ? primary.passed : []),
+    ...(Array.isArray(fallback.passed) ? fallback.passed : []),
+  ], (item) => `${item.type}:${item.message}`);
+
+  return {
+    ...primary,
+    ok: violations.length === 0,
+    status: violations.length > 0 ? "violated" : primary.status,
+    violations,
+    passed,
   };
 }
 
@@ -5833,6 +5934,18 @@ function formatGuardContextBlock(failedChecks) {
   return [
     "Precedent guard:",
     ...failedChecks.map((check) => `- ${check.message}`),
+  ].join("\n");
+}
+
+function formatWarrantContextBlock(warrantResult) {
+  const violations = Array.isArray(warrantResult?.violations) ? warrantResult.violations : [];
+  if (violations.length === 0) {
+    return "";
+  }
+
+  return [
+    "Precedent directive repair:",
+    ...violations.map((violation) => `- ${violation.message}`),
   ].join("\n");
 }
 
@@ -6477,7 +6590,10 @@ async function traceFromSession(stateDir, sessionId) {
     ? {
       correctionSignals: observations.flatMap((event) => Array.isArray(event.correctionSignals) ? event.correctionSignals : []),
       acceptedCorrectionSignals: observations.flatMap((event) => Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : []),
+      turnDirectiveSignals: observations.flatMap((event) => Array.isArray(event.turnDirectiveSignals) ? event.turnDirectiveSignals : []),
+      acceptedTurnDirectives: observations.flatMap((event) => Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : []),
       safetyReceipts: observations.map((event) => event.correctionSafetyReceipt).filter(Boolean),
+      turnDirectiveReceipts: observations.map((event) => event.turnDirectiveReceipt).filter(Boolean),
       changedFiles: uniqueStrings(observations.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : [])),
     }
     : null;
@@ -6521,6 +6637,9 @@ function sessionTraceEvent(event) {
     correctionSignals: Array.isArray(event.correctionSignals) ? event.correctionSignals : [],
     acceptedCorrectionSignals: Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : [],
     correctionSafetyReceipt: event.correctionSafetyReceipt ?? null,
+    turnDirectiveSignals: Array.isArray(event.turnDirectiveSignals) ? event.turnDirectiveSignals : [],
+    acceptedTurnDirectives: Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : [],
+    turnDirectiveReceipt: event.turnDirectiveReceipt ?? null,
     command: event.command ?? null,
     exitCode: Number.isFinite(event.exitCode) ? event.exitCode : null,
     success: typeof event.success === "boolean" ? event.success : null,
@@ -7153,6 +7272,79 @@ function conversationCorrectionSignals(messages) {
   return uniqueBy(signals.filter((signal) => signal.expected && signal.actual), (signal) => `${signal.type}:${signal.expected}:${signal.actual}`);
 }
 
+function conversationTurnDirectiveSignals(messages) {
+  const signals = [];
+
+  for (const message of messages) {
+    const content = message.content.replace(/\s+/gu, " ").trim();
+    if (/\b(?:do not|don't|must not|should not)\s+(?:edit|change|touch|modify)\s+(?:files|code|anything)?\b/iu.test(content)
+      || /\b(?:answer only|read[- ]only|no edits?|no changes?)\b/iu.test(content)) {
+      signals.push({
+        type: "no_edit",
+        source: message.role,
+      });
+    }
+
+    for (const match of content.matchAll(/\b(?:scope|limit)\s+(?:(?:all|any)\s+)?(?:recommendations|work|changes|edits|files)?\s*(?:to|under|inside|within)\s+([^.;\n]+?)(?=$|[.;\n])/giu)) {
+      signals.push(pathScopeDirectiveSignal(match[1], message.role));
+    }
+    for (const match of content.matchAll(/\b(?:changes|edits|work)\s+(?:must|should|need to|needs to)\s+stay\s+(?:under|inside|within|in)\s+([^.;\n]+?)(?=$|[.;\n])/giu)) {
+      signals.push(pathScopeDirectiveSignal(match[1], message.role));
+    }
+    for (const match of content.matchAll(/\b(?:keep|stay)\s+(?:(?:edits|changes|work)\s+)?(?:inside|in|within|under)\s+([^.;\n]+?)(?=$|[.;\n])/giu)) {
+      signals.push(pathScopeDirectiveSignal(match[1], message.role));
+    }
+  }
+
+  return uniqueBy(
+    signals.filter((signal) => signal.type === "no_edit" || nonEmptyString(signal.path)),
+    (signal) => `${signal.type}:${signal.path ?? ""}:${signal.source ?? ""}`,
+  );
+}
+
+function pathScopeDirectiveSignal(path, role) {
+  return {
+    type: "path_scope",
+    path: cleanDirectivePath(path),
+    source: role,
+  };
+}
+
+function turnDirectiveReceiptFor({ messages, turnDirectiveSignals }) {
+  if (turnDirectiveSignals.length === 0) {
+    return {
+      status: "no_directive",
+      accepted: false,
+      reasons: [],
+      trustedSources: [],
+      pathSafety: [],
+    };
+  }
+
+  const trustedSources = uniqueStrings(messages
+    .filter((message) => message.role === "user" && message.trusted !== false)
+    .map((message) => message.role));
+  const pathSafety = turnDirectiveSignals
+    .filter((signal) => signal.type === "path_scope")
+    .map((signal) => ({
+      path: signal.path,
+      safe: directivePathSafe(signal.path),
+      reason: directivePathSafe(signal.path) ? "safe_repo_path" : "unsafe_path",
+    }));
+  const reasons = [
+    ...(trustedSources.length === 0 ? ["untrusted_source"] : []),
+    ...pathSafety.filter((item) => !item.safe).map((item) => `path_${item.reason}`),
+  ];
+
+  return {
+    status: reasons.length === 0 ? "accepted" : "quarantined",
+    accepted: reasons.length === 0,
+    reasons,
+    trustedSources,
+    pathSafety,
+  };
+}
+
 function correctionSafetyReceiptFor({ event, messages, correctionSignals, changedFiles }) {
   if (correctionSignals.length === 0) {
     return {
@@ -7266,6 +7458,14 @@ function cleanCorrectionPath(value) {
     .trim();
 }
 
+function cleanDirectivePath(value) {
+  return cleanCorrectionPath(value)
+    .replace(/^the\s+/iu, "")
+    .replace(/\s+(?:folder|directory|module|path)$/iu, "")
+    .replace(/\/+$/u, "")
+    .trim();
+}
+
 function looksLikeRepoPath(value) {
   return repoPathSafe(cleanCorrectionPath(value));
 }
@@ -7316,6 +7516,20 @@ function repoPathSafe(path) {
   return /^[A-Za-z0-9._@/-]+$/u.test(path) && path.includes("/");
 }
 
+function directivePathSafe(path) {
+  if (!nonEmptyString(path)) {
+    return false;
+  }
+  if (path.startsWith("/") || path.startsWith("~") || /^[a-z][a-z0-9+.-]*:/iu.test(path)) {
+    return false;
+  }
+  if (path.split("/").includes("..")) {
+    return false;
+  }
+
+  return /^[A-Za-z0-9._@/-]+$/u.test(path);
+}
+
 function repoPathsOverlap(left, right) {
   if (!repoPathSafe(left) || !repoPathSafe(right)) {
     return false;
@@ -7336,6 +7550,56 @@ function formatCorrectionContextBlock(signals) {
     ...commandCorrections.slice(0, 3).map((signal) => `- Use ${signal.expected} instead of ${signal.actual}.`),
     ...boundaryCorrections.slice(0, 3).map((signal) => `- Keep edits inside ${signal.expected} instead of ${signal.actual}.`),
   ].join("\n");
+}
+
+function emptyTurnDirectives() {
+  return {
+    noEdit: false,
+    allowedPaths: [],
+    sources: [],
+  };
+}
+
+function directiveSummary(signals) {
+  const accepted = Array.isArray(signals) ? signals : [];
+  return {
+    noEdit: accepted.some((signal) => signal.type === "no_edit"),
+    allowedPaths: uniqueStrings(accepted
+      .filter((signal) => signal.type === "path_scope" && directivePathSafe(signal.path))
+      .map((signal) => signal.path)),
+    sources: uniqueStrings(accepted.map((signal) => signal.source).filter(Boolean)),
+  };
+}
+
+async function activeTurnDirectivesForSession(stateDir, sessionId) {
+  if (!nonEmptyString(sessionId)) {
+    return emptyTurnDirectives();
+  }
+
+  const events = await readSessionEvents(stateDir, sessionId);
+  return directiveSummary(eventsSinceLastOutcome(events)
+    .filter((event) => event.hook === "conversation.observe" && event.turnDirectiveReceipt?.status === "accepted")
+    .flatMap((event) => Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : []));
+}
+
+function formatTurnDirectiveContextBlock(directives) {
+  const summary = directives ?? emptyTurnDirectives();
+  const lines = [];
+  if (summary.noEdit) {
+    lines.push("- Do not edit files in this turn.");
+  }
+  for (const path of summary.allowedPaths.slice(0, 5)) {
+    lines.push(`- Keep this turn inside ${path}.`);
+  }
+
+  return lines.length > 0 ? ["Precedent directive:", ...lines].join("\n") : "";
+}
+
+function formatRuntimeContextBlock(matches, directives) {
+  return [
+    formatInjectionBlock(matches),
+    formatTurnDirectiveContextBlock(directives),
+  ].filter(Boolean).join("\n");
 }
 
 function parseListArg(value) {

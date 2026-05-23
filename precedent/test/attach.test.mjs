@@ -97,6 +97,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.equal(first.adapter.beforeTurn.eventId, "$EVENT_ID");
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
+    assert.ok(first.adapter.beforeTurn.output.includes("turnDirectives"));
     assert.ok(first.adapter.beforeTurn.output.includes("deliveryReceipt"));
     assert.ok(first.adapter.beforeTurn.output.includes("deduped"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
@@ -105,6 +106,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.conversationObserve.stdin.messages, "$MESSAGES");
     assert.equal(first.adapter.conversationObserve.injectFrom, "contextBlock");
     assert.ok(first.adapter.conversationObserve.output.includes("correctionSafetyReceipt"));
+    assert.ok(first.adapter.conversationObserve.output.includes("turnDirectiveReceipt"));
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
     assert.equal(first.adapter.afterValidation.stdin.eventId, "$EVENT_ID");
     assert.equal(first.adapter.afterValidation.stdin.deliveryId, "$DELIVERY_ID");

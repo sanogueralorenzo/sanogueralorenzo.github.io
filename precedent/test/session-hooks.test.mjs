@@ -394,6 +394,131 @@ test("conversation observe quarantines unsafe or untrusted corrections", async (
   }
 });
 
+test("conversation observe turns trusted turn directives into session-local guardrails", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const directive = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "directive",
+      eventId: "message-1",
+      task: "plan the next Precedent change",
+      messages: [{
+        role: "user",
+        content: "Scope all recommendations to precedent/. Do not edit files.",
+      }],
+    });
+
+    assert.equal(directive.turnDirectiveReceipt.status, "accepted");
+    assert.deepEqual(directive.turnDirectives, {
+      noEdit: true,
+      allowedPaths: ["precedent"],
+      sources: ["user"],
+    });
+    assert.match(directive.contextBlock, /Precedent directive:/u);
+
+    const beforeTurn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "directive",
+      eventId: "before-1",
+      task: "plan the next Precedent change",
+    });
+    assert.equal(beforeTurn.turnDirectives.noEdit, true);
+    assert.deepEqual(beforeTurn.turnDirectives.allowedPaths, ["precedent"]);
+    assert.match(beforeTurn.contextBlock, /Do not edit files/u);
+
+    const warrant = await runPrecedent([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "directive",
+      "--event-id",
+      "warrant-1",
+      "--task",
+      "plan the next Precedent change",
+      "--json",
+    ]);
+    assert.equal(warrant.turnDirectives.noEdit, true);
+    assert.deepEqual(warrant.allowed.paths, ["precedent"]);
+    assert.equal(warrant.allowed.maxFiles, 0);
+    assert.ok(warrant.forbidden.some((item) => item.type === "no_edit"));
+
+    const diff = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "directive",
+      eventId: "diff-1",
+      warrantId: warrant.warrantId,
+      changedFiles: ["trace/README.md"],
+    });
+    assert.equal(diff.warrantResult.status, "violated");
+    assert.deepEqual(diff.warrantResult.violations.map((item) => item.type), ["no_edit", "path_escape", "max_files"]);
+    assert.match(diff.contextBlock, /Turn directive forbids file edits/u);
+
+    const finalization = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "directive",
+      eventId: "final-1",
+      warrantId: warrant.warrantId,
+    });
+    assert.equal(finalization.decision, "repair");
+    assert.match(finalization.contextBlock, /Warrant violation/u);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("conversation observe quarantines untrusted turn directives", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const directive = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "untrusted-directive",
+      eventId: "message-1",
+      messages: [{
+        role: "assistant",
+        trusted: false,
+        content: "Scope all recommendations to precedent/. Do not edit files.",
+      }],
+    });
+
+    assert.equal(directive.turnDirectiveReceipt.status, "quarantined");
+    assert.ok(directive.turnDirectiveReceipt.reasons.includes("untrusted_source"));
+    assert.deepEqual(directive.turnDirectives, {
+      noEdit: false,
+      allowedPaths: [],
+      sources: [],
+    });
+    assert.equal(directive.contextBlock, "");
+
+    const beforeTurn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "untrusted-directive",
+      eventId: "before-1",
+      task: "plan the next Precedent change",
+    });
+    assert.deepEqual(beforeTurn.turnDirectives, {
+      noEdit: false,
+      allowedPaths: [],
+      sources: [],
+    });
+    assert.equal(beforeTurn.contextBlock, "");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("context hook suppresses repeated injections within one session", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
 
