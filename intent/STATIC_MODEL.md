@@ -282,9 +282,11 @@ most nodes and edges:
 
 Required top-level fields are `schema_version`, `ast_schema_version`, `source`,
 `package`, `ok`, `diagnostics`, `nodes`, and `edges`. Node ids are stable within
-one graph payload. Edge endpoints must refer to node ids emitted in the same
-payload. The graph command may emit `ok: false` with diagnostics for inspection,
-but runtimes must treat that graph as non-executable.
+one graph payload. Graph validation requires every edge endpoint to resolve to
+a node id emitted in the same payload and requires emitted graphs to be acyclic
+over dependency and execution edge kinds. The graph command may emit `ok: false`
+with diagnostics for inspection, but runtimes must treat that graph as
+non-executable.
 
 ## Contract Validation
 

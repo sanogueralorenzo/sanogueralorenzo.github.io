@@ -455,6 +455,8 @@ The parser emits names and type reference strings; the checker owns binding.
 - Parsed retention rules are emitted as checker data and graph `Memory` node
   `retentionRules` lifecycle data so runtimes can enforce retention without
   reparsing raw text.
+- Emitted graph edges are validated so both endpoints resolve to nodes in the
+  same payload, and dependency and execution edge kinds are acyclic.
 - Graph nodes and edges record trust metadata where it helps downstream
   runtimes explain allowed or rejected flows.
 - Each step input node creates a `requires` edge to its owning step.
