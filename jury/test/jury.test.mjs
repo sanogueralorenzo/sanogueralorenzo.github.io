@@ -1232,6 +1232,25 @@ test("package release evidence fixtures cover rollback and replacement audits", 
     assert.match(invalidRemediationCheck.stderr, /archive drift remediation audit must include replacement downstream gate drift/);
     assert.match(invalidRemediationCheck.stderr, /archive drift remediation audit must restore replacement downstream gate evidence/);
     assert.match(invalidRemediationCheck.stderr, /archive drift remediation diffReviewed must be true/);
+
+    await rm(copiedFixtureDir, { recursive: true, force: true });
+    await cp(ciPackageReleaseFixturesDir, copiedFixtureDir, { recursive: true });
+    const invalidExpiryHandoffPath = join(copiedFixtureDir, "jury-package-release-replay-summary-expiry-handoff.json");
+    const invalidExpiryHandoff = JSON.parse(await readFile(invalidExpiryHandoffPath, "utf8"));
+    invalidExpiryHandoff.schema_version = "jury.package_release_replay_summary_expiry_handoff.invalid";
+    invalidExpiryHandoff.reason = "temporary artifact was not promoted";
+    invalidExpiryHandoff.expiredAfterDays = 30;
+    invalidExpiryHandoff.extraDebugField = true;
+    delete invalidExpiryHandoff.reviewedBy;
+    await writeFile(invalidExpiryHandoffPath, `${JSON.stringify(invalidExpiryHandoff, null, 2)}\n`);
+
+    const invalidExpiryHandoffCheck = await runShell(`npm --prefix jury run fixtures:package-release:check -- --fixture-dir ${shellQuote(copiedFixtureDir)}`);
+    assert.equal(invalidExpiryHandoffCheck.exitCode, 1);
+    assert.match(invalidExpiryHandoffCheck.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.reviewedBy is required/);
+    assert.match(invalidExpiryHandoffCheck.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.schema_version must equal jury\.package_release_replay_summary_expiry_handoff\.v1/);
+    assert.match(invalidExpiryHandoffCheck.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.reason must equal jury-package-release-replay-summary artifact expired before promotion/);
+    assert.match(invalidExpiryHandoffCheck.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.expiredAfterDays must equal 90/);
+    assert.match(invalidExpiryHandoffCheck.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.extraDebugField is not allowed/);
   } finally {
     await rm(invalidDir, { recursive: true, force: true });
   }
@@ -1350,6 +1369,7 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("Replay Artifact Summary Failure"));
   assert.ok(guide.includes("Replay Summary Retention Failure"));
   assert.ok(guide.includes("Replay Summary Artifact Expiry Remediation Handoff"));
+  assert.ok(guide.includes("Replay Summary Expiry Handoff Schema Failure"));
   assert.ok(guide.includes("missing replay summary lines"));
   assert.ok(guide.includes("replay summary retention incomplete"));
   assert.ok(guide.includes("jury.package_release_replay_summary_expiry_handoff.v1"));
@@ -1688,6 +1708,44 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
       replacementPackageVersion: "0.1.1",
       reviewedBy: "release-owner",
     });
+
+    const replaySummaryExpirySchemaCommands = extractShellBlock(guide, "Replay Summary Expiry Handoff Schema Failure");
+    assert.deepEqual(replaySummaryExpirySchemaCommands, [
+      "npm --prefix jury run fixtures:package-release:check -- --fixture-dir <retained-evidence-dir>",
+      'node -e \'const fs=require("node:fs"); const dir=process.argv[1]; const handoff=JSON.parse(fs.readFileSync(`${dir}/jury-package-release-replay-summary-expiry-handoff.json`,"utf8")); const manifest=JSON.parse(fs.readFileSync(process.argv[2],"utf8")); const remediation=JSON.parse(fs.readFileSync(`${dir}/archive-drift-remediation-audit.json`,"utf8")); const requiredFrom=["retained-package-release-evidence-manifest.json","archive-drift-remediation-audit.json"]; const errors=[]; if (handoff.schema_version!=="jury.package_release_replay_summary_expiry_handoff.v1") errors.push("schema_version must equal jury.package_release_replay_summary_expiry_handoff.v1"); if (handoff.reason!=="jury-package-release-replay-summary artifact expired before promotion") errors.push("reason must explain replay summary artifact expiry before promotion"); if (handoff.sourceArtifact!=="jury-package-release-replay-summary") errors.push("sourceArtifact must be jury-package-release-replay-summary"); if (handoff.expiredAfterDays!==90) errors.push("expiredAfterDays must equal 90"); if (handoff.reconstructedSummary!=="jury-package-release-replay-summary.md") errors.push("reconstructedSummary must be jury-package-release-replay-summary.md"); for (const item of requiredFrom) if (!(handoff.reconstructedFrom??[]).includes(item)) errors.push(`reconstructedFrom missing ${item}`); if (handoff.failedPackageVersion!==manifest.failed?.packageVersion) errors.push("failedPackageVersion must match retained manifest failed packageVersion"); if (handoff.replacementPackageVersion!==manifest.replacement?.packageVersion) errors.push("replacementPackageVersion must match retained manifest replacement packageVersion"); if (!handoff.reviewedBy) errors.push("reviewedBy must identify the maintainer who reviewed expiry remediation"); if (handoff.reviewedBy!==remediation.approval?.approvedBy) errors.push("reviewedBy must match archive drift remediation approver"); if (errors.length) throw new Error(`replay summary expiry handoff schema failure: ${errors.join("; ")}`); console.log(JSON.stringify({ok:true, failedPackageVersion:handoff.failedPackageVersion, replacementPackageVersion:handoff.replacementPackageVersion, reviewedBy:handoff.reviewedBy}, null, 2));\' <retained-evidence-dir> <retained-manifest>',
+    ]);
+    const expirySchemaReplay = await runShell(retainedCommand(replaySummaryExpirySchemaCommands[0]));
+    assert.equal(expirySchemaReplay.exitCode, 0, expirySchemaReplay.stderr);
+    const expirySchemaInspection = await runShell(retainedCommand(replaySummaryExpirySchemaCommands[1]));
+    assert.equal(expirySchemaInspection.exitCode, 0, expirySchemaInspection.stderr);
+    assert.deepEqual(JSON.parse(expirySchemaInspection.stdout), {
+      ok: true,
+      failedPackageVersion: "0.1.0",
+      replacementPackageVersion: "0.1.1",
+      reviewedBy: "release-maintainer@example.com",
+    });
+    const retainedExpiryHandoffPath = join(retainedEvidenceDir, "jury-package-release-replay-summary-expiry-handoff.json");
+    const retainedExpiryHandoff = JSON.parse(await readFile(retainedExpiryHandoffPath, "utf8"));
+    retainedExpiryHandoff.schema_version = "jury.package_release_replay_summary_expiry_handoff.invalid";
+    retainedExpiryHandoff.reason = "temporary artifact was not promoted";
+    retainedExpiryHandoff.expiredAfterDays = 30;
+    retainedExpiryHandoff.reconstructedFrom = ["archive-drift-remediation-audit.json"];
+    retainedExpiryHandoff.replacementPackageVersion = "0.1.2";
+    retainedExpiryHandoff.reviewedBy = "";
+    await writeFile(retainedExpiryHandoffPath, `${JSON.stringify(retainedExpiryHandoff, null, 2)}\n`);
+    const invalidExpirySchemaReplay = await runShell(retainedCommand(replaySummaryExpirySchemaCommands[0]));
+    assert.equal(invalidExpirySchemaReplay.exitCode, 1);
+    assert.match(invalidExpirySchemaReplay.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.schema_version must equal jury\.package_release_replay_summary_expiry_handoff\.v1/);
+    assert.match(invalidExpirySchemaReplay.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.expiredAfterDays must equal 90/);
+    assert.match(invalidExpirySchemaReplay.stderr, /jury-package-release-replay-summary-expiry-handoff\.json\.reviewedBy must not be empty/);
+    const invalidExpirySchemaInspection = await runShell(retainedCommand(replaySummaryExpirySchemaCommands[1]));
+    assert.equal(invalidExpirySchemaInspection.exitCode, 1);
+    assert.match(invalidExpirySchemaInspection.stderr, /replay summary expiry handoff schema failure: schema_version must equal jury\.package_release_replay_summary_expiry_handoff\.v1/);
+    assert.match(invalidExpirySchemaInspection.stderr, /reason must explain replay summary artifact expiry before promotion/);
+    assert.match(invalidExpirySchemaInspection.stderr, /expiredAfterDays must equal 90/);
+    assert.match(invalidExpirySchemaInspection.stderr, /reconstructedFrom missing retained-package-release-evidence-manifest\.json/);
+    assert.match(invalidExpirySchemaInspection.stderr, /replacementPackageVersion must match retained manifest replacement packageVersion/);
+    assert.match(invalidExpirySchemaInspection.stderr, /reviewedBy must identify the maintainer who reviewed expiry remediation/);
 
     const manifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
     manifest.retention.artifacts = manifest.retention.artifacts.filter((artifact) => artifact !== "replacement-patch-audit.json");
@@ -3214,6 +3272,9 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("replay summary provenance"));
   assert.ok(checklist.includes("If the replay summary artifact expired before promotion"));
   assert.ok(checklist.includes("record a reviewed expiry handoff"));
+  assert.ok(checklist.includes("If the replay summary expiry handoff schema fails"));
+  assert.ok(checklist.includes("`schema_version`, `reason`, `expiredAfterDays`, reconstructed inputs"));
+  assert.ok(checklist.includes("approving maintainer before closing the release archive"));
   assert.ok(checklist.includes("workflow run and source revision"));
   assert.ok(checklist.includes("retained-package-release-evidence-manifest.json"));
   assert.ok(checklist.includes("examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json"));
@@ -3426,12 +3487,16 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /reviewing maintainer/);
   assert.match(handoff, /schemas\/package-release-replay-summary-expiry-handoff\.schema\.json/);
   assert.match(handoff, /jury-package-release-replay-summary-expiry-handoff\.json/);
+  assert.match(handoff, /Replay Summary Expiry Handoff Schema Failure Troubleshooting/);
+  assert.match(handoff, /schema-critical field inspection/);
+  assert.match(handoff, /retained manifest relationship checks for failed and replacement package versions/);
+  assert.match(handoff, /maintainer approval checks against `archive-drift-remediation-audit\.json`/);
   assert.match(handoff, /JURY_PACKAGE_RELEASE_EVIDENCE_DIR/);
   assert.match(handoff, /replacement-patch-audit\.json\.checks is required/);
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure troubleshooting for failed and replacement release archives/);
+  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure CI workflow summary diagnostics for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

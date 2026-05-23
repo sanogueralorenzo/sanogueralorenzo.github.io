@@ -41,6 +41,8 @@ Retain the failed and replacement evidence until at least 180 days after replace
 
 [jury-package-release-replay-summary-expiry-handoff.json](jury-package-release-replay-summary-expiry-handoff.json) is the reviewed handoff fixture for a missing `jury-package-release-replay-summary` CI artifact after the 90-day expiry. It records the reconstructed summary path, retained inputs, failed package version, replacement package version, and reviewing maintainer.
 
+If the handoff schema fails, use [../../../../TROUBLESHOOTING.md](../../../../TROUBLESHOOTING.md) to inspect the required schema version, expiry reason, source artifact, 90-day expiry, reconstructed summary path, reconstructed inputs, failed and replacement package versions, and reviewing maintainer before closing the failed or replacement release archive.
+
 ## Validation
 
 Run the fixture check after changing these files:
