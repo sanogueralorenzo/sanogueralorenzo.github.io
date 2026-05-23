@@ -287,7 +287,8 @@ blocking diagnostics.
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
   capability.
-- Check simple capability constraints for file paths and shell commands.
+- Check simple capability constraints for file paths, shell commands, and
+  web/http read domains.
 - Normalize and compare constrained resources such as paths, commands, domains,
   branches, secret names, and approval targets.
 - Require verification gates for every goal and ensure they are pure unless
@@ -361,7 +362,8 @@ Rules:
 - Literal string, number, and boolean values are normalized for checking while
   retaining raw token spans.
 - Nested calls may be parsed as argument values, but the first capability
-  milestone only checks literal file path and shell command arguments.
+  milestone only checks literal file path, shell command, and web/http read
+  URL or domain arguments.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -430,9 +432,9 @@ Rules:
 ## Capability Constraints
 
 The first constraint checker supports only direct string-literal matches for
-file paths and shell commands. A capability authorizes an effect call when the
-effect family matches and every constrained argument is covered by the
-capability.
+file paths, shell commands, and web/http read domains. A capability authorizes
+an effect call when the effect family matches and every constrained argument is
+covered by the capability.
 
 File path constraints:
 
@@ -454,6 +456,24 @@ Shell command constraints:
   parsing, environment mutation, and command prefixes are unsupported.
 - Nonliteral shell command arguments must resolve to trusted values. Untrusted
   or unknown nonliteral command arguments emit `INTENT_TRUST_FLOW_UNSAFE`.
+
+Web/http read constraints:
+
+- Web/http read effects use the first positional argument or a named `url` or
+  `domain` argument.
+- URL arguments must be absolute `http` or `https` URLs. The checker extracts
+  and normalizes the URL host by lowercasing it, removing a trailing dot, and
+  ignoring ports, paths, query strings, and fragments for capability matching.
+- Domain arguments are normalized the same way as URL hosts, except they are
+  already host names rather than full URLs.
+- A web/http read effect is valid only when an in-scope capability grants
+  `read domain: "..."`.
+- An exact domain grant authorizes only the same normalized host.
+- A wildcard domain grant starts with `*.` and authorizes descendant hosts that
+  end with the granted suffix. For example, `*.example.com` authorizes
+  `docs.example.com` and `api.docs.example.com`, but not `example.com`.
+- If no exact or wildcard domain grant covers the normalized URL host or domain
+  argument, the checker emits `INTENT_CAPABILITY_DENIED`.
 
 When no in-scope capability covers a constrained resource, the checker emits
 `INTENT_CAPABILITY_DENIED` at the effect call span with the denied argument,

@@ -10,10 +10,12 @@ const GRAPH_SCHEMA = new URL("../schemas/intent.graph.v0.schema.json", import.me
 const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import.meta.url).pathname;
 const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.intent", import.meta.url).pathname;
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
+const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
+const INVALID_WEB_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_web_read_outside_capability.intent", import.meta.url).pathname;
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
 const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_without_retention.intent", import.meta.url).pathname;
@@ -151,6 +153,7 @@ describe("intent static model CLI", () => {
     const codeChange = runJson(["check", VALID_CODE_CHANGE]);
     const dependencyGraph = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const research = runJson(["check", VALID_RESEARCH]);
+    const webReadWildcard = runJson(["check", VALID_WEB_READ_WILDCARD]);
     const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
 
     assert.equal(codeChange.ok, true);
@@ -159,6 +162,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(dependencyGraph.diagnostics, []);
     assert.equal(research.ok, true);
     assert.deepEqual(research.diagnostics, []);
+    assert.equal(webReadWildcard.ok, true);
+    assert.deepEqual(webReadWildcard.diagnostics, []);
     assert.equal(trustFlow.ok, true);
     assert.deepEqual(trustFlow.diagnostics, []);
   });
@@ -204,6 +209,18 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].value, "npm run lint");
   });
 
+  it("rejects web reads outside declared domain grants", () => {
+    const result = run(["check", INVALID_WEB_READ_OUTSIDE_CAPABILITY]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_DENIED");
+    assert.equal(payload.diagnostics[0].argument, "domain");
+    assert.equal(payload.diagnostics[0].value, "example.org");
+    assert.deepEqual(payload.diagnostics[0].allowed, ["example.com"]);
+  });
+
   it("rejects nonliteral shell commands as unsafe trust flow", () => {
     const result = run(["check", INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT]);
     const payload = JSON.parse(result.stdout);
@@ -213,6 +230,7 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_TRUST_FLOW_UNSAFE");
     assert.equal(payload.diagnostics[0].argument, "command");
     assert.equal(payload.diagnostics[0].trust, "untrusted");
+    assert.equal(payload.diagnostics.length, 1);
   });
 
   it("rejects verification shell commands without matching capability grants", () => {

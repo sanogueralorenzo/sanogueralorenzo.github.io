@@ -1,0 +1,32 @@
+package fixtures.valid_web_read_wildcard
+
+type WebPage = {
+  url: Url
+}
+
+goal "read granted wildcard web domain" {
+  context web("https://docs.example.com/**")
+
+  capability web {
+    read domain: "*.example.com"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step read_docs -> WebPage {
+      effect WebRead(url: "https://docs.example.com/guide")
+    }
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny uncited_external_claim
+  }
+}

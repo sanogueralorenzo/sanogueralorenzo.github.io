@@ -141,6 +141,8 @@ Examples of parseable effect calls:
 file.read(path: "intent/GRAMMAR.md")
 file.write("intent/STATIC_MODEL.md")
 shell.exec(command: "npm test")
+web.read(url: "https://docs.example.com/guide")
+http.get("https://api.example.com/status")
 ```
 
 Inside `verify` requirements, `shell("npm test")` and
@@ -204,6 +206,10 @@ The parser emits names and type reference strings; the checker owns binding.
 - A bound step input creates a `data` edge from the matching goal input or
   earlier step output to that step input node.
 - Web context values are untrusted source values.
+- Web/http read effects use the first positional argument or a named `url` or
+  `domain` argument, and bind to in-scope `read domain: "..."` capability
+  grants. URL hosts are compared against exact or wildcard granted domains; if
+  no grant covers the host, the checker emits `INTENT_CAPABILITY_DENIED`.
 - Shell command arguments must be literal or trusted before execution.
 - Nonliteral shell command arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.

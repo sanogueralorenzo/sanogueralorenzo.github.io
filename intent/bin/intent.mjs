@@ -841,8 +841,14 @@ function parseCapabilityGrant(text) {
   const dottedCall = trimmed.match(/^[a-z][a-z0-9_]*\.([a-z][a-z0-9_]*)\((.*)\)$/);
   if (dottedCall) {
     const { values: args } = parseCallArgs(dottedCall[2]);
-    const key = args.paths ? "path" : args.commands ? "command" : args.path ? "path" : args.command ? "command" : null;
-    const value = args.paths ?? args.commands ?? args.path ?? args.command ?? null;
+    const key = args.paths ? "path"
+      : args.commands ? "command"
+        : args.domains ? "domain"
+          : args.path ? "path"
+            : args.command ? "command"
+              : args.domain ? "domain"
+                : null;
+    const value = args.paths ?? args.commands ?? args.domains ?? args.path ?? args.command ?? args.domain ?? null;
     if (key && typeof value === "string") {
       return {
         action: dottedCall[1],
@@ -1221,12 +1227,24 @@ function effectArgument(effect) {
     const value = effect.args.command ?? effect.args.commands ?? effect.args._0;
     return value ? { key: "command", value } : null;
   }
+  if (effect.family === "web" || effect.family === "http") {
+    const domain = effect.args.domain ?? effect.args.domains;
+    if (domain) {
+      return { key: "domain", value: normalizeDomain(domain) };
+    }
+    const url = effect.args.url ?? effect.args.urls ?? effect.args._0;
+    const host = url ? domainFromUrl(url) : null;
+    return url ? { key: "domain", value: host ?? url } : null;
+  }
   return null;
 }
 
 function isGrantMatch(argument, grant) {
   if (argument.key === "path") {
     return isPathGrantMatch(argument.value, grant.value);
+  }
+  if (argument.key === "domain") {
+    return isDomainGrantMatch(argument.value, grant.value);
   }
   return normalizeCommand(argument.value) === normalizeCommand(grant.value);
 }
@@ -1255,6 +1273,32 @@ function normalizePathLike(value) {
 
 function normalizeCommand(value) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function domainFromUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+    return normalizeDomain(url.hostname);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeDomain(value) {
+  return value.trim().toLowerCase().replace(/\.$/, "");
+}
+
+function isDomainGrantMatch(value, pattern) {
+  const normalizedValue = normalizeDomain(value);
+  const normalizedPattern = normalizeDomain(pattern);
+  if (normalizedPattern.startsWith("*.")) {
+    const suffix = normalizedPattern.slice(2);
+    return normalizedValue.endsWith(`.${suffix}`) && normalizedValue !== suffix;
+  }
+  return normalizedValue === normalizedPattern;
 }
 
 function escapeRegExp(value) {
