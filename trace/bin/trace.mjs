@@ -255,6 +255,7 @@ async function runDoctor() {
   const agents = await listAgentConfigs(root);
   const invalidAgents = agents.filter((agent) => !agent.valid);
   const memories = await auditMemoryFiles(root);
+  const redaction = await redactionAudit(root);
   const dirtyTrace = await dirtyTraceFiles(root);
   const checkpoint = await checkpointAudit(root);
   const searchIndex = await searchIndexStatus(root);
@@ -289,6 +290,13 @@ async function runDoctor() {
       ok: memories.invalidMemories.length === 0,
       count: memories.files.length,
       invalidMemories: memories.invalidMemories,
+    },
+    {
+      name: "redaction",
+      level: "error",
+      ok: redaction.findings.length === 0,
+      scanned: redaction.scanned,
+      findings: redaction.findings,
     },
     {
       name: "dirtyTrace",
@@ -832,20 +840,30 @@ async function showSession(sessionId) {
 }
 
 async function sessionSummaries(root) {
+  const files = await listSessionFiles(root);
+  const sessions = [];
+  for (const file of files) {
+    sessions.push(await sessionSummary(root, file));
+  }
+
+  return sessions.sort((left, right) => String(right.last_at ?? "").localeCompare(String(left.last_at ?? "")));
+}
+
+async function listSessionFiles(root) {
   const dir = join(await gitCommonDir(root), "trace", "sessions");
   if (!await exists(dir)) {
     return [];
   }
 
-  const sessions = [];
+  const files = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith(".jsonl")) {
       continue;
     }
-    sessions.push(await sessionSummary(root, join(dir, entry.name)));
+    files.push(join(dir, entry.name));
   }
 
-  return sessions.sort((left, right) => String(right.last_at ?? "").localeCompare(String(left.last_at ?? "")));
+  return files.sort();
 }
 
 async function sessionSummary(root, file) {
@@ -887,6 +905,11 @@ async function runRedactCommand(action, values) {
     return;
   }
 
+  if (action === "audit") {
+    await auditRedactionCommand();
+    return;
+  }
+
   if (!action || action === "list") {
     const root = await repoRoot();
     print({ ok: true, rules: customRules(await loadTraceConfig(root)) });
@@ -925,6 +948,49 @@ async function removeRedactionRule(label) {
   const rules = customRules(config).filter((rule) => rule.label !== label);
   await writeTraceConfig(root, withCustomRules(config, rules));
   print({ ok: true, label, rules: rules.length });
+}
+
+async function auditRedactionCommand() {
+  const root = await repoRoot();
+  const audit = await redactionAudit(root);
+  print(audit);
+  if (!audit.ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function redactionAudit(root) {
+  const files = [
+    ...await listMemoryFiles(root),
+    ...await listSessionFiles(root),
+  ];
+  const findings = [];
+  const config = await loadTraceConfig(root);
+  const customAuditRules = customRules(config).map((rule) => {
+    validateRegex(rule.pattern);
+    return {
+      label: rule.label,
+      pattern: new RegExp(rule.pattern, "gu"),
+    };
+  });
+
+  for (const file of files) {
+    const content = await readFile(file, "utf8");
+    const relative = relativePath(root, file);
+    const builtin = countUnredactedAssignments(content);
+    if (builtin > 0) {
+      findings.push({ file: relative, rule: "secret-assignment", count: builtin });
+    }
+
+    for (const rule of customAuditRules) {
+      const count = countMatches(content, rule.pattern);
+      if (count > 0) {
+        findings.push({ file: relative, rule: rule.label, count });
+      }
+    }
+  }
+
+  return { ok: findings.length === 0, scanned: files.map((file) => relativePath(root, file)), findings };
 }
 
 async function runAgentCommand(action, values) {
@@ -2045,6 +2111,7 @@ Usage:
   trace checkpoint cleanup [--sessions-before-days 14] [--keep 100]
   trace redact add <label> <regex>
   trace redact list
+  trace redact audit
   trace redact remove <label>
   trace coverage [range]
   trace ci [range]
@@ -2260,6 +2327,23 @@ function normalizeSearchField(value) {
 
 function searchFieldText(entry, field) {
   return String(entry[field] ?? "");
+}
+
+function countUnredactedAssignments(content) {
+  const matches = content.matchAll(/\b(api[_-]?key|token|secret|password)=("[^"]*"|'[^']*'|[^\s]+)/gi);
+  let count = 0;
+  for (const match of matches) {
+    const value = match[2] ?? "";
+    if (!value.includes("REDACTED")) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function countMatches(content, pattern) {
+  const matches = content.match(pattern);
+  return matches ? matches.length : 0;
 }
 
 function stableJson(value) {

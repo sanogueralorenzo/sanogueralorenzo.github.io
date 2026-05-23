@@ -82,6 +82,7 @@ trace checkpoint import trace-checkpoints.json
 trace checkpoint cleanup --sessions-before-days 14 --keep 100
 trace redact add codename 'PROJECT-[A-Z]+'
 trace redact list
+trace redact audit
 trace doctor
 trace check
 trace coverage main..HEAD
@@ -121,6 +122,7 @@ node trace/bin/trace.mjs checkpoint import trace-checkpoints.json
 node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14 --keep 100
 node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
 node trace/bin/trace.mjs redact list
+node trace/bin/trace.mjs redact audit
 node trace/bin/trace.mjs doctor
 node trace/bin/trace.mjs check
 node trace/bin/trace.mjs coverage main..HEAD
@@ -186,7 +188,8 @@ Redaction is local and configurable. Built-in rules scrub common token/password 
 
 ```shell
 trace redact add codename 'PROJECT-[A-Z]+'
+trace redact audit
 trace redact remove codename
 ```
 
-Custom matches are replaced with labeled placeholders like `[REDACTED_CODENAME]` before raw events or commit memories are written.
+Custom matches are replaced with labeled placeholders like `[REDACTED_CODENAME]` before raw events or commit memories are written. `trace redact audit` scans committed memories and local raw session files for unredacted secret assignments or configured custom patterns, and `trace doctor` includes the same audit.

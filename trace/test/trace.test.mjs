@@ -517,6 +517,20 @@ test("custom redaction rules apply to raw events and commit memories", async () 
     assert.match(memory, /\[REDACTED_CODENAME\]/);
     assert.doesNotMatch(memory, /PROJECT-ORION/);
 
+    const audit = JSON.parse((await runTrace(repo, ["redact", "audit"])).stdout);
+    assert.equal(audit.ok, true);
+    assert.deepEqual(audit.findings, []);
+
+    const sha = (await git(repo, ["rev-parse", "HEAD"])).stdout.trim();
+    const memoryPath = join(repo, ".trace/commits", sha.slice(0, 2), `${sha}.md`);
+    await writeFile(memoryPath, `${await readFile(memoryPath, "utf8")}\nPROJECT-ORION token=visible-secret\n`);
+    const failedAudit = await runTraceAllowFailure(repo, ["redact", "audit"]);
+    assert.equal(failedAudit.exitCode, 1);
+    const failedPayload = JSON.parse(failedAudit.stdout);
+    assert.equal(failedPayload.ok, false);
+    assert.ok(failedPayload.findings.some((finding) => finding.rule === "codename"));
+    assert.ok(failedPayload.findings.some((finding) => finding.rule === "secret-assignment"));
+
     await runTrace(repo, ["redact", "remove", "codename"]);
     const removed = JSON.parse((await runTrace(repo, ["redact", "list"])).stdout);
     assert.deepEqual(removed.rules, []);
