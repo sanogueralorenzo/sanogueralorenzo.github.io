@@ -530,21 +530,16 @@ async function explainPrecedent() {
 }
 
 async function replayCase() {
-  const casePath = args.case;
-
-  if (!casePath) {
-    fail("replay requires --case <path>");
-  }
-
   const stateDir = statePath();
-  const resolvedCasePath = resolve(casePath);
-  const rawReplayCase = parseJson(await readFile(resolvedCasePath, "utf8"), casePath);
-  const replayCase = redactSecretsDeep(rawReplayCase).value;
-  assertSchemaVersion(replayCase, "case");
+  const {
+    rawReplayCase,
+    replayCase,
+    resolvedCasePath,
+    cwd,
+  } = await loadReplayCaseInput(stateDir);
   const replayId = requireString(replayCase.id, "case.id");
   const replayDir = join(stateDir, "replays", safeFileName(replayId));
   const startedAt = new Date().toISOString();
-  const cwd = replayCase.cwd ? resolve(dirname(resolvedCasePath), replayCase.cwd) : process.cwd();
   let baseline = null;
   let rerun = null;
   let replay = null;
@@ -580,6 +575,7 @@ async function replayCase() {
     replay = {
       id: replayId,
       casePath: resolvedCasePath,
+      candidateId: replayCase.candidateId ?? null,
       cwd,
       startedAt,
       completedAt: new Date().toISOString(),
@@ -608,6 +604,7 @@ async function replayCase() {
       improved,
       baselineExitCode: baseline.exitCode,
       rerunExitCode: rerun.exitCode,
+      candidateId: replay.candidateId,
       replayPath,
       tracePath,
     });
@@ -620,6 +617,91 @@ async function replayCase() {
     tracePath,
     trace,
   });
+}
+
+async function loadReplayCaseInput(stateDir) {
+  if (args.case && args.candidate) {
+    fail("replay accepts either --case or --candidate, not both");
+  }
+
+  if (args.candidate) {
+    await ensureState(stateDir);
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    const candidate = candidates.find((item) => item.id === args.candidate);
+    if (!candidate) {
+      fail(`unknown candidate id: ${args.candidate}`);
+    }
+
+    const baselineCommand = requireString(args["baseline-command"] ?? args.baseline, "replay --baseline-command");
+    const rerunCommand = args["rerun-command"] ?? args.rerun ?? validationCommandFromEvidence(candidate.evidence);
+    if (!rerunCommand) {
+      fail("replay --candidate requires --rerun-command or successful validation evidence");
+    }
+
+    const rawReplayCase = replayCaseFromCandidate({
+      candidate,
+      baselineCommand,
+      rerunCommand,
+    });
+    const replayCase = redactSecretsDeep(rawReplayCase).value;
+    assertSchemaVersion(replayCase, "case");
+
+    return {
+      rawReplayCase,
+      replayCase,
+      resolvedCasePath: null,
+      cwd: args.cwd ? resolve(args.cwd) : process.cwd(),
+    };
+  }
+
+  const casePath = args.case;
+  if (!casePath) {
+    fail("replay requires --case <path> or --candidate <id>");
+  }
+
+  const resolvedCasePath = resolve(casePath);
+  const rawReplayCase = parseJson(await readFile(resolvedCasePath, "utf8"), casePath);
+  const replayCase = redactSecretsDeep(rawReplayCase).value;
+  assertSchemaVersion(replayCase, "case");
+
+  return {
+    rawReplayCase,
+    replayCase,
+    resolvedCasePath,
+    cwd: replayCase.cwd ? resolve(dirname(resolvedCasePath), replayCase.cwd) : process.cwd(),
+  };
+}
+
+function replayCaseFromCandidate({ candidate, baselineCommand, rerunCommand }) {
+  return {
+    schema_version: SCHEMA_VERSION,
+    id: `candidate-${safeFileName(requireString(candidate.id, "candidate.id"))}`,
+    candidateId: candidate.id,
+    task: candidate.trigger ?? candidate.lesson ?? candidate.id,
+    scope: candidate.scope ?? "repo",
+    changedFiles: Array.isArray(candidate.paths) ? candidate.paths : [],
+    failures: Array.isArray(candidate.failure_types) ? candidate.failure_types : [],
+    baseline: {
+      command: baselineCommand,
+    },
+    rerun: {
+      command: rerunCommand,
+    },
+    precedent: {
+      id: requireString(candidate.id, "candidate.id"),
+      scope: requireString(candidate.scope, "candidate.scope"),
+      trigger: requireString(candidate.trigger, "candidate.trigger"),
+      lesson: requireString(candidate.lesson, "candidate.lesson"),
+      artifact: requireString(candidate.artifact, "candidate.artifact"),
+      paths: Array.isArray(candidate.paths) ? candidate.paths : [],
+      evidence: [
+        ...(Array.isArray(candidate.evidence) ? candidate.evidence : []),
+        `candidate replay: ${candidate.id}`,
+      ],
+      injection: requireString(candidate.injection, "candidate.injection"),
+      guards: Array.isArray(candidate.guards) ? candidate.guards : [],
+    },
+  };
 }
 
 async function runHook() {
@@ -4914,6 +4996,7 @@ Usage:
   precedent context --task "add webhook handler" [--scope feature:webhooks] [--include-stale] [--format json|markdown]
   precedent compile [--state-dir .precedent] [--promote-session-pairs]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
+  precedent replay --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
