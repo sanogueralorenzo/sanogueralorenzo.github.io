@@ -123,6 +123,13 @@ test("replay emits verified evidence that can promote and inject precedent", asy
     const report = await runPrecedent(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(report.replays, 1);
     assert.equal(report.precedents, 1);
+    assert.equal(report.auditHealth.verified, 1);
+    assert.equal(report.auditHealth.needsAttention, 0);
+    assert.equal(report.replayAudit[0].precedentId, "prec_webhook_replay_boundary");
+    assert.equal(report.replayAudit[0].status, "verified");
+    assert.equal(report.replayAudit[0].failureDelta, 1);
+    assert.equal(report.replayAudit[0].expectedSha256, observed.promoted.replay.artifact_sha256);
+    assert.equal(report.replayAudit[0].actualSha256, observed.promoted.replay.artifact_sha256);
 
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
     assert.equal(precedents.length, 1);

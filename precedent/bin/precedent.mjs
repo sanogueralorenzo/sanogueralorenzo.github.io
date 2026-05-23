@@ -1726,6 +1726,7 @@ async function reportState() {
   const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
   const events = await readJsonLines(join(stateDir, "events.jsonl"));
   const replays = await readReplayCount(join(stateDir, "replays"));
+  const replayAudit = await replayAuditEntries(precedents, stateDir);
 
   const artifactCounts = {};
   for (const precedent of precedents) {
@@ -1740,12 +1741,163 @@ async function reportState() {
     replays,
     events: events.length,
     artifactCounts,
+    auditHealth: replayAuditHealth(replayAudit),
+    replayAudit,
     repairHealth: repairHealthSummary(events, precedents),
     precedentHealth: precedents.map((precedent) => ({
       id: precedent.id,
       ...outcomeSummaryForPrecedent(events, precedent.id),
     })),
   });
+}
+
+async function replayAuditEntries(precedents, stateDir) {
+  return Promise.all(precedents.map((precedent) => replayAuditEntry(precedent, stateDir)));
+}
+
+async function replayAuditEntry(precedent, stateDir) {
+  const replay = precedent.replay ?? {};
+  const base = {
+    precedentId: precedent.id ?? null,
+    replayId: replay.id ?? null,
+    replayPath: replay.path ?? null,
+    expectedSha256: replay.artifact_sha256 ?? null,
+    actualSha256: null,
+    baselineFailures: replay.baseline_failures ?? null,
+    rerunFailures: replay.rerun_failures ?? null,
+    baselineExitCode: replay.baseline_exit_code ?? null,
+    rerunExitCode: replay.rerun_exit_code ?? null,
+    failureDelta: Number.isFinite(replay.baseline_failures) && Number.isFinite(replay.rerun_failures)
+      ? replay.baseline_failures - replay.rerun_failures
+      : null,
+  };
+
+  if (!nonEmptyString(replay.id) || !nonEmptyString(replay.path) || !/^[a-f0-9]{64}$/u.test(replay.artifact_sha256 ?? "")) {
+    return {
+      ...base,
+      status: "missing_receipt",
+      messages: ["typed replay receipt is incomplete"],
+      nextAction: "rerun candidate replay and observe the generated trace",
+    };
+  }
+
+  const replayPath = resolve(replay.path);
+  if (!pathWithin(resolve(stateDir), replayPath)) {
+    return {
+      ...base,
+      status: "outside_state",
+      messages: ["replay.path points outside the Precedent state directory"],
+      nextAction: "discard the precedent or replay it into the current state directory",
+    };
+  }
+
+  let rawArtifact = null;
+  try {
+    rawArtifact = await readFile(replayPath, "utf8");
+  } catch (error) {
+    return {
+      ...base,
+      status: error.code === "ENOENT" ? "missing_artifact" : "unreadable_artifact",
+      messages: [`replay artifact is not readable: ${error.message}`],
+      nextAction: "restore the replay artifact or replay the candidate again",
+    };
+  }
+
+  const actualSha256 = sha256Text(rawArtifact);
+  if (actualSha256 !== replay.artifact_sha256) {
+    return {
+      ...base,
+      actualSha256,
+      status: "hash_mismatch",
+      messages: ["replay artifact hash does not match the typed receipt"],
+      nextAction: "rerun replay and observe a fresh trace before trusting this precedent",
+    };
+  }
+
+  let artifact = null;
+  try {
+    artifact = JSON.parse(rawArtifact);
+  } catch (error) {
+    return {
+      ...base,
+      actualSha256,
+      status: "metadata_mismatch",
+      messages: [`replay artifact JSON is invalid: ${error.message}`],
+      nextAction: "rerun replay and observe a fresh trace before promotion",
+    };
+  }
+  const messages = [];
+  if (artifact.id !== replay.id) {
+    messages.push("replay artifact id does not match receipt");
+  }
+  if (artifact.promotion?.baseline_failures !== precedent.promotion?.baseline_failures) {
+    messages.push("baseline failure count does not match promotion");
+  }
+  if (artifact.promotion?.rerun_failures !== precedent.promotion?.rerun_failures) {
+    messages.push("rerun failure count does not match promotion");
+  }
+  if (artifact.baseline?.exitCode !== replay.baseline_exit_code) {
+    messages.push("baseline exit code does not match replay artifact");
+  }
+  if (artifact.rerun?.exitCode !== replay.rerun_exit_code) {
+    messages.push("rerun exit code does not match replay artifact");
+  }
+
+  if (messages.length > 0) {
+    return {
+      ...base,
+      actualSha256,
+      status: "metadata_mismatch",
+      messages,
+      nextAction: "rerun replay and observe a fresh trace before promotion",
+    };
+  }
+
+  return {
+    ...base,
+    actualSha256,
+    status: "verified",
+    messages: [],
+    nextAction: "none",
+  };
+}
+
+function replayAuditHealth(entries) {
+  const counts = {
+    total: entries.length,
+    verified: 0,
+    missingReceipt: 0,
+    missingArtifact: 0,
+    unreadableArtifact: 0,
+    outsideState: 0,
+    hashMismatch: 0,
+    metadataMismatch: 0,
+    needsAttention: 0,
+  };
+
+  for (const entry of entries) {
+    if (entry.status === "verified") {
+      counts.verified += 1;
+      continue;
+    }
+
+    counts.needsAttention += 1;
+    if (entry.status === "missing_receipt") {
+      counts.missingReceipt += 1;
+    } else if (entry.status === "missing_artifact") {
+      counts.missingArtifact += 1;
+    } else if (entry.status === "unreadable_artifact") {
+      counts.unreadableArtifact += 1;
+    } else if (entry.status === "outside_state") {
+      counts.outsideState += 1;
+    } else if (entry.status === "hash_mismatch") {
+      counts.hashMismatch += 1;
+    } else if (entry.status === "metadata_mismatch") {
+      counts.metadataMismatch += 1;
+    }
+  }
+
+  return counts;
 }
 
 async function checkState() {

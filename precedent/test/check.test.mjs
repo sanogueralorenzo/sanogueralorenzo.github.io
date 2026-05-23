@@ -109,11 +109,72 @@ test("check fails for promoted precedent without replay receipt", async () => {
 
     const result = await runProcess(["check", "--state-dir", stateDir, "--json"]);
     const payload = JSON.parse(result.stdout);
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
 
+    assert.equal(report.auditHealth.missingReceipt, 1);
+    assert.equal(report.replayAudit[0].status, "missing_receipt");
     assert.equal(result.exitCode, 1);
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("replay.id is required")));
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("replay.path is required")));
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.message?.includes("artifact_sha256 is required")));
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("report surfaces replay audit failures without failing", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await appendFile(join(stateDir, "precedents.jsonl"), `${JSON.stringify({
+      id: "prec_missing_artifact",
+      promotion_status: "promoted",
+      evidence: ["verified by replay"],
+      replay: {
+        id: "missing-replay",
+        path: join(stateDir, "replays/missing-replay/replay.json"),
+        artifact_sha256: "a".repeat(64),
+        baseline_failures: 1,
+        rerun_failures: 0,
+        baseline_exit_code: 1,
+        rerun_exit_code: 0,
+      },
+      promotion: {
+        baseline_failures: 1,
+        rerun_failures: 0,
+        baseline_exit_code: 1,
+        rerun_exit_code: 0,
+      },
+    })}\n`);
+    await appendFile(join(stateDir, "precedents.jsonl"), `${JSON.stringify({
+      id: "prec_outside_state",
+      promotion_status: "promoted",
+      evidence: ["verified by replay"],
+      replay: {
+        id: "outside-replay",
+        path: join(tmpdir(), "outside-replay.json"),
+        artifact_sha256: "b".repeat(64),
+        baseline_failures: 1,
+        rerun_failures: 0,
+        baseline_exit_code: 1,
+        rerun_exit_code: 0,
+      },
+      promotion: {
+        baseline_failures: 1,
+        rerun_failures: 0,
+        baseline_exit_code: 1,
+        rerun_exit_code: 0,
+      },
+    })}\n`);
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+
+    assert.equal(report.auditHealth.needsAttention, 2);
+    assert.equal(report.auditHealth.missingArtifact, 1);
+    assert.equal(report.auditHealth.outsideState, 1);
+    assert.equal(report.replayAudit.find((entry) => entry.precedentId === "prec_missing_artifact").status, "missing_artifact");
+    assert.equal(report.replayAudit.find((entry) => entry.precedentId === "prec_outside_state").status, "outside_state");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -180,7 +241,10 @@ test("check validates promoted precedent replay receipts", async () => {
 
     const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
     const payload = JSON.parse(result.stdout);
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
 
+    assert.equal(report.auditHealth.hashMismatch, 1);
+    assert.equal(report.replayAudit[0].status, "hash_mismatch");
     assert.equal(result.exitCode, 1);
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.ok === false && check.message.includes("artifact hash")));
     assert.ok(payload.checks.some((check) => check.name === "promoted_precedent_replay" && check.ok === false && check.message.includes("baseline failure count")));
