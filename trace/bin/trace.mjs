@@ -217,8 +217,8 @@ async function initRepo() {
 
 async function enableRepo() {
   await initRepo();
-  await installHook("prepare-commit-msg", `trace hook prepare-commit-msg "$@"`);
-  await installHook("post-commit", `trace hook post-commit "$@"`);
+  await installHook("prepare-commit-msg", traceHookCommand("prepare-commit-msg"));
+  await installHook("post-commit", traceHookCommand("post-commit"));
   print({ ok: true, enabled: true });
 }
 
@@ -272,9 +272,10 @@ async function runDoctor() {
     {
       name: "hooks",
       level: "error",
-      ok: hooks.prepareCommitMsg && hooks.postCommit,
+      ok: hooks.details.prepareCommitMsg.valid && hooks.details.postCommit.valid,
       prepareCommitMsg: hooks.prepareCommitMsg,
       postCommit: hooks.postCommit,
+      details: hooks.details,
     },
     {
       name: "agents",
@@ -1777,10 +1778,9 @@ async function writeCheckpointRef(root, checkpointId, payload) {
 async function installHook(name, traceCommand) {
   const hooksDir = await gitHooksDir();
   const hookPath = join(hooksDir, name);
-  const cliPath = fileURLToPath(import.meta.url);
   const managed = [
     HOOK_START,
-    `node ${shellQuote(cliPath)} ${traceCommand.replace(/^trace /, "")}`,
+    expectedHookLine(traceCommand),
     HOOK_END,
     "",
   ].join("\n");
@@ -1802,6 +1802,21 @@ async function removeManagedBlock(file) {
 function stripManagedBlock(content) {
   const pattern = new RegExp(`\\n?${escapeRegExp(HOOK_START)}[\\s\\S]*?${escapeRegExp(HOOK_END)}\\n?`, "g");
   return content.replace(pattern, "\n").replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+}
+
+function traceHookCommand(name) {
+  if (name === "prepare-commit-msg") {
+    return `trace hook prepare-commit-msg "$@"`;
+  }
+  if (name === "post-commit") {
+    return `trace hook post-commit "$@"`;
+  }
+  fail(`unknown managed hook ${name}`);
+}
+
+function expectedHookLine(traceCommand) {
+  const cliPath = fileURLToPath(import.meta.url);
+  return `node ${shellQuote(cliPath)} ${traceCommand.replace(/^trace /, "")}`;
 }
 
 async function ensureTrace(root) {
@@ -2063,10 +2078,33 @@ async function gitHooksDir() {
 }
 
 async function traceHookStatus() {
-  const hooksDir = await gitHooksDir();
+  const prepareCommitMsg = await managedHookStatus("prepare-commit-msg");
+  const postCommit = await managedHookStatus("post-commit");
   return {
-    prepareCommitMsg: await fileIncludes(join(hooksDir, "prepare-commit-msg"), HOOK_START),
-    postCommit: await fileIncludes(join(hooksDir, "post-commit"), HOOK_START),
+    prepareCommitMsg: prepareCommitMsg.installed,
+    postCommit: postCommit.installed,
+    details: {
+      prepareCommitMsg,
+      postCommit,
+    },
+  };
+}
+
+async function managedHookStatus(name) {
+  const root = await repoRoot();
+  const hooksDir = await gitHooksDir();
+  const hookPath = join(hooksDir, name);
+  const content = await readFile(hookPath, "utf8").catch(() => "");
+  const block = content.match(new RegExp(`${escapeRegExp(HOOK_START)}\\n([\\s\\S]*?)\\n${escapeRegExp(HOOK_END)}`))?.[1] ?? "";
+  const commands = block.split("\n").map((line) => line.trim()).filter(Boolean);
+  const expectedCommand = expectedHookLine(traceHookCommand(name));
+  return {
+    hook: name,
+    path: relativePath(root, hookPath),
+    installed: block.length > 0,
+    valid: commands.includes(expectedCommand),
+    command: commands[0] ?? null,
+    expectedCommand,
   };
 }
 

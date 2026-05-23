@@ -750,12 +750,15 @@ test("enable installs git hooks that link commits and write post-commit memory",
     const payload = JSON.parse(status.stdout);
     assert.equal(payload.hooks.prepareCommitMsg, true);
     assert.equal(payload.hooks.postCommit, true);
+    assert.equal(payload.hooks.details.prepareCommitMsg.valid, true);
+    assert.equal(payload.hooks.details.postCommit.valid, true);
+    assert.match(payload.hooks.details.postCommit.command, /trace\.mjs'? hook post-commit/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
 });
 
-test("enable and disable preserve existing hook bodies", async () => {
+test("enable disable and doctor validate managed hook bodies", async () => {
   const repo = await tempRepo();
 
   try {
@@ -770,6 +773,16 @@ test("enable and disable preserve existing hook bodies", async () => {
     assert.equal(enabled.match(/# trace:start/g)?.length, 1);
     assert.match(enabled, /printf existing-hook/);
 
+    await writeFile(hookPath, enabled.replace(/hook post-commit "\$@"/, "hook unknown \"$@\""));
+    const doctor = await runTraceAllowFailure(repo, ["doctor"]);
+    assert.equal(doctor.exitCode, 1);
+    const doctorPayload = JSON.parse(doctor.stdout);
+    const hooks = doctorPayload.checks.find((check) => check.name === "hooks");
+    assert.equal(hooks.ok, false);
+    assert.equal(hooks.postCommit, true);
+    assert.equal(hooks.details.postCommit.valid, false);
+
+    await runTrace(repo, ["enable"]);
     await runTrace(repo, ["disable"]);
     const disabled = await readFile(hookPath, "utf8");
     assert.doesNotMatch(disabled, /# trace:start/);
