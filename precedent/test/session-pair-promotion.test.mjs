@@ -28,8 +28,32 @@ test("compile promotes analogous failed and successful ordinary sessions", async
     assert.deepEqual(precedents[0].source_traces, ["session-failed-session", "session-success-session"]);
     assert.ok(precedents[0].evidence.some((item) => item.includes("failed validation: pnpm test exited 1")));
     assert.ok(precedents[0].evidence.some((item) => item.includes("successful validation: pnpm test:webhooks exited 0")));
+    assert.ok(precedents[0].evidence.some((item) => item.includes("session-pair replay:")));
+    assert.match(precedents[0].replay.path, /replays\/session-pair-session-failed-session-session-success-session\/replay\.json$/u);
     assert.ok(precedents[0].guards.some((guard) => guard.type === "required_validation_command"));
     assert.ok(precedents[0].guards.some((guard) => guard.type === "changed_files_within_paths"));
+
+    const replay = JSON.parse(await readFile(precedents[0].replay.path, "utf8"));
+    assert.equal(replay.id, "session-pair-session-failed-session-session-success-session");
+    assert.equal(replay.baseline.sessionId, "failed-session");
+    assert.equal(replay.baseline.exitCode, 1);
+    assert.equal(replay.rerun.sessionId, "success-session");
+    assert.equal(replay.rerun.exitCode, 0);
+    assert.equal(replay.improved, true);
+
+    const explained = await runJson([
+      "explain",
+      "--state-dir",
+      stateDir,
+      "--id",
+      "prec_feature_webhooks_wrong_test_command_wrong_repo_slice",
+      "--json",
+    ]);
+    assert.equal(explained.source.replayId, replay.id);
+    assert.equal(explained.source.replayPath, precedents[0].replay.path);
+
+    const check = await runJson(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    assert.equal(check.ok, true);
 
     const context = await runJson([
       "context",

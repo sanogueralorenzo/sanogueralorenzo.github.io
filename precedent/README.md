@@ -158,7 +158,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
 - `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
-- `compile --promote-session-pairs` scans ordinary session hook histories for a failed session followed by an analogous successful session, then generates a promoted precedent with evidence, replay-style failure delta, injection text, and advisory guards. This path does not require a handcrafted `precedent` object in the source events.
+- `compile --promote-session-pairs` scans ordinary session hook histories for a failed session followed by an analogous successful session, then generates a promoted precedent with evidence, a durable session-pair replay receipt, replay-style failure delta, injection text, and advisory guards. This path does not require a handcrafted `precedent` object in the source events.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
 - `report` also attributes session outcomes back to injected precedents, so each precedent has use, success, failure, and suppression counts.

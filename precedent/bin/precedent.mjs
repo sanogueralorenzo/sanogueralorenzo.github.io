@@ -1566,7 +1566,12 @@ function sourceForPrecedent(precedent, traces) {
     };
   }
 
-  return sourceForTrace(trace);
+  const source = sourceForTrace(trace);
+  return {
+    ...source,
+    replayId: source.replayId ?? precedent.replay?.id ?? null,
+    replayPath: source.replayPath ?? precedent.replay?.path ?? null,
+  };
 }
 
 function sourceForTrace(trace) {
@@ -2004,18 +2009,31 @@ async function promoteSessionPairs(stateDir, { successSessionId = null, requireF
     if (!failedTrace) {
       continue;
     }
-    const precedent = precedentFromSessionPair(failedTrace, successTrace);
+    const replayId = `session-pair-${safeFileName(failedTrace.id)}-${safeFileName(successTrace.id)}`;
+    const replayDir = join(stateDir, "replays", replayId);
+    const replayPath = join(replayDir, "replay.json");
+    const precedent = precedentFromSessionPair(failedTrace, successTrace, replayPath, replayId);
     const assessment = assessPromotionCandidate(precedent);
     if (!assessment.ok) {
       continue;
     }
 
+    await mkdir(replayDir, { recursive: true });
+    await writeFileAtomic(replayPath, `${JSON.stringify(sessionPairReplay({
+      id: replayId,
+      replayPath,
+      failedTrace,
+      successTrace,
+      promotion: precedent.promotion,
+    }), null, 2)}\n`);
     const promotion = await upsertPromotedPrecedent(stateDir, precedent, new Date().toISOString());
     promoted.push({
       id: promotion.precedent.id,
       action: promotion.action,
       failedTrace: failedTrace.id,
       successTrace: successTrace.id,
+      replayId,
+      replayPath,
     });
   }
 
@@ -2087,7 +2105,7 @@ function tracesAreAnalogous(failedTrace, successTrace) {
   return overlap > 0 || failedTrace.scope === successTrace.scope;
 }
 
-function precedentFromSessionPair(failedTrace, successTrace) {
+function precedentFromSessionPair(failedTrace, successTrace, replayPath, replayId) {
   const failureTypes = classifyFailures(failedTrace.failures);
   const scope = failedTrace.scope || successTrace.scope || "repo";
   const id = `prec_${safeFileName(scope)}_${failureTypes.join("_") || "session_pair"}`;
@@ -2107,15 +2125,53 @@ function precedentFromSessionPair(failedTrace, successTrace) {
     paths,
     source_trace: failedTrace.id,
     source_traces: [failedTrace.id, successTrace.id],
-    evidence: sessionPairEvidence(failedTrace, successTrace),
+    evidence: sessionPairEvidence(failedTrace, successTrace, replayPath),
     injection,
     guards: guardsForSessionPair(failureTypes, paths, successfulValidation?.command),
+    replay: {
+      id: replayId,
+      path: replayPath,
+    },
     promotion: {
       baseline_failures: 1,
       rerun_failures: 0,
       baseline_exit_code: failedValidationExitCode(failedTrace),
       rerun_exit_code: successfulValidation?.exitCode ?? 0,
     },
+  };
+}
+
+function sessionPairReplay({ id, replayPath, failedTrace, successTrace, promotion }) {
+  const failedValidation = failedValidationEvidence(failedTrace);
+  const successValidation = successfulValidationForTrace(successTrace);
+
+  return {
+    id,
+    replayPath,
+    startedAt: failedTrace.session?.completedAt ?? null,
+    completedAt: successTrace.session?.completedAt ?? null,
+    task: failedTrace.task ?? successTrace.task ?? null,
+    scope: failedTrace.scope ?? successTrace.scope ?? null,
+    changedFiles: uniqueStrings([
+      ...(Array.isArray(failedTrace.changedFiles) ? failedTrace.changedFiles : []),
+      ...(Array.isArray(successTrace.changedFiles) ? successTrace.changedFiles : []),
+    ]),
+    baseline: {
+      sessionId: failedTrace.sessionId,
+      traceId: failedTrace.id,
+      command: failedValidation?.command ?? null,
+      exitCode: failedValidation?.exitCode ?? 1,
+      failures: failedTrace.failures,
+    },
+    rerun: {
+      sessionId: successTrace.sessionId,
+      traceId: successTrace.id,
+      command: successValidation?.command ?? null,
+      exitCode: successValidation?.exitCode ?? 0,
+      failures: successTrace.failures,
+    },
+    promotion,
+    improved: promotion.baseline_failures > promotion.rerun_failures,
   };
 }
 
@@ -2136,13 +2192,14 @@ function failedValidationExitCode(trace) {
   return failed?.exitCode ?? 1;
 }
 
-function sessionPairEvidence(failedTrace, successTrace) {
+function sessionPairEvidence(failedTrace, successTrace, replayPath) {
   const failedValidation = failedValidationEvidence(failedTrace);
   const successValidation = successfulValidationForTrace(successTrace);
 
   return uniqueStrings([
     ...(failedValidation ? [`failed validation: ${failedValidation.command} exited ${failedValidation.exitCode}`] : []),
     ...(successValidation ? [`successful validation: ${successValidation.command} exited ${successValidation.exitCode}`] : []),
+    `session-pair replay: ${replayPath}`,
     `failed changed files: ${(failedTrace.changedFiles ?? []).join(", ")}`,
     `successful changed files: ${(successTrace.changedFiles ?? []).join(", ")}`,
     `outcome delta: ${failedTrace.outcome} to ${successTrace.outcome}`,
