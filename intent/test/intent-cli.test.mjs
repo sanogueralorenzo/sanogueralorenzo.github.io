@@ -9,6 +9,7 @@ const CHECK_SCHEMA = new URL("../schemas/intent.check.v0.schema.json", import.me
 const GRAPH_SCHEMA = new URL("../schemas/intent.graph.v0.schema.json", import.meta.url).pathname;
 const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import.meta.url).pathname;
 const VALID_CHECKPOINT_GRAPH = new URL("../fixtures/valid_checkpoint_graph.intent", import.meta.url).pathname;
+const VALID_CONTEXT_TRUST_GRAPH = new URL("../fixtures/valid_context_trust_graph.intent", import.meta.url).pathname;
 const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.intent", import.meta.url).pathname;
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
 const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.intent", import.meta.url).pathname;
@@ -153,6 +154,9 @@ describe("intent static model CLI", () => {
     assert.equal(ast.goals[0].memory[0].retention[0], "retain summaries until goal_complete");
     assert.equal(ast.goals[0].memory[0].retentionRules[0].subject.raw, "summaries");
     assert.equal(ast.goals[0].memory[0].retentionRules[0].until.raw, "goal_complete");
+    assert.equal(ast.goals[0].context[0].source, "repo");
+    assert.equal(ast.goals[0].context[0].args._0, "./");
+    assert.equal(ast.goals[0].context[0].trust.zone, "trusted");
     assert.equal(ast.goals[0].span.file, VALID_CODE_CHANGE);
     assert.equal(ast.goals[0].span.start.line, 15);
   });
@@ -160,6 +164,7 @@ describe("intent static model CLI", () => {
   it("accepts valid fixtures", () => {
     const codeChange = runJson(["check", VALID_CODE_CHANGE]);
     const checkpointGraph = runJson(["check", VALID_CHECKPOINT_GRAPH]);
+    const contextTrustGraph = runJson(["check", VALID_CONTEXT_TRUST_GRAPH]);
     const dependencyGraph = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const research = runJson(["check", VALID_RESEARCH]);
     const webReadWildcard = runJson(["check", VALID_WEB_READ_WILDCARD]);
@@ -174,6 +179,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(codeChange.diagnostics, []);
     assert.equal(checkpointGraph.ok, true);
     assert.deepEqual(checkpointGraph.diagnostics, []);
+    assert.equal(contextTrustGraph.ok, true);
+    assert.deepEqual(contextTrustGraph.diagnostics, []);
     assert.equal(dependencyGraph.ok, true);
     assert.deepEqual(dependencyGraph.diagnostics, []);
     assert.equal(research.ok, true);
@@ -360,6 +367,25 @@ describe("intent static model CLI", () => {
     assert.equal(graph.edges.some((edge) => edge.kind === "authorizes" && edge.to.includes(":verify:")), true);
   });
 
+  it("emits structured context sources with first-prototype trust metadata", () => {
+    const graph = runJson(["graph", VALID_CONTEXT_TRUST_GRAPH]);
+    const repoContext = graph.nodes.find((node) => node.kind === "Context" && node.data.source === "repo");
+    const webContext = graph.nodes.find((node) => node.kind === "Context" && node.data.source === "web");
+    const documentsContext = graph.nodes.find((node) => node.kind === "Context" && node.data.source === "documents");
+
+    assert.equal(graph.ok, true);
+    assert.equal(repoContext.data.args._0, "./");
+    assert.equal(repoContext.data.argKinds._0, "string");
+    assert.equal(repoContext.data.expression, "repo(\"./\")");
+    assert.equal(repoContext.data.trust.zone, "trusted");
+    assert.equal(repoContext.data.trust.source, "local_context");
+    assert.equal(webContext.data.args._0, "https://example.com/**");
+    assert.equal(webContext.data.trust.zone, "untrusted");
+    assert.equal(webContext.data.trust.source, "external_context");
+    assert.equal(documentsContext.data.trust.zone, "trusted");
+    assert.equal(graph.edges.some((edge) => edge.kind === "informs" && edge.from === webContext.id), true);
+  });
+
   it("emits explicit data dependencies and completion gates", () => {
     const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
     const kinds = new Set(graph.nodes.map((node) => node.kind));
@@ -456,11 +482,13 @@ describe("intent static model CLI", () => {
     const invalidCheck = JSON.parse(run(["check", INVALID_UNRESOLVED_TYPE]).stdout);
     const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
     const policyGraph = runJson(["graph", VALID_STEP_POLICY_GRAPH]);
+    const contextGraph = runJson(["graph", VALID_CONTEXT_TRUST_GRAPH]);
 
     assert.deepEqual(validateSchema(astSchema, ast), []);
     assert.deepEqual(validateSchema(checkSchema, validCheck), []);
     assert.deepEqual(validateSchema(checkSchema, invalidCheck), []);
     assert.deepEqual(validateSchema(graphSchema, graph), []);
     assert.deepEqual(validateSchema(graphSchema, policyGraph), []);
+    assert.deepEqual(validateSchema(graphSchema, contextGraph), []);
   });
 });

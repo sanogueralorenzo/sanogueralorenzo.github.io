@@ -223,7 +223,7 @@ function parseGoal(header, bodyLines, file, startLine, endLine) {
     }
 
     if (line.startsWith("context ")) {
-      goal.context.push(statementNode("ContextSource", line.slice("context ".length), file, entry.lineNumber, entry.text));
+      goal.context.push(parseContextSource(line.slice("context ".length), file, entry.lineNumber, entry.text));
       index += 1;
       continue;
     }
@@ -252,7 +252,7 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
 
   if (normalized === "context") {
     for (const line of meaningfulLines(body)) {
-      goal.context.push(statementNode("ContextSource", line.text, file, line.lineNumber, line.raw));
+      goal.context.push(parseContextSource(line.text, file, line.lineNumber, line.raw));
     }
     return;
   }
@@ -412,6 +412,21 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
     name: normalized,
     constraints: [normalized],
     grants: [parseCapabilityGrant(normalized)].filter(Boolean),
+    span: lineSpan(file, lineNumber, raw),
+  };
+}
+
+function parseContextSource(text, file, lineNumber, raw) {
+  const source = text.match(/^([a-z][a-z0-9_]*)\s*\(/)?.[1] ?? firstWord(text);
+  const parsedArgs = parseCallArgs(text);
+  return {
+    kind: "ContextSource",
+    value: text,
+    source,
+    args: parsedArgs.values,
+    argKinds: parsedArgs.kinds,
+    expression: text,
+    trust: contextTrust(source),
     span: lineSpan(file, lineNumber, raw),
   };
 }
@@ -710,7 +725,13 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
 
     for (const [index, context] of goal.context.entries()) {
       const id = `${goalId}:context:${index}`;
-      nodes.push(node(id, "Context", context.value, context.span));
+      nodes.push(node(id, "Context", context.value, context.span, {
+        source: context.source,
+        args: context.args,
+        argKinds: context.argKinds,
+        expression: context.expression,
+        trust: context.trust,
+      }));
       edges.push(edge(id, goalId, "informs"));
     }
 
@@ -1269,6 +1290,16 @@ function slugify(text) {
 
 function capabilityFamily(name) {
   return name.split(/[.(\s]/)[0] || name;
+}
+
+function contextTrust(source) {
+  if (["repo", "file", "documents", "workspace"].includes(source)) {
+    return { zone: "trusted", source: "local_context" };
+  }
+  if (["web", "http", "browser"].includes(source)) {
+    return { zone: "untrusted", source: "external_context" };
+  }
+  return { zone: "unknown", source: "context" };
 }
 
 function effectFamily(name) {

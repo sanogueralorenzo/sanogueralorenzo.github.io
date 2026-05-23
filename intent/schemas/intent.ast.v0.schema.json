@@ -158,7 +158,7 @@
         "context": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/statement"
+            "$ref": "#/$defs/context_source"
           }
         },
         "capabilities": {
@@ -222,6 +222,56 @@
         },
         "span": {
           "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "context_source": {
+      "type": "object",
+      "required": ["kind", "value", "source", "args", "argKinds", "expression", "trust", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "ContextSource"
+        },
+        "value": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "argKinds": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": ["string", "identifier"]
+          }
+        },
+        "expression": {
+          "type": "string"
+        },
+        "trust": {
+          "$ref": "#/$defs/trust"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "trust": {
+      "type": "object",
+      "required": ["zone", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "zone": {
+          "enum": ["trusted", "untrusted", "unknown"]
+        },
+        "source": {
+          "type": "string"
         }
       }
     },

@@ -372,7 +372,31 @@
             },
             "data": {
               "type": "object",
-              "additionalProperties": false
+              "required": ["source", "args", "argKinds", "expression", "trust"],
+              "additionalProperties": false,
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "argKinds": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "enum": ["string", "identifier"]
+                  }
+                },
+                "expression": {
+                  "type": "string"
+                },
+                "trust": {
+                  "$ref": "#/$defs/trust"
+                }
+              }
             }
           }
         }

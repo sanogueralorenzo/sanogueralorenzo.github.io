@@ -1,0 +1,78 @@
+package fixtures.context_trust_graph
+
+type RepoContext = {
+  root: Path,
+  files: List<Path>
+}
+
+type WebContext = {
+  url: Url,
+  summary: String
+}
+
+type DocumentContext = {
+  paths: List<Path>
+}
+
+type ContextTrustGraph = {
+  repo: RepoContext,
+  web: WebContext,
+  documents: DocumentContext
+}
+
+type VerifiedContextTrustGraph = {
+  graph: ContextTrustGraph
+}
+
+goal build_context_trust_graph() -> VerifiedContextTrustGraph {
+  context repo("./")
+  context web("https://example.com/**")
+  context documents("./docs/**")
+
+  capability file {
+    read path: "./src/**"
+    read path: "./docs/**"
+  }
+
+  capability web {
+    read domain: "example.com"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+    retain context_graph until goal_complete
+  }
+
+  plan {
+    step collect_repo_context -> RepoContext
+    step collect_web_context(input: RepoContext) -> WebContext {
+      require input.files != []
+      effect WebRead(url: "https://example.com/context")
+    }
+    step collect_document_context(input: RepoContext) -> DocumentContext {
+      require input.files != []
+    }
+    step assemble_context_trust_graph(repo: RepoContext, web: WebContext, documents: DocumentContext) -> ContextTrustGraph {
+      require repo.files != []
+      require web.url != ""
+      require documents.paths != []
+      checkpoint "context trust graph assembled"
+    }
+    step verify_context_trust_graph(input: ContextTrustGraph) -> VerifiedContextTrustGraph {
+      require input.web.url != ""
+      checkpoint "context trust graph verified"
+    }
+  }
+
+  verify {
+    require all_outputs_cited
+    require no_policy_violations
+  }
+
+  invariant {
+    deny untrusted_content_to_shell
+    deny uncited_external_claim
+    deny context_source_outside_capability
+  }
+}
