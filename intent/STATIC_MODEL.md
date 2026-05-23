@@ -1470,6 +1470,8 @@ Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
 `verifies`, `guards`, `gates`, `approves`, `checkpoints`, `timeouts`,
 `retries`, `completes`, `plans`, `precedes`, `requests`, `supplies`,
 `informs`, `declares`, and `constrains`.
+Graph validation emits `INTENT_GRAPH_EDGE_KIND_INVALID` when an edge kind is
+not one of those runtime-supported Intent graph relationship kinds.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
