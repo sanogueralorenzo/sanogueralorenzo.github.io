@@ -232,10 +232,11 @@ Validation expectations:
   `INTENT_GRAPH_STEP_SEQUENCE_INVALID`,
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`,
   `INTENT_GRAPH_TYPED_EDGE_INVALID`, and malformed node payload diagnostics.
-  Runtime `data` edge payloads must also match endpoint names, endpoint types,
-  and source/target spans. This prevents topology/data edges from being
-  replayed as ambiguous runtime-control edges while preserving ownership,
-  sequencing, typed-binding, and payload diagnostics.
+  Runtime `data` and `supplies` edge payloads must also match endpoint names,
+  endpoint types, ownership, and source/target spans. This prevents
+  topology/data edges from being replayed as ambiguous runtime-control edges
+  while preserving ownership, sequencing, typed-binding, and payload
+  diagnostics.
 - Runtime graph memory access edges have constrained provenance contracts.
   `writes` is valid only as `Step` to `Memory`, while `reads` and `cites` are
   valid only as `Memory` to `Step`. Each edge carries `data.access`,
@@ -260,21 +261,24 @@ Validation expectations:
   completion counts remain `INTENT_GRAPH_COMPLETION_INVALID`, wrong final-step
   sequencing remains `INTENT_GRAPH_STEP_SEQUENCE_INVALID`, and missing
   attachment coverage remains `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
-- Runtime graph goal-input supply edge contracts are the next Phase 2
-  static-model milestone. Every goal-scoped `Input` node must have exactly one
-  outgoing role-valid `supplies` edge to its owning `Goal`. Missing or extra
-  role-valid goal-input `supplies` edges emit
+- Runtime graph goal-input supply edges are typed contracts. Every goal-scoped
+  `Input` node must have exactly one outgoing role-valid `supplies` edge to its
+  owning `Goal`, and that edge must carry non-empty `data.parameter`,
+  non-empty `data.type`, and valid `sourceSpan` and `targetSpan` values that
+  match the source input name, type, owner goal, and parameter span. Missing or
+  extra role-valid goal-input `supplies` edges emit
   `INTENT_GRAPH_INPUT_SUPPLY_INVALID` and make graph output non-executable;
   unsupported `supplies` endpoint roles emit `INTENT_GRAPH_SUPPLY_INVALID`;
-  malformed `Input` node data remains
-  `INTENT_GRAPH_INPUT_INVALID`, and missing step input data or `requires` edges
-  remain `INTENT_GRAPH_INPUT_UNBOUND` or
+  malformed edge payloads emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`; typed
+  endpoint mismatches emit `INTENT_GRAPH_TYPED_EDGE_INVALID`; malformed `Input`
+  node data remains `INTENT_GRAPH_INPUT_INVALID`, and missing step input data or
+  `requires` edges remain `INTENT_GRAPH_INPUT_UNBOUND` or
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`. Step-scoped `Input` nodes remain
   covered by the existing `data` and `requires` edge contracts and must not rely
   on `supplies`. This makes goal parameter ownership explicit in the runtime
   graph instead of relying on id strings alone.
-- Runtime graph step attachment edge payloads are the next Phase 2 static-model
-  milestone. `approves` is valid only as `Approval` to `Step` or `Approval` to
+- Runtime graph step attachment edge payloads are typed contracts. `approves` is
+  valid only as `Approval` to `Step` or `Approval` to
   `Effect`, and unsupported endpoint roles emit `INTENT_GRAPH_APPROVE_INVALID`.
   `checkpoints` is valid only as `Step` to `Checkpoint`, and unsupported endpoint
   roles emit `INTENT_GRAPH_CHECKPOINT_EDGE_INVALID`. `timeouts` and `retries`

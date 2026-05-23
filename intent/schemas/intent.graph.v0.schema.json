@@ -1001,11 +1001,11 @@
               "type": ["string", "null"]
             },
             "sourceSpan": {
-              "description": "For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
+              "description": "For supplies edges, the declared goal parameter span. For data edges, the bound producer span. For produces edges to completion, the final step output type span. For memory access edges, the provenance source span.",
               "$ref": "#/$defs/span"
             },
             "targetSpan": {
-              "description": "For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span. For memory access edges, the provenance target span.",
+              "description": "For supplies edges, the declared goal parameter span. For data/requires edges, the bound consumer span. For produces edges to completion, the goal output type span. For memory access edges, the provenance target span.",
               "$ref": "#/$defs/span"
             }
           }

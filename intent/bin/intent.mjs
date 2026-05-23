@@ -1112,7 +1112,12 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         scope: "goal",
         type: parameter.type,
       }));
-      edges.push(edge(inputId, goalId, "supplies"));
+      edges.push(edge(inputId, goalId, "supplies", {
+        parameter: parameter.name,
+        type: normalizeTypeRef(parameter.type),
+        sourceSpan: parameter.span,
+        targetSpan: parameter.span,
+      }));
       addProducer(producersByType, parameter.type, inputId, parameter.span);
     }
 
@@ -2280,7 +2285,7 @@ function validateGraphMemoryDeclare(nodesById, incomingEdgesByNode, graphNode, f
 }
 
 function validateGraphTypedEdgeContract(nodesById, graphEdge, fallbackSpan) {
-  if (!["data", "requires", "produces", "approves", "timeouts", "retries", "checkpoints"].includes(graphEdge.kind)) {
+  if (!["data", "supplies", "requires", "produces", "approves", "timeouts", "retries", "checkpoints"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
@@ -2303,6 +2308,9 @@ function typedEdgeChecks(graphEdge, sourceNode, targetNode) {
   }
   if (graphEdge.kind === "data") {
     return dataEdgeChecks(graphEdge, sourceNode, targetNode);
+  }
+  if (graphEdge.kind === "supplies") {
+    return suppliesEdgeChecks(graphEdge, sourceNode, targetNode);
   }
   if (graphEdge.kind === "requires") {
     return requiresEdgeChecks(graphEdge, sourceNode, targetNode);
@@ -2348,6 +2356,21 @@ function dataEdgeChecks(graphEdge, sourceNode, targetNode) {
     typedCheck("type_matches_target", payloadType !== null && payloadType === targetType, graphEdge.data?.type, targetNode.data?.type),
     typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceSpan), graphEdge.data?.sourceSpan, sourceSpan),
     typedCheck("target_span_matches_target", spansEqual(graphEdge.data?.targetSpan, targetNode.span), graphEdge.data?.targetSpan, targetNode.span),
+  ];
+}
+
+function suppliesEdgeChecks(graphEdge, sourceNode, targetNode) {
+  if (sourceNode?.kind !== "Input" || sourceNode.data?.scope !== "goal" || targetNode?.kind !== "Goal") {
+    return [];
+  }
+  const sourceType = normalizeTypeRefOrNull(sourceNode.data?.type);
+  const payloadType = normalizeTypeRefOrNull(graphEdge.data?.type);
+  return [
+    typedCheck("owner_goal_matches_target", parentNodeId(sourceNode.id, ":input:") === targetNode.id, parentNodeId(sourceNode.id, ":input:"), targetNode.id),
+    typedCheck("parameter_matches_source", graphEdge.data?.parameter === sourceNode.label, graphEdge.data?.parameter, sourceNode.label),
+    typedCheck("type_matches_source", payloadType !== null && payloadType === sourceType, graphEdge.data?.type, sourceNode.data?.type),
+    typedCheck("source_span_matches_source", spansEqual(graphEdge.data?.sourceSpan, sourceNode.span), graphEdge.data?.sourceSpan, sourceNode.span),
+    typedCheck("target_span_matches_source", spansEqual(graphEdge.data?.targetSpan, sourceNode.span), graphEdge.data?.targetSpan, sourceNode.span),
   ];
 }
 
@@ -2544,6 +2567,7 @@ function isNonemptyStringArray(value) {
 function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
   if (![
     "data",
+    "supplies",
     "produces",
     "requires",
     "approves",
@@ -2584,9 +2608,15 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
   const stepCheckpoints = graphEdge.kind === "checkpoints"
     && sourceNode?.kind === "Step"
     && targetNode?.kind === "Checkpoint";
+  const suppliesGoalInput = graphEdge.kind === "supplies"
+    && sourceNode?.kind === "Input"
+    && sourceNode.data?.scope === "goal"
+    && targetNode?.kind === "Goal";
   const memoryAccess = ["reads", "writes", "cites"].includes(graphEdge.kind);
   const payloadIsValid = graphEdge.kind === "data"
     ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
+    : suppliesGoalInput
+      ? parameterIsNonempty && typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
     : graphEdge.kind === "produces"
       ? typeIsNonempty && sourceSpanIsValid && targetSpanIsValid
       : requiresStepInput

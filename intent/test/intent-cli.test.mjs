@@ -1092,6 +1092,17 @@ describe("intent static model CLI", () => {
         && node.span.start.line === 19
         && node.span.start.column === 30;
     }), true);
+    assert.equal(graph.edges.some((edge) => {
+      return edge.kind === "supplies"
+        && edge.from.endsWith(":input:request")
+        && edge.to === "goal:apply_dependency_change"
+        && edge.data.parameter === "request"
+        && edge.data.type === "GoalRequest"
+        && edge.data.sourceSpan.start.line === 19
+        && edge.data.sourceSpan.start.column === 30
+        && edge.data.targetSpan.start.line === 19
+        && edge.data.targetSpan.start.column === 30;
+    }), true);
     assert.equal(graph.nodes.some((node) => {
       return node.kind === "Input"
         && node.data.scope === "step"
@@ -2665,9 +2676,9 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(6), data: { scope: "step" } },
       ],
       edges: [
-        { from: "goal:demo:input:wrong", to: "goal:other", kind: "supplies" },
-        { from: "goal:demo:input:duplicate", to: "goal:demo", kind: "supplies" },
-        { from: "goal:demo:input:duplicate", to: "goal:other", kind: "supplies" },
+        { from: "goal:demo:input:wrong", to: "goal:other", kind: "supplies", data: { parameter: "wrong", type: "Synthetic", sourceSpan: testSpan(4), targetSpan: testSpan(4) } },
+        { from: "goal:demo:input:duplicate", to: "goal:demo", kind: "supplies", data: { parameter: "duplicate", type: "Synthetic", sourceSpan: testSpan(5), targetSpan: testSpan(5) } },
+        { from: "goal:demo:input:duplicate", to: "goal:demo", kind: "supplies", data: { parameter: "duplicate", type: "Synthetic", sourceSpan: testSpan(5), targetSpan: testSpan(5) } },
         { from: "goal:demo:step:patch:input:input", to: "goal:demo", kind: "supplies" },
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_INPUT_SUPPLY_INVALID");
@@ -2677,11 +2688,11 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].supply_edges, 0);
     assert.equal(diagnostics[0].owner_goal_supply_edges, 0);
     assert.equal(diagnostics[1].input_id, "goal:demo:input:wrong");
-    assert.equal(diagnostics[1].supply_edges, 1);
+    assert.equal(diagnostics[1].supply_edges, 0);
     assert.equal(diagnostics[1].owner_goal_supply_edges, 0);
     assert.equal(diagnostics[2].input_id, "goal:demo:input:duplicate");
     assert.equal(diagnostics[2].supply_edges, 2);
-    assert.equal(diagnostics[2].owner_goal_supply_edges, 1);
+    assert.equal(diagnostics[2].owner_goal_supply_edges, 2);
   });
 
   it("validates graph data edge shape diagnostics", () => {
@@ -2694,7 +2705,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(4), data: { scope: "step" } },
       ],
       edges: [
-        { from: "goal:demo:input:a", to: "goal:demo", kind: "supplies" },
+        { from: "goal:demo:input:a", to: "goal:demo", kind: "supplies", data: { parameter: "a", type: "Synthetic", sourceSpan: testSpan(2), targetSpan: testSpan(2) } },
         { from: "goal:demo", to: "goal:demo:step:patch:input:input", kind: "data", data: { parameter: "input", type: "Synthetic", sourceSpan: testSpan(1), targetSpan: testSpan(4) } },
         { from: "goal:demo:input:a", to: "goal:demo:step:patch", kind: "data", data: { parameter: "input", type: "Synthetic", sourceSpan: testSpan(2), targetSpan: testSpan(3) } },
       ],
@@ -2759,6 +2770,35 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].source_span_is_valid, false);
     assert.equal(diagnostics[2].type_is_nonempty, true);
     assert.equal(diagnostics[2].target_span_is_valid, false);
+  });
+
+  it("validates graph supplies edge payload diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: testSpan(2), data: { scope: "goal", type: "Ticket" } },
+      ],
+      edges: [
+        { from: "goal:demo:input:ticket", to: "goal:demo", kind: "supplies" },
+        { from: "goal:demo:input:ticket", to: "goal:demo", kind: "supplies", data: { parameter: "", type: "Ticket", sourceSpan: testSpan(2), targetSpan: testSpan(2) } },
+        { from: "goal:demo:input:ticket", to: "goal:demo", kind: "supplies", data: { parameter: "ticket", type: "", sourceSpan: testSpan(2), targetSpan: testSpan(2) } },
+        { from: "goal:demo:input:ticket", to: "goal:demo", kind: "supplies", data: { parameter: "ticket", type: "Ticket", sourceSpan: testSpan(2) } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EDGE_PAYLOAD_INVALID");
+
+    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics[0].edge, "supplies");
+    assert.equal(diagnostics[0].parameter_is_nonempty, false);
+    assert.equal(diagnostics[0].type_is_nonempty, false);
+    assert.equal(diagnostics[0].source_span_is_valid, false);
+    assert.equal(diagnostics[0].target_span_is_valid, false);
+    assert.equal(diagnostics[1].parameter_is_nonempty, false);
+    assert.equal(diagnostics[1].type_is_nonempty, true);
+    assert.equal(diagnostics[2].parameter_is_nonempty, true);
+    assert.equal(diagnostics[2].type_is_nonempty, false);
+    assert.equal(diagnostics[3].parameter_is_nonempty, true);
+    assert.equal(diagnostics[3].target_span_is_valid, false);
   });
 
   it("validates graph requires edge payload diagnostics", () => {
@@ -3423,6 +3463,7 @@ describe("intent static model CLI", () => {
       source: "synthetic.intent",
       nodes: [
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1), data: { outputType: "Report" } },
+        { id: "goal:other", kind: "Goal", label: "other", span: testSpan(6), data: { outputType: "Other" } },
         { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: testSpan(2), data: { scope: "goal", type: "Ticket" } },
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(3), data: { outputType: "Patch" } },
         { id: "goal:demo:step:patch:input:ticket", kind: "Input", label: "ticket", span: testSpan(4), data: { scope: "step", type: "Ticket" } },
@@ -3432,6 +3473,7 @@ describe("intent static model CLI", () => {
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:input:ticket", to: "goal:other", kind: "supplies", data: { parameter: "issue", type: "Issue", sourceSpan: testSpan(1), targetSpan: testSpan(1) } },
         { from: "goal:demo:input:ticket", to: "goal:demo:step:patch:input:ticket", kind: "data", data: { parameter: "ticket_id", type: "Issue", sourceSpan: testSpan(1), targetSpan: testSpan(5) } },
         { from: "goal:demo:step:patch:input:ticket", to: "goal:demo:step:patch", kind: "requires", data: { parameter: "ticket_id", type: "Issue", targetSpan: testSpan(5) } },
         { from: "goal:demo:step:patch:requirement:0", to: "goal:demo:step:patch", kind: "requires", data: { requirement: "ticket.closed" } },
@@ -3440,31 +3482,39 @@ describe("intent static model CLI", () => {
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPED_EDGE_INVALID");
 
-    assert.equal(diagnostics.length, 4);
-    assert.equal(diagnostics[0].edge, "data");
-    assert.equal(diagnostics[0].from, "goal:demo:input:ticket");
-    assert.equal(diagnostics[0].to, "goal:demo:step:patch:input:ticket");
+    assert.equal(diagnostics.length, 5);
+    assert.equal(diagnostics[0].edge, "supplies");
     assert.deepEqual(diagnostics[0].checks.map((check) => [check.name, check.ok]), [
+      ["owner_goal_matches_target", false],
+      ["parameter_matches_source", false],
+      ["type_matches_source", false],
+      ["source_span_matches_source", false],
+      ["target_span_matches_source", false],
+    ]);
+    assert.equal(diagnostics[1].edge, "data");
+    assert.equal(diagnostics[1].from, "goal:demo:input:ticket");
+    assert.equal(diagnostics[1].to, "goal:demo:step:patch:input:ticket");
+    assert.deepEqual(diagnostics[1].checks.map((check) => [check.name, check.ok]), [
       ["parameter_matches_target", false],
       ["type_matches_source", false],
       ["type_matches_target", false],
       ["source_span_matches_source", false],
       ["target_span_matches_target", false],
     ]);
-    assert.equal(diagnostics[1].edge, "requires");
-    assert.deepEqual(diagnostics[1].checks.map((check) => [check.name, check.ok]), [
+    assert.equal(diagnostics[2].edge, "requires");
+    assert.deepEqual(diagnostics[2].checks.map((check) => [check.name, check.ok]), [
       ["owner_step_matches_target", true],
       ["parameter_matches_source", false],
       ["type_matches_source", false],
       ["target_span_matches_source", false],
     ]);
-    assert.equal(diagnostics[2].edge, "requires");
-    assert.deepEqual(diagnostics[2].checks.map((check) => [check.name, check.ok]), [
+    assert.equal(diagnostics[3].edge, "requires");
+    assert.deepEqual(diagnostics[3].checks.map((check) => [check.name, check.ok]), [
       ["owner_step_matches_target", true],
       ["requirement_matches_source", false],
     ]);
-    assert.equal(diagnostics[3].edge, "produces");
-    assert.deepEqual(diagnostics[3].checks.map((check) => [check.name, check.ok]), [
+    assert.equal(diagnostics[4].edge, "produces");
+    assert.deepEqual(diagnostics[4].checks.map((check) => [check.name, check.ok]), [
       ["type_matches_source", false],
       ["type_matches_target", true],
       ["source_span_matches_source", false],
