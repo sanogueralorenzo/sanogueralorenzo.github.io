@@ -42,6 +42,32 @@ test("diff.after_edit executes active promoted path guards", async () => {
   }
 });
 
+test("diff.after_edit can execute guards with explicit attributed precedents", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-guards-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const diff = await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "attempt-session",
+      changedFiles: ["features/billing/refunds.ts"],
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+
+    assert.equal(diff.guardResult.ok, false);
+    assert.equal(diff.guardResult.failed.length, 1);
+    assert.equal(diff.guardResult.failed[0].guardId, "guard_webhook_paths");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.guardWarningCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("validation.after_run executes active required command guards", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-guards-test-"));
 

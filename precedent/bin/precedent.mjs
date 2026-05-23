@@ -806,7 +806,7 @@ async function validationAfterRunEventHook(event) {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
-    const activePrecedents = await activePrecedentsForSession(stateDir, sessionId);
+    const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents);
     guardResult = evaluatePrecedentGuards(activePrecedents, "validation.after_run", {
       command: commandText,
       exitCode,
@@ -869,7 +869,7 @@ async function diffAfterEditEventHook(event) {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
-    const activePrecedents = await activePrecedentsForSession(stateDir, sessionId);
+    const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents);
     guardResult = evaluatePrecedentGuards(activePrecedents, "diff.after_edit", {
       changedFiles,
       breadthSignals,
@@ -972,7 +972,7 @@ async function outcomeAfterTaskEventHook(event) {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
-    activePrecedentIds = await attributedPrecedentIdsForOutcome(stateDir, sessionId, event.attributedPrecedents);
+    activePrecedentIds = await attributedPrecedentIdsForSession(stateDir, sessionId, event.attributedPrecedents);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -1142,15 +1142,15 @@ function buildManifest(runtime, stateDir) {
       },
       "validation.after_run": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals"],
-        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "validation"],
+        stdin: ["schema_version", "hook", "sessionId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
+        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "validation", "guardResult", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
       "diff.after_edit": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals"],
-        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff"],
+        stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "attributedPrecedents"],
+        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff", "guardResult", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
@@ -1249,6 +1249,7 @@ async function attachRuntime() {
           durationMs: "$DURATION_MS",
           stdout: "$STDOUT",
           stderr: "$STDERR",
+          attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1262,6 +1263,7 @@ async function attachRuntime() {
           changedFiles: "$CHANGED_FILES",
           linesAdded: "$LINES_ADDED",
           linesDeleted: "$LINES_DELETED",
+          attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1891,7 +1893,7 @@ async function activeInjectionIdsForSession(stateDir, sessionId) {
   return uniqueStrings(ids);
 }
 
-async function attributedPrecedentIdsForOutcome(stateDir, sessionId, explicitIds) {
+async function attributedPrecedentIdsForSession(stateDir, sessionId, explicitIds) {
   const knownIds = new Set((await readJsonLines(join(stateDir, "precedents.jsonl"))).map((precedent) => precedent.id));
   return uniqueStrings([
     ...(await activeInjectionIdsForSession(stateDir, sessionId)),
@@ -1899,14 +1901,18 @@ async function attributedPrecedentIdsForOutcome(stateDir, sessionId, explicitIds
   ]).filter((id) => knownIds.has(id));
 }
 
-async function activePrecedentsForSession(stateDir, sessionId) {
-  const activeIds = new Set(await activeInjectionIdsForSession(stateDir, sessionId));
+async function activePrecedentsForSessionOrAttribution(stateDir, sessionId, explicitIds) {
+  const activeIds = new Set(await attributedPrecedentIdsForSession(stateDir, sessionId, explicitIds));
   if (activeIds.size === 0) {
     return [];
   }
 
   const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
   return precedents.filter((precedent) => activeIds.has(precedent.id));
+}
+
+async function activePrecedentsForSession(stateDir, sessionId) {
+  return activePrecedentsForSessionOrAttribution(stateDir, sessionId, []);
 }
 
 function evaluatePrecedentGuards(precedents, hook, event) {

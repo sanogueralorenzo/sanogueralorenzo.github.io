@@ -228,10 +228,18 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
         iteration += 1;
         let turn = prepare_precedent_turn(&cwd, &prompt, &args, &loop_run_id, iteration);
         println!("[loop {iteration}] Running codex exec...");
+        let diff_before = capture_precedent_diff_snapshot(&cwd);
         let result = match run_codex_exec_iteration(&cwd, &turn.prompt, &args) {
             Ok(result) => result,
             Err(error) => {
                 if let Some(session_id) = turn.attempt_session_id.as_deref() {
+                    run_and_record_precedent_diff(
+                        &cwd,
+                        &args,
+                        session_id,
+                        &turn.injected_precedent_ids,
+                        diff_before.as_ref(),
+                    );
                     record_precedent_outcome(
                         &cwd,
                         &args,
@@ -251,7 +259,19 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
             !args.stop_phrase.is_empty() && result.final_message.contains(&args.stop_phrase);
 
         if let Some(session_id) = turn.attempt_session_id.as_deref() {
-            run_and_record_precedent_validation(&cwd, &args, session_id);
+            run_and_record_precedent_diff(
+                &cwd,
+                &args,
+                session_id,
+                &turn.injected_precedent_ids,
+                diff_before.as_ref(),
+            );
+            run_and_record_precedent_validation(
+                &cwd,
+                &args,
+                session_id,
+                &turn.injected_precedent_ids,
+            );
             record_precedent_outcome(
                 &cwd,
                 &args,
@@ -587,7 +607,12 @@ fn record_precedent_outcome(
     }
 }
 
-fn run_and_record_precedent_validation(cwd: &Path, args: &WorkerLoopArgs, session_id: &str) {
+fn run_and_record_precedent_validation(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    injected_precedent_ids: &[String],
+) {
     let Some(command) = args.precedent_validation_command.as_deref() else {
         return;
     };
@@ -597,7 +622,9 @@ fn run_and_record_precedent_validation(cwd: &Path, args: &WorkerLoopArgs, sessio
 
     match run_precedent_validation_command(cwd, command, args.precedent_validation_timeout_ms) {
         Ok(result) => {
-            if let Err(error) = record_precedent_validation(cwd, args, session_id, result) {
+            if let Err(error) =
+                record_precedent_validation(cwd, args, session_id, injected_precedent_ids, result)
+            {
                 eprintln!("[precedent {session_id}] validation unavailable: {error}");
             }
         }
@@ -613,6 +640,218 @@ struct PrecedentValidationResult {
     duration_ms: u128,
     stdout: String,
     stderr: String,
+}
+
+#[derive(Debug)]
+struct PrecedentDiffSnapshot {
+    fingerprint: Vec<u8>,
+    summary: PrecedentDiffResult,
+}
+
+#[derive(Debug)]
+struct PrecedentDiffResult {
+    changed_files: Vec<String>,
+    lines_added: u64,
+    lines_deleted: u64,
+}
+
+#[derive(Debug)]
+struct GitStatusFile {
+    status_x: char,
+    status_y: char,
+    path: String,
+}
+
+fn run_and_record_precedent_diff(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    injected_precedent_ids: &[String],
+    before: Option<&PrecedentDiffSnapshot>,
+) {
+    let Some(before) = before else {
+        return;
+    };
+
+    match collect_git_diff_snapshot(cwd) {
+        Ok(Some(after)) if after.fingerprint != before.fingerprint => {
+            if let Err(error) =
+                record_precedent_diff(cwd, args, session_id, injected_precedent_ids, after.summary)
+            {
+                eprintln!("[precedent {session_id}] diff unavailable: {error}");
+            }
+        }
+        Ok(Some(_)) | Ok(None) => {}
+        Err(error) => {
+            eprintln!("[precedent {session_id}] diff unavailable: {error}");
+        }
+    }
+}
+
+fn capture_precedent_diff_snapshot(cwd: &Path) -> Option<PrecedentDiffSnapshot> {
+    match collect_git_diff_snapshot(cwd) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("[precedent] diff snapshot unavailable: {error}");
+            None
+        }
+    }
+}
+
+fn collect_git_diff_snapshot(cwd: &Path) -> Result<Option<PrecedentDiffSnapshot>> {
+    if !is_git_worktree(cwd)? {
+        return Ok(None);
+    }
+
+    let status_files = git_status_files(cwd)?;
+    let (lines_added, lines_deleted, numstat_files) = git_diff_numstat(cwd)?;
+    let mut changed_files = Vec::new();
+    for file in &status_files {
+        push_unique(&mut changed_files, file.path.clone());
+    }
+    for file in &numstat_files {
+        push_unique(&mut changed_files, file.clone());
+    }
+    changed_files.sort();
+
+    let mut fingerprint = Vec::new();
+    fingerprint.extend(
+        git_output(
+            cwd,
+            &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        )?
+        .stdout,
+    );
+    fingerprint.extend(git_output(cwd, &["diff", "--binary", "HEAD", "--"])?.stdout);
+    fingerprint.extend(git_output(cwd, &["diff", "--cached", "--binary", "HEAD", "--"])?.stdout);
+    for file in status_files
+        .iter()
+        .filter(|file| file.status_x == '?' && file.status_y == '?')
+    {
+        let path = cwd.join(&file.path);
+        if let Ok(metadata) = std::fs::metadata(&path) {
+            fingerprint.extend(file.path.as_bytes());
+            fingerprint.extend(metadata.len().to_string().as_bytes());
+            if let Ok(modified) = metadata.modified()
+                && let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH)
+            {
+                fingerprint.extend(duration.as_nanos().to_string().as_bytes());
+            }
+        }
+    }
+
+    Ok(Some(PrecedentDiffSnapshot {
+        fingerprint,
+        summary: PrecedentDiffResult {
+            changed_files,
+            lines_added,
+            lines_deleted,
+        },
+    }))
+}
+
+fn is_git_worktree(cwd: &Path) -> Result<bool> {
+    let output = git_output(cwd, &["rev-parse", "--is-inside-work-tree"])?;
+    Ok(output.status.success() && String::from_utf8_lossy(&output.stdout).trim() == "true")
+}
+
+fn git_status_files(cwd: &Path) -> Result<Vec<GitStatusFile>> {
+    let output = git_output(
+        cwd,
+        &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+    )?;
+    if !output.status.success() {
+        bail!(
+            "git status exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    Ok(parse_git_status_files(&output.stdout))
+}
+
+fn git_diff_numstat(cwd: &Path) -> Result<(u64, u64, Vec<String>)> {
+    let mut output = git_output(cwd, &["diff", "--numstat", "HEAD", "--"])?;
+    if !output.status.success() {
+        output = git_output(cwd, &["diff", "--numstat", "--"])?;
+    }
+    if !output.status.success() {
+        bail!(
+            "git diff --numstat exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut lines_added = 0;
+    let mut lines_deleted = 0;
+    let mut files = Vec::new();
+
+    for line in text.lines() {
+        let mut parts = line.splitn(3, '\t');
+        let added = parts.next().unwrap_or("");
+        let deleted = parts.next().unwrap_or("");
+        let file = parts.next().unwrap_or("").trim();
+        if let Ok(value) = added.parse::<u64>() {
+            lines_added += value;
+        }
+        if let Ok(value) = deleted.parse::<u64>() {
+            lines_deleted += value;
+        }
+        if !file.is_empty() {
+            push_unique(&mut files, file.to_string());
+        }
+    }
+
+    Ok((lines_added, lines_deleted, files))
+}
+
+fn git_output(cwd: &Path, args: &[&str]) -> Result<Output> {
+    Command::new("git")
+        .current_dir(cwd)
+        .args(args)
+        .output()
+        .context("failed to spawn git")
+}
+
+fn parse_git_status_files(stdout: &[u8]) -> Vec<GitStatusFile> {
+    let mut files = Vec::new();
+    let mut index = 0;
+
+    while index + 3 <= stdout.len() {
+        let status_x = stdout[index] as char;
+        let status_y = stdout[index + 1] as char;
+        index += 3;
+        let Some(end) = stdout[index..].iter().position(|byte| *byte == 0) else {
+            break;
+        };
+        let path = String::from_utf8_lossy(&stdout[index..index + end]).to_string();
+        index += end + 1;
+
+        if status_x == 'R' || status_x == 'C' || status_y == 'R' || status_y == 'C' {
+            if let Some(old_path_end) = stdout[index..].iter().position(|byte| *byte == 0) {
+                index += old_path_end + 1;
+            }
+        }
+
+        if !path.trim().is_empty() {
+            files.push(GitStatusFile {
+                status_x,
+                status_y,
+                path,
+            });
+        }
+    }
+
+    files
+}
+
+fn push_unique(values: &mut Vec<String>, value: String) {
+    if !values.iter().any(|existing| existing == &value) {
+        values.push(value);
+    }
 }
 
 fn run_precedent_validation_command(
@@ -633,10 +872,54 @@ fn run_precedent_validation_command(
     })
 }
 
+fn record_precedent_diff(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    injected_precedent_ids: &[String],
+    result: PrecedentDiffResult,
+) -> Result<()> {
+    let state_dir = args
+        .precedent_state_dir
+        .as_ref()
+        .context("precedent state dir is not configured")?;
+    let mut cmd = precedent_command(cwd, &args.precedent_bin);
+    cmd.arg("hook");
+    cmd.arg("--state-dir");
+    cmd.arg(state_dir);
+    cmd.arg("--json");
+    let payload = json!({
+        "schema_version": "precedent.v1",
+        "hook": "diff.after_edit",
+        "sessionId": session_id,
+        "changedFiles": result.changed_files,
+        "linesAdded": result.lines_added,
+        "linesDeleted": result.lines_deleted,
+        "attributedPrecedents": injected_precedent_ids,
+    });
+    let stdin = serde_json::to_string(&payload).context("failed to serialize Precedent diff")?;
+    let output = output_with_timeout(
+        cmd,
+        Some(&stdin),
+        Duration::from_millis(DEFAULT_PRECEDENT_TIMEOUT_MS),
+    )
+    .context("diff hook command failed")?;
+    if !output.status.success() {
+        bail!(
+            "diff hook exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    Ok(())
+}
+
 fn record_precedent_validation(
     cwd: &Path,
     args: &WorkerLoopArgs,
     session_id: &str,
+    injected_precedent_ids: &[String],
     result: PrecedentValidationResult,
 ) -> Result<()> {
     let state_dir = args
@@ -657,6 +940,7 @@ fn record_precedent_validation(
         "durationMs": result.duration_ms,
         "stdout": result.stdout,
         "stderr": result.stderr,
+        "attributedPrecedents": injected_precedent_ids,
     });
     let stdin =
         serde_json::to_string(&payload).context("failed to serialize Precedent validation")?;
@@ -863,6 +1147,7 @@ mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
+    use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn base_args() -> WorkerLoopArgs {
@@ -1398,6 +1683,210 @@ exit 2
         let _ = fs::remove_dir_all(dir);
     }
 
+    #[test]
+    fn worker_loop_records_precedent_diff_after_changed_codex_exec() {
+        let dir = temp_test_dir("precedent-worker-diff-changed");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let hooks_capture = dir.join("hooks.jsonl");
+        let state_dir = dir.join("state");
+        let src_dir = dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+        fs::write(src_dir.join("lib.rs"), "pub fn existing() {}\n").unwrap();
+        write_executable(
+            &codex_bin,
+            r#"#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s' 'pub fn changed() {}\n' >> src/lib.rs
+printf '%s' 'LOOP_DONE from fake codex' > "$out"
+"#,
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Keep webhook edits scoped.","injections":[{{"id":"prec_repo_lesson"}}]}}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  cat >> '{}'
+  printf '\n' >> '{}'
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                hooks_capture.display(),
+                hooks_capture.display()
+            ),
+        );
+        init_git_repo(&dir);
+        fs::create_dir_all(&state_dir).unwrap();
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.once = true;
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let hooks = fs::read_to_string(hooks_capture).unwrap();
+        let lines: Vec<&str> = hooks.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains(r#""hook":"diff.after_edit""#));
+        assert!(lines[0].contains(r#""changedFiles":["src/lib.rs"]"#));
+        assert!(lines[0].contains(r#""linesAdded":1"#));
+        assert!(lines[0].contains(r#""linesDeleted":0"#));
+        assert!(lines[0].contains(r#""attributedPrecedents":["prec_repo_lesson"]"#));
+        assert!(lines[1].contains(r#""hook":"outcome.after_task""#));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_skips_precedent_diff_when_codex_exec_leaves_git_diff_unchanged() {
+        let dir = temp_test_dir("precedent-worker-diff-unchanged");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let hooks_capture = dir.join("hooks.jsonl");
+        let state_dir = dir.join("state");
+        fs::write(dir.join("tracked.txt"), "baseline\n").unwrap();
+        write_executable(
+            &codex_bin,
+            r#"#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s' 'LOOP_DONE from fake codex' > "$out"
+"#,
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"","injections":[]}}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  cat >> '{}'
+  printf '\n' >> '{}'
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                hooks_capture.display(),
+                hooks_capture.display()
+            ),
+        );
+        init_git_repo(&dir);
+        fs::create_dir_all(&state_dir).unwrap();
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.once = true;
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let hooks = fs::read_to_string(hooks_capture).unwrap();
+        let lines: Vec<&str> = hooks.lines().collect();
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains(r#""hook":"outcome.after_task""#));
+        assert!(!hooks.contains(r#""hook":"diff.after_edit""#));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_skips_precedent_diff_outside_git_repo() {
+        let dir = temp_test_dir("precedent-worker-diff-nongit");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let hooks_capture = dir.join("hooks.jsonl");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            r#"#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s' 'changed\n' > edited.txt
+printf '%s' 'LOOP_DONE from fake codex' > "$out"
+"#,
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"","injections":[]}}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  cat >> '{}'
+  printf '\n' >> '{}'
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                hooks_capture.display(),
+                hooks_capture.display()
+            ),
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.once = true;
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let hooks = fs::read_to_string(hooks_capture).unwrap();
+        let lines: Vec<&str> = hooks.lines().collect();
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains(r#""hook":"outcome.after_task""#));
+        assert!(!hooks.contains(r#""hook":"diff.after_edit""#));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
     fn temp_test_dir(prefix: &str) -> PathBuf {
         let path = env::temp_dir().join(format!(
             "{}-{}",
@@ -1409,6 +1898,37 @@ exit 2
         ));
         fs::create_dir_all(&path).unwrap();
         path
+    }
+
+    fn init_git_repo(path: &PathBuf) {
+        run_git(path, &["init"]);
+        run_git(path, &["add", "."]);
+        run_git(
+            path,
+            &[
+                "-c",
+                "user.name=Codex Test",
+                "-c",
+                "user.email=codex-test@example.com",
+                "commit",
+                "-m",
+                "initial",
+            ],
+        );
+    }
+
+    fn run_git(path: &PathBuf, args: &[&str]) {
+        let output = Command::new("git")
+            .current_dir(path)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     fn write_executable(path: &PathBuf, content: &str) {

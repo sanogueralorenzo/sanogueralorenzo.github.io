@@ -52,6 +52,9 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
+    assert.equal(first.adapter.afterValidation.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
+    assert.deepEqual(first.adapter.afterDiff.stdin.hook, "diff.after_edit");
+    assert.equal(first.adapter.afterDiff.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
     assert.deepEqual(first.adapter.afterReview.stdin.hook, "review.after_feedback");
     assert.deepEqual(first.adapter.afterReview.stdin.sessionId, first.sessionId);
     assert.deepEqual(first.adapter.afterOutcome.stdin.sessionId, first.sessionId);
