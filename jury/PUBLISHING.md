@@ -73,7 +73,7 @@ jobs:
     uses: ./.github/workflows/jury-package-manifest-check.yml
 ```
 
-[examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `package-release-fixtures` runs `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check` before any publication dry run, `dry-run-publication` has `needs: package-manifest` and `needs: package-release-fixtures`, uploads `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as `jury-package-dry-run`, and keeps that artifact for 30 days with `retention-days: 30`. `publish` downloads and verifies that artifact before the step that maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`. The workflow requires `dry_run_reviewer`; the verification step writes `packageVersion`, `tarballName`, and `reviewedBy` to `GITHUB_STEP_SUMMARY` so the release page records the package identity and who reviewed it before credentials were exposed. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
+[examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `package-release-fixtures` runs `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check` before any publication dry run, uploads `jury-package-release-evidence` with rollback and replacement audit examples, `dry-run-publication` has `needs: package-manifest` and `needs: package-release-fixtures`, uploads `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` as `jury-package-dry-run`, and keeps both artifacts for 30 days with `retention-days: 30`. `publish` downloads and verifies the dry-run artifact before the step that maps `secrets.NPM_TOKEN` to `NODE_AUTH_TOKEN`. The workflow requires `dry_run_reviewer`; the verification step writes `packageVersion`, `tarballName`, and `reviewedBy` to `GITHUB_STEP_SUMMARY` so the release page records the package identity and who reviewed it before credentials were exposed. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
 
 ## Post-Publication Comparison
 
@@ -112,7 +112,7 @@ Use [examples/ci/fixtures/package-release](examples/ci/fixtures/package-release)
 
 ## npm Credentials and Provenance
 
-Before enabling publication, create `secrets.NPM_TOKEN` as an npm token limited to publishing `@sanogueralorenzo/jury`. The workflow maps that secret to `NODE_AUTH_TOKEN` only in the final publish step, after `needs: package-manifest` has passed and the downloaded dry-run record has verified. Keep package-manifest and dry-run-publication jobs token-free.
+Before enabling publication, create `secrets.NPM_TOKEN` as an npm token limited to publishing `@sanogueralorenzo/jury`. The workflow maps that secret to `NODE_AUTH_TOKEN` only in the final publish step, after `needs: package-manifest` and `needs: package-release-fixtures` have passed and the downloaded dry-run record has verified. Keep package-manifest, package-release-fixtures, and dry-run-publication jobs token-free.
 
 Keep `permissions.id-token: write` and `npm publish --provenance --access public` together so the package is published with GitHub Actions provenance. If provenance is disabled or the id-token permission is removed, treat that as a release-blocking change and review it before publishing.
 

@@ -29,6 +29,20 @@ jobs:
         env:
           JURY_PACKAGE_DIR: jury
         run: npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check
+      - name: Upload Jury package release evidence audits
+        uses: actions/upload-artifact@v4
+        with:
+          name: jury-package-release-evidence
+          retention-days: 30
+          path: |
+            jury/examples/ci/fixtures/package-release/README.md
+            jury/examples/ci/fixtures/package-release/jury-pack-dry-run-record.json
+            jury/examples/ci/fixtures/package-release/failed-npm-view.json
+            jury/examples/ci/fixtures/package-release/downstream-failure-gate.json
+            jury/examples/ci/fixtures/package-release/rollback-audit.json
+            jury/examples/ci/fixtures/package-release/replacement-npm-view.json
+            jury/examples/ci/fixtures/package-release/replacement-downstream-gate.json
+            jury/examples/ci/fixtures/package-release/replacement-patch-audit.json
 
   dry-run-publication:
     runs-on: ubuntu-latest

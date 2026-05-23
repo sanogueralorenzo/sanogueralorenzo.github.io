@@ -439,6 +439,7 @@ test("release workflow requires package manifest before npm publication", async 
   const dryRunCommands = extractWorkflowRunBlock(workflow, "Create Jury package dry-run record");
   const verifyCommands = extractWorkflowRunBlock(workflow, "Verify Jury package dry-run record");
   const publishCommands = extractWorkflowRunBlock(workflow, "Publish Jury package");
+  const uploadPaths = extractWorkflowUploadPaths(workflow);
 
   assert.ok(workflow.includes("workflow_dispatch"));
   assert.ok(workflow.includes("dry_run_reviewer:"));
@@ -455,8 +456,12 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.includes("- package-release-fixtures"));
   assert.ok(workflow.includes("actions/upload-artifact@v4"));
   assert.ok(workflow.includes("actions/download-artifact@v4"));
+  assert.ok(workflow.includes("Upload Jury package release evidence audits"));
+  assert.ok(workflow.includes("jury-package-release-evidence"));
   assert.ok(workflow.includes("jury-package-dry-run"));
   assert.ok(workflow.includes("retention-days: 30"));
+  assert.ok(workflow.includes("rollback-audit.json"));
+  assert.ok(workflow.includes("replacement-patch-audit.json"));
   assert.ok(workflow.includes("jury-pack-dry-run.json"));
   assert.ok(workflow.includes("jury-pack-dry-run-record.json"));
   assert.ok(workflow.includes("GITHUB_STEP_SUMMARY"));
@@ -467,11 +472,16 @@ test("release workflow requires package manifest before npm publication", async 
   assert.ok(workflow.indexOf("package-release-fixtures:") < workflow.indexOf("dry-run-publication:"));
   assert.ok(workflow.indexOf("dry-run-publication:") < workflow.indexOf("publish:"));
   assert.ok(workflow.indexOf("Check Jury package release evidence fixtures") < workflow.indexOf("Create Jury package dry-run record"));
+  assert.ok(workflow.indexOf("Upload Jury package release evidence audits") < workflow.indexOf("Create Jury package dry-run record"));
   assert.ok(workflow.indexOf("Download Jury package dry-run record") < workflow.indexOf("Verify Jury package dry-run record"));
   assert.ok(workflow.indexOf("Verify Jury package dry-run record") < workflow.indexOf("NODE_AUTH_TOKEN"));
   assert.ok(workflow.indexOf("- package-release-fixtures") < workflow.indexOf("npm publish --provenance --access public"));
   assert.ok(workflow.indexOf("- package-manifest") < workflow.indexOf("npm publish --provenance --access public"));
   assert.equal(fixtureCommand, 'npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check');
+  assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/rollback-audit.json"));
+  assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/replacement-patch-audit.json"));
+  assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/failed-npm-view.json"));
+  assert.ok(uploadPaths.includes("jury/examples/ci/fixtures/package-release/replacement-npm-view.json"));
   assert.deepEqual(dryRunCommands, [
     '(cd "$JURY_PACKAGE_DIR" && npm pack --dry-run --json) > jury-pack-dry-run.json',
     'node -e \'const fs=require("node:fs"); const [pack]=JSON.parse(fs.readFileSync("jury-pack-dry-run.json","utf8")); fs.writeFileSync("jury-pack-dry-run-record.json", JSON.stringify({ packageVersion: pack.version, tarballName: pack.filename }, null, 2) + "\\n");\'',
@@ -543,6 +553,8 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("uses: ./.github/workflows/jury-trusted-bundle-verify.yml"));
   assert.ok(readme.includes('npm --prefix "$JURY_PACKAGE_DIR" run package:manifest:check'));
   assert.ok(readme.includes('npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check'));
+  assert.ok(readme.includes("jury-package-release-evidence"));
+  assert.ok(readme.includes("rollback and replacement audit examples"));
   assert.ok(readme.includes("needs: package-manifest"));
   assert.ok(readme.includes("needs: package-release-fixtures"));
   assert.ok(readme.includes("before any publication dry run"));
@@ -1259,6 +1271,8 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("dry-run-publication"));
   assert.ok(publicationNotes.includes("package-release-fixtures"));
   assert.ok(publicationNotes.includes("before any publication dry run"));
+  assert.ok(publicationNotes.includes("jury-package-release-evidence"));
+  assert.ok(publicationNotes.includes("rollback and replacement audit examples"));
   assert.ok(publicationNotes.includes("GITHUB_STEP_SUMMARY"));
   assert.ok(publicationNotes.includes("dry_run_reviewer"));
   assert.ok(publicationNotes.includes("Post-Publication Comparison"));
@@ -1287,7 +1301,8 @@ test("release metadata references existing schemas, exports, and commands", asyn
   assert.ok(publicationNotes.includes("needs: package-manifest"));
   assert.ok(publicationNotes.includes("needs: package-release-fixtures"));
   assert.ok(publicationNotes.includes("downloaded dry-run record has verified"));
-  assert.ok(publicationNotes.includes("package-manifest and dry-run-publication jobs token-free"));
+  assert.ok(publicationNotes.includes("package-release-fixtures"));
+  assert.ok(publicationNotes.includes("package-manifest, package-release-fixtures, and dry-run-publication jobs token-free"));
   assert.ok(publicationNotes.includes("--pack-manifest <npm-pack-json>"));
   assert.ok(publicationNotes.includes('"missing": ["CI_ADOPTION.md"]'));
   assert.ok(publicationNotes.includes('"missing": ["examples/ci/jury-trusted-bundle-verify.yml"]'));
@@ -2251,6 +2266,8 @@ test("release checklist links the adoption path and valid artifacts", async () =
   assert.ok(checklist.includes("publication CI runs `package-release-fixtures`"));
   assert.ok(checklist.includes('npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check'));
   assert.ok(checklist.includes("before `dry-run-publication`"));
+  assert.ok(checklist.includes("`jury-package-release-evidence`"));
+  assert.ok(checklist.includes("`rollback-audit.json` and `replacement-patch-audit.json`"));
   assert.ok(checklist.includes("jury-pack-dry-run.json"));
   assert.ok(checklist.includes("jury-pack-dry-run-record.json"));
   assert.ok(checklist.includes("jury-package-dry-run"));
@@ -2387,10 +2404,11 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package tarball manifest checks/);
   assert.match(handoff, /package manifest troubleshooting/);
   assert.match(handoff, /reusable workflow step that runs the package manifest check before publication/);
-  assert.match(handoff, /release workflow example where npm publication depends on the package manifest check, package release evidence fixture validation, and a downloaded dry-run publication record/);
+  assert.match(handoff, /release workflow example where npm publication depends on the package manifest check, package release evidence fixture validation, an uploaded release evidence audit artifact, and a downloaded dry-run publication record/);
+  assert.match(handoff, /package release evidence artifact upload guidance/);
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
-  assert.match(handoff, /release evidence artifact upload guidance for package rollback and replacement audits/);
+  assert.match(handoff, /release evidence artifact download and replay guidance for package rollback and replacement audits/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

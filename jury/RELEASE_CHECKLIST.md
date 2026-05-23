@@ -11,6 +11,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Copy [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml) into `.github/workflows/` before publication CI.
 - [ ] Use [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) as the npm publication shape when releases need `needs: package-manifest`.
 - [ ] Confirm publication CI runs `package-release-fixtures` with `npm --prefix "$JURY_PACKAGE_DIR" run fixtures:package-release:check` before `dry-run-publication`.
+- [ ] Upload `rollback-audit.json` and `replacement-patch-audit.json` as the `jury-package-release-evidence` CI artifact for package release audit comparison.
 - [ ] Run `(cd jury && npm pack --dry-run --json) > jury-pack-dry-run.json` after the package manifest check.
 - [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.
 - [ ] Record the dry-run tarball name from `jury-pack-dry-run.json` as `tarballName`, for example `sanogueralorenzo-jury-0.1.0.tgz`.
