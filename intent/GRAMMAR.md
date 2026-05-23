@@ -26,10 +26,12 @@ them as opaque text.
 ## File Shape
 
 ```ebnf
-file           = spacing, package_decl, spacing, { top_level_decl, spacing },
+file           = spacing, package_decl, spacing, { import_decl, spacing },
+                 { top_level_decl, spacing },
                  eof ;
 top_level_decl = type_decl | goal_decl ;
 package_decl   = "package", s, package_name, line_end ;
+import_decl    = "import", s, import_path, line_end ;
 
 type_decl      = "type", s, type_name, [ ws, "=", ws, raw_type_def ],
                  line_end ;
@@ -46,7 +48,12 @@ goal_item      = context_block
 ```
 
 Milestone files contain exactly one package declaration before any other
-declarations. More than one type or goal may appear in a file.
+declarations. Import declarations may follow the package and precede type or
+goal declarations. More than one import, type, or goal may appear in a file.
+
+Import declarations are path-only in the first prototype. The parser preserves
+the imported package or symbol path and source span, but imports do not
+contribute types or declarations to checker scope yet.
 
 Type declarations are line-based in the first prototype. The optional
 definition is preserved as raw text and is not parsed into record fields,

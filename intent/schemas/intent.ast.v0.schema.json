@@ -15,6 +15,12 @@
     "package": {
       "$ref": "#/$defs/package"
     },
+    "imports": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/import"
+      }
+    },
     "types": {
       "type": "array",
       "items": {
@@ -129,6 +135,22 @@
         },
         "definition": {
           "type": ["string", "null"]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "import": {
+      "type": "object",
+      "required": ["kind", "path", "span"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "Import"
+        },
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"

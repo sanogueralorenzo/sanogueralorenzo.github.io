@@ -174,6 +174,7 @@ function parseIntent(source, file) {
     schema_version: AST_SCHEMA_VERSION,
     source: path.normalize(file),
     package: null,
+    imports: [],
     types: [],
     goals: [],
     span: span(file, 1, 1, lines.length, lastColumn(lines)),
@@ -196,6 +197,12 @@ function parseIntent(source, file) {
         name: packageMatch[1],
         span: lineSpan(file, lineNumber, raw),
       };
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("import ")) {
+      root.imports.push(parseImportDecl(line, file, lineNumber, raw));
       index += 1;
       continue;
     }
@@ -232,6 +239,18 @@ function parseIntent(source, file) {
   }
 
   return root;
+}
+
+function parseImportDecl(line, file, lineNumber, raw) {
+  const match = line.match(/^import\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$/);
+  if (!match) {
+    throw parseError(file, lineNumber, raw, `invalid import declaration '${line}'`);
+  }
+  return {
+    kind: "Import",
+    path: match[1],
+    span: lineSpan(file, lineNumber, raw),
+  };
 }
 
 function parseTypeDecl(line, file, lineNumber, raw, body = null) {

@@ -22,6 +22,7 @@ const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.int
 const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent", import.meta.url).pathname;
 const VALID_STEP_REQUIREMENTS = new URL("../fixtures/valid_step_requirements.intent", import.meta.url).pathname;
 const VALID_INVARIANT_GUARD_GRAPH = new URL("../fixtures/valid_invariant_guard_graph.intent", import.meta.url).pathname;
+const VALID_IMPORTS = new URL("../fixtures/valid_imports.intent", import.meta.url).pathname;
 const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph.intent", import.meta.url).pathname;
 const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.intent", import.meta.url).pathname;
 const VALID_TRUST_FLOW_SHELL_LITERAL = new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname;
@@ -389,6 +390,7 @@ describe("intent static model CLI", () => {
 
     assert.equal(ast.schema_version, "intent.ast.v0");
     assert.equal(ast.package.name, "fixtures.code_change");
+    assert.deepEqual(ast.imports, []);
     assert.equal(ast.goals.length, 1);
     assert.equal(ast.types.length, 3);
     assert.equal(ast.goals[0].name, "apply_code_change");
@@ -420,6 +422,15 @@ describe("intent static model CLI", () => {
     assert.equal(dependencyAst.goals[0].steps[0].parameters[0].span.start.column, 22);
     assert.equal(dependencyAst.goals[0].steps[0].outputTypeSpan.start.line, 37);
     assert.equal(dependencyAst.goals[0].steps[0].outputTypeSpan.start.column, 45);
+
+    const importAst = runJson(["parse", VALID_IMPORTS]);
+    assert.equal(importAst.package.name, "fixtures.imports");
+    assert.equal(importAst.imports.length, 2);
+    assert.equal(importAst.imports[0].kind, "Import");
+    assert.equal(importAst.imports[0].path, "std.tools");
+    assert.equal(importAst.imports[0].span.start.line, 3);
+    assert.equal(importAst.imports[1].path, "examples.shared.Finding");
+    assert.equal(importAst.imports[1].span.start.line, 4);
   });
 
   it("accepts valid fixtures", () => {
@@ -436,6 +447,7 @@ describe("intent static model CLI", () => {
     const gitPushBranch = runJson(["check", VALID_GIT_PUSH_BRANCH]);
     const stepRequirements = runJson(["check", VALID_STEP_REQUIREMENTS]);
     const invariantGuardGraph = runJson(["check", VALID_INVARIANT_GUARD_GRAPH]);
+    const imports = runJson(["check", VALID_IMPORTS]);
     const stepApprovalGraph = runJson(["check", VALID_STEP_APPROVAL_GRAPH]);
     const stepPolicyGraph = runJson(["check", VALID_STEP_POLICY_GRAPH]);
     const trustFlow = runJson(["check", VALID_TRUST_FLOW_SHELL_LITERAL]);
@@ -466,6 +478,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(stepRequirements.diagnostics, []);
     assert.equal(invariantGuardGraph.ok, true);
     assert.deepEqual(invariantGuardGraph.diagnostics, []);
+    assert.equal(imports.ok, true);
+    assert.deepEqual(imports.diagnostics, []);
     assert.equal(stepApprovalGraph.ok, true);
     assert.deepEqual(stepApprovalGraph.diagnostics, []);
     assert.equal(stepPolicyGraph.ok, true);
@@ -3153,6 +3167,7 @@ describe("intent static model CLI", () => {
     const checkSchema = readJson(CHECK_SCHEMA);
     const graphSchema = readJson(GRAPH_SCHEMA);
     const ast = runJson(["parse", VALID_DEPENDENCY_GRAPH]);
+    const importAst = runJson(["parse", VALID_IMPORTS]);
     const validCheck = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const invalidCheck = JSON.parse(run(["check", INVALID_UNRESOLVED_TYPE]).stdout);
     const graph = runJson(["graph", VALID_DEPENDENCY_GRAPH]);
@@ -3165,6 +3180,7 @@ describe("intent static model CLI", () => {
     const ticketGraph = runJson(["graph", VALID_TICKET_UPDATE]);
 
     assert.deepEqual(validateSchema(astSchema, ast), []);
+    assert.deepEqual(validateSchema(astSchema, importAst), []);
     assert.deepEqual(validateSchema(checkSchema, validCheck), []);
     assert.deepEqual(validateSchema(checkSchema, invalidCheck), []);
     assert.deepEqual(validateSchema(graphSchema, graph), []);
@@ -3226,11 +3242,13 @@ describe("intent static model CLI", () => {
         name: "",
         span: testSpan(1),
       },
+      imports: [],
       types: [],
       goals: [],
       span: { ...testSpan(1), file: "" },
     };
     const parameterErrors = [];
+    const importErrors = [];
     const check = {
       schema_version: "intent.check.v0",
       ok: false,
@@ -3253,10 +3271,18 @@ describe("intent static model CLI", () => {
       "$defs.parameter",
       parameterErrors,
     );
+    validateAgainst(
+      astSchema.$defs.import,
+      { kind: "Import", path: "", span: testSpan(2) },
+      astSchema,
+      "$defs.import",
+      importErrors,
+    );
 
     assert(astErrors.includes("$.source length must be >= 1"));
     assert(astErrors.includes("$.package.name length must be >= 1"));
     assert(astErrors.includes("$.span.file length must be >= 1"));
+    assert(importErrors.includes("$defs.import.path length must be >= 1"));
     assert(parameterErrors.includes("$defs.parameter.name length must be >= 1"));
     assert(parameterErrors.includes("$defs.parameter.type must match exactly one schema, matched 0"));
     assert(checkErrors.includes("$.diagnostics[0].code length must be >= 1"));

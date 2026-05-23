@@ -18,12 +18,13 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_ticket_update.intent`: ticket-update goal where `TicketUpdate` targets a ticket id covered by a ticket update grant, with memory retention, verification, and invariants.
 - `valid_step_requirements.intent`: code-change goal with step-local `require ...` guards before effects, normal file and shell capabilities, memory retention, verification, and invariants.
 - `valid_invariant_guard_graph.intent`: code-change goal with invariant rules intended to guard multiple graph targets, including file and shell effects plus step checkpoints, with normal capabilities, checkpoint memory retention, plan steps, and verification.
+- `valid_imports.intent`: import-focused parser fixture that preserves package and symbol import declarations with source spans while keeping imported names out of checker scope.
 - `valid_step_approval_graph.intent`: code-change goal with step body `approval ...` lines before sensitive file-write and git-push effects, normal file, shell, and git capabilities, approval memory retention, verification, and invariants.
 - `valid_step_policy_graph.intent`: code-change goal with step body `timeout ...` and `retry ...` lines before file and shell effects, normal file and shell capabilities, memory retention, verification, and invariants.
 
 ## Invalid
 
-- `invalid_goal_missing.intent`: declares a package and type declarations but no goal, which should fail `INTENT_GOAL_MISSING` at the source span.
+- `invalid_goal_missing.intent`: declares package, import, and type declarations but no goal, which should fail `INTENT_GOAL_MISSING` at the source span.
 - `invalid_missing_verification.intent`: declares mutating effects but omits the required verification gate.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
 - `invalid_git_push_branch_mismatch.intent`: declares git push access for `main` but calls `GitPush(branch: "release")`.

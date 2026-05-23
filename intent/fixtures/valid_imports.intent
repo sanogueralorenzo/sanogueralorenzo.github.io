@@ -1,0 +1,24 @@
+package fixtures.imports
+
+import std.tools
+import examples.shared.Finding
+
+goal import_smoke(request: String) -> String {
+  context repo("./")
+
+  memory session {
+    retain summaries until goal_complete
+  }
+
+  plan {
+    step echo_request(input: String) -> String
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+  }
+}

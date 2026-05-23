@@ -64,7 +64,7 @@ Every successful command writes formatted JSON to stdout and includes a stable
 `schema_version` field:
 
 - `parse`: emits `intent.ast.v0`, the parsed source model with package, type,
-  goal, block, step, effect, and span data.
+  import, goal, block, step, effect, and span data.
 - `check`: emits `intent.check.v0`, a diagnostic envelope with `ok` and
   `diagnostics`.
 - `graph`: emits `intent.graph.v0`, an execution graph envelope with

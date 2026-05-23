@@ -9,7 +9,7 @@ does not try to settle the full language.
 Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 
 - `PackageDecl`: package path for a source file.
-- `ImportDecl`: imported package or symbol path.
+- `ImportDecl`: imported package or symbol path with source span.
 - `GoalDecl`: root executable unit, spanned inputs, output, clauses, and body
   blocks.
 - `ContextDecl`: named source of truth with structured call data, argument
@@ -72,6 +72,8 @@ Rules:
 
 - Type names must begin with an uppercase ASCII letter.
 - Type declarations are visible to every goal in the same file.
+- Import declarations are parsed and preserved for tooling provenance, but they
+  do not contribute types or declarations to checker scope in this milestone.
 - Type graph nodes are package/file-scoped runtime metadata and must declare
   availability to every goal in the graph with explicit `declares` edges.
 - Type definitions are retained for graph/debug output, but record fields,
@@ -199,6 +201,7 @@ Success exits `0` and emits the parsed source model:
       "end": { "line": 1, "column": 29, "offset": 28 }
     }
   },
+  "imports": [],
   "types": [],
   "goals": [],
   "span": {
@@ -210,8 +213,9 @@ Success exits `0` and emits the parsed source model:
 ```
 
 Required top-level fields are `schema_version`, `source`, `package`, `types`,
-`goals`, and `span`. Parsed declarations preserve source order. Every parsed
-node that maps to source text must carry a `span`.
+`goals`, and `span`. The optional `imports` array contains parsed import
+declarations with `kind`, `path`, and `span`. Parsed declarations preserve
+source order. Every parsed node that maps to source text must carry a `span`.
 
 Parse failures exit non-zero and emit the diagnostic envelope described by
 `intent.check.v0` with `ok: false` and at least one `INTENT_PARSE_ERROR`
@@ -743,8 +747,9 @@ Expected validation behavior:
 The checker consumes a complete AST and produces either a checked model or
 blocking diagnostics.
 
-- Bind package, imports, declarations, block-local names, step inputs, and goal
-  state without implicit globals.
+- Bind package, file-local declarations, block-local names, step inputs, and
+  goal state without implicit globals. Imports are parsed and preserved in this
+  milestone, but they are not resolved into checker scope.
 - Reject duplicate type names in the file, duplicate goal names in the file,
   duplicate goal input names in a goal, duplicate step names in a goal, and
   duplicate step input names in a step.
