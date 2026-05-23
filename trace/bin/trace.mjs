@@ -2441,18 +2441,20 @@ async function recallMemories(query) {
   const files = explicitFiles.length > 0 ? explicitFiles : changedFiles;
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const limit = parsePositiveInteger(args.limit ?? "5", "--limit");
+  const field = normalizeSearchField(args.field);
 
   if (terms.length === 0 && files.length === 0 && !hasIdentityFilter) {
     fail("recall query, --files, --checkpoint, --session, or local file changes are required");
   }
 
   const index = await loadSearchIndex(root);
-  const matches = rankRecallEntries(index.entries, terms, files, { checkpoint, session }).slice(0, limit);
+  const matches = rankRecallEntries(index.entries, terms, files, { checkpoint, session, field }).slice(0, limit);
   if (args.json) {
     print({
       ok: true,
       schema_version: "trace.recall.v1",
       query: query.trim(),
+      field,
       files,
       checkpoint: checkpoint || null,
       session: session || null,
@@ -2479,6 +2481,9 @@ async function recallMemories(query) {
   const lines = ["# Trace Recall", ""];
   if (query.trim()) {
     lines.push(`Query: \`${query.trim()}\``);
+  }
+  if (field !== "text") {
+    lines.push(`Field: \`${field}\``);
   }
   if (files.length > 0) {
     lines.push(`Files: ${files.map((file) => `\`${file}\``).join(", ")}`);
@@ -2523,6 +2528,7 @@ function rankRecallEntries(entries, terms, files, filters = {}) {
   const normalizedFiles = files.map((file) => file.toLowerCase());
   const checkpoint = String(filters.checkpoint ?? "").toLowerCase();
   const session = String(filters.session ?? "").toLowerCase();
+  const field = filters.field ?? "text";
   const matches = [];
 
   for (const entry of entries) {
@@ -2533,7 +2539,9 @@ function rankRecallEntries(entries, terms, files, filters = {}) {
       continue;
     }
 
-    const searchable = `${entry.text}\n${entry.files}\n${entry.file}`.toLowerCase();
+    const searchable = field === "text"
+      ? `${entry.text}\n${entry.files}\n${entry.file}`.toLowerCase()
+      : searchFieldText(entry, field).toLowerCase();
     let score = 0;
     if (checkpoint) {
       score += 10;
@@ -3607,7 +3615,7 @@ Usage:
   trace log [--limit 20] [--json]
   trace index
   trace search [--field intent|summary|decisions|responses|tools|files|checkpoint|session|validation|risks|handoff] [--limit 20] [--json] <query>
-  trace recall [query] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
+  trace recall [query] [--field intent|summary|decisions|responses|tools|files|validation|risks|handoff] [--files path[,path]] [--checkpoint id] [--session id] [--limit 5] [--json]
   trace summary [range] [--json]
   trace branch-summary [branch] [--base main] [--json]
   trace pr-body [range] [--json]

@@ -150,6 +150,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const recallJson = JSON.parse((await runTrace(repo, ["recall", "reviewable", "--limit", "1", "--json"])).stdout);
     assert.equal(recallJson.schema_version, "trace.recall.v1");
     assert.equal(recallJson.query, "reviewable");
+    assert.equal(recallJson.field, "text");
     assert.equal(recallJson.matches, 1);
     assert.equal(recallJson.results[0].score, 3);
     assert.equal(recallJson.results[0].file, payload.memory);
@@ -158,6 +159,17 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(recallJson.results[0].decisions, /Use committed Markdown/);
     assert.match(recallJson.results[0].validation, /node --test/);
     assert.match(recallJson.results[0].handoff, /Preserve the decision/);
+
+    const decisionRecall = await runTrace(repo, ["recall", "--field", "decisions", "reviewable", "--limit", "1"]);
+    assert.match(decisionRecall.stdout, /Field: `decisions`/);
+    assert.match(decisionRecall.stdout, /Use committed Markdown for reviewable memory/);
+    const validationRecall = JSON.parse((await runTrace(repo, ["recall", "--field", "validation", "--json", "node"])).stdout);
+    assert.equal(validationRecall.field, "validation");
+    assert.equal(validationRecall.matches, 1);
+    assert.match(validationRecall.results[0].validation, /node --test/);
+    const riskRecall = JSON.parse((await runTrace(repo, ["recall", "--field", "risks", "--json", "reviewable"])).stdout);
+    assert.equal(riskRecall.field, "risks");
+    assert.equal(riskRecall.matches, 0);
 
     const checkpointRecall = JSON.parse((await runTrace(repo, ["recall", "--checkpoint", payload.checkpoint, "--json"])).stdout);
     assert.equal(checkpointRecall.checkpoint, payload.checkpoint);
