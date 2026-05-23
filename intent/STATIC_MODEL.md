@@ -334,10 +334,11 @@ diagnostics are separate from `INTENT_GRAPH_COMPLETION_INVALID`,
 `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and prevent ambiguous completion replay
 while preserving completion-specific diagnostics. Graph validation emits
 `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with multiple `Step` nodes does
-not have exactly one linear `precedes` chain across those steps, or when the
-`Step` producing `Completion` is not the tail step of that chain. The graph
-command may emit `ok: false` with diagnostics for inspection, but runtimes must
-treat that graph as non-executable.
+not have exactly one linear role-valid `precedes` chain across those steps, or
+when the `Step` producing `Completion` is not the tail step of that chain.
+Unsupported `precedes` endpoint roles emit `INTENT_GRAPH_PRECEDE_INVALID`.
+The graph command may emit `ok: false` with diagnostics for inspection, but
+runtimes must treat that graph as non-executable.
 
 Next graph envelope validation milestone:
 
@@ -451,6 +452,23 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`. Constraining the generic completion
   delivery roles prevents ambiguous completion replay while preserving
   completion-specific diagnostics.
+- Runtime graph data and topology edges have constrained role contracts.
+  `data` is valid only from a goal-scoped `Input` or `Step` producer to a
+  step-scoped `Input`; unsupported endpoint roles emit
+  `INTENT_GRAPH_DATA_ROLE_INVALID`. `supplies` is valid only as goal-scoped
+  `Input` to `Goal`; unsupported endpoint roles emit
+  `INTENT_GRAPH_SUPPLY_INVALID`. `informs` is valid only as `Context` to
+  `Goal`; unsupported endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`.
+  `precedes` is valid only as `Step` to `Step`; unsupported endpoint roles
+  emit `INTENT_GRAPH_PRECEDE_INVALID`. These generic role diagnostics are
+  separate from `INTENT_GRAPH_DATA_INVALID`,
+  `INTENT_GRAPH_INPUT_SUPPLY_INVALID`,
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`,
+  `INTENT_GRAPH_STEP_SEQUENCE_INVALID`,
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics.
+  This prevents topology/data edges from being replayed as ambiguous
+  runtime-control edges while preserving ownership, sequencing, and payload
+  diagnostics.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
   milestone. The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -474,9 +492,11 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Runtime graph goal-input supply edge contracts are the next Phase 2
   static-model milestone. Every goal-scoped `Input` node must have exactly one
-  outgoing `supplies` edge to its owning `Goal`. Malformed, missing, or extra
-  goal-input `supplies` edges emit `INTENT_GRAPH_INPUT_SUPPLY_INVALID` and make
-  graph output non-executable; malformed `Input` node data remains
+  outgoing role-valid `supplies` edge to its owning `Goal`. Missing or extra
+  role-valid goal-input `supplies` edges emit
+  `INTENT_GRAPH_INPUT_SUPPLY_INVALID` and make graph output non-executable;
+  unsupported `supplies` endpoint roles emit `INTENT_GRAPH_SUPPLY_INVALID`;
+  malformed `Input` node data remains
   `INTENT_GRAPH_INPUT_INVALID`, and missing step input data or `requires` edges
   remain `INTENT_GRAPH_INPUT_UNBOUND` or
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`. Step-scoped `Input` nodes remain
@@ -552,10 +572,11 @@ Next graph envelope validation milestone:
   milestone. Every `Context` node must have exactly one outgoing `informs` edge
   to its owning `Goal`. This ownership edge is separate from external context
   authorization: `web` and `documents` Context nodes still require incoming
-  Capability `authorizes` edges, while `repo` Context nodes do not. Malformed,
-  missing, or extra context `informs` edges emit
-  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output
-  non-executable; malformed Context node data remains
+  Capability `authorizes` edges, while `repo` Context nodes do not. Missing or
+  extra role-valid context `informs` edges emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output non-executable;
+  unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`;
+  malformed Context node data remains
   `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
   `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
   remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
@@ -908,9 +929,10 @@ Every successful binding is also emitted as graph data dependency:
 - The final executable step creates a `produces` edge to the goal completion
   node. Its edge `data` must include non-empty `type`, `sourceSpan` for the
   final step output, and `targetSpan` for the goal output.
-- Graph data-edge validation emits `INTENT_GRAPH_DATA_INVALID` when a `data`
-  edge does not connect either a goal `Input` node or step producer to a step
-  `Input` consumer.
+- Graph data-edge role validation emits `INTENT_GRAPH_DATA_ROLE_INVALID` when
+  a `data` edge does not connect either a goal-scoped `Input` node or `Step`
+  producer to a step-scoped `Input` consumer. Role-valid data edge semantic
+  failures remain `INTENT_GRAPH_DATA_INVALID`.
 - Graph requires-edge payload validation emits
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a step-input `requires` edge omits
   non-empty `parameter`, non-empty `type`, or valid `targetSpan`. Wrong
@@ -918,7 +940,8 @@ Every successful binding is also emitted as graph data dependency:
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Graph goal-input supply validation emits
   `INTENT_GRAPH_INPUT_SUPPLY_INVALID` when a goal-scoped `Input` node has
-  malformed, missing, or extra outgoing `supplies` edges to its owning `Goal`.
+  missing or extra outgoing role-valid `supplies` edges to its owning `Goal`.
+  Unsupported `supplies` endpoint roles emit `INTENT_GRAPH_SUPPLY_INVALID`.
   Step-scoped `Input` nodes remain covered by the existing `data` and
   `requires` edge contracts and must not rely on `supplies`.
 
@@ -1063,12 +1086,13 @@ Rules:
   context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes external
   context source access explicit in the runtime graph instead of relying only on
   source checker results.
-- Every graph `Context` node must have exactly one outgoing `informs` edge to
-  its owning `Goal`. This ownership edge is separate from external context
-  authorization: `web` and `documents` Context nodes still require incoming
-  Capability `authorizes` edges, while `repo` Context nodes do not. Malformed,
-  missing, or extra context `informs` edges emit
-  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`. Malformed Context node data remains
+- Every graph `Context` node must have exactly one outgoing role-valid
+  `informs` edge to its owning `Goal`. This ownership edge is separate from
+  external context authorization: `web` and `documents` Context nodes still
+  require incoming Capability `authorizes` edges, while `repo` Context nodes do
+  not. Missing or extra role-valid context `informs` edges emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`. Unsupported `informs` endpoint roles
+  emit `INTENT_GRAPH_INFORM_INVALID`. Malformed Context node data remains
   `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
   `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
   remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
@@ -1652,13 +1676,16 @@ Initial diagnostic families:
 - `INTENT_GRAPH_REQUEST_INVALID`
 - `INTENT_GRAPH_COMPLETE_INVALID`
 - `INTENT_GRAPH_PRODUCE_INVALID`
+- `INTENT_GRAPH_DATA_ROLE_INVALID`
 - `INTENT_GRAPH_DATA_INVALID`
 - `INTENT_GRAPH_REQUIRE_INVALID`
 - `INTENT_GRAPH_INPUT_INVALID`
+- `INTENT_GRAPH_SUPPLY_INVALID`
 - `INTENT_GRAPH_INPUT_SUPPLY_INVALID`
 - `INTENT_GRAPH_INPUT_UNBOUND`
 - `INTENT_GRAPH_GOAL_COMPLETION_INVALID`
 - `INTENT_GRAPH_COMPLETION_INVALID`
+- `INTENT_GRAPH_INFORM_INVALID`
 - `INTENT_GRAPH_INVARIANT_INVALID`
 - `INTENT_GRAPH_CONSTRAIN_INVALID`
 - `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`
@@ -1666,6 +1693,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_GUARD_INVALID`
 - `INTENT_GRAPH_AUTHORIZATION_INVALID`
 - `INTENT_GRAPH_EFFECT_REQUEST_INVALID`
+- `INTENT_GRAPH_PRECEDE_INVALID`
 - `INTENT_GRAPH_STEP_SEQUENCE_INVALID`
 - `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`
 - `INTENT_GRAPH_APPROVE_INVALID`
@@ -2141,6 +2169,21 @@ delivery role diagnostics are separate from
 `INTENT_GRAPH_COMPLETION_INVALID`, `INTENT_GRAPH_GOAL_COMPLETION_INVALID`, and
 `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and prevent ambiguous completion replay
 while preserving completion-specific diagnostics.
+Graph validation emits `INTENT_GRAPH_DATA_ROLE_INVALID` when a `data` edge does
+not go from a goal-scoped `Input` or `Step` producer to a step-scoped `Input`.
+Graph validation emits `INTENT_GRAPH_SUPPLY_INVALID` when a `supplies` edge is
+not goal-scoped `Input` to `Goal`. Graph validation emits
+`INTENT_GRAPH_INFORM_INVALID` when an `informs` edge is not `Context` to
+`Goal`. Graph validation emits `INTENT_GRAPH_PRECEDE_INVALID` when a
+`precedes` edge is not `Step` to `Step`. These generic role diagnostics are
+separate from `INTENT_GRAPH_DATA_INVALID`,
+`INTENT_GRAPH_INPUT_SUPPLY_INVALID`,
+`INTENT_GRAPH_CONTEXT_INFORMS_INVALID`,
+`INTENT_GRAPH_STEP_SEQUENCE_INVALID`,
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics,
+and prevent topology/data edges from being replayed as ambiguous
+runtime-control edges while preserving ownership, sequencing, and payload
+diagnostics.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
@@ -2178,7 +2221,9 @@ Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
 `INTENT_GRAPH_INPUT_INVALID` when a goal or step `Input` node has malformed
 `data.scope` or `data.type` payloads, emits
 `INTENT_GRAPH_INPUT_SUPPLY_INVALID` when a goal-scoped `Input` node has
-malformed, missing, or extra outgoing `supplies` edges to its owning `Goal`,
+missing or extra outgoing role-valid `supplies` edges to its owning `Goal`,
+emits `INTENT_GRAPH_SUPPLY_INVALID` when a `supplies` edge has unsupported
+endpoint roles,
 emits `INTENT_GRAPH_INPUT_UNBOUND` when a step `Input` node does not have
 exactly one incoming `data` edge or lacks its `requires` edge to the owning
 step, emits
@@ -2192,6 +2237,10 @@ emits
 `INTENT_GRAPH_COMPLETE_INVALID` when a `completes` edge has unsupported
 endpoint roles, emits `INTENT_GRAPH_PRODUCE_INVALID` when a `produces` edge has
 unsupported endpoint roles, emits
+`INTENT_GRAPH_DATA_ROLE_INVALID` when a `data` edge has unsupported endpoint
+roles, emits `INTENT_GRAPH_INFORM_INVALID` when an `informs` edge has
+unsupported endpoint roles, emits `INTENT_GRAPH_PRECEDE_INVALID` when a
+`precedes` edge has unsupported endpoint roles, emits
 `INTENT_GRAPH_REQUIRE_INVALID` when a `requires` edge has unsupported endpoint
 roles, emits `INTENT_GRAPH_APPROVE_INVALID` when an `approves` edge has
 unsupported endpoint roles, emits `INTENT_GRAPH_CHECKPOINT_EDGE_INVALID` when a
@@ -2232,11 +2281,11 @@ with `data.source` equal to `web` or `documents` lacks one or more incoming
 `authorizes` edge is not from a `Capability`. `repo` Context nodes remain
 local/trusted and do not require graph authorization edges.
 Graph validation emits `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` when a `Context`
-node lacks exactly one outgoing `informs` edge to its owning `Goal`, or when
-any outgoing `informs` edge targets another node. This ownership edge is
-separate from external context authorization: `web` and `documents` Context
-nodes still require incoming Capability `authorizes` edges, while `repo`
-Context nodes do not.
+node lacks exactly one outgoing role-valid `informs` edge to its owning `Goal`.
+Unsupported `informs` endpoint roles instead emit
+`INTENT_GRAPH_INFORM_INVALID`. This ownership edge is separate from external
+context authorization: `web` and `documents` Context nodes still require
+incoming Capability `authorizes` edges, while `repo` Context nodes do not.
 Graph validation emits `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` when a
 `Capability` node lacks exactly one outgoing `authorizes` edge to its owning
 `Goal`, or when any capability ownership `authorizes` edge targets another
@@ -2278,9 +2327,10 @@ node omits `outputType` or `outputTypeSpan` data, when `outputType` is neither
 `null` nor a non-empty string, or when `outputTypeSpan` is neither `null` nor a
 valid span.
 Graph validation emits `INTENT_GRAPH_STEP_SEQUENCE_INVALID` when a goal with
-multiple `Step` nodes does not have exactly one linear `precedes` chain across
-those steps, or when the `Step` producing `Completion` is not the tail step of
-that chain.
+multiple `Step` nodes does not have exactly one linear role-valid `precedes`
+chain across those steps, or when the `Step` producing `Completion` is not the
+tail step of that chain. Unsupported `precedes` endpoint roles instead emit
+`INTENT_GRAPH_PRECEDE_INVALID`.
 Graph validation emits `INTENT_GRAPH_STEP_PLAN_INVALID` when a `Step` node
 lacks exactly one incoming role-valid `plans` edge from its owning `Goal`, has
 duplicate incoming role-valid `plans` edges, or has an incoming role-valid
@@ -2371,13 +2421,15 @@ the graph non-executable. Runtime `Context` nodes with `data.source` equal to
 for those external context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID` and
 make the graph non-executable. `repo` Context nodes remain local/trusted and do
 not require graph authorization edges. Every `Context` node must also have
-exactly one outgoing `informs` edge to its owning `Goal`. Malformed, missing, or
-extra context `informs` edges emit `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and
-make the graph non-executable. This ownership edge is separate from external
-context authorization. Web context nodes and browser/page state use untrusted
-external trust metadata. Runtime validation requires every `Context` node trust
-record to carry zone `trusted`, `untrusted`, or `unknown`, a non-empty `source`,
-and an optional non-empty `argument`; malformed trust records emit
+exactly one outgoing role-valid `informs` edge to its owning `Goal`. Missing or
+extra role-valid context `informs` edges emit
+`INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make the graph non-executable.
+Unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`. This
+ownership edge is separate from external context authorization. Web context
+nodes and browser/page state use untrusted external trust metadata. Runtime
+validation requires every `Context` node trust record to carry zone `trusted`,
+`untrusted`, or `unknown`, a non-empty `source`, and an optional non-empty
+`argument`; malformed trust records emit
 `INTENT_GRAPH_TRUST_INVALID`.
 
 Effect nodes carry normalized runtime adapter call data: `family`, `action`,
@@ -2577,12 +2629,14 @@ incoming role-valid `completes` edge from a `Goal` and exactly one incoming
 role-valid `produces` edge from a `Step`, at least one incoming `verifies` edge
 from a `Check` node, and a `guards` edge count that matches the goal's
 `Invariant` nodes. Wrong final-step
-sequencing remains `INTENT_GRAPH_STEP_SEQUENCE_INVALID`. Graph validation
-emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node lacks exactly
-one incoming `requests` edge from its owning `Step`, or when any incoming
-`requests` edge is not from that owning `Step`. `requests` edges to unsupported
-target roles instead emit `INTENT_GRAPH_REQUEST_INVALID`, making graph output
-non-executable before `requests` can become an ambiguous runtime-control edge.
+sequencing remains `INTENT_GRAPH_STEP_SEQUENCE_INVALID`, and unsupported
+`precedes` endpoint roles emit `INTENT_GRAPH_PRECEDE_INVALID`. Graph
+validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node
+lacks exactly one incoming `requests` edge from its owning `Step`, or when any
+incoming `requests` edge is not from that owning `Step`. `requests` edges to
+unsupported target roles instead emit `INTENT_GRAPH_REQUEST_INVALID`, making
+graph output non-executable before `requests` can become an ambiguous
+runtime-control edge.
 Graph validation emits `INTENT_GRAPH_EFFECT_INVALID` when an `Effect` node
 lacks executable adapter metadata: non-empty `data.family` and `data.action`,
 object `data.args`, `data.argKinds`, and `data.argSpans`, valid source-span

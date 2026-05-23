@@ -214,6 +214,23 @@ Validation expectations:
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`. Constraining the generic completion
   delivery roles prevents ambiguous completion replay while preserving
   completion-specific diagnostics.
+- Runtime graph data and topology edges have constrained role contracts.
+  `data` is valid only from a goal-scoped `Input` or `Step` producer to a
+  step-scoped `Input`; unsupported endpoint roles emit
+  `INTENT_GRAPH_DATA_ROLE_INVALID`. `supplies` is valid only as goal-scoped
+  `Input` to `Goal`; unsupported endpoint roles emit
+  `INTENT_GRAPH_SUPPLY_INVALID`. `informs` is valid only as `Context` to
+  `Goal`; unsupported endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`.
+  `precedes` is valid only as `Step` to `Step`; unsupported endpoint roles
+  emit `INTENT_GRAPH_PRECEDE_INVALID`. These generic role diagnostics are
+  separate from `INTENT_GRAPH_DATA_INVALID`,
+  `INTENT_GRAPH_INPUT_SUPPLY_INVALID`,
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID`,
+  `INTENT_GRAPH_STEP_SEQUENCE_INVALID`,
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and malformed node payload diagnostics.
+  This prevents topology/data edges from being replayed as ambiguous
+  runtime-control edges while preserving ownership, sequencing, and payload
+  diagnostics.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
   milestone. The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -237,9 +254,11 @@ Validation expectations:
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`.
 - Runtime graph goal-input supply edge contracts are the next Phase 2
   static-model milestone. Every goal-scoped `Input` node must have exactly one
-  outgoing `supplies` edge to its owning `Goal`. Malformed, missing, or extra
-  goal-input `supplies` edges emit `INTENT_GRAPH_INPUT_SUPPLY_INVALID` and make
-  graph output non-executable; malformed `Input` node data remains
+  outgoing role-valid `supplies` edge to its owning `Goal`. Missing or extra
+  role-valid goal-input `supplies` edges emit
+  `INTENT_GRAPH_INPUT_SUPPLY_INVALID` and make graph output non-executable;
+  unsupported `supplies` endpoint roles emit `INTENT_GRAPH_SUPPLY_INVALID`;
+  malformed `Input` node data remains
   `INTENT_GRAPH_INPUT_INVALID`, and missing step input data or `requires` edges
   remain `INTENT_GRAPH_INPUT_UNBOUND` or
   `INTENT_GRAPH_STEP_ATTACHMENT_INVALID`. Step-scoped `Input` nodes remain
@@ -315,10 +334,11 @@ Validation expectations:
   milestone. Every `Context` node must have exactly one outgoing `informs` edge
   to its owning `Goal`. This ownership edge is separate from external context
   authorization: `web` and `documents` Context nodes still require incoming
-  Capability `authorizes` edges, while `repo` Context nodes do not. Malformed,
-  missing, or extra context `informs` edges emit
-  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output
-  non-executable; malformed Context node data remains
+  Capability `authorizes` edges, while `repo` Context nodes do not. Missing or
+  extra role-valid context `informs` edges emit
+  `INTENT_GRAPH_CONTEXT_INFORMS_INVALID` and make graph output non-executable;
+  unsupported `informs` endpoint roles emit `INTENT_GRAPH_INFORM_INVALID`;
+  malformed Context node data remains
   `INTENT_GRAPH_CONTEXT_INVALID`, malformed trust metadata remains
   `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
   remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
