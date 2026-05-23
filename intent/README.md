@@ -361,11 +361,20 @@ Validation expectations:
   `INTENT_GRAPH_INVARIANT_INVALID` and make graph output non-executable because
   runtimes must not infer always-on rule polarity or identity. This runtime
   payload contract is separate from invariant ownership and guard coverage.
-  Each Invariant node must have exactly one outgoing `constrains` edge to its
-  owning `Goal`. Malformed, missing, or extra `constrains` edges emit
-  `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, while missing `guards` edges
-  still emit `INTENT_GRAPH_GUARD_INVALID`. This makes invariant ownership
-  explicit so runtimes do not infer policy scope from id strings alone.
+  `constrains` is valid only as `Invariant` to `Goal`; unsupported endpoint
+  roles emit `INTENT_GRAPH_CONSTRAIN_INVALID`. `guards` is valid only from
+  `Invariant` to `Completion`, `Effect`, `Checkpoint`, `Policy`, or
+  step-scoped `Check`; unsupported endpoint roles emit
+  `INTENT_GRAPH_GUARD_ROLE_INVALID`. These generic role diagnostics are
+  separate from `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`,
+  `INTENT_GRAPH_GUARD_INVALID`, `INTENT_GRAPH_INVARIANT_INVALID`, and node
+  payload diagnostics. Each Invariant node must have exactly one outgoing
+  role-valid `constrains` edge to its owning `Goal`; malformed, missing, or
+  extra invariant ownership edges emit
+  `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, while missing role-valid
+  `guards` edges still emit `INTENT_GRAPH_GUARD_INVALID`. This prevents
+  invariant edges from being replayed as ambiguous runtime-control edges while
+  preserving invariant-specific coverage diagnostics.
 - Graph `Effect` nodes are runtime adapter invocations. They must carry valid
   adapter data: `data.family` and `data.action` must be non-empty strings,
   `data.args`, `data.argKinds`, and `data.argSpans` must be objects, every

@@ -602,12 +602,20 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_INVARIANT_INVALID` and make graph output non-executable
   because runtimes must not infer always-on rule polarity or identity. This
   runtime payload contract is separate from invariant ownership and guard
-  coverage. Each `Invariant` node must have exactly one outgoing `constrains`
-  edge to its owning `Goal`. Malformed, missing, or extra `constrains` edges
-  emit `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, while missing `guards`
-  edges still emit `INTENT_GRAPH_GUARD_INVALID`. This makes invariant
-  ownership explicit so runtimes do not infer policy scope from id strings
-  alone.
+  coverage. `constrains` is valid only as `Invariant` to `Goal`; unsupported
+  endpoint roles emit `INTENT_GRAPH_CONSTRAIN_INVALID`. `guards` is valid only
+  from `Invariant` to `Completion`, `Effect`, `Checkpoint`, `Policy`, or
+  step-scoped `Check`; unsupported endpoint roles emit
+  `INTENT_GRAPH_GUARD_ROLE_INVALID`. These generic role diagnostics are
+  separate from `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`,
+  `INTENT_GRAPH_GUARD_INVALID`, `INTENT_GRAPH_INVARIANT_INVALID`, and node
+  payload diagnostics. Each `Invariant` node must have exactly one outgoing
+  role-valid `constrains` edge to its owning `Goal`; malformed, missing, or
+  extra invariant ownership edges emit
+  `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, while missing role-valid
+  `guards` edges still emit `INTENT_GRAPH_GUARD_INVALID`. This prevents
+  invariant edges from being replayed as ambiguous runtime-control edges while
+  preserving invariant-specific coverage diagnostics.
 - Runtime input metadata is part of graph validation. Goal inputs and step
   inputs must carry `data.scope` as either `goal` or `step` and a non-empty
   `data.type`. Goal-scoped input nodes must supply their owning goal through
@@ -769,8 +777,8 @@ blocking diagnostics.
 - Enforce invariant placement, emit invariant statements as `Invariant` nodes
   with `data.assertion` set to `Require` or `Deny` and non-empty
   `data.invariant`, attach those nodes to their owning goal with exactly one
-  `constrains` edge, and attach them to guarded runtime nodes with `guards`
-  edges.
+  role-valid `constrains` edge, and attach them to guarded runtime nodes with
+  role-valid `guards` edges.
 - Enforce `deny production_deploy` by rejecting `Deploy` effects targeting
   `production` with `INTENT_INVARIANT_VIOLATION` at the invariant line span.
 - Enforce `deny secret_write` by rejecting file write effects whose path or name
@@ -835,9 +843,10 @@ blocking diagnostics.
 - Emit every `Completion` node with `data.outputType` as `null` or a non-empty
   string and `data.outputTypeSpan` as `null` or a valid span.
 - Emit each invariant statement as an `Invariant` node with `data.assertion` set
-  to `Require` or `Deny`, non-empty `data.invariant`, exactly one `constrains`
-  edge to the owning goal, and `guards` edges to completion and to every effect,
-  checkpoint, and step requirement check in the same goal.
+  to `Require` or `Deny`, non-empty `data.invariant`, exactly one role-valid
+  `constrains` edge to the owning goal, and role-valid `guards` edges to
+  completion and to every `Effect`, `Checkpoint`, `Policy`, and step-scoped
+  requirement `Check` in the same goal.
 - Reject execution cycles unless a future bounded-loop form declares progress.
 
 ## Step Input Binding
@@ -1219,26 +1228,36 @@ runtimes must not infer always-on rule polarity or identity.
 
 Rules:
 
-- The graph builder creates exactly one `constrains` edge from each
+- The graph builder creates exactly one role-valid `constrains` edge from each
   `Invariant` node to its owning `Goal` node.
 - The graph builder creates a `guards` edge from each `Invariant` node to the
   goal `Completion` node.
 - The graph builder also creates `guards` edges from each `Invariant` node to
-  every `Effect`, `Checkpoint`, and step-scoped requirement `Check` node in the
-  same goal.
+  every `Effect`, `Checkpoint`, `Policy`, and step-scoped requirement `Check`
+  node in the same goal.
+- `constrains` is valid only as `Invariant` to `Goal`; unsupported endpoint
+  roles emit `INTENT_GRAPH_CONSTRAIN_INVALID`.
+- `guards` is valid only from `Invariant` to `Completion`, `Effect`,
+  `Checkpoint`, `Policy`, or step-scoped `Check`; unsupported endpoint roles
+  emit `INTENT_GRAPH_GUARD_ROLE_INVALID`.
 - Graph validation emits `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID` when an
-  `Invariant` node lacks exactly one outgoing `constrains` edge to its owning
-  `Goal`, or when any outgoing `constrains` edge targets another node.
+  `Invariant` node lacks exactly one outgoing role-valid `constrains` edge to
+  its owning `Goal`, has duplicate role-valid `constrains` edges, or has a
+  role-valid `constrains` edge to the wrong `Goal`.
 - Graph validation emits `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node
-  is missing its `guards` edge to `Completion` or to any `Effect`,
-  `Checkpoint`, or step-scoped `Check` node in the same goal.
+  is missing its role-valid `guards` edge to `Completion` or to any `Effect`,
+  `Checkpoint`, `Policy`, or step-scoped `Check` node in the same goal.
 - The Invariant node payload contract is separate from ownership and guard-edge
   contracts: malformed `data.assertion` or `data.invariant` emits
-  `INTENT_GRAPH_INVARIANT_INVALID`, malformed, missing, or extra `constrains`
-  edges emit `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, and missing `guards`
-  edges still emit `INTENT_GRAPH_GUARD_INVALID`.
-- The `constrains` edge makes invariant ownership explicit so runtimes do not
-  infer policy scope from id strings alone.
+  `INTENT_GRAPH_INVARIANT_INVALID`, malformed, missing, or extra role-valid
+  `constrains` edges emit `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, and
+  missing role-valid `guards` edges still emit `INTENT_GRAPH_GUARD_INVALID`.
+  Generic `INTENT_GRAPH_CONSTRAIN_INVALID` and
+  `INTENT_GRAPH_GUARD_ROLE_INVALID` diagnostics are separate from those
+  invariant-specific coverage diagnostics and node payload diagnostics.
+- The invariant edge role contracts prevent invariant edges from being replayed
+  as ambiguous runtime-control edges while preserving invariant-specific
+  coverage diagnostics.
 - Enforce `deny production_deploy` by rejecting any `Deploy` effect whose
   normalized `target` is `production` with `INTENT_INVARIANT_VIOLATION` at the
   invariant line span.
@@ -1625,7 +1644,9 @@ Initial diagnostic families:
 - `INTENT_GRAPH_GOAL_COMPLETION_INVALID`
 - `INTENT_GRAPH_COMPLETION_INVALID`
 - `INTENT_GRAPH_INVARIANT_INVALID`
+- `INTENT_GRAPH_CONSTRAIN_INVALID`
 - `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`
+- `INTENT_GRAPH_GUARD_ROLE_INVALID`
 - `INTENT_GRAPH_GUARD_INVALID`
 - `INTENT_GRAPH_AUTHORIZATION_INVALID`
 - `INTENT_GRAPH_EFFECT_REQUEST_INVALID`
@@ -2041,6 +2062,16 @@ Required edge kinds are `data`, `requires`, `produces`, `authorizes`,
 `informs`, `declares`, and `constrains`.
 Graph validation emits `INTENT_GRAPH_EDGE_KIND_INVALID` when an edge kind is
 not one of those runtime-supported Intent graph relationship kinds.
+Graph validation emits `INTENT_GRAPH_CONSTRAIN_INVALID` when a `constrains`
+edge does not go from an `Invariant` node to a `Goal` node. Graph validation
+emits `INTENT_GRAPH_GUARD_ROLE_INVALID` when a `guards` edge does not go from
+an `Invariant` node to a `Completion`, `Effect`, `Checkpoint`, `Policy`, or
+step-scoped `Check` node. These generic invariant role diagnostics are
+separate from `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`,
+`INTENT_GRAPH_GUARD_INVALID`, `INTENT_GRAPH_INVARIANT_INVALID`, and node
+payload diagnostics, and prevent invariant edges from being replayed as
+ambiguous runtime-control edges while preserving invariant-specific coverage
+diagnostics.
 Graph validation emits `INTENT_GRAPH_PLAN_INVALID` when a `plans` edge does not
 go from a `Goal` node to a `Step` node. Unsupported `plans` endpoint roles make
 graph output non-executable. This generic role diagnostic is separate from
@@ -2147,12 +2178,23 @@ edge from a `Goal`, exactly one incoming role-valid `produces` edge from a
 `Step`, at least one incoming `verifies` edge from a `Check` node, or a
 `guards` edge count that does not match the goal's `Invariant` nodes, and emits
 `INTENT_GRAPH_CYCLE` for cyclic graph edges. Graph validation emits
+`INTENT_GRAPH_CONSTRAIN_INVALID` when a `constrains` edge does not go from an
+`Invariant` node to a `Goal` node. Graph validation emits
+`INTENT_GRAPH_GUARD_ROLE_INVALID` when a `guards` edge does not go from an
+`Invariant` node to a `Completion`, `Effect`, `Checkpoint`, `Policy`, or
+step-scoped `Check` node. These generic invariant role diagnostics are
+separate from `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`,
+`INTENT_GRAPH_GUARD_INVALID`, `INTENT_GRAPH_INVARIANT_INVALID`, and node
+payload diagnostics, and prevent invariant edges from being replayed as
+ambiguous runtime-control edges while preserving invariant-specific coverage
+diagnostics. Graph validation emits
 `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID` when an `Invariant` node lacks
-exactly one outgoing `constrains` edge to its owning `Goal`, or when any
-outgoing `constrains` edge targets another node. Graph validation emits
+exactly one outgoing role-valid `constrains` edge to its owning `Goal`, has
+duplicate role-valid `constrains` edges, or has a role-valid `constrains` edge
+to the wrong `Goal`. Graph validation emits
 `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its `guards`
-edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped `Check`
-node in the same goal.
+edge to `Completion` or to any `Effect`, `Checkpoint`, `Policy`, or
+step-scoped `Check` node in the same goal.
 Graph validation emits `INTENT_GRAPH_AUTHORIZATION_INVALID` when an `Effect`
 node, verification `Check` node with `data.effect`, or external `Context` node
 with `data.source` equal to `web` or `documents` lacks one or more incoming
@@ -2453,9 +2495,18 @@ Each goal has exactly one `Completion` node. The goal creates a `completes` edge
 to the completion node. Required goal-scoped checks create exactly one outgoing
 `gates` edge to the owning goal and exactly one outgoing `verifies` edge to
 completion.
-Invariants that apply to the goal create exactly one outgoing `constrains` edge
-to that goal, plus `guards` edges to completion and to every effect,
-checkpoint, and step requirement check in that goal. The last executable step in
+Invariants that apply to the goal create exactly one outgoing role-valid
+`constrains` edge to that goal, plus role-valid `guards` edges to completion
+and to every effect, checkpoint, policy, and step requirement check in that
+goal. `constrains` is valid only as `Invariant` to `Goal`; unsupported endpoint
+roles emit `INTENT_GRAPH_CONSTRAIN_INVALID`. `guards` is valid only from
+`Invariant` to `Completion`, `Effect`, `Checkpoint`, `Policy`, or step-scoped
+`Check`; unsupported endpoint roles emit `INTENT_GRAPH_GUARD_ROLE_INVALID`.
+These generic role diagnostics are separate from
+`INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, `INTENT_GRAPH_GUARD_INVALID`,
+`INTENT_GRAPH_INVARIANT_INVALID`, and node payload diagnostics, and prevent
+invariant edges from being replayed as ambiguous runtime-control edges while
+preserving invariant-specific coverage diagnostics. The last executable step in
 the plan creates a `produces` edge to completion. That edge must carry
 non-empty `data.type`, `data.sourceSpan` for the final step output, and
 `data.targetSpan` for the goal output. Malformed `produces` edge payloads emit
@@ -2511,11 +2562,12 @@ instead emit `INTENT_GRAPH_VERIFY_INVALID`; malformed `Check` payloads remain
 verification edges from becoming ambiguous runtime-control edges while
 preserving check-specific gate coverage diagnostics. Graph validation emits
 `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID` when an `Invariant` node lacks
-exactly one outgoing `constrains` edge to its owning `Goal`, or when any
-outgoing `constrains` edge targets another node. Graph validation emits
+exactly one outgoing role-valid `constrains` edge to its owning `Goal`, has
+duplicate role-valid `constrains` edges, or has a role-valid `constrains` edge
+to the wrong `Goal`. Graph validation emits
 `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
-`guards` edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped
-`Check` node in the same goal. Graph validation emits
+role-valid `guards` edge to `Completion` or to any `Effect`, `Checkpoint`,
+`Policy`, or step-scoped `Check` node in the same goal. Graph validation emits
 `INTENT_GRAPH_INVARIANT_INVALID` when an `Invariant` node lacks
 `data.assertion` as `Require` or `Deny` or lacks non-empty `data.invariant`;
 malformed Invariant payloads make graph output non-executable and are separate
