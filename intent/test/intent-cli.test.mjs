@@ -84,6 +84,8 @@ function validateTestGraph(graph) {
     schema_version: "intent.graph.v0",
     ast_schema_version: "intent.ast.v0",
     source: "synthetic.intent",
+    ok: true,
+    diagnostics: [],
     ...graph,
   });
 }
@@ -1085,11 +1087,15 @@ describe("intent static model CLI", () => {
       schema_version: "intent.graph.v1",
       ast_schema_version: "intent.ast.v1",
       source: "synthetic.intent",
+      ok: true,
+      diagnostics: [],
       nodes: [],
       edges: [],
     });
     const missingDiagnostics = validateGraph({
       source: "synthetic.intent",
+      ok: true,
+      diagnostics: [],
       nodes: [],
       edges: [],
     });
@@ -1104,6 +1110,47 @@ describe("intent static model CLI", () => {
     assert.equal(missingDiagnostics[0].code, "INTENT_GRAPH_SCHEMA_INVALID");
     assert.equal(missingDiagnostics[0].schema_version, null);
     assert.equal(missingDiagnostics[0].ast_schema_version, null);
+  });
+
+  it("validates graph executable envelope diagnostics", () => {
+    const failedDiagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      ok: false,
+      diagnostics: [{ code: "INTENT_VERIFY_MISSING", severity: "error", message: "missing", span: testSpan(1) }],
+      nodes: [],
+      edges: [],
+    });
+    const staleDiagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      ok: true,
+      diagnostics: [{ code: "INTENT_VERIFY_MISSING", severity: "error", message: "missing", span: testSpan(1) }],
+      nodes: [],
+      edges: [],
+    });
+    const malformedDiagnostics = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      ok: true,
+      nodes: [],
+      edges: [],
+    });
+
+    assert.equal(failedDiagnostics.length, 1);
+    assert.equal(failedDiagnostics[0].code, "INTENT_GRAPH_EXECUTABLE_INVALID");
+    assert.equal(failedDiagnostics[0].graph_ok, false);
+    assert.equal(failedDiagnostics[0].diagnostics_is_array, true);
+    assert.equal(failedDiagnostics[0].diagnostic_count, 1);
+    assert.equal(staleDiagnostics[0].code, "INTENT_GRAPH_EXECUTABLE_INVALID");
+    assert.equal(staleDiagnostics[0].graph_ok, true);
+    assert.equal(staleDiagnostics[0].diagnostic_count, 1);
+    assert.equal(malformedDiagnostics[0].code, "INTENT_GRAPH_EXECUTABLE_INVALID");
+    assert.equal(malformedDiagnostics[0].diagnostics_is_array, false);
+    assert.equal(malformedDiagnostics[0].diagnostic_count, null);
   });
 
   it("validates graph node kind diagnostics", () => {

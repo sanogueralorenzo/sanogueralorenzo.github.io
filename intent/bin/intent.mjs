@@ -1194,12 +1194,12 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
     nodes,
     edges,
   };
-  diagnostics.push(...validateGraph(graph));
+  diagnostics.push(...validateGraph(graph, { allowNonExecutableEnvelope: diagnostics.length > 0 }));
   graph.ok = diagnostics.length === 0;
   return graph;
 }
 
-function validateGraph(graph) {
+function validateGraph(graph, options = {}) {
   const diagnostics = [];
   if (graph.schema_version !== GRAPH_SCHEMA_VERSION || graph.ast_schema_version !== AST_SCHEMA_VERSION) {
     diagnostics.push(error("INTENT_GRAPH_SCHEMA_INVALID", `graph envelope uses unsupported schema version.`, span(graph.source ?? "graph", 1, 1), {
@@ -1207,6 +1207,13 @@ function validateGraph(graph) {
       expected_schema_version: GRAPH_SCHEMA_VERSION,
       ast_schema_version: graph.ast_schema_version ?? null,
       expected_ast_schema_version: AST_SCHEMA_VERSION,
+    }));
+  }
+  if (!options.allowNonExecutableEnvelope && (graph.ok !== true || !Array.isArray(graph.diagnostics) || graph.diagnostics.length !== 0)) {
+    diagnostics.push(error("INTENT_GRAPH_EXECUTABLE_INVALID", `graph envelope must have ok true and an empty diagnostics array.`, span(graph.source ?? "graph", 1, 1), {
+      graph_ok: graph.ok ?? null,
+      diagnostics_is_array: Array.isArray(graph.diagnostics),
+      diagnostic_count: Array.isArray(graph.diagnostics) ? graph.diagnostics.length : null,
     }));
   }
   const nodesById = new Map();
