@@ -1,0 +1,44 @@
+package examples.research_synthesis
+
+type ResearchQuestion
+type SourceSet
+type EvidenceTable
+type DraftAnswer
+type ResearchReport
+
+goal research_synthesis(question: ResearchQuestion) -> ResearchReport {
+  context web("https://example.com/**")
+  context documents("./docs/**")
+
+  capability web {
+    read domain: "example.com"
+  }
+
+  capability file {
+    read path: "./docs/**"
+  }
+
+  memory session {
+    retain claims until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step collect_sources(question: ResearchQuestion) -> SourceSet {
+      effect WebRead(url: "https://example.com/research")
+    }
+    step extract_evidence(input: SourceSet) -> EvidenceTable
+    step synthesize_answer(input: EvidenceTable) -> DraftAnswer
+    step verify_report(input: DraftAnswer) -> ResearchReport
+  }
+
+  verify {
+    require all_outputs_cited
+    require no_policy_violations
+  }
+
+  invariant {
+    deny uncited_external_claim
+    deny untrusted_content_to_shell
+  }
+}

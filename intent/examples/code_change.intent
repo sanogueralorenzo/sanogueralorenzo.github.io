@@ -1,0 +1,56 @@
+package examples.code_change
+
+type TicketRef
+type ChangeRequest
+type Finding
+type Patch
+type VerifiedPatch
+type Completion
+
+goal code_change(ticket: TicketRef, request: ChangeRequest) -> Completion {
+  context repo("./")
+  context ticket("CODE-123")
+
+  capability file {
+    read path: "./src/**"
+    read path: "./test/**"
+    write path: "./src/**"
+    write path: "./test/**"
+  }
+
+  capability shell {
+    run command: "npm test"
+    run command: "npm run typecheck"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_request(ticket: TicketRef) -> Finding
+    step patch_code(input: Finding) -> Patch {
+      require input.summary != ""
+      effect FileWrite(path: "./src/app.ts")
+      effect FileWrite(path: "./test/app.test.ts")
+      checkpoint "patch written"
+    }
+    step verify_patch(input: Patch) -> VerifiedPatch {
+      effect ShellExec(command: "npm test")
+      effect ShellExec(command: "npm run typecheck")
+      checkpoint "tests passed"
+    }
+    step summarize_completion(input: VerifiedPatch) -> Completion
+  }
+
+  verify {
+    require shell("npm test").exit_code == 0
+    require shell("npm run typecheck").exit_code == 0
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

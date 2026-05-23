@@ -50,6 +50,7 @@ The Phase 2 static model starts as a dependency-free Node CLI:
 node intent/bin/intent.mjs parse intent/fixtures/valid_code_change.intent
 node intent/bin/intent.mjs check intent/fixtures/valid_code_change.intent
 node intent/bin/intent.mjs graph intent/fixtures/valid_code_change.intent
+node intent/bin/intent.mjs graph intent/examples/code_change.intent
 node --test intent/test/*.test.mjs
 ```
 
@@ -84,8 +85,8 @@ changing an existing contract.
 
 Validation expectations:
 
-- Valid fixtures must parse, check with `ok: true`, and emit graph JSON with
-  `ok: true`.
+- Valid fixtures and executable examples must parse, check with `ok: true`, and
+  emit graph JSON with `ok: true`.
 - Invalid fixtures must exit non-zero for `check`, emit `ok: false`, and include
   stable diagnostic codes and spans.
 - AST and check schemas reject empty structural strings before downstream tools

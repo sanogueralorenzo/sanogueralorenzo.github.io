@@ -29,6 +29,10 @@ const VALID_MEMORY_FLOW_GRAPH = new URL("../fixtures/valid_memory_flow_graph.int
 const VALID_STEP_APPROVAL_GRAPH = new URL("../fixtures/valid_step_approval_graph.intent", import.meta.url).pathname;
 const VALID_STEP_POLICY_GRAPH = new URL("../fixtures/valid_step_policy_graph.intent", import.meta.url).pathname;
 const VALID_TRUST_FLOW_SHELL_LITERAL = new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname;
+const EXAMPLE_CODE_CHANGE = new URL("../examples/code_change.intent", import.meta.url).pathname;
+const EXAMPLE_RESEARCH_SYNTHESIS = new URL("../examples/research_synthesis.intent", import.meta.url).pathname;
+const EXAMPLE_INCIDENT_RESPONSE = new URL("../examples/incident_response.intent", import.meta.url).pathname;
+const EXAMPLE_DEPLOYMENT_APPROVAL = new URL("../examples/deployment_approval.intent", import.meta.url).pathname;
 const INVALID_GOAL_MISSING = new URL("../fixtures/invalid_goal_missing.intent", import.meta.url).pathname;
 const INVALID_MISSING_PACKAGE = new URL("../fixtures/invalid_missing_package.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_PACKAGE = new URL("../fixtures/invalid_duplicate_package.intent", import.meta.url).pathname;
@@ -73,6 +77,12 @@ const INVALID_UNSUPPORTED_PLAN_STATEMENT = new URL("../fixtures/invalid_unsuppor
 const INVALID_UNSUPPORTED_STEP_STATEMENT = new URL("../fixtures/invalid_unsupported_step_statement.intent", import.meta.url).pathname;
 const INVALID_UNSUPPORTED_VERIFY_STATEMENT = new URL("../fixtures/invalid_unsupported_verify_statement.intent", import.meta.url).pathname;
 const INVALID_UNSUPPORTED_INVARIANT_STATEMENT = new URL("../fixtures/invalid_unsupported_invariant_statement.intent", import.meta.url).pathname;
+const EXECUTABLE_EXAMPLES = [
+  EXAMPLE_CODE_CHANGE,
+  EXAMPLE_RESEARCH_SYNTHESIS,
+  EXAMPLE_INCIDENT_RESPONSE,
+  EXAMPLE_DEPLOYMENT_APPROVAL,
+];
 
 function runJson(args) {
   const output = execFileSync("node", [CLI, ...args], { encoding: "utf8" });
@@ -665,6 +675,22 @@ describe("intent static model CLI", () => {
     assert.deepEqual(stepPolicyGraph.diagnostics, []);
     assert.equal(trustFlow.ok, true);
     assert.deepEqual(trustFlow.diagnostics, []);
+  });
+
+  it("accepts executable examples", () => {
+    for (const example of EXECUTABLE_EXAMPLES) {
+      const ast = runJson(["parse", example]);
+      const check = runJson(["check", example]);
+      const graph = runJson(["graph", example]);
+
+      assert.equal(ast.package.name.startsWith("examples."), true);
+      assert.equal(check.ok, true, example);
+      assert.deepEqual(check.diagnostics, []);
+      assert.equal(graph.ok, true, example);
+      assert.deepEqual(graph.diagnostics, []);
+      assertGraphEdgesResolve(graph);
+      assertGraphAcyclic(graph);
+    }
   });
 
   it("rejects effectful goals without verification", () => {
@@ -4025,6 +4051,13 @@ describe("intent static model CLI", () => {
     const memoryGraph = runJson(["graph", VALID_MEMORY_FLOW_GRAPH]);
     const secretGraph = runJson(["graph", VALID_SECRET_READ]);
     const ticketGraph = runJson(["graph", VALID_TICKET_UPDATE]);
+    const examplePayloads = EXECUTABLE_EXAMPLES.map((example) => {
+      return {
+        ast: runJson(["parse", example]),
+        check: runJson(["check", example]),
+        graph: runJson(["graph", example]),
+      };
+    });
 
     assert.deepEqual(validateSchema(astSchema, ast), []);
     assert.deepEqual(validateSchema(astSchema, importAst), []);
@@ -4039,6 +4072,11 @@ describe("intent static model CLI", () => {
     assert.deepEqual(validateSchema(graphSchema, memoryGraph), []);
     assert.deepEqual(validateSchema(graphSchema, secretGraph), []);
     assert.deepEqual(validateSchema(graphSchema, ticketGraph), []);
+    for (const payloads of examplePayloads) {
+      assert.deepEqual(validateSchema(astSchema, payloads.ast), []);
+      assert.deepEqual(validateSchema(checkSchema, payloads.check), []);
+      assert.deepEqual(validateSchema(graphSchema, payloads.graph), []);
+    }
   });
 
   it("rejects empty structural graph strings in the schema", () => {
