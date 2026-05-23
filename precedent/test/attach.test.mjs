@@ -791,6 +791,75 @@ test("attach-run auto-carries pending repair retry receipts", async () => {
   }
 });
 
+test("attach-run auto-carries pending cross-session repair handoffs", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const failed = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "auto-cross-repair-source",
+      "--event-prefix",
+      "auto-cross-source",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--diff-changed-files",
+      "features/billing/refunds.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--next-session-id",
+      "auto-cross-repair-retry",
+      "--json",
+    ]);
+
+    const retryArgs = [
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "auto-cross-repair-retry",
+      "--event-prefix",
+      "auto-cross-retry",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--json",
+    ];
+    const retry = await runJson(retryArgs);
+    const repeated = await runJson(retryArgs);
+
+    assert.equal(failed.selfRepair.repair.repairId, failed.selfRepair.repairId);
+    assert.equal(failed.selfRepair.repair.recorded, true);
+    assert.equal(retry.repairReceipt.status, "cleared");
+    assert.equal(retry.repairReceipt.repairSource, "next_session_handoff");
+    assert.equal(retry.repairReceipt.repairId, failed.selfRepair.repairId);
+    assert.equal(retry.repairReceipt.repairSessionId, "auto-cross-repair-source");
+    assert.equal(retry.repairReceipt.receipt.repairReceipt.cleared, true);
+    assert.equal(repeated.repairReceipt.repairSource, "deduped_receipt");
+    assert.equal(repeated.repairReceipt.receipt.deduped, true);
+
+    const sourceEvents = await readJsonLines(join(stateDir, "sessions/auto-cross-repair-source.jsonl"));
+    const handoff = sourceEvents.find((event) => event.eventId === "auto-cross-source:repair.before_retry");
+    assert.equal(handoff.nextSessionId, "auto-cross-repair-retry");
+    const retryEvents = await readJsonLines(join(stateDir, "sessions/auto-cross-repair-retry.jsonl"));
+    assert.equal(retryEvents.filter((event) => event.eventId === "auto-cross-retry:repair.after_retry").length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("attach-run auto-carries still-failing repair retry receipts", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
 

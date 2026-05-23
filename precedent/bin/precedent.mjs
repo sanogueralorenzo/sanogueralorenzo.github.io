@@ -3349,6 +3349,7 @@ async function attachRunSession() {
     task: taskSource.task,
     scope,
     changedFiles,
+    nextSessionId: stringOrNull(args["next-session-id"]),
     attributedPrecedents,
     finalization,
   });
@@ -3652,6 +3653,7 @@ function runAttachRepairHandoff({
   task,
   scope,
   changedFiles,
+  nextSessionId,
   attributedPrecedents,
   finalization,
 }) {
@@ -3676,6 +3678,7 @@ function runAttachRepairHandoff({
     task,
     scope: scope || null,
     changedFiles,
+    nextSessionId,
     attributedPrecedents,
   }).then((repair) => ({
     status: repair.repairBlock ? "handoff_ready" : "suppressed",
@@ -3751,12 +3754,23 @@ async function attachPendingRepairTarget({ stateDirArg, sessionId, eventId }) {
         repairId: event.repairReceipt.id ?? event.repairId,
         repairSessionId: event.repairReceipt.repairSessionId ?? event.repairSessionId ?? sessionId,
       })));
-    const repair = sessionEvents
+    const unreceiptedRepair = (event) => !receiptKeys.has(repairReceiptKey({
+      repairId: event.repairId,
+      repairSessionId: event.sessionId ?? sessionId,
+    }));
+    const sameSessionRepair = sessionEvents
       .filter((event) => event.hook === "repair.before_retry" && event.repairId)
-      .filter((event) => !receiptKeys.has(repairReceiptKey({
-        repairId: event.repairId,
-        repairSessionId: event.sessionId ?? sessionId,
-      })))
+      .filter(unreceiptedRepair)
+      .map((event) => ({ ...event, repairSource: "pending_repair" }));
+    const crossSessionRepair = globalEvents
+      .filter((event) => (
+        event.hook === "repair.before_retry"
+        && event.repairId
+        && event.nextSessionId === sessionId
+      ))
+      .filter(unreceiptedRepair)
+      .map((event) => ({ ...event, repairSource: "next_session_handoff" }));
+    const repair = [...sameSessionRepair, ...crossSessionRepair]
       .sort((left, right) => eventTime(left) - eventTime(right))
       .at(-1);
 
@@ -3765,7 +3779,7 @@ async function attachPendingRepairTarget({ stateDirArg, sessionId, eventId }) {
     }
 
     return {
-      source: "pending_repair",
+      source: repair.repairSource,
       repairId: repair.repairId,
       repairSessionId: repair.sessionId ?? sessionId,
     };
@@ -9882,7 +9896,7 @@ Usage:
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent attach [--runtime generic|codex] [--session session-id|--thread-id thread-id] --task "text"
-  precedent attach-run --task "text" --validation-command "cmd" [--diff-changed-files paths] [--session session-id|--thread-id thread-id] [--event-prefix id] [--repair-id id --repair-session-id session-id] [--auto-promote]
+  precedent attach-run --task "text" --validation-command "cmd" [--diff-changed-files paths] [--session session-id|--thread-id thread-id] [--event-prefix id] [--next-session-id session-id] [--repair-id id --repair-session-id session-id] [--auto-promote]
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
