@@ -514,6 +514,15 @@ test("check fails on uncommitted Trace memories and passes after committing them
     assert.equal(strictMemoryPayload.memoryQuality.checked, 1);
     assert.ok(strictMemoryPayload.memoryQuality.findings.some((finding) => finding.reason === "missing decision signal"));
 
+    await runTrace(repo, ["enable"]);
+    const strictDoctor = await runTraceAllowFailure(repo, ["doctor", "--strict-memory"]);
+    assert.equal(strictDoctor.exitCode, 1);
+    const strictDoctorPayload = JSON.parse(strictDoctor.stdout);
+    const doctorMemoryQuality = strictDoctorPayload.checks.find((check) => check.name === "memoryQuality");
+    assert.equal(doctorMemoryQuality.level, "error");
+    assert.equal(doctorMemoryQuality.ok, false);
+    assert.ok(doctorMemoryQuality.findings.some((finding) => finding.reason === "missing decision signal"));
+
     const cleanWithCheckpoints = JSON.parse((await runTrace(repo, ["check", "--checkpoints"])).stdout);
     assert.equal(cleanWithCheckpoints.ok, true);
     assert.equal(cleanWithCheckpoints.checkpointIntegrity.ok, true);
@@ -684,6 +693,13 @@ test("doctor reports hook and local memory health without mutating caches", asyn
     assert.equal(install.installDir, installDir);
     assert.equal(install.target, join(installDir, "trace"));
     assert.match(install.installCommand, /trace\/install\.sh --prefix /);
+
+    const strictDoctor = await runTrace(repo, ["doctor", "--strict-memory", "--prefix", installDir]);
+    const strictPayload = JSON.parse(strictDoctor.stdout);
+    const memoryQuality = strictPayload.checks.find((check) => check.name === "memoryQuality");
+    assert.equal(strictPayload.ok, true);
+    assert.equal(memoryQuality.ok, true);
+    assert.equal(memoryQuality.checked, 0);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

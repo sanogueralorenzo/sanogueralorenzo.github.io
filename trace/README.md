@@ -108,6 +108,7 @@ trace redact add codename 'PROJECT-[A-Z]+'
 trace redact list
 trace redact audit
 trace doctor
+trace doctor --strict-memory
 trace check
 trace check --checkpoints
 trace check --strict-memory
@@ -171,6 +172,7 @@ node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
 node trace/bin/trace.mjs redact list
 node trace/bin/trace.mjs redact audit
 node trace/bin/trace.mjs doctor
+node trace/bin/trace.mjs doctor --strict-memory
 node trace/bin/trace.mjs check
 node trace/bin/trace.mjs check --strict-memory
 node trace/bin/trace.mjs coverage main..HEAD
@@ -200,7 +202,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace recall <query>` returns an agent-ready Markdown context bundle from the most relevant committed memories. It includes the original memory path, checkpoint/session identity, intent, summary, decisions, validation, risks, and handoff. `trace recall --files src/auth.ts` ranks memories by affected files, `trace recall --checkpoint <checkpoint>` and `trace recall --session <session>` jump directly from Trace identity back to committed memories, plain `trace recall` uses locally changed files when available, and `--json` emits the same recall bundle as structured data.
 
-`trace doctor` audits the local Trace installation in one read-only command: config, CLI install health, managed hook commands, adapter contract specs, committed memory shape, uncommitted Trace files, checkpoint ref integrity, checkpoint links from committed memories, and search index freshness. Missing CLI installs and stale rebuildable caches are warnings, while missing or tampered hooks, malformed memory files, malformed adapter configs, missing linked checkpoint payloads, and checkpoint integrity errors fail the command.
+`trace doctor` audits the local Trace installation in one read-only command: config, CLI install health, managed hook commands, adapter contract specs, committed memory shape, uncommitted Trace files, checkpoint ref integrity, checkpoint links from committed memories, and search index freshness. Add `--strict-memory` to include the same committed-memory intent, decision, and validation quality gate used by `trace check` and CI. Missing CLI installs and stale rebuildable caches are warnings, while missing or tampered hooks, malformed memory files, malformed adapter configs, missing linked checkpoint payloads, checkpoint integrity errors, and strict memory quality findings fail the command.
 
 Agent integrations can use first-class adapters or the generic hook endpoint:
 

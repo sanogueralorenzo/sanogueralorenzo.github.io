@@ -367,7 +367,9 @@ async function runDoctor() {
   const memories = await auditMemoryFiles(root);
   const redaction = await redactionAudit(root);
   const dirtyTrace = await dirtyTraceFiles(root);
-  const checkpoint = await checkpointIntegrityReport(root, await memoryTargetsForFiles(root, memories.files));
+  const memoryTargets = await memoryTargetsForFiles(root, memories.files);
+  const checkpoint = await checkpointIntegrityReport(root, memoryTargets);
+  const memoryQuality = args["strict-memory"] ? await strictMemoryQualityReport(root, memoryTargets) : null;
   const searchIndex = await searchIndexStatus(root);
   const install = await installStatusPayload();
 
@@ -404,6 +406,14 @@ async function runDoctor() {
       count: memories.files.length,
       invalidMemories: memories.invalidMemories,
     },
+    ...(memoryQuality ? [{
+      name: "memoryQuality",
+      level: "error",
+      ok: memoryQuality.ok,
+      strict: memoryQuality.strict,
+      checked: memoryQuality.checked,
+      findings: memoryQuality.findings,
+    }] : []),
     {
       name: "redaction",
       level: "error",
@@ -3432,7 +3442,7 @@ Usage:
   trace release-notes [range] [--json]
   trace hook pre-commit
   trace hook agent [event] [--adapter codex|claude-code|gemini|generic]
-  trace doctor
+  trace doctor [--strict-memory]
   trace check [--checkpoints] [--strict-memory]
   trace status
   trace disable
