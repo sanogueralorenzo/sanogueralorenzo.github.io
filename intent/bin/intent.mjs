@@ -542,7 +542,7 @@ function checkIntent(ast) {
 
         const trustFlow = getTrustFlowDiagnostic(effect);
         if (trustFlow) {
-          diagnostics.push(error("INTENT_TRUST_FLOW_UNSAFE", trustFlow.message, effect.span, {
+          diagnostics.push(error("INTENT_TRUST_FLOW_UNSAFE", trustFlow.message, effectArgumentSpan(effect, trustFlow), {
             effect: effect.name,
             family: effect.family,
             action: effect.action,
@@ -555,7 +555,7 @@ function checkIntent(ast) {
 
         const denial = getCapabilityDenial(effect, goal.capabilities);
         if (denial) {
-          diagnostics.push(error("INTENT_CAPABILITY_DENIED", denial.message, effect.span, {
+          diagnostics.push(error("INTENT_CAPABILITY_DENIED", denial.message, effectArgumentSpan(effect, denial), {
             effect: effect.name,
             family: effect.family,
             action: effect.action,
@@ -606,7 +606,7 @@ function validateContextSources(goal, diagnostics) {
       : getCapabilityDenial(access, goal.capabilities);
 
     if (denial) {
-      diagnostics.push(error("INTENT_CONTEXT_UNDECLARED", `context '${context.expression}' must be covered by a matching read capability.`, context.span, {
+      diagnostics.push(error("INTENT_CONTEXT_UNDECLARED", `context '${context.expression}' must be covered by a matching read capability.`, effectArgumentSpan(access, denial), {
         context: context.expression,
         source: context.source,
         family: access.family,
@@ -808,7 +808,7 @@ function validateVerifyRequirements(goal, diagnostics) {
       : getCapabilityDenial(effect, goal.capabilities);
 
     if (denial) {
-      diagnostics.push(error("INTENT_VERIFY_UNDECLARED", `verify requirement '${requirement.value}' must be declared by a matching capability grant.`, requirement.span, {
+      diagnostics.push(error("INTENT_VERIFY_UNDECLARED", `verify requirement '${requirement.value}' must be declared by a matching capability grant.`, effectArgumentSpan(effect, denial), {
         requirement: requirement.value,
         family: effect.family,
         action: effect.action,
@@ -1535,6 +1535,7 @@ function contextAccess(context) {
       action: "read",
       args,
       argKinds,
+      argSpans: context.argSpans,
       expression: context.expression,
       span: context.span,
     };
@@ -1558,6 +1559,7 @@ function contextAccess(context) {
       action: "read",
       args,
       argKinds,
+      argSpans: context.argSpans,
       expression: context.expression,
       span: context.span,
     };
@@ -1686,6 +1688,33 @@ function effectTrust(effect) {
 
 function effectArgument(effect) {
   return effectArguments(effect)[0] ?? null;
+}
+
+function effectArgumentSpan(effect, argument) {
+  if (!argument) {
+    return effect.span;
+  }
+  const argSpans = effect.argSpans ?? {};
+  if (argSpans[argument.argument] || argSpans[argument.key]) {
+    return argSpans[argument.argument] ?? argSpans[argument.key];
+  }
+  const aliases = {
+    path: ["paths", "_0"],
+    command: ["commands", "_0"],
+    domain: ["domains", "url", "urls", "_0"],
+    branch: ["branches", "_0"],
+    remote: ["remotes", "_0"],
+    message: ["_0"],
+    target: ["environment", "env", "_0"],
+    name: ["names", "_0"],
+    id: ["_0"],
+  };
+  for (const key of aliases[argument.argument] ?? aliases[argument.key] ?? []) {
+    if (argSpans[key]) {
+      return argSpans[key];
+    }
+  }
+  return effect.span;
 }
 
 function effectArguments(effect) {

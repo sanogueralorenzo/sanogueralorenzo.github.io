@@ -276,6 +276,8 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_DENIED");
     assert.equal(payload.diagnostics[0].argument, "path");
     assert.equal(payload.diagnostics[0].value, "./README.md");
+    assert.equal(payload.diagnostics[0].span.start.line, 27);
+    assert.equal(payload.diagnostics[0].span.start.column, 24);
   });
 
   it("rejects shell commands outside declared command grants", () => {
@@ -287,6 +289,8 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_DENIED");
     assert.equal(payload.diagnostics[0].argument, "command");
     assert.equal(payload.diagnostics[0].value, "npm run lint");
+    assert.equal(payload.diagnostics[0].span.start.line, 30);
+    assert.equal(payload.diagnostics[0].span.start.column, 24);
   });
 
   it("rejects secret reads outside declared name grants", () => {
@@ -364,6 +368,8 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].argument, "domain");
     assert.equal(payload.diagnostics[0].value, "outside.example.org");
     assert.deepEqual(payload.diagnostics[0].allowed, ["example.com"]);
+    assert.equal(payload.diagnostics[0].span.start.line, 13);
+    assert.equal(payload.diagnostics[0].span.start.column, 15);
   });
 
   it("rejects git pushes outside declared branch grants", () => {
@@ -400,6 +406,8 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].code, "INTENT_TRUST_FLOW_UNSAFE");
     assert.equal(payload.diagnostics[0].argument, "command");
     assert.equal(payload.diagnostics[0].trust, "untrusted");
+    assert.equal(payload.diagnostics[0].span.start.line, 32);
+    assert.equal(payload.diagnostics[0].span.start.column, 24);
     assert.equal(payload.diagnostics.length, 1);
   });
 
@@ -414,6 +422,8 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].argument, "command");
     assert.equal(payload.diagnostics[0].value, "npm run lint");
     assert.deepEqual(payload.diagnostics[0].allowed, ["npm test"]);
+    assert.equal(payload.diagnostics[0].span.start.line, 44);
+    assert.equal(payload.diagnostics[0].span.start.column, 19);
   });
 
   it("rejects side-effect calls inside verification requirements", () => {
