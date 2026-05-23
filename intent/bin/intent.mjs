@@ -1418,6 +1418,16 @@ function validateGraph(graph) {
     }
   }
 
+  for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Goal") {
+      continue;
+    }
+    const completionDiagnostic = validateGoalCompletionOwnership(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan);
+    if (completionDiagnostic) {
+      diagnostics.push(completionDiagnostic);
+    }
+  }
+
   const visiting = new Set();
   const visited = new Set();
   let cycleReported = false;
@@ -1478,6 +1488,30 @@ function stepAttachment(graphNode) {
 function parentNodeId(nodeId, marker) {
   const markerIndex = nodeId.indexOf(marker);
   return markerIndex === -1 ? null : nodeId.slice(0, markerIndex);
+}
+
+function validateGoalCompletionOwnership(nodesById, outgoingEdgesByNode, goalNode, fallbackSpan) {
+  const expectedCompletionId = `${goalNode.id}:completion`;
+  const completionNode = nodesById.get(expectedCompletionId);
+  const outgoingCompletesEdges = (outgoingEdgesByNode.get(goalNode.id) ?? []).filter((graphEdge) => graphEdge.kind === "completes");
+  const expectedCompletesEdges = outgoingCompletesEdges.filter((graphEdge) => graphEdge.to === expectedCompletionId);
+  const invalidCompletesTargets = outgoingCompletesEdges
+    .filter((graphEdge) => graphEdge.to !== expectedCompletionId)
+    .map((graphEdge) => graphEdge.to);
+
+  if (completionNode?.kind === "Completion" && expectedCompletesEdges.length === 1 && invalidCompletesTargets.length === 0) {
+    return null;
+  }
+
+  return error("INTENT_GRAPH_GOAL_COMPLETION_INVALID", `goal '${goalNode.label}' must own one completion node and one completes edge to it.`, goalNode.span ?? fallbackSpan, {
+    goal: goalNode.label,
+    goal_id: goalNode.id,
+    completion_id: expectedCompletionId,
+    completion_node_kind: completionNode?.kind ?? null,
+    completes_edges: outgoingCompletesEdges.length,
+    expected_completes_edges: expectedCompletesEdges.length,
+    invalid_completes_targets: invalidCompletesTargets,
+  });
 }
 
 function validateGoalStepSequence(graph, nodesById, incomingEdgesByNode, goalNode, fallbackSpan) {

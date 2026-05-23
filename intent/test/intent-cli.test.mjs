@@ -1128,11 +1128,15 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(3) },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
         { id: "goal:demo:verify:0", kind: "Check", label: "shell(\"npm test\")", span: testSpan(4), data: { effect: { family: "shell", action: "run" } } },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(5) },
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
 
@@ -1154,10 +1158,15 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
         { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(5) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(6) },
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
     const wrongSourceDiagnostics = validateGraph({
@@ -1167,11 +1176,16 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
         { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(4) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(5) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(6) },
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
 
@@ -1261,6 +1275,34 @@ describe("intent static model CLI", () => {
     assert.equal(wrongProducerDiagnostics[0].expected_completion_producer_step_id, "goal:demo:step:b");
   });
 
+  it("validates graph goal completion diagnostics", () => {
+    const missingCompletionDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+      ],
+      edges: [],
+    });
+    const wrongCompletionDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:other:completion", kind: "Completion", label: "other", span: testSpan(2) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:other:completion", kind: "completes" },
+      ],
+    });
+
+    assert.equal(missingCompletionDiagnostics.length, 1);
+    assert.equal(missingCompletionDiagnostics[0].code, "INTENT_GRAPH_GOAL_COMPLETION_INVALID");
+    assert.equal(missingCompletionDiagnostics[0].completion_id, "goal:demo:completion");
+    assert.equal(missingCompletionDiagnostics[0].completion_node_kind, null);
+    assert.equal(wrongCompletionDiagnostics[0].code, "INTENT_GRAPH_COMPLETION_INVALID");
+    assert.equal(wrongCompletionDiagnostics[1].code, "INTENT_GRAPH_GOAL_COMPLETION_INVALID");
+    assert.deepEqual(wrongCompletionDiagnostics[1].invalid_completes_targets, ["goal:other:completion"]);
+  });
+
   it("validates graph step attachment diagnostics", () => {
     const diagnostics = validateGraph({
       source: "synthetic.intent",
@@ -1274,11 +1316,16 @@ describe("intent static model CLI", () => {
         { id: "goal:demo:step:patch:timeout:0", kind: "Policy", label: "5m", span: testSpan(7), data: { policyKind: "timeout" } },
         { id: "goal:demo:step:patch:retry:0", kind: "Policy", label: "max 2", span: testSpan(8), data: { policyKind: "retry" } },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(9), data: { approvalRequired: true } },
+        { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(10) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(11) },
       ],
       edges: [
         { from: "goal:demo", to: "goal:demo:step:patch", kind: "plans" },
         { from: "goal:demo:step:patch", to: "goal:demo:step:patch:effect:0", kind: "requests" },
         { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
     });
 
