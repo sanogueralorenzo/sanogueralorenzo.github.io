@@ -1,0 +1,38 @@
+package fixtures.invalid_context_source_outside_capability
+
+type WebContext = {
+  url: Url,
+  summary: String
+}
+
+type VerifiedContext = {
+  context: WebContext
+}
+
+goal "reject context source outside capability" {
+  context web("https://outside.example.org/**")
+
+  capability web {
+    read domain: "example.com"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step collect_context -> WebContext
+    step verify_context(input: WebContext) -> VerifiedContext
+  }
+
+  verify {
+    require all_outputs_cited
+    require no_policy_violations
+  }
+
+  invariant {
+    deny uncited_external_claim
+    deny context_source_outside_capability
+  }
+}
