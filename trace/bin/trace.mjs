@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { access, chmod, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
@@ -339,7 +339,7 @@ async function verifyCheckpoints() {
       continue;
     }
 
-    for (const field of ["schema_version", "checkpoint_id", "commit", "created_at", "integrity"]) {
+    for (const field of ["schema_version", "checkpoint_id", "commit", "created_at"]) {
       if (!payload[field]) {
         errors.push({ path, error: `missing ${field}` });
       }
@@ -354,11 +354,6 @@ async function verifyCheckpoints() {
       if (!commit) {
         errors.push({ path, error: `missing commit ${payload.commit}` });
       }
-    }
-
-    const integrityError = verifyCheckpointIntegrity(payload);
-    if (integrityError) {
-      errors.push({ path, error: integrityError });
     }
   }
 
@@ -440,44 +435,7 @@ function checkpointSummary(payload) {
     created_at: payload.created_at,
     files: Array.isArray(payload.files) ? payload.files.length : 0,
     events: Array.isArray(payload.events) ? payload.events.length : 0,
-    integrity: verifyCheckpointIntegrity(payload) == null,
   };
-}
-
-function withCheckpointIntegrity(payload) {
-  return {
-    ...withoutCheckpointIntegrity(payload),
-    integrity: {
-      algorithm: "sha256",
-      payload_sha256: checkpointPayloadHash(payload),
-    },
-  };
-}
-
-function verifyCheckpointIntegrity(payload) {
-  if (!payload?.integrity) {
-    return "missing integrity";
-  }
-
-  if (payload.integrity.algorithm !== "sha256") {
-    return `unsupported integrity algorithm ${payload.integrity.algorithm ?? "none"}`;
-  }
-
-  const expected = checkpointPayloadHash(payload);
-  if (payload.integrity.payload_sha256 !== expected) {
-    return "checkpoint integrity mismatch";
-  }
-
-  return null;
-}
-
-function checkpointPayloadHash(payload) {
-  return createHash("sha256").update(stableJson(withoutCheckpointIntegrity(payload))).digest("hex");
-}
-
-function withoutCheckpointIntegrity(payload) {
-  const { integrity, ...rest } = payload ?? {};
-  return rest;
 }
 
 async function captureEvent() {
@@ -1001,7 +959,7 @@ async function writeCheckpointRef(root, checkpointId, payload) {
   await mkdir(scratch, { recursive: true });
   const payloadPath = join(scratch, `${checkpointId}.json`);
   const indexPath = join(scratch, `index-${process.pid}-${checkpointId}`);
-  await writeFile(payloadPath, `${JSON.stringify(withCheckpointIntegrity(payload), null, 2)}\n`);
+  await writeFile(payloadPath, `${JSON.stringify(payload, null, 2)}\n`);
 
   const env = { ...process.env, GIT_INDEX_FILE: indexPath };
   const parent = await git(["rev-parse", "--verify", CHECKPOINT_REF], { cwd: root, allowFailure: true });
@@ -1448,18 +1406,6 @@ function normalizeSearchField(value) {
 
 function searchFieldText(entry, field) {
   return String(entry[field] ?? "");
-}
-
-function stableJson(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map((entry) => stableJson(entry)).join(",")}]`;
-  }
-
-  if (value && typeof value === "object") {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
-  }
-
-  return JSON.stringify(value);
 }
 
 function sameFingerprints(left, right) {
