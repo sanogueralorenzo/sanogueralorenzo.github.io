@@ -734,6 +734,9 @@ Rules:
 - The graph builder also creates `guards` edges from each `Invariant` node to
   every `Effect`, `Checkpoint`, and step-scoped requirement `Check` node in the
   same goal.
+- Graph validation emits `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node
+  is missing its `guards` edge to `Completion` or to any `Effect`,
+  `Checkpoint`, or step-scoped `Check` node in the same goal.
 - Enforce `deny production_deploy` by rejecting any `Deploy` effect whose
   normalized `target` is `production` with `INTENT_INVARIANT_VIOLATION` at the
   invariant line span.
@@ -1481,7 +1484,9 @@ incoming `data` edge, emits `INTENT_GRAPH_COMPLETION_INVALID` when a
 `Goal`, exactly one incoming `produces` edge from a `Step`, at least one
 incoming `verifies` edge from a `Check` node, or a `guards` edge count that
 does not match the goal's `Invariant` nodes, and emits `INTENT_GRAPH_CYCLE` for
-cyclic graph edges.
+cyclic graph edges. Graph validation emits `INTENT_GRAPH_GUARD_INVALID` when
+an `Invariant` node is missing its `guards` edge to `Completion` or to any
+`Effect`, `Checkpoint`, or step-scoped `Check` node in the same goal.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
@@ -1567,9 +1572,11 @@ may carry `data.sourceSpan` for the final step output type and
 `INTENT_GRAPH_COMPLETION_INVALID` unless each `Completion` node has exactly one
 incoming `completes` edge from a `Goal` and exactly one incoming `produces` edge
 from a `Step`, at least one incoming `verifies` edge from a `Check` node, and a
-`guards` edge count that matches the goal's `Invariant` nodes. Completion is
-reachable only when all incoming completion edges have succeeded or remained
-unviolated.
+`guards` edge count that matches the goal's `Invariant` nodes. Graph validation
+emits `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
+`guards` edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped
+`Check` node in the same goal. Completion is reachable only when all incoming
+completion edges have succeeded or remained unviolated.
 
 The runtime must treat the graph as authoritative: it may execute only graph
 nodes, may invoke only authorized effects, must preserve guard and approval
