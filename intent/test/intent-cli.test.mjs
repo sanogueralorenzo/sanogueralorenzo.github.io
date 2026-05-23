@@ -11,8 +11,10 @@ const VALID_CODE_CHANGE = new URL("../fixtures/valid_code_change.intent", import
 const VALID_DEPENDENCY_GRAPH = new URL("../fixtures/valid_dependency_graph.intent", import.meta.url).pathname;
 const VALID_RESEARCH = new URL("../fixtures/valid_research.intent", import.meta.url).pathname;
 const VALID_WEB_READ_WILDCARD = new URL("../fixtures/valid_web_read_wildcard.intent", import.meta.url).pathname;
+const VALID_GIT_PUSH_BRANCH = new URL("../fixtures/valid_git_push_branch.intent", import.meta.url).pathname;
 const INVALID_MISSING_VERIFICATION = new URL("../fixtures/invalid_missing_verification.intent", import.meta.url).pathname;
 const INVALID_UNDECLARED_EFFECT = new URL("../fixtures/invalid_undeclared_effect.intent", import.meta.url).pathname;
+const INVALID_GIT_PUSH_BRANCH_MISMATCH = new URL("../fixtures/invalid_git_push_branch_mismatch.intent", import.meta.url).pathname;
 const INVALID_FILE_WRITE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_file_write_outside_capability.intent", import.meta.url).pathname;
 const INVALID_SHELL_EXEC_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_shell_exec_outside_capability.intent", import.meta.url).pathname;
 const INVALID_WEB_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_web_read_outside_capability.intent", import.meta.url).pathname;
@@ -154,6 +156,7 @@ describe("intent static model CLI", () => {
     const dependencyGraph = runJson(["check", VALID_DEPENDENCY_GRAPH]);
     const research = runJson(["check", VALID_RESEARCH]);
     const webReadWildcard = runJson(["check", VALID_WEB_READ_WILDCARD]);
+    const gitPushBranch = runJson(["check", VALID_GIT_PUSH_BRANCH]);
     const trustFlow = runJson(["check", new URL("../fixtures/valid_trust_flow_shell_literal.intent", import.meta.url).pathname]);
 
     assert.equal(codeChange.ok, true);
@@ -164,6 +167,8 @@ describe("intent static model CLI", () => {
     assert.deepEqual(research.diagnostics, []);
     assert.equal(webReadWildcard.ok, true);
     assert.deepEqual(webReadWildcard.diagnostics, []);
+    assert.equal(gitPushBranch.ok, true);
+    assert.deepEqual(gitPushBranch.diagnostics, []);
     assert.equal(trustFlow.ok, true);
     assert.deepEqual(trustFlow.diagnostics, []);
   });
@@ -219,6 +224,18 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].argument, "domain");
     assert.equal(payload.diagnostics[0].value, "example.org");
     assert.deepEqual(payload.diagnostics[0].allowed, ["example.com"]);
+  });
+
+  it("rejects git pushes outside declared branch grants", () => {
+    const result = run(["check", INVALID_GIT_PUSH_BRANCH_MISMATCH]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CAPABILITY_DENIED");
+    assert.equal(payload.diagnostics[0].argument, "branch");
+    assert.equal(payload.diagnostics[0].value, "release");
+    assert.deepEqual(payload.diagnostics[0].allowed, ["main"]);
   });
 
   it("rejects nonliteral shell commands as unsafe trust flow", () => {

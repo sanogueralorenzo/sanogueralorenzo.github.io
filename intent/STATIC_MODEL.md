@@ -287,8 +287,8 @@ blocking diagnostics.
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
   capability.
-- Check simple capability constraints for file paths, shell commands, and
-  web/http read domains.
+- Check simple capability constraints for file paths, shell commands, web/http
+  read domains, and git push branches or remotes.
 - Normalize and compare constrained resources such as paths, commands, domains,
   branches, secret names, and approval targets.
 - Require verification gates for every goal and ensure they are pure unless
@@ -362,8 +362,8 @@ Rules:
 - Literal string, number, and boolean values are normalized for checking while
   retaining raw token spans.
 - Nested calls may be parsed as argument values, but the first capability
-  milestone only checks literal file path, shell command, and web/http read
-  URL or domain arguments.
+  milestone only checks literal file path, shell command, web/http read URL or
+  domain, and git push branch or remote arguments.
 - Unknown identifiers in effect arguments are allowed to remain unresolved only
   when the effect call is not used for a capability-constrained resource or a
   trust-sensitive resource.
@@ -432,9 +432,9 @@ Rules:
 ## Capability Constraints
 
 The first constraint checker supports only direct string-literal matches for
-file paths, shell commands, and web/http read domains. A capability authorizes
-an effect call when the effect family matches and every constrained argument is
-covered by the capability.
+file paths, shell commands, web/http read domains, and git push branches or
+remotes. A capability authorizes an effect call when the effect family matches
+and every constrained argument is covered by the capability.
 
 File path constraints:
 
@@ -474,6 +474,24 @@ Web/http read constraints:
   `docs.example.com` and `api.docs.example.com`, but not `example.com`.
 - If no exact or wildcard domain grant covers the normalized URL host or domain
   argument, the checker emits `INTENT_CAPABILITY_DENIED`.
+
+Git push constraints:
+
+- Git push effects use a named `branch` or `remote` argument as the constrained
+  resource.
+- `git.push(branch: "...")` is valid only when an in-scope capability grants
+  `push branch: "..."`.
+- `git.push(remote: "...")` is valid only when an in-scope capability grants
+  `push remote: "..."`.
+- Branch arguments are simple branch names. They are normalized by trimming
+  leading and trailing ASCII whitespace and removing one leading `refs/heads/`
+  prefix before comparison.
+- Remote arguments are simple remote names. They are normalized by trimming
+  leading and trailing ASCII whitespace before comparison.
+- Git branch and remote matching is exact after normalization; wildcards,
+  refspecs, URLs, and shell-expanded arguments are unsupported.
+- If no branch or remote grant covers the normalized argument, the checker emits
+  `INTENT_CAPABILITY_DENIED`.
 
 When no in-scope capability covers a constrained resource, the checker emits
 `INTENT_CAPABILITY_DENIED` at the effect call span with the denied argument,

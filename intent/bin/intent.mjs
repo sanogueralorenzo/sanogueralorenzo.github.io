@@ -844,11 +844,16 @@ function parseCapabilityGrant(text) {
     const key = args.paths ? "path"
       : args.commands ? "command"
         : args.domains ? "domain"
-          : args.path ? "path"
-            : args.command ? "command"
-              : args.domain ? "domain"
-                : null;
-    const value = args.paths ?? args.commands ?? args.domains ?? args.path ?? args.command ?? args.domain ?? null;
+          : args.branches ? "branch"
+            : args.remotes ? "remote"
+              : args.path ? "path"
+                : args.command ? "command"
+                  : args.domain ? "domain"
+                    : args.branch ? "branch"
+                      : args.remote ? "remote"
+                        : null;
+    const value = args.paths ?? args.commands ?? args.domains ?? args.branches ?? args.remotes
+      ?? args.path ?? args.command ?? args.domain ?? args.branch ?? args.remote ?? null;
     if (key && typeof value === "string") {
       return {
         action: dottedCall[1],
@@ -1156,33 +1161,37 @@ function getCapabilityDenial(effect, capabilities) {
     return null;
   }
 
-  const argument = effectArgument(effect);
-  if (!effect.action || !argument) {
+  const argumentsToCheck = effectArguments(effect);
+  if (!effect.action || argumentsToCheck.length === 0) {
     return null;
   }
 
-  const candidateGrants = familyCapabilities.flatMap((capability) => capability.grants ?? [])
-    .filter((grant) => grant.action === effect.action && grant.key === argument.key);
+  for (const argument of argumentsToCheck) {
+    const candidateGrants = familyCapabilities.flatMap((capability) => capability.grants ?? [])
+      .filter((grant) => grant.action === effect.action && grant.key === argument.key);
 
-  if (candidateGrants.length === 0) {
+    if (candidateGrants.length === 0) {
+      return {
+        message: `effect '${effect.name}' has no '${effect.action} ${argument.key}' capability grant.`,
+        argument: argument.key,
+        value: argument.value,
+        allowed: [],
+      };
+    }
+
+    if (candidateGrants.some((grant) => isGrantMatch(argument, grant))) {
+      continue;
+    }
+
     return {
-      message: `effect '${effect.name}' has no '${effect.action} ${argument.key}' capability grant.`,
+      message: `effect '${effect.name}' ${argument.key} '${argument.value}' is outside declared capability grants.`,
       argument: argument.key,
       value: argument.value,
-      allowed: [],
+      allowed: candidateGrants.map((grant) => grant.value),
     };
   }
 
-  if (candidateGrants.some((grant) => isGrantMatch(argument, grant))) {
-    return null;
-  }
-
-  return {
-    message: `effect '${effect.name}' ${argument.key} '${argument.value}' is outside declared capability grants.`,
-    argument: argument.key,
-    value: argument.value,
-    allowed: candidateGrants.map((grant) => grant.value),
-  };
+  return null;
 }
 
 function getTrustFlowDiagnostic(effect) {
@@ -1219,24 +1228,34 @@ function effectTrust(effect) {
 }
 
 function effectArgument(effect) {
+  return effectArguments(effect)[0] ?? null;
+}
+
+function effectArguments(effect) {
   if (effect.family === "file") {
     const value = effect.args.path ?? effect.args.paths ?? effect.args._0;
-    return value ? { key: "path", value } : null;
+    return value ? [{ key: "path", value }] : [];
   }
   if (effect.family === "shell") {
     const value = effect.args.command ?? effect.args.commands ?? effect.args._0;
-    return value ? { key: "command", value } : null;
+    return value ? [{ key: "command", value }] : [];
   }
   if (effect.family === "web" || effect.family === "http") {
     const domain = effect.args.domain ?? effect.args.domains;
     if (domain) {
-      return { key: "domain", value: normalizeDomain(domain) };
+      return [{ key: "domain", value: normalizeDomain(domain) }];
     }
     const url = effect.args.url ?? effect.args.urls ?? effect.args._0;
     const host = url ? domainFromUrl(url) : null;
-    return url ? { key: "domain", value: host ?? url } : null;
+    return url ? [{ key: "domain", value: host ?? url }] : [];
   }
-  return null;
+  if (effect.family === "git") {
+    return [
+      effect.args.branch ? { key: "branch", value: normalizeRefName(effect.args.branch) } : null,
+      effect.args.remote ? { key: "remote", value: normalizeRefName(effect.args.remote) } : null,
+    ].filter(Boolean);
+  }
+  return [];
 }
 
 function isGrantMatch(argument, grant) {
@@ -1245,6 +1264,9 @@ function isGrantMatch(argument, grant) {
   }
   if (argument.key === "domain") {
     return isDomainGrantMatch(argument.value, grant.value);
+  }
+  if (argument.key === "branch" || argument.key === "remote") {
+    return normalizeRefName(argument.value) === normalizeRefName(grant.value);
   }
   return normalizeCommand(argument.value) === normalizeCommand(grant.value);
 }
@@ -1273,6 +1295,10 @@ function normalizePathLike(value) {
 
 function normalizeCommand(value) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizeRefName(value) {
+  return value.trim().replace(/^refs\/heads\//, "");
 }
 
 function domainFromUrl(value) {

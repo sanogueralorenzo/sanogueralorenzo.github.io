@@ -143,6 +143,8 @@ file.write("intent/STATIC_MODEL.md")
 shell.exec(command: "npm test")
 web.read(url: "https://docs.example.com/guide")
 http.get("https://api.example.com/status")
+git.push(branch: "main")
+git.push(remote: "origin")
 ```
 
 Inside `verify` requirements, `shell("npm test")` and
@@ -155,6 +157,13 @@ shell command argument must be either a string literal or a value already marked
 trusted by the checker. Nonliteral shell command expressions that are not
 trusted produce `INTENT_TRUST_FLOW_UNSAFE` rather than being treated as an
 opaque command string.
+
+Git push effects use a named `branch` or `remote` constrained argument. The
+checker binds `git.push(branch: "...")` to in-scope `push branch: "..."`
+capability grants and `git.push(remote: "...")` to in-scope
+`push remote: "..."` capability grants. Simple branch and remote names are
+normalized before comparison; if no grant covers the normalized argument, the
+checker emits `INTENT_CAPABILITY_DENIED`.
 
 ## Lexical Rules
 
@@ -210,6 +219,10 @@ The parser emits names and type reference strings; the checker owns binding.
   `domain` argument, and bind to in-scope `read domain: "..."` capability
   grants. URL hosts are compared against exact or wildcard granted domains; if
   no grant covers the host, the checker emits `INTENT_CAPABILITY_DENIED`.
+- Git push effects use a named `branch` or `remote` argument, and bind to
+  in-scope `push branch: "..."` or `push remote: "..."` capability grants.
+  Simple branch and remote names are normalized before comparison; if no grant
+  covers the argument, the checker emits `INTENT_CAPABILITY_DENIED`.
 - Shell command arguments must be literal or trusted before execution.
 - Nonliteral shell command arguments that are not trusted are
   `INTENT_TRUST_FLOW_UNSAFE`.
