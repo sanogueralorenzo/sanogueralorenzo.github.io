@@ -907,6 +907,8 @@ blocking diagnostics.
 - Bind structured web and documents context sources to declared read capability
   grants, and emit `INTENT_CONTEXT_UNDECLARED` when no in-scope grant covers
   the requested source.
+- Reject non-string constrained context source arguments with
+  `INTENT_CONTEXT_ARGUMENT_INVALID` before capability matching.
 - Prefer argument-level spans for denied constrained resources: capability
   denials, unsafe shell trust-flow denials, structured context source denials,
   and verification shell denials should point at the parsed `path`, `command`,
@@ -1932,6 +1934,7 @@ Initial diagnostic families:
 - `INTENT_STEP_INPUT_UNRESOLVED`
 - `INTENT_EFFECT_UNDECLARED`
 - `INTENT_EFFECT_ARGUMENT_INVALID`
+- `INTENT_CONTEXT_ARGUMENT_INVALID`
 - `INTENT_CAPABILITY_DENIED`
 - `INTENT_APPROVAL_MISSING`
 - `INTENT_APPROVAL_INVALID`

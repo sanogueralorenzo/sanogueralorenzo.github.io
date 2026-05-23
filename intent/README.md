@@ -59,8 +59,8 @@ The first implementation requires exactly one leading package declaration,
 allows imports only before type or goal declarations, parses goal blocks,
 preserves source spans, checks for missing verification, undeclared effects,
 unknown effect adapter contracts, capability coverage, verification shell
-grants, constrained effect argument types, verification purity, and memory
-retention lifecycles, accepts `require` and `deny` invariants, and emits
+grants, constrained effect and context argument types, verification purity, and
+memory retention lifecycles, accepts `require` and `deny` invariants, and emits
 versioned JSON
 contracts for downstream tools.
 

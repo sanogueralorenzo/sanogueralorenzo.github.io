@@ -114,6 +114,8 @@ as untrusted external sources and must be covered by an in-scope
 are treated as trusted local sources and must be covered by an in-scope
 `file read path` capability. If no matching capability covers a structured web
 or documents context source, the checker emits `INTENT_CONTEXT_UNDECLARED`.
+Non-string constrained context arguments, such as numeric web URLs or document
+paths, emit `INTENT_CONTEXT_ARGUMENT_INVALID` before capability matching.
 `capability` bodies are parsed as statement lists whose items are preserved as
 raw spanned lines. Grant lines such as `read path: "./src/**"` and parsed dotted
 grant calls such as `git.commit(message: "ship fix")` are also retained as
@@ -450,12 +452,14 @@ The parser emits names and type reference strings; the checker owns binding.
   They use the first positional argument or a named `url` or `domain` argument,
   and bind to in-scope `web read domain: "..."` capability grants. URL hosts
   are compared against exact or wildcard granted domains; if no grant covers
-  the host, the checker emits `INTENT_CONTEXT_UNDECLARED`.
+  the host, the checker emits `INTENT_CONTEXT_UNDECLARED`. Non-string URL or
+  domain arguments emit `INTENT_CONTEXT_ARGUMENT_INVALID`.
 - Structured `context documents(...)` values are trusted local source values.
   They use the first positional argument or a named `path` argument, and bind to
   in-scope `file read path: "..."` capability grants. Paths use the same
   normalization and matching rules as file read effects; if no grant covers the
-  path, the checker emits `INTENT_CONTEXT_UNDECLARED`.
+  path, the checker emits `INTENT_CONTEXT_UNDECLARED`. Non-string path
+  arguments emit `INTENT_CONTEXT_ARGUMENT_INVALID`.
 - Web/http read effects use the first positional argument or a named `url` or
   `domain` argument, and bind to in-scope `read domain: "..."` capability
   grants. URL hosts are compared against exact or wildcard granted domains; if

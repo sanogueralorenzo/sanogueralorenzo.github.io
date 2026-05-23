@@ -1,0 +1,16 @@
+package fixtures.invalid_context_argument_type
+
+type Report
+
+goal invalid_context_argument_type() -> Report {
+  context web(url: 30)
+  capability web {
+    read domain: "example.com"
+  }
+  plan {
+    step summarize -> Report
+  }
+  verify {
+    require no_policy_violations
+  }
+}

@@ -53,6 +53,7 @@ const INVALID_SECRET_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_secr
 const INVALID_TICKET_UPDATE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_ticket_update_outside_capability.intent", import.meta.url).pathname;
 const INVALID_WEB_READ_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_web_read_outside_capability.intent", import.meta.url).pathname;
 const INVALID_CONTEXT_SOURCE_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_context_source_outside_capability.intent", import.meta.url).pathname;
+const INVALID_CONTEXT_ARGUMENT_TYPE = new URL("../fixtures/invalid_context_argument_type.intent", import.meta.url).pathname;
 const INVALID_DEPLOY_TARGET_OUTSIDE_CAPABILITY = new URL("../fixtures/invalid_deploy_target_outside_capability.intent", import.meta.url).pathname;
 const INVALID_INVARIANT_PRODUCTION_DEPLOY = new URL("../fixtures/invalid_invariant_production_deploy.intent", import.meta.url).pathname;
 const INVALID_INVARIANT_SECRET_WRITE = new URL("../fixtures/invalid_invariant_secret_write.intent", import.meta.url).pathname;
@@ -1405,6 +1406,25 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].value, "outside.example.org");
     assert.deepEqual(payload.diagnostics[0].allowed, ["example.com"]);
     assert.equal(payload.diagnostics[0].span.start.line, 13);
+    assert.equal(payload.diagnostics[0].span.start.column, 15);
+  });
+
+  it("rejects non-string context source arguments before capability matching", () => {
+    const result = run(["check", INVALID_CONTEXT_ARGUMENT_TYPE]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics.length, 1);
+    assert.equal(payload.diagnostics[0].code, "INTENT_CONTEXT_ARGUMENT_INVALID");
+    assert.equal(payload.diagnostics[0].context, "web(url: 30)");
+    assert.equal(payload.diagnostics[0].source, "web");
+    assert.equal(payload.diagnostics[0].family, "web");
+    assert.equal(payload.diagnostics[0].action, "read");
+    assert.equal(payload.diagnostics[0].argument, "domain");
+    assert.equal(payload.diagnostics[0].value, "30");
+    assert.equal(payload.diagnostics[0].kind, "integer");
+    assert.equal(payload.diagnostics[0].span.start.line, 6);
     assert.equal(payload.diagnostics[0].span.start.column, 15);
   });
 

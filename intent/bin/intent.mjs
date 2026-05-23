@@ -1013,6 +1013,21 @@ function validateContextSources(goal, diagnostics) {
     if (!access) {
       continue;
     }
+    const contract = effectContractForAccess(access);
+    const argumentDiagnostic = contract ? invalidEffectContractArgument(access, contract) : null;
+    if (argumentDiagnostic) {
+      diagnostics.push(error("INTENT_CONTEXT_ARGUMENT_INVALID", `context '${context.expression}' argument '${argumentDiagnostic.argument}' must be a string for v0 contract '${contract.id}'.`, effectArgumentSpan(access, argumentDiagnostic), {
+        context: context.expression,
+        source: context.source,
+        family: access.family,
+        action: access.action,
+        argument: argumentDiagnostic.argument,
+        value: argumentDiagnostic.value,
+        kind: argumentDiagnostic.kind,
+        contractId: contract.id,
+      }));
+      continue;
+    }
 
     const denial = !isEffectAuthorized(access, goal.capabilities)
       ? {

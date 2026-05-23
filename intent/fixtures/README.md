@@ -49,6 +49,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_secret_read_outside_capability.intent`: declares secret read access for `GITHUB_TOKEN` but calls `SecretRead` for `AWS_TOKEN`.
 - `invalid_ticket_update_outside_capability.intent`: declares ticket update access for `CODE-123` but calls `TicketUpdate` for `CODE-999`.
 - `invalid_context_source_outside_capability.intent`: declares a web context source outside the declared web read grant.
+- `invalid_context_argument_type.intent`: declares `context web(url: 30)` with a non-string constrained URL argument, which should fail `INTENT_CONTEXT_ARGUMENT_INVALID`.
 - `invalid_verify_shell_without_capability.intent`: requires `shell("npm run lint")` in verification without declaring the matching shell run grant.
 - `invalid_verify_impure_file_write.intent`: declares normal file and shell capabilities but calls `FileWrite(path: "./src/app.ts")` from `verify`, which should fail `INTENT_VERIFY_IMPURE` at the impure `FileWrite(...)` call span because verification must stay side-effect free.
 - `invalid_verify_impure_custom_effect.intent`: declares a custom-looking notify capability and calls `notify.send(...)` from `verify`, which should fail `INTENT_VERIFY_IMPURE` because capability-backed tool calls are not completion predicates.
