@@ -2002,6 +2002,19 @@ async function recordMemory() {
     risk: args.risk,
   });
   const memoryPath = memoryPathFor(root, sha);
+  if (args["dry-run"]) {
+    print({
+      ok: true,
+      dryRun: true,
+      commit: sha,
+      memory: relativePath(root, memoryPath),
+      checkpoint: checkpointId,
+      session: sessionId,
+      markdown: memory.markdown,
+    });
+    return;
+  }
+
   await mkdir(dirname(memoryPath), { recursive: true });
   await writeFile(memoryPath, memory.markdown);
   await writeCheckpointRef(root, checkpointId, memory.rawCheckpoint);
@@ -3342,7 +3355,7 @@ Usage:
   trace redact remove <label>
   trace coverage [range]
   trace ci [range] [--agents] [--checkpoints]
-  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
+  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--dry-run]
   trace show [commit] [--json]
   trace review [--all] [--json]
   trace log [--limit 20] [--json]

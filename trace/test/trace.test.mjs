@@ -24,6 +24,17 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     await runTrace(repo, ["capture", "--event", "response", "--role", "assistant", "--message", "created a minimal text fixture"]);
     await runTrace(repo, ["capture", "--event", "tool", "--message", "git commit wrote app.txt"]);
     await runTrace(repo, ["capture", "--event", "decision", "--message", "Use committed Markdown for reviewable memory"]);
+
+    const dryRun = JSON.parse((await runTrace(repo, ["record", "--dry-run", "--validation", "node --test"])).stdout);
+    assert.equal(dryRun.ok, true);
+    assert.equal(dryRun.dryRun, true);
+    assert.match(dryRun.memory, /^\.trace\/commits\/[0-9a-f]{2}\//);
+    assert.match(dryRun.markdown, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
+    const missingDryRunMemory = await runTraceAllowFailure(repo, ["show", "HEAD"]);
+    assert.equal(missingDryRunMemory.exitCode, 1);
+    const missingDryRunCheckpoint = await run(repo, ["git", "rev-parse", "--verify", "refs/trace/checkpoints"], fixedEnv);
+    assert.notEqual(missingDryRunCheckpoint.exitCode, 0);
+
     const record = await runTrace(repo, ["record", "--validation", "node --test"]);
     const payload = JSON.parse(record.stdout);
 
