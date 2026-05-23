@@ -447,7 +447,7 @@ Next graph envelope validation milestone:
   non-Capability incoming authorization for `Effect`, verification `Check`, or
   external `Context` remains `INTENT_GRAPH_AUTHORIZATION_INVALID`; Capability
   authorization edges whose grant records do not cover the target family,
-  action, and constrained arguments emit
+  action, constrained arguments, or authorization edge metadata emit
   `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`; and malformed node payloads keep
   their existing node diagnostics. Constraining the generic role prevents
   `authorizes` from becoming an ambiguous catch-all edge during runtime replay
@@ -1192,10 +1192,11 @@ Rules:
 - Runtime `Context` nodes with `data.source` equal to `web` or `documents` must
   have one or more incoming `authorizes` edges from `Capability` nodes. Those
   edges carry the selected contract id, argument references, and matched grant
-  records used for the context source. `repo` Context nodes remain local/trusted
+  records used for the context source, including the grant action, key, and
+  value that justified the edge. `repo` Context nodes remain local/trusted
   and do not require graph authorization edges. Malformed, missing, or
   non-Capability authorization edges for external context sources emit
-  `INTENT_GRAPH_AUTHORIZATION_INVALID`; stale contract or argument references
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`; stale contract, argument, or grant metadata
   emit `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`. This makes external context
   source access explicit in the runtime graph instead of relying only on source
   checker results.
@@ -2373,6 +2374,10 @@ non-executable. This generic role diagnostic is separate from
 `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`, and malformed node diagnostics,
 and prevents `authorizes` from becoming an ambiguous catch-all edge during
 runtime replay while preserving target-specific authorization diagnostics.
+For contract-backed target authorization, `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`
+also covers missing or stale `authorizes` edge metadata, including mismatched
+`contractId`, `contractArguments`, source argument aliases, and matched grant
+records.
 Graph validation emits `INTENT_GRAPH_REQUEST_INVALID` when a `requests` edge
 does not target an `Effect` node. `requests` represents a step asking the
 runtime to execute an effect/tool adapter, and unsupported target roles make
@@ -2681,9 +2686,10 @@ records emit `INTENT_GRAPH_CONTEXT_INVALID` and make the graph non-executable.
 Runtime `Context` nodes with `data.source` equal to `web` or `documents` must
 have one or more incoming `authorizes` edges from `Capability` nodes. Those
 edges carry the selected contract id, argument references, and matched grant
-records. Malformed, missing, or non-Capability authorization edges for those
+records, including the grant action, key, and value that justified the edge.
+Malformed, missing, or non-Capability authorization edges for those
 external context sources emit `INTENT_GRAPH_AUTHORIZATION_INVALID`, and stale
-edge contract or argument references emit
+edge contract, argument, or grant metadata emits
 `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`, making the graph non-executable.
 `repo` Context nodes remain local/trusted and do not require graph authorization
 edges. Every `Context` node must also have exactly one outgoing role-valid
@@ -2742,8 +2748,11 @@ duplicate, or wrong-Goal capability ownership `authorizes` edges emit
 `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
 non-executable. This ownership edge is separate from runtime target
 authorization: Capability `authorizes` edges to `Effect`, `Check`, and
-external `Context` targets must be backed by matching grant records, and
-unsupported target roles or non-Capability authorization edges emit
+external `Context` targets must be backed by matching grant records, and when
+the target carries adapter contract metadata the edge must carry matching
+`contractId`, `contractArguments`, and matched grant records. Stale or missing
+authorization edge metadata emits `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`.
+Unsupported target roles or non-Capability authorization edges emit
 `INTENT_GRAPH_AUTHORIZE_INVALID`, while malformed or missing target
 authorization still emits `INTENT_GRAPH_AUTHORIZATION_INVALID` and grant
 mismatches emit `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`.

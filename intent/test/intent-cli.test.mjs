@@ -4056,6 +4056,138 @@ describe("intent static model CLI", () => {
     assert.deepEqual(diagnostics[0].invalid_authorizations[0].allowed, ["url"]);
   });
 
+  it("rejects stale authorization edge grant metadata", () => {
+    const expectedGrant = {
+      argument: "path",
+      sourceArgument: "_0",
+      value: "./src/app.ts",
+      grantAction: "write",
+      grantKey: "path",
+      grantValue: "./src/**",
+    };
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        {
+          id: "goal:demo:capability:file",
+          kind: "Capability",
+          label: "file",
+          span: testSpan(2),
+          data: {
+            family: "file",
+            grants: [{
+              ...testGrant("write", "path", "./src/**", 2),
+              contractId: "intent.effect.file.write.v0",
+              contractArgument: "path",
+            }],
+          },
+        },
+        {
+          id: "goal:demo:step:patch:effect:0",
+          kind: "Effect",
+          label: "WriteFile",
+          span: testSpan(3),
+          data: {
+            family: "file",
+            action: "write",
+            contractId: "intent.effect.file.write.v0",
+            contractArguments: { path: "_0" },
+            args: { _0: "./src/app.ts" },
+            argKinds: { _0: "string" },
+            argSpans: { _0: testSpan(3) },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo:capability:file", to: "goal:demo", kind: "authorizes" },
+        {
+          from: "goal:demo:capability:file",
+          to: "goal:demo:step:patch:effect:0",
+          kind: "authorizes",
+          data: {
+            contractId: "intent.effect.file.write.v0",
+            contractArguments: { path: "_0" },
+            grants: [{ ...expectedGrant, grantAction: "read" }],
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].target_id, "goal:demo:step:patch:effect:0");
+    assert.equal(diagnostics[0].invalid_authorizations[0].reason, "edge_grant_mismatch");
+    assert.equal(diagnostics[0].invalid_authorizations[0].argument, "path");
+    assert.deepEqual(diagnostics[0].invalid_authorizations[0].value, { ...expectedGrant, grantAction: "read" });
+    assert.deepEqual(diagnostics[0].invalid_authorizations[0].allowed, [expectedGrant]);
+  });
+
+  it("rejects stale context authorization edge grant metadata", () => {
+    const expectedGrant = {
+      argument: "domain",
+      sourceArgument: "url",
+      value: "example.com",
+      grantAction: "read",
+      grantKey: "domain",
+      grantValue: "example.com",
+    };
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        {
+          id: "goal:demo:capability:web",
+          kind: "Capability",
+          label: "web",
+          span: testSpan(2),
+          data: {
+            family: "web",
+            grants: [{
+              ...testGrant("read", "domain", "example.com", 2),
+              contractId: "intent.effect.web.read.v0",
+              contractArgument: "domain",
+            }],
+          },
+        },
+        {
+          id: "goal:demo:context:web",
+          kind: "Context",
+          label: "web",
+          span: testSpan(3),
+          data: {
+            source: "web",
+            expression: "web(url: \"https://example.com/context\")",
+            contractId: "intent.effect.web.read.v0",
+            contractArguments: { domain: "url" },
+            args: { url: "https://example.com/context" },
+            argKinds: { url: "string" },
+            argSpans: { url: testSpan(3) },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo:capability:web", to: "goal:demo", kind: "authorizes" },
+        {
+          from: "goal:demo:capability:web",
+          to: "goal:demo:context:web",
+          kind: "authorizes",
+          data: {
+            contractId: "intent.effect.web.read.v0",
+            contractArguments: { domain: "url" },
+            grants: [{ ...expectedGrant, grantValue: "evil.com" }],
+          },
+        },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].target_id, "goal:demo:context:web");
+    assert.equal(diagnostics[0].invalid_authorizations[0].reason, "edge_grant_mismatch");
+    assert.equal(diagnostics[0].invalid_authorizations[0].argument, "domain");
+    assert.deepEqual(diagnostics[0].invalid_authorizations[0].value, { ...expectedGrant, grantValue: "evil.com" });
+    assert.deepEqual(diagnostics[0].invalid_authorizations[0].allowed, [expectedGrant]);
+  });
+
   it("validates graph context authorization diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",

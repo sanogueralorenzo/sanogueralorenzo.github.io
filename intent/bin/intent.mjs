@@ -4452,15 +4452,34 @@ function invalidGraphGrantAuthorization(capabilityNode, targetNode, graphEdge) {
 }
 
 function getAuthorizationContractDenial(access, capability, graphEdge) {
-  if (access.contractId && isPlainObject(graphEdge.data) && typeof graphEdge.data.contractId === "string" && graphEdge.data.contractId !== access.contractId) {
+  const edgeData = isPlainObject(graphEdge.data) ? graphEdge.data : null;
+  if (access.contractId && !edgeData) {
     return {
-      reason: "edge_contract_mismatch",
+      reason: "edge_metadata_missing",
       argument: null,
-      value: graphEdge.data.contractId,
+      value: null,
       allowed: [access.contractId],
     };
   }
-  for (const argument of effectArguments(access)) {
+  if (access.contractId && edgeData.contractId !== access.contractId) {
+    return {
+      reason: "edge_contract_mismatch",
+      argument: null,
+      value: typeof edgeData.contractId === "string" ? edgeData.contractId : null,
+      allowed: [access.contractId],
+    };
+  }
+  if (access.contractId && !contractArgumentsEqual(edgeData.contractArguments, access.contractArguments ?? {})) {
+    return {
+      reason: "edge_contract_arguments_mismatch",
+      argument: null,
+      value: isPlainObject(edgeData.contractArguments) ? edgeData.contractArguments : null,
+      allowed: [access.contractArguments ?? {}],
+    };
+  }
+  const expectedArguments = effectArguments(access);
+  const edgeGrants = Array.isArray(edgeData?.grants) ? edgeData.grants : [];
+  for (const argument of expectedArguments) {
     const matchedGrant = (capability.grants ?? []).find((grant) => {
       return grant.action === access.action
         && grant.key === argument.key
@@ -4475,9 +4494,7 @@ function getAuthorizationContractDenial(access, capability, graphEdge) {
         allowed: [access.contractId],
       };
     }
-    const edgeGrant = isPlainObject(graphEdge.data)
-      ? (graphEdge.data.grants ?? []).find((grant) => grant.argument === argument.key)
-      : null;
+    const edgeGrant = edgeGrants.find((grant) => grant.argument === argument.key);
     const expectedSourceArgument = access.contractArguments?.[argument.key] ?? argument.key;
     if (edgeGrant && edgeGrant.sourceArgument !== expectedSourceArgument) {
       return {
@@ -4487,8 +4504,66 @@ function getAuthorizationContractDenial(access, capability, graphEdge) {
         allowed: [expectedSourceArgument],
       };
     }
+    if (access.contractId && !edgeGrant) {
+      return {
+        reason: "edge_grant_missing",
+        argument: argument.key,
+        value: null,
+        allowed: [authorizationGrantRecord(argument, matchedGrant, expectedSourceArgument)],
+      };
+    }
+    const expectedEdgeGrant = authorizationGrantRecord(argument, matchedGrant, expectedSourceArgument);
+    if (access.contractId && !authorizationGrantRecordsEqual(edgeGrant, expectedEdgeGrant)) {
+      return {
+        reason: "edge_grant_mismatch",
+        argument: argument.key,
+        value: edgeGrant ?? null,
+        allowed: [expectedEdgeGrant],
+      };
+    }
+  }
+  const expectedArgumentKeys = new Set(expectedArguments.map((argument) => argument.key));
+  const extraEdgeGrant = edgeGrants.find((edgeGrant) => !expectedArgumentKeys.has(edgeGrant.argument));
+  if (access.contractId && extraEdgeGrant) {
+    return {
+      reason: "edge_grant_extra",
+      argument: typeof extraEdgeGrant.argument === "string" ? extraEdgeGrant.argument : null,
+      value: extraEdgeGrant,
+      allowed: [...expectedArgumentKeys],
+    };
   }
   return null;
+}
+
+function contractArgumentsEqual(left, right) {
+  if (!isPlainObject(left) || !isPlainObject(right)) {
+    return false;
+  }
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  return leftEntries.length === rightEntries.length
+    && leftEntries.every(([key, value]) => right[key] === value);
+}
+
+function authorizationGrantRecord(argument, grant, sourceArgument) {
+  return {
+    argument: argument.key,
+    sourceArgument,
+    value: argument.value,
+    grantAction: grant.action,
+    grantKey: grant.key,
+    grantValue: grant.value,
+  };
+}
+
+function authorizationGrantRecordsEqual(left, right) {
+  return isPlainObject(left)
+    && left.argument === right.argument
+    && left.sourceArgument === right.sourceArgument
+    && left.value === right.value
+    && left.grantAction === right.grantAction
+    && left.grantKey === right.grantKey
+    && left.grantValue === right.grantValue;
 }
 
 function graphCapabilityAccess(capabilityNode) {

@@ -183,7 +183,7 @@ Validation expectations:
   non-Capability incoming authorization for `Effect`, verification `Check`, or
   external `Context` remains `INTENT_GRAPH_AUTHORIZATION_INVALID`; Capability
   authorization edges whose grant records do not cover the target family,
-  action, and constrained arguments emit
+  action, constrained arguments, or authorization edge metadata emit
   `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`; and malformed node payloads keep
   their existing node diagnostics. Constraining the generic role prevents
   `authorizes` from becoming an ambiguous catch-all edge during runtime replay
@@ -506,7 +506,9 @@ Validation expectations:
   payloads, and external `Context` nodes carry a stable `contractId` plus
   `contractArguments` references so runtimes can verify which contract and
   source argument aliases were selected. Authorization edges also carry the
-  selected contract id and matched grant argument records. Structured
+  selected contract id, contract arguments, and matched grant argument records
+  with `argument`, `sourceArgument`, `value`, `grantAction`, `grantKey`, and
+  `grantValue`. Structured
   capability grants that cover known v0 contracts carry `contractId` and
   `contractArgument` so stale grant references are rejected during graph
   validation.
@@ -536,9 +538,12 @@ Validation expectations:
   `INTENT_GRAPH_CAPABILITY_INVALID`. This ownership edge is separate from
   runtime target authorization: Capability `authorizes` edges to `Effect`,
   `Check`, and external `Context` targets must be backed by matching grant
-  records, unsupported target roles or non-Capability authorization edges emit
+  records, and contract-backed target authorization edges must carry matching
+  `contractId`, `contractArguments`, and grant metadata. Unsupported target
+  roles or non-Capability authorization edges emit
   `INTENT_GRAPH_AUTHORIZE_INVALID`, malformed or missing target authorization
-  still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`, and grant mismatches emit
+  still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`, and grant or authorization
+  edge metadata mismatches emit
   `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`.
 - Graph `Approval` nodes are runtime approval gates. They must carry valid step
   gate data: `data.approval` must be non-empty and `data.ownerStep` must be
