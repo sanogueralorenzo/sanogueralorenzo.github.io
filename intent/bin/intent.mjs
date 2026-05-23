@@ -1248,6 +1248,29 @@ function validateGraph(graph, options = {}) {
       diagnostic_count: Array.isArray(graph.diagnostics) ? graph.diagnostics.length : null,
     }));
   }
+  if (!Array.isArray(graph.diagnostics)) {
+    diagnostics.push(error("INTENT_GRAPH_DIAGNOSTIC_INVALID", `graph diagnostics must be an array of error diagnostic records.`, graphSpan, {
+      diagnostics_is_array: false,
+      diagnostic_index: null,
+      severity_is_error: null,
+      code_is_nonempty: null,
+      message_is_nonempty: null,
+      span_is_valid: null,
+    }));
+  } else {
+    for (const [diagnosticIndex, diagnostic] of graph.diagnostics.entries()) {
+      if (!isDiagnosticRecord(diagnostic)) {
+        diagnostics.push(error("INTENT_GRAPH_DIAGNOSTIC_INVALID", `graph diagnostics must be an array of error diagnostic records.`, isSpan(diagnostic?.span) ? diagnostic.span : graphSpan, {
+          diagnostics_is_array: true,
+          diagnostic_index: diagnosticIndex,
+          severity_is_error: isPlainObject(diagnostic) && diagnostic.severity === "error",
+          code_is_nonempty: isPlainObject(diagnostic) && typeof diagnostic.code === "string" && diagnostic.code.trim() !== "",
+          message_is_nonempty: isPlainObject(diagnostic) && typeof diagnostic.message === "string" && diagnostic.message.trim() !== "",
+          span_is_valid: isPlainObject(diagnostic) && isSpan(diagnostic.span),
+        }));
+      }
+    }
+  }
   if (!Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
     diagnostics.push(error("INTENT_GRAPH_SHAPE_INVALID", `graph envelope must include nodes and edges arrays.`, graphSpan, {
       nodes_is_array: Array.isArray(graph.nodes),
@@ -1631,6 +1654,16 @@ function validateGraph(graph, options = {}) {
   }
 
   return diagnostics;
+}
+
+function isDiagnosticRecord(value) {
+  return isPlainObject(value)
+    && value.severity === "error"
+    && typeof value.code === "string"
+    && value.code.trim() !== ""
+    && typeof value.message === "string"
+    && value.message.trim() !== ""
+    && isSpan(value.span);
 }
 
 function requiresCapabilityAuthorization(graphNode) {

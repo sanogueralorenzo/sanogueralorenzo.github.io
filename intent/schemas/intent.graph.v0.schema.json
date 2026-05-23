@@ -197,10 +197,10 @@
           "enum": ["error"]
         },
         "code": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "message": {
-          "type": "string"
+          "$ref": "#/$defs/non_empty_string"
         },
         "span": {
           "$ref": "#/$defs/span"

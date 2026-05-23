@@ -1190,6 +1190,45 @@ describe("intent static model CLI", () => {
     assert.equal(malformedDiagnostics[0].diagnostic_count, null);
   });
 
+  it("validates graph diagnostic record diagnostics", () => {
+    const missingDiagnosticsArray = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      package: "fixtures.synthetic",
+      ok: false,
+      diagnostics: "bad",
+      nodes: [],
+      edges: [],
+    }, { allowNonExecutableEnvelope: true });
+    const malformedDiagnostic = validateGraph({
+      schema_version: "intent.graph.v0",
+      ast_schema_version: "intent.ast.v0",
+      source: "synthetic.intent",
+      package: "fixtures.synthetic",
+      ok: false,
+      diagnostics: [
+        { severity: "warning", code: "", message: "", span: { file: "synthetic.intent", start: { line: 0, column: 1 }, end: { line: 1, column: 1 } } },
+      ],
+      nodes: [],
+      edges: [],
+    }, { allowNonExecutableEnvelope: true });
+
+    assert.equal(missingDiagnosticsArray.length, 1);
+    assert.equal(missingDiagnosticsArray[0].code, "INTENT_GRAPH_DIAGNOSTIC_INVALID");
+    assert.equal(missingDiagnosticsArray[0].diagnostics_is_array, false);
+    assert.equal(malformedDiagnostic.length, 1);
+    assert.equal(malformedDiagnostic[0].code, "INTENT_GRAPH_DIAGNOSTIC_INVALID");
+    assert.equal(malformedDiagnostic[0].diagnostics_is_array, true);
+    assert.equal(malformedDiagnostic[0].diagnostic_index, 0);
+    assert.equal(malformedDiagnostic[0].severity_is_error, false);
+    assert.equal(malformedDiagnostic[0].code_is_nonempty, false);
+    assert.equal(malformedDiagnostic[0].message_is_nonempty, false);
+    assert.equal(malformedDiagnostic[0].span_is_valid, false);
+    assert.equal(malformedDiagnostic[0].span.file, "synthetic.intent");
+    assert.equal(malformedDiagnostic[0].span.start.line, 1);
+  });
+
   it("validates graph collection shape diagnostics", () => {
     const missingDiagnostics = validateGraph({
       schema_version: "intent.graph.v0",
@@ -1784,7 +1823,9 @@ describe("intent static model CLI", () => {
     };
     const blankBaseNode = { id: "", kind: "", label: "", span: testSpan(2), data: {} };
     const baseNodeErrors = [];
+    const diagnosticErrors = [];
     validateAgainst(graphSchema.$defs.base_node, blankBaseNode, graphSchema, "$defs.base_node", baseNodeErrors);
+    validateAgainst(graphSchema.$defs.diagnostic, { severity: "error", code: "", message: "", span: testSpan(3) }, graphSchema, "$defs.diagnostic", diagnosticErrors);
     const errors = validateSchema(graphSchema, graph);
 
     assert(errors.includes("$.source length must be >= 1"));
@@ -1794,6 +1835,8 @@ describe("intent static model CLI", () => {
     assert(baseNodeErrors.includes("$defs.base_node.id length must be >= 1"));
     assert(baseNodeErrors.includes("$defs.base_node.kind length must be >= 1"));
     assert(baseNodeErrors.includes("$defs.base_node.label length must be >= 1"));
+    assert(diagnosticErrors.includes("$defs.diagnostic.code length must be >= 1"));
+    assert(diagnosticErrors.includes("$defs.diagnostic.message length must be >= 1"));
   });
 
   it("rejects empty structural AST and check strings in schemas", () => {
