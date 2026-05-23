@@ -98,6 +98,9 @@ checker treats effects authorized by that capability as requiring a step-local
 `approval ...` gate. `memory` bodies are parsed as statement lists, and every
 `retain ... until ...` line is additionally parsed into structured
 `retentionRules` data with a retained subject span and an until-condition span.
+The checker accepts retention lifecycle targets only when the `until` value is
+`goal_complete`, `goal.completed`, or a simple duration such as `30d`, `12h`,
+`45m`, or `10s`.
 `verify` accepts only `require`; `invariant` accepts only `deny`.
 
 Each `deny ...` line inside an `invariant` block is parsed as an invariant
@@ -109,7 +112,8 @@ This keeps always-on rules visible across side effects and recovery boundaries.
 Every `memory` block must include at least one `retain ... until ...` retention
 rule. A memory block without a parsed retention rule is syntactically valid, but
 the checker emits `INTENT_MEMORY_UNSCOPED` because the retained state has no
-declared lifecycle.
+declared lifecycle. A parsed retention rule with an unsupported `until` value
+emits `INTENT_MEMORY_RETENTION_INVALID`.
 
 ## Steps
 
@@ -390,6 +394,9 @@ The parser emits names and type reference strings; the checker owns binding.
   `retries` edges from each policy node to that step.
 - Memory blocks must contain at least one parsed `retain ... until ...`
   retention rule. Missing retention is `INTENT_MEMORY_UNSCOPED`.
+- Retention `until` values must be `goal_complete`, `goal.completed`, or a
+  simple duration such as `30d`, `12h`, `45m`, or `10s`. Unsupported lifecycle
+  targets are `INTENT_MEMORY_RETENTION_INVALID`.
 - Parsed retention rules are emitted as checker data and graph `Memory` node
   `retentionRules` lifecycle data so runtimes can enforce retention without
   reparsing raw text.

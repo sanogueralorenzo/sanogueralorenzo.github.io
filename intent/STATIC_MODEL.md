@@ -336,6 +336,8 @@ blocking diagnostics.
   retention lifecycle.
 - Emit `INTENT_MEMORY_UNSCOPED` when a memory block has no parsed
   `retain ... until ...` retention rule.
+- Emit `INTENT_MEMORY_RETENTION_INVALID` when a parsed retention rule uses an
+  unsupported lifecycle target.
 - Build dependency edges from step inputs, produced values, checks, approvals,
   checkpoints, policies, and completion gates.
 - Emit step requirements as `Check` nodes with `requires` edges into the owning
@@ -628,7 +630,10 @@ Rules:
 
 - A memory block with no parsed retention entries emits
   `INTENT_MEMORY_UNSCOPED`.
-- A malformed `retain` line emits `INTENT_MEMORY_RETENTION_INVALID`.
+- Supported `until` values are `goal_complete`, `goal.completed`, or a simple
+  duration such as `30d`, `12h`, `45m`, or `10s`.
+- A malformed `retain` line or unsupported lifecycle target emits
+  `INTENT_MEMORY_RETENTION_INVALID`.
 - Retention entries are checker-owned lifecycle data, not opaque comments.
 - The graph builder emits `retentionRules` in the owning `Memory` node data so
   runtimes can enforce retention without reparsing memory body text.
@@ -1284,7 +1289,9 @@ edge deterministically.
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
 parsed from `retain ... until ...` lines. A graph with a `Memory` node that
 lacks retention lifecycle data is non-executable because the checker must emit
-`INTENT_MEMORY_UNSCOPED`.
+`INTENT_MEMORY_UNSCOPED`. A graph with an unsupported retention lifecycle is
+also non-executable because the checker must emit
+`INTENT_MEMORY_RETENTION_INVALID`.
 
 Context nodes carry the same structured source call data as `ContextDecl`:
 `source`, `args`, `argKinds`, `expression`, and `trust`. Repo, doc, and file
