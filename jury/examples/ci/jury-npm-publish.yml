@@ -54,6 +54,7 @@ jobs:
             jury/examples/ci/fixtures/package-release/replacement-patch-audit.json
             jury/examples/ci/fixtures/package-release/archive-drift-remediation-audit.json
             jury/examples/ci/fixtures/package-release/jury-package-release-replay-summary.md
+            jury/examples/ci/fixtures/package-release/jury-package-release-replay-summary-expiry-handoff.json
       - name: Upload Jury package release archive manifest
         uses: actions/upload-artifact@v4
         with:

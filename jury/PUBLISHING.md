@@ -118,6 +118,8 @@ For a failed publication, retain `jury-package-dry-run`, `jury-package-release-e
 
 Each retained audit must also record artifact provenance: `github-actions` as the source, `jury-npm-publish.yml` as the workflow, the source revision, the run id, the source jobs that produced `jury-package-dry-run`, `jury-package-release-evidence`, and `jury-package-release-replay-summary`, the `retentionDays: 90` value from the workflow, and the file list uploaded by each artifact. Before closing a failed or replacement release, compare the promoted files with that provenance so retained evidence cannot silently mix artifacts from another workflow run or revision.
 
+If `jury-package-release-replay-summary` expires before promotion, reconstruct `jury-package-release-replay-summary.md` from the retained manifest and `archive-drift-remediation-audit.json`, review it against the replay job logs when they are still available, and store a `jury.package_release_replay_summary_expiry_handoff.v1` record with the failed package version, replacement package version, source artifact, 90-day expiry, reconstructed inputs, and reviewer. Validate the handoff record against [schemas/package-release-replay-summary-expiry-handoff.schema.json](schemas/package-release-replay-summary-expiry-handoff.schema.json) before closing the release archive.
+
 Export the retained release archive manifest before closing the failed release record:
 
 ```shell

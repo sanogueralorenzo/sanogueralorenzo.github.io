@@ -10,9 +10,11 @@ const fixtureDir = args.fixtureDir ?? join(packageRoot, "examples/ci/fixtures/pa
 const evidenceSchemaPath = join(packageRoot, "schemas/package-release-evidence.schema.json");
 const archiveManifestSchemaPath = join(packageRoot, "schemas/package-release-archive-manifest.schema.json");
 const remediationAuditSchemaPath = join(packageRoot, "schemas/package-release-remediation-audit.schema.json");
+const replaySummaryExpiryHandoffSchemaPath = join(packageRoot, "schemas/package-release-replay-summary-expiry-handoff.schema.json");
 const evidenceSchema = await readJson(evidenceSchemaPath);
 const archiveManifestSchema = await readJson(archiveManifestSchemaPath);
 const remediationAuditSchema = await readJson(remediationAuditSchemaPath);
+const replaySummaryExpiryHandoffSchema = await readJson(replaySummaryExpiryHandoffSchemaPath);
 const archiveEvidenceFiles = [
   "jury-pack-dry-run-record.json",
   "failed-npm-view.json",
@@ -33,6 +35,7 @@ const fixtureRead = await readRequiredFixtures([
   "replacement-downstream-gate.json",
   "archive-drift-remediation-audit.json",
   "jury-package-release-replay-summary.md",
+  "jury-package-release-replay-summary-expiry-handoff.json",
 ]);
 if (fixtureRead.errors.length > 0) {
   process.stderr.write(`${fixtureRead.errors.join("\n")}\n`);
@@ -46,6 +49,7 @@ const failedGate = fixtureRead.fixtures.get("downstream-failure-gate.json");
 const replacementNpmView = fixtureRead.fixtures.get("replacement-npm-view.json");
 const replacementGate = fixtureRead.fixtures.get("replacement-downstream-gate.json");
 const remediationAudit = fixtureRead.fixtures.get("archive-drift-remediation-audit.json");
+const replaySummaryExpiryHandoff = fixtureRead.fixtures.get("jury-package-release-replay-summary-expiry-handoff.json");
 const archiveManifest = tryBuildArchiveManifest();
 const archiveDriftManifestPath = args.checkArchiveDrift
   ? join(fixtureDir, "retained-package-release-evidence-manifest.json")
@@ -54,6 +58,7 @@ const errors = [
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", rollback, "rollback-audit.json"),
   ...schemaDocumentErrors(evidenceSchema, "jury.package_release_evidence.v1", replacement, "replacement-patch-audit.json"),
   ...schemaDocumentErrors(remediationAuditSchema, "jury.package_release_remediation_audit.v1", remediationAudit, "archive-drift-remediation-audit.json"),
+  ...schemaDocumentErrors(replaySummaryExpiryHandoffSchema, "jury.package_release_replay_summary_expiry_handoff.v1", replaySummaryExpiryHandoff, "jury-package-release-replay-summary-expiry-handoff.json"),
   ...archiveManifest.errors,
   ...relationshipErrors(),
 ];
@@ -78,6 +83,7 @@ process.stdout.write(`${JSON.stringify({
   schema: "schemas/package-release-evidence.schema.json",
   archiveManifestSchema: "schemas/package-release-archive-manifest.schema.json",
   remediationAuditSchema: "schemas/package-release-remediation-audit.schema.json",
+  replaySummaryExpiryHandoffSchema: "schemas/package-release-replay-summary-expiry-handoff.schema.json",
   manifestOut: args.manifestOut ?? null,
   verifiedManifest: args.verifyManifest ?? null,
   archiveDriftManifest: archiveDriftManifestPath,
@@ -86,6 +92,7 @@ process.stdout.write(`${JSON.stringify({
     "replacement-patch-audit.json",
     "archive-drift-remediation-audit.json",
     "jury-package-release-replay-summary.md",
+    "jury-package-release-replay-summary-expiry-handoff.json",
   ],
 }, null, 2)}\n`);
 
@@ -413,7 +420,22 @@ function relationshipErrors() {
   }
   errors.push(...remediationAuditErrors());
   errors.push(...replaySummaryErrors());
+  errors.push(...replaySummaryExpiryHandoffErrors());
 
+  return errors;
+}
+
+function replaySummaryExpiryHandoffErrors() {
+  const errors = [];
+  if (replaySummaryExpiryHandoff.failedPackageVersion !== failedRecord.packageVersion) {
+    errors.push("replay summary expiry handoff failedPackageVersion must match dry-run record");
+  }
+  if (replaySummaryExpiryHandoff.replacementPackageVersion !== replacement.replacement.packageVersion) {
+    errors.push("replay summary expiry handoff replacementPackageVersion must match replacement audit");
+  }
+  if (replaySummaryExpiryHandoff.reviewedBy !== remediationAudit.approval?.approvedBy) {
+    errors.push("replay summary expiry handoff reviewedBy must match remediation approver");
+  }
   return errors;
 }
 

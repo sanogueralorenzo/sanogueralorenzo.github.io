@@ -104,6 +104,10 @@ Replay artifact summary troubleshooting now includes executable examples that re
 
 Replay summary retention failure troubleshooting now covers missing `jury-package-release-replay-summary.md`, missing `jury-package-release-replay-summary` manifest retention/provenance, wrong `package-release-evidence-replay` source job, wrong `retentionDays: 90`, and retained summary content drift from failed and replacement release archive evidence. Use it when the replay summary artifact expired before promotion or when the release record no longer proves summary retention.
 
+## Replay Summary Artifact Expiry Remediation Handoff
+
+Replay summary artifact expiry remediation handoff now documents how to reconstruct `jury-package-release-replay-summary.md` from the retained manifest and `archive-drift-remediation-audit.json` after the 90-day CI artifact expires. The handoff requires a `jury.package_release_replay_summary_expiry_handoff.v1` record with the source artifact, 90-day expiry, failed package version, replacement package version, reconstructed inputs, reconstructed summary path, and reviewing maintainer before the failed or replacement release archive closes. The fixture validator loads [schemas/package-release-replay-summary-expiry-handoff.schema.json](schemas/package-release-replay-summary-expiry-handoff.schema.json) and checks [examples/ci/fixtures/package-release/jury-package-release-replay-summary-expiry-handoff.json](examples/ci/fixtures/package-release/jury-package-release-replay-summary-expiry-handoff.json).
+
 ## Bundle Preflight
 
 `bundle preflight --bundle review-bundle.json` validates imported bundles before local state is created or mutated. It reports bundle schema, producer metadata, provenance, record, cross-reference, and trust policy errors so CI consumers can reject third-party artifacts before `bundle import`.
@@ -122,4 +126,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary retention failure CI artifact expiry remediation handoff schema failure troubleshooting for failed and replacement release archives.

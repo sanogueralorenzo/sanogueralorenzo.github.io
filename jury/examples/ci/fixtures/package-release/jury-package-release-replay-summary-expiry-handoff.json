@@ -1,0 +1,14 @@
+{
+  "schema_version": "jury.package_release_replay_summary_expiry_handoff.v1",
+  "reason": "jury-package-release-replay-summary artifact expired before promotion",
+  "sourceArtifact": "jury-package-release-replay-summary",
+  "expiredAfterDays": 90,
+  "reconstructedSummary": "jury-package-release-replay-summary.md",
+  "reconstructedFrom": [
+    "retained-package-release-evidence-manifest.json",
+    "archive-drift-remediation-audit.json"
+  ],
+  "failedPackageVersion": "0.1.0",
+  "replacementPackageVersion": "0.1.1",
+  "reviewedBy": "release-maintainer@example.com"
+}
