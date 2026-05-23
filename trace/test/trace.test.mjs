@@ -840,6 +840,16 @@ test("session start creates and switches current lifecycle sessions", async () =
     assert.equal(shown.events.length, 1);
     assert.equal(shown.events[0].message, "session start controls capture");
 
+    const wrongEnd = await runTraceAllowFailure(repo, ["session", "end", "other-session"]);
+    assert.equal(wrongEnd.exitCode, 1);
+    assert.match(wrongEnd.stderr, /current session is task-auth-retry/);
+
+    const ended = JSON.parse((await runTrace(repo, ["session", "end", "task-auth-retry"])).stdout);
+    assert.equal(ended.ended, "task-auth-retry");
+    assert.equal(ended.current, null);
+    const afterEnd = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
+    assert.equal(afterEnd.current, null);
+
     const generated = JSON.parse((await runTrace(repo, ["session", "start"])).stdout);
     assert.match(generated.session, /^2026-05-23-[0-9a-f]{16}$/);
 

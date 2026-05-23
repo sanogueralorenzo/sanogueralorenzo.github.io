@@ -905,6 +905,11 @@ async function runSessionCommand(action, values) {
     return;
   }
 
+  if (action === "end" || action === "clear") {
+    await endSession(values[0] ?? args.session);
+    return;
+  }
+
   if (!action || action === "list") {
     await listSessions();
     return;
@@ -932,6 +937,22 @@ async function startSession(requestedSessionId) {
   await writeFile(file, "", { flag: "a" });
   await writeFile(await currentSessionPath(root), sessionId);
   print({ ok: true, session: sessionId, path: relativePath(root, file) });
+}
+
+async function endSession(expectedSessionId) {
+  const root = await repoRoot();
+  const current = await readCurrentSession(root).catch(() => null);
+  if (!current) {
+    print({ ok: true, ended: null, current: null });
+    return;
+  }
+
+  if (expectedSessionId && current !== expectedSessionId) {
+    fail(`current session is ${current}, not ${expectedSessionId}`);
+  }
+
+  await rm(await currentSessionPath(root), { force: true });
+  print({ ok: true, ended: current, current: null });
 }
 
 async function listSessions() {
@@ -2455,6 +2476,7 @@ Usage:
   trace capture --event prompt --role user --message "why this change exists"
   trace run [--event validation|tool|risk] [--session id] -- <command> [args...]
   trace session start [session-id]
+  trace session end [session-id]
   trace session list
   trace session current
   trace session show <session> [--limit 20]
