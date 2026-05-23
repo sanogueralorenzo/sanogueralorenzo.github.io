@@ -101,6 +101,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent manifest`: emits the machine-readable hook contract for an agent runtime.
 - `precedent attach`: emits a zero-touch runtime adapter contract for one conversation session.
 - Precedent guards: advisory checks attached to promoted precedents and evaluated during active sessions.
+- Auto-learning snapshots: failed or noisy `outcome.after_task` events compile the session into a trace and non-injectable candidates.
 - `precedent check`: validates local Precedent state for CI.
 - `precedent prune`: removes old non-promoted state using `retentionDays`.
 - `precedent report`: prints before/after metrics.
@@ -151,6 +152,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `manifest` emits the argv commands, fields, output fields, timeout, and fail-open policy a runtime needs to wire Precedent in.
 - `attach` emits a session-scoped adapter contract with a before-turn command, after-validation hook command, after-diff hook command, after-outcome hook command, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
 - `diff.after_edit` and `validation.after_run` evaluate advisory guards only for precedents already injected into the same session. v1 supports `changed_files_within_paths` and `required_validation_command`; warnings are returned as `guardResult` plus a compact `Precedent guard:` context block and never block the underlying hook.
+- `outcome.after_task` now closes the headless capture loop: it snapshots the session into `.precedent/traces/session-<id>.json`, upserts deterministic candidates into `.precedent/candidates.jsonl` when failures or guard warnings exist, and returns a `learning` object. These candidates remain non-injectable until existing replay promotion gates create a promoted precedent.
 - `check` verifies config, ledgers, traces, sessions, replay artifacts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
 - `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.

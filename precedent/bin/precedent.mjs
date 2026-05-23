@@ -886,6 +886,7 @@ async function outcomeAfterTaskEventHook(event) {
   const sessionId = requireString(event.sessionId, "event.sessionId");
   let activePrecedentIds = [];
   let sessionEvent = null;
+  let learning = null;
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
@@ -916,6 +917,8 @@ async function outcomeAfterTaskEventHook(event) {
       tokenEstimate: sessionEvent.event.tokenEstimate,
       attributedPrecedents: activePrecedentIds,
     });
+
+    learning = await createSessionLearningSnapshot(stateDir, sessionId);
   });
 
   print({
@@ -931,6 +934,7 @@ async function outcomeAfterTaskEventHook(event) {
       tokenEstimate: sessionEvent.event.tokenEstimate,
       attributedPrecedents: activePrecedentIds,
     },
+    learning,
   });
 }
 
@@ -1862,7 +1866,10 @@ async function traceFromSession(stateDir, sessionId) {
   const outcomeFailures = outcomes
     .filter((event) => event.success === false && typeof event.notes === "string" && event.notes.trim().length > 0)
     .map((event) => `outcome: ${event.notes}`);
-  const failures = [...validationFailures, ...diffFailures, ...outcomeFailures];
+  const guardFailures = events
+    .flatMap((event) => Array.isArray(event.guardResult?.failed) ? event.guardResult.failed : [])
+    .map(formatGuardFailureForTrace);
+  const failures = [...validationFailures, ...diffFailures, ...guardFailures, ...outcomeFailures];
   const failedValidation = validations.find((event) => event.exitCode !== 0);
   const validationEvidence = failedValidation
     ? {
@@ -1896,6 +1903,56 @@ async function traceFromSession(stateDir, sessionId) {
     ...(lastOutcome.precedent ? { precedent: lastOutcome.precedent } : {}),
     ...(lastOutcome.replay ? { replay: lastOutcome.replay } : {}),
   };
+}
+
+async function createSessionLearningSnapshot(stateDir, sessionId) {
+  const trace = await traceFromSession(stateDir, sessionId);
+  const candidates = compileTraceCandidates(trace);
+  const tracePath = trace.failures.length > 0 ? join(stateDir, "traces", `${safeFileName(trace.id)}.json`) : null;
+
+  if (tracePath) {
+    await writeFileAtomic(tracePath, `${JSON.stringify(trace, null, 2)}\n`);
+  }
+
+  if (candidates.length > 0) {
+    await upsertCandidateRecords(stateDir, candidates);
+  }
+
+  const snapshot = {
+    type: "learning_snapshot_created",
+    observedAt: new Date().toISOString(),
+    sessionId,
+    traceId: trace.id,
+    tracePath,
+    status: candidates.length > 0 ? "candidate" : "no_signal",
+    failures: trace.failures.length,
+    candidateIds: candidates.map((candidate) => candidate.id),
+    promotionStatus: "not_promoted",
+    replayRequired: candidates.length > 0,
+  };
+  await appendJsonLine(join(stateDir, "events.jsonl"), snapshot);
+
+  return {
+    status: snapshot.status,
+    traceId: trace.id,
+    tracePath,
+    failures: trace.failures.length,
+    candidateIds: snapshot.candidateIds,
+    promotionStatus: snapshot.promotionStatus,
+    replayRequired: snapshot.replayRequired,
+  };
+}
+
+function formatGuardFailureForTrace(guard) {
+  if (guard.type === "required_validation_command") {
+    return `wrong test command: ${guard.message}`;
+  }
+
+  if (guard.type === "changed_files_within_paths") {
+    return `outside boundary: ${guard.message}`;
+  }
+
+  return `guard warning: ${guard.message}`;
 }
 
 function validationFailureSignals(event, exitCode) {
@@ -2020,6 +2077,42 @@ async function upsertPromotedPrecedent(stateDir, candidate, observedAt) {
   return {
     action,
     precedent: finalRecord,
+  };
+}
+
+async function upsertCandidateRecords(stateDir, candidates) {
+  const ledgerPath = join(stateDir, "candidates.jsonl");
+  const existingCandidates = await readJsonLines(ledgerPath);
+  const byId = new Map(existingCandidates.map((candidate) => [candidate.id, candidate]));
+
+  for (const candidate of candidates) {
+    const existing = byId.get(candidate.id);
+    byId.set(candidate.id, mergeCandidateRecord(existing, candidate));
+  }
+
+  await writeJsonLines(ledgerPath, [...byId.values()].sort((left, right) => left.id.localeCompare(right.id)));
+}
+
+function mergeCandidateRecord(existing, candidate) {
+  if (!existing) {
+    return candidate;
+  }
+
+  return {
+    ...existing,
+    ...candidate,
+    source_traces: uniqueStrings([
+      ...(Array.isArray(existing.source_traces) ? existing.source_traces : []),
+      ...(Array.isArray(candidate.source_traces) ? candidate.source_traces : []),
+    ]),
+    failure_types: uniqueStrings([
+      ...(Array.isArray(existing.failure_types) ? existing.failure_types : []),
+      ...(Array.isArray(candidate.failure_types) ? candidate.failure_types : []),
+    ]),
+    evidence: uniqueStrings([
+      ...(Array.isArray(existing.evidence) ? existing.evidence : []),
+      ...(Array.isArray(candidate.evidence) ? candidate.evidence : []),
+    ]),
   };
 }
 
