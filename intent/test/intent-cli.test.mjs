@@ -1718,6 +1718,45 @@ describe("intent static model CLI", () => {
     ]);
   });
 
+  it("validates graph completion delivery edge role diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
+        { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(3) },
+        { id: "goal:demo:context:0", kind: "Context", label: "repo", span: testSpan(4) },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: testSpan(2), targetSpan: testSpan(3) } },
+        { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo", to: "goal:demo:step:patch", kind: "completes" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: testSpan(1), targetSpan: testSpan(3) } },
+        { from: "goal:demo:step:patch", to: "goal:demo:context:0", kind: "produces", data: { type: "Report", sourceSpan: testSpan(2), targetSpan: testSpan(4) } },
+      ],
+    });
+    const completeDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_COMPLETE_INVALID");
+    const produceDiagnostics = diagnostics.filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_PRODUCE_INVALID");
+
+    assert.equal(completeDiagnostics.length, 2);
+    assert.equal(completeDiagnostics[0].from_kind, "Step");
+    assert.equal(completeDiagnostics[0].to_kind, "Completion");
+    assert.equal(completeDiagnostics[1].from_kind, "Goal");
+    assert.equal(completeDiagnostics[1].to_kind, "Step");
+    assert.deepEqual(completeDiagnostics[1].supported_roles, [
+      { from_kind: "Goal", to_kind: "Completion" },
+    ]);
+    assert.equal(produceDiagnostics.length, 2);
+    assert.equal(produceDiagnostics[0].from_kind, "Goal");
+    assert.equal(produceDiagnostics[0].to_kind, "Completion");
+    assert.equal(produceDiagnostics[1].from_kind, "Step");
+    assert.equal(produceDiagnostics[1].to_kind, "Context");
+    assert.deepEqual(produceDiagnostics[1].supported_roles, [
+      { from_kind: "Step", to_kind: "Completion" },
+    ]);
+  });
+
   it("validates graph trust metadata diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",

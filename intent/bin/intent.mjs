@@ -2193,11 +2193,17 @@ function validateGraphSemanticEdgePayload(nodesById, graphEdge, fallbackSpan) {
 }
 
 function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
-  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans"].includes(graphEdge.kind)) {
+  if (!["declares", "authorizes", "requests", "gates", "verifies", "plans", "completes", "produces"].includes(graphEdge.kind)) {
     return null;
   }
   const sourceNode = nodesById.get(graphEdge.from);
   const targetNode = nodesById.get(graphEdge.to);
+  if (graphEdge.kind === "completes") {
+    return validateGraphCompletesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
+  if (graphEdge.kind === "produces") {
+    return validateGraphProducesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
+  }
   if (graphEdge.kind === "authorizes") {
     return validateGraphAuthorizesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan);
   }
@@ -2227,6 +2233,38 @@ function validateGraphEdgeRole(nodesById, graphEdge, fallbackSpan) {
     supported_roles: [
       { from_kind: "Type", to_kind: "Goal" },
       { from_kind: "Goal", to_kind: "Memory" },
+    ],
+  });
+}
+
+function validateGraphCompletesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Goal" && targetNode?.kind === "Completion") {
+    return null;
+  }
+  return error("INTENT_GRAPH_COMPLETE_INVALID", `completes edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Goal node to a Completion node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Goal", to_kind: "Completion" },
+    ],
+  });
+}
+
+function validateGraphProducesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
+  if (sourceNode?.kind === "Step" && targetNode?.kind === "Completion") {
+    return null;
+  }
+  return error("INTENT_GRAPH_PRODUCE_INVALID", `produces edge '${graphEdge.from}' to '${graphEdge.to}' must connect a Step node to a Completion node.`, edgeDiagnosticSpan(nodesById, graphEdge, fallbackSpan), {
+    edge: graphEdge.kind,
+    from: graphEdge.from,
+    to: graphEdge.to,
+    from_kind: sourceNode?.kind ?? null,
+    to_kind: targetNode?.kind ?? null,
+    supported_roles: [
+      { from_kind: "Step", to_kind: "Completion" },
     ],
   });
 }
