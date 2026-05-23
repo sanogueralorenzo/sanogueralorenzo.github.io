@@ -43,3 +43,36 @@ Search index -> rebuildable cache
 ```
 
 Trace should make the important memory visible and durable while keeping noisy transcript data separate.
+
+## First CLI Slice
+
+The current CLI is intentionally small and local-first:
+
+```shell
+./trace/install.sh
+trace init
+trace enable
+trace capture --event prompt --role user --message "why this change exists"
+trace record --validation "npm test"
+trace show HEAD
+trace log
+trace search "auth retry"
+trace summary main..HEAD
+```
+
+From a checkout, the same commands can be run without installing:
+
+```shell
+node trace/bin/trace.mjs init
+node trace/bin/trace.mjs enable
+node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
+node trace/bin/trace.mjs record --validation "npm test"
+node trace/bin/trace.mjs show HEAD
+node trace/bin/trace.mjs log
+node trace/bin/trace.mjs search "auth retry"
+node trace/bin/trace.mjs summary main..HEAD
+```
+
+`trace enable` installs managed `prepare-commit-msg` and `post-commit` git hook blocks. The prepare hook adds `Trace-Checkpoint` and `Trace-Session` trailers to the commit message. The post-commit hook writes a compact memory file under `.trace/commits/` and stores the raw checkpoint payload on the local `refs/trace/checkpoints` git ref.
+
+This keeps the project tree focused on reviewable memories while raw checkpoint data stays outside the normal branch history unless someone explicitly pushes the Trace ref.
