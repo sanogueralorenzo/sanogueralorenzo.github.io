@@ -1048,6 +1048,34 @@ describe("intent static model CLI", () => {
     assert.deepEqual(cycleDiagnostics[0].cycle, ["node:a", "node:b", "node:a"]);
   });
 
+  it("validates graph step input binding diagnostics", () => {
+    const unboundDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", span: testSpan(1) },
+        { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(2), data: { scope: "step" } },
+      ],
+      edges: [],
+    });
+    const duplicateDiagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:input:a", kind: "Input", label: "a", span: testSpan(1), data: { scope: "goal" } },
+        { id: "goal:demo:input:b", kind: "Input", label: "b", span: testSpan(2), data: { scope: "goal" } },
+        { id: "goal:demo:step:patch:input:input", kind: "Input", label: "input", span: testSpan(3), data: { scope: "step" } },
+      ],
+      edges: [
+        { from: "goal:demo:input:a", to: "goal:demo:step:patch:input:input", kind: "data" },
+        { from: "goal:demo:input:b", to: "goal:demo:step:patch:input:input", kind: "data" },
+      ],
+    });
+
+    assert.equal(unboundDiagnostics[0].code, "INTENT_GRAPH_INPUT_UNBOUND");
+    assert.equal(unboundDiagnostics[0].incoming_data_edges, 0);
+    assert.equal(duplicateDiagnostics[0].code, "INTENT_GRAPH_INPUT_UNBOUND");
+    assert.equal(duplicateDiagnostics[0].incoming_data_edges, 2);
+  });
+
   it("validates CLI outputs against versioned schemas", () => {
     const astSchema = readJson(AST_SCHEMA);
     const checkSchema = readJson(CHECK_SCHEMA);

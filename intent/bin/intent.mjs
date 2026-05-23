@@ -1164,6 +1164,7 @@ function validateGraph(graph) {
   const nodesById = new Map(graph.nodes.map((candidate) => [candidate.id, candidate]));
   const fallbackSpan = graph.nodes[0]?.span ?? span(graph.source ?? "graph", 1, 1);
   const outgoing = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
+  const incomingDataCounts = new Map();
 
   for (const graphEdge of graph.edges) {
     const missing = ["from", "to"].filter((endpoint) => !nodesById.has(graphEdge[endpoint]));
@@ -1177,6 +1178,23 @@ function validateGraph(graph) {
       continue;
     }
     outgoing.get(graphEdge.from).push(graphEdge.to);
+    if (graphEdge.kind === "data") {
+      incomingDataCounts.set(graphEdge.to, (incomingDataCounts.get(graphEdge.to) ?? 0) + 1);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
+    if (graphNode.kind !== "Input" || graphNode.data?.scope !== "step") {
+      continue;
+    }
+    const incomingDataCount = incomingDataCounts.get(graphNode.id) ?? 0;
+    if (incomingDataCount !== 1) {
+      diagnostics.push(error("INTENT_GRAPH_INPUT_UNBOUND", `step input '${graphNode.label}' must have exactly one incoming data edge.`, graphNode.span ?? fallbackSpan, {
+        input: graphNode.label,
+        input_id: graphNode.id,
+        incoming_data_edges: incomingDataCount,
+      }));
+    }
   }
 
   const visiting = new Set();
