@@ -1589,6 +1589,10 @@ function effectArguments(effect) {
     const value = effect.args.name ?? effect.args.names ?? effect.args._0;
     return value ? [{ key: "name", value: normalizeSecretName(value) }] : [];
   }
+  if (effect.family === "ticket") {
+    const value = effect.args.id ?? effect.args._0;
+    return value ? [{ key: "id", value: normalizeTicketRef(value) }] : [];
+  }
   return [];
 }
 
@@ -1604,6 +1608,9 @@ function isGrantMatch(argument, grant) {
   }
   if (argument.key === "name") {
     return normalizeSecretName(argument.value) === normalizeSecretName(grant.value);
+  }
+  if (argument.key === "id") {
+    return normalizeTicketRef(argument.value) === normalizeTicketRef(grant.value);
   }
   return normalizeCommand(argument.value) === normalizeCommand(grant.value);
 }
@@ -1640,6 +1647,10 @@ function normalizeRefName(value) {
 
 function normalizeSecretName(value) {
   return value.trim();
+}
+
+function normalizeTicketRef(value) {
+  return value.trim().toUpperCase();
 }
 
 function unquote(value) {
