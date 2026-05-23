@@ -165,6 +165,19 @@ Validation expectations:
   the generic role prevents `authorizes` from becoming an ambiguous catch-all
   edge during runtime replay while preserving target-specific authorization
   diagnostics.
+- Runtime graph `requests` edges have a constrained target-role contract. A
+  `requests` edge may target only an `Effect` node because `requests`
+  represents a step asking the runtime to execute an effect/tool adapter.
+  `requests` edges to unsupported target roles emit
+  `INTENT_GRAPH_REQUEST_INVALID` and make graph output non-executable. This
+  generic target-role diagnostic is separate from effect ownership coverage:
+  missing requests edges for an `Effect`, duplicate requests edges, or incoming
+  requests not from the owning `Step` remain
+  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; malformed `Effect` payloads remain
+  `INTENT_GRAPH_EFFECT_INVALID`; and malformed edge payloads remain
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when applicable. Constraining the generic
+  target role prevents `requests` from becoming an ambiguous runtime-control
+  edge while preserving effect-specific ownership diagnostics.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
   milestone. The `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and

@@ -392,6 +392,19 @@ Next graph envelope validation milestone:
   the generic role prevents `authorizes` from becoming an ambiguous catch-all
   edge during runtime replay while preserving target-specific authorization
   diagnostics.
+- Runtime graph `requests` edges have a constrained target-role contract. A
+  `requests` edge may target only an `Effect` node because `requests`
+  represents a step asking the runtime to execute an effect/tool adapter.
+  `requests` edges to unsupported target roles emit
+  `INTENT_GRAPH_REQUEST_INVALID` and make graph output non-executable. This
+  generic target-role diagnostic is separate from effect ownership coverage:
+  missing requests edges for an `Effect`, duplicate requests edges, or incoming
+  requests not from the owning `Step` remain
+  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; malformed `Effect` payloads remain
+  `INTENT_GRAPH_EFFECT_INVALID`; and malformed edge payloads remain
+  `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when applicable. Constraining the generic
+  target role prevents `requests` from becoming an ambiguous runtime-control
+  edge while preserving effect-specific ownership diagnostics.
 - Runtime graph `produces` edge payloads are the next Phase 2 static-model
   milestone. The `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -1545,6 +1558,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_EDGE_UNRESOLVED`
 - `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`
 - `INTENT_GRAPH_DECLARE_INVALID`
+- `INTENT_GRAPH_REQUEST_INVALID`
 - `INTENT_GRAPH_DATA_INVALID`
 - `INTENT_GRAPH_INPUT_INVALID`
 - `INTENT_GRAPH_INPUT_SUPPLY_INVALID`
@@ -1985,6 +1999,14 @@ non-executable. This generic role diagnostic is separate from
 `INTENT_GRAPH_AUTHORIZATION_INVALID`, and malformed node diagnostics, and
 prevents `authorizes` from becoming an ambiguous catch-all edge during runtime
 replay while preserving target-specific authorization diagnostics.
+Graph validation emits `INTENT_GRAPH_REQUEST_INVALID` when a `requests` edge
+does not target an `Effect` node. `requests` represents a step asking the
+runtime to execute an effect/tool adapter, and unsupported target roles make
+graph output non-executable. This generic target-role diagnostic is separate
+from `INTENT_GRAPH_EFFECT_REQUEST_INVALID`, `INTENT_GRAPH_EFFECT_INVALID`, and
+`INTENT_GRAPH_EDGE_PAYLOAD_INVALID`, and prevents `requests` from becoming an
+ambiguous runtime-control edge while preserving effect-specific ownership
+diagnostics.
 
 Input nodes make data dependencies explicit. Goal inputs are external values
 available at goal start. Step inputs are required value ports for one step. A
@@ -2065,7 +2087,10 @@ edges to `Goal` emit `INTENT_GRAPH_AUTHORIZE_INVALID`, and malformed or
 missing target authorization still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
-any incoming `requests` edge is not from that owning `Step`.
+any incoming `requests` edge is not from that owning `Step`. This
+effect-specific ownership diagnostic is separate from
+`INTENT_GRAPH_REQUEST_INVALID`, which covers `requests` edges to unsupported
+target roles.
 Graph validation emits `INTENT_GRAPH_MEMORY_DECLARE_INVALID` when a `Memory`
 node lacks exactly one incoming `declares` edge from its owning `Goal`, or when
 any incoming `Goal` to `Memory` ownership `declares` edge is not from that
@@ -2348,11 +2373,14 @@ from a `Step`, at least one incoming `verifies` edge from a `Check` node, and a
 sequencing or endpoint roles remain step sequence diagnostics. Graph validation
 emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node lacks exactly
 one incoming `requests` edge from its owning `Step`, or when any incoming
-`requests` edge is not from that owning `Step`. Graph validation
-emits `INTENT_GRAPH_EFFECT_INVALID` when an `Effect` node lacks executable
-adapter metadata: non-empty `data.family` and `data.action`, object
-`data.args`, `data.argKinds`, and `data.argSpans`, valid source-span values in
-`data.argSpans`, or boolean `data.approvalRequired`. Graph validation emits
+`requests` edge is not from that owning `Step`. `requests` edges to unsupported
+target roles instead emit `INTENT_GRAPH_REQUEST_INVALID`, making graph output
+non-executable before `requests` can become an ambiguous runtime-control edge.
+Graph validation emits `INTENT_GRAPH_EFFECT_INVALID` when an `Effect` node
+lacks executable adapter metadata: non-empty `data.family` and `data.action`,
+object `data.args`, `data.argKinds`, and `data.argSpans`, valid source-span
+values in `data.argSpans`, or boolean `data.approvalRequired`. Graph
+validation emits
 `INTENT_GRAPH_CHECK_INVALID` when a `Check` node lacks non-empty
 `data.requirement`, uses a `data.scope` outside `goal` or `step`, lacks
 step-scoped `data.ownerStep` or `data.assertion`, or carries malformed nested
