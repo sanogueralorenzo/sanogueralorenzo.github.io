@@ -1491,6 +1491,9 @@ Graph validation emits `INTENT_GRAPH_AUTHORIZATION_INVALID` when an `Effect`
 node or verification `Check` node with `data.effect` lacks an incoming
 `authorizes` edge from a `Capability`, or when its incoming `authorizes` edge is
 not from a `Capability`.
+Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
+node lacks exactly one incoming `requests` edge from its owning `Step`, or when
+any incoming `requests` edge is not from that owning `Step`.
 Graph validation emits `INTENT_GRAPH_STEP_ATTACHMENT_INVALID` when a
 step-scoped `Check` lacks a `requires` edge to its owning `Step`, an `Approval`
 lacks an `approves` edge to its owning `Step` or to an approval-required
@@ -1583,6 +1586,9 @@ may carry `data.sourceSpan` for the final step output type and
 incoming `completes` edge from a `Goal` and exactly one incoming `produces` edge
 from a `Step`, at least one incoming `verifies` edge from a `Check` node, and a
 `guards` edge count that matches the goal's `Invariant` nodes. Graph validation
+emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node lacks exactly
+one incoming `requests` edge from its owning `Step`, or when any incoming
+`requests` edge is not from that owning `Step`. Graph validation
 emits `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
 `guards` edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped
 `Check` node in the same goal. Completion is reachable only when all incoming

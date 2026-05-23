@@ -470,7 +470,10 @@ The parser emits names and type reference strings; the checker owns binding.
   `Effect` node or verification `Check` node with `data.effect` that lacks an
   incoming `authorizes` edge from a `Capability`, or whose incoming
   `authorizes` edge is not from a `Capability`, emits
-  `INTENT_GRAPH_AUTHORIZATION_INVALID`; a
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`; an `Effect` node that lacks exactly one
+  incoming `requests` edge from its owning `Step`, or whose incoming `requests`
+  edges are not from that owning `Step`, emits
+  `INTENT_GRAPH_EFFECT_REQUEST_INVALID`; a
   `Completion` node without the required incoming completion, verification, or
   guard coverage emits `INTENT_GRAPH_COMPLETION_INVALID`; cyclic graph edges emit
   `INTENT_GRAPH_CYCLE`; an `Invariant` node missing its `guards` edge to
