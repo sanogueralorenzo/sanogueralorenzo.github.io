@@ -1488,7 +1488,10 @@ completion may include `sourceSpan` for the final step output type and
 Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
 `from` or `to` endpoint is absent from the same graph payload, emits
 `INTENT_GRAPH_INPUT_UNBOUND` when a step `Input` node does not have exactly one
-incoming `data` edge, emits `INTENT_GRAPH_COMPLETION_INVALID` when a
+incoming `data` edge, emits `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a
+`Goal` node lacks its `${goal_id}:completion` `Completion` node, lacks exactly
+one outgoing `completes` edge to that node, or has `completes` edges to another
+completion, emits `INTENT_GRAPH_COMPLETION_INVALID` when a
 `Completion` node does not have exactly one incoming `completes` edge from a
 `Goal`, exactly one incoming `produces` edge from a `Step`, at least one
 incoming `verifies` edge from a `Check` node, or a `guards` edge count that
@@ -1595,6 +1598,10 @@ every effect, checkpoint, and step requirement check in that goal. The last
 executable step in the plan creates a `produces` edge to completion. That edge
 may carry `data.sourceSpan` for the final step output type and
 `data.targetSpan` for the goal output type. Graph validation emits
+`INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a `Goal` node lacks its
+`${goal_id}:completion` `Completion` node, lacks exactly one outgoing
+`completes` edge to that node, or has `completes` edges to another completion.
+Graph validation emits
 `INTENT_GRAPH_COMPLETION_INVALID` unless each `Completion` node has exactly one
 incoming `completes` edge from a `Goal` and exactly one incoming `produces` edge
 from a `Step`, at least one incoming `verifies` edge from a `Check` node, and a

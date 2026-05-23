@@ -460,6 +460,9 @@ The parser emits names and type reference strings; the checker owns binding.
   reparsing raw text.
 - Emitted graph edges are validated so both endpoints resolve to nodes in the
   same payload, each step `Input` node has exactly one incoming `data` edge,
+  every `Goal` node has its `${goal_id}:completion` `Completion` node and
+  exactly one outgoing `completes` edge to that node with no `completes` edges
+  to another completion,
   every `data` edge connects a goal `Input` node or step producer to a step
   `Input` consumer, every `Completion` node has exactly one incoming
   `completes` edge from a `Goal`, exactly one incoming `produces` edge from
@@ -469,7 +472,10 @@ The parser emits names and type reference strings; the checker owns binding.
   `from` or `to` endpoint is absent from the same graph payload emits
   `INTENT_GRAPH_EDGE_UNRESOLVED`; a step `Input` node without exactly one
   incoming `data` edge emits `INTENT_GRAPH_INPUT_UNBOUND`; a `data` edge with
-  an invalid producer or consumer emits `INTENT_GRAPH_DATA_INVALID`; a
+  an invalid producer or consumer emits `INTENT_GRAPH_DATA_INVALID`; a `Goal`
+  node that lacks its `${goal_id}:completion` `Completion` node, lacks exactly
+  one outgoing `completes` edge to that node, or has `completes` edges to
+  another completion emits `INTENT_GRAPH_GOAL_COMPLETION_INVALID`; a
   `Effect` node or verification `Check` node with `data.effect` that lacks an
   incoming `authorizes` edge from a `Capability`, or whose incoming
   `authorizes` edge is not from a `Capability`, emits
