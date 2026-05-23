@@ -415,19 +415,21 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_EDGE_PAYLOAD_INVALID`.
 - Runtime graph `authorizes` edges have a constrained role contract. An
   `authorizes` edge is valid only from `Capability` to `Goal` for capability
-  ownership, or when it targets an `Effect`, `Check`, or `Context` node for
-  runtime authorization. `authorizes` edges to unsupported target roles, and
-  non-Capability `authorizes` edges to `Goal`, emit
+  ownership, or from `Capability` to an `Effect`, `Check`, or `Context` node
+  for runtime authorization. `authorizes` edges to unsupported target roles,
+  and non-Capability `authorizes` edges, emit
   `INTENT_GRAPH_AUTHORIZE_INVALID` and make graph output non-executable. This
   generic role diagnostic is separate from source- and coverage-specific
   diagnostics: missing, duplicate, or wrong owning-Goal capability ownership
   remains `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID`; missing or
   non-Capability incoming authorization for `Effect`, verification `Check`, or
-  external `Context` remains `INTENT_GRAPH_AUTHORIZATION_INVALID`; and
-  malformed node payloads keep their existing node diagnostics. Constraining
-  the generic role prevents `authorizes` from becoming an ambiguous catch-all
-  edge during runtime replay while preserving target-specific authorization
-  diagnostics.
+  external `Context` remains `INTENT_GRAPH_AUTHORIZATION_INVALID`; Capability
+  authorization edges whose grant records do not cover the target family,
+  action, and constrained arguments emit
+  `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`; and malformed node payloads keep
+  their existing node diagnostics. Constraining the generic role prevents
+  `authorizes` from becoming an ambiguous catch-all edge during runtime replay
+  while preserving target-specific authorization diagnostics.
 - Runtime graph `requests` edges have a constrained target-role contract. A
   `requests` edge may target only an `Effect` node because `requests`
   represents a step asking the runtime to execute an effect/tool adapter.
@@ -604,10 +606,11 @@ Next graph envelope validation milestone:
   non-executable; malformed Capability node data remains
   `INTENT_GRAPH_CAPABILITY_INVALID`. This ownership edge is separate from
   runtime target authorization: Capability `authorizes` edges to `Effect`,
-  `Check`, and external `Context` targets remain valid target authorization
-  edges, unsupported target roles or non-Capability edges to `Goal` emit
-  `INTENT_GRAPH_AUTHORIZE_INVALID`, and malformed or missing target
-  authorization still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`.
+  `Check`, and external `Context` targets must be backed by matching grant
+  records, unsupported target roles or non-Capability authorization edges emit
+  `INTENT_GRAPH_AUTHORIZE_INVALID`, malformed or missing target authorization
+  still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`, and grant mismatches emit
+  `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`.
 - Runtime Type node metadata is part of graph validation. `Type` node data must
   carry `definition` as `null` or a non-empty string
   representing the declared structural or alias body. Malformed Type node
@@ -1779,6 +1782,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_GUARD_ROLE_INVALID`
 - `INTENT_GRAPH_GUARD_INVALID`
 - `INTENT_GRAPH_AUTHORIZATION_INVALID`
+- `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`
 - `INTENT_GRAPH_EFFECT_REQUEST_INVALID`
 - `INTENT_GRAPH_PRECEDE_INVALID`
 - `INTENT_GRAPH_STEP_SEQUENCE_INVALID`
@@ -2222,14 +2226,15 @@ diagnostic is separate from `INTENT_GRAPH_TYPE_DECLARE_INVALID`,
 ambiguous catch-all edge during runtime replay.
 Graph validation emits `INTENT_GRAPH_AUTHORIZE_INVALID` when an `authorizes`
 edge does not use one of the supported roles: `Capability` to `Goal` for
-capability ownership, or any source to `Effect`, `Check`, or `Context` for
+capability ownership, or `Capability` to `Effect`, `Check`, or `Context` for
 runtime authorization. `authorizes` edges to unsupported target roles, and
-non-Capability `authorizes` edges to `Goal`, make graph output
+non-Capability authorization edges, make graph output
 non-executable. This generic role diagnostic is separate from
 `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID`,
-`INTENT_GRAPH_AUTHORIZATION_INVALID`, and malformed node diagnostics, and
-prevents `authorizes` from becoming an ambiguous catch-all edge during runtime
-replay while preserving target-specific authorization diagnostics.
+`INTENT_GRAPH_AUTHORIZATION_INVALID`,
+`INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`, and malformed node diagnostics,
+and prevents `authorizes` from becoming an ambiguous catch-all edge during
+runtime replay while preserving target-specific authorization diagnostics.
 Graph validation emits `INTENT_GRAPH_REQUEST_INVALID` when a `requests` edge
 does not target an `Effect` node. `requests` represents a step asking the
 runtime to execute an effect/tool adapter, and unsupported target roles make
@@ -2377,10 +2382,12 @@ Graph validation emits `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` when a
 `Capability` node lacks exactly one outgoing `authorizes` edge to its owning
 `Goal`, or when any capability ownership `authorizes` edge targets another
 node. This ownership edge is separate from target authorization: Capability
-`authorizes` edges to `Effect`, `Check`, and external `Context` targets remain
-valid target authorization edges, unsupported target roles or non-Capability
-edges to `Goal` emit `INTENT_GRAPH_AUTHORIZE_INVALID`, and malformed or
-missing target authorization still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`.
+`authorizes` edges to `Effect`, `Check`, and external `Context` targets must
+be backed by matching grant records, unsupported target roles or
+non-Capability authorization edges emit `INTENT_GRAPH_AUTHORIZE_INVALID`,
+malformed or missing target authorization still emits
+`INTENT_GRAPH_AUTHORIZATION_INVALID`, and grant mismatches emit
+`INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`. This
@@ -2555,10 +2562,11 @@ duplicate, or wrong-Goal capability ownership `authorizes` edges emit
 `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
 non-executable. This ownership edge is separate from runtime target
 authorization: Capability `authorizes` edges to `Effect`, `Check`, and
-external `Context` targets remain valid target authorization edges, and
-unsupported target roles or non-Capability edges to `Goal` emit
+external `Context` targets must be backed by matching grant records, and
+unsupported target roles or non-Capability authorization edges emit
 `INTENT_GRAPH_AUTHORIZE_INVALID`, while malformed or missing target
-authorization still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`.
+authorization still emits `INTENT_GRAPH_AUTHORIZATION_INVALID` and grant
+mismatches emit `INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID`.
 
 Type nodes carry the runtime graph contract for declared types. Their data must
 include `definition` as `null` or a non-empty string representing the declared

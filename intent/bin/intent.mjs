@@ -1792,6 +1792,17 @@ function validateGraph(graph, options = {}) {
         capability_authorizes_edges: capabilityAuthorizationEdges.length,
       }));
     }
+    const invalidGrantAuthorizations = capabilityAuthorizationEdges
+      .map((graphEdge) => invalidGraphGrantAuthorization(nodesById.get(graphEdge.from), graphNode, graphEdge))
+      .filter(Boolean);
+    if (invalidGrantAuthorizations.length > 0) {
+      diagnostics.push(error("INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID", `${graphNode.kind} '${graphNode.label}' must be authorized by matching Capability grants.`, graphNode.span ?? fallbackSpan, {
+        target: graphNode.label,
+        target_id: graphNode.id,
+        target_kind: graphNode.kind,
+        invalid_authorizations: invalidGrantAuthorizations,
+      }));
+    }
   }
 
   for (const graphNode of graph.nodes) {
@@ -2863,7 +2874,8 @@ function validateGraphRequestsEdgeRole(nodesById, graphEdge, sourceNode, targetN
 }
 
 function validateGraphAuthorizesEdgeRole(nodesById, graphEdge, sourceNode, targetNode, fallbackSpan) {
-  const targetIsAuthorizationTarget = targetNode?.kind === "Effect" || targetNode?.kind === "Check" || targetNode?.kind === "Context";
+  const targetIsAuthorizationTarget = sourceNode?.kind === "Capability"
+    && (targetNode?.kind === "Effect" || targetNode?.kind === "Check" || targetNode?.kind === "Context");
   const targetIsCapabilityOwner = targetNode?.kind === "Goal" && sourceNode?.kind === "Capability";
   if (targetIsAuthorizationTarget || targetIsCapabilityOwner) {
     return null;
@@ -2876,9 +2888,9 @@ function validateGraphAuthorizesEdgeRole(nodesById, graphEdge, sourceNode, targe
     to_kind: targetNode?.kind ?? null,
     supported_roles: [
       { from_kind: "Capability", to_kind: "Goal" },
-      { to_kind: "Effect" },
-      { to_kind: "Check" },
-      { to_kind: "Context" },
+      { from_kind: "Capability", to_kind: "Effect" },
+      { from_kind: "Capability", to_kind: "Check" },
+      { from_kind: "Capability", to_kind: "Context" },
     ],
   });
 }
@@ -3091,6 +3103,117 @@ function requiresCapabilityAuthorization(graphNode) {
 
 function requiresContextAuthorization(graphNode) {
   return graphNode.data?.source === "web" || graphNode.data?.source === "documents";
+}
+
+function invalidGraphGrantAuthorization(capabilityNode, targetNode, graphEdge) {
+  const capability = graphCapabilityAccess(capabilityNode);
+  const access = graphAuthorizationAccess(targetNode);
+  if (!capability || !access) {
+    return null;
+  }
+  if (effectArguments(access).length === 0) {
+    return null;
+  }
+  if (!isFamilyMatch(access.family, capability.family)) {
+    return {
+      from: graphEdge.from,
+      to: graphEdge.to,
+      reason: "family_mismatch",
+      capability_family: capability.family,
+      target_family: access.family,
+      target_action: access.action,
+      argument: null,
+      value: null,
+      allowed: [],
+    };
+  }
+
+  const denial = getCapabilityDenial(access, [capability]);
+  if (!denial) {
+    return null;
+  }
+  return {
+    from: graphEdge.from,
+    to: graphEdge.to,
+    reason: "grant_mismatch",
+    capability_family: capability.family,
+    target_family: access.family,
+    target_action: access.action,
+    argument: denial.argument,
+    value: denial.value,
+    allowed: denial.allowed,
+  };
+}
+
+function graphCapabilityAccess(capabilityNode) {
+  if (
+    capabilityNode?.kind !== "Capability"
+    || typeof capabilityNode.data?.family !== "string"
+    || capabilityNode.data.family.trim() === ""
+    || !Array.isArray(capabilityNode.data.grants)
+    || !capabilityNode.data.grants.every(isGraphGrantRecord)
+  ) {
+    return null;
+  }
+  return {
+    family: capabilityNode.data.family,
+    grants: capabilityNode.data.grants,
+  };
+}
+
+function graphAuthorizationAccess(graphNode) {
+  if (graphNode.kind === "Effect") {
+    return graphEffectAccess(graphNode, graphNode.data);
+  }
+  if (graphNode.kind === "Check" && graphNode.data?.effect) {
+    return graphEffectAccess(graphNode, graphNode.data.effect);
+  }
+  if (graphNode.kind === "Context" && requiresContextAuthorization(graphNode)) {
+    if (
+      typeof graphNode.data.expression !== "string"
+      || !isPlainObject(graphNode.data.args)
+      || !isPlainObject(graphNode.data.argKinds)
+      || !isPlainObject(graphNode.data.argSpans)
+      || !Object.values(graphNode.data.args).every((value) => typeof value === "string")
+    ) {
+      return null;
+    }
+    return contextAccess({
+      source: graphNode.data.source,
+      args: graphNode.data.args,
+      argKinds: graphNode.data.argKinds,
+      argSpans: graphNode.data.argSpans,
+      expression: graphNode.data.expression,
+      span: graphNode.span,
+    });
+  }
+  return null;
+}
+
+function graphEffectAccess(graphNode, effectData) {
+  if (
+    typeof effectData?.family !== "string"
+    || effectData.family.trim() === ""
+    || typeof effectData.action !== "string"
+    || effectData.action.trim() === ""
+    || !isPlainObject(effectData.args)
+    || !isPlainObject(effectData.argKinds)
+    || !isPlainObject(effectData.argSpans)
+    || !Object.values(effectData.args).every((value) => typeof value === "string")
+  ) {
+    return null;
+  }
+  return {
+    kind: "EffectUse",
+    name: graphNode.label,
+    family: effectData.family,
+    action: effectData.action,
+    args: effectData.args,
+    argKinds: effectData.argKinds,
+    argSpans: effectData.argSpans,
+    expression: effectData.expression ?? graphNode.label,
+    span: graphNode.span,
+  };
 }
 
 function validateGraphContextInforms(nodesById, outgoingEdgesByNode, graphNode, fallbackSpan) {

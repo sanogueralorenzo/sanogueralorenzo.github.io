@@ -100,6 +100,16 @@ function testSpan(line) {
   };
 }
 
+function testGrant(action, key, value, line) {
+  return {
+    action,
+    key,
+    value,
+    raw: `${action} ${key}: "${value}"`,
+    span: testSpan(line),
+  };
+}
+
 function validateTestGraph(graph) {
   const normalizedGraph = {
     ...graph,
@@ -1767,21 +1777,29 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:capability:0", to: "goal:demo:verify:0", kind: "authorizes" },
         { from: "goal:demo:capability:0", to: "goal:demo:context:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:demo:verify:0", kind: "authorizes" },
+        { from: "goal:demo", to: "goal:demo:context:0", kind: "authorizes" },
         { from: "goal:demo", to: "goal:other", kind: "authorizes" },
         { from: "goal:demo:capability:0", to: "goal:demo:memory:0", kind: "authorizes" },
       ],
     }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZE_INVALID");
 
-    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics.length, 5);
     assert.equal(diagnostics[0].from_kind, "Goal");
-    assert.equal(diagnostics[0].to_kind, "Goal");
-    assert.equal(diagnostics[1].from_kind, "Capability");
-    assert.equal(diagnostics[1].to_kind, "Memory");
-    assert.deepEqual(diagnostics[1].supported_roles, [
+    assert.equal(diagnostics[0].to_kind, "Effect");
+    assert.equal(diagnostics[1].from_kind, "Goal");
+    assert.equal(diagnostics[1].to_kind, "Check");
+    assert.equal(diagnostics[2].from_kind, "Goal");
+    assert.equal(diagnostics[2].to_kind, "Context");
+    assert.equal(diagnostics[3].from_kind, "Goal");
+    assert.equal(diagnostics[3].to_kind, "Goal");
+    assert.equal(diagnostics[4].from_kind, "Capability");
+    assert.equal(diagnostics[4].to_kind, "Memory");
+    assert.deepEqual(diagnostics[4].supported_roles, [
       { from_kind: "Capability", to_kind: "Goal" },
-      { to_kind: "Effect" },
-      { to_kind: "Check" },
-      { to_kind: "Context" },
+      { from_kind: "Capability", to_kind: "Effect" },
+      { from_kind: "Capability", to_kind: "Check" },
+      { from_kind: "Capability", to_kind: "Context" },
     ]);
   });
 
@@ -2891,16 +2909,91 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
       ],
-    });
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_INVALID");
 
     assert.equal(diagnostics.length, 2);
-    assert.equal(diagnostics[0].code, "INTENT_GRAPH_AUTHORIZATION_INVALID");
     assert.equal(diagnostics[0].target_id, "goal:demo:step:patch:effect:0");
-    assert.equal(diagnostics[0].authorizes_edges, 1);
+    assert.equal(diagnostics[0].authorizes_edges, 0);
     assert.equal(diagnostics[0].capability_authorizes_edges, 0);
-    assert.equal(diagnostics[1].code, "INTENT_GRAPH_AUTHORIZATION_INVALID");
     assert.equal(diagnostics[1].target_id, "goal:demo:verify:0");
     assert.equal(diagnostics[1].authorizes_edges, 0);
+  });
+
+  it("validates graph authorization grant diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:capability:file", kind: "Capability", label: "file", span: testSpan(2), data: { family: "file", grants: [testGrant("write", "path", "./src/**", 2)] } },
+        { id: "goal:demo:capability:shell", kind: "Capability", label: "shell", span: testSpan(3), data: { family: "shell", grants: [testGrant("run", "command", "npm test", 3)] } },
+        { id: "goal:demo:capability:web", kind: "Capability", label: "web", span: testSpan(4), data: { family: "web", grants: [testGrant("read", "domain", "example.com", 4)] } },
+        { id: "goal:demo:capability:documents", kind: "Capability", label: "documents", span: testSpan(5), data: { family: "file", grants: [testGrant("read", "path", "docs/**", 5)] } },
+        {
+          id: "goal:demo:step:patch:effect:0",
+          kind: "Effect",
+          label: "FileWrite",
+          span: testSpan(6),
+          data: { family: "file", action: "write", args: { path: "outside/file.txt" }, argKinds: { path: "string" }, argSpans: { path: testSpan(6) } },
+        },
+        {
+          id: "goal:demo:verify:0",
+          kind: "Check",
+          label: "shell(\"npm run build\")",
+          span: testSpan(7),
+          data: { effect: { family: "shell", action: "run", args: { command: "npm run build" }, argKinds: { command: "string" }, argSpans: { command: testSpan(7) } } },
+        },
+        {
+          id: "goal:demo:context:web",
+          kind: "Context",
+          label: "web",
+          span: testSpan(8),
+          data: { source: "web", args: { url: "https://evil.example/path" }, argKinds: { url: "string" }, argSpans: { url: testSpan(8) }, expression: "web(url: \"https://evil.example/path\")" },
+        },
+        {
+          id: "goal:demo:context:documents",
+          kind: "Context",
+          label: "documents",
+          span: testSpan(9),
+          data: { source: "documents", args: { path: "secrets/spec.md" }, argKinds: { path: "string" }, argSpans: { path: testSpan(9) }, expression: "documents(path: \"secrets/spec.md\")" },
+        },
+      ],
+      edges: [
+        { from: "goal:demo:capability:file", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:shell", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:web", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:documents", to: "goal:demo", kind: "authorizes" },
+        { from: "goal:demo:capability:file", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+        { from: "goal:demo:capability:shell", to: "goal:demo:verify:0", kind: "authorizes" },
+        { from: "goal:demo:capability:web", to: "goal:demo:context:web", kind: "authorizes" },
+        { from: "goal:demo:capability:documents", to: "goal:demo:context:documents", kind: "authorizes" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_AUTHORIZATION_GRANT_INVALID");
+
+    assert.equal(diagnostics.length, 4);
+    assert.equal(diagnostics[0].target_id, "goal:demo:step:patch:effect:0");
+    assert.deepEqual(diagnostics[0].invalid_authorizations[0], {
+      from: "goal:demo:capability:file",
+      to: "goal:demo:step:patch:effect:0",
+      reason: "grant_mismatch",
+      capability_family: "file",
+      target_family: "file",
+      target_action: "write",
+      argument: "path",
+      value: "outside/file.txt",
+      allowed: ["./src/**"],
+    });
+    assert.equal(diagnostics[1].target_id, "goal:demo:verify:0");
+    assert.equal(diagnostics[1].invalid_authorizations[0].argument, "command");
+    assert.equal(diagnostics[1].invalid_authorizations[0].value, "npm run build");
+    assert.deepEqual(diagnostics[1].invalid_authorizations[0].allowed, ["npm test"]);
+    assert.equal(diagnostics[2].target_id, "goal:demo:context:web");
+    assert.equal(diagnostics[2].invalid_authorizations[0].argument, "domain");
+    assert.equal(diagnostics[2].invalid_authorizations[0].value, "evil.example");
+    assert.deepEqual(diagnostics[2].invalid_authorizations[0].allowed, ["example.com"]);
+    assert.equal(diagnostics[3].target_id, "goal:demo:context:documents");
+    assert.equal(diagnostics[3].invalid_authorizations[0].argument, "path");
+    assert.equal(diagnostics[3].invalid_authorizations[0].value, "secrets/spec.md");
+    assert.deepEqual(diagnostics[3].invalid_authorizations[0].allowed, ["docs/**"]);
   });
 
   it("validates graph context authorization diagnostics", () => {
@@ -2930,7 +3023,7 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[0].target_kind, "Context");
     assert.equal(diagnostics[0].authorizes_edges, 0);
     assert.equal(diagnostics[1].target_id, "goal:demo:context:documents");
-    assert.equal(diagnostics[1].authorizes_edges, 1);
+    assert.equal(diagnostics[1].authorizes_edges, 0);
     assert.equal(diagnostics[1].capability_authorizes_edges, 0);
   });
 
