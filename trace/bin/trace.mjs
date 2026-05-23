@@ -2055,6 +2055,9 @@ function writeSummaryDocument(range, memories, options = {}) {
     lines.push("", "## Risks", "");
     appendMergedSection(lines, memories, "Risks");
 
+    lines.push("", "## Handoff", "");
+    appendMergedSection(lines, memories, "Handoff");
+
     lines.push("", "## Commits", "");
     appendCommitList(lines, memories);
   } else {
@@ -2077,6 +2080,9 @@ function writeSummaryDocument(range, memories, options = {}) {
 
     lines.push("", "## Risks", "");
     appendMergedSection(lines, memories, "Risks");
+
+    lines.push("", "## Handoff", "");
+    appendMergedSection(lines, memories, "Handoff");
 
     lines.push("", "## Commits", "");
     appendCommitList(lines, memories);
@@ -2102,9 +2108,11 @@ function summaryPayload(range, memories, options = {}) {
     files: uniqueValues(records.flatMap((record) => record.files)),
     validation: records.flatMap((record) => record.validation),
     risks: records.flatMap((record) => record.risks),
+    handoff: records.flatMap((record) => record.handoff),
     commits: records.map((record) => ({
       commit: record.commit,
       intent: record.intent,
+      handoff: record.handoff,
       memory: record.memory,
     })),
   };

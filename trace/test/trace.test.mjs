@@ -93,6 +93,7 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const summary = await runTrace(repo, ["summary", "HEAD"]);
     assert.match(summary.stdout, /Trace Summary/);
     assert.match(summary.stdout, /remember why app text exists/);
+    assert.match(summary.stdout, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
 
     const summaryJson = JSON.parse((await runTrace(repo, ["summary", "HEAD", "--json"])).stdout);
     assert.equal(summaryJson.schema_version, "trace.summary.v1");
@@ -101,13 +102,16 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.deepEqual(summaryJson.decisions, ["Use committed Markdown for reviewable memory"]);
     assert.deepEqual(summaryJson.files, ["app.txt"]);
     assert.deepEqual(summaryJson.validation, ["node --test"]);
+    assert.match(summaryJson.handoff[0], /Preserve the decision/);
     assert.equal(summaryJson.commits[0].commit.length, 40);
+    assert.match(summaryJson.commits[0].handoff[0], /Preserve the decision/);
 
     const releaseNotes = await runTrace(repo, ["release-notes", "HEAD"]);
     assert.match(releaseNotes.stdout, /Trace Release Notes/);
     assert.match(releaseNotes.stdout, /## Highlights\n\n- created a minimal text fixture/);
     assert.match(releaseNotes.stdout, /## Changed Files\n\n- `app.txt`/);
     assert.match(releaseNotes.stdout, /## Validation\n\n- node --test/);
+    assert.match(releaseNotes.stdout, /## Handoff\n\n- Preserve the decision: Use committed Markdown for reviewable memory/);
 
     const ref = await git(repo, ["rev-parse", "--verify", "refs/trace/checkpoints"]);
     assert.match(ref.stdout.trim(), /^[0-9a-f]{40}$/);
@@ -152,6 +156,7 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
     assert.match(prBody.stdout, /Trace PR Summary/);
     assert.match(prBody.stdout, /add retry memory for service/);
     assert.match(prBody.stdout, /Keep raw checkpoint data outside the project tree/);
+    assert.match(prBody.stdout, /## Handoff\n\n- Preserve the decision: Keep raw checkpoint data outside the project tree/);
     assert.match(prBody.stdout, /token=REDACTED/);
     assert.doesNotMatch(prBody.stdout, /super-secret-token/);
   } finally {
@@ -224,12 +229,14 @@ test("branch summary derives branch context from committed memories", async () =
     assert.match(summary.stdout, /summarize this feature branch/);
     assert.match(summary.stdout, /Derive branch text from commit memories/);
     assert.match(summary.stdout, /branch\.txt/);
+    assert.match(summary.stdout, /## Handoff\n\n- Preserve the decision: Derive branch text from commit memories/);
 
     const summaryJson = JSON.parse((await runTrace(repo, ["branch-summary", "feature/trace-memory", "--base", "main", "--json"])).stdout);
     assert.equal(summaryJson.kind, "branch");
     assert.equal(summaryJson.branch, "feature/trace-memory");
     assert.equal(summaryJson.base, "main");
     assert.deepEqual(summaryJson.files, ["branch.txt"]);
+    assert.match(summaryJson.handoff[0], /Derive branch text/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
