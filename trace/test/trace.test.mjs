@@ -1601,6 +1601,10 @@ test("session start creates and switches current lifecycle sessions", async () =
     const current = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
     assert.equal(current.schema_version, "trace.session_current.v1");
     assert.equal(current.current, "task-auth-retry");
+    assert.equal(current.summary.session, "task-auth-retry");
+    assert.equal(current.summary.events, 1);
+    assert.equal(current.check.ok, false);
+    assert.equal(current.check.commitMemoryEvents, 0);
 
     const emptyList = JSON.parse((await runTrace(repo, ["session", "list"])).stdout);
     assert.equal(emptyList.schema_version, "trace.session_list.v1");
@@ -1618,6 +1622,12 @@ test("session start creates and switches current lifecycle sessions", async () =
     assert.equal(lifecycleOnlyPayload.checks.find((check) => check.name === "commitMemoryEvents").level, "error");
 
     await runTrace(repo, ["capture", "--event", "decision", "--message", "session start controls capture"]);
+    const currentAfterDecision = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
+    assert.equal(currentAfterDecision.summary.events, 2);
+    assert.equal(currentAfterDecision.summary.counts.decision, 1);
+    assert.equal(currentAfterDecision.check.ok, true);
+    assert.equal(currentAfterDecision.check.commitMemoryEvents, 1);
+
     const shown = JSON.parse((await runTrace(repo, ["session", "show", "task-auth-retry"])).stdout);
     assert.equal(shown.schema_version, "trace.session_detail.v1");
     assert.equal(shown.events.length, 2);
@@ -1646,6 +1656,8 @@ test("session start creates and switches current lifecycle sessions", async () =
     assert.equal(ended.event, "note");
     const afterEnd = JSON.parse((await runTrace(repo, ["session", "current"])).stdout);
     assert.equal(afterEnd.current, null);
+    assert.equal(afterEnd.summary, null);
+    assert.equal(afterEnd.check, null);
     const endedSession = JSON.parse((await runTrace(repo, ["session", "show", "task-auth-retry"])).stdout);
     assert.equal(endedSession.schema_version, "trace.session_detail.v1");
     assert.deepEqual(endedSession.events.map((event) => event.message), ["session started", "session start controls capture", "session ended"]);

@@ -1454,7 +1454,26 @@ async function listSessions() {
 
 async function showCurrentSession() {
   const root = await repoRoot();
-  print({ ok: true, schema_version: "trace.session_current.v1", current: await readCurrentSession(root).catch(() => null) });
+  const current = await readCurrentSession(root).catch(() => null);
+  if (!current) {
+    print({ ok: true, schema_version: "trace.session_current.v1", current: null, summary: null, check: null });
+    return;
+  }
+
+  const file = await sessionPath(root, current);
+  try {
+    const events = await readSessionEvents(root, current);
+    print({
+      ok: true,
+      schema_version: "trace.session_current.v1",
+      current,
+      summary: await sessionSummary(root, file),
+      check: await sessionCheck(root, current, events),
+    });
+  } catch (error) {
+    print({ ok: false, schema_version: "trace.session_current.v1", current, summary: null, check: null, error: error.message });
+    process.exitCode = 1;
+  }
 }
 
 async function showSession(sessionId) {
