@@ -21,6 +21,7 @@ The long-term target is a shared review protocol that can sit behind code change
 - [CI_ADOPTION.md](CI_ADOPTION.md): choosing unsigned, signed, artifact handoff, or reusable downstream CI workflows.
 - [MIGRATION.md](MIGRATION.md): moving local Jury state into shared CI artifacts.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): v1 adoption checklist tying quickstart, CI, fixtures, and migration together.
+- [PUBLISHING.md](PUBLISHING.md): package publication notes for preserving the CI adoption metadata contract.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): CI failure modes and artifact inspection examples.
 - [MAINTAINER_HANDOFF.md](MAINTAINER_HANDOFF.md): current adoption artifacts, validation commands, and next hardening step.
 - [release.json](release.json): machine-readable v1 metadata for schemas, commands, exports, and CI workflow variants.

@@ -15,6 +15,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 - [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation): old and new producer keys trusted during a CI migration overlap window, plus a revoked-old policy that rejects stale old-key bundles after cutover.
 - [MIGRATION.md](MIGRATION.md): artifact handoff and bundle replay path.
 - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md): release-readiness checklist.
+- [PUBLISHING.md](PUBLISHING.md): package publication notes for preserving the CI adoption metadata contract.
 - [release.json](release.json): machine-readable CI adoption guide path and workflow variant metadata.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): failure-mode inspection and retry/reject examples.
 
@@ -27,7 +28,7 @@ npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 ```
 
-The test suite covers the CI adoption guide, release metadata, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the CI adoption guide, package publication notes, release metadata, quickstart, unsigned and signed GitHub Actions producer workflow commands, signed artifact download verification, downstream trusted-producer verification workflow, fixture synchronization, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -47,4 +48,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add package publication notes for the CI adoption metadata contract.
+Add a tarball manifest check for the CI adoption metadata contract.
