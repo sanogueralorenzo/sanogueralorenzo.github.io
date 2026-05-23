@@ -1,13 +1,17 @@
 use super::StateLayout;
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
+use serde::Deserialize;
+use serde_json::json;
 use std::env;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command};
+use std::process::{Child, Command, Output, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const DEFAULT_WORKER_INTERVAL_SECONDS: u64 = 30;
+const DEFAULT_PRECEDENT_TIMEOUT_MS: u64 = 5_000;
 
 #[derive(Subcommand, Debug)]
 pub(super) enum WorkerCommand {
@@ -72,11 +76,49 @@ pub(super) struct WorkerLoopArgs {
     /// Pass --skip-git-repo-check to codex exec
     #[arg(long)]
     pub skip_git_repo_check: bool,
+
+    /// Opt in to Precedent context injection and outcome recording
+    #[arg(long = "precedent-state-dir", value_name = "DIR")]
+    pub precedent_state_dir: Option<PathBuf>,
+
+    /// Scope passed to Precedent when ranking context
+    #[arg(long = "precedent-scope", value_name = "SCOPE")]
+    pub precedent_scope: Option<String>,
+
+    /// Precedent CLI entrypoint
+    #[arg(
+        long = "precedent-bin",
+        value_name = "FILE",
+        default_value = "precedent/bin/precedent.mjs"
+    )]
+    pub precedent_bin: PathBuf,
+
+    /// Codex executable used by tests and advanced wrappers
+    #[arg(
+        long = "codex-bin",
+        value_name = "FILE",
+        default_value = "codex",
+        hide = true
+    )]
+    pub codex_bin: PathBuf,
 }
 
 #[derive(Debug)]
 struct LoopIterationResult {
     final_message: String,
+}
+
+#[derive(Debug)]
+struct LoopPrecedentTurn {
+    prompt: String,
+    session_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct PrecedentContextOutput {
+    schema_version: String,
+    #[serde(rename = "contextBlock")]
+    context_block: Option<String>,
 }
 
 struct CaffeinateGuard {
@@ -151,18 +193,48 @@ fn worker_loop(args: WorkerLoopArgs) -> Result<()> {
     print_worker_loop_start(&cwd, &args);
 
     let mut iteration: u64 = 0;
+    let loop_run_id = uuid::Uuid::new_v4().to_string();
     loop {
         iteration += 1;
+        let turn = prepare_precedent_turn(&cwd, &prompt, &args, &loop_run_id, iteration);
         println!("[loop {iteration}] Running codex exec...");
-        let result = run_codex_exec_iteration(&cwd, &prompt, &args)
-            .with_context(|| format!("codex exec failed on iteration {}", iteration))?;
+        let result = match run_codex_exec_iteration(&cwd, &turn.prompt, &args) {
+            Ok(result) => result,
+            Err(error) => {
+                if let Some(session_id) = turn.session_id.as_deref() {
+                    record_precedent_outcome(
+                        &cwd,
+                        &args,
+                        session_id,
+                        &error.to_string(),
+                        false,
+                        "codex_exec_failed",
+                    );
+                }
+                return Err(error)
+                    .with_context(|| format!("codex exec failed on iteration {}", iteration));
+            }
+        };
+        let stop_matched =
+            !args.stop_phrase.is_empty() && result.final_message.contains(&args.stop_phrase);
+
+        if let Some(session_id) = turn.session_id.as_deref() {
+            record_precedent_outcome(
+                &cwd,
+                &args,
+                session_id,
+                &result.final_message,
+                stop_matched,
+                if stop_matched { "success" } else { "failure" },
+            );
+        }
 
         println!(
             "[loop {iteration}] Final message:\n{}",
             result.final_message
         );
 
-        if !args.stop_phrase.is_empty() && result.final_message.contains(&args.stop_phrase) {
+        if stop_matched {
             println!(
                 "[loop {iteration}] Stop phrase matched ({}). Stopping.",
                 args.stop_phrase
@@ -203,6 +275,9 @@ fn print_worker_loop_start(cwd: &Path, args: &WorkerLoopArgs) {
     println!("Loop started.");
     println!("  cwd: {}", cwd.display());
     println!("  stop phrase: {}", args.stop_phrase);
+    if args.precedent_state_dir.is_some() {
+        println!("  precedent: enabled");
+    }
 
     if args.once {
         println!("  mode: once");
@@ -288,7 +363,7 @@ fn run_codex_exec_iteration(
     args: &WorkerLoopArgs,
 ) -> Result<LoopIterationResult> {
     let output_path = unique_output_file_path();
-    let mut cmd = Command::new("codex");
+    let mut cmd = Command::new(&args.codex_bin);
     cmd.current_dir(cwd);
     cmd.arg("exec");
     cmd.arg(prompt);
@@ -338,22 +413,257 @@ fn run_codex_exec_iteration(
     })
 }
 
+fn prepare_precedent_turn(
+    cwd: &Path,
+    prompt: &str,
+    args: &WorkerLoopArgs,
+    loop_run_id: &str,
+    iteration: u64,
+) -> LoopPrecedentTurn {
+    if args.precedent_state_dir.is_none() {
+        return LoopPrecedentTurn {
+            prompt: prompt.to_string(),
+            session_id: None,
+        };
+    }
+
+    let session_id = precedent_session_id(loop_run_id, iteration);
+    let prompt = match fetch_precedent_context(cwd, args, &session_id, prompt) {
+        Ok(context_block) => prompt_with_precedent_context(prompt, context_block.as_deref()),
+        Err(error) => {
+            eprintln!("[loop {iteration}] Precedent context unavailable: {error}");
+            prompt.to_string()
+        }
+    };
+
+    LoopPrecedentTurn {
+        prompt,
+        session_id: Some(session_id),
+    }
+}
+
+fn fetch_precedent_context(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    prompt: &str,
+) -> Result<Option<String>> {
+    let state_dir = args
+        .precedent_state_dir
+        .as_ref()
+        .context("precedent state dir is not configured")?;
+    let mut cmd = precedent_command(cwd, &args.precedent_bin);
+    let task_file = unique_temp_file_path("codex-core-agents-precedent-task", "md");
+    std::fs::write(&task_file, prompt).with_context(|| {
+        format!(
+            "failed to write Precedent task file {}",
+            task_file.display()
+        )
+    })?;
+    cmd.arg("context");
+    cmd.arg("--state-dir");
+    cmd.arg(state_dir);
+    cmd.arg("--task-file");
+    cmd.arg(&task_file);
+    cmd.arg("--session");
+    cmd.arg(session_id);
+    cmd.arg("--format");
+    cmd.arg("json");
+    if let Some(scope) = &args.precedent_scope
+        && !scope.trim().is_empty()
+    {
+        cmd.arg("--scope");
+        cmd.arg(scope);
+    }
+
+    let output = output_with_timeout(
+        cmd,
+        None,
+        Duration::from_millis(DEFAULT_PRECEDENT_TIMEOUT_MS),
+    );
+    let _ = std::fs::remove_file(&task_file);
+    let output = output.context("context command failed")?;
+    if !output.status.success() {
+        bail!(
+            "context exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    let parsed: PrecedentContextOutput =
+        serde_json::from_slice(&output.stdout).context("context returned invalid JSON")?;
+    if parsed.schema_version != "precedent.context.v1" {
+        bail!(
+            "context returned unsupported schema {}",
+            parsed.schema_version
+        );
+    }
+    Ok(parsed
+        .context_block
+        .filter(|block| !block.trim().is_empty()))
+}
+
+fn record_precedent_outcome(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    final_message: &str,
+    success: bool,
+    status: &str,
+) {
+    if let Err(error) =
+        try_record_precedent_outcome(cwd, args, session_id, final_message, success, status)
+    {
+        eprintln!("[precedent {session_id}] outcome unavailable: {error}");
+    }
+}
+
+fn try_record_precedent_outcome(
+    cwd: &Path,
+    args: &WorkerLoopArgs,
+    session_id: &str,
+    final_message: &str,
+    success: bool,
+    status: &str,
+) -> Result<()> {
+    let state_dir = args
+        .precedent_state_dir
+        .as_ref()
+        .context("precedent state dir is not configured")?;
+    let mut cmd = precedent_command(cwd, &args.precedent_bin);
+    cmd.arg("hook");
+    cmd.arg("--state-dir");
+    cmd.arg(state_dir);
+    cmd.arg("--json");
+    let payload = json!({
+        "schema_version": "precedent.v1",
+        "hook": "outcome.after_task",
+        "sessionId": session_id,
+        "success": success,
+        "status": status,
+        "retries": 0,
+        "tokenEstimate": null,
+        "notes": final_message,
+    });
+    let stdin = serde_json::to_string(&payload).context("failed to serialize Precedent outcome")?;
+    let output = output_with_timeout(
+        cmd,
+        Some(&stdin),
+        Duration::from_millis(DEFAULT_PRECEDENT_TIMEOUT_MS),
+    )
+    .context("outcome hook command failed")?;
+    if !output.status.success() {
+        bail!(
+            "outcome hook exited with status {}{}",
+            output.status.code().unwrap_or(1),
+            stderr_suffix(&output)
+        );
+    }
+
+    Ok(())
+}
+
+fn precedent_command(cwd: &Path, precedent_bin: &Path) -> Command {
+    let mut cmd = if precedent_bin == Path::new("precedent/bin/precedent.mjs") {
+        let mut command = Command::new("node");
+        command.arg(precedent_bin);
+        command
+    } else {
+        Command::new(precedent_bin)
+    };
+    cmd.current_dir(cwd);
+    cmd
+}
+
+fn prompt_with_precedent_context(prompt: &str, context_block: Option<&str>) -> String {
+    match context_block
+        .map(str::trim)
+        .filter(|block| !block.is_empty())
+    {
+        Some(block) => format!("{block}\n\n{prompt}"),
+        None => prompt.to_string(),
+    }
+}
+
+fn precedent_session_id(loop_run_id: &str, iteration: u64) -> String {
+    format!("codex-core-worker-loop-{loop_run_id}-{iteration}")
+}
+
+fn output_with_timeout(
+    mut command: Command,
+    stdin: Option<&str>,
+    timeout: Duration,
+) -> Result<Output> {
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+    if stdin.is_some() {
+        command.stdin(Stdio::piped());
+    }
+
+    let mut child = command.spawn().context("failed to spawn command")?;
+    if let Some(stdin_text) = stdin
+        && let Some(mut child_stdin) = child.stdin.take()
+    {
+        child_stdin
+            .write_all(stdin_text.as_bytes())
+            .context("failed to write command stdin")?;
+    }
+
+    let deadline = Instant::now() + timeout;
+    loop {
+        if child
+            .try_wait()
+            .context("failed waiting for command")?
+            .is_some()
+        {
+            return child
+                .wait_with_output()
+                .context("failed to read command output");
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            bail!("timed out after {}ms", timeout.as_millis());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn stderr_suffix(output: &Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let trimmed = stderr.trim();
+    if trimmed.is_empty() {
+        String::new()
+    } else {
+        format!(": {trimmed}")
+    }
+}
+
 fn unique_output_file_path() -> PathBuf {
+    unique_temp_file_path("codex-core-agents-last-message", "txt")
+}
+
+fn unique_temp_file_path(prefix: &str, extension: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
         .unwrap_or(0);
     env::temp_dir().join(format!(
-        "codex-core-agents-last-message-{}-{nanos}.txt",
-        std::process::id()
+        "{prefix}-{}-{nanos}.{extension}",
+        std::process::id(),
     ))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{WorkerLoopArgs, resolve_loop_prompt, validate_worker_loop_args};
+    use super::{
+        WorkerLoopArgs, precedent_session_id, prompt_with_precedent_context, resolve_loop_prompt,
+        validate_worker_loop_args, worker_loop,
+    };
     use std::env;
     use std::fs;
+    use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -370,6 +680,10 @@ mod tests {
             full_auto: false,
             dangerously_bypass_approvals_and_sandbox: false,
             skip_git_repo_check: false,
+            precedent_state_dir: None,
+            precedent_scope: None,
+            precedent_bin: PathBuf::from("precedent/bin/precedent.mjs"),
+            codex_bin: PathBuf::from("codex"),
         }
     }
 
@@ -405,5 +719,252 @@ mod tests {
         assert_eq!(prompt, "prompt from file");
 
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn prompt_wrapping_preserves_prompt_without_context() {
+        assert_eq!(
+            prompt_with_precedent_context("original prompt", None),
+            "original prompt"
+        );
+        assert_eq!(
+            prompt_with_precedent_context("original prompt", Some("   \n ")),
+            "original prompt"
+        );
+    }
+
+    #[test]
+    fn prompt_wrapping_prepends_context_once() {
+        assert_eq!(
+            prompt_with_precedent_context(
+                "original prompt",
+                Some("Precedent:\n- Run focused tests.")
+            ),
+            "Precedent:\n- Run focused tests.\n\noriginal prompt"
+        );
+    }
+
+    #[test]
+    fn precedent_session_ids_are_stable_and_distinct() {
+        assert_eq!(
+            precedent_session_id("run-1", 1),
+            "codex-core-worker-loop-run-1-1"
+        );
+        assert_ne!(
+            precedent_session_id("run-1", 1),
+            precedent_session_id("run-1", 2)
+        );
+    }
+
+    #[test]
+    fn worker_loop_injects_precedent_context_and_records_outcome() {
+        let dir = temp_test_dir("precedent-worker-inject");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let prompt_capture = dir.join("prompt.txt");
+        let hook_capture = dir.join("hook.json");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            &format!(
+                r#"#!/bin/sh
+out=""
+prompt=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "exec" ]; then
+    shift
+    prompt="$1"
+    shift
+    continue
+  fi
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s' "$prompt" > '{}'
+printf '%s' 'LOOP_DONE from fake codex' > "$out"
+"#,
+                prompt_capture.display()
+            ),
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":"Precedent:\n- Use repo lesson."}}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  cat > '{}'
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                hook_capture.display()
+            ),
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.once = true;
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_scope = Some("feature:webhooks".to_string());
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let prompt = fs::read_to_string(prompt_capture).unwrap();
+        assert!(prompt.starts_with("Precedent:\n- Use repo lesson.\n\nship the feature"));
+        let hook = fs::read_to_string(hook_capture).unwrap();
+        assert!(hook.contains(r#""hook":"outcome.after_task""#));
+        assert!(hook.contains(r#""success":true"#));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_fails_open_when_precedent_context_fails() {
+        let dir = temp_test_dir("precedent-worker-fail-open");
+        let codex_bin = dir.join("fake-codex.sh");
+        let precedent_bin = dir.join("broken-precedent.sh");
+        let prompt_capture = dir.join("prompt.txt");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            &format!(
+                r#"#!/bin/sh
+out=""
+prompt=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "exec" ]; then
+    shift
+    prompt="$1"
+    shift
+    continue
+  fi
+  if [ "$1" = "--output-last-message" ]; then
+    shift
+    out="$1"
+    shift
+    continue
+  fi
+  shift
+done
+printf '%s' "$prompt" > '{}'
+printf '%s' 'LOOP_DONE from fake codex' > "$out"
+"#,
+                prompt_capture.display()
+            ),
+        );
+        write_executable(
+            &precedent_bin,
+            r#"#!/bin/sh
+printf '%s\n' 'broken precedent' >&2
+exit 2
+"#,
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.once = true;
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        worker_loop(args).unwrap();
+
+        let prompt = fs::read_to_string(prompt_capture).unwrap();
+        assert_eq!(prompt, "ship the feature");
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worker_loop_records_failed_codex_exec_outcome() {
+        let dir = temp_test_dir("precedent-worker-codex-failure");
+        let codex_bin = dir.join("failing-codex.sh");
+        let precedent_bin = dir.join("fake-precedent.sh");
+        let hook_capture = dir.join("hook.json");
+        let state_dir = dir.join("state");
+        fs::create_dir_all(&state_dir).unwrap();
+        write_executable(
+            &codex_bin,
+            r#"#!/bin/sh
+printf '%s\n' 'codex exploded' >&2
+exit 7
+"#,
+        );
+        write_executable(
+            &precedent_bin,
+            &format!(
+                r#"#!/bin/sh
+if [ "$1" = "context" ]; then
+  printf '%s\n' '{{"schema_version":"precedent.context.v1","contextBlock":""}}'
+  exit 0
+fi
+if [ "$1" = "hook" ]; then
+  cat > '{}'
+  printf '%s\n' '{{"ok":true}}'
+  exit 0
+fi
+exit 2
+"#,
+                hook_capture.display()
+            ),
+        );
+
+        let mut args = base_args();
+        args.prompt = Some("ship the feature".to_string());
+        args.cd = dir.clone();
+        args.once = true;
+        args.precedent_state_dir = Some(state_dir);
+        args.precedent_bin = precedent_bin;
+        args.codex_bin = codex_bin;
+
+        let error = worker_loop(args).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("codex exec failed on iteration 1")
+        );
+
+        let hook = fs::read_to_string(hook_capture).unwrap();
+        assert!(hook.contains(r#""hook":"outcome.after_task""#));
+        assert!(hook.contains(r#""success":false"#));
+        assert!(hook.contains(r#""status":"codex_exec_failed""#));
+        assert!(hook.contains("codex exploded"));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    fn temp_test_dir(prefix: &str) -> PathBuf {
+        let path = env::temp_dir().join(format!(
+            "{}-{}",
+            prefix,
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    fn write_executable(path: &PathBuf, content: &str) {
+        fs::write(path, content).unwrap();
+        let mut permissions = fs::metadata(path).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(path, permissions).unwrap();
     }
 }
