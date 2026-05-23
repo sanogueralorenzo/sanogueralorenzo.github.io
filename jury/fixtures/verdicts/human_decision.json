@@ -1,0 +1,14 @@
+{
+  "schema_version": "jury.verdict.v1",
+  "id": "verdict_fixture_human_decision",
+  "claim_id": "claim_fixture_human_decision",
+  "claim_version": 1,
+  "decision": "human_decision",
+  "reason": "Human approval is required before this claim can be accepted.",
+  "next_actions": ["Record an explicit approval or waiver."],
+  "evidence_ids": ["ev_fixture_preview"],
+  "objection_ids": [],
+  "waiver_ids": [],
+  "decided_by": "judge:fixture",
+  "decided_at": "2026-05-23T00:00:00.000Z"
+}

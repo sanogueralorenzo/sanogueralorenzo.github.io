@@ -156,6 +156,24 @@ The smallest useful version would include:
 
 The first prototype should focus on code-change review because it has concrete evidence: diffs, tests, typechecks, logs, screenshots, and review comments.
 
+## Prototype CLI
+
+This repository includes a small dependency-free prototype:
+
+```shell
+node jury/bin/jury.mjs init
+node jury/bin/jury.mjs claim create --summary "checkout fix is ready" --impact high
+node jury/bin/jury.mjs evidence add --claim claim_checkout_fix_is_ready --type command --command "npm test" --exit-code 0
+node jury/bin/jury.mjs objection add --claim claim_checkout_fix_is_ready --summary "missing regression test" --severity high
+node jury/bin/jury.mjs objection resolve --id obj_claim_checkout_fix_is_ready_missing_regression_test --resolution "added regression test"
+node jury/bin/jury.mjs judge --claim claim_checkout_fix_is_ready --out verdict.json
+node jury/bin/jury.mjs gate --verdict verdict.json
+node jury/bin/jury.mjs check --strict
+node jury/bin/jury.mjs demo code-change
+```
+
+The prototype stores local state in `.jury/` as append-only JSONL files for claims, evidence, objections, waivers, and verdicts. `.jury/` is local runtime state and is not committed.
+
 ## Open Questions
 
 - How many independent reviewers are needed before a verdict is trustworthy?
