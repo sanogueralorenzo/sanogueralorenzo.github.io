@@ -305,9 +305,10 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_ENVELOPE_UNSUPPORTED`.
 - Executable graph payloads must include `nodes` and `edges` arrays. Missing
   or non-array collections emit `INTENT_GRAPH_SHAPE_INVALID`.
-- Executable graph payloads must contain object node records with string `id`
-  and `kind`, and object edge records with string `from`, `to`, and `kind`.
-  Malformed records emit stable graph shape diagnostics before endpoint or kind
+- Executable graph payloads must contain object node records with string `id`,
+  `kind`, and `label`, object `span`, and object `data`; edge records must be
+  objects with string `from`, `to`, and `kind`. Malformed node or edge records
+  emit stable graph shape diagnostics before endpoint, kind, or semantic
   validation.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
