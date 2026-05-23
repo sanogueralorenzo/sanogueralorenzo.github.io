@@ -861,10 +861,11 @@ async function validationAfterRunEventHook(event) {
 async function diffAfterEditEventHook(event) {
   const stateDir = statePath();
   const sessionId = requireString(event.sessionId, "event.sessionId");
-  const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
+  const changedFiles = diffChangedFiles(event);
   const breadthSignals = diffBreadthSignals(event, changedFiles);
   let guardResult = emptyGuardResult();
   let contextBlock = "";
+  let repairPrompt = null;
   let sessionEvent = null;
 
   await withStateLock(stateDir, async () => {
@@ -874,7 +875,14 @@ async function diffAfterEditEventHook(event) {
       changedFiles,
       breadthSignals,
     });
-    contextBlock = formatGuardContextBlock(guardResult.failed);
+    repairPrompt = repairPromptForDiffGuard({
+      guardResult,
+      activePrecedents,
+      changedFiles,
+      diffSummary: event.diffSummary,
+      unifiedDiff: event.unifiedDiff ?? event.diff,
+    });
+    contextBlock = formatRepairContextBlock(repairPrompt) || formatGuardContextBlock(guardResult.failed);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -885,6 +893,7 @@ async function diffAfterEditEventHook(event) {
       linesDeleted: numberOrNull(event.linesDeleted),
       breadthSignals,
       guardResult,
+      repairPrompt,
       contextBlock,
     });
 
@@ -896,6 +905,7 @@ async function diffAfterEditEventHook(event) {
       changedFiles,
       breadthSignals,
       guardResult,
+      repairPrompt,
     });
   });
 
@@ -910,6 +920,7 @@ async function diffAfterEditEventHook(event) {
       breadthSignals,
     },
     guardResult,
+    repairPrompt,
     contextBlock,
   });
 }
@@ -1149,8 +1160,8 @@ function buildManifest(runtime, stateDir) {
       },
       "diff.after_edit": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "attributedPrecedents"],
-        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff", "guardResult", "contextBlock"],
+        stdin: ["schema_version", "hook", "sessionId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
+        output: ["ok", "hook", "sessionId", "recorded", "sessionEventPath", "diff", "guardResult", "repairPrompt", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
@@ -1263,6 +1274,8 @@ async function attachRuntime() {
           changedFiles: "$CHANGED_FILES",
           linesAdded: "$LINES_ADDED",
           linesDeleted: "$LINES_DELETED",
+          diffSummary: "$DIFF_SUMMARY",
+          unifiedDiff: "$UNIFIED_DIFF",
           attributedPrecedents: "$ATTRIBUTED_PRECEDENTS",
         },
         timeoutMs: runtimeConfig.hookTimeoutMs,
@@ -2046,6 +2059,125 @@ function formatGuardContextBlock(failedChecks) {
     "Precedent guard:",
     ...failedChecks.map((check) => `- ${check.message}`),
   ].join("\n");
+}
+
+function diffChangedFiles(event) {
+  return uniqueStrings([
+    ...(Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles)),
+    ...changedFilesFromDiffSummary(event.diffSummary),
+    ...changedFilesFromUnifiedDiff(event.unifiedDiff ?? event.diff),
+  ]);
+}
+
+function changedFilesFromDiffSummary(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => changedFilesFromDiffSummary(item));
+  }
+
+  if (typeof value === "object") {
+    return uniqueStrings([
+      ...parseListArg(value.changedFiles),
+      ...parseListArg(value.files),
+      ...(typeof value.path === "string" ? [value.path] : []),
+      ...(typeof value.file === "string" ? [value.file] : []),
+    ]);
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(/\r?\n/u)
+    .map((line) => line.split("|", 1)[0].trim())
+    .filter((path) => path.length > 0 && !path.startsWith(" "))
+    .filter((path) => !/^\d+\s+files?\s+changed/u.test(path));
+}
+
+function changedFilesFromUnifiedDiff(value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return [];
+  }
+
+  const files = [];
+  for (const line of value.split(/\r?\n/u)) {
+    const match = line.match(/^diff --git a\/(.+?) b\/(.+)$/u);
+    if (match) {
+      files.push(match[2]);
+      continue;
+    }
+
+    const newFile = line.match(/^\+\+\+ b\/(.+)$/u);
+    if (newFile && newFile[1] !== "/dev/null") {
+      files.push(newFile[1]);
+    }
+  }
+  return uniqueStrings(files);
+}
+
+function repairPromptForDiffGuard({ guardResult, activePrecedents, changedFiles, diffSummary, unifiedDiff }) {
+  const failed = Array.isArray(guardResult.failed) ? guardResult.failed[0] : null;
+  if (!failed) {
+    return null;
+  }
+
+  const precedent = activePrecedents.find((item) => item.id === failed.precedentId);
+  if (!precedent) {
+    return null;
+  }
+
+  const suggestedValidation = suggestedValidationForPrecedent(precedent);
+  const affectedPaths = uniqueStrings(Array.isArray(failed.evidence) && failed.evidence.length > 0 ? failed.evidence : changedFiles);
+  return {
+    precedentId: precedent.id,
+    guardId: failed.guardId ?? null,
+    matchReasons: uniqueStrings([
+      failed.message,
+      ...(Array.isArray(precedent.paths) ? precedent.paths.map((path) => `allowed path: ${path}`) : []),
+      ...(diffSummary ? ["diff summary supplied"] : []),
+      ...(unifiedDiff ? ["unified diff supplied"] : []),
+    ]),
+    affectedPaths,
+    suggestedValidation,
+    action: repairActionForGuard(failed, precedent, affectedPaths, suggestedValidation),
+  };
+}
+
+function suggestedValidationForPrecedent(precedent) {
+  const guard = (Array.isArray(precedent.guards) ? precedent.guards : [])
+    .find((item) => item.type === "required_validation_command" && typeof item.command === "string" && item.command.trim().length > 0);
+  return guard?.command ?? null;
+}
+
+function repairActionForGuard(failed, precedent, affectedPaths, suggestedValidation) {
+  const allowedPaths = Array.isArray(precedent.paths) ? precedent.paths.join(", ") : "";
+  const paths = affectedPaths.length > 0 ? affectedPaths.join(", ") : "the current edit";
+  const validation = suggestedValidation ? ` Then run ${suggestedValidation}.` : "";
+  const base = failed.message ?? precedent.injection ?? "Repair the edit to satisfy the active precedent.";
+  return `${base} Rework ${paths}${allowedPaths ? ` so it stays within ${allowedPaths}` : ""}.${validation}`;
+}
+
+function formatRepairContextBlock(repairPrompt) {
+  if (!repairPrompt) {
+    return "";
+  }
+
+  const lines = [
+    "Precedent repair:",
+    `- ${repairPrompt.action}`,
+    `- Precedent: ${repairPrompt.precedentId}`,
+  ];
+  if (repairPrompt.affectedPaths.length > 0) {
+    lines.push(`- Affected paths: ${repairPrompt.affectedPaths.join(", ")}`);
+  }
+  if (repairPrompt.suggestedValidation) {
+    lines.push(`- Suggested validation: ${repairPrompt.suggestedValidation}`);
+  }
+  return lines.join("\n");
 }
 
 async function appendSessionEvent(stateDir, rawEvent) {

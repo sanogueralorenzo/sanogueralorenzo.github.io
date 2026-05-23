@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +27,14 @@ test("diff.after_edit executes active promoted path guards", async () => {
     assert.equal(diff.guardResult.failed.length, 1);
     assert.equal(diff.guardResult.failed[0].guardId, "guard_webhook_paths");
     assert.deepEqual(diff.guardResult.failed[0].evidence, ["features/billing/refunds.ts"]);
-    assert.match(diff.contextBlock, /Precedent guard:/u);
+    assert.equal(diff.repairPrompt.precedentId, "prec_webhook_replay_boundary");
+    assert.equal(diff.repairPrompt.guardId, "guard_webhook_paths");
+    assert.deepEqual(diff.repairPrompt.affectedPaths, ["features/billing/refunds.ts"]);
+    assert.equal(diff.repairPrompt.suggestedValidation, "pnpm test:webhooks");
+    assert.match(diff.contextBlock, /Precedent repair:/u);
+    const sessionEvents = await readSessionEvents(stateDir, "demo");
+    const diffEvent = sessionEvents.find((event) => event.hook === "diff.after_edit");
+    assert.equal(diffEvent.repairPrompt.precedentId, "prec_webhook_replay_boundary");
 
     const inside = await runJson(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",
@@ -37,6 +44,8 @@ test("diff.after_edit executes active promoted path guards", async () => {
     });
     assert.equal(inside.guardResult.ok, true);
     assert.equal(inside.guardResult.passed[0].guardId, "guard_webhook_paths");
+    assert.equal(inside.repairPrompt, null);
+    assert.equal(inside.contextBlock, "");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -59,10 +68,66 @@ test("diff.after_edit can execute guards with explicit attributed precedents", a
     assert.equal(diff.guardResult.ok, false);
     assert.equal(diff.guardResult.failed.length, 1);
     assert.equal(diff.guardResult.failed[0].guardId, "guard_webhook_paths");
+    assert.equal(diff.repairPrompt.precedentId, "prec_webhook_replay_boundary");
+    assert.match(diff.contextBlock, /Precedent repair:/u);
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "attempt-session",
+      success: false,
+      notes: "stopped after repair prompt",
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+    const sessionEvents = await readSessionEvents(stateDir, "attempt-session");
+    assert.equal(sessionEvents[0].hook, "diff.after_edit");
+    assert.equal(sessionEvents[0].repairPrompt.precedentId, "prec_webhook_replay_boundary");
+    assert.equal(sessionEvents[1].hook, "outcome.after_task");
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
     assert.equal(health.guardWarningCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("diff.after_edit derives repair prompt paths from diff summaries and unified diffs", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-guards-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const fromSummary = await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "summary-attempt",
+      diffSummary: "features/billing/refunds.ts | 2 ++",
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+
+    assert.deepEqual(fromSummary.diff.changedFiles, ["features/billing/refunds.ts"]);
+    assert.equal(fromSummary.repairPrompt.precedentId, "prec_webhook_replay_boundary");
+    assert.ok(fromSummary.repairPrompt.matchReasons.includes("diff summary supplied"));
+
+    const fromUnifiedDiff = await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "diff.after_edit",
+      sessionId: "unified-attempt",
+      unifiedDiff: [
+        "diff --git a/features/billing/refunds.ts b/features/billing/refunds.ts",
+        "--- a/features/billing/refunds.ts",
+        "+++ b/features/billing/refunds.ts",
+        "@@ -1 +1 @@",
+        "-old",
+        "+new",
+      ].join("\n"),
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+
+    assert.deepEqual(fromUnifiedDiff.diff.changedFiles, ["features/billing/refunds.ts"]);
+    assert.equal(fromUnifiedDiff.repairPrompt.precedentId, "prec_webhook_replay_boundary");
+    assert.ok(fromUnifiedDiff.repairPrompt.matchReasons.includes("unified diff supplied"));
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
@@ -175,6 +240,15 @@ async function promoteAndInjectWebhookPrecedent(stateDir, sessionId) {
     sessionId,
     "--json",
   ]);
+}
+
+async function readSessionEvents(stateDir, sessionId) {
+  const content = await readFile(join(stateDir, "sessions", `${sessionId}.jsonl`), "utf8");
+  return content
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
 }
 
 async function promoteWebhookPrecedent(stateDir) {
