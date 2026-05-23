@@ -1100,6 +1100,30 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].code, "INTENT_GRAPH_INPUT_UNBOUND");
   });
 
+  it("validates graph authorization diagnostics", () => {
+    const diagnostics = validateGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(2) },
+        { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(3) },
+        { id: "goal:demo:verify:0", kind: "Check", label: "shell(\"npm test\")", span: testSpan(4), data: { effect: { family: "shell", action: "run" } } },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
+      ],
+    });
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_AUTHORIZATION_INVALID");
+    assert.equal(diagnostics[0].target_id, "goal:demo:step:patch:effect:0");
+    assert.equal(diagnostics[0].authorizes_edges, 1);
+    assert.equal(diagnostics[0].capability_authorizes_edges, 0);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_AUTHORIZATION_INVALID");
+    assert.equal(diagnostics[1].target_id, "goal:demo:verify:0");
+    assert.equal(diagnostics[1].authorizes_edges, 0);
+  });
+
   it("validates graph completion edge diagnostics", () => {
     const missingProducesDiagnostics = validateGraph({
       source: "synthetic.intent",
@@ -1164,6 +1188,7 @@ describe("intent static model CLI", () => {
         { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
         { id: "goal:demo:step:patch", kind: "Step", label: "patch", span: testSpan(2) },
         { id: "goal:demo:verify:0", kind: "Check", label: "ok", span: testSpan(3) },
+        { id: "goal:demo:capability:0", kind: "Capability", label: "file", span: testSpan(3) },
         { id: "goal:demo:completion", kind: "Completion", label: "demo", span: testSpan(4) },
         { id: "goal:demo:invariant:0", kind: "Invariant", label: "deny secret write", span: testSpan(5) },
         { id: "goal:demo:step:patch:effect:0", kind: "Effect", label: "FileWrite", span: testSpan(6) },
@@ -1174,6 +1199,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:patch", to: "goal:demo:completion", kind: "produces" },
         { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+        { from: "goal:demo:capability:0", to: "goal:demo:step:patch:effect:0", kind: "authorizes" },
         { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
       ],
     });

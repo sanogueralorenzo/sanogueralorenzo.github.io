@@ -1166,6 +1166,7 @@ function validateGraph(graph) {
   const outgoing = new Map(graph.nodes.map((candidate) => [candidate.id, []]));
   const incomingDataCounts = new Map();
   const incomingCompletionEdges = new Map();
+  const incomingAuthorizationEdges = new Map();
   const guardTargetsByInvariant = new Map();
 
   for (const graphEdge of graph.edges) {
@@ -1184,6 +1185,11 @@ function validateGraph(graph) {
       const completionEdges = incomingCompletionEdges.get(graphEdge.to) ?? [];
       completionEdges.push(graphEdge);
       incomingCompletionEdges.set(graphEdge.to, completionEdges);
+    }
+    if (graphEdge.kind === "authorizes") {
+      const authorizationEdges = incomingAuthorizationEdges.get(graphEdge.to) ?? [];
+      authorizationEdges.push(graphEdge);
+      incomingAuthorizationEdges.set(graphEdge.to, authorizationEdges);
     }
     if (graphEdge.kind === "guards" && nodesById.get(graphEdge.from)?.kind === "Invariant") {
       const guardTargets = guardTargetsByInvariant.get(graphEdge.from) ?? new Set();
@@ -1206,6 +1212,23 @@ function validateGraph(graph) {
         continue;
       }
       incomingDataCounts.set(graphEdge.to, (incomingDataCounts.get(graphEdge.to) ?? 0) + 1);
+    }
+  }
+
+  for (const graphNode of graph.nodes) {
+    if (!requiresCapabilityAuthorization(graphNode)) {
+      continue;
+    }
+    const authorizationEdges = incomingAuthorizationEdges.get(graphNode.id) ?? [];
+    const capabilityAuthorizationEdges = authorizationEdges.filter((graphEdge) => nodesById.get(graphEdge.from)?.kind === "Capability");
+    if (authorizationEdges.length === 0 || authorizationEdges.length !== capabilityAuthorizationEdges.length) {
+      diagnostics.push(error("INTENT_GRAPH_AUTHORIZATION_INVALID", `${graphNode.kind} '${graphNode.label}' must have incoming authorizes edges from Capability nodes.`, graphNode.span ?? fallbackSpan, {
+        target: graphNode.label,
+        target_id: graphNode.id,
+        target_kind: graphNode.kind,
+        authorizes_edges: authorizationEdges.length,
+        capability_authorizes_edges: capabilityAuthorizationEdges.length,
+      }));
     }
   }
 
@@ -1300,6 +1323,10 @@ function validateGraph(graph) {
   }
 
   return diagnostics;
+}
+
+function requiresCapabilityAuthorization(graphNode) {
+  return graphNode.kind === "Effect" || (graphNode.kind === "Check" && Boolean(graphNode.data?.effect));
 }
 
 function invariantGoalId(invariantId) {
