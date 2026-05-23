@@ -706,6 +706,44 @@ test("strict check fails successful outcomes that miss finalization", async () =
   }
 });
 
+test("strict check fails successful outcomes with unresolved assumptions", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "unresolved-assumption",
+      eventId: "message-1",
+      messages: [{
+        role: "assistant",
+        trusted: true,
+        content: "Assumption: the webhook module already has a Stripe fixture.",
+      }],
+    });
+    const outcome = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "unresolved-assumption",
+      eventId: "outcome-1",
+      success: true,
+      status: "success",
+    });
+
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const finalizationCheck = payload.checks.find((check) => check.name === "finalization");
+
+    assert.equal(outcome.outcome.finalizationCompliance.status, "missing_finalization");
+    assert.equal(result.exitCode, 1);
+    assert.equal(finalizationCheck.ok, false);
+    assert.equal(finalizationCheck.missing, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("strict check fails failed next actions", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

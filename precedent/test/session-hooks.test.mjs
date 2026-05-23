@@ -453,7 +453,7 @@ test("conversation observe captures explicit assistant assumptions as session-lo
         trusted: true,
         content: [
           "Assumption: the webhook module already has a Stripe fixture.",
-          "Assumption - validation can use pnpm test:webhooks. Token ghp_1234567890abcdef1234567890abcdef1234",
+          "Token ghp_1234567890abcdef1234567890abcdef1234",
         ].join("\n"),
       }],
     });
@@ -473,26 +473,69 @@ test("conversation observe captures explicit assistant assumptions as session-lo
     assert.equal(observed.recorded, true);
     assert.equal(retry.recorded, false);
     assert.equal(observed.assumptionReceipt.status, "accepted");
-    assert.deepEqual(observed.observation.assumptionSignals, [
-      {
-        type: "agent_assumption",
-        text: "the webhook module already has a Stripe fixture",
-        source: "assistant",
-        trusted: true,
-      },
-      {
-        type: "agent_assumption",
-        text: "validation can use pnpm test:webhooks. Token [REDACTED:github_token]",
-        source: "assistant",
-        trusted: true,
-      },
-    ]);
+    assert.equal(observed.assumptionResolutionReceipt.status, "no_resolution");
+    assert.equal(observed.observation.assumptionSignals.length, 1);
+    assert.match(observed.observation.assumptionSignals[0].id, /^assump_[a-f0-9]{16}$/u);
+    assert.equal(observed.observation.assumptionSignals[0].text, "the webhook module already has a Stripe fixture");
+    assert.equal(observed.observation.assumptionSignals[0].source, "assistant");
+    assert.equal(observed.observation.assumptionSignals[0].trusted, true);
     assert.deepEqual(observed.observation.acceptedAssumptionSignals, observed.observation.assumptionSignals);
     assert.equal(observed.contextBlock, [
       "Precedent assumptions to verify:",
       "- the webhook module already has a Stripe fixture.",
-      "- validation can use pnpm test:webhooks. Token [REDACTED:github_token].",
     ].join("\n"));
+
+    const beforeResolution = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "assumptions",
+      eventId: "before-1",
+      task: "add webhook handler",
+    });
+    assert.match(beforeResolution.contextBlock, /the webhook module already has a Stripe fixture/u);
+
+    const blocked = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "assumptions",
+      eventId: "finalize-1",
+    });
+    assert.equal(blocked.decision, "repair");
+    assert.equal(blocked.finalization.reason, "unresolved_assumptions");
+    assert.equal(blocked.finalization.unresolvedAssumptions[0].id, observed.observation.assumptionSignals[0].id);
+    assert.match(blocked.contextBlock, /Verify or invalidate assumption/u);
+
+    const resolved = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "assumptions",
+      eventId: "message-2",
+      messages: [{
+        role: "assistant",
+        trusted: true,
+        content: "Assumption verified: the webhook module already has a Stripe fixture.",
+      }],
+    });
+    assert.equal(resolved.assumptionResolutionReceipt.status, "accepted");
+    assert.equal(resolved.observation.acceptedAssumptionResolutions[0].id, observed.observation.assumptionSignals[0].id);
+
+    const afterResolution = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "assumptions",
+      eventId: "before-2",
+      task: "add webhook handler",
+    });
+    assert.doesNotMatch(afterResolution.contextBlock, /the webhook module already has a Stripe fixture/u);
+
+    const ready = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "assumptions",
+      eventId: "finalize-2",
+    });
+    assert.equal(ready.decision, "ready");
+    assert.deepEqual(ready.finalization.unresolvedAssumptions, []);
 
     const outcome = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",
@@ -509,6 +552,7 @@ test("conversation observe captures explicit assistant assumptions as session-lo
     const trace = JSON.parse(await readFile(join(stateDir, "traces/session-assumptions.json"), "utf8"));
     assert.deepEqual(trace.hooks["conversation.observe"].assumptionSignals, observed.observation.assumptionSignals);
     assert.deepEqual(trace.hooks["conversation.observe"].acceptedAssumptionSignals, observed.observation.assumptionSignals);
+    assert.equal(trace.hooks["conversation.observe"].assumptionResolutionReceipts[1].status, "accepted");
     assert.equal(trace.hooks["conversation.observe"].assumptionReceipts[0].status, "accepted");
     assert.equal(trace.session.events[0].messages[0].content.includes("ghp_1234567890"), false);
   } finally {
@@ -542,6 +586,50 @@ test("conversation observe quarantines non-assistant or untrusted assumptions", 
     assert.ok(observed.assumptionReceipt.reasons.includes("untrusted_source"));
     assert.deepEqual(observed.observation.acceptedAssumptionSignals, []);
     assert.equal(observed.contextBlock, "");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("finalization blocks invalidated assumptions until repaired", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+    const observed = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "invalidated-assumption",
+      eventId: "message-1",
+      messages: [{
+        role: "assistant",
+        trusted: true,
+        content: "Assumption: the webhook module already has a Stripe fixture.",
+      }],
+    });
+    const invalidated = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "invalidated-assumption",
+      eventId: "message-2",
+      messages: [{
+        role: "assistant",
+        trusted: true,
+        content: "Assumption invalidated: the webhook module already has a Stripe fixture.",
+      }],
+    });
+    const finalization = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "invalidated-assumption",
+      eventId: "finalize-1",
+    });
+
+    assert.equal(invalidated.assumptionResolutionReceipt.status, "accepted");
+    assert.equal(invalidated.observation.acceptedAssumptionResolutions[0].id, observed.observation.assumptionSignals[0].id);
+    assert.equal(finalization.decision, "repair");
+    assert.equal(finalization.finalization.reason, "invalidated_assumptions");
+    assert.match(finalization.contextBlock, /Invalidated assumption/u);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

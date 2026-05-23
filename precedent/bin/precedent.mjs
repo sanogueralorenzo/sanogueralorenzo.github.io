@@ -429,7 +429,8 @@ async function exportContext() {
       allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
     });
     const turnDirectives = await activeTurnDirectivesForSession(stateDir, args.session ?? null);
-    const contextBlock = formatRuntimeContextBlock(selected.matches, turnDirectives);
+    const assumptionState = await activeAssumptionStateForSession(stateDir, args.session ?? null);
+    const contextBlock = formatRuntimeContextBlock(selected.matches, turnDirectives, assumptionState);
     const observedAt = new Date().toISOString();
     const deliveryReceipt = deliveryReceiptFor({
       sessionId: args.session ?? null,
@@ -1987,7 +1988,7 @@ async function contextBeforeTurnEventHook(event) {
       sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
     });
     turnDirectives = await activeTurnDirectivesForSession(stateDir, sessionId);
-    contextBlock = formatRuntimeContextBlock(matches, turnDirectives);
+    contextBlock = formatRuntimeContextBlock(matches, turnDirectives, await activeAssumptionStateForSession(stateDir, sessionId));
     deliveryReceipt = deliveryReceiptFor({
       sessionId,
       eventId,
@@ -2256,6 +2257,7 @@ async function conversationObserveEventHook(event) {
   const messages = conversationMessages(event);
   const correctionSignals = conversationCorrectionSignals(messages);
   const assumptionSignals = conversationAssumptionSignals(messages);
+  const assumptionResolutionSignals = conversationAssumptionResolutionSignals(messages);
   const turnDirectiveSignals = conversationTurnDirectiveSignals(messages);
   const changedFiles = Array.isArray(event.changedFiles) ? event.changedFiles : parseListArg(event.changedFiles);
   const correctionSafetyReceipt = correctionSafetyReceiptFor({
@@ -2265,9 +2267,11 @@ async function conversationObserveEventHook(event) {
     changedFiles,
   });
   const assumptionReceipt = assumptionReceiptFor(assumptionSignals);
+  const assumptionResolutionReceipt = assumptionResolutionReceiptFor(assumptionResolutionSignals);
   const turnDirectiveReceipt = turnDirectiveReceiptFor({ messages, turnDirectiveSignals });
   const acceptedCorrectionSignals = correctionSafetyReceipt.status === "accepted" ? correctionSignals : [];
   const acceptedAssumptionSignals = assumptionReceipt.status === "accepted" ? assumptionSignals : [];
+  const acceptedAssumptionResolutions = assumptionResolutionReceipt.status === "accepted" ? assumptionResolutionSignals : [];
   const acceptedTurnDirectives = turnDirectiveReceipt.status === "accepted" ? turnDirectiveSignals : [];
   const contextBlock = [
     formatCorrectionContextBlock(acceptedCorrectionSignals),
@@ -2303,6 +2307,9 @@ async function conversationObserveEventHook(event) {
       assumptionSignals,
       acceptedAssumptionSignals,
       assumptionReceipt,
+      assumptionResolutionSignals,
+      acceptedAssumptionResolutions,
+      assumptionResolutionReceipt,
       turnDirectiveSignals,
       acceptedTurnDirectives,
       turnDirectiveReceipt,
@@ -2327,6 +2334,9 @@ async function conversationObserveEventHook(event) {
         assumptionSignals: sessionEvent.event.assumptionSignals,
         acceptedAssumptionSignals: sessionEvent.event.acceptedAssumptionSignals,
         assumptionReceipt: sessionEvent.event.assumptionReceipt,
+        assumptionResolutionSignals: sessionEvent.event.assumptionResolutionSignals,
+        acceptedAssumptionResolutions: sessionEvent.event.acceptedAssumptionResolutions,
+        assumptionResolutionReceipt: sessionEvent.event.assumptionResolutionReceipt,
         turnDirectiveSignals: sessionEvent.event.turnDirectiveSignals,
         acceptedTurnDirectives: sessionEvent.event.acceptedTurnDirectives,
         turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
@@ -2352,12 +2362,16 @@ async function conversationObserveEventHook(event) {
       assumptionSignals: sessionEvent.event.assumptionSignals,
       acceptedAssumptionSignals: sessionEvent.event.acceptedAssumptionSignals,
       assumptionReceipt: sessionEvent.event.assumptionReceipt,
+      assumptionResolutionSignals: sessionEvent.event.assumptionResolutionSignals,
+      acceptedAssumptionResolutions: sessionEvent.event.acceptedAssumptionResolutions,
+      assumptionResolutionReceipt: sessionEvent.event.assumptionResolutionReceipt,
       turnDirectiveSignals: sessionEvent.event.turnDirectiveSignals,
       acceptedTurnDirectives: sessionEvent.event.acceptedTurnDirectives,
       turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
     },
     correctionSafetyReceipt: sessionEvent.event.correctionSafetyReceipt,
     assumptionReceipt: sessionEvent.event.assumptionReceipt,
+    assumptionResolutionReceipt: sessionEvent.event.assumptionResolutionReceipt,
     turnDirectiveReceipt: sessionEvent.event.turnDirectiveReceipt,
     turnDirectives: directiveSummary(sessionEvent.event.acceptedTurnDirectives),
     contextBlock: sessionEvent.event.contextBlock,
@@ -3279,7 +3293,7 @@ function buildManifest(runtime, stateDir) {
       "conversation.observe": {
         command: hookCommand,
         stdin: ["schema_version", "hook", "sessionId", "eventId", "task", "scope", "changedFiles", "messages", "message"],
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "assumptionResolutionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
@@ -3653,7 +3667,7 @@ async function attachRuntime() {
       },
       conversationObserve: {
         command: hookCommand,
-        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "observation", "correctionSafetyReceipt", "assumptionReceipt", "assumptionResolutionReceipt", "turnDirectiveReceipt", "turnDirectives", "contextBlock", "contextBlockHash", "deliveryReceipt"],
         injectFrom: "contextBlock",
         stdin: {
           schema_version: SCHEMA_VERSION,
@@ -6476,7 +6490,7 @@ function formatBlockedFinalizationDebt(sessionId, finalizationEvent, outcomeEven
 
 function finalizationComplianceForOutcome(sessionEvents, claimedSuccess) {
   const turnEvents = eventsSinceLastOutcome(sessionEvents);
-  const latestTriggerIndex = turnEvents.findLastIndex((event) => FINALIZATION_TRIGGER_HOOKS.has(event.hook));
+  const latestTriggerIndex = turnEvents.findLastIndex(finalizationTriggerEvent);
   if (latestTriggerIndex < 0) {
     return {
       status: "not_required",
@@ -6531,6 +6545,14 @@ function finalizationComplianceForOutcome(sessionEvents, claimedSuccess) {
     reason: finalization.reason ?? null,
     nextAction: finalization.nextAction ?? null,
   };
+}
+
+function finalizationTriggerEvent(event) {
+  return FINALIZATION_TRIGGER_HOOKS.has(event.hook)
+    || (event.hook === "conversation.observe" && (
+      (Array.isArray(event.acceptedAssumptionSignals) && event.acceptedAssumptionSignals.length > 0)
+      || (Array.isArray(event.acceptedAssumptionResolutions) && event.acceptedAssumptionResolutions.length > 0)
+    ));
 }
 
 async function candidateArtifactHealth(stateDir, candidates) {
@@ -7180,6 +7202,29 @@ function finalizeSessionDecision({ sessionEvents, warrant }) {
     };
   }
 
+  const assumptionState = activeAssumptionState(turnEvents);
+  if (assumptionState.invalidated.length > 0 || assumptionState.unresolved.length > 0) {
+    const invalidated = assumptionState.invalidated;
+    const unresolved = assumptionState.unresolved;
+    return {
+      decision: "repair",
+      status: "blocked",
+      reason: invalidated.length > 0 ? "invalidated_assumptions" : "unresolved_assumptions",
+      nextAction: {
+        type: "verify_assumptions",
+        assumptions: [...invalidated, ...unresolved].map(formatAssumptionForAction),
+        followUpHook: "conversation.observe",
+        refinalize: true,
+      },
+      warrantId,
+      missingEvidence: [],
+      violations: [],
+      guardFailures: [],
+      invalidatedAssumptions: invalidated,
+      unresolvedAssumptions: unresolved,
+    };
+  }
+
   return {
     decision: "ready",
     status: "ready",
@@ -7191,6 +7236,65 @@ function finalizeSessionDecision({ sessionEvents, warrant }) {
     missingEvidence: [],
     violations: [],
     guardFailures: [],
+    invalidatedAssumptions: [],
+    unresolvedAssumptions: [],
+  };
+}
+
+function activeAssumptionState(events) {
+  const unresolved = new Map();
+  const invalidated = [];
+
+  for (const event of events) {
+    if (event.hook !== "conversation.observe") {
+      continue;
+    }
+
+    for (const signal of Array.isArray(event.acceptedAssumptionSignals) ? event.acceptedAssumptionSignals : []) {
+      const id = signal.id ?? assumptionIdForText(signal.text);
+      unresolved.set(id, {
+        ...signal,
+        id,
+        observedEventId: event.eventId ?? null,
+      });
+    }
+
+    for (const resolution of Array.isArray(event.acceptedAssumptionResolutions) ? event.acceptedAssumptionResolutions : []) {
+      const id = resolution.id ?? assumptionIdForText(resolution.text);
+      const current = unresolved.get(id) ?? {
+        type: "agent_assumption",
+        id,
+        text: resolution.text,
+        source: null,
+        trusted: true,
+        observedEventId: null,
+      };
+      if (resolution.resolution === "verified") {
+        unresolved.delete(id);
+        continue;
+      }
+
+      unresolved.delete(id);
+      invalidated.push({
+        ...current,
+        resolution,
+        resolvedEventId: event.eventId ?? null,
+      });
+    }
+  }
+
+  return {
+    unresolved: Array.from(unresolved.values()),
+    invalidated,
+  };
+}
+
+function formatAssumptionForAction(signal) {
+  return {
+    id: signal.id ?? assumptionIdForText(signal.text),
+    text: signal.text,
+    observedEventId: signal.observedEventId ?? null,
+    resolvedEventId: signal.resolvedEventId ?? null,
   };
 }
 
@@ -7374,6 +7478,8 @@ function formatFinalizeContextBlock(finalization) {
   return [
     "Precedent finalize:",
     "- Repair the turn before the final response.",
+    ...((finalization.invalidatedAssumptions ?? []).map((item) => `- Invalidated assumption: ${item.text}`)),
+    ...((finalization.unresolvedAssumptions ?? []).map((item) => `- Verify or invalidate assumption: ${item.text}`)),
     ...finalization.violations.map((item) => `- Warrant violation: ${item.message}`),
     ...finalization.guardFailures.map((item) => `- Guard warning: ${item.message}`),
   ].join("\n");
@@ -7776,11 +7882,13 @@ async function queueFinalizationNextAction({ stateDir, sessionId, idleEventId, f
     ...replayCommandSafety(command),
   }));
   const unsafe = commandSafety.find((item) => !item.safe) ?? null;
-  const unsupported = !["run_validation", "repair_retry"].includes(actionType);
-  const status = unsupported || unsafe ? "blocked" : "ready";
+  const unsupported = !["run_validation", "repair_retry", "verify_assumptions"].includes(actionType);
+  const status = unsupported || unsafe || actionType === "verify_assumptions" ? "blocked" : "ready";
   const reason = unsupported
     ? "unsupported_next_action"
-    : unsafe?.reason ?? (actionType === "run_validation" ? "awaiting_validation_execution" : "awaiting_repair_retry");
+    : unsafe?.reason ?? (actionType === "run_validation"
+      ? "awaiting_validation_execution"
+      : actionType === "verify_assumptions" ? "awaiting_assumption_verification" : "awaiting_repair_retry");
   const id = `next_${stableHash({
     sessionId,
     finalizationEventId,
@@ -8080,10 +8188,13 @@ async function traceFromSession(stateDir, sessionId) {
       acceptedCorrectionSignals: observations.flatMap((event) => Array.isArray(event.acceptedCorrectionSignals) ? event.acceptedCorrectionSignals : []),
       assumptionSignals: observations.flatMap((event) => Array.isArray(event.assumptionSignals) ? event.assumptionSignals : []),
       acceptedAssumptionSignals: observations.flatMap((event) => Array.isArray(event.acceptedAssumptionSignals) ? event.acceptedAssumptionSignals : []),
+      assumptionResolutionSignals: observations.flatMap((event) => Array.isArray(event.assumptionResolutionSignals) ? event.assumptionResolutionSignals : []),
+      acceptedAssumptionResolutions: observations.flatMap((event) => Array.isArray(event.acceptedAssumptionResolutions) ? event.acceptedAssumptionResolutions : []),
       turnDirectiveSignals: observations.flatMap((event) => Array.isArray(event.turnDirectiveSignals) ? event.turnDirectiveSignals : []),
       acceptedTurnDirectives: observations.flatMap((event) => Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : []),
       safetyReceipts: observations.map((event) => event.correctionSafetyReceipt).filter(Boolean),
       assumptionReceipts: observations.map((event) => event.assumptionReceipt).filter(Boolean),
+      assumptionResolutionReceipts: observations.map((event) => event.assumptionResolutionReceipt).filter(Boolean),
       turnDirectiveReceipts: observations.map((event) => event.turnDirectiveReceipt).filter(Boolean),
       changedFiles: uniqueStrings(observations.flatMap((event) => Array.isArray(event.changedFiles) ? event.changedFiles : [])),
     }
@@ -8131,6 +8242,9 @@ function sessionTraceEvent(event) {
     assumptionSignals: Array.isArray(event.assumptionSignals) ? event.assumptionSignals : [],
     acceptedAssumptionSignals: Array.isArray(event.acceptedAssumptionSignals) ? event.acceptedAssumptionSignals : [],
     assumptionReceipt: event.assumptionReceipt ?? null,
+    assumptionResolutionSignals: Array.isArray(event.assumptionResolutionSignals) ? event.assumptionResolutionSignals : [],
+    acceptedAssumptionResolutions: Array.isArray(event.acceptedAssumptionResolutions) ? event.acceptedAssumptionResolutions : [],
+    assumptionResolutionReceipt: event.assumptionResolutionReceipt ?? null,
     turnDirectiveSignals: Array.isArray(event.turnDirectiveSignals) ? event.turnDirectiveSignals : [],
     acceptedTurnDirectives: Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : [],
     turnDirectiveReceipt: event.turnDirectiveReceipt ?? null,
@@ -8784,6 +8898,7 @@ function conversationAssumptionSignals(messages) {
 
       signals.push({
         type: "agent_assumption",
+        id: assumptionIdForText(text),
         text,
         source: message.role,
         trusted: message.trusted !== false,
@@ -8792,6 +8907,38 @@ function conversationAssumptionSignals(messages) {
   }
 
   return uniqueBy(signals, (signal) => `${signal.type}:${signal.text}:${signal.source}:${signal.trusted}`);
+}
+
+function conversationAssumptionResolutionSignals(messages) {
+  const signals = [];
+
+  for (const message of messages) {
+    const lines = message.content.split(/\r?\n/u);
+    for (const line of lines) {
+      const match = line.match(/^\s*(?:[-*]\s*)?(?:assumption\s+)?(verified|invalidated|dismissed)\s*[:\-]\s*(.+?)\s*$/iu)
+        ?? line.match(/^\s*(?:[-*]\s*)?(verified|invalidated|dismissed)\s+assumption\s*[:\-]\s*(.+?)\s*$/iu);
+      if (!match) {
+        continue;
+      }
+
+      const resolution = match[1].toLowerCase() === "verified" ? "verified" : "invalidated";
+      const text = cleanAssumptionText(match[2]);
+      if (text.length === 0) {
+        continue;
+      }
+
+      signals.push({
+        type: "assumption_resolution",
+        id: assumptionIdForText(text),
+        text,
+        resolution,
+        source: message.role,
+        trusted: message.trusted !== false,
+      });
+    }
+  }
+
+  return uniqueBy(signals, (signal) => `${signal.type}:${signal.id}:${signal.resolution}:${signal.source}:${signal.trusted}`);
 }
 
 function conversationTurnDirectiveSignals(messages) {
@@ -8886,6 +9033,45 @@ function assumptionReceiptFor(assumptionSignals) {
         reason: "non_assistant_source",
       };
     }
+    if (signal.trusted !== true) {
+      return {
+        source: signal.source,
+        trusted: false,
+        safe: false,
+        reason: "untrusted_source",
+      };
+    }
+
+    return {
+      source: signal.source,
+      trusted: true,
+      safe: true,
+      reason: null,
+    };
+  });
+  const reasons = uniqueStrings(sourceSafety
+    .filter((item) => !item.safe)
+    .map((item) => item.reason));
+
+  return {
+    status: reasons.length === 0 ? "accepted" : "quarantined",
+    accepted: reasons.length === 0,
+    reasons,
+    sourceSafety,
+  };
+}
+
+function assumptionResolutionReceiptFor(assumptionResolutionSignals) {
+  if (assumptionResolutionSignals.length === 0) {
+    return {
+      status: "no_resolution",
+      accepted: false,
+      reasons: [],
+      sourceSafety: [],
+    };
+  }
+
+  const sourceSafety = assumptionResolutionSignals.map((signal) => {
     if (signal.trusted !== true) {
       return {
         source: signal.source,
@@ -9036,6 +9222,10 @@ function cleanAssumptionText(value) {
     .slice(0, 300);
 }
 
+function assumptionIdForText(text) {
+  return `assump_${stableHash(cleanAssumptionText(text).toLowerCase()).slice(0, 16)}`;
+}
+
 function cleanDirectivePath(value) {
   return cleanCorrectionPath(value)
     .replace(/^the\s+/iu, "")
@@ -9171,6 +9361,14 @@ async function activeTurnDirectivesForSession(stateDir, sessionId) {
     .flatMap((event) => Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : []));
 }
 
+async function activeAssumptionStateForSession(stateDir, sessionId) {
+  if (!nonEmptyString(sessionId)) {
+    return { unresolved: [], invalidated: [] };
+  }
+
+  return activeAssumptionState(eventsSinceLastOutcome(await readSessionEvents(stateDir, sessionId)));
+}
+
 function formatTurnDirectiveContextBlock(directives) {
   const summary = directives ?? emptyTurnDirectives();
   const lines = [];
@@ -9184,9 +9382,22 @@ function formatTurnDirectiveContextBlock(directives) {
   return lines.length > 0 ? ["Precedent directive:", ...lines].join("\n") : "";
 }
 
-function formatRuntimeContextBlock(matches, directives) {
+function formatActiveAssumptionContextBlock(assumptionState) {
+  const unresolved = Array.isArray(assumptionState?.unresolved) ? assumptionState.unresolved : [];
+  if (unresolved.length === 0) {
+    return "";
+  }
+
+  return [
+    "Precedent assumptions to verify:",
+    ...unresolved.slice(0, 5).map((signal) => `- ${signal.text}.`),
+  ].join("\n");
+}
+
+function formatRuntimeContextBlock(matches, directives, assumptionState = null) {
   return [
     formatInjectionBlock(matches),
+    formatActiveAssumptionContextBlock(assumptionState),
     formatTurnDirectiveContextBlock(directives),
   ].filter(Boolean).join("\n");
 }
