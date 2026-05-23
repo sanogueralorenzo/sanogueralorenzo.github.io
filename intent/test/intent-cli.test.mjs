@@ -453,6 +453,9 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].effect, "FileWrite");
     assert.equal(payload.diagnostics[0].family, "file");
     assert.equal(payload.diagnostics[0].action, "write");
+    assert.equal(payload.diagnostics[0].span.start.line, 46);
+    assert.equal(payload.diagnostics[0].span.start.column, 13);
+    assert.equal(payload.diagnostics[0].span.end.column, 44);
   });
 
   it("rejects memory blocks without retention lifecycle rules", () => {

@@ -813,7 +813,7 @@ function validateVerifyRequirements(goal, diagnostics) {
   for (const requirement of goal.verify) {
     const impureEffect = verificationImpureEffect(requirement);
     if (impureEffect) {
-      diagnostics.push(error("INTENT_VERIFY_IMPURE", `verify requirement '${requirement.value}' uses side-effect call '${impureEffect.name}'.`, requirement.span, {
+      diagnostics.push(error("INTENT_VERIFY_IMPURE", `verify requirement '${requirement.value}' uses side-effect call '${impureEffect.name}'.`, impureEffect.span, {
         requirement: requirement.value,
         effect: impureEffect.name,
         family: impureEffect.family,
@@ -1406,7 +1406,8 @@ function verificationImpureEffect(requirement) {
     if (!isKnownEffectCall(name)) {
       continue;
     }
-    const parsedArgs = parseCallArgs(`(${match[2]})`);
+    const rawPrefix = " ".repeat(requirement.span.start.column + "require ".length - 1);
+    const parsedArgs = parseCallArgs(match[0], requirement.span.file, requirement.span.start.line, `${rawPrefix}${requirement.value}`);
     return {
       kind: "EffectUse",
       name,
@@ -1414,11 +1415,17 @@ function verificationImpureEffect(requirement) {
       action: effectAction(name),
       args: parsedArgs.values,
       argKinds: parsedArgs.kinds,
+      argSpans: parsedArgs.spans,
       expression: match[0],
-      span: requirement.span,
+      span: requirementValueSpan(requirement, match.index, match[0].length),
     };
   }
   return null;
+}
+
+function requirementValueSpan(requirement, startIndex, length) {
+  const startColumn = requirement.span.start.column + "require ".length + startIndex;
+  return span(requirement.span.file, requirement.span.start.line, startColumn, requirement.span.start.line, startColumn + length);
 }
 
 function isKnownEffectCall(name) {
