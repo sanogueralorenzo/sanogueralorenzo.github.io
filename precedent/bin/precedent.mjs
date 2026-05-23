@@ -2018,6 +2018,23 @@ async function repairBeforeRetryEventHook(event) {
   try {
     const locked = await withStateLock(stateDir, async () => {
       await ensureState(stateDir);
+      if (eventId) {
+        const existing = await findSessionEventByEventId(stateDir, sessionId, eventId);
+        if (existing?.event?.hook === event.hook) {
+          repairBlock = existing.event.repairBlock ?? "";
+          repairSource = existing.event.repairSource ?? null;
+          suppressedRepairs = existing.event.suppressedRepairs ?? [];
+          sessionEvent = {
+            sessionId,
+            path: existing.path,
+            event: existing.event,
+            receivedAt: existing.event.receivedAt,
+            deduped: true,
+          };
+          return;
+        }
+      }
+
       const events = await readSessionEvents(stateDir, sessionId);
       const allEvents = await readJsonLines(join(stateDir, "events.jsonl"));
       const candidate = latestRepairCandidate(events);
@@ -2873,6 +2890,17 @@ async function attachRunSession() {
     command: redactSecrets(validationCommand).value,
     attributedPrecedents,
   });
+  const diff = await runAttachDiff({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:diff.after_edit` : null,
+    deliveryId,
+    warrantId,
+    changedFiles: parseListArg(args["diff-changed-files"]),
+    diffSummary: args["diff-summary"],
+    unifiedDiff: args["unified-diff"],
+    attributedPrecedents,
+  });
   const initialFinalization = await runAttachFinalization({
     stateDirArg,
     sessionId,
@@ -2891,6 +2919,16 @@ async function attachRunSession() {
     finalization: initialFinalization,
   });
   const finalization = selfHealing.finalization ?? initialFinalization;
+  const selfRepair = await runAttachRepairHandoff({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:repair.before_retry` : null,
+    task: taskSource.task,
+    scope,
+    changedFiles,
+    attributedPrecedents,
+    finalization,
+  });
   const validationResults = [
     validation.validation,
     ...selfHealing.validations.map((item) => item.validation),
@@ -2942,12 +2980,48 @@ async function attachRunSession() {
     attributedPrecedents,
     beforeTurn,
     warrant,
+    diff,
     validation,
     selfHealing,
+    selfRepair,
     finalization,
     outcome,
     autoPromotion,
     learning: outcome.learning ?? null,
+  });
+}
+
+async function runAttachDiff({
+  stateDirArg,
+  sessionId,
+  eventId,
+  deliveryId,
+  warrantId,
+  changedFiles,
+  diffSummary,
+  unifiedDiff,
+  attributedPrecedents,
+}) {
+  if (changedFiles.length === 0 && !diffSummary && !unifiedDiff) {
+    return null;
+  }
+
+  return runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "diff.after_edit",
+    sessionId,
+    ...eventIdField(eventId),
+    deliveryId,
+    warrantId,
+    changedFiles,
+    diffSummary: diffSummary ?? null,
+    unifiedDiff: unifiedDiff ?? null,
+    attributedPrecedents,
   });
 }
 
@@ -3000,6 +3074,46 @@ function runAttachFinalization({ stateDirArg, sessionId, eventId, deliveryId, wa
     warrantId,
     attributedPrecedents,
   });
+}
+
+function runAttachRepairHandoff({
+  stateDirArg,
+  sessionId,
+  eventId,
+  task,
+  scope,
+  changedFiles,
+  attributedPrecedents,
+  finalization,
+}) {
+  const nextAction = finalization.nextAction ?? {};
+  if (nextAction.type !== "repair_retry") {
+    return {
+      status: "not_needed",
+      repair: null,
+    };
+  }
+
+  return runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "repair.before_retry",
+    sessionId,
+    ...eventIdField(eventId),
+    task,
+    scope: scope || null,
+    changedFiles,
+    attributedPrecedents,
+  }).then((repair) => ({
+    status: repair.repairBlock ? "handoff_ready" : "suppressed",
+    repair,
+    repairId: repair.repairId,
+    suppressedRepairs: repair.suppressedRepairs ?? [],
+  }));
 }
 
 async function runAttachSelfHealing({
@@ -8246,7 +8360,7 @@ Usage:
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent attach [--runtime generic|codex] [--session session-id|--thread-id thread-id] --task "text"
-  precedent attach-run --task "text" --validation-command "cmd" [--session session-id|--thread-id thread-id] [--event-prefix id] [--auto-promote]
+  precedent attach-run --task "text" --validation-command "cmd" [--diff-changed-files paths] [--session session-id|--thread-id thread-id] [--event-prefix id] [--auto-promote]
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
@@ -8268,7 +8382,7 @@ Commands:
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   attach    Emit a zero-touch runtime adapter contract for one session.
-  attach-run Run before-turn, warrant, validation, self-healing finalization, outcome, and optional queued promotion hooks.
+  attach-run Run before-turn, warrant, validation, optional diff, self-healing finalization, repair handoff, outcome, and optional queued promotion hooks.
   check     Validate local Precedent state for CI.
   prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.

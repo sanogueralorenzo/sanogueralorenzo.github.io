@@ -504,6 +504,56 @@ test("attach-run does not self-heal unsafe validation commands", async () => {
   }
 });
 
+test("attach-run hands repair finalization to repair prompt hook", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const args = [
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "repair-handoff-run",
+      "--event-prefix",
+      "repair-handoff-delivery",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--diff-changed-files",
+      "features/billing/refunds.ts",
+      "--validation-command",
+      "node --check precedent/bin/precedent.mjs",
+      "--json",
+    ];
+
+    const run = await runJson(args);
+    const retry = await runJson(args);
+
+    assert.equal(run.diff.warrantResult.status, "violated");
+    assert.equal(run.finalization.decision, "repair");
+    assert.equal(run.selfRepair.status, "handoff_ready");
+    assert.equal(run.selfRepair.repair.recorded, true);
+    assert.match(run.selfRepair.repair.repairBlock, /Precedent repair:/u);
+    assert.match(run.selfRepair.repair.repairBlock, /features\/billing\/refunds\.ts/u);
+    assert.equal(run.selfRepair.repair.repairSource.kind, "diff_repair");
+    assert.equal(run.outcome.outcome.success, false);
+    assert.equal(retry.diff.deduped, true);
+    assert.equal(retry.selfRepair.repair.deduped, true);
+    assert.equal(retry.selfRepair.repair.repairId, run.selfRepair.repair.repairId);
+    assert.equal(retry.selfRepair.repair.repairBlock, run.selfRepair.repair.repairBlock);
+
+    const sessionEvents = await readJsonLines(join(stateDir, "sessions/repair-handoff-run.jsonl"));
+    assert.equal(sessionEvents.filter((event) => event.eventId === "repair-handoff-delivery:diff.after_edit").length, 1);
+    assert.equal(sessionEvents.filter((event) => event.eventId === "repair-handoff-delivery:repair.before_retry").length, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("attach-run failed validation creates a replay-gated learning candidate", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
 
