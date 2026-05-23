@@ -673,6 +673,30 @@ a {
   background: #caa85f;
 }
 
+.unmade-object-memo-file {
+  background: #e6dccd;
+}
+
+.unmade-object-archive-machine {
+  background: #8fa59e;
+}
+
+.unmade-object-seat {
+  background: #c9b56f;
+}
+
+.unmade-object-policy {
+  background: #eee5d8;
+}
+
+.unmade-object-hearing {
+  background: #b75c46;
+}
+
+.unmade-object-badge {
+  background: #789cad;
+}
+
 .unmade-entry-page {
   padding-bottom: 96px;
 }
