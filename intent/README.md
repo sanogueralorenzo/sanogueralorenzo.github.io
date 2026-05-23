@@ -270,7 +270,8 @@ Validation expectations:
   emits `INTENT_PROVENANCE_MISSING`. Completion node `data.provenance` records
   the triggering requirements, invariants, and final-step citations; malformed
   provenance payloads or required provenance with no citations emit
-  `INTENT_GRAPH_COMPLETION_INVALID`.
+  `INTENT_GRAPH_COMPLETION_INVALID`, and metadata that diverges from final-step
+  `cites` edges emits `INTENT_GRAPH_COMPLETION_METADATA_INVALID`.
 - Completion checkpoint policy is enforced by the checker and graph contract.
   `require final_state_checkpointed` and `require checkpointed_final_state`
   require the final completion-producing step to declare at least one
@@ -282,7 +283,9 @@ Validation expectations:
   `INTENT_CHECKPOINT_MISSING`. Completion node `data.checkpoint` records the
   triggering final-state requirements and final-step checkpoints; malformed
   checkpoint payloads or required checkpoint metadata with no checkpoint
-  records emit `INTENT_GRAPH_COMPLETION_INVALID`.
+  records emit `INTENT_GRAPH_COMPLETION_INVALID`, and metadata that diverges
+  from final-step `checkpoints` edges emits
+  `INTENT_GRAPH_COMPLETION_METADATA_INVALID`.
 - Runtime graph `produces` and `requires` edge payloads are typed contracts.
   The role-valid `produces` edge from the final executable `Step` to
   `Completion` must carry non-empty `type` plus valid `sourceSpan` and
@@ -465,7 +468,10 @@ Validation expectations:
   runtime payload contract is separate from
   the existing
   completion-edge contract, which still requires `completes`, `produces`,
-  `verifies`, and invariant `guards` edges.
+  `verifies`, and invariant `guards` edges. Valid completion provenance and
+  checkpoint metadata must match the final producing step's role-valid `cites`
+  and `checkpoints` edges in source order; mismatches emit
+  `INTENT_GRAPH_COMPLETION_METADATA_INVALID`.
 - Graph `Invariant` nodes are the next Phase 2 static-model milestone.
   Invariant node data must carry `assertion` as `Require` or `Deny` and
   `invariant` as a non-empty string. Malformed Invariant node payloads emit

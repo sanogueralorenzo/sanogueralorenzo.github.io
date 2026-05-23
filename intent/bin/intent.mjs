@@ -2332,6 +2332,9 @@ function validateGraph(graph, options = {}) {
         has_required_checkpoint_edges: hasRequiredCheckpointEdges,
       }));
     }
+    for (const metadataDiagnostic of validateGraphCompletionMetadata(graphNode, producingEdges, citationEdges, checkpointEdges, nodesById, fallbackSpan)) {
+      diagnostics.push(metadataDiagnostic);
+    }
   }
 
   for (const graphNode of graphNodes) {
@@ -2630,6 +2633,106 @@ function outputSpansEqual(left, right) {
   return left === null && right === null ? true : spansEqual(left, right);
 }
 
+function validateGraphCompletionMetadata(graphNode, producingEdges, citationEdges, checkpointEdges, nodesById, fallbackSpan) {
+  if (producingEdges.length !== 1 || nodesById.get(producingEdges[0].from)?.kind !== "Step") {
+    return [];
+  }
+  const producingEdge = producingEdges[0];
+  return [
+    validateGraphCompletionCitationMetadata(graphNode, producingEdge, citationEdges, nodesById, fallbackSpan),
+    validateGraphCompletionCheckpointMetadata(graphNode, producingEdge, checkpointEdges, nodesById, fallbackSpan),
+  ].filter((diagnostic) => diagnostic !== null);
+}
+
+function validateGraphCompletionCitationMetadata(graphNode, producingEdge, citationEdges, nodesById, fallbackSpan) {
+  if (!isGraphCompletionProvenanceValid(graphNode.data?.provenance)) {
+    return null;
+  }
+  const declaredValues = graphNode.data.provenance.citations;
+  const edgeValues = citationEdges.map((graphEdge) => {
+    const stepNode = nodesById.get(producingEdge.from);
+    return {
+      memory: graphEdge.data.memory,
+      key: graphEdge.data.key ?? null,
+      target: graphEdge.data.target,
+      step: stepNode?.label ?? null,
+      span: graphEdge.data.targetSpan,
+    };
+  });
+  if (provenanceCitationArraysEqual(declaredValues, edgeValues)) {
+    return null;
+  }
+  return completionMetadataError(graphNode, fallbackSpan, "provenance.citations", declaredValues, edgeValues, citationEdges);
+}
+
+function validateGraphCompletionCheckpointMetadata(graphNode, producingEdge, checkpointEdges, nodesById, fallbackSpan) {
+  if (!isGraphCompletionCheckpointValid(graphNode.data?.checkpoint)) {
+    return null;
+  }
+  const declaredValues = graphNode.data.checkpoint.checkpoints;
+  const stepNode = nodesById.get(producingEdge.from);
+  const edgeValues = checkpointEdges.map((graphEdge) => {
+    const checkpointNode = nodesById.get(graphEdge.to);
+    return {
+      checkpoint: checkpointNode?.data?.checkpoint ?? graphEdge.data?.checkpoint ?? null,
+      step: stepNode?.label ?? null,
+      span: checkpointNode?.span ?? null,
+    };
+  });
+  if (completionCheckpointArraysEqual(declaredValues, edgeValues)) {
+    return null;
+  }
+  return completionMetadataError(graphNode, fallbackSpan, "checkpoint.checkpoints", declaredValues, edgeValues, checkpointEdges);
+}
+
+function completionMetadataError(graphNode, fallbackSpan, field, declaredValues, edgeValues, graphEdges) {
+  return error("INTENT_GRAPH_COMPLETION_METADATA_INVALID", `completion '${graphNode.label}' metadata field '${field}' must match final step graph edges in source order.`, graphNode.span ?? fallbackSpan, {
+    completion: graphNode.label,
+    completion_id: graphNode.id,
+    field,
+    declared_values: declaredValues,
+    edge_values: edgeValues,
+    edge_ids: graphEdges.map((graphEdge) => ({ from: graphEdge.from, to: graphEdge.to, kind: graphEdge.kind })),
+    declared_count: declaredValues.length,
+    edge_count: edgeValues.length,
+    mismatched_indexes: mismatchedRecordIndexes(declaredValues, edgeValues, field === "provenance.citations" ? provenanceCitationsEqual : completionCheckpointsEqual),
+  });
+}
+
+function provenanceCitationArraysEqual(left, right) {
+  return recordArraysEqual(left, right, provenanceCitationsEqual);
+}
+
+function provenanceCitationsEqual(left, right) {
+  return left?.memory === right?.memory
+    && (left?.key ?? null) === (right?.key ?? null)
+    && left?.target === right?.target
+    && left?.step === right?.step
+    && spansEqual(left?.span, right?.span);
+}
+
+function completionCheckpointArraysEqual(left, right) {
+  return recordArraysEqual(left, right, completionCheckpointsEqual);
+}
+
+function completionCheckpointsEqual(left, right) {
+  return left?.checkpoint === right?.checkpoint
+    && left?.step === right?.step
+    && spansEqual(left?.span, right?.span);
+}
+
+function recordArraysEqual(left, right, equals) {
+  return Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && left.every((value, index) => equals(value, right[index]));
+}
+
+function mismatchedRecordIndexes(left, right, equals) {
+  return Array.from({ length: Math.max(left.length, right.length) }, (_, index) => index)
+    .filter((index) => !equals(left[index], right[index]));
+}
+
 function validateGraphCompletion(graphNode, graphSpan) {
   if (graphNode.kind !== "Completion") {
     return null;
@@ -2659,14 +2762,7 @@ function validateGraphCompletion(graphNode, graphSpan) {
 }
 
 function validateGraphCompletionProvenance(provenance) {
-  const provenanceIsValid = isPlainObject(provenance)
-    && typeof provenance.required === "boolean"
-    && Array.isArray(provenance.requirements)
-    && provenance.requirements.every(isGraphProvenanceRequirement)
-    && Array.isArray(provenance.invariants)
-    && provenance.invariants.every(isGraphProvenanceInvariant)
-    && Array.isArray(provenance.citations)
-    && provenance.citations.every(isGraphProvenanceCitation);
+  const provenanceIsValid = isGraphCompletionProvenanceValid(provenance);
   const provenanceHasRequiredCitations = provenanceIsValid
     && (!provenance.required || provenance.citations.length > 0);
   if (provenanceIsValid && provenanceHasRequiredCitations) {
@@ -2677,6 +2773,17 @@ function validateGraphCompletionProvenance(provenance) {
     provenance_required: isPlainObject(provenance) && typeof provenance.required === "boolean" ? provenance.required : null,
     provenance_has_required_citations: provenanceHasRequiredCitations,
   };
+}
+
+function isGraphCompletionProvenanceValid(provenance) {
+  return isPlainObject(provenance)
+    && typeof provenance.required === "boolean"
+    && Array.isArray(provenance.requirements)
+    && provenance.requirements.every(isGraphProvenanceRequirement)
+    && Array.isArray(provenance.invariants)
+    && provenance.invariants.every(isGraphProvenanceInvariant)
+    && Array.isArray(provenance.citations)
+    && provenance.citations.every(isGraphProvenanceCitation);
 }
 
 function isGraphProvenanceRequirement(value) {
@@ -2707,14 +2814,7 @@ function isGraphProvenanceCitation(value) {
 }
 
 function validateGraphCompletionCheckpoint(checkpoint) {
-  const checkpointIsValid = isPlainObject(checkpoint)
-    && typeof checkpoint.required === "boolean"
-    && Array.isArray(checkpoint.requirements)
-    && checkpoint.requirements.every(isGraphCheckpointRequirement)
-    && Array.isArray(checkpoint.invariants)
-    && checkpoint.invariants.every(isGraphCheckpointInvariant)
-    && Array.isArray(checkpoint.checkpoints)
-    && checkpoint.checkpoints.every(isGraphCompletionCheckpointRecord);
+  const checkpointIsValid = isGraphCompletionCheckpointValid(checkpoint);
   const checkpointHasRequiredRecords = checkpointIsValid
     && (!checkpoint.required || checkpoint.checkpoints.length > 0);
   if (checkpointIsValid && checkpointHasRequiredRecords) {
@@ -2725,6 +2825,17 @@ function validateGraphCompletionCheckpoint(checkpoint) {
     checkpoint_required: isPlainObject(checkpoint) && typeof checkpoint.required === "boolean" ? checkpoint.required : null,
     checkpoint_has_required_records: checkpointHasRequiredRecords,
   };
+}
+
+function isGraphCompletionCheckpointValid(checkpoint) {
+  return isPlainObject(checkpoint)
+    && typeof checkpoint.required === "boolean"
+    && Array.isArray(checkpoint.requirements)
+    && checkpoint.requirements.every(isGraphCheckpointRequirement)
+    && Array.isArray(checkpoint.invariants)
+    && checkpoint.invariants.every(isGraphCheckpointInvariant)
+    && Array.isArray(checkpoint.checkpoints)
+    && checkpoint.checkpoints.every(isGraphCompletionCheckpointRecord);
 }
 
 function isGraphCheckpointRequirement(value) {

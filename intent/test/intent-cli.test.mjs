@@ -4532,6 +4532,95 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[7].checkpoint_has_required_records, false);
   });
 
+  it("validates graph completion metadata parity diagnostics", () => {
+    const goalSpan = testSpan(1);
+    const stepOutputSpan = testSpan(2);
+    const memorySpan = testSpan(3);
+    const citationSpan = testSpan(4);
+    const checkpointSpan = testSpan(5);
+    const checkSpan = testSpan(6);
+    const completionSpan = testSpan(7);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: goalSpan, data: { title: "Demo", parameters: [], outputType: "Report", outputTypeSpan: completionSpan } },
+        {
+          id: "goal:demo:memory:0",
+          kind: "Memory",
+          label: "session",
+          span: memorySpan,
+          data: {
+            retention: ["session until completion"],
+            retentionRules: [{ raw: "session until completion", subject: { raw: "session" }, until: { raw: "completion" } }],
+            keys: [],
+          },
+        },
+        {
+          id: "goal:demo:step:final",
+          kind: "Step",
+          label: "final",
+          span: stepOutputSpan,
+          data: {
+            inputs: [],
+            outputType: "Report",
+            outputTypeSpan: stepOutputSpan,
+            effects: [],
+            requirements: [],
+            checkpoints: ["final state"],
+            approvals: [],
+            timeouts: [],
+            retries: [],
+            memoryAccesses: ["session.evidence"],
+          },
+        },
+        { id: "goal:demo:step:final:checkpoint:0", kind: "Checkpoint", label: "final state", span: checkpointSpan, data: { checkpoint: "final state", ownerStep: "final" } },
+        { id: "goal:demo:verify:0", kind: "Check", label: "done", span: checkSpan, data: { requirement: "done", scope: "goal" } },
+        {
+          id: "goal:demo:completion",
+          kind: "Completion",
+          label: "demo",
+          span: completionSpan,
+          data: {
+            outputType: "Report",
+            outputTypeSpan: completionSpan,
+            provenance: {
+              required: true,
+              requirements: [{ requirement: "memory_provenance_complete", span: checkSpan }],
+              invariants: [],
+              citations: [{ memory: "session", key: null, target: "session.wrong", step: "final", span: citationSpan }],
+            },
+            checkpoint: {
+              required: true,
+              requirements: [{ requirement: "final_state_checkpointed", span: checkSpan }],
+              invariants: [],
+              checkpoints: [{ checkpoint: "wrong final state", step: "final", span: checkpointSpan }],
+            },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:memory:0", kind: "declares" },
+        { from: "goal:demo", to: "goal:demo:step:final", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:final", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: stepOutputSpan, targetSpan: completionSpan } },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:final", kind: "cites", data: { access: "cite", memory: "session", key: null, target: "session.evidence", sourceSpan: memorySpan, targetSpan: citationSpan } },
+        { from: "goal:demo:step:final", to: "goal:demo:step:final:checkpoint:0", kind: "checkpoints", data: { checkpoint: "final state" } },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates", data: { requirement: "done", scope: "goal", sourceSpan: checkSpan, targetSpan: goalSpan } },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies", data: { requirement: "done", scope: "goal", sourceSpan: checkSpan, targetSpan: completionSpan } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_COMPLETION_METADATA_INVALID");
+
+    assert.equal(diagnostics.length, 2);
+    assert.equal(diagnostics[0].field, "provenance.citations");
+    assert.equal(diagnostics[0].declared_values[0].target, "session.wrong");
+    assert.equal(diagnostics[0].edge_values[0].target, "session.evidence");
+    assert.deepEqual(diagnostics[0].mismatched_indexes, [0]);
+    assert.equal(diagnostics[1].field, "checkpoint.checkpoints");
+    assert.equal(diagnostics[1].declared_values[0].checkpoint, "wrong final state");
+    assert.equal(diagnostics[1].edge_values[0].checkpoint, "final state");
+    assert.deepEqual(diagnostics[1].mismatched_indexes, [0]);
+  });
+
   it("validates graph typed edge contract diagnostics", () => {
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
@@ -4746,7 +4835,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo:invariant:0", to: "goal:demo", kind: "constrains" },
         { from: "goal:demo:invariant:0", to: "goal:demo:completion", kind: "guards" },
       ],
-    });
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_GUARD_INVALID");
 
     assert.equal(diagnostics.length, 1);
     assert.equal(diagnostics[0].code, "INTENT_GRAPH_GUARD_INVALID");
