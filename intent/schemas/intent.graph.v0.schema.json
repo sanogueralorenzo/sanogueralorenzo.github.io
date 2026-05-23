@@ -87,7 +87,7 @@
     },
     "parameter": {
       "type": "object",
-      "required": ["name", "type"],
+      "required": ["name", "type", "span"],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -95,6 +95,9 @@
         },
         "type": {
           "type": ["string", "null"]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
         }
       }
     },
