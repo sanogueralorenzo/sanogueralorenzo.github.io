@@ -704,6 +704,10 @@ test("strict check fails failed next actions", async () => {
       && item.missingEvidenceIds.includes("next_missing_evidence")
       && item.missingFinalization === 1
       && item.missingFinalizationIds.includes("next_missing_finalization")
+      && item.invalidLeaseTerminals === 3
+      && item.invalidLeaseTerminalIds.includes("next_failed")
+      && item.invalidLeaseTerminalIds.includes("next_missing_evidence")
+      && item.invalidLeaseTerminalIds.includes("next_missing_finalization")
     )));
   } finally {
     await rm(stateDir, { force: true, recursive: true });

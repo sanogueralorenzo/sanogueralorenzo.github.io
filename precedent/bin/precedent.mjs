@@ -966,6 +966,12 @@ async function nextActionCommand() {
 
     const id = requireString(args.id, "next-action --id");
     const action = queue.items.find((item) => item.id === id) ?? null;
+    const runId = stringOrNull(args["run-id"]);
+    requireNextActionLease({
+      action,
+      mode: complete ? "complete" : "fail",
+      runId,
+    });
     const evidence = complete
       ? await nextActionCompletionEvidence({
         stateDir,
@@ -977,7 +983,7 @@ async function nextActionCommand() {
       ? await completeNextActionFinalization({
         stateDir,
         action,
-        runId: stringOrNull(args["run-id"]),
+        runId,
         evidence,
       })
       : null;
@@ -986,7 +992,7 @@ async function nextActionCommand() {
       type: complete ? "next_action_completed" : "next_action_failed",
       id,
       status: complete ? "completed" : "failed",
-      runId: stringOrNull(args["run-id"]),
+      runId,
       completedAt: complete ? now.toISOString() : null,
       failedAt: failAction ? now.toISOString() : null,
       reason: complete ? stringOrNull(args.reason) : (stringOrNull(args.reason) ?? "next_action_failed"),
@@ -1010,9 +1016,27 @@ async function nextActionCommand() {
   print(payload);
 }
 
+function requireNextActionLease({ action, mode, runId }) {
+  if (!action) {
+    throw new Error(`next-action --${mode} requires a known action id`);
+  }
+
+  if (!runId) {
+    throw new Error(`next-action --${mode} requires --run-id from the active claim`);
+  }
+
+  if (action.status !== "running") {
+    throw new Error(`next-action --${mode} requires an active running lease`);
+  }
+
+  if (action.runId !== runId) {
+    throw new Error(`next-action --${mode} run id does not match active lease`);
+  }
+}
+
 async function nextActionCompletionEvidence({ stateDir, action, evidenceEventId }) {
   if (!action) {
-    fail("next-action --complete requires a known action id");
+    throw new Error("next-action --complete requires a known action id");
   }
 
   if (action.actionType !== "run_validation") {
@@ -1023,17 +1047,17 @@ async function nextActionCompletionEvidence({ stateDir, action, evidenceEventId 
   }
 
   if (!evidenceEventId) {
-    fail("next-action --complete for run_validation requires --evidence-event-id");
+    throw new Error("next-action --complete for run_validation requires --evidence-event-id");
   }
 
   const found = await findSessionEventByEventId(stateDir, action.sessionId, evidenceEventId);
   const event = found?.event ?? null;
   if (!event || event.hook !== "validation.after_run") {
-    fail(`next-action evidence event not found or not validation.after_run: ${evidenceEventId}`);
+    throw new Error(`next-action evidence event not found or not validation.after_run: ${evidenceEventId}`);
   }
 
   if (!action.commands.includes(event.command)) {
-    fail(`next-action evidence command does not match queued command: ${event.command}`);
+    throw new Error(`next-action evidence command does not match queued command: ${event.command}`);
   }
 
   return {
@@ -1052,7 +1076,7 @@ async function completeNextActionFinalization({ stateDir, action, runId, evidenc
   }
 
   if (evidence?.status !== "accepted") {
-    fail("next-action --complete requires accepted validation evidence before refinalization");
+    throw new Error("next-action --complete requires accepted validation evidence before refinalization");
   }
 
   const eventId = `${action.id}:finalize.after_completion`;
@@ -9871,7 +9895,8 @@ async function checkFinalizations(checks, stateDir, strict) {
 }
 
 async function checkNextActions(checks, stateDir, strict) {
-  const queue = nextActionQueue(await readJsonLines(join(stateDir, "next_actions.jsonl")));
+  const records = await readJsonLines(join(stateDir, "next_actions.jsonl"));
+  const queue = nextActionQueue(records);
   const failed = queue.items.filter((item) => item.status === "failed");
   const missingEvidence = queue.items.filter((item) => (
     item.status === "completed"
@@ -9884,9 +9909,15 @@ async function checkNextActions(checks, stateDir, strict) {
     && item.nextAction?.refinalize === true
     && !item.completionFinalization
   ));
+  const invalidLeaseTerminals = invalidNextActionLeaseTerminals(records);
 
   checks.push({
-    ok: !strict || (failed.length === 0 && missingEvidence.length === 0 && missingFinalization.length === 0),
+    ok: !strict || (
+      failed.length === 0
+      && missingEvidence.length === 0
+      && missingFinalization.length === 0
+      && invalidLeaseTerminals.length === 0
+    ),
     name: "next_action",
     file: join(stateDir, "next_actions.jsonl"),
     strict,
@@ -9901,10 +9932,62 @@ async function checkNextActions(checks, stateDir, strict) {
     missingEvidenceIds: missingEvidence.map((item) => item.id),
     missingFinalization: missingFinalization.length,
     missingFinalizationIds: missingFinalization.map((item) => item.id),
-    message: strict && (failed.length > 0 || missingEvidence.length > 0 || missingFinalization.length > 0)
-      ? "next actions failed, exceeded retry budget, or completed without evidence/finalization"
+    invalidLeaseTerminals: invalidLeaseTerminals.length,
+    invalidLeaseTerminalIds: invalidLeaseTerminals.map((item) => item.id),
+    message: strict && (
+      failed.length > 0
+      || missingEvidence.length > 0
+      || missingFinalization.length > 0
+      || invalidLeaseTerminals.length > 0
+    )
+      ? "next actions failed, exceeded retry budget, completed without evidence/finalization, or closed without an active lease"
       : undefined,
   });
+}
+
+function invalidNextActionLeaseTerminals(records) {
+  const byId = new Map();
+  for (const record of records) {
+    if (typeof record.id !== "string" || record.id.length === 0) {
+      continue;
+    }
+    const list = byId.get(record.id) ?? [];
+    list.push(record);
+    byId.set(record.id, list);
+  }
+
+  const invalid = [];
+  for (const [id, list] of byId.entries()) {
+    const claims = list.filter((item) => item.type === "next_action_claimed");
+    const terminals = list.filter((item) => item.type === "next_action_completed" || item.type === "next_action_failed");
+    for (const terminal of terminals) {
+      const terminalAt = eventTime(terminal);
+      const matchingClaim = claims.find((claim) => claim.runId === terminal.runId);
+      const leaseExpiresAt = Date.parse(matchingClaim?.leaseExpiresAt ?? "");
+      if (
+        !terminal.runId
+        || !matchingClaim
+        || eventTime(matchingClaim) > terminalAt
+        || !Number.isFinite(leaseExpiresAt)
+        || leaseExpiresAt <= terminalAt
+      ) {
+        invalid.push({
+          id,
+          runId: terminal.runId ?? null,
+          status: terminal.status ?? null,
+          reason: !terminal.runId
+            ? "missing_run_id"
+            : !matchingClaim
+              ? "unknown_run_id"
+              : eventTime(matchingClaim) > terminalAt
+                ? "claim_after_terminal"
+                : "lease_expired",
+        });
+      }
+    }
+  }
+
+  return invalid;
 }
 
 async function checkPrecedentReplayReceipt(precedent, checks, stateDir, file) {

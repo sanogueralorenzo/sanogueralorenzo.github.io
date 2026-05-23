@@ -277,6 +277,132 @@ test("next-action claim and completion receipts are leased and reported", async 
   }
 });
 
+test("next-action completion requires the active running lease", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "lease-guard",
+      "--event-id",
+      "warrant-1",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--json",
+    ]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "orchestration.after_idle",
+      sessionId: "lease-guard",
+      eventId: "idle-lease-guard",
+      warrantId: warrant.warrantId,
+    });
+
+    const expiredClaim = await runJson([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--claim",
+      "--claimed-by",
+      "stale-runtime",
+      "--lease-ms",
+      "0",
+      "--json",
+    ]);
+    const expiredCompletion = await runProcess([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--complete",
+      "--id",
+      expiredClaim.action.id,
+      "--run-id",
+      expiredClaim.claim.runId,
+      "--evidence-event-id",
+      "validation-after-expired-claim",
+      "--json",
+    ]);
+
+    assert.equal(expiredCompletion.exitCode, 1);
+    assert.match(expiredCompletion.stderr, /requires an active running lease/u);
+
+    const activeClaim = await runJson([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--claim",
+      "--claimed-by",
+      "runtime-host",
+      "--json",
+    ]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "lease-guard",
+      eventId: "active-validation",
+      warrantId: warrant.warrantId,
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+    const staleCompletion = await runProcess([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--complete",
+      "--id",
+      activeClaim.action.id,
+      "--run-id",
+      expiredClaim.claim.runId,
+      "--evidence-event-id",
+      "active-validation",
+      "--json",
+    ]);
+    const currentFailureWithoutRunId = await runProcess([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--fail",
+      "--id",
+      activeClaim.action.id,
+      "--reason",
+      "runtime_failed",
+      "--json",
+    ]);
+
+    assert.equal(staleCompletion.exitCode, 1);
+    assert.match(staleCompletion.stderr, /run id does not match active lease/u);
+    assert.equal(currentFailureWithoutRunId.exitCode, 1);
+    assert.match(currentFailureWithoutRunId.stderr, /requires --run-id from the active claim/u);
+
+    const completed = await runJson([
+      "next-action",
+      "--state-dir",
+      stateDir,
+      "--complete",
+      "--id",
+      activeClaim.action.id,
+      "--run-id",
+      activeClaim.claim.runId,
+      "--evidence-event-id",
+      "active-validation",
+      "--json",
+    ]);
+
+    assert.equal(completed.status, "completed");
+    assert.equal(completed.receipt.runId, activeClaim.claim.runId);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("orchestration.after_idle re-surfaces blocked finalization without duplicating it", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-orchestration-test-"));
 
