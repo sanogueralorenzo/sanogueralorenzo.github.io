@@ -113,6 +113,17 @@ Treat drift as a release-record incident, not as a formatting problem. If the di
 
 Do not replace the retained manifest to make a drift check pass until the missing or changed archive evidence has been restored from the release record or incident archive. After the evidence is complete, regenerate the manifest with `--manifest-out`, review the diff, rerun `--verify-manifest`, and record the remediation in `archive-drift-remediation-audit.json` with the failed `packageVersion`, replacement `packageVersion`, changed evidence file, verification commands, and approving maintainer. Validate that audit record against [schemas/package-release-remediation-audit.schema.json](schemas/package-release-remediation-audit.schema.json) before closing the release or incident record.
 
+## Remediation Audit Replay Failure
+
+Use this when package release evidence replay reports a remediation audit failure such as `archive drift remediation audit must record approving maintainer` or `archive drift remediation audit must verify the retained manifest`. Inspect approval and verification command coverage before accepting a regenerated retained manifest:
+
+```shell
+node -e 'const fs=require("node:fs"); const audit=JSON.parse(fs.readFileSync(`${process.argv[1]}/archive-drift-remediation-audit.json`,"utf8")); if (!audit.approval?.approvedBy) throw new Error("archive drift remediation audit must record approving maintainer"); console.log(JSON.stringify({ok:true, approvedBy:audit.approval.approvedBy}, null, 2));' <retained-evidence-dir>
+node -e 'const fs=require("node:fs"); const audit=JSON.parse(fs.readFileSync(`${process.argv[1]}/archive-drift-remediation-audit.json`,"utf8")); const commands=audit.verification?.commands??[]; const required=["--verify-manifest","archiveEvidence SHA-256 helper","dry-run identity helper","--manifest-out","fixtures:package-release:drift"]; const missing=required.filter((text)=>!commands.some((command)=>command.includes(text))); if (missing.length) throw new Error(`archive drift remediation audit missing verification commands: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, commands: required}, null, 2));' <retained-evidence-dir>
+```
+
+If approval is missing, keep the release or incident record open until a maintainer records who approved the restored evidence and manifest replacement. If verification commands are missing, rerun manifest replay, archive evidence digest verification, dry-run identity verification, manifest regeneration with diff review, and `fixtures:package-release:drift` before closing the remediation audit.
+
 ## Dry-Run Publication Artifact Failure
 
 Use this when the npm publish workflow fails before credentials are exposed with `packageVersion did not match` or `tarballName did not match`. The downloaded `jury-package-dry-run` artifact must contain `jury-pack-dry-run.json` and `jury-pack-dry-run-record.json` from the same `dry-run-publication` job that followed the package manifest check.

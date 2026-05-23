@@ -84,6 +84,10 @@ Package release evidence retention defines temporary CI artifact retention and l
 
 Package release evidence replay troubleshooting now covers `package-release-evidence-replay` failures for rollback and replacement audits. It documents local `--fixture-dir` replay, required `jury-package-release-evidence` files, missing artifact diagnostics, schema failures such as `replacement-patch-audit.json.checks is required`, and `JURY_PACKAGE_RELEASE_EVIDENCE_DIR` path mistakes before `dry-run-publication`.
 
+## Remediation Audit Replay Troubleshooting
+
+Remediation audit replay troubleshooting now includes executable examples for missing `approvedBy` and missing verification commands. Use them when `archive-drift-remediation-audit.json` is present but replay rejects the approval or command evidence required before replacing a retained manifest.
+
 ## Bundle Preflight
 
 `bundle preflight --bundle review-bundle.json` validates imported bundles before local state is created or mutated. It reports bundle schema, producer metadata, provenance, record, cross-reference, and trust policy errors so CI consumers can reject third-party artifacts before `bundle import`.
@@ -102,4 +106,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record replay troubleshooting examples for missing approval and verification commands.
+Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary for failed and replacement release archives.

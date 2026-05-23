@@ -1281,6 +1281,10 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
   assert.ok(guide.includes("dry-run identity helper"));
   assert.ok(guide.includes("packageVersion` and `tarballName` across `jury-pack-dry-run-record.json`"));
   assert.ok(guide.includes("record the remediation in `archive-drift-remediation-audit.json`"));
+  assert.ok(guide.includes("Remediation Audit Replay Failure"));
+  assert.ok(guide.includes("archive drift remediation audit must record approving maintainer"));
+  assert.ok(guide.includes("archive drift remediation audit must verify the retained manifest"));
+  assert.ok(guide.includes("archive drift remediation audit missing verification commands"));
   assert.ok(guide.includes("schema_version must equal jury.package_release_archive_manifest.v1"));
   assert.ok(guide.includes("must contain an item matching required archive evidence"));
   assert.ok(guide.includes("missing retained archive evidence"));
@@ -1376,6 +1380,16 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
       assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
     }
 
+    const remediationAuditReplayCommands = extractShellBlock(guide, "Remediation Audit Replay Failure");
+    assert.deepEqual(remediationAuditReplayCommands, [
+      'node -e \'const fs=require("node:fs"); const audit=JSON.parse(fs.readFileSync(`${process.argv[1]}/archive-drift-remediation-audit.json`,"utf8")); if (!audit.approval?.approvedBy) throw new Error("archive drift remediation audit must record approving maintainer"); console.log(JSON.stringify({ok:true, approvedBy:audit.approval.approvedBy}, null, 2));\' <retained-evidence-dir>',
+      'node -e \'const fs=require("node:fs"); const audit=JSON.parse(fs.readFileSync(`${process.argv[1]}/archive-drift-remediation-audit.json`,"utf8")); const commands=audit.verification?.commands??[]; const required=["--verify-manifest","archiveEvidence SHA-256 helper","dry-run identity helper","--manifest-out","fixtures:package-release:drift"]; const missing=required.filter((text)=>!commands.some((command)=>command.includes(text))); if (missing.length) throw new Error(`archive drift remediation audit missing verification commands: ${missing.join(", ")}`); console.log(JSON.stringify({ok:true, commands: required}, null, 2));\' <retained-evidence-dir>',
+    ]);
+    for (const command of remediationAuditReplayCommands) {
+      const result = await runShell(retainedCommand(command));
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
     const driftedReplacementGatePath = join(retainedEvidenceDir, "replacement-downstream-gate.json");
     const driftedReplacementGate = JSON.parse(await readFile(driftedReplacementGatePath, "utf8"));
     driftedReplacementGate.reason = "replacement downstream gate changed after archive";
@@ -1403,6 +1417,23 @@ test("troubleshooting guide documents gate and bundle inspection fields", async 
     assert.ok(JSON.parse(dryRunIdentityCheck.stdout).errors.includes("dry-run packageVersion must match retained manifest failed packageVersion"));
     assert.ok(JSON.parse(dryRunIdentityCheck.stdout).errors.includes("rollback and replacement audits must reference the dry-run packageVersion"));
     await cp(join(ciPackageReleaseFixturesDir, "jury-pack-dry-run-record.json"), dryRunRecordPath);
+
+    const remediationAuditPath = join(retainedEvidenceDir, "archive-drift-remediation-audit.json");
+    const remediationAudit = JSON.parse(await readFile(remediationAuditPath, "utf8"));
+    const missingApprovalAudit = structuredClone(remediationAudit);
+    delete missingApprovalAudit.approval.approvedBy;
+    await writeFile(remediationAuditPath, `${JSON.stringify(missingApprovalAudit, null, 2)}\n`);
+    const missingApprovalCheck = await runShell(retainedCommand(remediationAuditReplayCommands[0]));
+    assert.equal(missingApprovalCheck.exitCode, 1);
+    assert.match(missingApprovalCheck.stderr, /archive drift remediation audit must record approving maintainer/);
+
+    const missingCommandAudit = structuredClone(remediationAudit);
+    missingCommandAudit.verification.commands = missingCommandAudit.verification.commands.filter((command) => !command.includes("--verify-manifest"));
+    await writeFile(remediationAuditPath, `${JSON.stringify(missingCommandAudit, null, 2)}\n`);
+    const missingVerificationCommandCheck = await runShell(retainedCommand(remediationAuditReplayCommands[1]));
+    assert.equal(missingVerificationCommandCheck.exitCode, 1);
+    assert.match(missingVerificationCommandCheck.stderr, /archive drift remediation audit missing verification commands: --verify-manifest/);
+    await writeFile(remediationAuditPath, `${JSON.stringify(remediationAudit, null, 2)}\n`);
 
     const manifest = JSON.parse(await readFile(retainedManifestPath, "utf8"));
     manifest.retention.artifacts = manifest.retention.artifacts.filter((artifact) => artifact !== "replacement-patch-audit.json");
@@ -3093,12 +3124,15 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /package release evidence artifact upload guidance/);
   assert.match(handoff, /package release evidence artifact download and replay guidance/);
   assert.match(handoff, /Package release evidence replay troubleshooting now covers/);
+  assert.match(handoff, /Remediation Audit Replay Troubleshooting/);
+  assert.match(handoff, /executable examples for missing `approvedBy` and missing verification commands/);
+  assert.match(handoff, /replay rejects the approval or command evidence required before replacing a retained manifest/);
   assert.match(handoff, /JURY_PACKAGE_RELEASE_EVIDENCE_DIR/);
   assert.match(handoff, /replacement-patch-audit\.json\.checks is required/);
   assert.match(handoff, /package release evidence fixture validation/);
   assert.match(handoff, /package release fixture workflow gating/);
   assert.match(handoff, /release evidence replay failure troubleshooting for package rollback and replacement audits/);
-  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record replay troubleshooting examples for missing approval and verification commands/);
+  assert.match(handoff, /retained package release evidence manifest archive drift remediation audit record CI replay artifact summary for failed and replacement release archives/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });
