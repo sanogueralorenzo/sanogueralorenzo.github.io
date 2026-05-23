@@ -26,7 +26,14 @@
                 "key_id": { "type": "string", "minLength": 1 },
                 "type": { "const": "rsa-sha256" },
                 "public_key": { "type": "string", "minLength": 1 },
-                "public_key_path": { "type": "string", "minLength": 1 }
+                "public_key_path": { "type": "string", "minLength": 1 },
+                "valid_from": { "type": "string", "format": "date-time", "minLength": 1 },
+                "valid_until": { "type": "string", "format": "date-time", "minLength": 1 },
+                "revoked_at": { "type": "string", "format": "date-time", "minLength": 1 },
+                "revoked_reason": { "type": "string", "minLength": 1 }
+              },
+              "dependentRequired": {
+                "revoked_at": ["revoked_reason"]
               },
               "oneOf": [
                 { "required": ["public_key"] },

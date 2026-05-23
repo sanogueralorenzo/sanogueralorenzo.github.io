@@ -22,6 +22,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Internal shared-secret bundles are signed with `--attest-key` and verified with `--verify-attestation-key`.
 - [ ] Third-party or cross-job producers are signed with `--attest-private-key` and verified with `--verify-attestation-public-key`.
 - [ ] CI consumers use `--key-policy jury-key-policy.json` when producer trust and public keys need to be reviewed as one manifest.
+- [ ] Key policy entries include `valid_from`/`valid_until` for rotation windows or `revoked_at`/`revoked_reason` for retired keys.
 - [ ] `.jury/*.jsonl` exists when raw append-only audit state is needed.
 
 Expected fixture files:

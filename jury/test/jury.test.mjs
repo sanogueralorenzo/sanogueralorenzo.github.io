@@ -889,6 +889,11 @@ test("bundle key policy verifies trusted producers and public keys before import
   const overlappingPolicyPath = join(cwd, "overlapping-key-policy.json");
   const wrongProducerPolicyPath = join(cwd, "wrong-producer-policy.json");
   const wrongKeyPolicyPath = join(cwd, "wrong-key-policy.json");
+  const expiredPolicyPath = join(cwd, "expired-key-policy.json");
+  const futurePolicyPath = join(cwd, "future-key-policy.json");
+  const revokedPolicyPath = join(cwd, "revoked-key-policy.json");
+  const duplicateRevokedPolicyPath = join(cwd, "duplicate-revoked-key-policy.json");
+  const tamperedSignedAtExpiredBundlePath = join(cwd, "tampered-signed-at-expired-review-bundle.json");
   const bundlePath = join(cwd, "policy-review-bundle.json");
 
   try {
@@ -917,6 +922,8 @@ test("bundle key policy verifies trusted producers and public keys before import
           key_id: "ci-policy",
           type: "rsa-sha256",
           public_key_path: "policy-public.pem",
+          valid_from: "2026-05-22T00:00:00.000Z",
+          valid_until: "2026-05-24T00:00:00.000Z",
         }],
       }],
     };
@@ -947,6 +954,45 @@ test("bundle key policy verifies trusted producers and public keys before import
       producers: [{
         ...policy.producers[0],
         keys: [{ ...policy.producers[0].keys[0], public_key_path: "policy-wrong-public.pem" }],
+      }],
+    }, null, 2)}\n`);
+    await writeFile(expiredPolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{
+        ...policy.producers[0],
+        keys: [{ ...policy.producers[0].keys[0], valid_until: "2026-05-22T23:59:59.000Z" }],
+      }],
+    }, null, 2)}\n`);
+    await writeFile(futurePolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{
+        ...policy.producers[0],
+        keys: [{ ...policy.producers[0].keys[0], valid_from: "2026-05-24T00:00:00.000Z", valid_until: undefined }],
+      }],
+    }, null, 2)}\n`);
+    await writeFile(revokedPolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{
+        ...policy.producers[0],
+        keys: [{
+          ...policy.producers[0].keys[0],
+          revoked_at: "2026-05-23T00:30:00.000Z",
+          revoked_reason: "compromised producer key",
+        }],
+      }],
+    }, null, 2)}\n`);
+    await writeFile(duplicateRevokedPolicyPath, `${JSON.stringify({
+      ...policy,
+      producers: [{
+        ...policy.producers[0],
+        keys: [
+          {
+            ...policy.producers[0].keys[0],
+            revoked_at: "2026-05-23T00:30:00.000Z",
+            revoked_reason: "compromised producer key",
+          },
+          policy.producers[0].keys[0],
+        ],
       }],
     }, null, 2)}\n`);
 
@@ -1011,6 +1057,61 @@ test("bundle key policy verifies trusted producers and public keys before import
     assert.equal(wrongKey.exitCode, 1);
     assert.ok(wrongKeyPayload.errors.includes("bundle.attestation.signature verification failed"));
     await assertPathMissing(importDir);
+
+    const expired = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", expiredPolicyPath]);
+    const expiredPayload = JSON.parse(expired.stdout);
+
+    assert.equal(expired.exitCode, 1);
+    assert.ok(expiredPayload.errors.includes("key policy key ci-policy is not valid after 2026-05-22T23:59:59.000Z"));
+
+    const tamperedSignedAt = JSON.parse(await readFile(bundlePath, "utf8"));
+    tamperedSignedAt.attestation.signed_at = "2026-05-22T00:00:00.000Z";
+    await writeFile(tamperedSignedAtExpiredBundlePath, `${JSON.stringify(tamperedSignedAt, null, 2)}\n`);
+
+    const tamperedExpired = await runProcess(["bundle", "preflight", "--bundle", tamperedSignedAtExpiredBundlePath, "--key-policy", expiredPolicyPath]);
+    const tamperedExpiredPayload = JSON.parse(tamperedExpired.stdout);
+
+    assert.equal(tamperedExpired.exitCode, 1);
+    assert.ok(tamperedExpiredPayload.errors.includes("key policy key ci-policy is not valid after 2026-05-22T23:59:59.000Z"));
+
+    const expiredImport = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", expiredPolicyPath]);
+    const expiredImportPayload = JSON.parse(expiredImport.stdout);
+
+    assert.equal(expiredImport.exitCode, 1);
+    assert.ok(expiredImportPayload.errors.includes("key policy key ci-policy is not valid after 2026-05-22T23:59:59.000Z"));
+    await assertPathMissing(importDir);
+
+    const future = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", futurePolicyPath]);
+    const futurePayload = JSON.parse(future.stdout);
+
+    assert.equal(future.exitCode, 1);
+    assert.ok(futurePayload.errors.includes("key policy key ci-policy is not valid before 2026-05-24T00:00:00.000Z"));
+
+    const futureImport = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", futurePolicyPath]);
+    const futureImportPayload = JSON.parse(futureImport.stdout);
+
+    assert.equal(futureImport.exitCode, 1);
+    assert.ok(futureImportPayload.errors.includes("key policy key ci-policy is not valid before 2026-05-24T00:00:00.000Z"));
+    await assertPathMissing(importDir);
+
+    const revokedPreflight = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", revokedPolicyPath]);
+    const revokedPreflightPayload = JSON.parse(revokedPreflight.stdout);
+
+    assert.equal(revokedPreflight.exitCode, 1);
+    assert.ok(revokedPreflightPayload.errors.includes("key policy key ci-policy is revoked at 2026-05-23T00:30:00.000Z: compromised producer key"));
+
+    const revoked = await runProcess(["bundle", "import", "--state-dir", importDir, "--bundle", bundlePath, "--key-policy", revokedPolicyPath]);
+    const revokedPayload = JSON.parse(revoked.stdout);
+
+    assert.equal(revoked.exitCode, 1);
+    assert.ok(revokedPayload.errors.includes("key policy key ci-policy is revoked at 2026-05-23T00:30:00.000Z: compromised producer key"));
+    await assertPathMissing(importDir);
+
+    const duplicateRevoked = await runProcess(["bundle", "preflight", "--bundle", bundlePath, "--key-policy", duplicateRevokedPolicyPath]);
+    const duplicateRevokedPayload = JSON.parse(duplicateRevoked.stdout);
+
+    assert.equal(duplicateRevoked.exitCode, 1);
+    assert.ok(duplicateRevokedPayload.errors.includes("key policy key ci-policy is revoked at 2026-05-23T00:30:00.000Z: compromised producer key"));
   } finally {
     await rm(sourceDir, { recursive: true, force: true });
     await rm(cwd, { recursive: true, force: true });
@@ -1135,6 +1236,10 @@ test("review bundle schema references the stable record schemas", async () => {
   assert.equal(keyPolicySchema.properties.schema_version.const, "jury.key_policy.v1");
   assert.deepEqual(keyPolicySchema.required, ["schema_version", "producers"]);
   assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.properties.type.const, "rsa-sha256");
+  assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.properties.valid_from.format, "date-time");
+  assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.properties.valid_until.format, "date-time");
+  assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.properties.revoked_at.format, "date-time");
+  assert.deepEqual(keyPolicySchema.properties.producers.items.properties.keys.items.dependentRequired, { revoked_at: ["revoked_reason"] });
   assert.equal(keyPolicySchema.properties.producers.items.properties.keys.items.oneOf.length, 2);
 });
 
@@ -1237,7 +1342,9 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /bundle preflight --verify-attestation-public-key/);
   assert.match(handoff, /bundle preflight --key-policy/);
   assert.match(handoff, /trusted producer metadata and RSA public keys/);
-  assert.match(handoff, /key validity windows and revocation metadata/);
+  assert.match(handoff, /valid_from/);
+  assert.match(handoff, /revoked_at/);
+  assert.match(handoff, /richer policy diagnostics/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

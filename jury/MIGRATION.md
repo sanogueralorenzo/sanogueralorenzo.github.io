@@ -60,4 +60,4 @@ For stronger CI handoff, export with `--attest-key "$JURY_BUNDLE_ATTEST_KEY" --a
 
 For public-key verification, export with `--attest-private-key ci-private.pem --attestation-key-id ci`, then verify with `--require-attestation true --verify-attestation-public-key ci-public.pem --expect-attestation-key-id ci`.
 
-For repeatable CI policy, write a `jury.key_policy.v1` manifest that lists trusted producer metadata and RSA public keys, then run `bundle preflight --bundle review-bundle.json --key-policy jury-key-policy.json` and `bundle import --bundle review-bundle.json --key-policy jury-key-policy.json`.
+For repeatable CI policy, write a `jury.key_policy.v1` manifest that lists trusted producer metadata and RSA public keys, then run `bundle preflight --bundle review-bundle.json --key-policy jury-key-policy.json` and `bundle import --bundle review-bundle.json --key-policy jury-key-policy.json`. Set key `valid_from` and `valid_until` to bound accepted signed export times, or set `revoked_at` with `revoked_reason` to retire a compromised producer key.

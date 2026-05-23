@@ -36,8 +36,8 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Key Policy Manifests
 
-`bundle preflight --key-policy` and `bundle import --key-policy` load a `jury.key_policy.v1` manifest containing trusted producer metadata and RSA public keys. Use it when CI needs one reviewed file for expected producers, source or revision constraints, key ids, and public keys.
+`bundle preflight --key-policy` and `bundle import --key-policy` load a `jury.key_policy.v1` manifest containing trusted producer metadata and RSA public keys. Use it when CI needs one reviewed file for expected producers, source or revision constraints, key ids, and public keys. Key entries support `valid_from`, `valid_until`, `revoked_at`, and `revoked_reason` so CI can retire expired or compromised producer keys.
 
 ## Next Hardening Step
 
-Add key validity windows and revocation metadata so CI can retire compromised or expired producer keys.
+Add richer policy diagnostics that identify every matching producer and key considered during bundle verification.

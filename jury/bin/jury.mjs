@@ -1035,9 +1035,34 @@ function keyPolicyErrors(bundle) {
     return errors;
   }
 
-  let verified = false;
+  const revokedKeyErrors = keys.flatMap((key) => keyPolicyRevocationErrors(key));
+
+  if (revokedKeyErrors.length > 0) {
+    errors.push(...revokedKeyErrors);
+    return errors;
+  }
+
+  const usableKeys = [];
+  const keyUseErrors = [];
 
   for (const key of keys) {
+    const errorsForKey = keyPolicyKeyUseErrors(key, bundle);
+
+    if (errorsForKey.length === 0) {
+      usableKeys.push(key);
+    } else {
+      keyUseErrors.push(...errorsForKey);
+    }
+  }
+
+  if (usableKeys.length === 0) {
+    errors.push(...keyUseErrors);
+    return errors;
+  }
+
+  let verified = false;
+
+  for (const key of usableKeys) {
     try {
       verified = verifyBundleWithPublicKey(bundle, keyPolicyPublicKeyMaterial(key, loaded.dir));
     } catch (error) {
@@ -1131,9 +1156,21 @@ function validateKeyPolicyKey(key, field) {
   requireEnum(key.type, ["rsa-sha256"], `${field}.type`);
   requireOptionalString(key.public_key, `${field}.public_key`);
   requireOptionalString(key.public_key_path, `${field}.public_key_path`);
+  requireOptionalDateTime(key.valid_from, `${field}.valid_from`);
+  requireOptionalDateTime(key.valid_until, `${field}.valid_until`);
+  requireOptionalDateTime(key.revoked_at, `${field}.revoked_at`);
+  requireOptionalString(key.revoked_reason, `${field}.revoked_reason`);
 
   if (Boolean(key.public_key) === Boolean(key.public_key_path)) {
     fail(`${field} must set exactly one of public_key or public_key_path`);
+  }
+
+  if (key.valid_from && key.valid_until && parseDateTime(key.valid_from) > parseDateTime(key.valid_until)) {
+    fail(`${field}.valid_from must be before valid_until`);
+  }
+
+  if (key.revoked_at && !key.revoked_reason) {
+    fail(`${field}.revoked_reason is required when revoked_at is set`);
   }
 }
 
@@ -1166,6 +1203,35 @@ function keyPolicyPublicKeyMaterial(key, policyDir) {
   }
 
   return readFileSync(resolve(policyDir, key.public_key_path), "utf8");
+}
+
+function keyPolicyRevocationErrors(key) {
+  const errors = [];
+
+  if (key.revoked_at) {
+    errors.push(`key policy key ${key.key_id} is revoked at ${key.revoked_at}: ${key.revoked_reason}`);
+  }
+
+  return errors;
+}
+
+function keyPolicyKeyUseErrors(key, bundle) {
+  const errors = [];
+  const exportedAt = parseDateTime(bundle.exported_at);
+
+  if (!Number.isFinite(exportedAt)) {
+    return ["bundle.exported_at must be a valid date-time for key policy"];
+  }
+
+  if (key.valid_from && exportedAt < parseDateTime(key.valid_from)) {
+    errors.push(`key policy key ${key.key_id} is not valid before ${key.valid_from}`);
+  }
+
+  if (key.valid_until && exportedAt > parseDateTime(key.valid_until)) {
+    errors.push(`key policy key ${key.key_id} is not valid after ${key.valid_until}`);
+  }
+
+  return errors;
 }
 
 function bundlePolicyDescription(bundle) {
@@ -1877,6 +1943,24 @@ function requireOptionalString(value, field) {
   if (value !== undefined && (typeof value !== "string" || value.length === 0)) {
     fail(`${field} must be a non-empty string when set`);
   }
+}
+
+function requireOptionalDateTime(value, field) {
+  requireOptionalString(value, field);
+
+  if (value !== undefined && !Number.isFinite(parseDateTime(value))) {
+    fail(`${field} must be a valid date-time`);
+  }
+}
+
+function parseDateTime(value) {
+  const rfc3339DateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+  if (typeof value !== "string" || !rfc3339DateTime.test(value)) {
+    return Number.NaN;
+  }
+
+  return Date.parse(value);
 }
 
 function requireNumber(value, field) {
