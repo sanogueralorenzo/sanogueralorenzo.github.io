@@ -234,8 +234,12 @@ Validation expectations:
   `invariant` as a non-empty string. Malformed Invariant node payloads emit
   `INTENT_GRAPH_INVARIANT_INVALID` and make graph output non-executable because
   runtimes must not infer always-on rule polarity or identity. This runtime
-  payload contract is separate from the existing guard-edge contract, where
-  missing `guards` edges still emit `INTENT_GRAPH_GUARD_INVALID`.
+  payload contract is separate from invariant ownership and guard coverage.
+  Each Invariant node must have exactly one outgoing `constrains` edge to its
+  owning `Goal`. Malformed, missing, or extra `constrains` edges emit
+  `INTENT_GRAPH_INVARIANT_CONSTRAINT_INVALID`, while missing `guards` edges
+  still emit `INTENT_GRAPH_GUARD_INVALID`. This makes invariant ownership
+  explicit so runtimes do not infer policy scope from id strings alone.
 - Graph `Effect` nodes are runtime adapter invocations. They must carry valid
   adapter data: `data.family` and `data.action` must be non-empty strings,
   `data.args`, `data.argKinds`, and `data.argSpans` must be objects, every
