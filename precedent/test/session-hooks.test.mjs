@@ -498,11 +498,39 @@ test("conversation observe captures explicit assistant assumptions as session-lo
       "- the webhook module already has a Stripe fixture.",
     ].join("\n"));
 
-    const beforeResolution = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+    const beforeAck = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",
       hook: "context.before_turn",
       sessionId: "assumptions",
       eventId: "before-1",
+      task: "add webhook handler",
+    });
+    assert.doesNotMatch(beforeAck.contextBlock, /the webhook module already has a Stripe fixture/u);
+
+    const unblockedBeforeAck = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "finalize.before_response",
+      sessionId: "assumptions",
+      eventId: "finalize-before-ack",
+    });
+    assert.equal(unblockedBeforeAck.decision, "ready");
+
+    const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "assumptions",
+      eventId: "message-1:context.after_inject",
+      deliveryId: observed.deliveryReceipt.deliveryId,
+      contextBlockHash: observed.contextBlockHash,
+      inserted: true,
+    });
+    assert.equal(ack.contextInjectionAck.status, "accepted");
+
+    const beforeResolution = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "assumptions",
+      eventId: "before-2",
       task: "add webhook handler",
     });
     assert.match(beforeResolution.contextBlock, /the webhook module already has a Stripe fixture/u);
@@ -536,7 +564,7 @@ test("conversation observe captures explicit assistant assumptions as session-lo
       schema_version: "precedent.v1",
       hook: "context.before_turn",
       sessionId: "assumptions",
-      eventId: "before-2",
+      eventId: "before-3",
       task: "add webhook handler",
     });
     assert.doesNotMatch(afterResolution.contextBlock, /the webhook module already has a Stripe fixture/u);
@@ -674,11 +702,33 @@ test("conversation observe turns trusted turn directives into session-local guar
     });
     assert.match(directive.contextBlock, /Precedent directive:/u);
 
-    const beforeTurn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+    const beforeAck = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
       schema_version: "precedent.v1",
       hook: "context.before_turn",
       sessionId: "directive",
       eventId: "before-1",
+      task: "plan the next Precedent change",
+    });
+    assert.equal(beforeAck.turnDirectives.noEdit, false);
+    assert.deepEqual(beforeAck.turnDirectives.allowedPaths, []);
+    assert.doesNotMatch(beforeAck.contextBlock, /Do not edit files/u);
+
+    const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "directive",
+      eventId: "message-1:context.after_inject",
+      deliveryId: directive.deliveryReceipt.deliveryId,
+      contextBlockHash: directive.contextBlockHash,
+      inserted: true,
+    });
+    assert.equal(ack.contextInjectionAck.status, "accepted");
+
+    const beforeTurn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "directive",
+      eventId: "before-2",
       task: "plan the next Precedent change",
     });
     assert.equal(beforeTurn.turnDirectives.noEdit, true);
@@ -768,6 +818,54 @@ test("conversation observe quarantines untrusted turn directives", async () => {
       sources: [],
     });
     assert.equal(beforeTurn.contextBlock, "");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("mismatched directive delivery acknowledgements keep directives inactive", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const directive = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "conversation.observe",
+      sessionId: "inactive-directive",
+      eventId: "message-1",
+      task: "plan the next Precedent change",
+      messages: [{
+        role: "user",
+        content: "Scope all recommendations to precedent/. Do not edit files.",
+      }],
+    });
+    const badAck = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "inactive-directive",
+      eventId: "message-1:bad-ack",
+      deliveryId: directive.deliveryReceipt.deliveryId,
+      contextBlockHash: "0".repeat(64),
+      inserted: true,
+    });
+    assert.equal(badAck.contextInjectionAck.status, "mismatch");
+
+    const warrant = await runPrecedent([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "inactive-directive",
+      "--event-id",
+      "warrant-1",
+      "--task",
+      "plan the next Precedent change",
+      "--json",
+    ]);
+    assert.equal(warrant.turnDirectives.noEdit, false);
+    assert.deepEqual(warrant.turnDirectives.allowedPaths, []);
+    assert.equal(warrant.allowed.maxFiles, 6);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

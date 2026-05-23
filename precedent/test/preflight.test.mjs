@@ -136,6 +136,44 @@ test("preflight acknowledges observed conversation context", async () => {
   }
 });
 
+test("preflight auto-acknowledges directives before later enforcement", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-preflight-test-"));
+
+  try {
+    const first = await runJson([
+      "preflight",
+      "--state-dir",
+      stateDir,
+      "--prompt",
+      "Scope all recommendations to precedent/. Do not edit files.",
+      "--session",
+      "directive-preflight-session",
+      "--event-prefix",
+      "directive-delivery-1",
+      "--json",
+    ]);
+    assert.equal(first.observationAck.status, "accepted");
+
+    const warrant = await runJson([
+      "warrant",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "directive-preflight-session",
+      "--event-id",
+      "warrant-1",
+      "--task",
+      "plan the next Precedent change",
+      "--json",
+    ]);
+    assert.equal(warrant.turnDirectives.noEdit, true);
+    assert.deepEqual(warrant.allowed.paths, ["precedent"]);
+    assert.equal(warrant.allowed.maxFiles, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   const traceOut = join(stateDir, "webhook-replay-trace.json");
   await runJson([

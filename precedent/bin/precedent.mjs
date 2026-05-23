@@ -7508,7 +7508,7 @@ function finalizeSessionDecision({ sessionEvents, warrant }) {
     };
   }
 
-  const assumptionState = activeAssumptionState(turnEvents);
+  const assumptionState = activeAssumptionState(acknowledgedConversationStateEvents(turnEvents));
   if (assumptionState.invalidated.length > 0 || assumptionState.unresolved.length > 0) {
     const invalidated = assumptionState.invalidated;
     const unresolved = assumptionState.unresolved;
@@ -9679,8 +9679,13 @@ async function activeTurnDirectivesForSession(stateDir, sessionId) {
   }
 
   const events = await readSessionEvents(stateDir, sessionId);
-  return directiveSummary(eventsSinceLastOutcome(events)
-    .filter((event) => isConversationObservationEvent(event) && event.turnDirectiveReceipt?.status === "accepted")
+  const turnEvents = eventsSinceLastOutcome(events);
+  const acceptedDeliveryIds = acceptedContextDeliveryIds(turnEvents);
+  return directiveSummary(turnEvents
+    .filter((event) =>
+      isConversationObservationEvent(event)
+      && event.turnDirectiveReceipt?.status === "accepted"
+      && sessionContextDeliveryAccepted(event, acceptedDeliveryIds))
     .flatMap((event) => Array.isArray(event.acceptedTurnDirectives) ? event.acceptedTurnDirectives : []));
 }
 
@@ -9689,7 +9694,18 @@ async function activeAssumptionStateForSession(stateDir, sessionId) {
     return { unresolved: [], invalidated: [] };
   }
 
-  return activeAssumptionState(eventsSinceLastOutcome(await readSessionEvents(stateDir, sessionId)));
+  return activeAssumptionState(acknowledgedConversationStateEvents(eventsSinceLastOutcome(await readSessionEvents(stateDir, sessionId))));
+}
+
+function acknowledgedConversationStateEvents(events) {
+  const acceptedDeliveryIds = acceptedContextDeliveryIds(events);
+  return events.filter((event) =>
+    !isConversationObservationEvent(event) || sessionContextDeliveryAccepted(event, acceptedDeliveryIds));
+}
+
+function sessionContextDeliveryAccepted(event, acceptedDeliveryIds) {
+  const receipt = event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null;
+  return !receipt?.deliveryId || acceptedDeliveryIds.has(receipt.deliveryId);
 }
 
 function formatTurnDirectiveContextBlock(directives) {

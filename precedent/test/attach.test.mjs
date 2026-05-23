@@ -337,7 +337,7 @@ test("attach contract drives injection and outcome attribution", async () => {
   }
 });
 
-test("session resume replays unacknowledged context and preserves directives", async () => {
+test("session resume replays unacknowledged context and activates acknowledged directives", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
 
   try {
@@ -359,7 +359,7 @@ test("session resume replays unacknowledged context and preserves directives", a
       "--json",
     ]);
 
-    await runJsonFromCommand(adapter.adapter.conversationObserve.command, {
+    const observedDirective = await runJsonFromCommand(adapter.adapter.conversationObserve.command, {
       schema_version: "precedent.v1",
       hook: "conversation.observe",
       sessionId: adapter.sessionId,
@@ -376,13 +376,22 @@ test("session resume replays unacknowledged context and preserves directives", a
     assert.equal(firstResume.source, "fresh_before_turn");
     assert.equal(firstResume.beforeTurn.injections[0].id, "prec_webhook_replay_boundary");
     assert.match(firstResume.contextBlock, /Precedent:/u);
-    assert.match(firstResume.contextBlock, /Keep this turn inside precedent/u);
-    assert.equal(firstResume.turnDirectives.allowedPaths[0], "precedent");
+    assert.doesNotMatch(firstResume.contextBlock, /Keep this turn inside precedent/u);
+    assert.deepEqual(firstResume.turnDirectives.allowedPaths, []);
     assert.equal(firstResume.recommendedAction.type, "inject_context");
     assert.equal(repeatedResume.source, "pending_delivery");
     assert.equal(repeatedResume.pendingDelivery.deliveryId, firstResume.deliveryReceipt.deliveryId);
     assert.equal(repeatedResume.contextBlock, firstResume.contextBlock);
 
+    await runJsonFromCommand(adapter.adapter.afterInject.command, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: adapter.sessionId,
+      eventId: "resume-observe-ack",
+      deliveryId: observedDirective.deliveryReceipt.deliveryId,
+      contextBlockHash: observedDirective.contextBlockHash,
+      inserted: true,
+    });
     await runJsonFromCommand(adapter.adapter.afterInject.command, {
       schema_version: "precedent.v1",
       hook: "context.after_inject",
@@ -398,6 +407,7 @@ test("session resume replays unacknowledged context and preserves directives", a
     assert.equal(afterAck.source, "fresh_before_turn");
     assert.equal(afterAck.pendingDelivery, null);
     assert.equal(afterAck.beforeTurn.injections.length, 0);
+    assert.match(afterAck.contextBlock, /Keep this turn inside precedent/u);
     assert.equal(afterAck.turnDirectives.allowedPaths[0], "precedent");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
