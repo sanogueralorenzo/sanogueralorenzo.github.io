@@ -72,6 +72,8 @@ val buildVoiceEngineAndroid by tasks.registering(Exec::class) {
 tasks.withType<Test>().configureEach {
     dependsOn(buildVoiceEngineHost)
     systemProperty("java.library.path", voiceEngineDir.resolve("target/debug").absolutePath)
+    systemProperty("voice.engine.fixtures.dir", voiceEngineDir.resolve("fixtures").absolutePath)
+    inputs.dir(voiceEngineDir.resolve("fixtures"))
 }
 
 tasks.matching { task ->
@@ -99,6 +101,7 @@ dependencies {
     implementation(libs.mavericks.compose)
     implementation(libs.moonshine.voice)
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

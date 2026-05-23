@@ -56,6 +56,10 @@ Every platform binding should add a small test runner that:
 - Keeps platform-specific bridge encodings private; fixture assertions should use
   public structured values.
 
+Android follows this pattern in `VoiceEngineConformanceTest`. Gradle passes the
+shared fixture directory through the `voice.engine.fixtures.dir` test system
+property, so the Kotlin binding tests read the same files as the Rust tests.
+
 Run the engine tests from the repository root:
 
 ```shell
