@@ -2566,8 +2566,10 @@ function spansEqual(left, right) {
     && left.file === right.file
     && left.start.line === right.start.line
     && left.start.column === right.start.column
+    && left.start.offset === right.start.offset
     && left.end.line === right.end.line
-    && left.end.column === right.end.column;
+    && left.end.column === right.end.column
+    && left.end.offset === right.end.offset;
 }
 
 function validateGraphInput(graphNode, graphSpan) {

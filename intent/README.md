@@ -141,6 +141,8 @@ Validation expectations:
 - Executable graph edge records may carry `data`; when present it must be an
   object. Edge `data.sourceSpan` and `data.targetSpan` payloads must be valid
   spans before runtime dependency or provenance logic can use them.
+- Runtime graph typed edge span matches compare the full span, including file,
+  line, column, and zero-based UTF-8 byte offsets.
 - Runtime graph `plans` edges have a constrained role contract. A `plans` edge
   is valid only from a `Goal` node to a `Step` node. Unsupported `plans`
   endpoint roles emit `INTENT_GRAPH_PLAN_INVALID` and make graph output

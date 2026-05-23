@@ -2339,6 +2339,8 @@ Graph `data` edge payloads must include non-empty `parameter`, non-empty
 parameters, and those values must match the producer type/span and step input
 name/type/span. Graph `requires` edge payloads must match the source step input
 or step requirement name/type/span and owning step.
+Typed graph edge span matches compare the full span, including file, line,
+column, and zero-based UTF-8 byte offsets.
 Graph `produces` edge payloads that connect the final executable step to
 completion must include non-empty `type`, valid `sourceSpan` for the final step
 output, and valid `targetSpan` for the goal output, and those values must match

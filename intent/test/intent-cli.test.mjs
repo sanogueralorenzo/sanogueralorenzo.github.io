@@ -107,6 +107,14 @@ function testSpan(line) {
   };
 }
 
+function testSpanOffset(line, offset) {
+  return {
+    file: "synthetic.intent",
+    start: { line, column: 1, offset },
+    end: { line, column: 1, offset },
+  };
+}
+
 function testGrant(action, key, value, line) {
   return {
     action,
@@ -3862,6 +3870,44 @@ describe("intent static model CLI", () => {
       ["source_span_matches_source", false],
       ["target_span_matches_target", false],
     ]);
+  });
+
+  it("validates graph typed edge span offsets", () => {
+    const sourceSpan = testSpanOffset(2, 20);
+    const targetSpan = testSpanOffset(3, 40);
+    const wrongSourceOffset = testSpanOffset(2, 21);
+    const validDiagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: sourceSpan, data: { scope: "goal", type: "Ticket" } },
+        { id: "goal:demo:step:patch:input:ticket", kind: "Input", label: "ticket", span: targetSpan, data: { scope: "step", type: "Ticket" } },
+      ],
+      edges: [
+        { from: "goal:demo:input:ticket", to: "goal:demo:step:patch:input:ticket", kind: "data", data: { parameter: "ticket", type: "Ticket", sourceSpan, targetSpan } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPED_EDGE_INVALID");
+    const invalidDiagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo:input:ticket", kind: "Input", label: "ticket", span: sourceSpan, data: { scope: "goal", type: "Ticket" } },
+        { id: "goal:demo:step:patch:input:ticket", kind: "Input", label: "ticket", span: targetSpan, data: { scope: "step", type: "Ticket" } },
+      ],
+      edges: [
+        { from: "goal:demo:input:ticket", to: "goal:demo:step:patch:input:ticket", kind: "data", data: { parameter: "ticket", type: "Ticket", sourceSpan: wrongSourceOffset, targetSpan } },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_TYPED_EDGE_INVALID");
+
+    assert.deepEqual(validDiagnostics, []);
+    assert.equal(invalidDiagnostics.length, 1);
+    assert.deepEqual(invalidDiagnostics[0].checks.map((check) => [check.name, check.ok]), [
+      ["parameter_matches_target", true],
+      ["type_matches_source", true],
+      ["type_matches_target", true],
+      ["source_span_matches_source", false],
+      ["target_span_matches_target", true],
+    ]);
+    assert.equal(invalidDiagnostics[0].checks[3].actual.start.offset, 21);
+    assert.equal(invalidDiagnostics[0].checks[3].expected.start.offset, 20);
   });
 
   it("validates graph invariant payload diagnostics", () => {
