@@ -16,6 +16,8 @@ const HOOK_END = "# trace:end";
 const AGENT_CONFIG_VERSION = "trace.agent.v1";
 const SUPPORTED_AGENTS = new Set(["codex", "claude-code", "gemini", "generic"]);
 const TRACE_EVENTS = ["prompt", "response", "tool", "decision", "validation", "risk", "note"];
+const MEMORY_SECTION_LIMIT = 5;
+const MEMORY_ITEM_CHAR_LIMIT = 240;
 const command = process.argv[2] ?? "help";
 const subcommand = process.argv[3]?.startsWith("--") ? null : process.argv[3] ?? null;
 const rawArgs = process.argv.slice(subcommand ? 4 : 3);
@@ -996,15 +998,15 @@ async function buildMemory(root, sha, checkpointId, sessionId, overrides) {
   const validations = events.filter((event) => event.event === "validation").map((event) => event.message).filter(Boolean);
   const risks = events.filter((event) => event.event === "risk").map((event) => event.message).filter(Boolean);
   const notes = events.filter((event) => !["prompt", "response", "tool", "decision", "validation", "risk"].includes(event.event)).map((event) => event.message).filter(Boolean);
-  const intent = await redact(root, overrides.intent ?? prompts.at(-1) ?? subject);
-  const validation = await redact(root, overrides.validation ?? validations.at(-1) ?? "Not recorded.");
-  const risk = await redact(root, overrides.risk ?? risks.at(-1) ?? "No known open risks recorded.");
   const summaryEvents = [...responses, ...tools, ...notes].slice(-3);
-  const summary = summaryEvents.length > 0 ? (await Promise.all(summaryEvents.map(async (note) => `- ${await redact(root, note)}`))).join("\n") : `- ${await redact(root, subject)}`;
-  const decisionLines = decisions.length > 0 ? (await Promise.all(decisions.map(async (decision) => `- ${await redact(root, decision)}`))).join("\n") : "- Not recorded.";
-  const responseLines = responses.length > 0 ? (await Promise.all(responses.map(async (response) => `- ${await redact(root, response)}`))).join("\n") : "- Not recorded.";
-  const toolLines = tools.length > 0 ? (await Promise.all(tools.map(async (tool) => `- ${await redact(root, tool)}`))).join("\n") : "- Not recorded.";
-  const fileLines = files.length > 0 ? files.map((file) => `- \`${file}\``).join("\n") : "- No files reported by git.";
+  const intent = await conciseMemoryText(root, overrides.intent ?? prompts.at(-1) ?? subject);
+  const summary = await formatMemoryList(root, summaryEvents.length > 0 ? summaryEvents : [subject]);
+  const decisionLines = await formatMemoryList(root, decisions, "Not recorded.");
+  const responseLines = await formatMemoryList(root, responses, "Not recorded.");
+  const toolLines = await formatMemoryList(root, tools, "Not recorded.");
+  const validation = await formatMemoryList(root, [overrides.validation, ...validations].filter(Boolean), "Not recorded.");
+  const risk = await formatMemoryList(root, [overrides.risk, ...risks].filter(Boolean), "No known open risks recorded.");
+  const fileLines = formatFileList(files);
   const rawCheckpoint = {
     schema_version: "trace.checkpoint.v1",
     checkpoint_id: checkpointId,
@@ -1480,6 +1482,72 @@ function appendCommitList(lines, memories) {
     const intent = section(memory, "Intent") ?? "No intent recorded.";
     lines.push(`- \`${sha.slice(0, 12)}\` ${firstLine(intent)}`);
   }
+}
+
+async function formatMemoryList(root, values, fallback = "Not recorded.") {
+  const items = compactMemoryItems(values);
+  if (items.length === 0) {
+    return `- ${fallback}`;
+  }
+
+  const visible = items.slice(0, MEMORY_SECTION_LIMIT);
+  const lines = [];
+  for (const item of visible) {
+    lines.push(`- ${await conciseMemoryText(root, item)}`);
+  }
+
+  const omitted = items.length - visible.length;
+  if (omitted > 0) {
+    lines.push(`- ${omitted} more event${omitted === 1 ? "" : "s"} omitted from this compact memory.`);
+  }
+
+  return lines.join("\n");
+}
+
+async function conciseMemoryText(root, value) {
+  return truncateMemoryText(await redact(root, normalizeMemoryText(value)));
+}
+
+function compactMemoryItems(values) {
+  const seen = new Set();
+  const items = [];
+
+  for (const value of values) {
+    const text = normalizeMemoryText(value);
+    const key = text.toLowerCase();
+    if (!text || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    items.push(text);
+  }
+
+  return items;
+}
+
+function normalizeMemoryText(value) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function truncateMemoryText(value) {
+  if (value.length <= MEMORY_ITEM_CHAR_LIMIT) {
+    return value;
+  }
+
+  return `${value.slice(0, MEMORY_ITEM_CHAR_LIMIT - 1).trimEnd()}...`;
+}
+
+function formatFileList(files) {
+  if (files.length === 0) {
+    return "- No files reported by git.";
+  }
+
+  const visible = files.slice(0, 20).map((file) => `- \`${file}\``);
+  const omitted = files.length - visible.length;
+  if (omitted > 0) {
+    visible.push(`- ${omitted} more file${omitted === 1 ? "" : "s"} omitted from this compact memory.`);
+  }
+  return visible.join("\n");
 }
 
 function normalizeSearchField(value) {

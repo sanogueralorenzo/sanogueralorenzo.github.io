@@ -116,6 +116,37 @@ test("generic agent hook captures JSON payloads for PR summaries", async () => {
   }
 });
 
+test("record distills noisy raw sessions into compact memories", async () => {
+  const repo = await tempRepo();
+
+  try {
+    await git(repo, ["config", "user.name", "Trace Test"]);
+    await git(repo, ["config", "user.email", "trace@example.com"]);
+    await writeFile(join(repo, "noise.txt"), "noise\n");
+    await git(repo, ["add", "noise.txt"]);
+    await git(repo, ["commit", "-m", "Add noisy trace case"]);
+
+    await runTrace(repo, ["init"]);
+    await runTrace(repo, ["capture", "--event", "prompt", "--role", "user", "--message", "capture only the useful memory"]);
+    await runTrace(repo, ["capture", "--event", "decision", "--message", "Keep the durable memory short"]);
+    await runTrace(repo, ["capture", "--event", "decision", "--message", "Keep the durable memory short"]);
+    await runTrace(repo, ["capture", "--event", "response", "--role", "assistant", "--message", `long response ${"detail ".repeat(80)}`]);
+    for (const risk of ["risk one", "risk two", "risk three", "risk four", "risk five", "risk six", "risk seven"]) {
+      await runTrace(repo, ["capture", "--event", "risk", "--message", risk]);
+    }
+
+    await runTrace(repo, ["record"]);
+
+    const memory = (await runTrace(repo, ["show", "HEAD"])).stdout;
+    assert.equal((memory.match(/Keep the durable memory short/g) ?? []).length, 1);
+    assert.match(memory, /long response detail .*\.{3}/);
+    assert.match(memory, /2 more events omitted from this compact memory/);
+    assert.doesNotMatch(memory, /risk seven/);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test("check fails on uncommitted Trace memories and passes after committing them", async () => {
   const repo = await tempRepo();
 

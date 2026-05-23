@@ -113,6 +113,8 @@ This keeps the project tree focused on reviewable memories while raw checkpoint 
 
 Because post-commit hooks run after git creates the commit, generated `.trace/commits/` memories are left as normal working tree changes for the user or agent to review and commit. `trace check` fails when Trace memory files are uncommitted or malformed, which makes that handoff explicit instead of silently pretending the memory is already durable.
 
+`trace record` and the post-commit hook distill raw session events into compact commit memory. Repeated events are deduplicated, long entries are truncated, and noisy sections are capped with an explicit omitted-events line so committed memory stays reviewable while the full checkpoint remains available on the Trace ref.
+
 `trace ci <range>` is the CI gate for that model. It fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails if raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed.
 
 `trace summary <range>`, `trace pr-body <range>`, and `trace release-notes <range>` all derive from committed memories. PR and release text are generated views, not the canonical memory store.
