@@ -14,6 +14,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_step_requirements.intent`: code-change goal with step-local `require ...` guards before effects, normal file and shell capabilities, memory retention, verification, and invariants.
 - `valid_invariant_guard_graph.intent`: code-change goal with invariant rules intended to guard multiple graph targets, including file and shell effects plus step checkpoints, with normal capabilities, checkpoint memory retention, plan steps, and verification.
 - `valid_step_approval_graph.intent`: code-change goal with step body `approval ...` lines before sensitive file-write and git-push effects, normal file, shell, and git capabilities, approval memory retention, verification, and invariants.
+- `valid_step_policy_graph.intent`: code-change goal with step body `timeout ...` and `retry ...` lines before file and shell effects, normal file and shell capabilities, memory retention, verification, and invariants.
 
 ## Invalid
 
