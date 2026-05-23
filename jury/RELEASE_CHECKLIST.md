@@ -10,6 +10,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Copy [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml) into `.github/workflows/` for downstream trusted-producer verification.
 - [ ] Compare generated outputs with [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart).
 - [ ] Verify signed bundle handoff with [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy).
+- [ ] Review [examples/ci/fixtures/key-policy-rotation](examples/ci/fixtures/key-policy-rotation) before rotating producer signing keys.
 - [ ] `npm --prefix jury run fixtures:key-policy:check` passes before release.
 - [ ] Follow [MIGRATION.md](MIGRATION.md) when handing artifacts between jobs.
 - [ ] Use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) when CI emits `reject`, `retry`, or `human_decision`.
@@ -40,6 +41,12 @@ Expected fixture files:
 - [examples/ci/fixtures/key-policy/ci-public.pem](examples/ci/fixtures/key-policy/ci-public.pem)
 - [examples/ci/fixtures/key-policy/review-bundle.signed.json](examples/ci/fixtures/key-policy/review-bundle.signed.json)
 - [examples/ci/fixtures/key-policy/README.md](examples/ci/fixtures/key-policy/README.md)
+- [examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json](examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json)
+- [examples/ci/fixtures/key-policy-rotation/ci-old-public.pem](examples/ci/fixtures/key-policy-rotation/ci-old-public.pem)
+- [examples/ci/fixtures/key-policy-rotation/ci-new-public.pem](examples/ci/fixtures/key-policy-rotation/ci-new-public.pem)
+- [examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json](examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json)
+- [examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json](examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json)
+- [examples/ci/fixtures/key-policy-rotation/README.md](examples/ci/fixtures/key-policy-rotation/README.md)
 
 ## Validation
 

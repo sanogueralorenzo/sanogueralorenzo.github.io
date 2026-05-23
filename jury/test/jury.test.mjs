@@ -14,6 +14,7 @@ const fixturesDir = join(repoRoot, "jury/fixtures/verdicts");
 const invalidSchemaDir = join(repoRoot, "jury/fixtures/schemas");
 const ciQuickstartFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/quickstart");
 const ciKeyPolicyFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy");
+const ciKeyPolicyRotationFixturesDir = join(repoRoot, "jury/examples/ci/fixtures/key-policy-rotation");
 const releasePath = join(repoRoot, "jury/release.json");
 const fixedEnv = { ...process.env, JURY_NOW: "2026-05-23T00:00:00.000Z" };
 const skipNestedCiAdoptionTests = process.env.JURY_SKIP_CI_ADOPTION_NESTED === "1";
@@ -345,6 +346,7 @@ test("CI example README points to the copyable workflow and portable artifacts",
   assert.ok(readme.includes("review-bundle.signed.json"));
   assert.ok(readme.includes("gate.json"));
   assert.ok(readme.includes("fixtures/key-policy"));
+  assert.ok(readme.includes("fixtures/key-policy-rotation"));
   assert.ok(readme.includes("jury.key_policy.v1"));
   assert.ok(readme.includes("actions/upload-artifact@v4"));
   assert.ok(readme.includes("uses: ./.github/workflows/jury-trusted-bundle-verify.yml"));
@@ -414,6 +416,38 @@ test("key policy CI fixtures verify and import a signed review bundle", async ()
     await rm(stateDir, { recursive: true, force: true });
     await rm(downstreamDir, { recursive: true, force: true });
   }
+});
+
+test("key policy rotation fixtures accept old and new keys during overlap", async () => {
+  const oldBundlePath = join(ciKeyPolicyRotationFixturesDir, "review-bundle.old.signed.json");
+  const newBundlePath = join(ciKeyPolicyRotationFixturesDir, "review-bundle.new.signed.json");
+  const policyPath = join(ciKeyPolicyRotationFixturesDir, "jury-key-policy.rotation.json");
+  const readme = await readFile(join(ciKeyPolicyRotationFixturesDir, "README.md"), "utf8");
+  const oldBundle = JSON.parse(await readFile(oldBundlePath, "utf8"));
+  const newBundle = JSON.parse(await readFile(newBundlePath, "utf8"));
+  const policy = JSON.parse(await readFile(policyPath, "utf8"));
+
+  assert.equal(policy.schema_version, "jury.key_policy.v1");
+  assert.deepEqual(policy.producers[0].keys.map((key) => key.key_id), ["ci-old", "ci-new"]);
+  assert.equal(policy.producers[0].keys[0].valid_until, "2026-06-01T00:00:00.000Z");
+  assert.equal(policy.producers[0].keys[1].valid_from, "2026-05-15T00:00:00.000Z");
+  assert.equal(oldBundle.attestation.key_id, "ci-old");
+  assert.equal(newBundle.attestation.key_id, "ci-new");
+  assert.ok(readme.includes("migration window"));
+  assert.ok(readme.includes("May 15, 2026 through June 1, 2026"));
+
+  const oldPreflight = await runProcess(["bundle", "preflight", "--bundle", oldBundlePath, "--key-policy", policyPath]);
+  const newPreflight = await runProcess(["bundle", "preflight", "--bundle", newBundlePath, "--key-policy", policyPath]);
+  const oldPayload = JSON.parse(oldPreflight.stdout);
+  const newPayload = JSON.parse(newPreflight.stdout);
+
+  assert.equal(oldPreflight.exitCode, 0, oldPreflight.stderr);
+  assert.equal(newPreflight.exitCode, 0, newPreflight.stderr);
+  assert.deepEqual(oldPayload.key_policy.considered_keys.map((key) => [key.key_id, key.status]), [["ci-old", "verified"], ["ci-new", "not_selected"]]);
+  assert.deepEqual(newPayload.key_policy.considered_keys.map((key) => [key.key_id, key.status]), [["ci-old", "not_selected"], ["ci-new", "verified"]]);
+
+  const driftCheck = await runShell("npm --prefix jury run fixtures:key-policy:check");
+  assert.equal(driftCheck.exitCode, 0, driftCheck.stderr);
 });
 
 test("troubleshooting failure examples stay executable", async () => {
@@ -1490,10 +1524,17 @@ test("release checklist links the adoption path and valid artifacts", async () =
     "examples/ci/fixtures/quickstart/review-bundle.json",
     "examples/ci/fixtures/quickstart/gate.json",
     "examples/ci/fixtures/key-policy",
+    "examples/ci/fixtures/key-policy-rotation",
     "examples/ci/fixtures/key-policy/jury-key-policy.json",
     "examples/ci/fixtures/key-policy/ci-public.pem",
     "examples/ci/fixtures/key-policy/review-bundle.signed.json",
     "examples/ci/fixtures/key-policy/README.md",
+    "examples/ci/fixtures/key-policy-rotation/jury-key-policy.rotation.json",
+    "examples/ci/fixtures/key-policy-rotation/ci-old-public.pem",
+    "examples/ci/fixtures/key-policy-rotation/ci-new-public.pem",
+    "examples/ci/fixtures/key-policy-rotation/review-bundle.old.signed.json",
+    "examples/ci/fixtures/key-policy-rotation/review-bundle.new.signed.json",
+    "examples/ci/fixtures/key-policy-rotation/README.md",
   ]) {
     assert.ok(linkedTargets.includes(requiredLink), `RELEASE_CHECKLIST.md should link ${requiredLink}`);
   }
@@ -1535,6 +1576,7 @@ test("maintainer handoff references current adoption artifacts and validation co
     "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
     "examples/ci/fixtures/key-policy",
+    "examples/ci/fixtures/key-policy-rotation",
     "MIGRATION.md",
     "RELEASE_CHECKLIST.md",
     "TROUBLESHOOTING.md",
@@ -1568,10 +1610,11 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /trusted producer metadata and RSA public keys/);
   assert.match(handoff, /valid_from/);
   assert.match(handoff, /revoked_at/);
+  assert.match(handoff, /CI migration overlap window/);
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
   assert.match(handoff, /signs a live bundle with an external CI private key secret/);
-  assert.match(handoff, /key-policy rotation example/);
+  assert.match(handoff, /negative rotation example/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

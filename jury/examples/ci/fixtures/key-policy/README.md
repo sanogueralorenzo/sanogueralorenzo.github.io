@@ -22,6 +22,8 @@ The private signing key is not included. These fixtures are for downstream verif
 
 Use [../../jury-trusted-bundle-verify.yml](../../jury-trusted-bundle-verify.yml) when the downstream check should run as a reusable GitHub Actions workflow.
 
+[../key-policy-rotation](../key-policy-rotation) shows how to trust old and new producer keys during a rotation overlap window.
+
 Regenerate the signed fixture artifacts:
 
 ```shell

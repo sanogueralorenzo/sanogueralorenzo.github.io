@@ -11,38 +11,41 @@ const JURY_NOW = "2026-05-23T00:00:00.000Z";
 const KEY_ID = "ci-fixture";
 const CLAIM_ID = "claim_ci_change";
 const KEY_SEED = "jury-key-policy-fixture-v1";
+const ROTATION_OLD_KEY_ID = "ci-old";
+const ROTATION_NEW_KEY_ID = "ci-new";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const juryRoot = dirname(scriptDir);
 const repoRoot = dirname(juryRoot);
 const cliPath = join(juryRoot, "bin/jury.mjs");
 const fixtureDir = join(juryRoot, "examples/ci/fixtures/key-policy");
+const rotationFixtureDir = join(juryRoot, "examples/ci/fixtures/key-policy-rotation");
 const checkOnly = process.argv.includes("--check");
 
 const tmp = mkdtempSync(join(tmpdir(), "jury-key-policy-fixtures-"));
 const outDir = checkOnly ? join(tmp, "fixtures") : fixtureDir;
+const rotationOutDir = checkOnly ? join(tmp, "fixtures-rotation") : rotationFixtureDir;
 const stateDir = join(tmp, ".jury");
 const privateKeyPath = join(tmp, "ci-private.pem");
+const rotationOldPrivateKeyPath = join(tmp, "ci-old-private.pem");
+const rotationNewPrivateKeyPath = join(tmp, "ci-new-private.pem");
 
 try {
-  const keyPair = createFixtureKeyPair();
+  const keyPair = createFixtureKeyPair(KEY_SEED);
+  const rotationOldKeyPair = createFixtureKeyPair("jury-key-policy-rotation-old-v1");
+  const rotationNewKeyPair = createFixtureKeyPair("jury-key-policy-rotation-new-v1");
 
   mkdirSync(outDir, { recursive: true });
+  mkdirSync(rotationOutDir, { recursive: true });
   writeFileSync(privateKeyPath, keyPair.privateKey);
   writeFileSync(join(outDir, "ci-public.pem"), keyPair.publicKey);
   writeFileSync(join(outDir, "jury-key-policy.json"), `${JSON.stringify(keyPolicy(), null, 2)}\n`);
+  writeFileSync(rotationOldPrivateKeyPath, rotationOldKeyPair.privateKey);
+  writeFileSync(rotationNewPrivateKeyPath, rotationNewKeyPair.privateKey);
+  writeFileSync(join(rotationOutDir, "ci-old-public.pem"), rotationOldKeyPair.publicKey);
+  writeFileSync(join(rotationOutDir, "ci-new-public.pem"), rotationNewKeyPair.publicKey);
+  writeFileSync(join(rotationOutDir, "jury-key-policy.rotation.json"), `${JSON.stringify(rotationKeyPolicy(), null, 2)}\n`);
 
-  runJury(["init", "--state-dir", stateDir]);
-  runJury(["claim", "create", "--state-dir", stateDir, "--id", CLAIM_ID, "--summary", "pull request is ready", "--scope", "jury", "--impact", "high"]);
-  runJury(["claim", "transition", "--state-dir", stateDir, "--claim", CLAIM_ID, "--status", "screening"]);
-  runJury(["claim", "transition", "--state-dir", stateDir, "--claim", CLAIM_ID, "--status", "in_review"]);
-  runJury(["check", "add", "--state-dir", stateDir, "--id", "check_ci_tests", "--claim", CLAIM_ID, "--type", "verifier", "--summary", "Jury tests must pass"]);
-  runJury(["evidence", "add", "--state-dir", stateDir, "--id", "ev_ci_tests", "--claim", CLAIM_ID, "--type", "command", "--command", "npm --prefix jury test", "--exit-code", "0"]);
-  runJury(["critic", "run", "--state-dir", stateDir, "--claim", CLAIM_ID, "--role", "tests"]);
-  runJury(["critic", "run", "--state-dir", stateDir, "--claim", CLAIM_ID, "--role", "security"]);
-  runJury(["critic", "run", "--state-dir", stateDir, "--claim", CLAIM_ID, "--role", "scope", "--changed-files", "jury/bin/jury.mjs,jury/test/jury.test.mjs"]);
-  runJury(["check", "update", "--state-dir", stateDir, "--id", "check_ci_tests", "--status", "passed", "--evidence", "ev_ci_tests", "--resolution", "Jury tests passed"]);
-  runJury(["judge", "--state-dir", stateDir, "--claim", CLAIM_ID, "--out", join(tmp, "verdict.json")]);
-  runJury(["gate", "--state-dir", stateDir, "--claim", CLAIM_ID, "--verdict", join(tmp, "verdict.json")]);
+  buildAcceptedReviewState(stateDir);
   runJury([
     "bundle", "export",
     "--state-dir", stateDir,
@@ -54,12 +57,39 @@ try {
     "--revision", "unknown",
   ]);
   runJury(["bundle", "preflight", "--bundle", join(outDir, "review-bundle.signed.json"), "--key-policy", join(outDir, "jury-key-policy.json")]);
+  runJury([
+    "bundle", "export",
+    "--state-dir", stateDir,
+    "--claim", CLAIM_ID,
+    "--out", join(rotationOutDir, "review-bundle.old.signed.json"),
+    "--attest-private-key", rotationOldPrivateKeyPath,
+    "--attestation-key-id", ROTATION_OLD_KEY_ID,
+    "--source", "local",
+    "--revision", "unknown",
+  ]);
+  runJury([
+    "bundle", "export",
+    "--state-dir", stateDir,
+    "--claim", CLAIM_ID,
+    "--out", join(rotationOutDir, "review-bundle.new.signed.json"),
+    "--attest-private-key", rotationNewPrivateKeyPath,
+    "--attestation-key-id", ROTATION_NEW_KEY_ID,
+    "--source", "local",
+    "--revision", "unknown",
+  ]);
+  runJury(["bundle", "preflight", "--bundle", join(rotationOutDir, "review-bundle.old.signed.json"), "--key-policy", join(rotationOutDir, "jury-key-policy.rotation.json")]);
+  runJury(["bundle", "preflight", "--bundle", join(rotationOutDir, "review-bundle.new.signed.json"), "--key-policy", join(rotationOutDir, "jury-key-policy.rotation.json")]);
 
   if (checkOnly) {
     const hasDrift = [
       assertFixtureDrift("ci-public.pem", outDir),
       assertFixtureDrift("jury-key-policy.json", outDir),
       assertFixtureDrift("review-bundle.signed.json", outDir),
+      assertFixtureDrift("ci-old-public.pem", rotationOutDir, rotationFixtureDir),
+      assertFixtureDrift("ci-new-public.pem", rotationOutDir, rotationFixtureDir),
+      assertFixtureDrift("jury-key-policy.rotation.json", rotationOutDir, rotationFixtureDir),
+      assertFixtureDrift("review-bundle.old.signed.json", rotationOutDir, rotationFixtureDir),
+      assertFixtureDrift("review-bundle.new.signed.json", rotationOutDir, rotationFixtureDir),
     ].some(Boolean);
 
     if (hasDrift) {
@@ -93,6 +123,49 @@ function keyPolicy() {
   };
 }
 
+function rotationKeyPolicy() {
+  return {
+    schema_version: "jury.key_policy.v1",
+    producers: [{
+      name: "@sanogueralorenzo/jury",
+      version: "0.1.0",
+      source: "local",
+      revision_pattern: "^unknown$",
+      keys: [
+        {
+          key_id: ROTATION_OLD_KEY_ID,
+          type: "rsa-sha256",
+          public_key_path: "ci-old-public.pem",
+          valid_from: "2026-05-01T00:00:00.000Z",
+          valid_until: "2026-06-01T00:00:00.000Z",
+        },
+        {
+          key_id: ROTATION_NEW_KEY_ID,
+          type: "rsa-sha256",
+          public_key_path: "ci-new-public.pem",
+          valid_from: "2026-05-15T00:00:00.000Z",
+          valid_until: "2026-07-01T00:00:00.000Z",
+        },
+      ],
+    }],
+  };
+}
+
+function buildAcceptedReviewState(targetStateDir) {
+  runJury(["init", "--state-dir", targetStateDir]);
+  runJury(["claim", "create", "--state-dir", targetStateDir, "--id", CLAIM_ID, "--summary", "pull request is ready", "--scope", "jury", "--impact", "high"]);
+  runJury(["claim", "transition", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--status", "screening"]);
+  runJury(["claim", "transition", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--status", "in_review"]);
+  runJury(["check", "add", "--state-dir", targetStateDir, "--id", "check_ci_tests", "--claim", CLAIM_ID, "--type", "verifier", "--summary", "Jury tests must pass"]);
+  runJury(["evidence", "add", "--state-dir", targetStateDir, "--id", "ev_ci_tests", "--claim", CLAIM_ID, "--type", "command", "--command", "npm --prefix jury test", "--exit-code", "0"]);
+  runJury(["critic", "run", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--role", "tests"]);
+  runJury(["critic", "run", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--role", "security"]);
+  runJury(["critic", "run", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--role", "scope", "--changed-files", "jury/bin/jury.mjs,jury/test/jury.test.mjs"]);
+  runJury(["check", "update", "--state-dir", targetStateDir, "--id", "check_ci_tests", "--status", "passed", "--evidence", "ev_ci_tests", "--resolution", "Jury tests passed"]);
+  runJury(["judge", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--out", join(tmp, "verdict.json")]);
+  runJury(["gate", "--state-dir", targetStateDir, "--claim", CLAIM_ID, "--verdict", join(tmp, "verdict.json")]);
+}
+
 function runJury(args) {
   const env = { ...process.env, JURY_NOW };
   delete env.GITHUB_REPOSITORY;
@@ -113,8 +186,8 @@ function runJury(args) {
   return result.stdout;
 }
 
-function assertFixtureDrift(filename, generatedDir) {
-  const expectedPath = join(fixtureDir, filename);
+function assertFixtureDrift(filename, generatedDir, expectedDir = fixtureDir) {
+  const expectedPath = join(expectedDir, filename);
   const generatedPath = join(generatedDir, filename);
   const expected = readFileSync(expectedPath, "utf8");
   const generated = readFileSync(generatedPath, "utf8");
@@ -127,13 +200,13 @@ function assertFixtureDrift(filename, generatedDir) {
   return false;
 }
 
-function createFixtureKeyPair() {
+function createFixtureKeyPair(seed) {
   const e = 65537n;
-  let p = deterministicPrime(`${KEY_SEED}:p`);
-  let q = deterministicPrime(`${KEY_SEED}:q`);
+  let p = deterministicPrime(`${seed}:p`);
+  let q = deterministicPrime(`${seed}:q`);
 
   while (p === q || gcd((p - 1n) * (q - 1n), e) !== 1n) {
-    q = deterministicPrime(`${KEY_SEED}:q:${q}`);
+    q = deterministicPrime(`${seed}:q:${q}`);
   }
 
   if (p < q) {

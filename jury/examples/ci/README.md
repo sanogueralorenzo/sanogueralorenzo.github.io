@@ -51,6 +51,8 @@ The gate exits non-zero unless the verdict is `accept`. When `--claim` is presen
 
 [fixtures/key-policy](fixtures/key-policy) provides a signed review bundle, public key, and `jury.key_policy.v1` manifest for copyable trusted-producer verification in a downstream job. [jury-signed-review-gate.yml](jury-signed-review-gate.yml) signs the producer bundle with an external CI private key secret, and [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) is the reusable workflow form of the downstream handoff.
 
+[fixtures/key-policy-rotation](fixtures/key-policy-rotation) shows a rotation window where downstream CI trusts old and new producer keys while jobs migrate from `ci-old` to `ci-new`.
+
 ## Signed Producer Workflow
 
 Use [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job should emit `review-bundle.signed.json` from the live CI state. Configure `JURY_CI_PRIVATE_KEY` as a repository or organization secret containing a PEM RSA private key. Optionally set `JURY_ATTESTATION_KEY_ID` as a repository variable so the downstream `jury-key-policy.json` can select the matching public key.
