@@ -25,6 +25,14 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     await runTrace(repo, ["capture", "--event", "tool", "--message", "git commit wrote app.txt"]);
     await runTrace(repo, ["capture", "--event", "decision", "--message", "Use committed Markdown for reviewable memory"]);
 
+    const strictDryRun = await runTraceAllowFailure(repo, ["record", "--dry-run", "--check-session", "--strict", "--validation", "node --test"]);
+    assert.equal(strictDryRun.exitCode, 1);
+    const strictDryRunPayload = JSON.parse(strictDryRun.stdout);
+    assert.equal(strictDryRunPayload.schema_version, "trace.session_check.v1");
+    assert.equal(strictDryRunPayload.strict, true);
+    assert.equal(strictDryRunPayload.ok, false);
+    assert.equal(strictDryRunPayload.checks.find((check) => check.name === "validation").ok, false);
+
     const dryRun = JSON.parse((await runTrace(repo, ["record", "--dry-run", "--check-session", "--validation", "node --test"])).stdout);
     assert.equal(dryRun.ok, true);
     assert.equal(dryRun.dryRun, true);
@@ -158,9 +166,17 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     const sessionCheck = JSON.parse((await runTrace(repo, ["session", "check", payload.session, "--json"])).stdout);
     assert.equal(sessionCheck.schema_version, "trace.session_check.v1");
     assert.equal(sessionCheck.ok, true);
+    assert.equal(sessionCheck.strict, false);
     assert.equal(sessionCheck.commitMemoryEvents, 4);
     assert.equal(sessionCheck.checks.find((check) => check.name === "commitMemoryEvents").ok, true);
     assert.equal(sessionCheck.checks.find((check) => check.name === "validation").level, "warning");
+
+    const strictSessionCheck = await runTraceAllowFailure(repo, ["session", "check", payload.session, "--strict", "--json"]);
+    assert.equal(strictSessionCheck.exitCode, 1);
+    const strictSessionCheckPayload = JSON.parse(strictSessionCheck.stdout);
+    assert.equal(strictSessionCheckPayload.strict, true);
+    assert.equal(strictSessionCheckPayload.ok, false);
+    assert.equal(strictSessionCheckPayload.checks.find((check) => check.name === "validation").ok, false);
 
     const fileRecall = await runTrace(repo, ["recall", "--files", "app.txt"]);
     assert.match(fileRecall.stdout, /Files: `app.txt`/);
@@ -1203,6 +1219,12 @@ test("session start creates and switches current lifecycle sessions", async () =
     assert.equal(capturedCheck.ok, true);
     assert.equal(capturedCheck.commitMemoryEvents, 1);
     assert.equal(capturedCheck.checks.find((check) => check.name === "decisions").ok, true);
+
+    const strictCapturedCheck = await runTraceAllowFailure(repo, ["session", "check", "task-auth-retry", "--strict", "--json"]);
+    assert.equal(strictCapturedCheck.exitCode, 1);
+    const strictCapturedPayload = JSON.parse(strictCapturedCheck.stdout);
+    assert.equal(strictCapturedPayload.strict, true);
+    assert.equal(strictCapturedPayload.checks.find((check) => check.name === "intent").ok, false);
 
     const wrongEnd = await runTraceAllowFailure(repo, ["session", "end", "other-session"]);
     assert.equal(wrongEnd.exitCode, 1);

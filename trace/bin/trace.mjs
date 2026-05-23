@@ -222,7 +222,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run", "check-session", "all", "agents", "checkpoints"].includes(key)) {
+    if (["json", "help", "dry-run", "check-session", "strict", "all", "agents", "checkpoints"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -1353,7 +1353,7 @@ async function checkSession(sessionId) {
   }
 
   const events = await readSessionEvents(root, resolvedSession).catch((error) => fail(`session ${resolvedSession} not found or unreadable: ${error.message}`));
-  const report = await sessionCheck(root, resolvedSession, events);
+  const report = await sessionCheck(root, resolvedSession, events, { strict: args.strict });
 
   if (args.json) {
     print(report);
@@ -1466,8 +1466,9 @@ async function sessionRecap(root, sessionId, events, limit) {
   };
 }
 
-async function sessionCheck(root, sessionId, events) {
+async function sessionCheck(root, sessionId, events, options = {}) {
   const recap = await sessionRecap(root, sessionId, events, 1);
+  const strict = Boolean(options.strict);
   const checks = [
     {
       name: "commitMemoryEvents",
@@ -1504,8 +1505,9 @@ async function sessionCheck(root, sessionId, events) {
   ];
 
   return {
-    ok: checks.every((check) => check.ok || check.level === "warning"),
+    ok: checks.every((check) => check.ok || (!strict && check.level === "warning")),
     schema_version: "trace.session_check.v1",
+    strict,
     session: sessionId,
     path: recap.path,
     events: recap.events,
@@ -2039,7 +2041,7 @@ async function recordSessionCheck(root, sessionId) {
   }
 
   const events = await readSessionEvents(root, sessionId).catch((error) => fail(`session ${sessionId} not found or unreadable: ${error.message}`));
-  const report = await sessionCheck(root, sessionId, events);
+  const report = await sessionCheck(root, sessionId, events, { strict: args.strict });
   if (!report.ok) {
     print(report);
     process.exitCode = 1;
@@ -3363,7 +3365,7 @@ Usage:
   trace session current
   trace session show <session> [--limit 20]
   trace session recap [session] [--limit 5] [--json]
-  trace session check [session] [--json]
+  trace session check [session] [--strict] [--json]
   trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list
   trace agent check [codex|claude-code|gemini|generic|all]
@@ -3383,7 +3385,7 @@ Usage:
   trace redact remove <label>
   trace coverage [range]
   trace ci [range] [--agents] [--checkpoints]
-  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--dry-run]
+  trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--strict] [--dry-run]
   trace show [commit] [--json]
   trace review [--all] [--json]
   trace log [--limit 20] [--json]
