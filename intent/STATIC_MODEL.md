@@ -453,6 +453,17 @@ Next graph envelope validation milestone:
   `INTENT_GRAPH_TRUST_INVALID`, and external-context authorization failures
   remain `INTENT_GRAPH_AUTHORIZATION_INVALID`. This makes context ownership
   explicit in the runtime graph instead of relying on id strings alone.
+- Runtime capability ownership edge contracts are the next Phase 2 static-model
+  milestone. Every graph `Capability` node must have exactly one outgoing
+  `authorizes` edge whose target is its owning `Goal`. Malformed, missing,
+  duplicate, or wrong-Goal capability ownership `authorizes` edges emit
+  `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
+  non-executable; malformed Capability node data remains
+  `INTENT_GRAPH_CAPABILITY_INVALID`. This ownership edge is separate from
+  runtime target authorization: Capability `authorizes` edges to `Effect`,
+  `Check`, and external `Context` targets remain valid target authorization
+  edges, and malformed or missing target authorization still emits
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`.
 - Runtime Type node metadata is part of graph validation. `Type` node data must
   carry `definition` as `null` or a non-empty string
   representing the declared structural or alias body. Malformed Type node
@@ -1465,6 +1476,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_CHECK_INVALID`
 - `INTENT_GRAPH_CHECK_GATE_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
+- `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID`
 - `INTENT_GRAPH_APPROVAL_INVALID`
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
 - `INTENT_GRAPH_MEMORY_INVALID`
@@ -1970,6 +1982,13 @@ any outgoing `informs` edge targets another node. This ownership edge is
 separate from external context authorization: `web` and `documents` Context
 nodes still require incoming Capability `authorizes` edges, while `repo`
 Context nodes do not.
+Graph validation emits `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` when a
+`Capability` node lacks exactly one outgoing `authorizes` edge to its owning
+`Goal`, or when any capability ownership `authorizes` edge targets another
+node. This ownership edge is separate from target authorization: Capability
+`authorizes` edges to `Effect`, `Check`, and external `Context` targets remain
+valid target authorization edges, and malformed or missing target authorization
+still emits `INTENT_GRAPH_AUTHORIZATION_INVALID`.
 Graph validation emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect`
 node lacks exactly one incoming `requests` edge from its owning `Step`, or when
 any incoming `requests` edge is not from that owning `Step`.
@@ -2019,8 +2038,9 @@ above, whose edge endpoint does not resolve inside the same payload, whose
 `Step` nodes omit valid runtime Step node data, whose
 `Completion` nodes omit valid runtime Completion node data, whose
 external `Context` source nodes lack required Capability authorization edges,
-whose `Capability` nodes omit valid runtime approval-policy data, whose `Memory`
-nodes omit valid runtime retention lifecycle data, whose `Policy` nodes omit
+whose `Capability` nodes omit valid runtime approval-policy data or valid
+ownership `authorizes` edges to their owning `Goal`, whose `Memory` nodes omit
+valid runtime retention lifecycle data, whose `Policy` nodes omit
 valid runtime step execution policy data, whose `Approval` nodes omit valid
 runtime step gate data, or whose required
 execution, data, authorization, approval, guard, verification, completion, and
@@ -2090,7 +2110,15 @@ Capability nodes are also runtime policy inputs. Graph validation requires
 `required`, and `data.grants` to be an array. Malformed capability policy data
 emits `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable
 because runtime authorization and approval enforcement must not infer missing
-policy.
+policy. Every graph `Capability` node must also have exactly one outgoing
+`authorizes` edge whose target is its owning `Goal`. Malformed, missing,
+duplicate, or wrong-Goal capability ownership `authorizes` edges emit
+`INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
+non-executable. This ownership edge is separate from runtime target
+authorization: Capability `authorizes` edges to `Effect`, `Check`, and
+external `Context` targets remain valid target authorization edges, and
+malformed or missing target authorization still emits
+`INTENT_GRAPH_AUTHORIZATION_INVALID`.
 
 Type nodes carry the runtime graph contract for declared types. Their data must
 include `definition` as `null` or a non-empty string representing the declared

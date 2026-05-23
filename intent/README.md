@@ -299,6 +299,17 @@ Validation expectations:
   must be an array. Malformed capability policy data emits
   `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
   runtime authorization and approval enforcement must not infer missing policy.
+- Runtime capability ownership edge contracts are the next Phase 2 static-model
+  milestone. Every graph `Capability` node must have exactly one outgoing
+  `authorizes` edge whose target is its owning `Goal`. Malformed, missing,
+  duplicate, or wrong-Goal capability ownership `authorizes` edges emit
+  `INTENT_GRAPH_CAPABILITY_AUTHORIZES_INVALID` and make graph output
+  non-executable; malformed Capability node data remains
+  `INTENT_GRAPH_CAPABILITY_INVALID`. This ownership edge is separate from
+  runtime target authorization: Capability `authorizes` edges to `Effect`,
+  `Check`, and external `Context` targets remain valid target authorization
+  edges, and malformed or missing target authorization still emits
+  `INTENT_GRAPH_AUTHORIZATION_INVALID`.
 - Graph `Approval` nodes are runtime approval gates. They must carry valid step
   gate data: `data.approval` must be non-empty and `data.ownerStep` must be
   non-empty. Malformed approval gate data emits `INTENT_GRAPH_APPROVAL_INVALID`
