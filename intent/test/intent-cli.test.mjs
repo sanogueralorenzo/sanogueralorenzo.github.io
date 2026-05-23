@@ -106,8 +106,21 @@ function validateTestGraph(graph) {
 
 function defaultGraphNodeData(kind, data) {
   const normalizedData = isPlainObject(data) ? data : {};
-  if (kind === "Context" || kind === "Effect") {
+  if (kind === "Context") {
     return { trust: { zone: "unknown", source: "synthetic" }, ...normalizedData };
+  }
+  if (kind === "Effect") {
+    return {
+      family: "file",
+      action: "write",
+      args: {},
+      argKinds: {},
+      argSpans: {},
+      trust: { zone: "unknown", source: "synthetic" },
+      expression: "FileWrite()",
+      approvalRequired: false,
+      ...normalizedData,
+    };
   }
   if (kind === "Capability") {
     return { family: "synthetic", action: null, grants: [], approvalPolicy: "none", ...normalizedData };
@@ -1619,6 +1632,34 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[2].checkpoint_value, "   ");
     assert.equal(diagnostics[2].checkpoint_is_nonempty, false);
     assert.equal(diagnostics[2].owner_step_is_nonempty, true);
+  });
+
+  it("validates graph effect adapter diagnostics", () => {
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "effect:missing", kind: "Effect", label: "missing effect", span: testSpan(1), data: { family: null } },
+        { id: "effect:bad-spans", kind: "Effect", label: "bad spans", span: testSpan(2), data: { argSpans: { path: "line 1" } } },
+        { id: "effect:bad-policy", kind: "Effect", label: "bad policy", span: testSpan(3), data: { family: "   ", action: "", args: null, argKinds: null, approvalRequired: "yes" } },
+      ],
+      edges: [],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_EFFECT_INVALID");
+
+    assert.equal(diagnostics.length, 3);
+    assert.equal(diagnostics[0].code, "INTENT_GRAPH_EFFECT_INVALID");
+    assert.equal(diagnostics[0].effect_id, "effect:missing");
+    assert.equal(diagnostics[0].family_is_nonempty, false);
+    assert.equal(diagnostics[0].action_is_nonempty, true);
+    assert.equal(diagnostics[0].arg_spans_are_valid, true);
+    assert.equal(diagnostics[1].code, "INTENT_GRAPH_EFFECT_INVALID");
+    assert.equal(diagnostics[1].arg_spans_is_object, true);
+    assert.equal(diagnostics[1].arg_spans_are_valid, false);
+    assert.equal(diagnostics[2].code, "INTENT_GRAPH_EFFECT_INVALID");
+    assert.equal(diagnostics[2].family_is_nonempty, false);
+    assert.equal(diagnostics[2].action_is_nonempty, false);
+    assert.equal(diagnostics[2].args_is_object, false);
+    assert.equal(diagnostics[2].arg_kinds_is_object, false);
+    assert.equal(diagnostics[2].approval_required_is_boolean, false);
   });
 
   it("validates graph step input binding diagnostics", () => {

@@ -1350,6 +1350,10 @@ function validateGraph(graph, options = {}) {
     if (checkpointDiagnostic) {
       diagnostics.push(checkpointDiagnostic);
     }
+    const effectDiagnostic = validateGraphEffect(graphNode, graphSpan);
+    if (effectDiagnostic) {
+      diagnostics.push(effectDiagnostic);
+    }
     const trustDiagnostic = validateGraphNodeTrust(graphNode, graphSpan);
     if (trustDiagnostic) {
       diagnostics.push(trustDiagnostic);
@@ -1814,6 +1818,35 @@ function validateGraphCheckpoint(graphNode, graphSpan) {
     owner_step: typeof graphNode.data.ownerStep === "string" ? graphNode.data.ownerStep : null,
     checkpoint_is_nonempty: checkpointIsNonempty,
     owner_step_is_nonempty: ownerStepIsNonempty,
+  });
+}
+
+function validateGraphEffect(graphNode, graphSpan) {
+  if (graphNode.kind !== "Effect") {
+    return null;
+  }
+  const familyIsNonempty = typeof graphNode.data.family === "string" && graphNode.data.family.trim() !== "";
+  const actionIsNonempty = typeof graphNode.data.action === "string" && graphNode.data.action.trim() !== "";
+  const argsIsObject = isPlainObject(graphNode.data.args);
+  const argKindsIsObject = isPlainObject(graphNode.data.argKinds);
+  const argSpansIsObject = isPlainObject(graphNode.data.argSpans);
+  const argSpansAreValid = argSpansIsObject && Object.values(graphNode.data.argSpans).every(isSpan);
+  const approvalRequiredIsBoolean = typeof graphNode.data.approvalRequired === "boolean";
+  if (familyIsNonempty && actionIsNonempty && argsIsObject && argKindsIsObject && argSpansAreValid && approvalRequiredIsBoolean) {
+    return null;
+  }
+  return error("INTENT_GRAPH_EFFECT_INVALID", `effect '${graphNode.label}' must carry valid runtime adapter data.`, graphNode.span ?? graphSpan, {
+    effect: graphNode.label,
+    effect_id: graphNode.id,
+    family: typeof graphNode.data.family === "string" ? graphNode.data.family : null,
+    action: typeof graphNode.data.action === "string" ? graphNode.data.action : null,
+    family_is_nonempty: familyIsNonempty,
+    action_is_nonempty: actionIsNonempty,
+    args_is_object: argsIsObject,
+    arg_kinds_is_object: argKindsIsObject,
+    arg_spans_is_object: argSpansIsObject,
+    arg_spans_are_valid: argSpansAreValid,
+    approval_required_is_boolean: approvalRequiredIsBoolean,
   });
 }
 
