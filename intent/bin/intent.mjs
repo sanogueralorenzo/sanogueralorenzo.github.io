@@ -523,6 +523,7 @@ function checkIntent(ast) {
 
     validateGoalTypes(goal, declaredTypes, diagnostics);
     validateStepBindings(goal, diagnostics);
+    validateGoalCompletionType(goal, diagnostics);
     validateStepPolicies(goal, diagnostics);
     validateStepCheckpoints(goal, diagnostics);
     validateStepApprovals(goal, diagnostics);
@@ -734,6 +735,21 @@ function validateStepBindings(goal, diagnostics) {
       availableTypes.add(outputType);
     }
   }
+}
+
+function validateGoalCompletionType(goal, diagnostics) {
+  const expectedType = normalizeTypeRef(goal.outputType);
+  const finalStep = goal.steps.at(-1);
+  const actualType = normalizeTypeRef(finalStep?.outputType);
+  if (!expectedType || !finalStep || !actualType || expectedType === actualType) {
+    return;
+  }
+  diagnostics.push(error("INTENT_TYPE_MISMATCH", `goal '${goal.name}' declares output '${expectedType}' but final step '${finalStep.name}' produces '${actualType}'.`, finalStep.outputTypeSpan ?? finalStep.span, {
+    goal: goal.name,
+    step: finalStep.name,
+    expected: expectedType,
+    actual: actualType,
+  }));
 }
 
 function validateStepPolicies(goal, diagnostics) {

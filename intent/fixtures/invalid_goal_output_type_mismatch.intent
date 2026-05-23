@@ -8,7 +8,7 @@ type DraftPatch = {
   files: List<Path>
 }
 
-goal "produce expected report" -> ExpectedReport {
+goal produce_expected_report() -> ExpectedReport {
   context repo("./")
 
   memory session {

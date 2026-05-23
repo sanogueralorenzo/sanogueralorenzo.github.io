@@ -45,6 +45,7 @@ const INVALID_CHECKPOINT_EMPTY = new URL("../fixtures/invalid_checkpoint_empty.i
 const INVALID_APPROVAL_EMPTY = new URL("../fixtures/invalid_approval_empty.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_TYPE = new URL("../fixtures/invalid_unresolved_type.intent", import.meta.url).pathname;
 const INVALID_UNRESOLVED_STEP_INPUT = new URL("../fixtures/invalid_unresolved_step_input.intent", import.meta.url).pathname;
+const INVALID_GOAL_OUTPUT_TYPE_MISMATCH = new URL("../fixtures/invalid_goal_output_type_mismatch.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_NAME = new URL("../fixtures/invalid_duplicate_step_name.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_GOAL_NAME = new URL("../fixtures/invalid_duplicate_goal_name.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_TYPE_NAME = new URL("../fixtures/invalid_duplicate_type_name.intent", import.meta.url).pathname;
@@ -520,6 +521,21 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].type, "MissingType");
     assert.equal(payload.diagnostics[0].span.start.line, 16);
     assert.equal(payload.diagnostics[0].span.start.column, 25);
+  });
+
+  it("rejects goal output type mismatches", () => {
+    const result = run(["check", INVALID_GOAL_OUTPUT_TYPE_MISMATCH]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_TYPE_MISMATCH");
+    assert.equal(payload.diagnostics[0].goal, "produce_expected_report");
+    assert.equal(payload.diagnostics[0].step, "prepare_patch");
+    assert.equal(payload.diagnostics[0].expected, "ExpectedReport");
+    assert.equal(payload.diagnostics[0].actual, "DraftPatch");
+    assert.equal(payload.diagnostics[0].span.start.line, 20);
+    assert.equal(payload.diagnostics[0].span.start.column, 23);
   });
 
   it("rejects duplicate step names", () => {
