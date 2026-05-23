@@ -399,7 +399,7 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
   }
 
   if (normalized === "plan") {
-    goal.steps.push(...parsePlan(body, file));
+    goal.steps.push(...parsePlan(body, file, goal.rawBlocks));
     return;
   }
 
@@ -407,6 +407,8 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
     for (const line of meaningfulLines(body)) {
       if (line.text.startsWith("require ")) {
         goal.verify.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
+      } else {
+        goal.rawBlocks.push(statementNode("RawVerifyStatement", line.text, file, line.lineNumber, line.raw));
       }
     }
     return;
@@ -414,16 +416,16 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
 
   if (normalized === "invariant") {
     for (const line of meaningfulLines(body)) {
-      if (line.text.startsWith("require ")) {
-        goal.invariants.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
-      } else if (line.text.startsWith("deny ")) {
+      if (line.text.startsWith("deny ")) {
         goal.invariants.push(statementNode("Deny", line.text.slice("deny ".length), file, line.lineNumber, line.raw));
+      } else {
+        goal.rawBlocks.push(statementNode("RawInvariantStatement", line.text, file, line.lineNumber, line.raw));
       }
     }
   }
 }
 
-function parsePlan(body, file) {
+function parsePlan(body, file, rawStatements = []) {
   const steps = [];
   let index = 0;
   while (index < body.length) {
@@ -436,23 +438,24 @@ function parsePlan(body, file) {
 
     if (line.startsWith("step ") && line.includes("{")) {
       const block = collectInlineBlock(body, index, file);
-      steps.push(parseStep(line.replace(/\s*\{\s*$/, ""), block.body, file, block.startLine, block.endLine));
+      steps.push(parseStep(line.replace(/\s*\{\s*$/, ""), block.body, file, block.startLine, block.endLine, rawStatements));
       index = block.nextIndex;
       continue;
     }
 
     if (line.startsWith("step ")) {
-      steps.push(parseStep(line, [], file, entry.lineNumber, entry.lineNumber));
+      steps.push(parseStep(line, [], file, entry.lineNumber, entry.lineNumber, rawStatements));
       index += 1;
       continue;
     }
 
+    rawStatements.push(statementNode("RawPlanStatement", line, file, entry.lineNumber, entry.text));
     index += 1;
   }
   return steps;
 }
 
-function parseStep(header, body, file, startLine, endLine) {
+function parseStep(header, body, file, startLine, endLine, rawStatements = []) {
   const match = header.match(/^step\s+([A-Za-z][A-Za-z0-9_]*)\s*(?:\(([^)]*)\))?\s*(?:->\s*([A-Za-z][A-Za-z0-9_<>, ]*))?/);
   if (!match) {
     throw parseError(file, startLine, header, `invalid step declaration '${header}'`);
@@ -472,26 +475,37 @@ function parseStep(header, body, file, startLine, endLine) {
     }
   }
   for (const line of meaningfulLines(body)) {
+    let parsed = false;
     if (line.text.startsWith("effect ")) {
       effects.push(parseEffectUse(line.text.slice("effect ".length), file, line.lineNumber, line.raw));
+      parsed = true;
     }
     if (line.text.startsWith("require ")) {
       requirements.push(statementNode("Require", line.text.slice("require ".length), file, line.lineNumber, line.raw));
+      parsed = true;
     }
     if (line.text.startsWith("checkpoint ")) {
       checkpoints.push(parseCheckpointStatement(line, file));
+      parsed = true;
     }
     if (line.text.startsWith("approval ")) {
       approvals.push(parseApprovalStatement(line, file));
+      parsed = true;
     }
     if (line.text.startsWith("timeout ")) {
       timeouts.push(parsePolicyStatement("Timeout", line, file, "timeout "));
+      parsed = true;
     }
     if (line.text.startsWith("retry ")) {
       retries.push(parsePolicyStatement("Retry", line, file, "retry "));
+      parsed = true;
     }
     if (line.text.startsWith("memory ")) {
       memoryAccesses.push(parseMemoryAccessStatement(line, file));
+      parsed = true;
+    }
+    if (!parsed) {
+      rawStatements.push(statementNode("RawStepStatement", line.text, file, line.lineNumber, line.raw));
     }
   }
   return {
@@ -796,14 +810,24 @@ function validateContextSources(goal, diagnostics) {
 
 function validateUnsupportedSyntax(goal, diagnostics) {
   for (const item of goal.rawBlocks) {
-    if (item.kind !== "RawGoalStatement") {
+    if (!item.kind.startsWith("Raw")) {
       continue;
     }
-    diagnostics.push(error("INTENT_UNSUPPORTED_SYNTAX", `unsupported goal statement '${item.value}'.`, item.span, {
+    const blockName = unsupportedSyntaxBlockName(item.kind);
+    diagnostics.push(error("INTENT_UNSUPPORTED_SYNTAX", `unsupported ${blockName} statement '${item.value}'.`, item.span, {
       syntax: item.value,
       goal: goal.name,
+      block: blockName,
     }));
   }
+}
+
+function unsupportedSyntaxBlockName(kind) {
+  if (kind === "RawPlanStatement") return "plan";
+  if (kind === "RawStepStatement") return "step";
+  if (kind === "RawVerifyStatement") return "verify";
+  if (kind === "RawInvariantStatement") return "invariant";
+  return "goal";
 }
 
 function validateMemory(goal, diagnostics) {

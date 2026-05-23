@@ -1,0 +1,19 @@
+package fixtures.invalid_unsupported_invariant_statement
+
+type Report = Result
+
+goal reject_unsupported_invariant_statement() -> Report {
+  context repo("./")
+
+  plan {
+    step summarize -> Report
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    require no_policy_violations
+  }
+}

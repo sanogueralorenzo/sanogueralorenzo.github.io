@@ -126,7 +126,12 @@ with a retained subject span and an until-condition span.
 The checker accepts retention lifecycle targets only when the `until` value is
 `goal_complete`, `goal.completed`, or a simple duration such as `30d`, `12h`,
 `45m`, or `10s`.
-`verify` accepts only `require`; `invariant` accepts only `deny`.
+`plan` accepts only `step` declarations. Step bodies accept only `effect`,
+`require`, `approval`, `checkpoint`, `timeout`, `retry`, and `memory` lines.
+`verify` accepts only `require`; `invariant` accepts only `deny`. Any other
+non-empty line in those strict blocks is retained as unsupported syntax and
+emits `INTENT_UNSUPPORTED_SYNTAX` at that statement span instead of being
+ignored.
 
 Each `deny ...` line inside an `invariant` block is parsed as an invariant
 statement. The graph builder emits each invariant statement as an `Invariant`

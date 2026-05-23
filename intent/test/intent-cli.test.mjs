@@ -69,6 +69,10 @@ const INVALID_DUPLICATE_TYPE_NAME = new URL("../fixtures/invalid_duplicate_type_
 const INVALID_DUPLICATE_GOAL_INPUT = new URL("../fixtures/invalid_duplicate_goal_input.intent", import.meta.url).pathname;
 const INVALID_DUPLICATE_STEP_INPUT = new URL("../fixtures/invalid_duplicate_step_input.intent", import.meta.url).pathname;
 const INVALID_UNSUPPORTED_GOAL_STATEMENT = new URL("../fixtures/invalid_unsupported_goal_statement.intent", import.meta.url).pathname;
+const INVALID_UNSUPPORTED_PLAN_STATEMENT = new URL("../fixtures/invalid_unsupported_plan_statement.intent", import.meta.url).pathname;
+const INVALID_UNSUPPORTED_STEP_STATEMENT = new URL("../fixtures/invalid_unsupported_step_statement.intent", import.meta.url).pathname;
+const INVALID_UNSUPPORTED_VERIFY_STATEMENT = new URL("../fixtures/invalid_unsupported_verify_statement.intent", import.meta.url).pathname;
+const INVALID_UNSUPPORTED_INVARIANT_STATEMENT = new URL("../fixtures/invalid_unsupported_invariant_statement.intent", import.meta.url).pathname;
 
 function runJson(args) {
   const output = execFileSync("node", [CLI, ...args], { encoding: "utf8" });
@@ -1152,6 +1156,49 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].goal, "reject_unsupported_goal_statement");
     assert.equal(payload.diagnostics[0].span.start.line, 18);
     assert.equal(payload.diagnostics[0].span.start.column, 3);
+  });
+
+  it("rejects unsupported plan, step, verify, and invariant statements", () => {
+    const plan = run(["check", INVALID_UNSUPPORTED_PLAN_STATEMENT]);
+    const step = run(["check", INVALID_UNSUPPORTED_STEP_STATEMENT]);
+    const verify = run(["check", INVALID_UNSUPPORTED_VERIFY_STATEMENT]);
+    const invariant = run(["check", INVALID_UNSUPPORTED_INVARIANT_STATEMENT]);
+    const planPayload = JSON.parse(plan.stdout);
+    const stepPayload = JSON.parse(step.stdout);
+    const verifyPayload = JSON.parse(verify.stdout);
+    const invariantPayload = JSON.parse(invariant.stdout);
+
+    assert.equal(plan.status, 1);
+    assert.equal(planPayload.ok, false);
+    assert.equal(planPayload.diagnostics[0].code, "INTENT_UNSUPPORTED_SYNTAX");
+    assert.equal(planPayload.diagnostics[0].syntax, "delegate reviewer");
+    assert.equal(planPayload.diagnostics[0].block, "plan");
+    assert.equal(planPayload.diagnostics[0].span.start.line, 9);
+    assert.equal(planPayload.diagnostics[0].span.start.column, 5);
+
+    assert.equal(step.status, 1);
+    assert.equal(stepPayload.ok, false);
+    assert.equal(stepPayload.diagnostics[0].code, "INTENT_UNSUPPORTED_SYNTAX");
+    assert.equal(stepPayload.diagnostics[0].syntax, "delegate reviewer");
+    assert.equal(stepPayload.diagnostics[0].block, "step");
+    assert.equal(stepPayload.diagnostics[0].span.start.line, 10);
+    assert.equal(stepPayload.diagnostics[0].span.start.column, 7);
+
+    assert.equal(verify.status, 1);
+    assert.equal(verifyPayload.ok, false);
+    assert.equal(verifyPayload.diagnostics[0].code, "INTENT_UNSUPPORTED_SYNTAX");
+    assert.equal(verifyPayload.diagnostics[0].syntax, "ensure no_policy_violations");
+    assert.equal(verifyPayload.diagnostics[0].block, "verify");
+    assert.equal(verifyPayload.diagnostics[0].span.start.line, 13);
+    assert.equal(verifyPayload.diagnostics[0].span.start.column, 5);
+
+    assert.equal(invariant.status, 1);
+    assert.equal(invariantPayload.ok, false);
+    assert.equal(invariantPayload.diagnostics[0].code, "INTENT_UNSUPPORTED_SYNTAX");
+    assert.equal(invariantPayload.diagnostics[0].syntax, "require no_policy_violations");
+    assert.equal(invariantPayload.diagnostics[0].block, "invariant");
+    assert.equal(invariantPayload.diagnostics[0].span.start.line, 17);
+    assert.equal(invariantPayload.diagnostics[0].span.start.column, 5);
   });
 
   it("rejects step inputs that are not produced yet", () => {

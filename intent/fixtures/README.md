@@ -59,6 +59,10 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_duplicate_goal_input.intent`: declares the same goal input name twice and should fail `INTENT_NAME_DUPLICATE` at the duplicate parameter span.
 - `invalid_duplicate_step_input.intent`: declares the same step input name twice and should fail `INTENT_NAME_DUPLICATE` at the duplicate parameter span.
 - `invalid_unsupported_goal_statement.intent`: declares an otherwise valid-looking goal with unsupported raw goal statement `delegate reviewer`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
+- `invalid_unsupported_plan_statement.intent`: declares an unsupported non-`step` line in `plan`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
+- `invalid_unsupported_step_statement.intent`: declares an unsupported line inside a step body, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
+- `invalid_unsupported_verify_statement.intent`: declares an unsupported non-`require` line in `verify`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
+- `invalid_unsupported_invariant_statement.intent`: declares an unsupported non-`deny` line in `invariant`, which should fail `INTENT_UNSUPPORTED_SYNTAX` at that statement span.
 - `invalid_unresolved_type.intent`: uses a step output type that is not declared.
 - `invalid_goal_output_type_mismatch.intent`: declares goal output `ExpectedReport` but the final plan step outputs `DraftPatch`, which should fail `INTENT_TYPE_MISMATCH` at the final step output type span.
 - `invalid_unresolved_step_input.intent`: uses a declared step input type before any goal input or earlier step produces it.

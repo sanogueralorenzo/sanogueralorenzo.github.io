@@ -1,0 +1,15 @@
+package fixtures.invalid_unsupported_verify_statement
+
+type Report = Result
+
+goal reject_unsupported_verify_statement() -> Report {
+  context repo("./")
+
+  plan {
+    step summarize -> Report
+  }
+
+  verify {
+    ensure no_policy_violations
+  }
+}

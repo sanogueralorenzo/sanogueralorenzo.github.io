@@ -1,0 +1,16 @@
+package fixtures.invalid_unsupported_plan_statement
+
+type Report = Result
+
+goal reject_unsupported_plan_statement() -> Report {
+  context repo("./")
+
+  plan {
+    delegate reviewer
+    step summarize -> Report
+  }
+
+  verify {
+    require no_policy_violations
+  }
+}

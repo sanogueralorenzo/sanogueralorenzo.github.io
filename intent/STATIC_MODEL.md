@@ -52,9 +52,9 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 
 The prototype may parse unsupported nodes into `UnknownDecl` or `UnknownExpr`
 only when it also emits a blocking diagnostic. Unsupported raw statements in a
-goal body, outside known blocks such as `context`, `capability`, `memory`,
-`plan`, `verify`, and `invariant`, emit `INTENT_UNSUPPORTED_SYNTAX` at the raw
-statement span.
+goal body, and unsupported statements inside strict blocks such as `plan`,
+step bodies, `verify`, and `invariant`, emit `INTENT_UNSUPPORTED_SYNTAX` at the
+raw statement span.
 
 A syntactically valid source with package, imports, or type declarations but no
 goal emits `INTENT_GOAL_MISSING` at the source span.
@@ -793,8 +793,9 @@ blocking diagnostics.
   duplicate step input names in a step.
 - Reject files with no goal declarations with `INTENT_GOAL_MISSING` at the
   source span.
-- Reject unsupported parsed raw goal statements with
-  `INTENT_UNSUPPORTED_SYNTAX` at the statement span.
+- Reject unsupported parsed raw goal, `plan`, step-body, `verify`, and
+  `invariant` statements with `INTENT_UNSUPPORTED_SYNTAX` at the statement
+  span.
 - Duplicate goal and step parameter diagnostics should use the duplicate
   parameter span, not the enclosing goal or step span.
 - Resolve every type reference against built-ins and file-local type
