@@ -152,6 +152,32 @@ function testGrant(action, key, value, line) {
   };
 }
 
+function testAuthorizationGrant(argument, sourceArgument, value, grantAction, grantKey, grantValue, line, grantApprovalRequired = false) {
+  const grantArg = {
+    key: grantKey,
+    value: grantValue,
+    kind: "string",
+    keySpan: testSpan(line),
+    valueSpan: testSpan(line),
+    span: testSpan(line),
+  };
+  return {
+    argument,
+    sourceArgument,
+    value,
+    grantAction,
+    grantKey,
+    grantValue,
+    grantApprovalRequired,
+    grantSpan: testSpan(line),
+    grantActionSpan: testSpan(line),
+    grantArgumentSpan: testSpan(line),
+    grantKeySpan: testSpan(line),
+    grantValueSpan: testSpan(line),
+    grantArgs: [grantArg],
+  };
+}
+
 function validateTestGraph(graph) {
   const normalizedNodes = graph.nodes?.map((node, index) => {
     return isPlainObject(node)
@@ -942,6 +968,18 @@ describe("intent static model CLI", () => {
       assert.equal(gitCapability.data.approvalPolicy, "required");
       assert.equal(gitPushEffect.data.approvalRequired, true);
       assert.equal(graph.edges.some((edge) => edge.kind === "approves" && edge.to === gitPushEffect.id), true);
+      const gitPushAuthorization = authorizations.find((edge) => edge.to === gitPushEffect.id);
+      assert.deepEqual(gitPushAuthorization.data.grants.map((grant) => [grant.argument, grant.grantValue, grant.grantApprovalRequired]), [
+        ["branch", ["main"], true],
+        ["remote", ["origin"], true],
+      ]);
+      assert.equal(gitPushAuthorization.data.grants[0].grantSpan.start.line, gitPushGrant.span.start.line);
+      assert.equal(gitPushAuthorization.data.grants[0].grantArgs.length, 3);
+      assert.deepEqual(gitPushAuthorization.data.grants[0].grantArgs.map((argument) => [argument.key, argument.kind]), [
+        ["branch", "string_list"],
+        ["remote", "string_list"],
+        ["approval", "identifier"],
+      ]);
       assert.deepEqual(authorizations.map((edge) => edge.data.contractId), effects.map((effect) => effect.data.contractId));
       assert.deepEqual(authorizations.map((edge) => edge.data.grants.map((grant) => [grant.argument, grant.sourceArgument])), [
         [["path", "path"]],
@@ -4394,14 +4432,7 @@ describe("intent static model CLI", () => {
   });
 
   it("rejects stale authorization edge grant metadata", () => {
-    const expectedGrant = {
-      argument: "path",
-      sourceArgument: "_0",
-      value: "./src/app.ts",
-      grantAction: "write",
-      grantKey: "path",
-      grantValue: "./src/**",
-    };
+    const expectedGrant = testAuthorizationGrant("path", "_0", "./src/app.ts", "write", "path", "./src/**", 2);
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [
@@ -4460,14 +4491,7 @@ describe("intent static model CLI", () => {
   });
 
   it("rejects stale context authorization edge grant metadata", () => {
-    const expectedGrant = {
-      argument: "domain",
-      sourceArgument: "url",
-      value: "example.com",
-      grantAction: "read",
-      grantKey: "domain",
-      grantValue: "example.com",
-    };
+    const expectedGrant = testAuthorizationGrant("domain", "url", "example.com", "read", "domain", "example.com", 2);
     const diagnostics = validateTestGraph({
       source: "synthetic.intent",
       nodes: [

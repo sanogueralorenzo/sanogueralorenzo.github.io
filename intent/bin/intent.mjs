@@ -4857,6 +4857,13 @@ function authorizationGrantRecord(argument, grant, sourceArgument) {
     grantAction: grant.action,
     grantKey: grantArgument.key,
     grantValue: grantArgument.value,
+    grantApprovalRequired: Boolean(grant.approvalRequired),
+    grantSpan: grant.span,
+    grantActionSpan: grant.actionSpan,
+    grantArgumentSpan: grantArgument.span ?? grant.span,
+    grantKeySpan: grantArgument.keySpan ?? null,
+    grantValueSpan: grantArgument.valueSpan ?? null,
+    grantArgs: Array.isArray(grant.args) ? grant.args : [],
   };
 }
 
@@ -4867,7 +4874,14 @@ function authorizationGrantRecordsEqual(left, right) {
     && left.value === right.value
     && left.grantAction === right.grantAction
     && left.grantKey === right.grantKey
-    && grantValuesEqual(left.grantValue, right.grantValue);
+    && grantValuesEqual(left.grantValue, right.grantValue)
+    && left.grantApprovalRequired === right.grantApprovalRequired
+    && spansEqual(left.grantSpan, right.grantSpan)
+    && spansEqual(left.grantActionSpan, right.grantActionSpan)
+    && spansEqual(left.grantArgumentSpan, right.grantArgumentSpan)
+    && nullableSpansEqual(left.grantKeySpan, right.grantKeySpan)
+    && nullableSpansEqual(left.grantValueSpan, right.grantValueSpan)
+    && grantArgumentRecordsEqual(left.grantArgs, right.grantArgs);
 }
 
 function grantValuesEqual(left, right) {
@@ -4878,6 +4892,30 @@ function grantValuesEqual(left, right) {
       && left.every((value, index) => value === right[index]);
   }
   return left === right;
+}
+
+function nullableSpansEqual(left, right) {
+  if (left === null || right === null) {
+    return left === right;
+  }
+  return spansEqual(left, right);
+}
+
+function grantArgumentRecordsEqual(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) {
+    return false;
+  }
+  return left.every((argument, index) => {
+    const expected = right[index];
+    return isPlainObject(argument)
+      && isPlainObject(expected)
+      && argument.key === expected.key
+      && argument.kind === expected.kind
+      && grantValuesEqual(argument.value, expected.value)
+      && nullableSpansEqual(argument.keySpan ?? null, expected.keySpan ?? null)
+      && spansEqual(argument.valueSpan, expected.valueSpan)
+      && spansEqual(argument.span, expected.span);
+  });
 }
 
 function graphCapabilityAccess(capabilityNode) {

@@ -529,8 +529,9 @@ Validation expectations:
   `contractArguments` references so runtimes can verify which contract and
   source argument aliases were selected. Authorization edges also carry the
   selected contract id, contract arguments, and matched grant argument records
-  with `argument`, `sourceArgument`, `value`, `grantAction`, `grantKey`, and
-  `grantValue`. Structured capability grants carry a grant-line `span`,
+  with `argument`, `sourceArgument`, `value`, `grantAction`, `grantKey`,
+  `grantValue`, grant spans, `grantApprovalRequired`, and the grant's ordered
+  `grantArgs`. Structured capability grants carry a grant-line `span`,
   `actionSpan`, and ordered `args` records with key/value spans and typed values
   for strings, string lists, integers, durations, and identifiers.
   Multi-argument grants such as `push branch: "main" remote: "origin"` authorize
