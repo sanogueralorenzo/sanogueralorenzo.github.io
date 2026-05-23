@@ -42,6 +42,8 @@ let runtimeConfigPath = null;
 let runtimeConfigHash = stableHash(DEFAULT_CONFIG);
 let activeLockDir = null;
 let atomicWriteCounter = 0;
+let failThrows = false;
+const printCaptureStack = [];
 
 const command = process.argv[2] ?? "help";
 const hookName = command === "hook" && process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : null;
@@ -102,6 +104,11 @@ async function main() {
 
   if (command === "hook") {
     await runHook();
+    return;
+  }
+
+  if (command === "loop") {
+    await runLoop();
     return;
   }
 
@@ -817,7 +824,12 @@ async function runHook() {
 }
 
 async function eventHook() {
-  const event = redactSecretsDeep(await readHookEvent()).value;
+  const payload = await dispatchHookEvent(await readHookEvent());
+  print(payload);
+}
+
+async function dispatchHookEvent(rawEvent) {
+  const event = redactSecretsDeep(rawEvent).value;
   assertSchemaVersion(event, "event");
   const hook = requireString(event.hook, "event.hook");
 
@@ -830,41 +842,75 @@ async function eventHook() {
   }
 
   if (hook === "context.before_turn") {
-    await contextBeforeTurnEventHook(event);
-    return;
+    return capturePrintedPayload(() => contextBeforeTurnEventHook(event));
   }
 
   if (hook === "validation.after_run") {
-    await validationAfterRunEventHook(event);
-    return;
+    return capturePrintedPayload(() => validationAfterRunEventHook(event));
   }
 
   if (hook === "diff.after_edit") {
-    await diffAfterEditEventHook(event);
-    return;
+    return capturePrintedPayload(() => diffAfterEditEventHook(event));
   }
 
   if (hook === "review.after_feedback") {
-    await reviewAfterFeedbackEventHook(event);
-    return;
+    return capturePrintedPayload(() => reviewAfterFeedbackEventHook(event));
   }
 
   if (hook === "outcome.after_task") {
-    await outcomeAfterTaskEventHook(event);
-    return;
+    return capturePrintedPayload(() => outcomeAfterTaskEventHook(event));
   }
 
   if (hook === "repair.before_retry") {
-    await repairBeforeRetryEventHook(event);
-    return;
+    return capturePrintedPayload(() => repairBeforeRetryEventHook(event));
   }
 
   if (hook === "repair.after_retry") {
-    await repairAfterRetryEventHook(event);
-    return;
+    return capturePrintedPayload(() => repairAfterRetryEventHook(event));
   }
 
   fail(`unsupported hook: ${hook}`);
+}
+
+async function runLoop() {
+  const input = await readStdin();
+  const lines = input.split(/\r?\n/u);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+
+    if (line.length === 0) {
+      continue;
+    }
+
+    const payload = await loopLinePayload(line, index + 1);
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+  }
+}
+
+async function loopLinePayload(line, lineNumber) {
+  let event = null;
+
+  try {
+    event = JSON.parse(line);
+  } catch (error) {
+    return {
+      ok: false,
+      line: lineNumber,
+      error: `invalid JSON: ${error.message}`,
+    };
+  }
+
+  try {
+    return await withFailThrows(() => dispatchHookEvent(event));
+  } catch (error) {
+    return {
+      ok: false,
+      line: lineNumber,
+      hook: typeof event?.hook === "string" ? event.hook : null,
+      error: error.message,
+    };
+  }
 }
 
 async function beforeTurnHook() {
@@ -1679,6 +1725,22 @@ function buildManifest(runtime, stateDir) {
     },
     requiredEnv: [],
     identity: runtimeIdentityContract(),
+    transports: {
+      loop: {
+        command: [
+          "node",
+          "precedent/bin/precedent.mjs",
+          "loop",
+          "--state-dir",
+          stateDir,
+          "--json",
+        ],
+        stdin: "jsonl",
+        stdout: "jsonl",
+        eventSchema: SCHEMA_VERSION,
+        failurePolicy,
+      },
+    },
     hooks: {
       "context.before_turn": {
         command: [
@@ -5825,12 +5887,45 @@ function safeFileName(value) {
 }
 
 function print(value) {
+  if (printCaptureStack.length > 0) {
+    printCaptureStack[printCaptureStack.length - 1] = value;
+    return;
+  }
+
   if (args.json) {
     process.stdout.write(`${JSON.stringify(value)}\n`);
     return;
   }
 
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function capturePrintedPayload(fn) {
+  printCaptureStack.push(undefined);
+
+  try {
+    await fn();
+    const payload = printCaptureStack[printCaptureStack.length - 1];
+
+    if (payload === undefined) {
+      fail("hook produced no response");
+    }
+
+    return payload;
+  } finally {
+    printCaptureStack.pop();
+  }
+}
+
+async function withFailThrows(fn) {
+  const previous = failThrows;
+  failThrows = true;
+
+  try {
+    return await fn();
+  } finally {
+    failThrows = previous;
+  }
 }
 
 function printHelp() {
@@ -5848,6 +5943,7 @@ Usage:
   precedent inject --task "add webhook handler" [--scope feature:webhooks] [--limit 2]
   precedent explain --id precedent-id [--state-dir .precedent]
   precedent hook [--event-file hook.json] [--state-dir .precedent] [--limit 2]
+  precedent loop [--state-dir .precedent]
   precedent hook before-turn --task "add webhook handler" [--scope feature:webhooks] [--changed-files paths]
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
@@ -5867,6 +5963,7 @@ Commands:
   inject    Return relevant precedent for the current task.
   explain   Explain promotion evidence, matching inputs, and injection history.
   hook      Run a passive hook from JSON, or the legacy before-turn flags shape.
+  loop      Run a JSONL hook loop over stdin and emit one JSON response per line.
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   attach    Emit a zero-touch runtime adapter contract for one session.
@@ -5882,6 +5979,10 @@ Config:
 }
 
 function fail(message) {
+  if (failThrows) {
+    throw new Error(message);
+  }
+
   process.stderr.write(`precedent: ${message}\n`);
   process.exit(1);
 }

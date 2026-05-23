@@ -17,6 +17,16 @@ test("manifest emits a generic runtime hook contract", async () => {
     session: "$SESSION_ID",
     threadId: "$THREAD_ID",
   });
+  assert.deepEqual(manifest.transports.loop.command, [
+    "node",
+    "precedent/bin/precedent.mjs",
+    "loop",
+    "--state-dir",
+    ".precedent",
+    "--json",
+  ]);
+  assert.equal(manifest.transports.loop.stdin, "jsonl");
+  assert.equal(manifest.transports.loop.stdout, "jsonl");
   assert.deepEqual(manifest.identity.precedence, ["session", "threadId", "task_hash_fallback"]);
   assert.equal(manifest.hooks["context.before_turn"].injectFrom, "contextBlock");
   assert.equal(manifest.hooks["context.before_turn"].failurePolicy, "fail_open");
@@ -82,6 +92,7 @@ test("manifest reflects state dir and codex runtime", async () => {
   assert.equal(manifest.runtime, "codex");
   assert.equal(manifest.stateDir, "/tmp/precedent-manifest");
   assert.equal(manifest.hooks["context.before_turn"].command[4], "/tmp/precedent-manifest");
+  assert.equal(manifest.transports.loop.command[4], "/tmp/precedent-manifest");
   assert.equal(manifest.actions["promotion.trial"].command[4], "/tmp/precedent-manifest");
   assert.deepEqual(manifest.hooks["validation.after_run"].command, [
     "node",

@@ -126,6 +126,7 @@ node precedent/bin/precedent.mjs context --task "add another webhook handler" --
 echo '{"schema_version":"precedent.v1","hook":"context.before_turn","task":"add another webhook handler","scope":"feature:webhooks","changedFiles":["features/webhooks/providers/stripe.ts"]}' | node precedent/bin/precedent.mjs hook
 node precedent/bin/precedent.mjs hook --event-file precedent/examples/before-turn-event.json
 node precedent/bin/precedent.mjs hook before-turn --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
+printf '%s\n' '{"schema_version":"precedent.v1","hook":"context.before_turn","sessionId":"demo","eventId":"turn-001","task":"add another webhook handler"}' | node precedent/bin/precedent.mjs loop --json
 node precedent/bin/precedent.mjs context --session demo --event-id turn-001 --task "add another webhook handler" --scope feature:webhooks
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
 node precedent/bin/precedent.mjs promotion-trial --candidate cand_webhook_replacement --baseline-command "pnpm test:webhooks" --trace-out /tmp/precedent-webhook-trial-trace.json
@@ -149,6 +150,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `inject` is the before-turn hook returning relevant precedent.
 - `context` is the preferred runtime-facing export: it returns `schema_version: "precedent.context.v1"`, an insertable `contextBlock`, injection metadata, suppression metadata, non-injectable `candidateHints`, and the source inputs used for ranking.
 - `hook` reads a hook event from stdin or `--event-file`, logs the event, and returns an insertable `contextBlock` for normal agent conversation context.
+- `loop` reads newline-delimited hook events from stdin and writes one JSON response per line, giving runtimes a single long-lived, runtime-agnostic event pump. Malformed lines return `{ "ok": false }` without stopping later events.
 - `hook before-turn` is the flag-based conversation hook shape: it scores task text, repo scope, and changed files, logs the hook event, and returns a compact `Precedent:` block plus structured injection data.
 - Every injection includes `matchReasons`, so a runtime can show why Precedent injected memory instead of treating it as opaque prompt context.
 - Session hooks suppress a precedent after it has already been injected once in the same session; pass `"allowRepeat": true` only when a runtime intentionally wants repeated context.
