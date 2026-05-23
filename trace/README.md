@@ -61,6 +61,9 @@ trace agent add codex
 trace agent add claude-code
 trace agent add gemini
 trace agent check all
+trace install --prefix "$HOME/.local/bin"
+trace install update --prefix "$HOME/.local/bin"
+trace install uninstall --prefix "$HOME/.local/bin"
 trace capture --event prompt --role user --message "why this change exists"
 trace capture --event risk --message "token=secret" --dry-run
 trace hook agent --adapter codex --dry-run
@@ -142,6 +145,9 @@ node trace/bin/trace.mjs agent add all
 node trace/bin/trace.mjs agent add codex
 node trace/bin/trace.mjs agent add claude-code
 node trace/bin/trace.mjs agent add gemini
+node trace/bin/trace.mjs install --prefix "$HOME/.local/bin"
+node trace/bin/trace.mjs install update --prefix "$HOME/.local/bin"
+node trace/bin/trace.mjs install uninstall --prefix "$HOME/.local/bin"
 node trace/bin/trace.mjs capture --event prompt --role user --message "why this change exists"
 node trace/bin/trace.mjs capture --event risk --message "token=secret" --dry-run
 node trace/bin/trace.mjs hook agent --adapter codex --dry-run
@@ -255,7 +261,7 @@ Adapters may also send a JSON array or newline-delimited JSON objects to `trace 
 
 See `trace/examples/` for complete local workflows covering adapter capture, commit memory review, PR/release summaries, and CI checks.
 
-`trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, `--status` reports the same install state as `trace install status`, and `--uninstall` removes it. `trace install status [--prefix <dir>]` reports whether the expected symlink is installed, whether it points at the current checkout, and the exact install/update/uninstall commands for that prefix. `trace status` includes the same install health alongside repository hooks, adapters, raw storage, and checkpoint ref state.
+`trace/install.sh` installs a `trace` symlink into `$HOME/.local/bin` by default. Use `--prefix <dir>` or `TRACE_INSTALL_DIR=<dir>` to install elsewhere. `--update` refreshes the symlink to the current checkout, `--status` reports the same install state as `trace install status`, and `--uninstall` removes it. `trace install [install|update|uninstall|status] [--prefix <dir>]` provides the same local install flow from the CLI and returns schema-stable JSON for automation. The status output reports whether the expected symlink is installed, whether it points at the current checkout, and the exact install/update/uninstall commands for that prefix. `trace status` includes the same install health alongside repository hooks, adapters, raw storage, and checkpoint ref state.
 
 `trace agent add all` creates local adapter specs for every supported first-class adapter. `trace agent add codex`, `trace agent add claude-code`, `trace agent add gemini`, and `trace agent add generic` create a single spec under `.trace/agents/`. The specs document the command an agent integration should call:
 

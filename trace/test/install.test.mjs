@@ -20,6 +20,29 @@ test("install script installs updates and uninstalls trace", async () => {
     assert.equal(beforePayload.valid, false);
     assert.equal(beforePayload.target, join(installDir, "trace"));
 
+    const cliInstalled = await run(["node", cliPath, "install", "--prefix", installDir]);
+    assert.equal(cliInstalled.exitCode, 0, cliInstalled.stderr);
+    const cliInstalledPayload = JSON.parse(cliInstalled.stdout);
+    assert.equal(cliInstalledPayload.schema_version, "trace.install_result.v1");
+    assert.equal(cliInstalledPayload.action, "install");
+    assert.equal(cliInstalledPayload.installed, true);
+    assert.equal(cliInstalledPayload.valid, true);
+    assert.equal((await lstat(join(installDir, "trace"))).isSymbolicLink(), true);
+
+    const cliUpdated = await run(["node", cliPath, "install", "update", "--prefix", installDir]);
+    assert.equal(cliUpdated.exitCode, 0, cliUpdated.stderr);
+    const cliUpdatedPayload = JSON.parse(cliUpdated.stdout);
+    assert.equal(cliUpdatedPayload.schema_version, "trace.install_result.v1");
+    assert.equal(cliUpdatedPayload.action, "update");
+    assert.equal(cliUpdatedPayload.valid, true);
+
+    const cliUninstalled = await run(["node", cliPath, "install", "--uninstall", "--prefix", installDir]);
+    assert.equal(cliUninstalled.exitCode, 0, cliUninstalled.stderr);
+    const cliUninstalledPayload = JSON.parse(cliUninstalled.stdout);
+    assert.equal(cliUninstalledPayload.schema_version, "trace.install_result.v1");
+    assert.equal(cliUninstalledPayload.action, "uninstall");
+    assert.equal(cliUninstalledPayload.installed, false);
+
     const shellBefore = await run(["bash", installScript, "--status", "--prefix", installDir]);
     assert.equal(shellBefore.exitCode, 0, shellBefore.stderr);
     assert.equal(JSON.parse(shellBefore.stdout).installed, false);

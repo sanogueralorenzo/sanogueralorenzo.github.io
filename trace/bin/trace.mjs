@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
-import { access, chmod, lstat, mkdir, readFile, readlink, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { access, chmod, lstat, mkdir, readFile, readlink, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -222,7 +222,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run", "check-session", "strict", "strict-memory", "all", "agents", "checkpoints"].includes(key)) {
+    if (["json", "help", "dry-run", "check-session", "strict", "strict-memory", "all", "agents", "checkpoints", "install", "update", "uninstall", "status"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -274,12 +274,28 @@ async function disableRepo() {
 }
 
 async function runInstallCommand(action, values) {
-  if (!action || action === "status") {
+  const installAction = args.install ? "install"
+    : args.update ? "update"
+      : args.uninstall ? "uninstall"
+        : args.status ? "status"
+          : action ?? "install";
+
+  if (installAction === "install" || installAction === "update") {
+    await writeInstallLink(installAction, values);
+    return;
+  }
+
+  if (installAction === "uninstall") {
+    await removeInstallLink(values);
+    return;
+  }
+
+  if (installAction === "status") {
     await printInstallStatus(values);
     return;
   }
 
-  fail(`unknown install command: ${action}`);
+  fail(`unknown install command: ${installAction}`);
 }
 
 async function printInstallStatus(values) {
@@ -306,6 +322,45 @@ async function installStatusPayload(values = []) {
     updateCommand: `./trace/install.sh --update --prefix ${shellQuote(installDir)}`,
     uninstallCommand: `./trace/install.sh --uninstall --prefix ${shellQuote(installDir)}`,
   };
+}
+
+async function writeInstallLink(action, values) {
+  const status = await installStatusPayload(values);
+  const existing = await lstat(status.target).catch(() => null);
+  if (existing?.isDirectory()) {
+    fail(`install target is a directory: ${status.target}`);
+  }
+
+  await mkdir(status.installDir, { recursive: true });
+  await rm(status.target, { force: true });
+  await symlink(status.source, status.target);
+  const next = await installStatusPayload(values);
+  print({
+    ok: next.valid,
+    schema_version: "trace.install_result.v1",
+    action,
+    target: next.target,
+    source: next.source,
+    installed: next.installed,
+    valid: next.valid,
+    kind: next.kind,
+  });
+}
+
+async function removeInstallLink(values) {
+  const status = await installStatusPayload(values);
+  await rm(status.target, { force: true });
+  const next = await installStatusPayload(values);
+  print({
+    ok: true,
+    schema_version: "trace.install_result.v1",
+    action: "uninstall",
+    target: next.target,
+    source: next.source,
+    installed: next.installed,
+    valid: next.valid,
+    kind: next.kind,
+  });
 }
 
 async function traceInstallTargetStatus(target, source) {
@@ -3719,7 +3774,7 @@ function printHelp() {
   process.stdout.write(`Trace records compact commit memory for agentic coding.
 
 Usage:
-  trace install status [--prefix DIR]
+  trace install [install|update|uninstall|status] [--prefix DIR]
   trace init
   trace enable
   trace capture --event prompt --role user --message "why this change exists" [--dry-run]
@@ -4072,7 +4127,7 @@ function positionalValues(values) {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (value.startsWith("--")) {
-      if (!["--json", "--help", "--dry-run"].includes(value)) {
+      if (!["--json", "--help", "--dry-run", "--install", "--update", "--uninstall", "--status"].includes(value)) {
         index += 1;
       }
       continue;
