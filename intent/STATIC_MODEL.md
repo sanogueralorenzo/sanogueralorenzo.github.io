@@ -310,6 +310,10 @@ Next graph envelope validation milestone:
   objects with string `from`, `to`, and `kind`. Malformed node or edge records
   emit stable graph shape diagnostics before endpoint, kind, or semantic
   validation.
+- Executable graph node spans must include a string `file` and object `start`
+  and `end` positions with positive integer `line` and `column` values.
+  Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
+  depend on source locations.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.

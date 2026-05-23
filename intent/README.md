@@ -105,6 +105,10 @@ Validation expectations:
   objects with string `from`, `to`, and `kind`. Malformed node or edge records
   emit stable graph shape diagnostics before endpoint, kind, or semantic
   validation.
+- Executable graph node spans must include a string `file` and object `start`
+  and `end` positions with positive integer `line` and `column` values.
+  Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
+  depend on source locations.
 - A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,
   cycles, missing authorization or approval edges, or invalid completion gates is
   malformed and must be rejected before execution.
