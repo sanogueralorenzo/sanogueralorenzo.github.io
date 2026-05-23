@@ -2248,9 +2248,17 @@ function summaryPayload(range, memories, options = {}) {
     handoff: records.flatMap((record) => record.handoff),
     commits: records.map((record) => ({
       commit: record.commit,
-      intent: record.intent,
-      handoff: record.handoff,
       memory: record.memory,
+      checkpoint: record.checkpoint,
+      session: record.session,
+      created: record.created,
+      intent: record.intent,
+      summary: record.summary,
+      decisions: record.decisions,
+      files: record.files,
+      validation: record.validation,
+      risks: record.risks,
+      handoff: record.handoff,
     })),
   };
 }
@@ -2260,6 +2268,9 @@ function memoryRecord(memory) {
   return {
     commit,
     memory: `${TRACE_DIR}/commits/${commit.slice(0, 2)}/${commit}.md`,
+    checkpoint: memory.match(/^Checkpoint: `([^`]+)`/m)?.[1] ?? "none",
+    session: memory.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
+    created: memory.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
     intent: firstLine(section(memory, "Intent") ?? ""),
     summary: sectionItems(memory, "Summary", ["Not recorded."]),
     decisions: sectionItems(memory, "Decisions", ["Not recorded."]),

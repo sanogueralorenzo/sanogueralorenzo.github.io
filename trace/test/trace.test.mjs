@@ -133,6 +133,12 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.deepEqual(summaryJson.validation, ["node --test"]);
     assert.match(summaryJson.handoff[0], /Preserve the decision/);
     assert.equal(summaryJson.commits[0].commit.length, 40);
+    assert.match(summaryJson.commits[0].checkpoint, /^[0-9a-f]+$/);
+    assert.match(summaryJson.commits[0].session, /^[A-Za-z0-9-]+$/);
+    assert.equal(summaryJson.commits[0].memory, payload.memory);
+    assert.deepEqual(summaryJson.commits[0].files, ["app.txt"]);
+    assert.deepEqual(summaryJson.commits[0].validation, ["node --test"]);
+    assert.deepEqual(summaryJson.commits[0].decisions, ["Use committed Markdown for reviewable memory"]);
     assert.match(summaryJson.commits[0].handoff[0], /Preserve the decision/);
 
     const releaseNotes = await runTrace(repo, ["release-notes", "HEAD"]);
