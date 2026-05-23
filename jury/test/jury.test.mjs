@@ -230,15 +230,56 @@ test("GitHub Actions example builds the documented verdict and review bundle", {
   }
 });
 
+test("trusted bundle workflow verifies and imports the signed key-policy fixture", { skip: skipNestedCiAdoptionTests }, async () => {
+  const checkout = await copyJuryCheckout();
+
+  try {
+    const workflow = await readFile(join(checkout, "jury/examples/ci/jury-trusted-bundle-verify.yml"), "utf8");
+    const driftCommand = extractWorkflowSingleLineRun(workflow, "Check key-policy fixtures");
+    const commands = extractWorkflowRunBlock(workflow, "Verify trusted Jury bundle");
+    const env = {
+      ...fixedEnv,
+      JURY_BUNDLE_PATH: "jury/examples/ci/fixtures/key-policy/review-bundle.signed.json",
+      JURY_KEY_POLICY_PATH: "jury/examples/ci/fixtures/key-policy/jury-key-policy.json",
+      JURY_STATE_DIR: ".jury-trusted",
+      JURY_VERDICT_OUT: "imported-verdict.json",
+      JURY_GATE_OUT: "trusted-gate.json",
+      JURY_CLAIM_ID: "claim_ci_change",
+    };
+
+    assert.ok(workflow.includes("workflow_call"));
+    assert.ok(workflow.includes("actions/upload-artifact@v4"));
+
+    const driftResult = await runShell(driftCommand, checkout, env);
+    assert.equal(driftResult.exitCode, 0, `${driftCommand}\nstdout:\n${driftResult.stdout}\nstderr:\n${driftResult.stderr}`);
+
+    for (const command of commands) {
+      const result = await runShell(command, checkout, env);
+
+      assert.equal(result.exitCode, 0, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    }
+
+    const importedVerdict = JSON.parse(await readFile(join(checkout, "imported-verdict.json"), "utf8"));
+    const gate = JSON.parse(await readFile(join(checkout, "trusted-gate.json"), "utf8"));
+    assert.equal(importedVerdict.decision, "accept");
+    assert.equal(gate.ok, true);
+    assert.equal(gate.decision, "accept");
+  } finally {
+    await rm(checkout, { recursive: true, force: true });
+  }
+});
+
 test("CI example README points to the copyable workflow and portable artifacts", { skip: skipNestedCiAdoptionTests }, async () => {
   const readme = await readFile(join(repoRoot, "jury/examples/ci/README.md"), "utf8");
 
   assert.ok(readme.includes("jury-review-gate.yml"));
+  assert.ok(readme.includes("jury-trusted-bundle-verify.yml"));
   assert.ok(readme.includes("review-bundle.json"));
   assert.ok(readme.includes("gate.json"));
   assert.ok(readme.includes("fixtures/key-policy"));
   assert.ok(readme.includes("jury.key_policy.v1"));
   assert.ok(readme.includes("actions/upload-artifact@v4"));
+  assert.ok(readme.includes("uses: ./.github/workflows/jury-trusted-bundle-verify.yml"));
 });
 
 test("key policy CI fixtures verify and import a signed review bundle", async () => {
@@ -1371,6 +1412,7 @@ test("release checklist links the adoption path and valid artifacts", async () =
   for (const requiredLink of [
     "QUICKSTART.md",
     "examples/ci/jury-review-gate.yml",
+    "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
     "MIGRATION.md",
     "TROUBLESHOOTING.md",
@@ -1420,6 +1462,7 @@ test("maintainer handoff references current adoption artifacts and validation co
   for (const requiredLink of [
     "QUICKSTART.md",
     "examples/ci/jury-review-gate.yml",
+    "examples/ci/jury-trusted-bundle-verify.yml",
     "examples/ci/fixtures/quickstart",
     "examples/ci/fixtures/key-policy",
     "MIGRATION.md",
@@ -1457,7 +1500,8 @@ test("maintainer handoff references current adoption artifacts and validation co
   assert.match(handoff, /revoked_at/);
   assert.match(handoff, /matching producer entries/);
   assert.match(handoff, /signature-mismatch statuses/);
-  assert.match(handoff, /fixtures:key-policy:check/);
+  assert.match(handoff, /downstream trusted-producer verification workflow/);
+  assert.match(handoff, /external CI private key secret/);
   assert.ok(readme.includes("MAINTAINER_HANDOFF.md"));
   assert.ok(checklist.includes("MAINTAINER_HANDOFF.md"));
 });

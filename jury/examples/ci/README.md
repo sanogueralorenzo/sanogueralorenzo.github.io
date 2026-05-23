@@ -2,7 +2,7 @@
 
 Jury can run as a local, dependency-free CI gate. The state directory is disposable, while the emitted `verdict.json` can be uploaded as a build artifact.
 
-Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow.
+Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer.
 
 ```yaml
 name: Jury review gate
@@ -49,18 +49,20 @@ jobs:
 
 The gate exits non-zero unless the verdict is `accept`. When `--claim` is present, the gate output includes unresolved blocking objections and missing fields so CI logs show the exact reason for failure. [fixtures/quickstart](fixtures/quickstart) shows the expected `verdict.json`, `review-bundle.json`, and `gate.json` outputs. `review-bundle.json` lets another job import and replay the same review state.
 
-[fixtures/key-policy](fixtures/key-policy) provides a signed review bundle, public key, and `jury.key_policy.v1` manifest for copyable trusted-producer verification in a downstream job.
+[fixtures/key-policy](fixtures/key-policy) provides a signed review bundle, public key, and `jury.key_policy.v1` manifest for copyable trusted-producer verification in a downstream job. [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) is the reusable workflow form of that handoff.
 
 ## Trusted Producer Handoff
 
 Copy [fixtures/key-policy](fixtures/key-policy) into the downstream job workspace when one CI job needs to verify a bundle produced by another trusted job.
 
 ```yaml
-      - name: Verify trusted Jury bundle
-        run: |
-          node jury/bin/jury.mjs bundle preflight --bundle jury/examples/ci/fixtures/key-policy/review-bundle.signed.json --key-policy jury/examples/ci/fixtures/key-policy/jury-key-policy.json
-          node jury/bin/jury.mjs bundle import --state-dir .jury-trusted --bundle jury/examples/ci/fixtures/key-policy/review-bundle.signed.json --key-policy jury/examples/ci/fixtures/key-policy/jury-key-policy.json --verdict-out imported-verdict.json
-          node jury/bin/jury.mjs gate --state-dir .jury-trusted --claim claim_ci_change --verdict imported-verdict.json
+jobs:
+  trusted-jury:
+    uses: ./.github/workflows/jury-trusted-bundle-verify.yml
+    with:
+      bundle-path: jury/examples/ci/fixtures/key-policy/review-bundle.signed.json
+      key-policy-path: jury/examples/ci/fixtures/key-policy/jury-key-policy.json
+      claim-id: claim_ci_change
 ```
 
 In production, keep the private signing key only in the producing job. The downstream job needs the signed bundle, `jury-key-policy.json`, and the public key referenced by the policy.

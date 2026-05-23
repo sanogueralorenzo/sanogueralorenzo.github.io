@@ -20,6 +20,8 @@ node jury/bin/jury.mjs bundle import --state-dir .jury-key-policy-imported --bun
 
 The private signing key is not included. These fixtures are for downstream verification and policy wiring.
 
+Use [../../jury-trusted-bundle-verify.yml](../../jury-trusted-bundle-verify.yml) when the downstream check should run as a reusable GitHub Actions workflow.
+
 Regenerate the signed fixture artifacts:
 
 ```shell

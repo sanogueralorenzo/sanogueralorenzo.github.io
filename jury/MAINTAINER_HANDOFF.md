@@ -6,6 +6,7 @@ Jury v1 adoption is currently centered on a clean-checkout CI path that produces
 
 - [QUICKSTART.md](QUICKSTART.md): local clean-checkout command sequence.
 - [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml): copyable GitHub Actions workflow.
+- [examples/ci/jury-trusted-bundle-verify.yml](examples/ci/jury-trusted-bundle-verify.yml): reusable downstream workflow for signed trusted-producer bundle verification.
 - [examples/ci/fixtures/quickstart](examples/ci/fixtures/quickstart): expected `verdict.json`, `gate.json`, and `review-bundle.json` outputs.
 - [examples/ci/fixtures/key-policy](examples/ci/fixtures/key-policy): signed bundle, public key, and key policy manifest for trusted-producer verification.
 - [MIGRATION.md](MIGRATION.md): artifact handoff and bundle replay path.
@@ -21,7 +22,7 @@ npm --prefix jury test
 npm --prefix jury run check -- --state-dir /tmp/jury-maintainer-handoff --json
 ```
 
-The test suite covers the quickstart, GitHub Actions workflow commands, fixture synchronization, troubleshooting failure examples, release checklist links, and this handoff note's references.
+The test suite covers the quickstart, GitHub Actions workflow commands, downstream trusted-producer verification workflow, fixture synchronization, troubleshooting failure examples, release checklist links, and this handoff note's references.
 
 ## Current Hardening Step
 
@@ -41,4 +42,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add a reusable workflow snippet that runs `fixtures:key-policy:check` in CI.
+Add a producing-job workflow variant that signs a live `review-bundle.json` with an external CI private key secret.
