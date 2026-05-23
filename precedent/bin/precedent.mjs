@@ -120,6 +120,11 @@ async function main() {
     return;
   }
 
+  if (command === "attach-run") {
+    await attachRunSession();
+    return;
+  }
+
   if (command === "check") {
     await checkState();
     return;
@@ -1801,6 +1806,132 @@ async function attachRuntime() {
         failurePolicy: runtimeConfig.failurePolicy,
       },
     },
+  });
+}
+
+async function attachRunSession() {
+  const stateDirArg = args["state-dir"] ?? runtimeConfig.stateDir;
+  const runtime = args.runtime ?? "generic";
+  const taskSource = await readAttachTaskSource();
+  const scope = args.scope ?? "";
+  const changedFiles = parseListArg(args["changed-files"]);
+  const sessionId = safeFileName(args.session ?? stableSessionId({
+    runtime,
+    task: taskSource.task,
+    taskFile: taskSource.taskFile,
+    scope,
+    changedFiles,
+  }));
+  const validationCommand = requireString(args["validation-command"], "attach-run --validation-command");
+
+  const beforeTurn = await runPrecedentChildJson([
+    "context",
+    "--state-dir",
+    stateDirArg,
+    ...(taskSource.taskFile ? ["--task-file", taskSource.taskFile] : ["--task", taskSource.task]),
+    ...(scope ? ["--scope", scope] : []),
+    ...(changedFiles.length > 0 ? ["--changed-files", changedFiles.join(",")] : []),
+    "--session",
+    sessionId,
+    "--format",
+    "json",
+    "--json",
+  ]);
+  const attributedPrecedents = beforeTurn.injections.map((injection) => injection.id);
+  const startedAt = Date.now();
+  const validationResult = await spawnShell(validationCommand, process.cwd());
+  const durationMs = Date.now() - startedAt;
+  const validation = await runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "validation.after_run",
+    sessionId,
+    command: redactSecrets(validationCommand).value,
+    exitCode: validationResult.exitCode,
+    durationMs,
+    stdout: validationResult.stdout,
+    stderr: validationResult.stderr,
+    attributedPrecedents,
+  });
+  const success = args.success === undefined
+    ? validationResult.exitCode === 0
+    : hookBoolean(args.success, "attach-run.success", false);
+  const outcome = await runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "outcome.after_task",
+    sessionId,
+    success,
+    status: args.status ?? (success ? "success" : "failure"),
+    task: taskSource.task,
+    scope: scope || null,
+    changedFiles,
+    notes: args.notes ?? `attach-run validation exited ${validationResult.exitCode}`,
+    attributedPrecedents,
+  });
+
+  print({
+    ok: true,
+    schema_version: "precedent.attach_run.v1",
+    runtime,
+    stateDir: stateDirArg,
+    sessionId,
+    task: taskSource.task,
+    taskFile: taskSource.taskFile,
+    scope: scope || null,
+    changedFiles,
+    attributedPrecedents,
+    beforeTurn,
+    validation,
+    outcome,
+    learning: outcome.learning ?? null,
+  });
+}
+
+function runPrecedentChildJson(childArgs, stdinJson = null) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [process.argv[1], ...childArgs], {
+      cwd: process.cwd(),
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (exitCode) => {
+      if (exitCode !== 0) {
+        reject(new Error(`precedent ${childArgs.join(" ")} failed\n${stderr}`));
+        return;
+      }
+
+      try {
+        resolvePromise(parseJson(stdout, `precedent ${childArgs.join(" ")}`));
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    if (stdinJson) {
+      child.stdin.end(`${JSON.stringify(stdinJson)}\n`);
+    } else {
+      child.stdin.end();
+    }
   });
 }
 
@@ -5375,6 +5506,7 @@ Usage:
   precedent run --session session-id [--state-dir .precedent] -- command [args...]
   precedent manifest [--runtime generic|codex] [--state-dir .precedent]
   precedent attach [--runtime generic|codex] [--session session-id] --task "text"
+  precedent attach-run --task "text" --validation-command "cmd" [--session session-id]
   precedent check [--state-dir .precedent] [--strict]
   precedent prune [--state-dir .precedent] [--dry-run] [--before ISO-date]
   precedent report [--state-dir .precedent]
@@ -5392,6 +5524,7 @@ Commands:
   run       Run a validation command and capture it as a session hook event.
   manifest  Emit the machine-readable runtime hook contract.
   attach    Emit a zero-touch runtime adapter contract for one session.
+  attach-run Run before-turn, validation, and outcome hooks for one ordinary session.
   check     Validate local Precedent state for CI.
   prune     Remove old non-promoted state using retention config.
   report    Summarize local precedent state.

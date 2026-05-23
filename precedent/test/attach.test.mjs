@@ -148,6 +148,84 @@ test("attach contract drives injection and outcome attribution", async () => {
   }
 });
 
+test("attach-run executes an ordinary session with automatic attribution", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const run = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "demo-run",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node -e \"process.exit(0)\" # pnpm test:webhooks",
+      "--json",
+    ]);
+
+    assert.equal(run.schema_version, "precedent.attach_run.v1");
+    assert.equal(run.sessionId, "demo-run");
+    assert.deepEqual(run.attributedPrecedents, ["prec_webhook_replay_boundary"]);
+    assert.equal(run.beforeTurn.injections.length, 1);
+    assert.equal(run.validation.validation.exitCode, 0);
+    assert.equal(run.outcome.outcome.success, true);
+    assert.equal(run.learning.status, "no_signal");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((entry) => entry.id === "prec_webhook_replay_boundary");
+    assert.equal(health.injectionCount, 1);
+    assert.equal(health.successCount, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("attach-run failed validation creates a replay-gated learning candidate", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attach-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+
+    const run = await runJson([
+      "attach-run",
+      "--state-dir",
+      stateDir,
+      "--session",
+      "failed-run",
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--changed-files",
+      "features/webhooks/providers/stripe.ts",
+      "--validation-command",
+      "node -e \"console.error('wrong test command'); process.exit(1)\"",
+      "--json",
+    ]);
+
+    assert.deepEqual(run.attributedPrecedents, []);
+    assert.equal(run.validation.validation.exitCode, 1);
+    assert.equal(run.outcome.outcome.success, false);
+    assert.equal(run.learning.status, "candidate");
+    assert.deepEqual(run.learning.candidateIds, ["cand_feature_webhooks_wrong_test_command"]);
+    assert.equal(run.learning.replayRequired, true);
+
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].id, "cand_feature_webhooks_wrong_test_command");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   await runJson(["init", "--state-dir", stateDir, "--json"]);
   const traceOut = join(stateDir, "trace.json");
@@ -162,6 +240,15 @@ async function promoteWebhookPrecedent(stateDir) {
     "--json",
   ]);
   await runJson(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
+}
+
+async function readJsonLines(path) {
+  const content = await readFile(path, "utf8");
+
+  return content
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line));
 }
 
 function runJson(args, stdinJson = null) {

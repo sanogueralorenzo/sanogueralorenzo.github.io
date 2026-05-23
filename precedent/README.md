@@ -133,6 +133,7 @@ printf '%s\n' '{"schema_version":"precedent.v1","hook":"validation.after_run","s
 node precedent/bin/precedent.mjs run --session demo -- pnpm test:webhooks
 node precedent/bin/precedent.mjs manifest --runtime generic
 node precedent/bin/precedent.mjs attach --runtime codex --session demo --task "add another webhook handler" --scope feature:webhooks
+node precedent/bin/precedent.mjs attach-run --session demo --task "add another webhook handler" --scope feature:webhooks --validation-command "pnpm test:webhooks"
 node precedent/bin/precedent.mjs check --strict --json
 node precedent/bin/precedent.mjs prune --dry-run --json
 node precedent/bin/precedent.mjs observe --session demo
@@ -155,6 +156,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `run --session <id> -- <command>` wraps a normal validation command, streams stdout/stderr, preserves the command exit code, and records a `validation.after_run` event automatically.
 - `manifest` emits the argv commands, fields, output fields, timeout, fail-open policy, and promotion-trial action a runtime needs to wire Precedent in.
 - `attach` emits a session-scoped adapter contract with a before-turn command, after-validation hook command, after-diff hook command, after-outcome hook command, promotion-trial command, stable session id, fail-open timeout, and `injectFrom: "contextBlock"` for host runtimes.
+- `attach-run` is the minimal headless host shim: it runs before-turn context, executes one validation command, records validation and outcome hooks, and carries injected precedent ids into attribution automatically.
 - `review.after_feedback` records review comments as high-signal session evidence, so missed contracts can become candidates and later promoted precedents without handcrafted traces.
 - `diff.after_edit` and `validation.after_run` evaluate advisory guards only for precedents already injected into the same session. v1 supports `changed_files_within_paths` and `required_validation_command`; warnings are returned as `guardResult` plus a compact `Precedent guard:` context block and never block the underlying hook.
 - `outcome.after_task` now closes the headless capture loop: it snapshots the session into `.precedent/traces/session-<id>.json`, upserts deterministic candidates into `.precedent/candidates.jsonl` when failures or guard warnings exist, and returns a `learning` object. It preserves task, scope, and changed-file identity from either `context.before_turn`, `context --session`, or the outcome payload. When a clean successful session follows an analogous failed session in the same non-empty scope or overlapping path, it automatically promotes a replay-style precedent; otherwise candidates remain non-injectable until existing replay promotion gates create a promoted precedent.
