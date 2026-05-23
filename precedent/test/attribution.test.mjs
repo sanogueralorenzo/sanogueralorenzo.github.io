@@ -164,6 +164,48 @@ test("explicit attributed precedents preserve outcome attribution across session
   }
 });
 
+test("delivery receipts preserve outcome attribution across runtime sessions", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--session",
+      "delivery-origin",
+      "--event-id",
+      "turn-1",
+      "--json",
+    ]);
+    assert.equal(context.injections.length, 1);
+    assert.ok(context.deliveryReceipt.deliveryId);
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "delivery-outcome",
+      deliveryId: context.deliveryReceipt.deliveryId,
+      success: true,
+      notes: "passed",
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.injectionCount, 1);
+    assert.equal(health.successCount, 1);
+    assert.equal(health.failureCount, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("stale precedents are suppressed until a later attributed success", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-attribution-test-"));
 

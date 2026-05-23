@@ -378,6 +378,13 @@ async function exportContext() {
       allowRepeat: args["allow-repeat"] === "true" || args["allow-repeat"] === true,
     });
     const contextBlock = formatInjectionBlock(selected.matches);
+    const observedAt = new Date().toISOString();
+    const deliveryReceipt = deliveryReceiptFor({
+      sessionId: args.session ?? null,
+      eventId,
+      injections: selected.matches,
+      issuedAt: observedAt,
+    });
     const suppressedInjections = [
       ...replayAuditSelected.suppressed.map(formatSuppressedInjection),
       ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
@@ -399,7 +406,7 @@ async function exportContext() {
     });
     const exportEvent = {
       type: "context_export",
-      observedAt: new Date().toISOString(),
+      observedAt,
       sessionId: args.session ?? null,
       ...eventIdField(eventId),
       task,
@@ -416,6 +423,7 @@ async function exportContext() {
       revisionBriefs,
       promotionTrials,
       candidateHints,
+      deliveryReceipt,
     };
     payload = {
       schema_version: "precedent.context.v1",
@@ -425,6 +433,7 @@ async function exportContext() {
       revisionBriefs,
       promotionTrials,
       candidateHints,
+      deliveryReceipt,
       source: {
         command: "context",
         task,
@@ -458,6 +467,7 @@ async function exportContext() {
         revisionBriefs: exportEvent.revisionBriefs,
         promotionTrials: exportEvent.promotionTrials,
         candidateHints: exportEvent.candidateHints,
+        deliveryReceipt: exportEvent.deliveryReceipt,
         contextPayload: payload,
       });
       payload.sessionEventPath = stored.path;
@@ -473,6 +483,7 @@ async function exportContext() {
       revisionBriefs: [],
       promotionTrials: [],
       candidateHints: [],
+      deliveryReceipt: null,
       recorded: false,
       deduped: false,
       sessionEventPath: null,
@@ -992,6 +1003,7 @@ async function contextBeforeTurnEventHook(event) {
   let revisionBriefs = [];
   let promotionTrials = [];
   let candidateHints = [];
+  let deliveryReceipt = null;
   let contextBlock = "";
   let injections = [];
   let sessionEvent = null;
@@ -1006,6 +1018,7 @@ async function contextBeforeTurnEventHook(event) {
         revisionBriefs = payload.revisionBriefs ?? [];
         promotionTrials = payload.promotionTrials ?? [];
         candidateHints = payload.candidateHints ?? [];
+        deliveryReceipt = payload.deliveryReceipt ?? null;
         contextBlock = payload.contextBlock ?? "";
         injections = payload.injections ?? [];
         sessionEvent = {
@@ -1060,6 +1073,12 @@ async function contextBeforeTurnEventHook(event) {
       sessionId: typeof event.sessionId === "string" ? event.sessionId : null,
     });
     contextBlock = formatInjectionBlock(matches);
+    deliveryReceipt = deliveryReceiptFor({
+      sessionId,
+      eventId,
+      injections: matches,
+      issuedAt: new Date().toISOString(),
+    });
 
     const hookEvent = {
       type: "hook_event",
@@ -1082,6 +1101,7 @@ async function contextBeforeTurnEventHook(event) {
       revisionBriefs,
       promotionTrials,
       candidateHints,
+      deliveryReceipt,
     };
     injections = matches.map(formatInjection);
     const contextPayload = {
@@ -1093,6 +1113,7 @@ async function contextBeforeTurnEventHook(event) {
       revisionBriefs,
       promotionTrials,
       candidateHints,
+      deliveryReceipt,
       contextBlock,
     };
 
@@ -1110,6 +1131,7 @@ async function contextBeforeTurnEventHook(event) {
       revisionBriefs = sessionEvent.event.contextPayload?.revisionBriefs ?? revisionBriefs;
       promotionTrials = sessionEvent.event.contextPayload?.promotionTrials ?? promotionTrials;
       candidateHints = sessionEvent.event.contextPayload?.candidateHints ?? candidateHints;
+      deliveryReceipt = sessionEvent.event.contextPayload?.deliveryReceipt ?? deliveryReceipt;
       contextBlock = sessionEvent.event.contextPayload?.contextBlock ?? contextBlock;
       injections = sessionEvent.event.contextPayload?.injections ?? injections;
     }
@@ -1120,6 +1142,7 @@ async function contextBeforeTurnEventHook(event) {
     revisionBriefs = [];
     promotionTrials = [];
     candidateHints = [];
+    deliveryReceipt = null;
     injections = [];
   }
 
@@ -1135,6 +1158,7 @@ async function contextBeforeTurnEventHook(event) {
     revisionBriefs,
     promotionTrials,
     candidateHints,
+    deliveryReceipt,
     contextBlock,
   });
 }
@@ -1152,7 +1176,7 @@ async function validationAfterRunEventHook(event) {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
-    const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents);
+    const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents, event.deliveryId);
     guardResult = evaluatePrecedentGuards(activePrecedents, "validation.after_run", {
       command: commandText,
       exitCode,
@@ -1169,6 +1193,7 @@ async function validationAfterRunEventHook(event) {
       exitCode,
       durationMs: numberOrNull(event.durationMs),
       failureSignals,
+      deliveryId: stringOrNull(event.deliveryId),
       stdout: typeof event.stdout === "string" ? event.stdout : "",
       stderr: typeof event.stderr === "string" ? event.stderr : "",
       guardResult,
@@ -1186,6 +1211,7 @@ async function validationAfterRunEventHook(event) {
         exitCode,
         failureSignals,
         guardResult,
+        deliveryId: stringOrNull(event.deliveryId),
       });
     }
   });
@@ -1222,7 +1248,7 @@ async function diffAfterEditEventHook(event) {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
-    const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents);
+    const activePrecedents = await activePrecedentsForSessionOrAttribution(stateDir, sessionId, event.attributedPrecedents, event.deliveryId);
     guardResult = evaluatePrecedentGuards(activePrecedents, "diff.after_edit", {
       changedFiles,
       breadthSignals,
@@ -1245,6 +1271,7 @@ async function diffAfterEditEventHook(event) {
       linesAdded: numberOrNull(event.linesAdded),
       linesDeleted: numberOrNull(event.linesDeleted),
       breadthSignals,
+      deliveryId: stringOrNull(event.deliveryId),
       guardResult,
       repairPrompt,
       contextBlock,
@@ -1261,6 +1288,7 @@ async function diffAfterEditEventHook(event) {
         breadthSignals,
         guardResult,
         repairPrompt,
+        deliveryId: stringOrNull(event.deliveryId),
       });
     }
   });
@@ -1347,7 +1375,7 @@ async function outcomeAfterTaskEventHook(event) {
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
-    activePrecedentIds = await attributedPrecedentIdsForSession(stateDir, sessionId, event.attributedPrecedents);
+    activePrecedentIds = await attributedPrecedentIdsForSession(stateDir, sessionId, event.attributedPrecedents, event.deliveryId);
     sessionEvent = await appendSessionEvent(stateDir, {
       type: "hook_event",
       receivedAt: new Date().toISOString(),
@@ -1363,6 +1391,7 @@ async function outcomeAfterTaskEventHook(event) {
       tokenEstimate: numberOrNull(event.tokenEstimate),
       notes: typeof event.notes === "string" ? event.notes : "",
       attributedPrecedents: activePrecedentIds,
+      deliveryId: stringOrNull(event.deliveryId),
       precedent: event.precedent ?? null,
       replay: event.replay ?? null,
     });
@@ -1382,6 +1411,7 @@ async function outcomeAfterTaskEventHook(event) {
         retries: sessionEvent.event.retries,
         tokenEstimate: sessionEvent.event.tokenEstimate,
         attributedPrecedents: activePrecedentIds,
+        deliveryId: stringOrNull(event.deliveryId),
       });
     }
 
@@ -1762,21 +1792,21 @@ function buildManifest(runtime, stateDir) {
           "--format",
           "json",
         ],
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
         timeoutMs,
         failurePolicy,
       },
       "validation.after_run": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "command", "exitCode", "durationMs", "stdout", "stderr", "failureSignals", "attributedPrecedents"],
         output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "validation", "guardResult", "contextBlock"],
         timeoutMs,
         failurePolicy,
       },
       "diff.after_edit": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "changedFiles", "linesAdded", "linesDeleted", "breadthSignals", "diffSummary", "unifiedDiff", "attributedPrecedents"],
         output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "diff", "guardResult", "repairPrompt", "contextBlock"],
         timeoutMs,
         failurePolicy,
@@ -1790,7 +1820,7 @@ function buildManifest(runtime, stateDir) {
       },
       "outcome.after_task": {
         command: hookCommand,
-        stdin: ["schema_version", "hook", "sessionId", "eventId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "success", "status", "task", "scope", "changedFiles", "retries", "tokenEstimate", "notes", "attributedPrecedents", "precedent", "replay"],
         output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "outcome"],
         timeoutMs,
         failurePolicy,
@@ -1959,7 +1989,7 @@ async function attachRuntime() {
       beforeTurn: {
         command: beforeTurnCommand,
         eventId: "$EVENT_ID",
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "source", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
@@ -1971,6 +2001,7 @@ async function attachRuntime() {
           hook: "validation.after_run",
           sessionId,
           eventId: "$EVENT_ID",
+          deliveryId: "$DELIVERY_ID",
           command: "$COMMAND",
           exitCode: "$EXIT_CODE",
           durationMs: "$DURATION_MS",
@@ -1988,6 +2019,7 @@ async function attachRuntime() {
           hook: "diff.after_edit",
           sessionId,
           eventId: "$EVENT_ID",
+          deliveryId: "$DELIVERY_ID",
           changedFiles: "$CHANGED_FILES",
           linesAdded: "$LINES_ADDED",
           linesDeleted: "$LINES_DELETED",
@@ -2019,6 +2051,7 @@ async function attachRuntime() {
           hook: "outcome.after_task",
           sessionId,
           eventId: "$EVENT_ID",
+          deliveryId: "$DELIVERY_ID",
           success: "$SUCCESS",
           status: "$STATUS",
           task: taskSource.task,
@@ -2917,6 +2950,22 @@ function formatCandidateHint(candidate, stateDir, sessionId) {
   }).value;
 }
 
+function deliveryReceiptFor({ sessionId, eventId, injections, issuedAt }) {
+  const injectedPrecedentIds = uniqueStrings((injections ?? []).map((injection) => injection.id).filter(Boolean));
+  if (!sessionId || !eventId || injectedPrecedentIds.length === 0) {
+    return null;
+  }
+
+  return {
+    deliveryId: `del_${stableHash({ sessionId, eventId, injectedPrecedentIds }).slice(0, 20)}`,
+    sessionId,
+    eventId,
+    injectedPrecedentIds,
+    issuedAt,
+    expiresAt: new Date(Date.parse(issuedAt) + runtimeConfig.retentionDays * 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
 function candidateHintQueue(candidates, precedents, stateDir) {
   const promotedIds = new Set(precedents.map((precedent) => precedent.id));
   const items = candidates
@@ -3375,6 +3424,11 @@ function repairHealthSummary(events, precedents) {
 
 async function runtimeWiringHealthSummary(stateDir, events) {
   const sessionEntries = await runtimeSessionEntries(stateDir);
+  const knownDeliveryIds = new Set(sessionEntries
+    .flatMap((entry) => entry.events)
+    .map((event) => event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null)
+    .map((receipt) => receipt?.deliveryId)
+    .filter(Boolean));
   const fallbackAttachments = events
     .filter((event) => event.type === "runtime_attach" && event.identity?.fallback === true)
     .map((event) => event.sessionId)
@@ -3382,6 +3436,7 @@ async function runtimeWiringHealthSummary(stateDir, events) {
   const missingEventIds = [];
   const unclosedInjectedSessions = [];
   const unattributedOutcomesAfterInjections = [];
+  const unknownDeliveryIds = [];
 
   for (const entry of sessionEntries) {
     const hookEvents = entry.events.filter((event) => typeof event.hook === "string");
@@ -3393,6 +3448,14 @@ async function runtimeWiringHealthSummary(stateDir, events) {
         missingEventIds.push({
           sessionId: entry.sessionId,
           hook: event.hook,
+        });
+      }
+
+      if (event.deliveryId && !knownDeliveryIds.has(event.deliveryId)) {
+        unknownDeliveryIds.push({
+          sessionId: entry.sessionId,
+          hook: event.hook,
+          deliveryId: event.deliveryId,
         });
       }
     }
@@ -3414,15 +3477,18 @@ async function runtimeWiringHealthSummary(stateDir, events) {
     missingEventIds: missingEventIds.length,
     unclosedInjectedSessions: uniqueStrings(unclosedInjectedSessions).length,
     unattributedOutcomesAfterInjections: uniqueStrings(unattributedOutcomesAfterInjections).length,
+    unknownDeliveryIds: unknownDeliveryIds.length,
     needsAttention: uniqueStrings(fallbackAttachments).length
       + missingEventIds.length
       + uniqueStrings(unclosedInjectedSessions).length
-      + uniqueStrings(unattributedOutcomesAfterInjections).length,
+      + uniqueStrings(unattributedOutcomesAfterInjections).length
+      + unknownDeliveryIds.length,
     details: {
       fallbackAttachments: uniqueStrings(fallbackAttachments),
       missingEventIds: missingEventIds.slice(0, 20),
       unclosedInjectedSessions: uniqueStrings(unclosedInjectedSessions).slice(0, 20),
       unattributedOutcomesAfterInjections: uniqueStrings(unattributedOutcomesAfterInjections).slice(0, 20),
+      unknownDeliveryIds: unknownDeliveryIds.slice(0, 20),
     },
   };
 }
@@ -3503,16 +3569,17 @@ async function activeInjectionIdsForSession(stateDir, sessionId) {
   return uniqueStrings(ids);
 }
 
-async function attributedPrecedentIdsForSession(stateDir, sessionId, explicitIds) {
+async function attributedPrecedentIdsForSession(stateDir, sessionId, explicitIds, deliveryId = null) {
   const knownIds = new Set((await readJsonLines(join(stateDir, "precedents.jsonl"))).map((precedent) => precedent.id));
   return uniqueStrings([
     ...(await activeInjectionIdsForSession(stateDir, sessionId)),
+    ...(await precedentIdsForDelivery(stateDir, deliveryId)),
     ...parseListArg(explicitIds),
   ]).filter((id) => knownIds.has(id));
 }
 
-async function activePrecedentsForSessionOrAttribution(stateDir, sessionId, explicitIds) {
-  const activeIds = new Set(await attributedPrecedentIdsForSession(stateDir, sessionId, explicitIds));
+async function activePrecedentsForSessionOrAttribution(stateDir, sessionId, explicitIds, deliveryId = null) {
+  const activeIds = new Set(await attributedPrecedentIdsForSession(stateDir, sessionId, explicitIds, deliveryId));
   if (activeIds.size === 0) {
     return [];
   }
@@ -3523,6 +3590,28 @@ async function activePrecedentsForSessionOrAttribution(stateDir, sessionId, expl
 
 async function activePrecedentsForSession(stateDir, sessionId) {
   return activePrecedentsForSessionOrAttribution(stateDir, sessionId, []);
+}
+
+async function precedentIdsForDelivery(stateDir, deliveryId) {
+  if (typeof deliveryId !== "string" || deliveryId.trim().length === 0) {
+    return [];
+  }
+
+  const receipt = await findDeliveryReceipt(stateDir, deliveryId.trim());
+  return Array.isArray(receipt?.injectedPrecedentIds) ? receipt.injectedPrecedentIds : [];
+}
+
+async function findDeliveryReceipt(stateDir, deliveryId) {
+  for (const entry of await runtimeSessionEntries(stateDir)) {
+    for (const event of entry.events) {
+      const receipt = event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null;
+      if (receipt?.deliveryId === deliveryId) {
+        return receipt;
+      }
+    }
+  }
+
+  return null;
 }
 
 function evaluatePrecedentGuards(precedents, hook, event) {
@@ -4610,6 +4699,10 @@ function uniqueStrings(values) {
 
 function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function stringOrNull(value) {
+  return nonEmptyString(value) ? value.trim() : null;
 }
 
 function numberOrNull(value) {

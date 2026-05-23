@@ -257,6 +257,30 @@ test("strict check accepts stable runtime identity", async () => {
   }
 });
 
+test("report surfaces unknown delivery receipt wiring", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await runJson(["init", "--state-dir", stateDir, "--json"]);
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "delivery-session",
+      eventId: "validation-1",
+      deliveryId: "del_missing",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+
+    assert.equal(report.runtimeWiringHealth.unknownDeliveryIds, 1);
+    assert.equal(report.runtimeWiringHealth.details.unknownDeliveryIds[0].deliveryId, "del_missing");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("check validates nested replay artifacts", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

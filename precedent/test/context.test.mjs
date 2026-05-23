@@ -34,6 +34,7 @@ test("context exports promoted precedent in a stable JSON envelope", async () =>
     assert.equal(context.injections.length, 1);
     assert.equal(context.injections[0].id, "prec_webhook_replay_boundary");
     assert.ok(context.injections[0].matchReasons.length > 0);
+    assert.equal(context.deliveryReceipt, null);
     assert.deepEqual(context.suppressedInjections, []);
     assert.equal(context.source.command, "context");
   } finally {
@@ -95,6 +96,41 @@ test("context suppresses repeated session injections", async () => {
     assert.deepEqual(second.injections, []);
     assert.equal(second.suppressedInjections.length, 1);
     assert.equal(second.contextBlock, "");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("context emits stable delivery receipts for runtime attribution", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-context-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+
+    const args = [
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--session",
+      "delivery-session",
+      "--event-id",
+      "turn-1",
+      "--json",
+    ];
+    const first = await runJson(args);
+    const retried = await runJson(args);
+
+    assert.equal(first.injections.length, 1);
+    assert.match(first.deliveryReceipt.deliveryId, /^del_[a-f0-9]+$/u);
+    assert.deepEqual(first.deliveryReceipt.injectedPrecedentIds, ["prec_webhook_replay_boundary"]);
+    assert.equal(first.deliveryReceipt.sessionId, "delivery-session");
+    assert.equal(first.deliveryReceipt.eventId, "turn-1");
+    assert.equal(retried.deduped, true);
+    assert.deepEqual(retried.deliveryReceipt, first.deliveryReceipt);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }

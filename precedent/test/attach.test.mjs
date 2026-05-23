@@ -78,13 +78,16 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.equal(first.adapter.beforeTurn.eventId, "$EVENT_ID");
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
+    assert.ok(first.adapter.beforeTurn.output.includes("deliveryReceipt"));
     assert.ok(first.adapter.beforeTurn.output.includes("deduped"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
     assert.deepEqual(first.adapter.afterValidation.stdin.hook, "validation.after_run");
     assert.equal(first.adapter.afterValidation.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.afterValidation.stdin.deliveryId, "$DELIVERY_ID");
     assert.equal(first.adapter.afterValidation.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
     assert.deepEqual(first.adapter.afterDiff.stdin.hook, "diff.after_edit");
     assert.equal(first.adapter.afterDiff.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.afterDiff.stdin.deliveryId, "$DELIVERY_ID");
     assert.equal(first.adapter.afterDiff.stdin.diffSummary, "$DIFF_SUMMARY");
     assert.equal(first.adapter.afterDiff.stdin.unifiedDiff, "$UNIFIED_DIFF");
     assert.equal(first.adapter.afterDiff.stdin.attributedPrecedents, "$ATTRIBUTED_PRECEDENTS");
@@ -93,6 +96,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.afterReview.stdin.sessionId, first.sessionId);
     assert.deepEqual(first.adapter.afterOutcome.stdin.sessionId, first.sessionId);
     assert.equal(first.adapter.afterOutcome.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.afterOutcome.stdin.deliveryId, "$DELIVERY_ID");
     assert.equal(first.adapter.afterOutcome.stdin.task, "add webhook handler");
     assert.equal(first.adapter.afterOutcome.stdin.scope, "feature:webhooks");
     assert.deepEqual(first.adapter.afterOutcome.stdin.changedFiles, ["features/webhooks/providers/stripe.ts"]);
