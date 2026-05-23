@@ -157,6 +157,14 @@ Validation expectations:
   `INTENT_GRAPH_CONTEXT_INVALID` and makes the graph non-executable because
   runtimes must not infer source identity, argument provenance, or executable
   behavior from incomplete context records.
+- Graph `Input` nodes are runtime data ports. Goal inputs and step inputs must
+  carry `data.scope` as either `goal` or `step` and a non-empty `data.type`.
+  Step input nodes must also be attached to their owning step through the
+  existing graph edge contracts, including the required `requires` edge to that
+  step and the incoming `data` edge from a goal input or earlier producing
+  step. Malformed input payloads emit `INTENT_GRAPH_INPUT_INVALID` and make the
+  graph non-executable because runtimes must not infer missing type, scope, or
+  step ownership.
 - Graph `Effect` nodes are runtime adapter invocations. They must carry valid
   adapter data: `data.family` and `data.action` must be non-empty strings,
   `data.args`, `data.argKinds`, and `data.argSpans` must be objects, every
