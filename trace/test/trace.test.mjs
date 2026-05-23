@@ -756,6 +756,23 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     assert.equal(rawCheckpoint.integrity.algorithm, "sha256");
     assert.match(rawCheckpoint.integrity.payload_sha256, /^[0-9a-f]{64}$/);
 
+    const shown = await runTrace(repo, ["checkpoint", "show", "checkpoint-a"]);
+    assert.match(shown.stdout, /Trace Checkpoint/);
+    assert.match(shown.stdout, /Checkpoint: `checkpoint-a`/);
+    assert.match(shown.stdout, /Events: 1/);
+    assert.match(shown.stdout, /\[prompt user\] manual: checkpoint ref controls/);
+
+    const shownJson = JSON.parse((await runTrace(repo, ["checkpoint", "show", "checkpoint-a", "--json"])).stdout);
+    assert.equal(shownJson.schema_version, "trace.checkpoint_detail.v1");
+    assert.equal(shownJson.path, "checkpoints/checkpoint-a.json");
+    assert.equal(shownJson.integrity.ok, true);
+    assert.equal(shownJson.checkpoint.checkpoint_id, "checkpoint-a");
+    assert.equal(shownJson.checkpoint.events[0].message, "checkpoint ref controls");
+
+    const missingCheckpoint = await runTraceAllowFailure(repo, ["checkpoint", "show", "missing-checkpoint"]);
+    assert.equal(missingCheckpoint.exitCode, 1);
+    assert.match(missingCheckpoint.stderr, /checkpoint not found: missing-checkpoint/);
+
     rawCheckpoint.subject = "tampered checkpoint";
     const tamperedPath = join(repo, "tampered-checkpoint.json");
     const tamperIndex = join(repo, "tamper-index");

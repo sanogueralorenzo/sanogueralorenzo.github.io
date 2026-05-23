@@ -645,6 +645,11 @@ async function runCheckpointCommand(action, values) {
     return;
   }
 
+  if (action === "show") {
+    await showCheckpoint(values[0] ?? args.checkpoint);
+    return;
+  }
+
   if (action === "push") {
     await syncCheckpointRef("push", values[0] ?? args.remote ?? "origin");
     return;
@@ -693,6 +698,75 @@ async function verifyCheckpoints() {
   if (!ok) {
     process.exitCode = 1;
   }
+}
+
+async function showCheckpoint(checkpointId) {
+  if (!checkpointId) {
+    fail("checkpoint id is required");
+  }
+
+  const root = await repoRoot();
+  const checkpoints = await readCheckpointPayloads(root);
+  const match = checkpoints.find(({ path, payload }) => (
+    payload?.checkpoint_id === checkpointId || path === `checkpoints/${checkpointId}.json`
+  ));
+  if (!match) {
+    fail(`checkpoint not found: ${checkpointId}`);
+  }
+  if (match.error || !match.payload) {
+    fail(`checkpoint ${checkpointId} is unreadable: ${match.error ?? "missing payload"}`);
+  }
+
+  const integrityError = verifyCheckpointIntegrity(match.payload);
+  if (args.json) {
+    print({
+      ok: true,
+      schema_version: "trace.checkpoint_detail.v1",
+      ref: CHECKPOINT_REF,
+      path: match.path,
+      integrity: {
+        ok: integrityError == null,
+        error: integrityError,
+      },
+      checkpoint: match.payload,
+    });
+    return;
+  }
+
+  const limit = parsePositiveInteger(args.limit ?? "20", "--limit");
+  const events = Array.isArray(match.payload.events) ? match.payload.events : [];
+  const lines = [
+    "# Trace Checkpoint",
+    "",
+    `Checkpoint: \`${match.payload.checkpoint_id}\``,
+    `Ref: \`${CHECKPOINT_REF}\``,
+    `Path: \`${match.path}\``,
+    `Commit: \`${match.payload.commit}\``,
+    `Session: \`${match.payload.session_id ?? "none"}\``,
+    `Created: \`${match.payload.created_at ?? ""}\``,
+    `Integrity: \`${integrityError ?? "ok"}\``,
+    `Events: ${events.length}`,
+    "",
+    "## Files",
+    "",
+    ...checkpointFileLines(match.payload.files),
+    "",
+    "## Events",
+    "",
+  ];
+
+  for (const event of events.slice(0, limit)) {
+    lines.push(`- ${checkpointEventLine(event)}`);
+  }
+  const omitted = events.length - Math.min(events.length, limit);
+  if (omitted > 0) {
+    lines.push(`- ${omitted} more event${omitted === 1 ? "" : "s"} omitted. Use \`--json\` for the full payload.`);
+  }
+  if (events.length === 0) {
+    lines.push("- No events recorded.");
+  }
+
+  process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
 }
 
 async function checkpointStatus(remote) {
@@ -1003,6 +1077,22 @@ function checkpointSummary(payload) {
     events: Array.isArray(payload.events) ? payload.events.length : 0,
     integrity: verifyCheckpointIntegrity(payload) == null,
   };
+}
+
+function checkpointFileLines(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return ["- No files recorded."];
+  }
+
+  return files.map((file) => `- \`${file}\``);
+}
+
+function checkpointEventLine(event) {
+  const eventName = event.event ?? "event";
+  const role = event.role ? ` ${event.role}` : "";
+  const source = event.adapter ?? event.source ?? "trace";
+  const message = truncateMemoryText(normalizeMemoryText(event.message ?? ""));
+  return `[${eventName}${role}] ${source}: ${message || "No message recorded."}`;
 }
 
 function withCheckpointIntegrity(payload) {
@@ -3018,6 +3108,7 @@ Usage:
   trace agent check [codex|claude-code|gemini|generic|all]
   trace agent remove <codex|claude-code|gemini|generic|all>
   trace checkpoint list
+  trace checkpoint show <checkpoint> [--limit 20] [--json]
   trace checkpoint status [remote]
   trace checkpoint verify
   trace checkpoint push [remote] [--dry-run]
