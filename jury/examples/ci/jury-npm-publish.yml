@@ -88,6 +88,12 @@ jobs:
           JURY_PACKAGE_RELEASE_EVIDENCE_DIR: ../package-release-evidence
           JURY_PACKAGE_RELEASE_MANIFEST_PATH: ../package-release-manifest/retained-package-release-evidence-manifest.json
         run: npm --prefix jury run fixtures:package-release:check -- --fixture-dir "$JURY_PACKAGE_RELEASE_EVIDENCE_DIR" --verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"
+      - name: Summarize Jury package release replay artifacts
+        env:
+          JURY_PACKAGE_RELEASE_EVIDENCE_DIR: ../package-release-evidence
+          JURY_PACKAGE_RELEASE_MANIFEST_PATH: ../package-release-manifest/retained-package-release-evidence-manifest.json
+        run: |
+          (cd jury && node -e 'const fs=require("node:fs"); const evidenceDir=process.env.JURY_PACKAGE_RELEASE_EVIDENCE_DIR; const manifestPath=process.env.JURY_PACKAGE_RELEASE_MANIFEST_PATH; const manifest=JSON.parse(fs.readFileSync(manifestPath,"utf8")); const remediation=JSON.parse(fs.readFileSync(`${evidenceDir}/archive-drift-remediation-audit.json`,"utf8")); const failedEvidence=remediation.failed.archiveEvidence.join(", "); const replacementEvidence=remediation.replacement.archiveEvidence.join(", "); const summary=`### Jury package release replay\n\n- failedPackageVersion: ${manifest.failed.packageVersion}\n- failedTarballName: ${manifest.failed.tarballName}\n- replacementPackageVersion: ${manifest.replacement.packageVersion}\n- failedArchiveEvidence: ${failedEvidence}\n- replacementArchiveEvidence: ${replacementEvidence}\n- remediationApprovedBy: ${remediation.approval.approvedBy}\n`; if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary); else console.log(summary);')
 
   dry-run-publication:
     runs-on: ubuntu-latest

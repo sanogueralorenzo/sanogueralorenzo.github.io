@@ -16,6 +16,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Export `retained-package-release-evidence-manifest.json` in publication CI and upload it as the `jury-package-release-archive-manifest` CI artifact.
 - [ ] Download `jury-package-release-evidence` and replay it with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>` before `dry-run-publication`.
 - [ ] Download `jury-package-release-archive-manifest` and verify it with `--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"` before `dry-run-publication`.
+- [ ] Review the `package-release-evidence-replay` `GITHUB_STEP_SUMMARY` for failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver before `dry-run-publication`.
 - [ ] If package release evidence replay fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to check `JURY_PACKAGE_RELEASE_EVIDENCE_DIR`, missing artifact files, and rollback/replacement audit schema errors before `dry-run-publication`.
 - [ ] Run `(cd jury && npm pack --dry-run --json) > jury-pack-dry-run.json` after the package manifest check.
 - [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.

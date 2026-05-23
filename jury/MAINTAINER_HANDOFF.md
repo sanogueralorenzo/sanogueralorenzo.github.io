@@ -52,6 +52,10 @@ The npm publication example exports `retained-package-release-evidence-manifest.
 
 The same publication example uploads [examples/ci/fixtures/package-release/archive-drift-remediation-audit.json](examples/ci/fixtures/package-release/archive-drift-remediation-audit.json) inside the `jury-package-release-evidence` artifact. The `package-release-evidence-replay` job downloads that artifact and reruns `fixtures:package-release:check`, so missing remediation audit records, failed-publication drift, replacement-patch drift, restored evidence, verification commands, and maintainer approval are checked before `dry-run-publication`.
 
+## Replay Artifact Summary
+
+The replay job writes a `GITHUB_STEP_SUMMARY` section named `Jury package release replay`. It records the failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver before `dry-run-publication`.
+
 ## Release Archive Fixture
 
 The package release fixture directory includes [examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json](examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json). Keep it synchronized with `rollback-audit.json`, `replacement-patch-audit.json`, the dry-run record, npm metadata, downstream gates, retention policy, and artifact provenance by regenerating it with `--manifest-out examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json` and verifying it with `--verify-manifest examples/ci/fixtures/package-release/retained-package-release-evidence-manifest.json`.
@@ -106,4 +110,4 @@ Signed bundle attestations are available through `bundle export --attest-key`, `
 
 ## Next Hardening Step
 
-Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary for failed and replacement release archives.
+Add retained package release evidence manifest archive drift remediation audit record CI replay artifact summary failure troubleshooting for failed and replacement release archives.
