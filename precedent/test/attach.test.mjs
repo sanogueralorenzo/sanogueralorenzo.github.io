@@ -54,6 +54,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.phase), [
       "conversationObserve",
       "beforeTurn",
+      "afterInject",
       "beforeEdit",
       "afterValidation",
       "afterDiff",
@@ -67,6 +68,7 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.hook), [
       "conversation.observe",
       "context.before_turn",
+      "context.after_inject",
       undefined,
       "validation.after_run",
       "diff.after_edit",
@@ -84,8 +86,8 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     ]);
     assert.equal(first.adapter.lifecycle[0].injectFrom, "contextBlock");
     assert.equal(first.adapter.lifecycle[1].injectFrom, "contextBlock");
-    assert.equal(first.adapter.lifecycle[6].injectFrom, "repairBlock");
-    assert.equal(first.adapter.lifecycle[8].injectFrom, "contextBlock");
+    assert.equal(first.adapter.lifecycle[7].injectFrom, "repairBlock");
+    assert.equal(first.adapter.lifecycle[9].injectFrom, "contextBlock");
     assert.deepEqual(first.adapter.warrant.command.slice(0, 5), [
       "node",
       "precedent/bin/precedent.mjs",
@@ -99,7 +101,14 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
     assert.ok(first.adapter.beforeTurn.output.includes("turnDirectives"));
     assert.ok(first.adapter.beforeTurn.output.includes("deliveryReceipt"));
+    assert.ok(first.adapter.beforeTurn.output.includes("contextBlockHash"));
     assert.ok(first.adapter.beforeTurn.output.includes("deduped"));
+    assert.deepEqual(first.adapter.afterInject.stdin.hook, "context.after_inject");
+    assert.equal(first.adapter.afterInject.stdin.eventId, "$EVENT_ID");
+    assert.equal(first.adapter.afterInject.stdin.deliveryId, "$DELIVERY_ID");
+    assert.equal(first.adapter.afterInject.stdin.contextBlockHash, "$CONTEXT_BLOCK_HASH");
+    assert.equal(first.adapter.afterInject.stdin.inserted, "$INSERTED");
+    assert.ok(first.adapter.afterInject.output.includes("contextInjectionAck"));
     assert.equal(first.adapter.beforeTurn.failurePolicy, "fail_open");
     assert.deepEqual(first.adapter.conversationObserve.stdin.hook, "conversation.observe");
     assert.equal(first.adapter.conversationObserve.stdin.eventId, "$EVENT_ID");
@@ -338,6 +347,8 @@ test("attach-run executes an ordinary session with automatic attribution", async
       "feature:webhooks",
       "--changed-files",
       "features/webhooks/providers/stripe.ts",
+      "--event-prefix",
+      "ordinary-delivery",
       "--validation-command",
       "node -e \"process.exit(0)\" # pnpm test:webhooks",
       "--json",
@@ -347,6 +358,8 @@ test("attach-run executes an ordinary session with automatic attribution", async
     assert.equal(run.sessionId, "demo-run");
     assert.deepEqual(run.attributedPrecedents, ["prec_webhook_replay_boundary"]);
     assert.equal(run.beforeTurn.injections.length, 1);
+    assert.equal(run.injectionAck.status, "accepted");
+    assert.equal(run.injectionAck.ack.contextInjectionAck.contextBlockHash, run.beforeTurn.contextBlockHash);
     assert.equal(run.warrant.sources.precedentIds[0], "prec_webhook_replay_boundary");
     assert.equal(run.warrant.requiredEvidence[0].command, "pnpm test:webhooks");
     assert.equal(run.validation.validation.exitCode, 0);

@@ -22,6 +22,7 @@ test("init creates deterministic versioned runtime config", async () => {
       enabledHooks: [
         "conversation.observe",
         "context.before_turn",
+        "context.after_inject",
         "validation.after_run",
         "diff.after_edit",
         "review.after_feedback",

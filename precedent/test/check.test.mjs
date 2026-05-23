@@ -281,6 +281,55 @@ test("report surfaces unknown delivery receipt wiring", async () => {
   }
 });
 
+test("strict check surfaces context injection acknowledgement drift", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const beforeTurn = await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "ack-session",
+      eventId: "turn-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "ack-session",
+      eventId: "ack-1",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      contextBlockHash: "0".repeat(64),
+      inserted: true,
+    });
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "outcome.after_task",
+      sessionId: "ack-session",
+      eventId: "outcome-1",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      success: true,
+      status: "success",
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
+    const payload = JSON.parse(result.stdout);
+    const runtimeCheck = payload.checks.find((check) => check.name === "runtime_wiring");
+
+    assert.equal(report.runtimeWiringHealth.mismatchedInjectionAcks, 1);
+    assert.equal(report.runtimeWiringHealth.details.mismatchedInjectionAcks[0].deliveryId, beforeTurn.deliveryReceipt.deliveryId);
+    assert.equal(result.exitCode, 1);
+    assert.equal(runtimeCheck.ok, false);
+    assert.equal(runtimeCheck.mismatchedInjectionAcks, 1);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("check validates nested replay artifacts", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-check-test-"));
 

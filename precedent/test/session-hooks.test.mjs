@@ -575,6 +575,65 @@ test("context hook suppresses repeated injections within one session", async () 
   }
 });
 
+test("context after-inject acknowledges delivered context by hash", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
+
+  try {
+    await runPrecedent(["init", "--state-dir", stateDir, "--json"]);
+
+    const traceOut = join(stateDir, "webhook-replay-trace.json");
+    await runPrecedent([
+      "replay",
+      "--state-dir",
+      stateDir,
+      "--case",
+      "precedent/examples/replay/webhook-case.json",
+      "--trace-out",
+      traceOut,
+      "--json",
+    ]);
+    await runPrecedent([
+      "observe",
+      "--state-dir",
+      stateDir,
+      "--trace",
+      traceOut,
+      "--json",
+    ]);
+
+    const beforeTurn = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "context.before_turn",
+      sessionId: "ack-demo",
+      eventId: "turn-1",
+      task: "add webhook handler",
+      scope: "feature:webhooks",
+      changedFiles: ["features/webhooks/providers/stripe.ts"],
+    });
+    assert.match(beforeTurn.contextBlock, /Precedent:/u);
+    assert.equal(beforeTurn.deliveryReceipt.contextBlockHash, beforeTurn.contextBlockHash);
+
+    const ackEvent = {
+      schema_version: "precedent.v1",
+      hook: "context.after_inject",
+      sessionId: "ack-demo",
+      eventId: "ack-1",
+      deliveryId: beforeTurn.deliveryReceipt.deliveryId,
+      contextBlockHash: beforeTurn.contextBlockHash,
+      inserted: true,
+    };
+    const ack = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], ackEvent);
+    const retry = await runPrecedent(["hook", "--state-dir", stateDir, "--json"], ackEvent);
+
+    assert.equal(ack.contextInjectionAck.status, "accepted");
+    assert.equal(ack.contextInjectionAck.expectedContextBlockHash, beforeTurn.contextBlockHash);
+    assert.equal(retry.recorded, false);
+    assert.equal(retry.deduped, true);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 test("run captures validation output and exits with the wrapped command status", async () => {
   const stateDir = await mkdtemp(join(tmpdir(), "precedent-session-test-"));
 

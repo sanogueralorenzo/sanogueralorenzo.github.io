@@ -31,6 +31,7 @@ test("context exports promoted precedent in a stable JSON envelope", async () =>
 
     assert.equal(context.schema_version, "precedent.context.v1");
     assert.match(context.contextBlock, /Precedent:/u);
+    assert.match(context.contextBlockHash, /^[a-f0-9]{64}$/u);
     assert.equal(context.injections.length, 1);
     assert.equal(context.injections[0].id, "prec_webhook_replay_boundary");
     assert.ok(context.injections[0].matchReasons.length > 0);
@@ -177,6 +178,7 @@ test("context emits stable delivery receipts for runtime attribution", async () 
 
     assert.equal(first.injections.length, 1);
     assert.match(first.deliveryReceipt.deliveryId, /^del_[a-f0-9]+$/u);
+    assert.equal(first.deliveryReceipt.contextBlockHash, first.contextBlockHash);
     assert.deepEqual(first.deliveryReceipt.injectedPrecedentIds, ["prec_webhook_replay_boundary"]);
     assert.equal(first.deliveryReceipt.sessionId, "delivery-session");
     assert.equal(first.deliveryReceipt.eventId, "turn-1");

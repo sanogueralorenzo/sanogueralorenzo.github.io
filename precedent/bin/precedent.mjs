@@ -16,6 +16,7 @@ const SUPPORTED_GUARD_TYPES = new Set([
 const SUPPORTED_EVENT_HOOKS = new Set([
   "conversation.observe",
   "context.before_turn",
+  "context.after_inject",
   "validation.after_run",
   "diff.after_edit",
   "review.after_feedback",
@@ -416,6 +417,7 @@ async function exportContext() {
       sessionId: args.session ?? null,
       eventId,
       injections: selected.matches,
+      contextBlock,
       issuedAt: observedAt,
     });
     const suppressedInjections = [
@@ -459,10 +461,12 @@ async function exportContext() {
       candidateHints,
       deliveryReceipt,
       turnDirectives,
+      contextBlockHash: contextBlockHash(contextBlock),
     };
     payload = {
       schema_version: "precedent.context.v1",
       contextBlock,
+      contextBlockHash: exportEvent.contextBlockHash,
       injections: selected.matches.map(formatInjection),
       suppressedInjections,
       revisionBriefs,
@@ -497,6 +501,7 @@ async function exportContext() {
         scope: context.scope || null,
         changedFiles: context.changedFiles,
         contextBlock,
+        contextBlockHash: exportEvent.contextBlockHash,
         injections: exportEvent.injections,
         injectionMatches: exportEvent.injectionMatches,
         suppressedInjections: exportEvent.suppressedInjections,
@@ -515,6 +520,7 @@ async function exportContext() {
     payload = {
       schema_version: "precedent.context.v1",
       contextBlock: "",
+      contextBlockHash: contextBlockHash(""),
       injections: [],
       suppressedInjections: [{ reason: "lock_timeout" }],
       revisionBriefs: [],
@@ -1233,6 +1239,10 @@ async function dispatchHookEvent(rawEvent) {
     return capturePrintedPayload(() => contextBeforeTurnEventHook(event));
   }
 
+  if (hook === "context.after_inject") {
+    return capturePrintedPayload(() => contextAfterInjectEventHook(event));
+  }
+
   if (hook === "conversation.observe") {
     return capturePrintedPayload(() => conversationObserveEventHook(event));
   }
@@ -1475,6 +1485,7 @@ async function contextBeforeTurnEventHook(event) {
       sessionId,
       eventId,
       injections: matches,
+      contextBlock,
       issuedAt: new Date().toISOString(),
     });
 
@@ -1501,6 +1512,7 @@ async function contextBeforeTurnEventHook(event) {
       candidateHints,
       turnDirectives,
       deliveryReceipt,
+      contextBlockHash: contextBlockHash(contextBlock),
     };
     injections = matches.map(formatInjection);
     const contextPayload = {
@@ -1515,6 +1527,7 @@ async function contextBeforeTurnEventHook(event) {
       turnDirectives,
       deliveryReceipt,
       contextBlock,
+      contextBlockHash: hookEvent.contextBlockHash,
     };
 
     await appendJsonLine(join(stateDir, "events.jsonl"), hookEvent);
@@ -1523,6 +1536,7 @@ async function contextBeforeTurnEventHook(event) {
         ...hookEvent,
         task,
         contextBlock,
+        contextBlockHash: hookEvent.contextBlockHash,
         contextPayload,
       })
       : null;
@@ -1563,6 +1577,67 @@ async function contextBeforeTurnEventHook(event) {
     turnDirectives,
     deliveryReceipt,
     contextBlock,
+    contextBlockHash: contextBlockHash(contextBlock),
+  });
+}
+
+async function contextAfterInjectEventHook(event) {
+  const stateDir = statePath();
+  const sessionId = requireString(event.sessionId, "event.sessionId");
+  const eventId = hookEventId(event);
+  const deliveryId = requireString(event.deliveryId, "event.deliveryId");
+  const inserted = hookBoolean(event.inserted, "event.inserted", true);
+  const receivedHash = stringOrNull(event.contextBlockHash);
+  let injectionAck = null;
+  let sessionEvent = null;
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const receipt = await findDeliveryReceipt(stateDir, deliveryId);
+    injectionAck = contextInjectionAckFor({
+      deliveryId,
+      receipt,
+      inserted,
+      contextBlockHash: receivedHash,
+      reason: stringOrNull(event.reason),
+    });
+    sessionEvent = await appendSessionEvent(stateDir, {
+      type: "hook_event",
+      receivedAt: new Date().toISOString(),
+      hook: event.hook,
+      sessionId,
+      ...eventIdField(eventId),
+      deliveryId,
+      inserted,
+      contextBlockHash: receivedHash,
+      reason: stringOrNull(event.reason),
+      contextInjectionAck: injectionAck,
+    });
+
+    if (!sessionEvent.deduped) {
+      await appendJsonLine(join(stateDir, "events.jsonl"), {
+        type: "hook_event",
+        receivedAt: sessionEvent.receivedAt,
+        hook: event.hook,
+        sessionId,
+        ...eventIdField(eventId),
+        deliveryId,
+        contextInjectionAck: injectionAck,
+      });
+    } else {
+      injectionAck = sessionEvent.event.contextInjectionAck ?? injectionAck;
+    }
+  });
+
+  print({
+    ok: true,
+    hook: event.hook,
+    sessionId,
+    recorded: !sessionEvent.deduped,
+    deduped: sessionEvent.deduped,
+    sessionEventPath: sessionEvent.path,
+    deliveryId,
+    contextInjectionAck: injectionAck,
   });
 }
 
@@ -2556,8 +2631,15 @@ function buildManifest(runtime, stateDir) {
           "--format",
           "json",
         ],
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "contextBlock", "contextBlockHash", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
+        timeoutMs,
+        failurePolicy,
+      },
+      "context.after_inject": {
+        command: hookCommand,
+        stdin: ["schema_version", "hook", "sessionId", "eventId", "deliveryId", "contextBlockHash", "inserted", "reason"],
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "contextInjectionAck"],
         timeoutMs,
         failurePolicy,
       },
@@ -2780,6 +2862,12 @@ async function attachRuntime() {
           eventId: "$EVENT_ID",
         },
         {
+          phase: "afterInject",
+          hook: "context.after_inject",
+          required: false,
+          eventId: "$EVENT_ID",
+        },
+        {
           phase: "beforeEdit",
           action: "warrant.issue",
           required: false,
@@ -2839,8 +2927,24 @@ async function attachRuntime() {
       beforeTurn: {
         command: beforeTurnCommand,
         eventId: "$EVENT_ID",
-        output: ["schema_version", "contextBlock", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
+        output: ["schema_version", "contextBlock", "contextBlockHash", "injections", "suppressedInjections", "revisionBriefs", "promotionTrials", "candidateHints", "turnDirectives", "deliveryReceipt", "source", "recorded", "deduped", "sessionEventPath"],
         injectFrom: "contextBlock",
+        timeoutMs: runtimeConfig.hookTimeoutMs,
+        failurePolicy: runtimeConfig.failurePolicy,
+      },
+      afterInject: {
+        command: hookCommand,
+        output: ["ok", "hook", "sessionId", "recorded", "deduped", "sessionEventPath", "deliveryId", "contextInjectionAck"],
+        stdin: {
+          schema_version: SCHEMA_VERSION,
+          hook: "context.after_inject",
+          sessionId,
+          eventId: "$EVENT_ID",
+          deliveryId: "$DELIVERY_ID",
+          contextBlockHash: "$CONTEXT_BLOCK_HASH",
+          inserted: "$INSERTED",
+          reason: "$REASON",
+        },
         timeoutMs: runtimeConfig.hookTimeoutMs,
         failurePolicy: runtimeConfig.failurePolicy,
       },
@@ -3080,6 +3184,14 @@ async function attachRunSession() {
     "json",
     "--json",
   ]);
+  const injectionAck = await runAttachInjectionAck({
+    stateDirArg,
+    sessionId,
+    eventId: eventPrefix ? `${eventPrefix}:context.after_inject` : null,
+    deliveryReceipt: beforeTurn.deliveryReceipt,
+    contextBlockHash: beforeTurn.contextBlockHash,
+    inserted: beforeTurn.contextBlock ? true : false,
+  });
   const attributedPrecedents = beforeTurn.injections.map((injection) => injection.id);
   const warrant = await runPrecedentChildJson([
     "warrant",
@@ -3208,6 +3320,7 @@ async function attachRunSession() {
     changedFiles,
     attributedPrecedents,
     beforeTurn,
+    injectionAck,
     warrant,
     diff,
     validation,
@@ -3254,6 +3367,42 @@ async function runAttachDiff({
     unifiedDiff: unifiedDiff ?? null,
     attributedPrecedents,
   });
+}
+
+async function runAttachInjectionAck({
+  stateDirArg,
+  sessionId,
+  eventId,
+  deliveryReceipt,
+  contextBlockHash,
+  inserted,
+}) {
+  if (!deliveryReceipt?.deliveryId) {
+    return {
+      status: "not_needed",
+      ack: null,
+    };
+  }
+
+  const ack = await runPrecedentChildJson([
+    "hook",
+    "--state-dir",
+    stateDirArg,
+    "--json",
+  ], {
+    schema_version: SCHEMA_VERSION,
+    hook: "context.after_inject",
+    sessionId,
+    ...eventIdField(eventId),
+    deliveryId: deliveryReceipt.deliveryId,
+    contextBlockHash,
+    inserted,
+  });
+
+  return {
+    status: ack.contextInjectionAck?.status ?? "unknown",
+    ack,
+  };
 }
 
 async function runAttachValidation({
@@ -4674,20 +4823,26 @@ function markdownList(values) {
   return items.map((item) => `- ${item}`).join("\n");
 }
 
-function deliveryReceiptFor({ sessionId, eventId, injections, issuedAt }) {
+function deliveryReceiptFor({ sessionId, eventId, injections, contextBlock = "", issuedAt }) {
   const injectedPrecedentIds = uniqueStrings((injections ?? []).map((injection) => injection.id).filter(Boolean));
-  if (!sessionId || !eventId || injectedPrecedentIds.length === 0) {
+  const blockHash = contextBlockHash(contextBlock);
+  if (!sessionId || !eventId || (injectedPrecedentIds.length === 0 && contextBlock.trim().length === 0)) {
     return null;
   }
 
   return {
-    deliveryId: `del_${stableHash({ sessionId, eventId, injectedPrecedentIds }).slice(0, 20)}`,
+    deliveryId: `del_${stableHash({ sessionId, eventId, injectedPrecedentIds, contextBlockHash: blockHash }).slice(0, 20)}`,
     sessionId,
     eventId,
     injectedPrecedentIds,
+    contextBlockHash: blockHash,
     issuedAt,
     expiresAt: new Date(Date.parse(issuedAt) + runtimeConfig.retentionDays * 24 * 60 * 60 * 1000).toISOString(),
   };
+}
+
+function contextBlockHash(contextBlock) {
+  return sha256Text(typeof contextBlock === "string" ? contextBlock : "");
 }
 
 function warrantForContext({ sessionId, eventId, issuedAt, task, context, matches, candidateHints, deliveryReceipt, turnDirectives }) {
@@ -5323,11 +5478,19 @@ async function runtimeWiringHealthSummary(stateDir, events) {
   const unclosedInjectedSessions = [];
   const unattributedOutcomesAfterInjections = [];
   const unknownDeliveryIds = [];
+  const unackedDeliveries = [];
+  const mismatchedInjectionAcks = [];
+  const rejectedInjectionAcks = [];
 
   for (const entry of sessionEntries) {
     const hookEvents = entry.events.filter((event) => typeof event.hook === "string");
     const injectedEvents = hookEvents.filter((event) => Array.isArray(event.injections) && event.injections.length > 0);
     const outcomeEvents = hookEvents.filter((event) => event.hook === "outcome.after_task");
+    const contextDeliveries = hookEvents
+      .filter((event) => event.hook === "context.before_turn" || event.hook === "context.export")
+      .map((event) => event.deliveryReceipt ?? event.contextPayload?.deliveryReceipt ?? null)
+      .filter((receipt) => receipt?.deliveryId && receipt.contextBlockHash);
+    const ackEvents = hookEvents.filter((event) => event.hook === "context.after_inject" && event.contextInjectionAck);
 
     for (const event of hookEvents) {
       if (!event.eventId) {
@@ -5343,6 +5506,36 @@ async function runtimeWiringHealthSummary(stateDir, events) {
           hook: event.hook,
           deliveryId: event.deliveryId,
         });
+      }
+    }
+
+    for (const receipt of contextDeliveries) {
+      const acks = ackEvents.filter((event) => event.contextInjectionAck.deliveryId === receipt.deliveryId);
+      if (acks.length === 0) {
+        unackedDeliveries.push({
+          sessionId: entry.sessionId,
+          deliveryId: receipt.deliveryId,
+          eventId: receipt.eventId ?? null,
+        });
+        continue;
+      }
+
+      for (const ackEvent of acks) {
+        const ack = ackEvent.contextInjectionAck;
+        if (ack.status === "mismatch") {
+          mismatchedInjectionAcks.push({
+            sessionId: entry.sessionId,
+            deliveryId: ack.deliveryId,
+            expectedContextBlockHash: ack.expectedContextBlockHash,
+            contextBlockHash: ack.contextBlockHash,
+          });
+        } else if (ack.status === "rejected") {
+          rejectedInjectionAcks.push({
+            sessionId: entry.sessionId,
+            deliveryId: ack.deliveryId,
+            reason: ack.reason ?? null,
+          });
+        }
       }
     }
 
@@ -5364,17 +5557,26 @@ async function runtimeWiringHealthSummary(stateDir, events) {
     unclosedInjectedSessions: uniqueStrings(unclosedInjectedSessions).length,
     unattributedOutcomesAfterInjections: uniqueStrings(unattributedOutcomesAfterInjections).length,
     unknownDeliveryIds: unknownDeliveryIds.length,
+    unackedDeliveries: unackedDeliveries.length,
+    mismatchedInjectionAcks: mismatchedInjectionAcks.length,
+    rejectedInjectionAcks: rejectedInjectionAcks.length,
     needsAttention: uniqueStrings(fallbackAttachments).length
       + missingEventIds.length
       + uniqueStrings(unclosedInjectedSessions).length
       + uniqueStrings(unattributedOutcomesAfterInjections).length
-      + unknownDeliveryIds.length,
+      + unknownDeliveryIds.length
+      + unackedDeliveries.length
+      + mismatchedInjectionAcks.length
+      + rejectedInjectionAcks.length,
     details: {
       fallbackAttachments: uniqueStrings(fallbackAttachments),
       missingEventIds: missingEventIds.slice(0, 20),
       unclosedInjectedSessions: uniqueStrings(unclosedInjectedSessions).slice(0, 20),
       unattributedOutcomesAfterInjections: uniqueStrings(unattributedOutcomesAfterInjections).slice(0, 20),
       unknownDeliveryIds: unknownDeliveryIds.slice(0, 20),
+      unackedDeliveries: unackedDeliveries.slice(0, 20),
+      mismatchedInjectionAcks: mismatchedInjectionAcks.slice(0, 20),
+      rejectedInjectionAcks: rejectedInjectionAcks.slice(0, 20),
     },
   };
 }
@@ -5498,6 +5700,27 @@ async function findDeliveryReceipt(stateDir, deliveryId) {
   }
 
   return null;
+}
+
+function contextInjectionAckFor({ deliveryId, receipt, inserted, contextBlockHash: receivedHash, reason }) {
+  const expectedHash = receipt?.contextBlockHash ?? null;
+  const status = !receipt
+    ? "missing_delivery"
+    : inserted !== true
+      ? "rejected"
+      : receivedHash !== expectedHash
+        ? "mismatch"
+        : "accepted";
+
+  return {
+    deliveryId,
+    status,
+    ok: status === "accepted",
+    inserted,
+    expectedContextBlockHash: expectedHash,
+    contextBlockHash: receivedHash,
+    reason: reason ?? (status === "accepted" ? null : status),
+  };
 }
 
 async function findWarrant(stateDir, warrantId) {
@@ -8661,15 +8884,21 @@ async function checkRuntimeWiring(checks, stateDir, strict) {
   const events = await readJsonLines(join(stateDir, "events.jsonl"));
   const health = await runtimeWiringHealthSummary(stateDir, events);
   const fallbackSessions = health.details.fallbackAttachments;
+  const strictFailures = fallbackSessions.length
+    + health.unackedDeliveries
+    + health.mismatchedInjectionAcks
+    + health.rejectedInjectionAcks;
 
   checks.push({
-    ok: !strict || fallbackSessions.length === 0,
+    ok: !strict || strictFailures === 0,
     name: "runtime_wiring",
     file: join(stateDir, "events.jsonl"),
     strict,
     ...health,
     message: strict && fallbackSessions.length > 0
       ? "runtime attach used task_hash_fallback identity; pass --session or --thread-id"
+      : strict && strictFailures > 0
+        ? "runtime wiring has injection acknowledgement issues"
       : undefined,
   });
 }
