@@ -364,13 +364,15 @@ Next graph envelope validation milestone:
 - Executable graph edge records may carry `data`; when present it must be an
   object. Any `sourceSpan` or `targetSpan` inside edge `data` must be a valid
   span before runtime dependency or provenance logic can use it.
-- Runtime graph `data` edge payloads are the next Phase 2 static-model
-  milestone. Because these edges bind a producer to a typed step input, each
-  `data` edge payload must carry non-empty `parameter`, non-empty `type`, and
-  valid `sourceSpan` and `targetSpan` values. Malformed `data` edge payloads
+- Runtime graph `produces` edge payloads are the next Phase 2 static-model
+  milestone. The `produces` edge from the final executable `Step` to
+  `Completion` must carry non-empty `type` plus valid `sourceSpan` and
+  `targetSpan` values. `sourceSpan` points to the final step output, and
+  `targetSpan` points to the goal output. Malformed `produces` edge payloads
   emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
-  non-executable; endpoint direction and endpoint type errors remain
-  `INTENT_GRAPH_DATA_INVALID`.
+  non-executable; wrong completion edge counts remain
+  `INTENT_GRAPH_COMPLETION_INVALID`, and wrong final-step sequencing or
+  endpoint roles remain step sequence diagnostics.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
@@ -667,8 +669,8 @@ Every successful binding is also emitted as graph data dependency:
   waits for the bound value before the step can run. Its edge `data` may include
   `targetSpan` for the required step parameter.
 - The final executable step creates a `produces` edge to the goal completion
-  node. Its edge `data` may include `sourceSpan` for the final step output type
-  and `targetSpan` for the goal output type.
+  node. Its edge `data` must include non-empty `type`, `sourceSpan` for the
+  final step output, and `targetSpan` for the goal output.
 - Graph data-edge validation emits `INTENT_GRAPH_DATA_INVALID` when a `data`
   edge does not connect either a goal `Input` node or step producer to a step
   `Input` consumer.
@@ -1762,8 +1764,8 @@ Graph `data` edge payloads must include non-empty `parameter`, non-empty
 parameters, while graph `requires` edge payloads may include `targetSpan` for
 the required input parameter.
 Graph `produces` edge payloads that connect the final executable step to
-completion may include `sourceSpan` for the final step output type and
-`targetSpan` for the goal output type.
+completion must include non-empty `type`, valid `sourceSpan` for the final step
+output, and valid `targetSpan` for the goal output.
 
 Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
 `from` or `to` endpoint is absent from the same graph payload, emits
@@ -1772,7 +1774,9 @@ Graph validation emits `INTENT_GRAPH_EDGE_UNRESOLVED` for any edge whose
 step `Input` node does not have exactly one incoming `data` edge or lacks its
 `requires` edge to the owning step, emits
 `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` when a `data` edge payload omits non-empty
-`parameter` or `type` values or valid `sourceSpan` or `targetSpan` values,
+`parameter` or `type` values or valid `sourceSpan` or `targetSpan` values, or
+when a final-step-to-completion `produces` edge payload omits non-empty `type`
+or valid `sourceSpan` or `targetSpan` values,
 emits
 `INTENT_GRAPH_GOAL_COMPLETION_INVALID` when a
 `Goal` node lacks its `${goal_id}:completion` `Completion` node, lacks exactly
@@ -1994,10 +1998,12 @@ to the completion node. Required checks create `verifies` edges to completion.
 Invariants that apply to the goal create `guards` edges to completion and to
 every effect, checkpoint, and step requirement check in that goal. The last
 executable step in the plan creates a `produces` edge to completion. That edge
-may carry `data.sourceSpan` for the final step output type and
-`data.targetSpan` for the goal output type. Completion node data also carries
-`outputType` as `null` or a non-empty string and `outputTypeSpan` as `null` or
-a valid span; malformed Completion payload data emits
+must carry non-empty `data.type`, `data.sourceSpan` for the final step output,
+and `data.targetSpan` for the goal output. Malformed `produces` edge payloads
+emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
+non-executable. Completion node data also carries `outputType` as `null` or a
+non-empty string and `outputTypeSpan` as `null` or a valid span; malformed
+Completion payload data emits
 `INTENT_GRAPH_COMPLETION_INVALID` and makes graph output non-executable. This
 node payload contract is separate from the completion-edge contract. Graph
 validation emits
@@ -2008,7 +2014,8 @@ Graph validation emits
 `INTENT_GRAPH_COMPLETION_INVALID` unless each `Completion` node has exactly one
 incoming `completes` edge from a `Goal` and exactly one incoming `produces` edge
 from a `Step`, at least one incoming `verifies` edge from a `Check` node, and a
-`guards` edge count that matches the goal's `Invariant` nodes. Graph validation
+`guards` edge count that matches the goal's `Invariant` nodes. Wrong final-step
+sequencing or endpoint roles remain step sequence diagnostics. Graph validation
 emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node lacks exactly
 one incoming `requests` edge from its owning `Step`, or when any incoming
 `requests` edge is not from that owning `Step`. Graph validation

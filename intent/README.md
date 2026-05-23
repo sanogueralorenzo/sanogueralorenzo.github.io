@@ -139,13 +139,15 @@ Validation expectations:
 - Executable graph edge records may carry `data`; when present it must be an
   object. Edge `data.sourceSpan` and `data.targetSpan` payloads must be valid
   spans before runtime dependency or provenance logic can use them.
-- Runtime graph `data` edge payloads are the next Phase 2 static-model
-  milestone. Because these edges bind a producer to a typed step input, each
-  `data` edge payload must carry non-empty `parameter`, non-empty `type`, and
-  valid `sourceSpan` and `targetSpan` values. Malformed `data` edge payloads
+- Runtime graph `produces` edge payloads are the next Phase 2 static-model
+  milestone. The `produces` edge from the final executable `Step` to
+  `Completion` must carry non-empty `type` plus valid `sourceSpan` and
+  `targetSpan` values. `sourceSpan` points to the final step output, and
+  `targetSpan` points to the goal output. Malformed `produces` edge payloads
   emit `INTENT_GRAPH_EDGE_PAYLOAD_INVALID` and make graph output
-  non-executable; endpoint direction and endpoint type errors remain
-  `INTENT_GRAPH_DATA_INVALID`.
+  non-executable; wrong completion edge counts remain
+  `INTENT_GRAPH_COMPLETION_INVALID`, and wrong final-step sequencing or
+  endpoint roles remain step sequence diagnostics.
 - Executable graph node spans must include a string `file` and object `start`
   and `end` positions with positive integer `line` and `column` values.
   Malformed spans emit `INTENT_GRAPH_SHAPE_INVALID` before runtime diagnostics
