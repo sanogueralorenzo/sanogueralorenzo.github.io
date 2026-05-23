@@ -12,6 +12,12 @@ It should keep going beyond a single review by making every verdict useful to th
 
 The long-term target is a shared review protocol that can sit behind code changes, research reports, deployments, incident response, autonomous tool use, and multi-agent workflows without being tied to one runtime.
 
+## Repository Map
+
+- [SPEC.md](SPEC.md): the claim, objection, evidence, waiver, and verdict model.
+- [ROADMAP.md](ROADMAP.md): the path from concept note to a runnable local CLI.
+- [examples/README.md](examples/README.md): concrete review gates for code, research, deployment, and tool-use claims.
+
 ## Core Idea
 
 Most agent systems have a weak completion boundary:
