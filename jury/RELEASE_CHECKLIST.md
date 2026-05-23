@@ -17,7 +17,7 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Download `jury-package-release-evidence` and replay it with `npm --prefix jury run fixtures:package-release:check -- --fixture-dir <downloaded-artifact-dir>` before `dry-run-publication`.
 - [ ] Download `jury-package-release-archive-manifest` and verify it with `--verify-manifest "$JURY_PACKAGE_RELEASE_MANIFEST_PATH"` before `dry-run-publication`.
 - [ ] Review the `package-release-evidence-replay` `GITHUB_STEP_SUMMARY` for failed package version, failed tarball name, replacement package version, failed archive evidence, replacement archive evidence, and remediation approver before `dry-run-publication`.
-- [ ] Confirm `package-release-evidence-replay` uploads `jury-package-release-replay-summary` with `jury-package-release-replay-summary.md`, `jury-package-release-replay-summary-diagnostics.json`, and `retention-days: 90`.
+- [ ] Confirm `package-release-evidence-replay` uploads `jury-package-release-replay-summary` with `jury-package-release-replay-summary.md`, `jury-package-release-replay-summary-diagnostics.json`, `jury-package-release-replay-summary-diagnostics-retention-handoff.json`, and `retention-days: 90`.
 - [ ] If package release evidence replay fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to check `JURY_PACKAGE_RELEASE_EVIDENCE_DIR`, missing artifact files, and rollback/replacement audit schema errors before `dry-run-publication`.
 - [ ] Run `(cd jury && npm pack --dry-run --json) > jury-pack-dry-run.json` after the package manifest check.
 - [ ] Record the dry-run package version from `jury-pack-dry-run.json` as `packageVersion`.
@@ -34,9 +34,11 @@ Use this checklist before treating the Jury prototype as a reusable v1 adoption 
 - [ ] Promote failed and replacement release evidence from temporary CI artifacts into the release record or incident archive before the 90-day artifact expiry.
 - [ ] Promote `jury-package-release-replay-summary.md` from `jury-package-release-replay-summary` with the failed and replacement release archive evidence before the 90-day artifact expiry.
 - [ ] Promote `jury-package-release-replay-summary-diagnostics.json` with the replay summary so the retained archive proves the workflow summary lines matched the failed and replacement release evidence.
+- [ ] Promote `jury-package-release-replay-summary-diagnostics-retention-handoff.json` so the retained archive records the diagnostics source artifact, source job, workflow run, source revision, 90-day retention window, and reviewer.
 - [ ] Record retained artifact provenance for `jury-package-dry-run`, `jury-package-release-evidence`, and `jury-package-release-replay-summary`: source workflow, run id, source revision, source job, `retentionDays`, and uploaded file list.
 - [ ] If replay summary retention fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to check the promoted summary file, manifest retention artifacts, replay summary provenance, source job, `retentionDays`, and retained summary content.
 - [ ] If replay summary diagnostics fail, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to compare `jury-package-release-replay-summary-diagnostics.json` with the retained manifest, remediation audit, and saved summary file.
+- [ ] If replay summary diagnostics retention handoff fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to compare `jury-package-release-replay-summary-diagnostics-retention-handoff.json` with the retained manifest, diagnostics JSON, and archive approval.
 - [ ] If the replay summary artifact expired before promotion, reconstruct `jury-package-release-replay-summary.md` from the retained manifest and `archive-drift-remediation-audit.json`, record a reviewed expiry handoff, then store both files with failed and replacement release evidence.
 - [ ] If the replay summary expiry handoff schema fails, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md) to inspect `schema_version`, `reason`, `expiredAfterDays`, reconstructed inputs, failed and replacement package versions, and the approving maintainer before closing the release archive.
 - [ ] Confirm retained failed and replacement evidence comes from the same `jury-npm-publish.yml` workflow run and source revision before closing the release.
@@ -113,7 +115,9 @@ Expected fixture files:
 - [schemas/package-release-evidence.schema.json](schemas/package-release-evidence.schema.json)
 - [schemas/package-release-remediation-audit.schema.json](schemas/package-release-remediation-audit.schema.json)
 - [schemas/package-release-replay-summary-diagnostics.schema.json](schemas/package-release-replay-summary-diagnostics.schema.json)
+- [schemas/package-release-replay-summary-diagnostics-retention-handoff.schema.json](schemas/package-release-replay-summary-diagnostics-retention-handoff.schema.json)
 - [examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics.json](examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics.json)
+- [examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics-retention-handoff.json](examples/ci/fixtures/package-release/jury-package-release-replay-summary-diagnostics-retention-handoff.json)
 - [scripts/validate-package-release-fixtures.mjs](scripts/validate-package-release-fixtures.mjs)
 
 ## Validation

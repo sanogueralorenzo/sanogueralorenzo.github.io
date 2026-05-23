@@ -36,6 +36,7 @@
       "rollback-audit.json",
       "jury-package-release-replay-summary.md",
       "jury-package-release-replay-summary-diagnostics.json",
+      "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
       "GITHUB_STEP_SUMMARY",
       "replacement-npm-view.json",
       "replacement-downstream-gate.json",
@@ -72,7 +73,8 @@
           "replacement-patch-audit.json",
           "archive-drift-remediation-audit.json",
           "jury-package-release-replay-summary.md",
-          "jury-package-release-replay-summary-diagnostics.json"
+          "jury-package-release-replay-summary-diagnostics.json",
+          "jury-package-release-replay-summary-diagnostics-retention-handoff.json"
         ]
       },
       {
@@ -81,7 +83,8 @@
         "retentionDays": 90,
         "files": [
           "jury-package-release-replay-summary.md",
-          "jury-package-release-replay-summary-diagnostics.json"
+          "jury-package-release-replay-summary-diagnostics.json",
+          "jury-package-release-replay-summary-diagnostics-retention-handoff.json"
         ]
       }
     ]
@@ -101,7 +104,7 @@
     },
     {
       "path": "rollback-audit.json",
-      "sha256": "sha256:ff29528687423dab8dddaec0705d357577c7e6f3eb1d39bd0d886cb808dac4f0"
+      "sha256": "sha256:de403e376827293dde77ce10c4ce2e472424ed7f33d4448298724e87bb66bdd7"
     },
     {
       "path": "replacement-npm-view.json",
@@ -113,7 +116,7 @@
     },
     {
       "path": "replacement-patch-audit.json",
-      "sha256": "sha256:95cf5d27e17541e335b152b285416f58f9acd0be0e07a902a2abc49c9c25c187"
+      "sha256": "sha256:3c01065937bb0c425f5b4052243ec0fcc519a57c2a108576a7ae40258a2f4c43"
     },
     {
       "path": "jury-package-release-replay-summary.md",
@@ -122,6 +125,10 @@
     {
       "path": "jury-package-release-replay-summary-diagnostics.json",
       "sha256": "sha256:9872fa21227f9a1d272d4168583b6b0061c36bcf4631bbe35ef095c9b6480d9e"
+    },
+    {
+      "path": "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
+      "sha256": "sha256:97c558de59e68091daa55f5666f16c2fbd15962da2580755b2bad8ccc58b5e7a"
     }
   ]
 }

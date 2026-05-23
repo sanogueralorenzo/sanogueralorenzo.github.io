@@ -1,0 +1,21 @@
+{
+  "schema_version": "jury.package_release_replay_summary_diagnostics_retention_handoff.v1",
+  "reason": "jury-package-release-replay-summary-diagnostics retained with failed and replacement release archives",
+  "sourceArtifact": "jury-package-release-replay-summary",
+  "sourceJob": "package-release-evidence-replay",
+  "retentionDays": 90,
+  "diagnosticsSchemaVersion": "jury.package_release_replay_summary_diagnostics.v1",
+  "retainedDiagnostics": "jury-package-release-replay-summary-diagnostics.json",
+  "summaryFile": "jury-package-release-replay-summary.md",
+  "retainedWith": [
+    "retained-package-release-evidence-manifest.json",
+    "jury-package-release-replay-summary.md",
+    "archive-drift-remediation-audit.json"
+  ],
+  "failedPackageVersion": "0.1.0",
+  "failedTarballName": "sanogueralorenzo-jury-0.1.0.tgz",
+  "replacementPackageVersion": "0.1.1",
+  "runId": "example-release-run-1001",
+  "sourceRevision": "example-release-revision",
+  "reviewedBy": "release-maintainer@example.com"
+}

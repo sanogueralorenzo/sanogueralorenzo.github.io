@@ -26,6 +26,7 @@
       "replacement-patch-audit.json",
       "jury-package-release-replay-summary.md",
       "jury-package-release-replay-summary-diagnostics.json",
+      "jury-package-release-replay-summary-diagnostics-retention-handoff.json",
       "GITHUB_STEP_SUMMARY"
     ],
     "provenance": {
@@ -58,7 +59,8 @@
             "replacement-patch-audit.json",
             "archive-drift-remediation-audit.json",
             "jury-package-release-replay-summary.md",
-            "jury-package-release-replay-summary-diagnostics.json"
+            "jury-package-release-replay-summary-diagnostics.json",
+            "jury-package-release-replay-summary-diagnostics-retention-handoff.json"
           ]
         },
         {
@@ -67,7 +69,8 @@
           "retentionDays": 90,
           "files": [
             "jury-package-release-replay-summary.md",
-            "jury-package-release-replay-summary-diagnostics.json"
+            "jury-package-release-replay-summary-diagnostics.json",
+            "jury-package-release-replay-summary-diagnostics-retention-handoff.json"
           ]
         }
       ]
