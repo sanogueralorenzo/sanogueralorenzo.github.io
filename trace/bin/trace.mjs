@@ -367,7 +367,7 @@ async function runDoctor() {
   const memories = await auditMemoryFiles(root);
   const redaction = await redactionAudit(root);
   const dirtyTrace = await dirtyTraceFiles(root);
-  const checkpoint = await checkpointAudit(root);
+  const checkpoint = await checkpointIntegrityReport(root, await memoryTargetsForFiles(root, memories.files));
   const searchIndex = await searchIndexStatus(root);
   const install = await installStatusPayload();
 
@@ -425,6 +425,7 @@ async function runDoctor() {
       present: checkpoint.present,
       commit: checkpoint.commit,
       checked: checkpoint.checked,
+      linkedMemories: checkpoint.linkedMemories,
       errors: checkpoint.errors,
     },
     {
