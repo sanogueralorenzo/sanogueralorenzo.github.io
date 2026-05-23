@@ -622,15 +622,23 @@ function validateMemory(goal, diagnostics) {
     }
 
     for (const retention of retentionRules) {
-      if (!retention.subject?.raw || !retention.until?.raw) {
+      if (!retention.subject?.raw || !retention.until?.raw || !isSupportedRetentionUntil(retention.until.raw)) {
         diagnostics.push(error("INTENT_MEMORY_RETENTION_INVALID", `memory '${memory.name ?? memory.scope}' has invalid retention rule '${retention.raw}'.`, retention.span, {
           memory: memory.name ?? memory.scope,
           scope: memory.scope,
           retention: retention.raw,
+          until: retention.until?.raw ?? null,
         }));
       }
     }
   }
+}
+
+function isSupportedRetentionUntil(value) {
+  const normalized = value.trim();
+  return normalized === "goal_complete"
+    || normalized === "goal.completed"
+    || /^[1-9][0-9]*(?:s|m|h|d)$/.test(normalized);
 }
 
 function validateGoalTypes(goal, declaredTypes, diagnostics) {
