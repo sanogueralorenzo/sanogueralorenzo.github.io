@@ -149,6 +149,14 @@ Validation expectations:
   `source`, and an optional non-empty `argument`. Malformed trust metadata
   emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
   runtime trust sinks must not infer missing or malformed trust.
+- Graph `Effect` nodes are runtime adapter invocations. They must carry valid
+  adapter data: `data.family` and `data.action` must be non-empty strings,
+  `data.args`, `data.argKinds`, and `data.argSpans` must be objects, every
+  `data.argSpans` value must be a valid source span, and
+  `data.approvalRequired` must be a boolean. Malformed effect adapter data
+  emits `INTENT_GRAPH_EFFECT_INVALID` and makes the graph non-executable
+  because runtimes must not infer an adapter, action, argument provenance, or
+  approval requirement.
 - Graph `Capability` nodes are runtime policy inputs. They must carry valid
   approval-policy data: `data.family` must be non-empty,
   `data.approvalPolicy` must be either `none` or `required`, and `data.grants`

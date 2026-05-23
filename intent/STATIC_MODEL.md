@@ -374,6 +374,13 @@ Next graph envelope validation milestone:
   `source`, and an optional non-empty `argument`. Malformed trust metadata
   emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
   runtime trust sinks must not infer missing or malformed trust.
+- Runtime effect adapter metadata is part of graph validation. `Effect` nodes
+  must carry non-empty string `data.family` and `data.action` values, object
+  `data.args`, `data.argKinds`, and `data.argSpans` maps, valid source spans
+  for every `data.argSpans` value, and boolean `data.approvalRequired`.
+  Malformed effect adapter data emits `INTENT_GRAPH_EFFECT_INVALID` and makes
+  the graph non-executable because runtimes must not infer an adapter, action,
+  argument provenance, or approval requirement.
 - Runtime memory metadata is part of graph validation. `Memory` nodes must carry
   raw `data.retention` as an array and structured `data.retentionRules` as a
   non-empty array. Every structured retention rule must include non-empty `raw`,
@@ -1214,6 +1221,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_SHAPE_INVALID`
 - `INTENT_GRAPH_DIAGNOSTIC_INVALID`
 - `INTENT_GRAPH_TRUST_INVALID`
+- `INTENT_GRAPH_EFFECT_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
 - `INTENT_GRAPH_APPROVAL_INVALID`
 - `INTENT_GRAPH_CHECKPOINT_INVALID`
@@ -1704,15 +1712,21 @@ requires every `Context` node trust record to carry zone `trusted`,
 `untrusted`, or `unknown`, a non-empty `source`, and an optional non-empty
 `argument`; malformed records emit `INTENT_GRAPH_TRUST_INVALID`.
 
-Effect nodes carry normalized effect call data: `family`, `action`, `args`,
-`argKinds`, `argSpans`, `expression`, and trust metadata when applicable.
-Verification shell `Check` nodes carry the same effect data under
-`data.effect`, so diagnostics can point to the exact denied command argument.
-Runtime validation requires `Effect` node trust and verification `Check`
-`data.effect.trust` records to use the same trust shape as `Context` nodes.
-Missing or malformed trust metadata emits `INTENT_GRAPH_TRUST_INVALID` and
-makes the graph non-executable because runtime trust sinks must not infer trust
-for effect execution.
+Effect nodes carry normalized runtime adapter call data: `family`, `action`,
+`args`, `argKinds`, `argSpans`, `expression`, `approvalRequired`, and trust
+metadata when applicable. `family` and `action` must be non-empty strings so
+the runtime invokes an explicit adapter operation. `args`, `argKinds`, and
+`argSpans` must be objects, every `argSpans` value must be a valid source span,
+and `approvalRequired` must be a boolean so the runtime can enforce argument
+provenance and approval without inference. Malformed adapter data emits
+`INTENT_GRAPH_EFFECT_INVALID` and makes the graph non-executable. Verification
+shell `Check` nodes carry the same effect data under `data.effect`, so
+diagnostics can point to the exact denied command argument. Runtime validation
+requires `Effect` node trust and verification `Check` `data.effect.trust`
+records to use the same trust shape as `Context` nodes. Missing or malformed
+trust metadata emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph
+non-executable because runtime trust sinks must not infer trust for effect
+execution.
 
 Capability nodes carry normalized grants and any approval policy parsed from
 the capability block. A body line of `approval required` is represented as
@@ -1803,6 +1817,10 @@ from a `Step`, at least one incoming `verifies` edge from a `Check` node, and a
 emits `INTENT_GRAPH_EFFECT_REQUEST_INVALID` when an `Effect` node lacks exactly
 one incoming `requests` edge from its owning `Step`, or when any incoming
 `requests` edge is not from that owning `Step`. Graph validation
+emits `INTENT_GRAPH_EFFECT_INVALID` when an `Effect` node lacks executable
+adapter metadata: non-empty `data.family` and `data.action`, object
+`data.args`, `data.argKinds`, and `data.argSpans`, valid source-span values in
+`data.argSpans`, or boolean `data.approvalRequired`. Graph validation
 emits `INTENT_GRAPH_GUARD_INVALID` when an `Invariant` node is missing its
 `guards` edge to `Completion` or to any `Effect`, `Checkpoint`, or step-scoped
 `Check` node in the same goal. Completion is reachable only when all incoming
