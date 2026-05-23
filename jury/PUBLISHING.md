@@ -28,6 +28,7 @@ The package must include these files before the package becomes publishable:
 - [scripts/check-package-manifest.mjs](scripts/check-package-manifest.mjs)
 - [schemas](schemas)
 - [examples/ci/jury-package-manifest-check.yml](examples/ci/jury-package-manifest-check.yml)
+- [examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml)
 - [examples/ci/jury-review-gate.yml](examples/ci/jury-review-gate.yml)
 - [examples/ci/jury-signed-review-gate.yml](examples/ci/jury-signed-review-gate.yml)
 - [examples/ci/jury-signed-artifact-handoff.yml](examples/ci/jury-signed-artifact-handoff.yml)
@@ -57,6 +58,8 @@ jobs:
   jury-package-manifest:
     uses: ./.github/workflows/jury-package-manifest-check.yml
 ```
+
+[examples/ci/jury-npm-publish.yml](examples/ci/jury-npm-publish.yml) shows the full release shape: `publish` has `needs: package-manifest`, so `npm publish --provenance --access public` cannot run unless the package manifest check passes first. Keep `NODE_AUTH_TOKEN` in `secrets.NPM_TOKEN`.
 
 ## Failure Examples
 

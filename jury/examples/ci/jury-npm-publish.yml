@@ -1,0 +1,32 @@
+name: Jury npm publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  package-manifest:
+    uses: ./.github/workflows/jury-package-manifest-check.yml
+    with:
+      package-dir: jury
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: package-manifest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - name: Publish Jury package
+        env:
+          JURY_PACKAGE_DIR: jury
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          test -n "$NODE_AUTH_TOKEN"
+          cd "$JURY_PACKAGE_DIR"
+          npm publish --provenance --access public

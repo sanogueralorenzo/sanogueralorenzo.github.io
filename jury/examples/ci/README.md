@@ -2,7 +2,7 @@
 
 Jury can run as a local, dependency-free CI gate. The state directory is disposable, while the emitted `verdict.json` can be uploaded as a build artifact.
 
-Use [../../CI_ADOPTION.md](../../CI_ADOPTION.md) to choose the right workflow. Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) when a second job should download and verify the signed artifact. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer. Copy [jury-package-manifest-check.yml](jury-package-manifest-check.yml) when publication CI should fail before packaging omits Jury CI adoption metadata.
+Use [../../CI_ADOPTION.md](../../CI_ADOPTION.md) to choose the right workflow. Copy [jury-review-gate.yml](jury-review-gate.yml) into `.github/workflows/` to use it as a GitHub Actions workflow. Copy [jury-signed-review-gate.yml](jury-signed-review-gate.yml) when the producing job must sign the live bundle with `secrets.JURY_CI_PRIVATE_KEY`. Copy [jury-signed-artifact-handoff.yml](jury-signed-artifact-handoff.yml) when a second job should download and verify the signed artifact. Copy [jury-trusted-bundle-verify.yml](jury-trusted-bundle-verify.yml) when a downstream workflow needs to verify and import a signed bundle from a trusted producer. Copy [jury-package-manifest-check.yml](jury-package-manifest-check.yml) when publication CI should fail before packaging omits Jury CI adoption metadata. Copy [jury-npm-publish.yml](jury-npm-publish.yml) when npm publication should require that manifest check before `npm publish`.
 
 ```yaml
 name: Jury review gate
@@ -84,3 +84,5 @@ Regenerate the checked-in key-policy fixtures with `npm --prefix jury run fixtur
 ## Package Publication Check
 
 [jury-package-manifest-check.yml](jury-package-manifest-check.yml) is a reusable workflow for release jobs. It runs `npm --prefix "$JURY_PACKAGE_DIR" run package:manifest:check` before publication, so CI rejects tarballs that omit `release.json`, `CI_ADOPTION.md`, supported workflow files, or the required package files in [../../PUBLISHING.md](../../PUBLISHING.md).
+
+[jury-npm-publish.yml](jury-npm-publish.yml) shows a release workflow where the `publish` job has `needs: package-manifest` and runs `npm publish --provenance --access public` only after the reusable manifest check passes.

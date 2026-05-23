@@ -108,6 +108,7 @@
   "packagePublication": {
     "notes": "PUBLISHING.md",
     "workflow": "examples/ci/jury-package-manifest-check.yml",
+    "releaseWorkflow": "examples/ci/jury-npm-publish.yml",
     "manifestCheckCommand": "npm --prefix jury run package:manifest:check",
     "packDryRunCommand": "cd jury && npm pack --dry-run --json",
     "requiredFiles": [
@@ -121,6 +122,7 @@
       "scripts/check-package-manifest.mjs",
       "schemas",
       "examples/ci/jury-package-manifest-check.yml",
+      "examples/ci/jury-npm-publish.yml",
       "examples/ci/jury-review-gate.yml",
       "examples/ci/jury-signed-review-gate.yml",
       "examples/ci/jury-signed-artifact-handoff.yml",
