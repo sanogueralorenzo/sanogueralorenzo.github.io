@@ -966,6 +966,13 @@ async function nextActionCommand() {
 
     const id = requireString(args.id, "next-action --id");
     const action = queue.items.find((item) => item.id === id) ?? null;
+    const evidence = complete
+      ? await nextActionCompletionEvidence({
+        stateDir,
+        action,
+        evidenceEventId: stringOrNull(args["evidence-event-id"]),
+      })
+      : null;
     const receipt = {
       schema_version: "precedent.next_action.v1",
       type: complete ? "next_action_completed" : "next_action_failed",
@@ -977,6 +984,9 @@ async function nextActionCommand() {
       reason: complete ? stringOrNull(args.reason) : (stringOrNull(args.reason) ?? "next_action_failed"),
       actionType: action?.actionType ?? null,
       sessionId: action?.sessionId ?? null,
+      evidence,
+      evidenceEventId: evidence?.eventId ?? null,
+      evidenceStatus: evidence?.status ?? null,
     };
     await appendJsonLine(file, receipt);
     payload = {
@@ -989,6 +999,42 @@ async function nextActionCommand() {
   });
 
   print(payload);
+}
+
+async function nextActionCompletionEvidence({ stateDir, action, evidenceEventId }) {
+  if (!action) {
+    fail("next-action --complete requires a known action id");
+  }
+
+  if (action.actionType !== "run_validation") {
+    return {
+      status: "not_required",
+      eventId: null,
+    };
+  }
+
+  if (!evidenceEventId) {
+    fail("next-action --complete for run_validation requires --evidence-event-id");
+  }
+
+  const found = await findSessionEventByEventId(stateDir, action.sessionId, evidenceEventId);
+  const event = found?.event ?? null;
+  if (!event || event.hook !== "validation.after_run") {
+    fail(`next-action evidence event not found or not validation.after_run: ${evidenceEventId}`);
+  }
+
+  if (!action.commands.includes(event.command)) {
+    fail(`next-action evidence command does not match queued command: ${event.command}`);
+  }
+
+  return {
+    status: "accepted",
+    eventId: evidenceEventId,
+    hook: event.hook,
+    sessionId: action.sessionId,
+    command: event.command,
+    exitCode: event.exitCode,
+  };
 }
 
 async function runPendingPromotionTrials({
@@ -2726,6 +2772,8 @@ function buildManifest(runtime, stateDir) {
     "$NEXT_ACTION_ID",
     "--run-id",
     "$RUN_ID",
+    "--evidence-event-id",
+    "$EVIDENCE_EVENT_ID",
     "--json",
   ];
   const nextActionFailCommand = [
@@ -4337,6 +4385,9 @@ function nextActionState(id, records, nowMs, maxAttempts) {
       reason: latestTerminal.reason ?? base.reason,
       completedAt: latestTerminal.completedAt ?? null,
       failedAt: latestTerminal.failedAt ?? null,
+      evidenceEventId: latestTerminal.evidenceEventId ?? latestTerminal.evidence?.eventId ?? null,
+      evidenceStatus: latestTerminal.evidenceStatus ?? latestTerminal.evidence?.status ?? null,
+      evidence: latestTerminal.evidence ?? null,
       error: latestTerminal.type === "next_action_failed" ? latestTerminal.reason ?? "next_action_failed" : null,
     };
   }
@@ -9729,9 +9780,14 @@ async function checkFinalizations(checks, stateDir, strict) {
 async function checkNextActions(checks, stateDir, strict) {
   const queue = nextActionQueue(await readJsonLines(join(stateDir, "next_actions.jsonl")));
   const failed = queue.items.filter((item) => item.status === "failed");
+  const missingEvidence = queue.items.filter((item) => (
+    item.status === "completed"
+    && item.actionType === "run_validation"
+    && item.evidenceStatus !== "accepted"
+  ));
 
   checks.push({
-    ok: !strict || failed.length === 0,
+    ok: !strict || (failed.length === 0 && missingEvidence.length === 0),
     name: "next_action",
     file: join(stateDir, "next_actions.jsonl"),
     strict,
@@ -9742,8 +9798,10 @@ async function checkNextActions(checks, stateDir, strict) {
     failed: queue.failed,
     blocked: queue.blocked,
     failedIds: failed.map((item) => item.id),
-    message: strict && failed.length > 0
-      ? "next actions failed or exceeded retry budget"
+    missingEvidence: missingEvidence.length,
+    missingEvidenceIds: missingEvidence.map((item) => item.id),
+    message: strict && (failed.length > 0 || missingEvidence.length > 0)
+      ? "next actions failed, exceeded retry budget, or completed without evidence"
       : undefined,
   });
 }

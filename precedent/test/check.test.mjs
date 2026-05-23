@@ -648,6 +648,24 @@ test("strict check fails failed next actions", async () => {
       failedAt: new Date().toISOString(),
       reason: "runtime_failed",
     })}\n`);
+    await appendFile(join(stateDir, "next_actions.jsonl"), `${JSON.stringify({
+      schema_version: "precedent.next_action.v1",
+      type: "next_action_queued",
+      id: "next_missing_evidence",
+      status: "ready",
+      actionType: "run_validation",
+      sessionId: "missing-evidence",
+      commands: ["pnpm test:webhooks"],
+      createdAt: new Date().toISOString(),
+    })}\n`);
+    await appendFile(join(stateDir, "next_actions.jsonl"), `${JSON.stringify({
+      schema_version: "precedent.next_action.v1",
+      type: "next_action_completed",
+      id: "next_missing_evidence",
+      status: "completed",
+      runId: "next_run_missing_evidence",
+      completedAt: new Date().toISOString(),
+    })}\n`);
 
     const result = await runProcess(["check", "--state-dir", stateDir, "--strict", "--json"]);
     const payload = JSON.parse(result.stdout);
@@ -657,6 +675,8 @@ test("strict check fails failed next actions", async () => {
       item.name === "next_action"
       && item.failed === 1
       && item.failedIds.includes("next_failed")
+      && item.missingEvidence === 1
+      && item.missingEvidenceIds.includes("next_missing_evidence")
     )));
   } finally {
     await rm(stateDir, { force: true, recursive: true });

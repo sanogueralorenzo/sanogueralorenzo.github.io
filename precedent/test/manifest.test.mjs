@@ -97,6 +97,8 @@ test("manifest emits a generic runtime hook contract", async () => {
     "$NEXT_ACTION_ID",
     "--run-id",
     "$RUN_ID",
+    "--evidence-event-id",
+    "$EVIDENCE_EVENT_ID",
     "--json",
   ]);
   assert.deepEqual(manifest.actions["next_action.fail"].command, [

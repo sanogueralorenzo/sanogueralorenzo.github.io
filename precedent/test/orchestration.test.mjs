@@ -235,6 +235,14 @@ test("next-action claim and completion receipts are leased and reported", async 
     const running = await runJson(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(running.nextActionQueue.running, 1);
 
+    await hook(stateDir, {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "claimable",
+      eventId: "next-action-validation",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+    });
     const completed = await runJson([
       "next-action",
       "--state-dir",
@@ -244,14 +252,19 @@ test("next-action claim and completion receipts are leased and reported", async 
       claim.action.id,
       "--run-id",
       claim.claim.runId,
+      "--evidence-event-id",
+      "next-action-validation",
       "--json",
     ]);
     assert.equal(completed.status, "completed");
     assert.equal(completed.receipt.runId, claim.claim.runId);
+    assert.equal(completed.receipt.evidenceStatus, "accepted");
+    assert.equal(completed.receipt.evidence.exitCode, 0);
 
     const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
     assert.equal(report.nextActionQueue.completed, 1);
     assert.equal(report.nextActionQueue.running, 0);
+    assert.equal(report.nextActionQueue.items[0].evidenceEventId, "next-action-validation");
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
