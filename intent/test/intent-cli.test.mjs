@@ -61,6 +61,7 @@ const INVALID_TRUST_FLOW_UNTRUSTED_EFFECT_SINKS = new URL("../fixtures/invalid_t
 const INVALID_TRUST_FLOW_UNTRUSTED_SHELL_INPUT = new URL("../fixtures/invalid_trust_flow_untrusted_shell_input.intent", import.meta.url).pathname;
 const INVALID_VERIFY_SHELL_WITHOUT_CAPABILITY = new URL("../fixtures/invalid_verify_shell_without_capability.intent", import.meta.url).pathname;
 const INVALID_VERIFY_IMPURE_FILE_WRITE = new URL("../fixtures/invalid_verify_impure_file_write.intent", import.meta.url).pathname;
+const INVALID_VERIFY_IMPURE_CUSTOM_EFFECT = new URL("../fixtures/invalid_verify_impure_custom_effect.intent", import.meta.url).pathname;
 const INVALID_MEMORY_WITHOUT_RETENTION = new URL("../fixtures/invalid_memory_without_retention.intent", import.meta.url).pathname;
 const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memory_retention_unknown_until.intent", import.meta.url).pathname;
 const INVALID_MEMORY_ACCESS_UNDECLARED = new URL("../fixtures/invalid_memory_access_undeclared.intent", import.meta.url).pathname;
@@ -1527,7 +1528,9 @@ describe("intent static model CLI", () => {
 
   it("rejects side-effect calls inside verification requirements", () => {
     const result = run(["check", INVALID_VERIFY_IMPURE_FILE_WRITE]);
+    const customResult = run(["check", INVALID_VERIFY_IMPURE_CUSTOM_EFFECT]);
     const payload = JSON.parse(result.stdout);
+    const customPayload = JSON.parse(customResult.stdout);
 
     assert.equal(result.status, 1);
     assert.equal(payload.ok, false);
@@ -1539,6 +1542,16 @@ describe("intent static model CLI", () => {
     assert.equal(payload.diagnostics[0].span.start.line, 46);
     assert.equal(payload.diagnostics[0].span.start.column, 13);
     assert.equal(payload.diagnostics[0].span.end.column, 44);
+
+    assert.equal(customResult.status, 1);
+    assert.equal(customPayload.ok, false);
+    assert.equal(customPayload.diagnostics[0].code, "INTENT_VERIFY_IMPURE");
+    assert.equal(customPayload.diagnostics[0].requirement, "notify.send(channel: \"alerts\")");
+    assert.equal(customPayload.diagnostics[0].effect, "notify.send");
+    assert.equal(customPayload.diagnostics[0].family, "notify");
+    assert.equal(customPayload.diagnostics[0].action, null);
+    assert.equal(customPayload.diagnostics[0].span.start.line, 13);
+    assert.equal(customPayload.diagnostics[0].span.start.column, 13);
   });
 
   it("rejects memory blocks without retention lifecycle rules", () => {

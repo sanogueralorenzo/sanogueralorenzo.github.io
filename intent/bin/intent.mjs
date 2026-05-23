@@ -1258,7 +1258,7 @@ function validateStepApprovals(goal, diagnostics) {
 
 function validateVerifyRequirements(goal, diagnostics) {
   for (const requirement of goal.verify) {
-    const impureEffect = verificationImpureEffect(requirement);
+    const impureEffect = verificationImpureEffect(requirement, goal.capabilities);
     if (impureEffect) {
       diagnostics.push(error("INTENT_VERIFY_IMPURE", `verify requirement '${requirement.value}' uses side-effect call '${impureEffect.name}'.`, impureEffect.span, {
         requirement: requirement.value,
@@ -6001,13 +6001,13 @@ function verificationEffect(requirement) {
   };
 }
 
-function verificationImpureEffect(requirement) {
+function verificationImpureEffect(requirement, capabilities = []) {
   for (const match of requirement.value.matchAll(/\b([A-Za-z][A-Za-z0-9_.]*)\s*\(([^)]*)\)/g)) {
     const name = match[1];
     if (name === "shell") {
       continue;
     }
-    if (!isKnownEffectCall(name)) {
+    if (!isKnownEffectCall(name) && !isDeclaredCapabilityCall(name, capabilities)) {
       continue;
     }
     const rawPrefix = " ".repeat(requirement.span.start.column + "require ".length - 1);
@@ -6025,6 +6025,14 @@ function verificationImpureEffect(requirement) {
     };
   }
   return null;
+}
+
+function isDeclaredCapabilityCall(name, capabilities) {
+  if (!name.includes(".")) {
+    return false;
+  }
+  const family = effectFamily(name);
+  return capabilities.some((capability) => isFamilyMatch(family, capability.family));
 }
 
 function requirementValueSpan(requirement, startIndex, length) {

@@ -321,7 +321,8 @@ Goal-level `verify` requirements are pure assertions by default. A `verify`
 requirement may include only predicate logic and supported verification effects,
 currently `shell("...")` and `shell(command: "...")`. Side-effect calls inside
 `verify`, including file writes, git commits, git pushes, web or HTTP reads,
-deploys, and ticket updates, are invalid and emit `INTENT_VERIFY_IMPURE`.
+deploys, ticket updates, and dotted calls whose family matches a declared
+capability, are invalid and emit `INTENT_VERIFY_IMPURE`.
 
 Constrained effect sink arguments are trust-sensitive in the first checker
 prototype. A shell command, file write path, secret name, ticket id, deploy
@@ -333,9 +334,9 @@ than being treated as opaque trusted strings.
 Effect adapter calls are normalized by the v0 effect contract registry before
 capability matching and graph emission. The registry currently covers file
 read/write, shell run, web read, git push, git commit, secret read, ticket
-update, and deploy adapter aliases. Unknown or custom effect calls continue to
-use fallback family/action parsing until a later adapter schema makes custom
-contracts explicit. The registry is also emitted as
+update, and deploy adapter aliases. Unknown or custom plan-step effect calls
+are rejected until a later adapter schema makes custom contracts explicit. The
+registry is also emitted as
 `intent.effect-contracts.v0`, and graph effect payloads reference the selected
 entry with `contractId` and canonical-to-source `contractArguments`.
 Structured capability grants that cover known adapter operations carry the same

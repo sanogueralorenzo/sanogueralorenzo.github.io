@@ -50,6 +50,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_context_source_outside_capability.intent`: declares a web context source outside the declared web read grant.
 - `invalid_verify_shell_without_capability.intent`: requires `shell("npm run lint")` in verification without declaring the matching shell run grant.
 - `invalid_verify_impure_file_write.intent`: declares normal file and shell capabilities but calls `FileWrite(path: "./src/app.ts")` from `verify`, which should fail `INTENT_VERIFY_IMPURE` at the impure `FileWrite(...)` call span because verification must stay side-effect free.
+- `invalid_verify_impure_custom_effect.intent`: declares a custom-looking notify capability and calls `notify.send(...)` from `verify`, which should fail `INTENT_VERIFY_IMPURE` because capability-backed tool calls are not completion predicates.
 - `invalid_memory_without_retention.intent`: declares a memory block without any `retain ... until ...` retention rule.
 - `invalid_memory_retention_unknown_until.intent`: declares a parsed memory retention rule with unsupported lifecycle target `forever`, which should fail `INTENT_MEMORY_RETENTION_INVALID`.
 - `invalid_memory_access_undeclared.intent`: references undeclared memory from a step-local memory access statement, which should fail `INTENT_MEMORY_UNDECLARED`.

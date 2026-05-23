@@ -910,7 +910,8 @@ blocking diagnostics.
   positional argument span that caused the denial.
 - Emit `INTENT_VERIFY_IMPURE` for side-effect calls inside goal-level `verify`
   requirements, including file writes, git commits, git pushes, web or HTTP
-  reads, deploys, and ticket updates.
+  reads, deploys, ticket updates, and dotted calls whose family matches a
+  declared capability.
 - Parse step-body `require ...` lines as step requirements, separate from
   goal-level verification requirements.
 - Parse step-body `approval ...` lines as step approval gates owned by their
@@ -1884,8 +1885,9 @@ verification shell binding and capability checks.
 
 Any side-effecting operation inside a goal-level `verify` requirement is
 impure. Calls such as `FileWrite`, `GitCommit`, `GitPush`, `web.read`,
-`http.get`, deploy operations, or ticket updates emit `INTENT_VERIFY_IMPURE` at
-the impure call span and make graph output non-executable.
+`http.get`, deploy operations, ticket updates, or custom dotted calls whose
+family matches a declared capability emit `INTENT_VERIFY_IMPURE` at the impure
+call span and make graph output non-executable.
 
 ## Diagnostics
 
