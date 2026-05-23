@@ -24,6 +24,7 @@ const SUPPORTED_EVENT_HOOKS = new Set([
 ]);
 const STALE_SIGNAL_THRESHOLD = 2;
 const RETIRE_SIGNAL_THRESHOLD = 4;
+const REPAIR_EFFICACY_SUPPRESSION_THRESHOLD = 2;
 const DEFAULT_CONFIG = {
   schema_version: CONFIG_SCHEMA_VERSION,
   stateDir: DEFAULT_STATE_DIR,
@@ -1076,9 +1077,15 @@ async function repairBeforeRetryEventHook(event) {
     const locked = await withStateLock(stateDir, async () => {
       await ensureState(stateDir);
       const events = await readSessionEvents(stateDir, sessionId);
+      const allEvents = await readJsonLines(join(stateDir, "events.jsonl"));
       const candidate = latestRepairCandidate(events);
       if (!candidate) {
         suppressedRepairs = [{ reason: events.length === 0 ? "empty_session" : "no_repair_candidate" }];
+        return;
+      }
+
+      suppressedRepairs = repairSuppressionReasonsForCandidate(allEvents, candidate);
+      if (suppressedRepairs.length > 0) {
         return;
       }
 
@@ -1877,11 +1884,21 @@ function suppressLifecycleInjections({ events, matches, includeStale }) {
   for (const match of matches) {
     const lifecycle = lifecycleForPrecedent(events, match.id);
     if (lifecycle.status === "retired") {
-      suppressed.push({ ...match, suppressionReason: "retired" });
+      suppressed.push({
+        ...match,
+        suppressionReason: lifecycle.retireReasons.some((reason) => reason.includes("repair failure"))
+          ? "retired_repair_efficacy"
+          : "retired",
+      });
       continue;
     }
     if (lifecycle.status === "stale" && !includeStale) {
-      suppressed.push({ ...match, suppressionReason: "stale" });
+      suppressed.push({
+        ...match,
+        suppressionReason: lifecycle.retireReasons.some((reason) => reason.includes("repair failure"))
+          ? "stale_repair_efficacy"
+          : "stale",
+      });
       continue;
     }
 
@@ -2029,14 +2046,12 @@ function outcomeSummaryForPrecedent(events, id) {
   const successes = outcomes.filter((event) => event.success === true);
   const failures = outcomes.filter((event) => event.success === false);
   const lastOutcome = outcomes.at(-1);
-  const repairReceipts = events.filter((event) =>
-    event.hook === "repair.after_retry"
-    && Array.isArray(event.attributedPrecedents)
-    && event.attributedPrecedents.includes(id)
-    && event.repairReceipt,
-  );
+  const repairReceipts = repairReceiptEventsForPrecedent(events, id);
   const repairCleared = repairReceipts.filter((event) => event.repairReceipt.cleared === true);
   const repairStillFailing = repairReceipts.filter((event) => event.repairReceipt.cleared === false);
+  const recentRepairFailures = recentRepairFailuresForPrecedent(events, id);
+  const lastRepairCleared = repairCleared.at(-1);
+  const lastRepairFailed = repairStillFailing.at(-1);
   const lastRepair = repairReceipts.at(-1);
   const lifecycle = lifecycleForPrecedent(events, id);
   const lastSuccess = successes.at(-1);
@@ -2050,8 +2065,11 @@ function outcomeSummaryForPrecedent(events, id) {
     suppressionCount: suppressions.length,
     guardPassCount: guardPasses.length,
     guardWarningCount: guardWarnings.length,
+    repairAttemptCount: repairReceipts.length,
     repairClearedCount: repairCleared.length,
+    repairFailedCount: repairStillFailing.length,
     repairStillFailingCount: repairStillFailing.length,
+    repairStillFailingSinceLastClearOrSuccessCount: recentRepairFailures.length,
     failureRate: rate(failures.length, outcomes.length),
     guardWarningRate: rate(guardWarnings.length, guardChecks.length),
     repairSuccessRate: rate(repairCleared.length, repairReceipts.length),
@@ -2060,6 +2078,8 @@ function outcomeSummaryForPrecedent(events, id) {
     lastGuardAt: lastGuard?.observedAt ?? null,
     lastOutcomeAt: lastOutcome?.receivedAt ?? lastOutcome?.observedAt ?? null,
     lastRepairAt: lastRepair?.receivedAt ?? lastRepair?.observedAt ?? null,
+    lastRepairClearedAt: lastRepairCleared?.receivedAt ?? lastRepairCleared?.observedAt ?? null,
+    lastRepairFailedAt: lastRepairFailed?.receivedAt ?? lastRepairFailed?.observedAt ?? null,
     retireReasons: lifecycle.retireReasons,
   };
 }
@@ -2072,11 +2092,18 @@ function lifecycleForPrecedent(events, id) {
   );
   const successes = outcomes.filter((event) => event.success === true);
   const failures = outcomes.filter((event) => event.success === false);
-  const guardWarnings = guardChecksForPrecedent(events, id).filter((check) => check.status === "warn");
-  const lastSuccessAt = eventTime(successes.at(-1));
-  const recentFailures = failures.filter((event) => eventTime(event) > lastSuccessAt).length;
-  const recentGuardWarnings = guardWarnings.filter((check) => eventTime(check) > lastSuccessAt).length;
-  const signalCount = recentFailures + recentGuardWarnings;
+  const repairRetrySessionIds = new Set(
+    repairReceiptEventsForPrecedent(events, id)
+      .map((event) => event.repairReceipt.retrySessionId)
+      .filter(Boolean),
+  );
+  const guardWarnings = guardChecksForPrecedent(events, id)
+    .filter((check) => check.status === "warn" && !repairRetrySessionIds.has(check.sessionId));
+  const resetAt = repairResetTimeForPrecedent(events, id);
+  const recentFailures = failures.filter((event) => eventTime(event) > resetAt).length;
+  const recentGuardWarnings = guardWarnings.filter((check) => eventTime(check) > resetAt).length;
+  const recentRepairFailures = recentRepairFailuresForPrecedent(events, id).length;
+  const signalCount = Math.max(recentFailures + recentGuardWarnings, recentRepairFailures);
   const retireReasons = [];
 
   if (recentFailures > 0) {
@@ -2084,6 +2111,9 @@ function lifecycleForPrecedent(events, id) {
   }
   if (recentGuardWarnings > 0) {
     retireReasons.push(`${recentGuardWarnings} guard warning(s) since last success`);
+  }
+  if (recentRepairFailures > 0) {
+    retireReasons.push(`${recentRepairFailures} repair failure(s) since last success`);
   }
 
   if (signalCount >= RETIRE_SIGNAL_THRESHOLD) {
@@ -2094,6 +2124,52 @@ function lifecycleForPrecedent(events, id) {
   }
 
   return { status: "active", retireReasons: [] };
+}
+
+function repairReceiptEventsForPrecedent(events, id) {
+  return events.filter((event) =>
+    event.hook === "repair.after_retry"
+    && Array.isArray(event.attributedPrecedents)
+    && event.attributedPrecedents.includes(id)
+    && event.repairReceipt
+    && event.repairReceipt.repairResolved === true,
+  );
+}
+
+function repairSuppressionReasonsForCandidate(events, candidate) {
+  return candidate.attributedPrecedents.flatMap((id) => {
+    const recentFailures = recentRepairFailuresForPrecedent(events, id);
+    if (recentFailures.length < REPAIR_EFFICACY_SUPPRESSION_THRESHOLD) {
+      return [];
+    }
+
+    return [{
+      reason: "repair_efficacy_suppressed",
+      id,
+      repairStillFailingSinceLastClearOrSuccessCount: recentFailures.length,
+      threshold: REPAIR_EFFICACY_SUPPRESSION_THRESHOLD,
+    }];
+  });
+}
+
+function recentRepairFailuresForPrecedent(events, id) {
+  const receipts = repairReceiptEventsForPrecedent(events, id);
+  const resetAt = repairResetTimeForPrecedent(events, id);
+  return receipts.filter((event) => event.repairReceipt.cleared === false && eventTime(event) > resetAt);
+}
+
+function repairResetTimeForPrecedent(events, id) {
+  return Math.max(
+    eventTime(repairReceiptEventsForPrecedent(events, id)
+      .filter((event) => event.repairReceipt.cleared === true)
+      .at(-1)),
+    eventTime(events
+      .filter((event) => event.hook === "outcome.after_task"
+        && event.success === true
+        && Array.isArray(event.attributedPrecedents)
+        && event.attributedPrecedents.includes(id))
+      .at(-1)),
+  );
 }
 
 function eventTime(event) {
@@ -2110,19 +2186,20 @@ function guardChecksForPrecedent(events, id) {
     .flatMap((event) => {
       const observedAt = event.receivedAt ?? event.observedAt ?? null;
       const hook = event.hook ?? null;
+      const sessionId = event.sessionId ?? null;
       const guardResult = event.guardResult ?? {};
 
       return [
-        ...guardChecksWithStatus(guardResult.passed, "pass", observedAt, hook),
-        ...guardChecksWithStatus(guardResult.failed, "warn", observedAt, hook),
-        ...guardChecksWithStatus(guardResult.pending, "unknown", observedAt, hook),
-        ...guardChecksWithStatus(guardResult.skipped, "unknown", observedAt, hook),
+        ...guardChecksWithStatus(guardResult.passed, "pass", observedAt, hook, sessionId),
+        ...guardChecksWithStatus(guardResult.failed, "warn", observedAt, hook, sessionId),
+        ...guardChecksWithStatus(guardResult.pending, "unknown", observedAt, hook, sessionId),
+        ...guardChecksWithStatus(guardResult.skipped, "unknown", observedAt, hook, sessionId),
       ];
     })
     .filter((check) => check.precedentId === id);
 }
 
-function guardChecksWithStatus(checks, status, observedAt, hook) {
+function guardChecksWithStatus(checks, status, observedAt, hook, sessionId) {
   if (!Array.isArray(checks)) {
     return [];
   }
@@ -2132,6 +2209,7 @@ function guardChecksWithStatus(checks, status, observedAt, hook) {
     status: check.status ?? status,
     observedAt,
     hook,
+    sessionId,
   }));
 }
 

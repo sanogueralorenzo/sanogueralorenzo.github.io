@@ -201,6 +201,94 @@ test("repair.after_retry fails open without a repair id", async () => {
   }
 });
 
+test("repair.after_retry handles unknown repair ids without polluting health", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const receipt = await repairAfterRetry(stateDir, "retry-session", "repair_missing", "failed-session", ["prec_webhook_replay_boundary"]);
+
+    assert.equal(receipt.recorded, true);
+    assert.equal(receipt.repairReceipt.status, "unresolved");
+    assert.equal(receipt.repairReceipt.repairResolved, false);
+    assert.equal(receipt.suppressedRepairs[0].reason, "unknown_repair_id");
+
+    const report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    const health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.repairAttemptCount, 0);
+    assert.equal(health.repairStillFailingCount, 0);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
+test("repair efficacy suppresses after two still-failing receipts and resets after clear", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-repair-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    await recordStillFailingRepairCycle(stateDir, "failed-one", "retry-one");
+
+    let report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    let health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.repairStillFailingCount, 1);
+    assert.equal(health.repairStillFailingSinceLastClearOrSuccessCount, 1);
+    assert.equal(health.repairSuccessRate, 0);
+
+    let context = await contextForWebhook(stateDir);
+    assert.equal(context.injections.length, 1);
+
+    const secondRepair = await recordStillFailingRepairCycle(stateDir, "failed-two", "retry-two");
+    assert.equal(secondRepair.recorded, true);
+    report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.status, "stale");
+    assert.equal(health.repairStillFailingCount, 2);
+    assert.equal(health.repairStillFailingSinceLastClearOrSuccessCount, 2);
+    assert.ok(health.retireReasons.some((reason) => reason.includes("repair failure")));
+
+    await recordRepairableDiff(stateDir, "failed-three");
+    const suppressedRepair = await repairBeforeRetry(stateDir, "failed-three");
+    assert.equal(suppressedRepair.recorded, false);
+    assert.equal(suppressedRepair.repairBlock, "");
+    assert.equal(suppressedRepair.suppressedRepairs[0].reason, "repair_efficacy_suppressed");
+    assert.equal(suppressedRepair.suppressedRepairs[0].repairStillFailingSinceLastClearOrSuccessCount, 2);
+    assert.equal(suppressedRepair.suppressedRepairs[0].threshold, 2);
+
+    context = await contextForWebhook(stateDir);
+    assert.equal(context.injections.length, 0);
+    assert.equal(context.suppressedInjections[0].reason, "stale_repair_efficacy");
+
+    const explained = await runJson(["explain", "--state-dir", stateDir, "--id", "prec_webhook_replay_boundary", "--json"]);
+    assert.equal(explained.outcomes.repairStillFailingSinceLastClearOrSuccessCount, 2);
+
+    await runJson(["hook", "--state-dir", stateDir, "--json"], {
+      schema_version: "precedent.v1",
+      hook: "validation.after_run",
+      sessionId: "retry-clear",
+      command: "pnpm test:webhooks",
+      exitCode: 0,
+      attributedPrecedents: ["prec_webhook_replay_boundary"],
+    });
+    await repairAfterRetry(stateDir, "retry-clear", secondRepair.repairId, "failed-two", ["prec_webhook_replay_boundary"]);
+    report = await runJson(["report", "--state-dir", stateDir, "--json"]);
+    health = report.precedentHealth.find((item) => item.id === "prec_webhook_replay_boundary");
+    assert.equal(health.status, "active");
+    assert.equal(health.repairClearedCount, 1);
+    assert.equal(health.repairStillFailingCount, 2);
+    assert.equal(health.repairStillFailingSinceLastClearOrSuccessCount, 0);
+
+    context = await contextForWebhook(stateDir);
+    assert.equal(context.injections.length, 1);
+
+    await recordRepairableDiff(stateDir, "failed-four");
+    const resetRepair = await repairBeforeRetry(stateDir, "failed-four");
+    assert.equal(resetRepair.recorded, true);
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function repairBeforeRetry(stateDir, sessionId) {
   return runJson(["hook", "--state-dir", stateDir, "--json"], {
     schema_version: "precedent.v1",
@@ -219,6 +307,46 @@ async function repairAfterRetry(stateDir, sessionId, repairId, repairSessionId, 
     repairSessionId,
     attributedPrecedents,
   });
+}
+
+async function recordStillFailingRepairCycle(stateDir, repairSessionId, retrySessionId) {
+  await recordRepairableDiff(stateDir, repairSessionId);
+  const repair = await repairBeforeRetry(stateDir, repairSessionId);
+  await runJson(["hook", "--state-dir", stateDir, "--json"], {
+    schema_version: "precedent.v1",
+    hook: "diff.after_edit",
+    sessionId: retrySessionId,
+    changedFiles: ["features/billing/refunds.ts"],
+    attributedPrecedents: ["prec_webhook_replay_boundary"],
+  });
+  await repairAfterRetry(stateDir, retrySessionId, repair.repairId, repairSessionId, ["prec_webhook_replay_boundary"]);
+  return repair;
+}
+
+async function recordRepairableDiff(stateDir, sessionId) {
+  await promoteWebhookPrecedent(stateDir);
+  await runJson(["hook", "--state-dir", stateDir, "--json"], {
+    schema_version: "precedent.v1",
+    hook: "diff.after_edit",
+    sessionId,
+    changedFiles: ["features/billing/refunds.ts"],
+    attributedPrecedents: ["prec_webhook_replay_boundary"],
+  });
+}
+
+function contextForWebhook(stateDir) {
+  return runJson([
+    "context",
+    "--state-dir",
+    stateDir,
+    "--task",
+    "add webhook handler",
+    "--scope",
+    "feature:webhooks",
+    "--changed-files",
+    "features/webhooks/providers/stripe.ts",
+    "--json",
+  ]);
 }
 
 async function promoteAndInjectWebhookPrecedent(stateDir, sessionId) {

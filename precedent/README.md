@@ -40,6 +40,7 @@ Precedent runs as a set of passive hooks around a coding agent:
 - `validation.after_run`: records tests, typechecks, linters, command failures, and runtime evidence.
 - `review.after_feedback`: converts review comments into structured failure modes.
 - `outcome.after_task`: decides whether the trace should create, update, or retire precedent.
+- `repair.before_retry` / `repair.after_retry`: injects a focused repair prompt before retry work, then records whether the retry cleared or repeated the failure.
 
 The hook layer should be quiet by default. It should not flood the conversation with memory. It should inject one or two high-confidence precedents when they are likely to change the outcome.
 
@@ -156,14 +157,16 @@ The prototype models the hook loop with local state in `.precedent/`:
 - `review.after_feedback` records review comments as high-signal session evidence, so missed contracts can become candidates and later promoted precedents without handcrafted traces.
 - `diff.after_edit` and `validation.after_run` evaluate advisory guards only for precedents already injected into the same session. v1 supports `changed_files_within_paths` and `required_validation_command`; warnings are returned as `guardResult` plus a compact `Precedent guard:` context block and never block the underlying hook.
 - `outcome.after_task` now closes the headless capture loop: it snapshots the session into `.precedent/traces/session-<id>.json`, upserts deterministic candidates into `.precedent/candidates.jsonl` when failures or guard warnings exist, and returns a `learning` object. It preserves task, scope, and changed-file identity from either `context.before_turn`, `context --session`, or the outcome payload. When a clean successful session follows an analogous failed session in the same non-empty scope or overlapping path, it automatically promotes a replay-style precedent; otherwise candidates remain non-injectable until existing replay promotion gates create a promoted precedent.
+- `repair.before_retry` emits the latest repairable validation, diff, or outcome block for a session. `repair.after_retry` records a repair receipt and attributes cleared or still-failing retries back to the precedent that caused the repair.
+- Repair efficacy is gated: after two still-failing repair receipts since the last cleared repair or successful attributed outcome, `repair.before_retry` returns no repair block with `reason: "repair_efficacy_suppressed"`. The same evidence makes normal context injection stale, using `stale_repair_efficacy` or `retired_repair_efficacy` suppression reasons.
 - `check` verifies config, ledgers, traces, sessions, replay artifacts, replay failure deltas, promoted-precedent replay receipts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
 - `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.
 - `compile --promote-session-pairs` scans ordinary session hook histories for a failed session followed by an analogous successful session, then generates a promoted precedent with evidence, a durable session-pair replay receipt, replay-style failure delta, injection text, and advisory guards. This path does not require a handcrafted `precedent` object in the source events.
 - `replay` runs baseline and rerun commands, stores command evidence under `.precedent/replays/`, and can emit a promotion-ready trace for `observe`.
 - `report` shows the local precedent ledger.
-- `report` also attributes session outcomes and guard checks back to injected precedents, so each precedent has use, success, failure, suppression, guard pass, guard warning, lifecycle status, failure-rate, guard-warning-rate, and last-success/last-failure counts.
-- Lifecycle gating keeps unsafe memory quiet: two attributed failures or guard warnings after the last success make a precedent `stale` and suppress it from `context` by default; four signals make it `retired`. Use `context --include-stale` only when intentionally auditing stale precedent. Retired precedent remains suppressed.
+- `report` also attributes session outcomes, guard checks, and repair receipts back to injected precedents, so each precedent has use, success, failure, suppression, guard pass, guard warning, repair-attempt, repair-cleared, repair-still-failing, lifecycle status, failure-rate, guard-warning-rate, repair-success-rate, and last-success/last-failure/last-repair counts.
+- Lifecycle gating keeps unsafe memory quiet: two attributed failures, guard warnings, or still-failing repair receipts after the last success or cleared repair make a precedent `stale` and suppress it from `context` by default; four signals make it `retired`. Use `context --include-stale` only when intentionally auditing stale precedent. Retired precedent remains suppressed.
 
 Runtime defaults come from `.precedent/config.json` unless `PRECEDENT_CONFIG=/path/to/config.json` is set. CLI flags still win: `--state-dir` overrides `stateDir`, and `--limit` overrides `maxInjections`. Config files use `schema_version: "precedent.config.v1"` and fail fast with exact field errors when malformed.
 
@@ -185,7 +188,9 @@ Minimal config:
     "validation.after_run",
     "diff.after_edit",
     "review.after_feedback",
-    "outcome.after_task"
+    "outcome.after_task",
+    "repair.before_retry",
+    "repair.after_retry"
   ]
 }
 ```
