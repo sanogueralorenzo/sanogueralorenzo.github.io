@@ -374,6 +374,13 @@ Next graph envelope validation milestone:
   `source`, and an optional non-empty `argument`. Malformed trust metadata
   emits `INTENT_GRAPH_TRUST_INVALID` and makes the graph non-executable because
   runtime trust sinks must not infer missing or malformed trust.
+- Runtime memory metadata is part of graph validation. `Memory` nodes must carry
+  raw `data.retention` as an array and structured `data.retentionRules` as a
+  non-empty array. Every structured retention rule must include non-empty `raw`,
+  `subject.raw`, and `until.raw` strings, and `until.raw` must be one of
+  `goal_complete`, `goal.completed`, `manual_review`, `ttl`, or `session_end`.
+  Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
+  the graph non-executable because runtimes must not infer retention policy.
 - A malformed graph envelope, including an envelope with unsupported versions
   or any graph validation diagnostic, is non-executable even when emitted for
   tooling/debug inspection.
@@ -874,13 +881,18 @@ Rules:
 
 - A memory block with no parsed retention entries emits
   `INTENT_MEMORY_UNSCOPED`.
-- Supported `until` values are `goal_complete`, `goal.completed`, or a simple
-  duration such as `30d`, `12h`, `45m`, or `10s`.
+- Supported runtime lifecycle targets are `goal_complete`, `goal.completed`,
+  `manual_review`, `ttl`, and `session_end`.
 - A malformed `retain` line or unsupported lifecycle target emits
   `INTENT_MEMORY_RETENTION_INVALID`.
 - Retention entries are checker-owned lifecycle data, not opaque comments.
 - The graph builder emits `retentionRules` in the owning `Memory` node data so
   runtimes can enforce retention without reparsing memory body text.
+- Runtime graph validation also requires each `Memory` node to carry
+  `data.retention` as an array and `data.retentionRules` as a non-empty array.
+  Every structured retention rule must include non-empty `raw`, `subject.raw`,
+  and `until.raw` strings. Invalid graph memory lifecycle data emits
+  `INTENT_GRAPH_MEMORY_INVALID` and makes graph output non-executable.
 
 ## Trust Flow
 
@@ -1176,6 +1188,7 @@ Initial diagnostic families:
 - `INTENT_GRAPH_DIAGNOSTIC_INVALID`
 - `INTENT_GRAPH_TRUST_INVALID`
 - `INTENT_GRAPH_CAPABILITY_INVALID`
+- `INTENT_GRAPH_MEMORY_INVALID`
 - `INTENT_GRAPH_NODE_DUPLICATE`
 - `INTENT_GRAPH_NODE_KIND_INVALID`
 - `INTENT_GRAPH_EDGE_KIND_INVALID`
@@ -1630,7 +1643,8 @@ validators must reject any graph with a missing or unsupported
 schema-level structural strings are empty, whose runtime structural strings are
 blank after trimming, whose node or edge kind is outside the supported sets
 above, whose edge endpoint does not resolve inside the same payload, whose
-`Capability` nodes omit valid runtime approval-policy data, or whose required
+`Capability` nodes omit valid runtime approval-policy data, whose `Memory`
+nodes omit valid runtime retention lifecycle data, or whose required
 execution, data, authorization, approval, guard, verification, completion, and
 step-attachment relationships fail graph validation. Blank envelope provenance
 emits `INTENT_GRAPH_ENVELOPE_INVALID` before collection, node, or edge
@@ -1639,11 +1653,16 @@ contracts keep stable origins. Malformed graphs may be emitted for diagnostics,
 but they are never executable runtime contracts.
 
 Memory nodes carry raw `retention` lines plus structured `retentionRules`
-parsed from `retain ... until ...` lines. A graph with a `Memory` node that
-lacks retention lifecycle data is non-executable because the checker must emit
-`INTENT_MEMORY_UNSCOPED`. A graph with an unsupported retention lifecycle is
-also non-executable because the checker must emit
-`INTENT_MEMORY_RETENTION_INVALID`.
+parsed from `retain ... until ...` lines. Runtime validation requires
+`data.retention` to be an array, `data.retentionRules` to be a non-empty array,
+and every retention rule to include non-empty `raw`, `subject.raw`, and
+`until.raw` strings. The supported graph lifecycle values are `goal_complete`,
+`goal.completed`, `manual_review`, `ttl`, and `session_end`. A graph with a
+`Memory` node that omits or malforms those lifecycle fields emits
+`INTENT_GRAPH_MEMORY_INVALID` and is non-executable. Source checking still emits
+`INTENT_MEMORY_UNSCOPED` for memory blocks with no parsed retention rules and
+`INTENT_MEMORY_RETENTION_INVALID` for unsupported lifecycle targets before graph
+execution is considered.
 
 Context nodes carry the same structured source call data as `ContextDecl`:
 `source`, `args`, `argKinds`, `argSpans`, `expression`, and `trust`. Repo, doc,

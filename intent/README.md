@@ -155,6 +155,13 @@ Validation expectations:
   must be an array. Malformed capability policy data emits
   `INTENT_GRAPH_CAPABILITY_INVALID` and makes the graph non-executable because
   runtime authorization and approval enforcement must not infer missing policy.
+- Graph `Memory` nodes are runtime lifecycle inputs. They must carry raw
+  `data.retention` as an array and structured `data.retentionRules` as a
+  non-empty array. Each retention rule must include non-empty `raw`,
+  `subject.raw`, and `until.raw` strings, and `until.raw` must be one of
+  `goal_complete`, `goal.completed`, `manual_review`, `ttl`, or `session_end`.
+  Malformed memory lifecycle data emits `INTENT_GRAPH_MEMORY_INVALID` and makes
+  the graph non-executable because runtime retention cannot be inferred.
 - A graph with duplicate node ids, unsupported kinds, unresolved edge endpoints,
   cycles, missing authorization or approval edges, or invalid completion gates is
   malformed and must be rejected before execution.
