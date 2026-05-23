@@ -94,6 +94,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent observe`: ingests an agent trace, PR diff, validation log, or review thread.
 - `precedent compile`: turns repeated failure modes into candidate artifacts.
 - `precedent compile --promote-session-pairs`: promotes a precedent from analogous failed and successful ordinary sessions.
+- `precedent artifact`: renders a non-injectable `SKILL.md` preview for a candidate.
 - `precedent inject`: returns the relevant precedent for the current task context.
 - `precedent context`: exports stable agent-ready precedent context.
 - `precedent warrant`: issues a machine-readable edit and validation contract for one agent turn.
@@ -130,6 +131,7 @@ node precedent/bin/precedent.mjs hook before-turn --task "add another webhook ha
 printf '%s\n' '{"schema_version":"precedent.v1","hook":"context.before_turn","sessionId":"demo","eventId":"turn-001","task":"add another webhook handler"}' | node precedent/bin/precedent.mjs loop --json
 node precedent/bin/precedent.mjs context --session demo --event-id turn-001 --task "add another webhook handler" --scope feature:webhooks
 node precedent/bin/precedent.mjs warrant --session demo --event-id turn-001-warrant --task "add another webhook handler" --scope feature:webhooks --changed-files features/webhooks/providers/stripe.ts
+node precedent/bin/precedent.mjs artifact --candidate cand_feature_webhooks_wrong_test_command --json
 node precedent/bin/precedent.mjs replay --case precedent/examples/replay/webhook-case.json --trace-out /tmp/precedent-webhook-replay-trace.json
 node precedent/bin/precedent.mjs promotion-trial --candidate cand_webhook_replacement --baseline-command "pnpm test:webhooks" --trace-out /tmp/precedent-webhook-trial-trace.json
 node precedent/bin/precedent.mjs explain --id prec_webhook_replay_boundary
@@ -176,6 +178,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - When a later clean session succeeds after a repair-efficacy suppression, Precedent writes a non-injectable `repair_efficacy_replacement` candidate with the old precedent id in `replaces`, recent counterexample evidence, and the successful validation command. It does not supersede or promote the replacement until a replay proves improvement.
 - Overlapping future contexts with a replacement candidate emit bounded `promotionTrials`, which are machine-readable work orders for replaying and proving the replacement before promotion.
 - Matching unpromoted candidates emit bounded `candidateHints`, which are machine-readable replay work orders only; they never enter `contextBlock` and stay non-injectable until replay promotion succeeds.
+- `artifact --candidate <id>` renders `.precedent/artifacts/<candidate-id>/SKILL.md`, a deterministic preview containing scope, trigger, lesson, evidence, source traces, proposed injection text, replay requirement, and acceptance checks. Candidate artifacts are review material only: they are marked non-injectable until replay promotion succeeds, and candidate hints include the artifact path plus regeneration command.
 - `replay --candidate <id> --baseline-command <cmd> [--rerun-command <cmd>]` turns a candidate or promotion trial into the same verified replay trace as a handcrafted replay case. If `--rerun-command` is omitted, Precedent uses the candidate's successful-validation evidence.
 - `promotion-trial --candidate <id> --baseline-command <cmd> [--rerun-command <cmd>]` runs the candidate replay, writes the replay trace, immediately observes it, and returns the promoted or rejected decision plus replay-audit receipt.
 - Promoted precedents must carry a typed replay receipt with replay id, path, artifact SHA-256, failure counts, and baseline/rerun exit codes; `observe` and `check` reject string-only or tampered promotion evidence.

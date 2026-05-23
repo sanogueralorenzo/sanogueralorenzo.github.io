@@ -87,6 +87,11 @@ async function main() {
     return;
   }
 
+  if (command === "artifact") {
+    await materializeArtifact();
+    return;
+  }
+
   if (command === "compile") {
     await compilePrecedents();
     return;
@@ -623,6 +628,50 @@ async function issueWarrant() {
       recorded: !sessionEvent.deduped,
       deduped: sessionEvent.deduped,
       sessionEventPath: sessionEvent.path,
+    };
+  });
+
+  print(payload);
+}
+
+async function materializeArtifact() {
+  const stateDir = statePath();
+  const candidateId = requireString(args.candidate, "artifact --candidate");
+  let payload = null;
+
+  await withStateLock(stateDir, async () => {
+    await ensureState(stateDir);
+    const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
+    const candidate = candidates.find((item) => item.id === candidateId);
+    if (!candidate) {
+      fail(`unknown candidate id: ${candidateId}`);
+    }
+
+    const artifact = artifactDescriptor(candidate, stateDir);
+    const content = renderCandidateSkill(candidate, artifact);
+    await writeFileAtomic(artifact.path, content);
+    const artifactSha256 = sha256Text(content);
+
+    await appendJsonLine(join(stateDir, "events.jsonl"), {
+      type: "candidate_artifact_materialized",
+      observedAt: new Date().toISOString(),
+      candidateId,
+      artifactPath: artifact.path,
+      artifactSha256,
+      injectable: false,
+      promotionStatus: candidate.status ?? "candidate",
+    });
+
+    payload = {
+      schema_version: "precedent.artifact.v1",
+      ok: true,
+      candidateId,
+      artifactPath: artifact.path,
+      artifactSha256,
+      promotionStatus: candidate.status ?? "candidate",
+      injectable: false,
+      promotable: false,
+      regenerateCommand: artifact.command,
     };
   });
 
@@ -2525,6 +2574,7 @@ async function reportState() {
   const replayAudit = await replayAuditEntries(precedents, stateDir);
   const runtimeWiringHealth = await runtimeWiringHealthSummary(stateDir, events);
   const warrantHealth = await warrantHealthSummary(stateDir);
+  const artifactHealth = await candidateArtifactHealth(stateDir, candidates);
 
   const artifactCounts = {};
   for (const precedent of precedents) {
@@ -2545,6 +2595,7 @@ async function reportState() {
     repairHealth: repairHealthSummary(events, precedents),
     runtimeWiringHealth,
     warrantHealth,
+    artifactHealth,
     precedentHealth: precedents.map((precedent) => ({
       id: precedent.id,
       ...outcomeSummaryForPrecedent(events, precedent.id),
@@ -3105,6 +3156,7 @@ function candidateHintsForContext({ candidates, precedents, context, stateDir, s
 
 function formatCandidateHint(candidate, stateDir, sessionId) {
   const rerunCommand = validationCommandFromEvidence(candidate.evidence);
+  const artifact = artifactDescriptor(candidate, stateDir);
   const traceOut = join(
     stateDir,
     "traces",
@@ -3139,6 +3191,12 @@ function formatCandidateHint(candidate, stateDir, sessionId) {
     promotionRequired: candidate.promotion_required ?? "Replay before promotion.",
     matchReasons: candidate.matchReasons ?? [],
     suggestedAction: "Run a promotion trial with a failing baseline command before trusting this candidate.",
+    artifact: {
+      path: artifact.path,
+      command: artifact.command,
+      injectable: false,
+      status: "preview",
+    },
     promotionTrial: {
       readiness: rerunCommand ? "ready_for_baseline" : "needs_rerun_command",
       blockers: rerunCommand ? [] : ["missing successful validation evidence or --rerun-command"],
@@ -3152,6 +3210,87 @@ function formatCandidateHint(candidate, stateDir, sessionId) {
       },
     },
   }).value;
+}
+
+function artifactDescriptor(candidate, stateDir) {
+  const artifactPath = join(stateDir, "artifacts", safeFileName(requireString(candidate.id, "candidate.id")), "SKILL.md");
+  return {
+    path: artifactPath,
+    command: [
+      "node",
+      "precedent/bin/precedent.mjs",
+      "artifact",
+      "--state-dir",
+      stateDir,
+      "--candidate",
+      candidate.id,
+      "--json",
+    ],
+  };
+}
+
+function renderCandidateSkill(candidate, artifact) {
+  const redacted = redactSecretsDeep(candidate).value;
+  const requiredValidation = validationCommandFromEvidence(redacted.evidence);
+  const evidence = markdownList(redacted.evidence);
+  const paths = markdownList(redacted.paths);
+  const sourceTraces = markdownList(redacted.source_traces);
+  const failureTypes = markdownList(redacted.failure_types);
+  const acceptanceChecks = markdownList([
+    "Replay the candidate before promotion.",
+    "Promote only when baseline_failures > rerun_failures.",
+    ...(requiredValidation ? [`Run ${requiredValidation} and record a passing validation result.`] : []),
+    "Keep this artifact non-injectable until replay promotion succeeds.",
+  ]);
+
+  return [
+    `# Candidate Skill: ${redacted.id}`,
+    "",
+    "Status: preview only. Not injectable until replay promotion succeeds.",
+    "",
+    "## Scope",
+    redacted.scope ?? "repo",
+    "",
+    "## Trigger",
+    redacted.trigger ?? "Unknown trigger.",
+    "",
+    "## Lesson",
+    redacted.lesson ?? "No lesson recorded.",
+    "",
+    "## Proposed Injection",
+    redacted.injection ?? "No injection recorded.",
+    "",
+    "## Failure Types",
+    failureTypes,
+    "",
+    "## Evidence",
+    evidence,
+    "",
+    "## Source Traces",
+    sourceTraces,
+    "",
+    "## Paths",
+    paths,
+    "",
+    "## Replay Requirement",
+    redacted.promotion_required ?? "Replay before promotion.",
+    "",
+    "## Acceptance Checks",
+    acceptanceChecks,
+    "",
+    "## Regeneration",
+    `Command: ${artifact.command.join(" ")}`,
+    "",
+  ].join("\n");
+}
+
+function markdownList(values) {
+  const items = Array.isArray(values) ? values.filter((value) => typeof value === "string" && value.trim().length > 0) : [];
+  if (items.length === 0) {
+    return "- None recorded.";
+  }
+
+  return items.map((item) => `- ${item}`).join("\n");
 }
 
 function deliveryReceiptFor({ sessionId, eventId, injections, issuedAt }) {
@@ -3272,6 +3411,7 @@ function candidateHintQueue(candidates, precedents, stateDir) {
         readiness: hint.promotionTrial.readiness,
         blockers: hint.promotionTrial.blockers,
         command: hint.promotionTrial.command,
+        artifact: hint.artifact,
       };
     });
 
@@ -3279,6 +3419,7 @@ function candidateHintQueue(candidates, precedents, stateDir) {
     total: items.length,
     readyForBaseline: items.filter((item) => item.readiness === "ready_for_baseline").length,
     blocked: items.filter((item) => item.readiness !== "ready_for_baseline").length,
+    artifactPreviews: items.filter((item) => item.artifact?.path).length,
     items,
   };
 }
@@ -3732,6 +3873,46 @@ async function warrantHealthSummary(stateDir) {
     unresolved: outcomeStatuses.filter((item) => item.status === "unresolved").length,
     needsAttention: needsAttention.length,
     recent: needsAttention.slice(-20),
+  };
+}
+
+async function candidateArtifactHealth(stateDir, candidates) {
+  const candidateIds = new Set(candidates.map((candidate) => candidate.id));
+  const rendered = [];
+  let stale = 0;
+
+  for (const candidate of candidates) {
+    const descriptor = artifactDescriptor(candidate, stateDir);
+    try {
+      const content = await readFile(descriptor.path, "utf8");
+      const expected = renderCandidateSkill(candidate, descriptor);
+      rendered.push({
+        candidateId: candidate.id,
+        path: descriptor.path,
+        sha256: sha256Text(content),
+        stale: content !== expected,
+      });
+      if (content !== expected) {
+        stale += 1;
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+
+  const artifactDirs = await childDirs(join(stateDir, "artifacts"));
+  const missingCandidate = artifactDirs
+    .map((dir) => dir.split("/").at(-1))
+    .filter((id) => id && !candidateIds.has(id));
+
+  return {
+    rendered: rendered.length,
+    stale,
+    missingCandidate: missingCandidate.length,
+    items: rendered.slice(0, 20),
+    missingCandidateIds: missingCandidate.slice(0, 20),
   };
 }
 
@@ -6631,6 +6812,7 @@ Usage:
   precedent observe --session session-id [--state-dir .precedent]
   precedent context --task "add webhook handler" [--scope feature:webhooks] [--include-stale] [--format json|markdown]
   precedent warrant --session session-id --event-id event-id --task "add webhook handler" [--scope feature:webhooks]
+  precedent artifact --candidate candidate-id [--state-dir .precedent]
   precedent compile [--state-dir .precedent] [--promote-session-pairs]
   precedent replay --case replay-case.json [--trace-out trace.json] [--state-dir .precedent]
   precedent replay --candidate candidate-id --baseline-command "cmd" [--rerun-command "cmd"] [--trace-out trace.json]
@@ -6653,6 +6835,7 @@ Commands:
   observe   Ingest one agent trace or recorded hook session.
   context   Export stable agent-ready precedent context.
   warrant   Issue a machine-readable edit and evidence contract for one turn.
+  artifact  Render a non-injectable SKILL.md preview for a candidate.
   compile   Mine observed raw traces into candidates, optionally promoting analogous session pairs.
   replay    Run baseline/rerun commands and emit verified promotion evidence.
   promotion-trial Run a candidate replay and immediately observe the promotion decision.

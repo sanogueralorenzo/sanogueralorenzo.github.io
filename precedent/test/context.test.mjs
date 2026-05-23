@@ -214,6 +214,9 @@ test("context surfaces non-injectable candidate hints", async () => {
     assert.deepEqual(context.candidateHints[0].sourceTraces, ["session-failed-run"]);
     assert.equal(context.candidateHints[0].promotionTrial.readiness, "needs_rerun_command");
     assert.ok(context.candidateHints[0].promotionTrial.command.includes("promotion-trial"));
+    assert.match(context.candidateHints[0].artifact.path, /artifacts\/cand_feature_webhooks_wrong_test_command\/SKILL\.md$/u);
+    assert.ok(context.candidateHints[0].artifact.command.includes("artifact"));
+    assert.equal(context.candidateHints[0].artifact.injectable, false);
 
     const eventFile = join(stateDir, "before-turn.json");
     await writeFile(eventFile, JSON.stringify({
@@ -234,6 +237,7 @@ test("context surfaces non-injectable candidate hints", async () => {
     assert.equal(report.candidateHintQueue.total, 1);
     assert.equal(report.candidateHintQueue.blocked, 1);
     assert.equal(report.candidateHintQueue.items[0].candidateId, "cand_feature_webhooks_wrong_test_command");
+    assert.match(report.candidateHintQueue.items[0].artifact.path, /artifacts\/cand_feature_webhooks_wrong_test_command\/SKILL\.md$/u);
   } finally {
     await rm(stateDir, { force: true, recursive: true });
   }
