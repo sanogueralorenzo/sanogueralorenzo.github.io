@@ -1899,6 +1899,52 @@ async function attachRuntime() {
     hookTimeoutMs: runtimeConfig.hookTimeoutMs,
     failurePolicy: runtimeConfig.failurePolicy,
     adapter: {
+      lifecycle: [
+        {
+          phase: "beforeTurn",
+          hook: "context.before_turn",
+          required: true,
+          injectFrom: "contextBlock",
+          eventId: "$EVENT_ID",
+        },
+        {
+          phase: "afterValidation",
+          hook: "validation.after_run",
+          required: false,
+          eventId: "$EVENT_ID",
+        },
+        {
+          phase: "afterDiff",
+          hook: "diff.after_edit",
+          required: false,
+          eventId: "$EVENT_ID",
+        },
+        {
+          phase: "afterReview",
+          hook: "review.after_feedback",
+          required: false,
+          eventId: "$EVENT_ID",
+        },
+        {
+          phase: "beforeRetry",
+          hook: "repair.before_retry",
+          required: false,
+          injectFrom: "repairBlock",
+          eventId: "$EVENT_ID",
+        },
+        {
+          phase: "afterRetry",
+          hook: "repair.after_retry",
+          required: false,
+          eventId: "$EVENT_ID",
+        },
+        {
+          phase: "afterOutcome",
+          hook: "outcome.after_task",
+          required: true,
+          eventId: "$EVENT_ID",
+        },
+      ],
       beforeTurn: {
         command: beforeTurnCommand,
         eventId: "$EVENT_ID",

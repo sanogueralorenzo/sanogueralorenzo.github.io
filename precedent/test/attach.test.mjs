@@ -51,6 +51,30 @@ test("attach emits a stable zero-touch adapter contract", async () => {
     assert.equal(first.sessionId, second.sessionId);
     assert.equal(first.identity.source, "task_hash_fallback");
     assert.equal(first.identity.fallback, true);
+    assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.phase), [
+      "beforeTurn",
+      "afterValidation",
+      "afterDiff",
+      "afterReview",
+      "beforeRetry",
+      "afterRetry",
+      "afterOutcome",
+    ]);
+    assert.deepEqual(first.adapter.lifecycle.map((phase) => phase.hook), [
+      "context.before_turn",
+      "validation.after_run",
+      "diff.after_edit",
+      "review.after_feedback",
+      "repair.before_retry",
+      "repair.after_retry",
+      "outcome.after_task",
+    ]);
+    assert.deepEqual(first.adapter.lifecycle.filter((phase) => phase.required).map((phase) => phase.phase), [
+      "beforeTurn",
+      "afterOutcome",
+    ]);
+    assert.equal(first.adapter.lifecycle[0].injectFrom, "contextBlock");
+    assert.equal(first.adapter.lifecycle[4].injectFrom, "repairBlock");
     assert.equal(first.adapter.beforeTurn.injectFrom, "contextBlock");
     assert.equal(first.adapter.beforeTurn.eventId, "$EVENT_ID");
     assert.ok(first.adapter.beforeTurn.output.includes("candidateHints"));
