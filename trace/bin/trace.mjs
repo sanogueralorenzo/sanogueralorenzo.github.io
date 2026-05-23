@@ -437,6 +437,16 @@ async function runCheckpointCommand(action, values) {
     return;
   }
 
+  if (action === "export") {
+    await exportCheckpointBundle(values);
+    return;
+  }
+
+  if (action === "import") {
+    await importCheckpointBundle(values);
+    return;
+  }
+
   if (action === "cleanup") {
     await cleanupCheckpoints();
     return;
@@ -522,6 +532,86 @@ async function syncCheckpointRef(action, remote) {
 
   await git(gitArgs, { cwd: root });
   print({ ok: true, command: `git ${gitArgs.join(" ")}` });
+}
+
+async function exportCheckpointBundle(values) {
+  const root = await repoRoot();
+  const checkpoints = await readCheckpointPayloads(root);
+  const errors = checkpoints.filter((checkpoint) => checkpoint.error).map(({ path, error }) => ({ path, error }));
+  if (errors.length > 0) {
+    print({ ok: false, ref: CHECKPOINT_REF, errors });
+    process.exitCode = 1;
+    return;
+  }
+
+  const bundle = {
+    schema_version: "trace.checkpoint_bundle.v1",
+    created_at: now(),
+    ref: CHECKPOINT_REF,
+    checkpoints: checkpoints.map(({ path, payload }) => ({ path, payload })),
+  };
+  const output = args.output ?? args.file ?? positionalValues(values)[0];
+  const content = `${JSON.stringify(bundle, null, 2)}\n`;
+
+  if (!output || output === "-") {
+    process.stdout.write(content);
+    return;
+  }
+
+  const outputPath = resolve(process.cwd(), output);
+  await mkdir(dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, content);
+  print({ ok: true, path: outputPath, ref: CHECKPOINT_REF, checkpoints: bundle.checkpoints.length });
+}
+
+async function importCheckpointBundle(values) {
+  const input = args.input ?? args.file ?? positionalValues(values)[0];
+  if (!input) {
+    fail("checkpoint import requires a bundle file");
+  }
+
+  const root = await repoRoot();
+  const inputPath = resolve(process.cwd(), input);
+  const bundle = JSON.parse(await readFile(inputPath, "utf8"));
+  const imported = checkpointBundleEntries(bundle);
+  const existing = await readCheckpointPayloads(root);
+  const merged = new Map();
+
+  for (const checkpoint of existing) {
+    if (checkpoint.path && (checkpoint.raw || checkpoint.payload)) {
+      merged.set(checkpoint.path, checkpoint);
+    }
+  }
+  for (const checkpoint of imported) {
+    merged.set(checkpoint.path, checkpoint);
+  }
+
+  await writeCheckpointTree(root, Array.from(merged.values()), `Trace checkpoint import ${imported.length}`);
+  print({ ok: true, path: inputPath, ref: CHECKPOINT_REF, imported: imported.length, retained: merged.size });
+}
+
+function checkpointBundleEntries(bundle) {
+  if (bundle?.schema_version !== "trace.checkpoint_bundle.v1") {
+    fail(`unsupported checkpoint bundle schema ${bundle?.schema_version ?? "none"}`);
+  }
+  if (!Array.isArray(bundle.checkpoints)) {
+    fail("checkpoint bundle checkpoints must be an array");
+  }
+
+  return bundle.checkpoints.map((entry, index) => {
+    const payload = entry?.payload;
+    if (!payload?.checkpoint_id) {
+      fail(`checkpoint bundle entry ${index} is missing checkpoint_id`);
+    }
+    const integrityError = verifyCheckpointIntegrity(payload);
+    if (integrityError) {
+      fail(`checkpoint bundle entry ${payload.checkpoint_id}: ${integrityError}`);
+    }
+    return {
+      path: entry.path ?? `checkpoints/${payload.checkpoint_id}.json`,
+      payload,
+    };
+  });
 }
 
 async function cleanupCheckpoints() {
@@ -1940,6 +2030,8 @@ Usage:
   trace checkpoint verify
   trace checkpoint push [remote] [--dry-run]
   trace checkpoint fetch [remote] [--dry-run]
+  trace checkpoint export [--output trace-checkpoints.json]
+  trace checkpoint import <trace-checkpoints.json>
   trace checkpoint cleanup [--sessions-before-days 14] [--keep 100]
   trace redact add <label> <regex>
   trace redact list

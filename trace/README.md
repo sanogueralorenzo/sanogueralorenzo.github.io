@@ -77,6 +77,8 @@ trace release-notes v1.0.0..HEAD
 trace checkpoint list
 trace checkpoint verify
 trace checkpoint push origin --dry-run
+trace checkpoint export --output trace-checkpoints.json
+trace checkpoint import trace-checkpoints.json
 trace checkpoint cleanup --sessions-before-days 14 --keep 100
 trace redact add codename 'PROJECT-[A-Z]+'
 trace redact list
@@ -114,6 +116,8 @@ node trace/bin/trace.mjs release-notes v1.0.0..HEAD
 node trace/bin/trace.mjs checkpoint list
 node trace/bin/trace.mjs checkpoint verify
 node trace/bin/trace.mjs checkpoint push origin --dry-run
+node trace/bin/trace.mjs checkpoint export --output trace-checkpoints.json
+node trace/bin/trace.mjs checkpoint import trace-checkpoints.json
 node trace/bin/trace.mjs checkpoint cleanup --sessions-before-days 14 --keep 100
 node trace/bin/trace.mjs redact add codename 'PROJECT-[A-Z]+'
 node trace/bin/trace.mjs redact list
@@ -175,6 +179,7 @@ Checkpoint commands keep the raw side of Trace explicit:
 - `trace checkpoint list` shows checkpoint payloads stored on `refs/trace/checkpoints`.
 - `trace checkpoint verify` checks checkpoint payload shape, commit reachability, and stored SHA-256 integrity metadata.
 - `trace checkpoint push <remote>` and `trace checkpoint fetch <remote>` sync only the Trace checkpoint ref.
+- `trace checkpoint export --output trace-checkpoints.json` and `trace checkpoint import trace-checkpoints.json` move checkpoint payloads through an explicit local bundle without using a hosted service.
 - `trace checkpoint cleanup --sessions-before-days 14 --keep 100` prunes old local raw session JSONL files from the git common directory and rewrites the checkpoint ref to retain only the newest checkpoint payloads when `--keep` is provided.
 
 Redaction is local and configurable. Built-in rules scrub common token/password shapes and high-entropy strings. Custom rules live in `.trace/config.json`:

@@ -406,6 +406,24 @@ test("checkpoint commands list verify sync and cleanup local checkpoint data", a
     const beforeCleanup = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
     assert.equal(beforeCleanup.checkpoints.length, 2);
 
+    const bundlePath = join(repo, "trace-checkpoints.json");
+    const exported = JSON.parse((await runTrace(repo, ["checkpoint", "export", "--output", bundlePath])).stdout);
+    assert.equal(exported.ok, true);
+    assert.equal(exported.checkpoints, 2);
+    const bundle = JSON.parse(await readFile(bundlePath, "utf8"));
+    assert.equal(bundle.schema_version, "trace.checkpoint_bundle.v1");
+    assert.equal(bundle.checkpoints.length, 2);
+
+    await git(repo, ["update-ref", "-d", "refs/trace/checkpoints"]);
+    const emptyList = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.deepEqual(emptyList.checkpoints, []);
+
+    const imported = JSON.parse((await runTrace(repo, ["checkpoint", "import", bundlePath])).stdout);
+    assert.equal(imported.ok, true);
+    assert.equal(imported.imported, 2);
+    const restored = JSON.parse((await runTrace(repo, ["checkpoint", "list"])).stdout);
+    assert.deepEqual(restored.checkpoints.map((checkpoint) => checkpoint.checkpoint_id), ["checkpoint-a", "checkpoint-b"]);
+
     const push = JSON.parse((await runTrace(repo, ["checkpoint", "push", "origin", "--dry-run"])).stdout);
     assert.equal(push.command, "git push origin refs/trace/checkpoints:refs/trace/checkpoints");
 
