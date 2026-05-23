@@ -16,6 +16,28 @@ const HOOK_END = "# trace:end";
 const AGENT_CONFIG_VERSION = "trace.agent.v1";
 const SUPPORTED_AGENTS = new Set(["codex", "claude-code", "gemini", "generic"]);
 const TRACE_EVENTS = ["prompt", "response", "tool", "decision", "validation", "risk", "note"];
+const AGENT_CONTRACTS = {
+  codex: {
+    fixture: "codex-tool-call.json",
+    event: "tool",
+    messageIncludes: ["codex tool shell", "npm --prefix trace test"],
+  },
+  "claude-code": {
+    fixture: "claude-code-user-prompt.json",
+    event: "prompt",
+    messageIncludes: ["Trace memory storage model"],
+  },
+  gemini: {
+    fixture: "gemini-model-response.json",
+    event: "response",
+    messageIncludes: ["verified the Trace tests"],
+  },
+  generic: {
+    fixture: "generic-validation.json",
+    event: "validation",
+    messageIncludes: ["npm --prefix trace test passed"],
+  },
+};
 const MEMORY_SECTION_LIMIT = 5;
 const MEMORY_ITEM_CHAR_LIMIT = 240;
 const command = process.argv[2] ?? "help";
@@ -1179,6 +1201,11 @@ async function runAgentCommand(action, values) {
     return;
   }
 
+  if (action === "check" || action === "verify") {
+    await checkAgents(values[0] ?? args.name);
+    return;
+  }
+
   if (!action || action === "list" || action === "status") {
     const root = await repoRoot();
     print({ ok: true, agents: await listAgentConfigs(root) });
@@ -1240,6 +1267,94 @@ async function removeAllAgents() {
     removed.push({ agent: agentName, removed: relativePath(root, file) });
   }
   print({ ok: true, removed });
+}
+
+async function checkAgents(target) {
+  const root = await repoRoot();
+  const installed = await listAgentConfigs(root);
+  const installedByName = new Map(installed.map((agent) => [agent.agent, agent]));
+  const names = agentCheckNames(target, installed);
+  const contracts = [];
+
+  for (const name of names) {
+    const installedAgent = installedByName.get(name);
+    const configErrors = installedAgent ? installedAgent.errors : [`missing adapter config: run trace agent add ${name}`];
+    const contract = await checkAgentContract(name);
+    contracts.push({
+      agent: name,
+      config: installedAgent?.config ?? null,
+      command: installedAgent?.command ?? null,
+      fixture: contract.fixture,
+      event: contract.event,
+      valid: configErrors.length === 0 && contract.errors.length === 0,
+      errors: [...configErrors, ...contract.errors],
+    });
+  }
+
+  const ok = contracts.length > 0 && contracts.every((contract) => contract.valid);
+  print({ ok, agents: contracts });
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
+function agentCheckNames(target, installed) {
+  if (target === "all") {
+    return Array.from(SUPPORTED_AGENTS);
+  }
+
+  if (target) {
+    return [normalizeAgentName(target)];
+  }
+
+  return installed.map((agent) => agent.agent).sort((left, right) => left.localeCompare(right));
+}
+
+async function checkAgentContract(name) {
+  if (!SUPPORTED_AGENTS.has(name)) {
+    return {
+      fixture: null,
+      event: null,
+      errors: [`unsupported agent ${name}: no contract fixture`],
+    };
+  }
+
+  const contract = AGENT_CONTRACTS[name];
+  const fixturePath = join(tracePackageRoot(), "examples", contract.fixture);
+  const fixture = relativePath(tracePackageRoot(), fixturePath);
+  const errors = [];
+  let raw = "";
+  let payload = null;
+
+  try {
+    raw = await readFile(fixturePath, "utf8");
+    payload = parseOptionalJson(raw);
+  } catch (error) {
+    errors.push(`fixture ${fixture} could not be read: ${error.message}`);
+  }
+
+  if (!payload || Array.isArray(payload)) {
+    errors.push(`fixture ${fixture} must be one JSON object`);
+  }
+
+  const event = payload && !Array.isArray(payload) ? normalizeAgentPayload(name, null, payload, raw) : null;
+  if (event && event.event !== contract.event) {
+    errors.push(`fixture ${fixture} expected ${contract.event} event but got ${event.event}`);
+  }
+  if (event && event.adapter !== name) {
+    errors.push(`fixture ${fixture} expected ${name} adapter but got ${event.adapter}`);
+  }
+  for (const expectedText of contract.messageIncludes) {
+    if (event && !event.message.includes(expectedText)) {
+      errors.push(`fixture ${fixture} message missing ${expectedText}`);
+    }
+  }
+
+  return {
+    fixture,
+    event: event?.event ?? null,
+    errors,
+  };
 }
 
 function normalizeAgentName(name) {
@@ -1961,19 +2076,15 @@ async function hookAgent(values) {
   const events = [];
 
   for (const item of payloads) {
-    const adapter = normalizeAdapterName(args.adapter ?? args.source ?? item?.adapter ?? item?.agent ?? item?.source);
-    const eventName = normalizeAgentEvent(adapter, args.event ?? firstPositional(values), item);
-    const message = args.message ?? agentPayloadMessage(adapter, eventName, item) ?? payloadFallbackMessage(item, raw);
-    const role = args.role ?? item?.role ?? inferRole(eventName);
-    const source = args.source ?? item?.agent ?? item?.source ?? adapter;
+    const normalized = normalizeAgentPayload(args.adapter ?? args.source, args.event ?? firstPositional(values), item, raw);
     const sessionId = args.session ?? item?.session_id ?? item?.sessionId;
     events.push(await appendEvent(root, {
       sessionId,
-      event: eventName,
-      role,
-      source,
-      adapter,
-      message,
+      event: normalized.event,
+      role: args.role ?? normalized.role,
+      source: args.source ?? normalized.source,
+      adapter: normalized.adapter,
+      message: args.message ?? normalized.message,
     }));
   }
 
@@ -2140,6 +2251,10 @@ function traceHookCommand(name) {
 function expectedHookLine(traceCommand) {
   const cliPath = fileURLToPath(import.meta.url);
   return `node ${shellQuote(cliPath)} ${traceCommand.replace(/^trace /, "")}`;
+}
+
+function tracePackageRoot() {
+  return resolve(dirname(fileURLToPath(import.meta.url)), "..");
 }
 
 async function ensureTrace(root) {
@@ -2574,6 +2689,7 @@ Usage:
   trace session show <session> [--limit 20]
   trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list
+  trace agent check [codex|claude-code|gemini|generic|all]
   trace agent remove <codex|claude-code|gemini|generic|all>
   trace checkpoint list
   trace checkpoint status [remote]
@@ -3014,6 +3130,18 @@ function parseOptionalJsonLines(raw) {
     }
   }
   return payloads;
+}
+
+function normalizeAgentPayload(adapterInput, explicitEvent, payload, raw) {
+  const adapter = normalizeAdapterName(adapterInput ?? payload?.adapter ?? payload?.agent ?? payload?.source);
+  const eventName = normalizeAgentEvent(adapter, explicitEvent, payload);
+  return {
+    event: eventName,
+    role: payload?.role ?? inferRole(eventName),
+    source: payload?.agent ?? payload?.source ?? adapter,
+    adapter,
+    message: agentPayloadMessage(adapter, eventName, payload) ?? payloadFallbackMessage(payload, raw),
+  };
 }
 
 function agentPayloadMessage(adapter, eventName, payload) {

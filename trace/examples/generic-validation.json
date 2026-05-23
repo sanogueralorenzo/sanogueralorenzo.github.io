@@ -1,0 +1,5 @@
+{
+  "session_id": "example-session",
+  "event": "validation",
+  "message": "npm --prefix trace test passed"
+}

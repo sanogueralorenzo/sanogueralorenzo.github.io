@@ -11,6 +11,8 @@ trace init
 trace agent add codex
 trace agent add claude-code
 trace agent add gemini
+trace agent add generic
+trace agent check all
 ```
 
 Adapters write normalized lifecycle events into the git common directory, not the project tree:
@@ -19,6 +21,7 @@ Adapters write normalized lifecycle events into the git common directory, not th
 cat trace/examples/codex-tool-call.json | trace hook agent --adapter codex
 cat trace/examples/claude-code-user-prompt.json | trace hook agent --adapter claude-code
 cat trace/examples/gemini-model-response.json | trace hook agent --adapter gemini
+cat trace/examples/generic-validation.json | trace hook agent --adapter generic
 ```
 
 ## Commit Memory
@@ -48,6 +51,6 @@ Use CI to prevent missing memory and transcript leaks:
 
 ```shell
 trace ci main..HEAD
+trace agent check all
 trace checkpoint verify
 ```
-

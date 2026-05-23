@@ -834,6 +834,12 @@ test("agent add list remove manages local hook adapter configs", async () => {
     assert.equal(listedPayload.agents[0].valid, true);
     assert.deepEqual(listedPayload.agents[0].errors, []);
 
+    const checked = JSON.parse((await runTrace(repo, ["agent", "check", "codex"])).stdout);
+    assert.equal(checked.ok, true);
+    assert.deepEqual(checked.agents.map((agent) => agent.agent), ["codex"]);
+    assert.equal(checked.agents[0].event, "tool");
+    assert.equal(checked.agents[0].fixture, "examples/codex-tool-call.json");
+
     const status = await runTrace(repo, ["status"]);
     const statusPayload = JSON.parse(status.stdout);
     assert.deepEqual(statusPayload.agents.map((agent) => agent.agent), ["codex"]);
@@ -852,10 +858,17 @@ test("agent add list remove manages local hook adapter configs", async () => {
     const allListed = JSON.parse((await runTrace(repo, ["agent", "list"])).stdout);
     assert.deepEqual(allListed.agents.map((agent) => agent.agent), ["claude-code", "codex", "gemini", "generic"]);
     assert.equal(allListed.agents.every((agent) => agent.valid), true);
+    const allChecked = JSON.parse((await runTrace(repo, ["agent", "check", "all"])).stdout);
+    assert.equal(allChecked.ok, true);
+    assert.deepEqual(allChecked.agents.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
+    assert.deepEqual(allChecked.agents.map((agent) => agent.event), ["tool", "prompt", "response", "validation"]);
 
     const removedAll = JSON.parse((await runTrace(repo, ["agent", "remove", "all"])).stdout);
     assert.deepEqual(removedAll.removed.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
     assert.deepEqual(JSON.parse((await runTrace(repo, ["agent", "list"])).stdout).agents, []);
+    const missing = await runTraceAllowFailure(repo, ["agent", "check", "all"]);
+    assert.equal(missing.exitCode, 1);
+    assert.match(missing.stdout, /missing adapter config/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -999,14 +1012,16 @@ test("documented example agent payloads are accepted by adapters", async () => {
     await runTraceWithInput(repo, ["hook", "agent", "--adapter", "codex"], await readFile(join(examplesDir, "codex-tool-call.json"), "utf8"));
     await runTraceWithInput(repo, ["hook", "agent", "--adapter", "claude-code"], await readFile(join(examplesDir, "claude-code-user-prompt.json"), "utf8"));
     await runTraceWithInput(repo, ["hook", "agent", "--adapter", "gemini"], await readFile(join(examplesDir, "gemini-model-response.json"), "utf8"));
+    await runTraceWithInput(repo, ["hook", "agent", "--adapter", "generic"], await readFile(join(examplesDir, "generic-validation.json"), "utf8"));
 
     const commonDir = (await git(repo, ["rev-parse", "--git-common-dir"])).stdout.trim();
     const session = await readFile(join(repo, commonDir, "trace/sessions/example-session.jsonl"), "utf8");
     const events = session.trim().split("\n").map((line) => JSON.parse(line));
-    assert.deepEqual(events.map((event) => event.event), ["tool", "prompt", "response"]);
+    assert.deepEqual(events.map((event) => event.event), ["tool", "prompt", "response", "validation"]);
     assert.match(events[0].message, /codex tool shell input=npm --prefix trace test/);
     assert.match(events[1].message, /Trace memory storage model/);
     assert.match(events[2].message, /verified the Trace tests/);
+    assert.match(events[3].message, /npm --prefix trace test passed/);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -1046,6 +1061,12 @@ test("agent command validates names and reports malformed configs", async () => 
     assert.equal(codex.valid, false);
     assert.ok(codex.errors.some((error) => error.includes("adapter must match")));
     assert.ok(codex.errors.some((error) => error.includes("events missing")));
+
+    const checked = await runTraceAllowFailure(repo, ["agent", "check", "codex"]);
+    assert.equal(checked.exitCode, 1);
+    const checkedPayload = JSON.parse(checked.stdout);
+    assert.equal(checkedPayload.ok, false);
+    assert.ok(checkedPayload.agents[0].errors.some((error) => error.includes("adapter must match")));
 
     const doctor = await runTraceAllowFailure(repo, ["doctor"]);
     assert.equal(doctor.exitCode, 1);
