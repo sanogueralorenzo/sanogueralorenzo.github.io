@@ -242,7 +242,9 @@ When a goal requires `all_outputs_cited`, requires
 `memory_provenance_complete`, or denies `uncited_external_claim`, the final
 completion-producing step must contain at least one `memory cite ...`
 statement. Missing final-step citation coverage emits
-`INTENT_PROVENANCE_MISSING`.
+`INTENT_PROVENANCE_MISSING`. Each final-step citation must be backed by an
+earlier `memory write` to the same memory target and key; missing backing
+writes emit `INTENT_PROVENANCE_UNBACKED`.
 
 When a goal requires `final_state_checkpointed` or
 `checkpointed_final_state`, the final completion-producing step must contain at

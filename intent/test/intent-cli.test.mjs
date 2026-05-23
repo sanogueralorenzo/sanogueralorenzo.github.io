@@ -64,6 +64,7 @@ const INVALID_MEMORY_RETENTION_UNKNOWN_UNTIL = new URL("../fixtures/invalid_memo
 const INVALID_MEMORY_ACCESS_UNDECLARED = new URL("../fixtures/invalid_memory_access_undeclared.intent", import.meta.url).pathname;
 const INVALID_MEMORY_KEY_UNDECLARED = new URL("../fixtures/invalid_memory_key_undeclared.intent", import.meta.url).pathname;
 const INVALID_PROVENANCE_MISSING = new URL("../fixtures/invalid_provenance_missing.intent", import.meta.url).pathname;
+const INVALID_PROVENANCE_UNBACKED = new URL("../fixtures/invalid_provenance_unbacked.intent", import.meta.url).pathname;
 const INVALID_COMPLETION_CHECKPOINT_MISSING = new URL("../fixtures/invalid_completion_checkpoint_missing.intent", import.meta.url).pathname;
 const INVALID_UNCHECKPOINTED_IRREVERSIBLE_EFFECT = new URL("../fixtures/invalid_uncheckpointed_irreversible_effect.intent", import.meta.url).pathname;
 const INVALID_IRREVERSIBLE_CHECKPOINT_BEFORE_EFFECT = new URL("../fixtures/invalid_irreversible_checkpoint_before_effect.intent", import.meta.url).pathname;
@@ -1447,6 +1448,18 @@ describe("intent static model CLI", () => {
     assert.deepEqual(payload.diagnostics[0].requirements, ["all_outputs_cited"]);
     assert.deepEqual(payload.diagnostics[0].invariants, ["uncited_external_claim"]);
     assert.equal(payload.diagnostics[0].citations, 0);
+  });
+
+  it("rejects completion citations without earlier memory writes", () => {
+    const result = run(["check", INVALID_PROVENANCE_UNBACKED]);
+    const payload = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 1);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.diagnostics[0].code, "INTENT_PROVENANCE_UNBACKED");
+    assert.equal(payload.diagnostics[0].citations, 1);
+    assert.equal(payload.diagnostics[0].unbacked_citations[0].target, "session.evidence");
+    assert.equal(payload.diagnostics[0].unbacked_citations[0].step, "draft");
   });
 
   it("rejects completion checkpoint requirements without final-step checkpoints", () => {
@@ -5125,9 +5138,9 @@ describe("intent static model CLI", () => {
 
   it("validates graph completion metadata parity diagnostics", () => {
     const goalSpan = testSpan(1);
-    const stepOutputSpan = testSpan(2);
+    const stepOutputSpan = testSpanOffset(2, 20);
     const memorySpan = testSpan(3);
-    const citationSpan = testSpan(4);
+    const citationSpan = testSpanOffset(4, 40);
     const checkpointSpan = testSpan(5);
     const checkSpan = testSpan(6);
     const completionSpan = testSpan(7);
@@ -5194,6 +5207,7 @@ describe("intent static model CLI", () => {
         { from: "goal:demo", to: "goal:demo:step:final", kind: "plans" },
         { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
         { from: "goal:demo:step:final", to: "goal:demo:completion", kind: "produces", data: { type: "Report", sourceSpan: stepOutputSpan, targetSpan: completionSpan } },
+        { from: "goal:demo:step:final", to: "goal:demo:memory:0", kind: "writes", data: { access: "write", memory: "session", key: null, target: "session.evidence", sourceSpan: stepOutputSpan, targetSpan: memorySpan } },
         { from: "goal:demo:memory:0", to: "goal:demo:step:final", kind: "cites", data: { access: "cite", memory: "session", key: null, target: "session.evidence", sourceSpan: memorySpan, targetSpan: citationSpan } },
         { from: "goal:demo:step:final", to: "goal:demo:step:final:checkpoint:0", kind: "checkpoints", data: { checkpoint: "final state" } },
         { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates", data: { requirement: "done", scope: "goal", sourceSpan: checkSpan, targetSpan: goalSpan } },
@@ -5210,6 +5224,48 @@ describe("intent static model CLI", () => {
     assert.equal(diagnostics[1].declared_values[0].checkpoint, "wrong final state");
     assert.equal(diagnostics[1].edge_values[0].checkpoint, "final state");
     assert.deepEqual(diagnostics[1].mismatched_indexes, [0]);
+  });
+
+  it("validates graph completion citation backing diagnostics", () => {
+    const memorySpan = testSpan(3);
+    const citationSpan = testSpan(4);
+    const diagnostics = validateTestGraph({
+      source: "synthetic.intent",
+      nodes: [
+        { id: "goal:demo", kind: "Goal", label: "demo", span: testSpan(1) },
+        { id: "goal:demo:step:final", kind: "Step", label: "final", span: testSpan(2), data: { memoryAccesses: ["session.evidence"] } },
+        { id: "goal:demo:memory:0", kind: "Memory", label: "session", span: memorySpan },
+        { id: "goal:demo:verify:0", kind: "Check", label: "done", span: testSpan(5), data: { requirement: "done", scope: "goal" } },
+        {
+          id: "goal:demo:completion",
+          kind: "Completion",
+          label: "demo",
+          span: testSpan(6),
+          data: {
+            provenance: {
+              required: true,
+              requirements: [{ requirement: "memory_provenance_complete", span: testSpan(5) }],
+              invariants: [],
+              citations: [{ memory: "session", key: null, target: "session.evidence", step: "final", span: citationSpan }],
+            },
+          },
+        },
+      ],
+      edges: [
+        { from: "goal:demo", to: "goal:demo:memory:0", kind: "declares" },
+        { from: "goal:demo", to: "goal:demo:step:final", kind: "plans" },
+        { from: "goal:demo", to: "goal:demo:completion", kind: "completes" },
+        { from: "goal:demo:step:final", to: "goal:demo:completion", kind: "produces" },
+        { from: "goal:demo:memory:0", to: "goal:demo:step:final", kind: "cites", data: { access: "cite", memory: "session", key: null, target: "session.evidence", sourceSpan: memorySpan, targetSpan: citationSpan } },
+        { from: "goal:demo:verify:0", to: "goal:demo", kind: "gates" },
+        { from: "goal:demo:verify:0", to: "goal:demo:completion", kind: "verifies" },
+      ],
+    }).filter((diagnostic) => diagnostic.code === "INTENT_GRAPH_COMPLETION_METADATA_INVALID");
+
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].field, "provenance.citation_backing");
+    assert.equal(diagnostics[0].unbacked_citations[0].target, "session.evidence");
+    assert.equal(diagnostics[0].write_edges.length, 0);
   });
 
   it("validates graph typed edge contract diagnostics", () => {

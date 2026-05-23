@@ -1272,15 +1272,30 @@ function validateVerifyRequirements(goal, diagnostics) {
 
 function validateCompletionProvenance(goal, diagnostics) {
   const provenance = completionProvenance(goal);
-  if (!provenance.required || provenance.citations.length > 0) {
+  if (!provenance.required) {
+    return;
+  }
+  if (provenance.citations.length === 0) {
+    const rule = provenance.requirements[0] ?? provenance.invariants[0] ?? null;
+    diagnostics.push(error("INTENT_PROVENANCE_MISSING", `goal '${goal.name}' requires completion provenance but no memory citation is declared.`, rule?.span ?? goal.span, {
+      goal: goal.name,
+      requirements: provenance.requirements.map((requirement) => requirement.requirement),
+      invariants: provenance.invariants.map((invariant) => invariant.invariant),
+      citations: provenance.citations.length,
+    }));
+    return;
+  }
+  const unbackedCitations = unbackedCompletionCitations(goal);
+  if (unbackedCitations.length === 0) {
     return;
   }
   const rule = provenance.requirements[0] ?? provenance.invariants[0] ?? null;
-  diagnostics.push(error("INTENT_PROVENANCE_MISSING", `goal '${goal.name}' requires completion provenance but no memory citation is declared.`, rule?.span ?? goal.span, {
+  diagnostics.push(error("INTENT_PROVENANCE_UNBACKED", `goal '${goal.name}' cites completion memory without an earlier write to the same target.`, unbackedCitations[0]?.span ?? rule?.span ?? goal.span, {
     goal: goal.name,
     requirements: provenance.requirements.map((requirement) => requirement.requirement),
     invariants: provenance.invariants.map((invariant) => invariant.invariant),
     citations: provenance.citations.length,
+    unbacked_citations: unbackedCitations,
   }));
 }
 
@@ -1320,6 +1335,47 @@ function completionMemoryCitations(goal) {
       step: finalStep.name,
       span: memoryAccess.span,
     }));
+}
+
+function unbackedCompletionCitations(goal) {
+  const finalStep = goal.steps.at(-1);
+  if (!finalStep) {
+    return [];
+  }
+  const writes = [];
+  const unbacked = [];
+  for (const step of goal.steps) {
+    for (const memoryAccess of step.memoryAccesses) {
+      if (memoryAccess.access === "write") {
+        writes.push({
+          memory: memoryAccess.memory,
+          key: memoryAccess.key,
+          target: memoryAccess.target,
+          step: step.name,
+          span: memoryAccess.span,
+        });
+      }
+      if (step !== finalStep || memoryAccess.access !== "cite") {
+        continue;
+      }
+      const hasBackingWrite = writes.some((write) => {
+        return write.memory === memoryAccess.memory
+          && write.key === memoryAccess.key
+          && write.target === memoryAccess.target
+          && spanStartOffset(write.span) < spanStartOffset(memoryAccess.span);
+      });
+      if (!hasBackingWrite) {
+        unbacked.push({
+          memory: memoryAccess.memory,
+          key: memoryAccess.key,
+          target: memoryAccess.target,
+          step: step.name,
+          span: memoryAccess.span,
+        });
+      }
+    }
+  }
+  return unbacked;
 }
 
 function validateCompletionCheckpoint(goal, diagnostics) {
@@ -2423,7 +2479,7 @@ function validateGraph(graph, options = {}) {
         has_required_checkpoint_edges: hasRequiredCheckpointEdges,
       }));
     }
-    for (const metadataDiagnostic of validateGraphCompletionMetadata(graphNode, producingEdges, citationEdges, checkpointEdges, nodesById, fallbackSpan)) {
+    for (const metadataDiagnostic of validateGraphCompletionMetadata(graphNode, producingEdges, citationEdges, checkpointEdges, graphEdges, nodesById, fallbackSpan)) {
       diagnostics.push(metadataDiagnostic);
     }
   }
@@ -2738,13 +2794,14 @@ function outputSpansEqual(left, right) {
   return left === null && right === null ? true : spansEqual(left, right);
 }
 
-function validateGraphCompletionMetadata(graphNode, producingEdges, citationEdges, checkpointEdges, nodesById, fallbackSpan) {
+function validateGraphCompletionMetadata(graphNode, producingEdges, citationEdges, checkpointEdges, graphEdges, nodesById, fallbackSpan) {
   if (producingEdges.length !== 1 || nodesById.get(producingEdges[0].from)?.kind !== "Step") {
     return [];
   }
   const producingEdge = producingEdges[0];
   return [
     validateGraphCompletionCitationMetadata(graphNode, producingEdge, citationEdges, nodesById, fallbackSpan),
+    validateGraphCompletionCitationBacking(graphNode, citationEdges, graphEdges, fallbackSpan),
     validateGraphCompletionCheckpointMetadata(graphNode, producingEdge, checkpointEdges, nodesById, fallbackSpan),
   ].filter((diagnostic) => diagnostic !== null);
 }
@@ -2768,6 +2825,44 @@ function validateGraphCompletionCitationMetadata(graphNode, producingEdge, citat
     return null;
   }
   return completionMetadataError(graphNode, fallbackSpan, "provenance.citations", declaredValues, edgeValues, citationEdges);
+}
+
+function validateGraphCompletionCitationBacking(graphNode, citationEdges, graphEdges, fallbackSpan) {
+  if (!isGraphCompletionProvenanceValid(graphNode.data?.provenance) || graphNode.data.provenance.required !== true) {
+    return null;
+  }
+  const writeEdges = graphEdges.filter((graphEdge) => graphEdge.kind === "writes");
+  const unbackedCitations = citationEdges
+    .filter((citationEdge) => !writeEdges.some((writeEdge) => {
+      return writeEdge.to === citationEdge.from
+        && writeEdge.data?.memory === citationEdge.data?.memory
+        && (writeEdge.data?.key ?? null) === (citationEdge.data?.key ?? null)
+        && writeEdge.data?.target === citationEdge.data?.target
+        && spanStartOffset(writeEdge.data?.sourceSpan) < spanStartOffset(citationEdge.data?.targetSpan);
+    }))
+    .map((citationEdge) => ({
+      from: citationEdge.from,
+      to: citationEdge.to,
+      memory: citationEdge.data?.memory ?? null,
+      key: citationEdge.data?.key ?? null,
+      target: citationEdge.data?.target ?? null,
+    }));
+  if (unbackedCitations.length === 0) {
+    return null;
+  }
+  return error("INTENT_GRAPH_COMPLETION_METADATA_INVALID", `completion '${graphNode.label}' provenance citations must be backed by earlier writes to the same memory target.`, graphNode.span ?? fallbackSpan, {
+    completion: graphNode.label,
+    completion_id: graphNode.id,
+    field: "provenance.citation_backing",
+    unbacked_citations: unbackedCitations,
+    write_edges: writeEdges.map((writeEdge) => ({
+      from: writeEdge.from,
+      to: writeEdge.to,
+      memory: writeEdge.data?.memory ?? null,
+      key: writeEdge.data?.key ?? null,
+      target: writeEdge.data?.target ?? null,
+    })),
+  });
 }
 
 function validateGraphCompletionCheckpointMetadata(graphNode, producingEdge, checkpointEdges, nodesById, fallbackSpan) {

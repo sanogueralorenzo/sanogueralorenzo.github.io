@@ -27,7 +27,9 @@ goal research_synthesis(question: ResearchQuestion) -> ResearchReport {
     step collect_sources(question: ResearchQuestion) -> SourceSet {
       effect WebRead(url: "https://example.com/research")
     }
-    step extract_evidence(input: SourceSet) -> EvidenceTable
+    step extract_evidence(input: SourceSet) -> EvidenceTable {
+      memory write session.evidence
+    }
     step synthesize_answer(input: EvidenceTable) -> DraftAnswer
     step verify_report(input: DraftAnswer) -> ResearchReport {
       memory cite session.evidence

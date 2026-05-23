@@ -429,10 +429,13 @@ Next graph envelope validation milestone:
   `require all_outputs_cited`, `require memory_provenance_complete`, or
   `deny uncited_external_claim` must have at least one `memory cite ...`
   statement on the final completion-producing step. Missing final-step citation
-  coverage emits `INTENT_PROVENANCE_MISSING`. The graph builder copies those
-  triggers and final-step citation records into `Completion.data.provenance`,
-  and graph validation rejects malformed completion provenance or required
-  provenance with no citations using `INTENT_GRAPH_COMPLETION_INVALID`.
+  coverage emits `INTENT_PROVENANCE_MISSING`. Each final-step citation must be
+  backed by an earlier `memory write` to the same memory target and key; missing
+  backing writes emit `INTENT_PROVENANCE_UNBACKED`. The graph builder copies
+  those triggers and final-step citation records into
+  `Completion.data.provenance`, and graph validation rejects malformed
+  completion provenance or required provenance with no citations using
+  `INTENT_GRAPH_COMPLETION_INVALID`.
 - Completion checkpoint policy is enforced before graph execution. A goal with
   `require final_state_checkpointed` or `require checkpointed_final_state` must
   have at least one `checkpoint ...` statement on the final
@@ -1569,14 +1572,17 @@ Rules:
   `deny uncited_external_claim` are completion provenance triggers. The final
   step must include at least one `memory cite ...` statement so the completion
   can point at retained evidence. Missing coverage emits
-  `INTENT_PROVENANCE_MISSING`.
+  `INTENT_PROVENANCE_MISSING`; a citation without an earlier same-target
+  `memory write` emits `INTENT_PROVENANCE_UNBACKED`.
 - Graph `Completion` node data includes `provenance.required`,
   `provenance.requirements`, `provenance.invariants`, and
   `provenance.citations`. Required provenance with an empty citation list, or
   malformed provenance records, emits `INTENT_GRAPH_COMPLETION_INVALID`.
   Valid `provenance.citations` metadata must match the final producing step's
   role-valid `cites` edges in source order; mismatches emit
-  `INTENT_GRAPH_COMPLETION_METADATA_INVALID`.
+  `INTENT_GRAPH_COMPLETION_METADATA_INVALID`. Role-valid final citation edges
+  must also be backed by earlier same-target `writes` edges; unbacked citation
+  edges emit `INTENT_GRAPH_COMPLETION_METADATA_INVALID`.
 - `require final_state_checkpointed` and `require checkpointed_final_state` are
   completion checkpoint triggers. The final step must include at least one
   `checkpoint ...` statement so runtime resume can restart from a named
@@ -1887,6 +1893,7 @@ Initial diagnostic families:
 - `INTENT_VERIFY_IMPURE`
 - `INTENT_VERIFY_UNDECLARED`
 - `INTENT_PROVENANCE_MISSING`
+- `INTENT_PROVENANCE_UNBACKED`
 - `INTENT_CHECKPOINT_MISSING`
 - `INTENT_INVARIANT_VIOLATION`
 - `INTENT_TRUST_FLOW_UNSAFE`

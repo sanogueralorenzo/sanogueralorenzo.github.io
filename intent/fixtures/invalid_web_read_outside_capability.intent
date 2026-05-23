@@ -4,7 +4,7 @@ type WebPage = {
   url: Url
 }
 
-goal "read outside granted web domain" {
+goal read_outside_granted_web_domain() -> WebPage {
   context web("https://example.com/**")
 
   capability web {
@@ -19,6 +19,9 @@ goal "read outside granted web domain" {
   plan {
     step read_reference -> WebPage {
       effect WebRead(url: "https://example.org/reference")
+      memory write session.evidence
+    }
+    step cite_reference(input: WebPage) -> WebPage {
       memory cite session.evidence
     }
   }

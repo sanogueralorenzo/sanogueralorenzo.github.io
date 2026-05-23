@@ -8,7 +8,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `valid_checkpoint_graph.intent`: code-change goal with step body `checkpoint ...` lines, normal file and shell capabilities, checkpoint memory retention, final-state checkpoint verification, and invariants.
 - `valid_context_trust_graph.intent`: context graph goal with repository, web, and document sources, read-only file and web capabilities, memory retention, plan steps, final-step citation provenance, verification, and trust invariants.
 - `valid_dependency_graph.intent`: named goal input feeding the first step, followed by prior step outputs feeding later steps for graph dependency coverage.
-- `valid_research.intent`: research goal with declared source, claim, and report types, web and local document context, read-only capabilities, plan steps, final-step citation provenance, citation verification, and invariants.
+- `valid_research.intent`: research goal with declared source, claim, and report types, web and local document context, read-only capabilities, plan steps, evidence writes backing final-step citation provenance, citation verification, and invariants.
 - `valid_trust_flow_shell_literal.intent`: trust-flow goal where `ShellExec` uses a literal command declared by shell capability.
 - `valid_web_read_wildcard.intent`: web-read goal where `WebRead` targets a subdomain covered by a wildcard web domain grant and cites retained evidence before completion.
 - `valid_git_push_branch.intent`: git goal where `GitPush` targets a branch covered by a normalized git push branch grant and is followed by a checkpoint required by `deny uncheckpointed_irreversible_effect`.
@@ -53,6 +53,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_memory_access_undeclared.intent`: references undeclared memory from a step-local memory access statement, which should fail `INTENT_MEMORY_UNDECLARED`.
 - `invalid_memory_key_undeclared.intent`: references a memory key that is not declared by the memory block's retained subjects or explicit keys, which should fail `INTENT_MEMORY_KEY_UNDECLARED`.
 - `invalid_provenance_missing.intent`: requires cited completion output without a final-step `memory cite`, which should fail `INTENT_PROVENANCE_MISSING`.
+- `invalid_provenance_unbacked.intent`: requires cited completion output with a final-step `memory cite` but no earlier same-target `memory write`, which should fail `INTENT_PROVENANCE_UNBACKED`.
 - `invalid_completion_checkpoint_missing.intent`: requires final-state checkpointing without a final-step `checkpoint ...`, which should fail `INTENT_CHECKPOINT_MISSING`.
 - `invalid_uncheckpointed_irreversible_effect.intent`: denies uncheckpointed irreversible effects but leaves `GitPush` without any later checkpoint, which should fail `INTENT_CHECKPOINT_MISSING`.
 - `invalid_irreversible_checkpoint_before_effect.intent`: declares a checkpoint before `GitPush` but no checkpoint after it, which should fail source-order checkpoint coverage with `INTENT_CHECKPOINT_MISSING`.

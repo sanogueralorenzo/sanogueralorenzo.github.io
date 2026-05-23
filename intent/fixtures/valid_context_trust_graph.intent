@@ -57,6 +57,7 @@ goal build_context_trust_graph() -> VerifiedContextTrustGraph {
       require repo.files != []
       require web.url != ""
       require documents.paths != []
+      memory write session.evidence
       checkpoint "context trust graph assembled"
     }
     step verify_context_trust_graph(input: ContextTrustGraph) -> VerifiedContextTrustGraph {

@@ -40,7 +40,9 @@ goal "answer research question" {
 
   plan {
     step collect_sources -> SourceSet
-    step extract_claims(input: SourceSet) -> ClaimSet
+    step extract_claims(input: SourceSet) -> ClaimSet {
+      memory write session.evidence
+    }
     step synthesize_answer(input: ClaimSet) -> ResearchReport {
       memory cite session.evidence
     }

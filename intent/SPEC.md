@@ -221,7 +221,8 @@ A goal is complete only when:
 - Every required verification passed after the final relevant effect.
 - Every approval gate was satisfied.
 - Every output has provenance; when the goal requires cited output or denies
-  uncited external claims, the final step must cite retained memory evidence.
+  uncited external claims, the final step must cite retained memory evidence
+  backed by an earlier write to the same memory target and key.
 - No invariant is violated.
 - The final state was checkpointed; when the goal requires
   `final_state_checkpointed` or requires `checkpointed_final_state`, the final

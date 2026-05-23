@@ -280,11 +280,14 @@ Validation expectations:
   `require all_outputs_cited`, `require memory_provenance_complete`, or
   `deny uncited_external_claim` requires the final completion-producing step to
   declare at least one `memory cite ...` statement. Missing citation coverage
-  emits `INTENT_PROVENANCE_MISSING`. Completion node `data.provenance` records
+  emits `INTENT_PROVENANCE_MISSING`. Each final-step citation must be backed by
+  an earlier `memory write` to the same memory target and key; missing backing
+  writes emit `INTENT_PROVENANCE_UNBACKED`. Completion node `data.provenance` records
   the triggering requirements, invariants, and final-step citations; malformed
   provenance payloads or required provenance with no citations emit
   `INTENT_GRAPH_COMPLETION_INVALID`, and metadata that diverges from final-step
-  `cites` edges emits `INTENT_GRAPH_COMPLETION_METADATA_INVALID`.
+  `cites` edges or unbacked citation edges emits
+  `INTENT_GRAPH_COMPLETION_METADATA_INVALID`.
 - Completion checkpoint policy is enforced by the checker and graph contract.
   `require final_state_checkpointed` and `require checkpointed_final_state`
   require the final completion-producing step to declare at least one

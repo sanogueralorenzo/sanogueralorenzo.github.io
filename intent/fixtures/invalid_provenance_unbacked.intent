@@ -1,0 +1,28 @@
+package fixtures.invalid_provenance_unbacked
+
+type Report = {
+  body: String
+}
+
+goal unbacked_completion_provenance() -> Report {
+  context repo("./")
+
+  memory session {
+    retain evidence until 30d
+  }
+
+  plan {
+    step draft -> Report {
+      memory cite session.evidence
+    }
+  }
+
+  verify {
+    require all_outputs_cited
+    require no_policy_violations
+  }
+
+  invariant {
+    deny uncited_external_claim
+  }
+}
