@@ -142,6 +142,13 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.deepEqual(sessionRecapJson.sections.prompts, ["remember why app text exists"]);
     assert.deepEqual(sessionRecapJson.sections.decisions, ["Use committed Markdown for reviewable memory"]);
 
+    const sessionCheck = JSON.parse((await runTrace(repo, ["session", "check", payload.session, "--json"])).stdout);
+    assert.equal(sessionCheck.schema_version, "trace.session_check.v1");
+    assert.equal(sessionCheck.ok, true);
+    assert.equal(sessionCheck.commitMemoryEvents, 4);
+    assert.equal(sessionCheck.checks.find((check) => check.name === "commitMemoryEvents").ok, true);
+    assert.equal(sessionCheck.checks.find((check) => check.name === "validation").level, "warning");
+
     const fileRecall = await runTrace(repo, ["recall", "--files", "app.txt"]);
     assert.match(fileRecall.stdout, /Files: `app.txt`/);
     assert.match(fileRecall.stdout, /remember why app text exists/);
@@ -1136,11 +1143,23 @@ test("session start creates and switches current lifecycle sessions", async () =
     assert.deepEqual(emptyList.sessions[0].counts, { note: 1 });
     assert.deepEqual(emptyList.sessions[0].sources, ["trace-session"]);
 
+    const lifecycleOnly = await runTraceAllowFailure(repo, ["session", "check", "task-auth-retry", "--json"]);
+    assert.equal(lifecycleOnly.exitCode, 1);
+    const lifecycleOnlyPayload = JSON.parse(lifecycleOnly.stdout);
+    assert.equal(lifecycleOnlyPayload.ok, false);
+    assert.equal(lifecycleOnlyPayload.commitMemoryEvents, 0);
+    assert.equal(lifecycleOnlyPayload.checks.find((check) => check.name === "commitMemoryEvents").level, "error");
+
     await runTrace(repo, ["capture", "--event", "decision", "--message", "session start controls capture"]);
     const shown = JSON.parse((await runTrace(repo, ["session", "show", "task-auth-retry"])).stdout);
     assert.equal(shown.events.length, 2);
     assert.equal(shown.events[0].message, "session started");
     assert.equal(shown.events[1].message, "session start controls capture");
+
+    const capturedCheck = JSON.parse((await runTrace(repo, ["session", "check", "task-auth-retry", "--json"])).stdout);
+    assert.equal(capturedCheck.ok, true);
+    assert.equal(capturedCheck.commitMemoryEvents, 1);
+    assert.equal(capturedCheck.checks.find((check) => check.name === "decisions").ok, true);
 
     const wrongEnd = await runTraceAllowFailure(repo, ["session", "end", "other-session"]);
     assert.equal(wrongEnd.exitCode, 1);

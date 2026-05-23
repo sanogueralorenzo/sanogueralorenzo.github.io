@@ -1234,6 +1234,11 @@ async function runSessionCommand(action, values) {
     return;
   }
 
+  if (action === "check") {
+    await checkSession(values[0] ?? args.session);
+    return;
+  }
+
   if (action === "show") {
     await showSession(values[0] ?? args.session);
     return;
@@ -1340,6 +1345,41 @@ async function recapSession(sessionId) {
   process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
 }
 
+async function checkSession(sessionId) {
+  const root = await repoRoot();
+  const resolvedSession = sessionId ?? await readCurrentSession(root).catch(() => null);
+  if (!resolvedSession) {
+    fail("session id is required");
+  }
+
+  const events = await readSessionEvents(root, resolvedSession).catch((error) => fail(`session ${resolvedSession} not found or unreadable: ${error.message}`));
+  const report = await sessionCheck(root, resolvedSession, events);
+
+  if (args.json) {
+    print(report);
+  } else {
+    const lines = [
+      "# Trace Session Check",
+      "",
+      `Session: \`${report.session}\``,
+      `Events: ${report.events}`,
+      `Commit Memory Events: ${report.commitMemoryEvents}`,
+      `Status: ${report.ok ? "ok" : "needs capture"}`,
+      "",
+      "## Checks",
+      "",
+    ];
+    for (const check of report.checks) {
+      lines.push(`- ${check.ok ? "ok" : check.level}: ${check.message}`);
+    }
+    process.stdout.write(`${lines.join("\n").trimEnd()}\n`);
+  }
+
+  if (!report.ok) {
+    process.exitCode = 1;
+  }
+}
+
 async function sessionSummaries(root) {
   const files = await listSessionFiles(root);
   const sessions = [];
@@ -1423,6 +1463,55 @@ async function sessionRecap(root, sessionId, events, limit) {
       risks: await recapItems(root, risks, limit),
       notes: await recapItems(root, notes, limit),
     },
+  };
+}
+
+async function sessionCheck(root, sessionId, events) {
+  const recap = await sessionRecap(root, sessionId, events, 1);
+  const checks = [
+    {
+      name: "commitMemoryEvents",
+      level: "error",
+      ok: recap.commitMemoryEvents > 0,
+      message: recap.commitMemoryEvents > 0
+        ? "session has events that can be turned into commit memory"
+        : "session only has local lifecycle notes; capture prompt, response, tool, decision, validation, risk, or note events before recording",
+    },
+    {
+      name: "intent",
+      level: "warning",
+      ok: recap.sections.prompts.length > 0,
+      message: recap.sections.prompts.length > 0
+        ? "session has an intent signal"
+        : "session has no prompt or user-role event",
+    },
+    {
+      name: "decisions",
+      level: "warning",
+      ok: recap.sections.decisions.length > 0,
+      message: recap.sections.decisions.length > 0
+        ? "session has decision context"
+        : "session has no decision event",
+    },
+    {
+      name: "validation",
+      level: "warning",
+      ok: recap.sections.validation.length > 0,
+      message: recap.sections.validation.length > 0
+        ? "session has validation context"
+        : "session has no validation event",
+    },
+  ];
+
+  return {
+    ok: checks.every((check) => check.ok || check.level === "warning"),
+    schema_version: "trace.session_check.v1",
+    session: sessionId,
+    path: recap.path,
+    events: recap.events,
+    commitMemoryEvents: recap.commitMemoryEvents,
+    counts: recap.counts,
+    checks,
   };
 }
 
@@ -3233,6 +3322,7 @@ Usage:
   trace session current
   trace session show <session> [--limit 20]
   trace session recap [session] [--limit 5] [--json]
+  trace session check [session] [--json]
   trace agent add <codex|claude-code|gemini|generic|all>
   trace agent list
   trace agent check [codex|claude-code|gemini|generic|all]

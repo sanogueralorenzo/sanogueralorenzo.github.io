@@ -68,6 +68,7 @@ trace session end task-auth-retry
 trace session list
 trace session show <session>
 trace session recap <session>
+trace session check <session>
 trace record --validation "npm test"
 trace show HEAD
 trace show HEAD --json
@@ -125,6 +126,7 @@ node trace/bin/trace.mjs session end task-auth-retry
 node trace/bin/trace.mjs session list
 node trace/bin/trace.mjs session show <session>
 node trace/bin/trace.mjs session recap <session>
+node trace/bin/trace.mjs session check <session>
 node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
 node trace/bin/trace.mjs show HEAD --json
@@ -176,7 +178,7 @@ Because post-commit hooks run after git creates the commit, generated `.trace/co
 
 `trace run -- <command>` executes a local validation or tool command, streams its output, records the command result plus compact stdout/stderr into the current raw session, and exits with the same code. Successful commands become `validation` events by default; failed commands become `risk` events. Use `--event tool` when the command is tool activity rather than validation.
 
-`trace session start [session-id]` starts or switches the current local lifecycle session without writing raw data into the project tree and records a local lifecycle note. `trace session end [session-id]` records the close note, then clears the current session pointer without deleting raw session events, which keeps the next task from accidentally reusing stale context. `trace session list`, `trace session current`, and `trace session show <session>` inspect the local raw lifecycle store in the git common directory. `trace session recap <session>` turns the local raw events into a redacted Markdown or JSON preview using the same prompt, response, tool, decision, validation, risk, and note taxonomy that commit memory generation uses. This gives agents a way to debug capture coverage and event shape without writing transcripts into the project tree.
+`trace session start [session-id]` starts or switches the current local lifecycle session without writing raw data into the project tree and records a local lifecycle note. `trace session end [session-id]` records the close note, then clears the current session pointer without deleting raw session events, which keeps the next task from accidentally reusing stale context. `trace session list`, `trace session current`, and `trace session show <session>` inspect the local raw lifecycle store in the git common directory. `trace session recap <session>` turns the local raw events into a redacted Markdown or JSON preview using the same prompt, response, tool, decision, validation, risk, and note taxonomy that commit memory generation uses. `trace session check <session>` fails when a session only contains local lifecycle notes and reports warnings for missing intent, decision, or validation signals before an agent records memory. This gives agents a way to debug capture coverage and event shape without writing transcripts into the project tree.
 
 `trace coverage <range>` reports commit-by-commit memory status, covered/missing/skipped counts, and unsafe Trace files. `trace ci <range>` uses the same report as a gate: it fails when non-Trace commits in the range do not have a committed `.trace/commits/<sha-prefix>/<sha>.md` memory, while skipping Trace-only memory commits so memory can be committed in a follow-up commit. It also fails when committed memory files are malformed, contain unredacted secrets, or when raw transcript or checkpoint-shaped files appear in the normal `.trace/` project tree, such as `.trace/sessions/*.jsonl`, `.trace/raw/`, `.trace/checkpoints/`, or transcript dumps. Reviewable memories, `.trace/config.json`, and local agent adapter specs are allowed. Add `--agents` to make CI also run the installed adapter contract fixtures for every supported first-class agent, and `--checkpoints` to require a present, valid `refs/trace/checkpoints` ref with checkpoint payloads for covered memories in the checked range.
 
