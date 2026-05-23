@@ -1,0 +1,39 @@
+package fixtures.invalid_file_write_outside_capability
+
+type Finding = {
+  summary: String
+}
+
+type Patch = {
+  files: List<Path>
+}
+
+goal "write outside granted path" {
+  context repo("./")
+
+  capability file {
+    read path: "./src/**"
+    write path: "./src/**"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_request -> Finding
+    step patch_code(input: Finding) -> Patch {
+      effect FileWrite(path: "./README.md")
+    }
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny secret_write
+    deny unrelated_file_write
+  }
+}

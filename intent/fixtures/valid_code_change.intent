@@ -35,8 +35,14 @@ goal "apply code change" {
 
   plan {
     step inspect_request -> Finding
-    step patch_code(input: Finding) -> Patch
-    step verify_patch(input: Patch) -> VerifiedPatch
+    step patch_code(input: Finding) -> Patch {
+      effect FileWrite(path: "./src/app.ts")
+      effect FileWrite(path: "./test/app.test.ts")
+    }
+    step verify_patch(input: Patch) -> VerifiedPatch {
+      effect ShellExec(command: "npm test")
+      effect ShellExec(command: "npm run typecheck")
+    }
   }
 
   verify {

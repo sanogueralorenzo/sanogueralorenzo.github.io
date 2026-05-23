@@ -266,6 +266,7 @@ function parseGoalBlock(goal, blockName, header, body, file, startLine, endLine)
         action: null,
         name,
         constraints: meaningfulLines(body).map((line) => line.text),
+        grants: meaningfulLines(body).map((line) => parseCapabilityGrant(line.text)).filter(Boolean),
         span: span(file, startLine, 1, endLine, 1),
       };
       goal.capabilities.push(capability);
@@ -388,6 +389,7 @@ function parseCapabilityLine(text, file, lineNumber, raw) {
     action,
     name: normalized,
     constraints: [normalized],
+    grants: [parseCapabilityGrant(normalized)].filter(Boolean),
     span: lineSpan(file, lineNumber, raw),
   };
 }
@@ -398,6 +400,8 @@ function parseEffectUse(text, file, lineNumber, raw) {
     kind: "EffectUse",
     name,
     family: effectFamily(name),
+    action: effectAction(name),
+    args: parseCallArgs(text),
     expression: text,
     span: lineSpan(file, lineNumber, raw),
   };
@@ -457,6 +461,19 @@ function checkIntent(ast) {
             effect: effect.name,
             required_family: effect.family,
             declared_capabilities: capabilities,
+          }));
+          continue;
+        }
+
+        const denial = getCapabilityDenial(effect, goal.capabilities);
+        if (denial) {
+          diagnostics.push(error("INTENT_CAPABILITY_DENIED", denial.message, effect.span, {
+            effect: effect.name,
+            family: effect.family,
+            action: effect.action,
+            argument: denial.argument,
+            value: denial.value,
+            allowed: denial.allowed,
           }));
         }
       }
@@ -569,6 +586,7 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
       nodes.push(node(id, "Capability", capability.name, capability.span, {
         family: capability.family,
         action: capability.action,
+        grants: capability.grants,
       }));
       edges.push(edge(id, goalId, "authorizes"));
     }
@@ -599,11 +617,13 @@ function buildGraph(ast, diagnostics = checkIntent(ast)) {
         const effectId = `${id}:effect:${effectIndex}`;
         nodes.push(node(effectId, "Effect", effectUse.name, effectUse.span, {
           family: effectUse.family,
+          action: effectUse.action,
+          args: effectUse.args,
           expression: effectUse.expression,
         }));
         edges.push(edge(id, effectId, "requests"));
         for (const [capabilityIndex, capability] of goal.capabilities.entries()) {
-          if (isFamilyMatch(effectUse.family, capability.family)) {
+          if (isFamilyMatch(effectUse.family, capability.family) && !getCapabilityDenial(effectUse, [capability])) {
             edges.push(edge(`${goalId}:capability:${capabilityIndex}`, effectId, "authorizes"));
           }
         }
@@ -656,6 +676,48 @@ function parseParameters(text, file, lineNumber) {
 
 function extractTypeNames(typeRef) {
   return [...typeRef.matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)].map((match) => match[0]);
+}
+
+function parseCapabilityGrant(text) {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^([a-z][a-z0-9_]*)\s+([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"$/);
+  if (match) {
+    return {
+      action: match[1],
+      key: match[2],
+      value: match[3],
+      raw: trimmed,
+    };
+  }
+
+  const dottedCall = trimmed.match(/^[a-z][a-z0-9_]*\.([a-z][a-z0-9_]*)\((.*)\)$/);
+  if (dottedCall) {
+    const args = parseCallArgs(dottedCall[2]);
+    const key = args.paths ? "path" : args.commands ? "command" : args.path ? "path" : args.command ? "command" : null;
+    const value = args.paths ?? args.commands ?? args.path ?? args.command ?? null;
+    if (key && typeof value === "string") {
+      return {
+        action: dottedCall[1],
+        key,
+        value,
+        raw: trimmed,
+      };
+    }
+  }
+
+  return null;
+}
+
+function parseCallArgs(text) {
+  const args = {};
+  for (const match of text.matchAll(/([a-z][a-z0-9_]*)\s*:\s*"([^"]*)"/g)) {
+    args[match[1]] = match[2];
+  }
+  const positional = text.match(/\(\s*"([^"]*)"/);
+  if (positional) {
+    args._0 = positional[1];
+  }
+  return args;
 }
 
 function normalizeTypeRef(typeRef) {
@@ -852,6 +914,19 @@ function effectFamily(name) {
   return normalized.split(/[.(]/)[0].toLowerCase();
 }
 
+function effectAction(name) {
+  const normalized = name.replace(/^Effect\./, "");
+  if (/^(FileRead|ReadFile|fs\.read|file\.read)/.test(normalized)) return "read";
+  if (/^(FileWrite|WriteFile|fs\.write|file\.write)/.test(normalized)) return "write";
+  if (/^(ShellExec|shell\.exec|Command)/.test(normalized)) return "run";
+  if (/^(Http|Web|web\.read|http\.request)/.test(normalized)) return "read";
+  if (/^(GitPush|git\.push)/.test(normalized)) return "push";
+  if (/^(GitCommit|git\.commit)/.test(normalized)) return "commit";
+  if (/^(Deploy|deploy\.)/.test(normalized)) return "deploy";
+  if (/^(Ticket|ticket\.)/.test(normalized)) return "update";
+  return null;
+}
+
 function isEffectAuthorized(effect, capabilities) {
   return capabilities.some((capability) => isFamilyMatch(effect.family, capability.family));
 }
@@ -862,6 +937,90 @@ function isFamilyMatch(effectName, capabilityName) {
   if (effectName === "web" && capabilityName === "http") return true;
   if (effectName === "http" && capabilityName === "web") return true;
   return false;
+}
+
+function getCapabilityDenial(effect, capabilities) {
+  const familyCapabilities = capabilities.filter((capability) => isFamilyMatch(effect.family, capability.family));
+  if (familyCapabilities.length === 0) {
+    return null;
+  }
+
+  const argument = effectArgument(effect);
+  if (!effect.action || !argument) {
+    return null;
+  }
+
+  const candidateGrants = familyCapabilities.flatMap((capability) => capability.grants ?? [])
+    .filter((grant) => grant.action === effect.action && grant.key === argument.key);
+
+  if (candidateGrants.length === 0) {
+    return {
+      message: `effect '${effect.name}' has no '${effect.action} ${argument.key}' capability grant.`,
+      argument: argument.key,
+      value: argument.value,
+      allowed: [],
+    };
+  }
+
+  if (candidateGrants.some((grant) => isGrantMatch(argument, grant))) {
+    return null;
+  }
+
+  return {
+    message: `effect '${effect.name}' ${argument.key} '${argument.value}' is outside declared capability grants.`,
+    argument: argument.key,
+    value: argument.value,
+    allowed: candidateGrants.map((grant) => grant.value),
+  };
+}
+
+function effectArgument(effect) {
+  if (effect.family === "file") {
+    const value = effect.args.path ?? effect.args.paths ?? effect.args._0;
+    return value ? { key: "path", value } : null;
+  }
+  if (effect.family === "shell") {
+    const value = effect.args.command ?? effect.args.commands ?? effect.args._0;
+    return value ? { key: "command", value } : null;
+  }
+  return null;
+}
+
+function isGrantMatch(argument, grant) {
+  if (argument.key === "path") {
+    return isPathGrantMatch(argument.value, grant.value);
+  }
+  return normalizeCommand(argument.value) === normalizeCommand(grant.value);
+}
+
+function isPathGrantMatch(value, pattern) {
+  const normalizedValue = normalizePathLike(value);
+  const normalizedPattern = normalizePathLike(pattern);
+  if (normalizedValue.startsWith("../") || normalizedPattern.startsWith("../")) {
+    return false;
+  }
+  if (normalizedPattern.endsWith("/**")) {
+    const prefix = normalizedPattern.slice(0, -3);
+    return normalizedValue === prefix || normalizedValue.startsWith(`${prefix}/`);
+  }
+  if (normalizedPattern.includes("*")) {
+    const escaped = normalizedPattern.split("*").map(escapeRegExp).join("[^/]*");
+    return new RegExp(`^${escaped}$`).test(normalizedValue);
+  }
+  return normalizedValue === normalizedPattern;
+}
+
+function normalizePathLike(value) {
+  const normalized = path.posix.normalize(value.replace(/\\/g, "/").replace(/^\.\//, ""));
+  return normalized === "." ? "" : normalized.replace(/\/+$/g, "");
+}
+
+function normalizeCommand(value) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

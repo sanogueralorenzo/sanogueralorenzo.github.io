@@ -22,6 +22,8 @@ Every node carries a stable `id`, `kind`, `span`, and optional `name`.
 - `VerifyBlock`: required or advisory completion checks.
 - `InvariantBlock`: always-on rules evaluated across effects and checkpoints.
 - `EffectDecl`: reusable typed effect signature.
+- `EffectCall`: parsed effect request with callee, arguments, source span, and
+  raw text.
 - `PolicyDecl`: trust, denial, approval, and flow rules.
 - `TypeDecl`: record, enum, alias, union, or generic type declaration.
 - `Expr`: literals, names, field access, calls, lists, records, conditionals,
@@ -101,6 +103,7 @@ blocking diagnostics.
   results, verification predicates, and effect arguments.
 - Reject undeclared effects and effect calls not covered by an in-scope
   capability.
+- Check simple capability constraints for file paths and shell commands.
 - Normalize and compare constrained resources such as paths, commands, domains,
   branches, secret names, and approval targets.
 - Require verification gates for every goal and ensure they are pure unless
@@ -129,6 +132,68 @@ plan in source order.
   forward references.
 - If no prior value has the required type, the checker emits
   `INTENT_STEP_INPUT_UNRESOLVED`.
+
+## Effect Call Arguments
+
+The parser extracts simple effect calls from expression text so the checker can
+validate capability coverage before graph emission.
+
+```json
+{
+  "callee": "shell.exec",
+  "args": [
+    {
+      "name": "command",
+      "kind": "string",
+      "value": "npm test",
+      "span": "loc.22"
+    }
+  ],
+  "raw": "shell.exec(command: \"npm test\")",
+  "span": "loc.21"
+}
+```
+
+Rules:
+
+- Positional and named arguments are retained in source order.
+- Literal string, number, and boolean values are normalized for checking while
+  retaining raw token spans.
+- Nested calls may be parsed as argument values, but the first capability
+  milestone only checks literal file path and shell command arguments.
+- Unknown identifiers in effect arguments are allowed to remain unresolved only
+  when the effect call is not used for a capability-constrained resource.
+
+## Capability Constraints
+
+The first constraint checker supports only direct string-literal matches for
+file paths and shell commands. A capability authorizes an effect call when the
+effect family matches and every constrained argument is covered by the
+capability.
+
+File path constraints:
+
+- File effects use the first positional argument or a named `path` argument.
+- Paths are normalized relative to the source package root without following
+  symlinks.
+- `.` and `..` segments are collapsed; paths that escape the package root are
+  denied.
+- A capability path ending in `/**` authorizes files below that directory.
+- A capability path containing `*` supports a single path-segment wildcard.
+- A capability path without a wildcard authorizes only that exact path.
+
+Shell command constraints:
+
+- Shell effects use the first positional argument or a named `command` argument.
+- Commands are compared after trimming leading and trailing ASCII whitespace and
+  collapsing internal ASCII whitespace runs to a single space.
+- The first milestone allows exact command strings only; globs, regex, shell
+  parsing, environment mutation, and command prefixes are unsupported.
+- Non-literal shell command arguments are denied.
+
+When no in-scope capability covers a constrained resource, the checker emits
+`INTENT_CAPABILITY_DENIED` at the effect call span with the denied argument,
+denied value, and allowed grants.
 
 ## Diagnostics
 

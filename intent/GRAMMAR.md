@@ -14,6 +14,7 @@ The parser must accept:
 - `context`, `capability`, `memory`, `plan`, `verify`, and `invariant` blocks.
 - Step declarations inside `plan`.
 - `require` and `deny` statements.
+- Effect call arguments in simple call expressions.
 - Line comments.
 - String literals.
 - Identifiers.
@@ -87,17 +88,39 @@ order.
 
 ## Expressions
 
-The parser only tokenizes expression starts and preserves raw expression text for
-later phases.
+The parser preserves raw expression text for later phases, but it also parses
+simple call expressions used for contexts, effects, and checks. This lets the
+checker inspect effect arguments without evaluating the full expression
+language.
 
 ```ebnf
-call_expr = identifier_path, ws, "(", raw_until_matching_paren, ")" ;
+call_expr = identifier_path, ws, "(", ws,
+            [ call_arg, { ws, ",", ws, call_arg } ], ws, ")" ;
+call_arg  = [ identifier, ws, ":", ws ], arg_value ;
+arg_value = string | number | bool | identifier_path | call_expr ;
+number    = [ "-" ], digit, { digit }, [ ".", digit, { digit } ] ;
+bool      = "true" | "false" ;
 raw_expr  = raw_text_until_terminator ;
 raw_type_def = raw_text_until_terminator ;
 ```
 
 Raw expressions must still preserve source spans and balanced string/comment
-handling, so diagnostics can point at the original text.
+handling, so diagnostics can point at the original text. When a raw expression
+contains a parseable call expression, the parser emits both the raw text and a
+spanned `CallExpr` with the callee path, ordered arguments, optional argument
+names, literal values, and nested call values.
+
+Unsupported argument syntax inside a parsed call is `INTENT_PARSE_ERROR`.
+Unsupported expression syntax outside the call envelope remains raw text unless
+the surrounding grammar requires a call expression.
+
+Examples of parseable effect calls:
+
+```intent
+file.read(path: "intent/GRAMMAR.md")
+file.write("intent/STATIC_MODEL.md")
+shell.exec(command: "npm test")
+```
 
 ## Lexical Rules
 
