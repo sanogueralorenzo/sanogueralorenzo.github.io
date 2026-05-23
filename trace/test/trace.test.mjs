@@ -504,7 +504,23 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.deepEqual(coveredPayload.unsafeFiles, []);
     assert.deepEqual(coveredPayload.invalidMemories, []);
     assert.deepEqual(coveredPayload.redactionFindings, []);
+    assert.equal(coveredPayload.agentContracts, null);
     assert.deepEqual(coveredPayload.commits.map((commit) => commit.status), ["covered", "skipped"]);
+
+    const missingAgents = await runTraceAllowFailure(repo, ["ci", "HEAD", "--agents"]);
+    assert.equal(missingAgents.exitCode, 1);
+    const missingAgentsPayload = JSON.parse(missingAgents.stdout);
+    assert.equal(missingAgentsPayload.ok, false);
+    assert.equal(missingAgentsPayload.covered, 1);
+    assert.equal(missingAgentsPayload.agentContracts.ok, false);
+    assert.ok(missingAgentsPayload.agentContracts.agents.some((agent) => agent.errors.some((error) => error.includes("missing adapter config"))));
+
+    await runTrace(repo, ["agent", "add", "all"]);
+    const withAgents = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--agents"])).stdout);
+    assert.equal(withAgents.ok, true);
+    assert.equal(withAgents.agentContracts.ok, true);
+    assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
+    assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.event), ["tool", "prompt", "response", "validation"]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

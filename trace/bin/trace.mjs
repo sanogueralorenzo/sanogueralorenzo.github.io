@@ -216,7 +216,7 @@ function parseArgs(values) {
     }
 
     const key = value.slice(2);
-    if (["json", "help", "dry-run", "all"].includes(key)) {
+    if (["json", "help", "dry-run", "all", "agents"].includes(key)) {
       parsed[key] = true;
       continue;
     }
@@ -396,7 +396,7 @@ async function checkTrace() {
 
 async function runCiCheck(range) {
   const root = await repoRoot();
-  const report = await buildCoverageReport(root, range);
+  const report = await buildCoverageReport(root, range, { agents: args.agents });
   print(report);
 
   if (!report.ok) {
@@ -409,7 +409,7 @@ async function runCoverageReport(range) {
   print(await buildCoverageReport(root, range));
 }
 
-async function buildCoverageReport(root, range) {
+async function buildCoverageReport(root, range, options = {}) {
   const commits = (await git(["rev-list", "--reverse", range], { cwd: root })).split("\n").filter(Boolean);
   const missingMemories = [];
   const coveredMemories = [];
@@ -439,10 +439,12 @@ async function buildCoverageReport(root, range) {
   const unsafeFiles = traceFiles.filter(isUnsafeTracePath);
   const memoryAudit = await auditMemoryFiles(root);
   const redaction = await redactionAudit(root);
+  const agentContracts = options.agents ? await buildAgentCheckReport(root, "all") : null;
   const ok = missingMemories.length === 0
     && unsafeFiles.length === 0
     && memoryAudit.invalidMemories.length === 0
-    && redaction.findings.length === 0;
+    && redaction.findings.length === 0
+    && (agentContracts?.ok ?? true);
   const memoryTotal = coveredMemories.length + missingMemories.length;
   return {
     ok,
@@ -458,6 +460,7 @@ async function buildCoverageReport(root, range) {
     unsafeFiles,
     invalidMemories: memoryAudit.invalidMemories,
     redactionFindings: redaction.findings,
+    agentContracts,
   };
 }
 
@@ -1271,6 +1274,14 @@ async function removeAllAgents() {
 
 async function checkAgents(target) {
   const root = await repoRoot();
+  const report = await buildAgentCheckReport(root, target);
+  print(report);
+  if (!report.ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function buildAgentCheckReport(root, target) {
   const installed = await listAgentConfigs(root);
   const installedByName = new Map(installed.map((agent) => [agent.agent, agent]));
   const names = agentCheckNames(target, installed);
@@ -1292,10 +1303,7 @@ async function checkAgents(target) {
   }
 
   const ok = contracts.length > 0 && contracts.every((contract) => contract.valid);
-  print({ ok, agents: contracts });
-  if (!ok) {
-    process.exitCode = 1;
-  }
+  return { ok, agents: contracts };
 }
 
 function agentCheckNames(target, installed) {
@@ -2704,7 +2712,7 @@ Usage:
   trace redact audit
   trace redact remove <label>
   trace coverage [range]
-  trace ci [range]
+  trace ci [range] [--agents]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace review [--all] [--json]
