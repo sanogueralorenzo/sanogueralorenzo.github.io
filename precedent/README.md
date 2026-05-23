@@ -96,6 +96,7 @@ Build a local CLI first, then a GitHub app:
 - `precedent hook`: reads a passive hook event and returns an insertable context block.
 - `precedent replay`: reruns a baseline agent task with and without injected precedent.
 - `precedent explain`: audits why a precedent was promoted or rejected.
+- `precedent run`: wraps a validation command and records the result as a session hook.
 - `precedent report`: prints before/after metrics.
 
 The first version should support one repo, five seeded tasks, one baseline coding agent, and three failure classes:
