@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -132,6 +132,49 @@ test("context excludes rejected precedent", async () => {
   }
 });
 
+test("context and inject suppress promoted precedents with failed replay audit", async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), "precedent-context-test-"));
+
+  try {
+    await promoteWebhookPrecedent(stateDir);
+    const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+    const replayPath = precedents[0].replay.path;
+    const replay = JSON.parse(await readFile(replayPath, "utf8"));
+    replay.promotion.baseline_failures = 9;
+    await writeFile(replayPath, `${JSON.stringify(replay, null, 2)}\n`);
+
+    const context = await runJson([
+      "context",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+    assert.equal(context.contextBlock, "");
+    assert.deepEqual(context.injections, []);
+    assert.equal(context.suppressedInjections[0].reason, "replay_audit_failed");
+    assert.equal(context.suppressedInjections[0].replayAuditStatus, "hash_mismatch");
+
+    const inject = await runJson([
+      "inject",
+      "--state-dir",
+      stateDir,
+      "--task",
+      "add webhook handler",
+      "--scope",
+      "feature:webhooks",
+      "--json",
+    ]);
+    assert.deepEqual(inject.injections, []);
+    assert.equal(inject.suppressedInjections[0].reason, "replay_audit_failed");
+  } finally {
+    await rm(stateDir, { force: true, recursive: true });
+  }
+});
+
 async function promoteWebhookPrecedent(stateDir) {
   await runJson(["init", "--state-dir", stateDir, "--json"]);
   const traceOut = join(stateDir, "trace.json");
@@ -146,6 +189,15 @@ async function promoteWebhookPrecedent(stateDir) {
     "--json",
   ]);
   await runJson(["observe", "--state-dir", stateDir, "--trace", traceOut, "--json"]);
+}
+
+async function readJsonLines(path) {
+  const content = await readFile(path, "utf8");
+
+  return content
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line));
 }
 
 function runJson(args) {

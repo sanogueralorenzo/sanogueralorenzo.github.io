@@ -165,6 +165,7 @@ The prototype models the hook loop with local state in `.precedent/`:
 - Overlapping future contexts with a replacement candidate emit bounded `promotionTrials`, which are machine-readable work orders for replaying and proving the replacement before promotion.
 - `replay --candidate <id> --baseline-command <cmd> [--rerun-command <cmd>]` turns a candidate or promotion trial into the same verified replay trace as a handcrafted replay case. If `--rerun-command` is omitted, Precedent uses the candidate's successful-validation evidence.
 - Promoted precedents must carry a typed replay receipt with replay id, path, artifact SHA-256, failure counts, and baseline/rerun exit codes; `observe` and `check` reject string-only or tampered promotion evidence.
+- `context`, `hook before-turn`, and `inject` suppress promoted precedents whose replay receipt no longer audits as verified, returning `replay_audit_failed` suppression metadata instead of injecting unsafe memory.
 - `check` verifies config, ledgers, candidate evidence, replacement-candidate targets, traces, sessions, replay artifacts, replay failure deltas, promoted-precedent replay receipts, manifest generation, promotion evidence, and raw-secret safety. `--strict` also fails on leftover state locks or atomic-write temp files.
 - `prune` removes old events, session events, and replay artifacts while preserving promoted precedents.
 - `observe --session <id>` compiles the recorded hook events into a trace under `.precedent/traces/`.

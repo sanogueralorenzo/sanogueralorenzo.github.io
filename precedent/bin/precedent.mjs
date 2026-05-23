@@ -284,12 +284,17 @@ async function injectPrecedent() {
     fail("inject requires --task <text>");
   }
 
-  const precedents = await readJsonLines(join(statePath(), "precedents.jsonl"));
-  const matches = rankPrecedents(precedents, {
-    task,
-    scope: args.scope ?? "",
-    changedFiles: parseListArg(args["changed-files"]),
-  }).slice(0, Number(args.limit ?? runtimeConfig.maxInjections));
+  const stateDir = statePath();
+  const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
+  const selected = await suppressReplayAuditInjections({
+    stateDir,
+    matches: rankPrecedents(precedents, {
+      task,
+      scope: args.scope ?? "",
+      changedFiles: parseListArg(args["changed-files"]),
+    }),
+  });
+  const matches = selected.matches.slice(0, Number(args.limit ?? runtimeConfig.maxInjections));
 
   print({
     task,
@@ -301,6 +306,7 @@ async function injectPrecedent() {
       injection: match.injection,
       sourceTrace: match.source_trace,
     })),
+    suppressedInjections: selected.suppressed.map(formatSuppressedInjection),
   });
 }
 
@@ -326,9 +332,12 @@ async function exportContext() {
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
     const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     const events = await readJsonLines(join(stateDir, "events.jsonl"));
-    const rankedMatches = rankPrecedents(precedents, context)
-      .filter((precedent) => precedent.score >= threshold)
-      .slice(0, limit);
+    const replayAuditSelected = await suppressReplayAuditInjections({
+      stateDir,
+      matches: rankPrecedents(precedents, context)
+        .filter((precedent) => precedent.score >= threshold),
+    });
+    const rankedMatches = replayAuditSelected.matches.slice(0, limit);
     const lifecycleSelected = suppressLifecycleInjections({
       events,
       matches: rankedMatches,
@@ -342,6 +351,7 @@ async function exportContext() {
     });
     const contextBlock = formatInjectionBlock(selected.matches);
     const suppressedInjections = [
+      ...replayAuditSelected.suppressed.map(formatSuppressedInjection),
       ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
@@ -793,14 +803,19 @@ async function beforeTurnHook() {
   const limit = Number(args.limit ?? runtimeConfig.maxInjections);
   const threshold = Number(args.threshold ?? 4);
   let matches = [];
+  let suppressed = [];
   let block = "";
 
   await withStateLock(stateDir, async () => {
     await ensureState(stateDir);
     const precedents = await readJsonLines(join(stateDir, "precedents.jsonl"));
-    matches = rankPrecedents(precedents, context)
-      .filter((precedent) => precedent.score >= threshold)
-      .slice(0, limit);
+    const selected = await suppressReplayAuditInjections({
+      stateDir,
+      matches: rankPrecedents(precedents, context)
+        .filter((precedent) => precedent.score >= threshold),
+    });
+    matches = selected.matches.slice(0, limit);
+    suppressed = selected.suppressed.map(formatSuppressedInjection);
     block = formatInjectionBlock(matches);
     const event = {
       type: "context_before_turn",
@@ -815,6 +830,7 @@ async function beforeTurnHook() {
         score: match.score,
         reasons: match.matchReasons ?? [],
       })),
+      suppressedInjections: suppressed,
     };
 
     await appendJsonLine(join(stateDir, "events.jsonl"), event);
@@ -829,6 +845,7 @@ async function beforeTurnHook() {
     injected: matches.length > 0,
     block,
     injections: matches.map(formatInjection),
+    suppressedInjections: suppressed,
   });
 }
 
@@ -854,11 +871,14 @@ async function contextBeforeTurnEventHook(event) {
     const candidates = await readJsonLines(join(stateDir, "candidates.jsonl"));
     const events = await readJsonLines(join(stateDir, "events.jsonl"));
     const rankedMatches = rankPrecedents(precedents, context)
-      .filter((precedent) => precedent.score >= threshold)
-      .slice(0, limit);
+      .filter((precedent) => precedent.score >= threshold);
+    const replayAuditSelected = await suppressReplayAuditInjections({
+      stateDir,
+      matches: rankedMatches,
+    });
     const lifecycleSelected = suppressLifecycleInjections({
       events,
-      matches: rankedMatches,
+      matches: replayAuditSelected.matches.slice(0, limit),
       includeStale: event.includeStale === true,
     });
     const selected = await suppressRepeatedSessionInjections({
@@ -869,6 +889,7 @@ async function contextBeforeTurnEventHook(event) {
     });
     matches = selected.matches;
     suppressed = [
+      ...replayAuditSelected.suppressed.map(formatSuppressedInjection),
       ...lifecycleSelected.suppressed.map((match) => formatSuppressedInjection(match, events)),
       ...selected.suppressed.map(formatSuppressedInjection),
     ];
@@ -2191,10 +2212,36 @@ function formatSuppressedInjection(match, events = null) {
     score: match.score,
     reason: match.suppressionReason ?? "already_injected_in_session",
   };
+  if (match.suppressionReason === "replay_audit_failed") {
+    formatted.replayAuditStatus = match.replayAuditStatus ?? null;
+    formatted.replayAuditMessages = Array.isArray(match.replayAuditMessages) ? match.replayAuditMessages : [];
+  }
   if (events && ["stale_repair_efficacy", "retired_repair_efficacy"].includes(formatted.reason)) {
     formatted.counterexampleCount = counterexamplesForPrecedent(events, match.id).length;
   }
   return formatted;
+}
+
+async function suppressReplayAuditInjections({ stateDir, matches }) {
+  const selected = [];
+  const suppressed = [];
+
+  for (const match of matches) {
+    const audit = await replayAuditEntry(match, stateDir);
+    if (audit.status === "verified") {
+      selected.push(match);
+      continue;
+    }
+
+    suppressed.push({
+      ...match,
+      suppressionReason: "replay_audit_failed",
+      replayAuditStatus: audit.status,
+      replayAuditMessages: audit.messages,
+    });
+  }
+
+  return { matches: selected, suppressed };
 }
 
 function revisionBriefsForSuppressed(events, suppressed) {
