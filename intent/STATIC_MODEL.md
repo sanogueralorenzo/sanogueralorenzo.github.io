@@ -879,8 +879,9 @@ blocking diagnostics.
   outputs are trusted.
 - Type check expressions, inputs, outputs, context values, state values, step
   results, verification predicates, and effect arguments.
-- Reject undeclared effects and effect calls not covered by an in-scope
-  capability.
+- Reject effect calls that do not resolve to a v0 effect adapter contract
+  before capability matching, then reject known effect calls not covered by an
+  in-scope capability.
 - Check simple capability constraints for file paths, shell commands, context
   source file paths, context source web domains, web/http read domains, and git
   commit messages, git push branches or remotes, secret read names, ticket
@@ -1113,6 +1114,10 @@ Rules:
   capability grants that map to a known adapter contract also carry
   `contractId` and `contractArgument`, allowing authorization checks to reject
   stale or mismatched grant references.
+- An effect call whose family/action does not resolve to one of those adapter
+  contracts emits `INTENT_EFFECT_UNKNOWN` at the effect span. Capabilities do
+  not make unknown effects executable; they only authorize known adapter
+  contracts.
 - Effect contract entries are the source of truth for checkpoint risk. Each
   contract has `risk` as `read_only` or `irreversible` plus a `checkpoint`
   policy with `requiredWhen` triggers and a nullable `coverage`. Graph Effect

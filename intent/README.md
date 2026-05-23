@@ -58,8 +58,9 @@ node --test intent/test/*.test.mjs
 The first implementation requires exactly one leading package declaration,
 allows imports only before type or goal declarations, parses goal blocks,
 preserves source spans, checks for missing verification, undeclared effects,
-capability coverage, verification shell grants, and memory retention
-lifecycles, accepts `require` and `deny` invariants, and emits versioned JSON
+unknown effect adapter contracts, capability coverage, verification shell
+grants, and memory retention lifecycles, accepts `require` and `deny`
+invariants, and emits versioned JSON
 contracts for downstream tools.
 
 ## JSON Output Contracts

@@ -1,0 +1,18 @@
+package fixtures.invalid_unknown_effect_contract
+
+type Report = Record
+
+goal unknown_effect_contract() -> Report {
+  context repo("./")
+  capability notify {
+    send channel: "alerts"
+  }
+  plan {
+    step notify_human -> Report {
+      effect Notify(channel: "alerts")
+    }
+  }
+  verify {
+    require no_policy_violations
+  }
+}

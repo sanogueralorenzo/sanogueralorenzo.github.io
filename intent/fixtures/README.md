@@ -32,6 +32,7 @@ These fixtures exercise the Phase 2 static model parser and checker.
 - `invalid_import_after_type.intent`: declares an import after a type declaration, which should fail `INTENT_PARSE_ERROR`.
 - `invalid_missing_verification.intent`: declares mutating effects but omits the required verification gate.
 - `invalid_undeclared_effect.intent`: uses a git push step without declaring the matching capability.
+- `invalid_unknown_effect_contract.intent`: uses an effect name that has a matching-looking capability family but no v0 adapter contract, which should fail `INTENT_EFFECT_UNKNOWN`.
 - `invalid_git_push_branch_mismatch.intent`: declares git push access for `main` but calls `GitPush(branch: "release")`.
 - `invalid_git_commit_message_mismatch.intent`: declares git commit access for `ship fix` but calls `GitCommit(message: "release fix")`.
 - `invalid_deploy_target_outside_capability.intent`: declares deploy access for `staging` but calls `Deploy` for `production`, which should fail `INTENT_CAPABILITY_DENIED` at the target argument span.

@@ -849,6 +849,7 @@ function checkIntent(ast) {
     }
 
     validateUnsupportedSyntax(goal, diagnostics);
+    validateEffectContracts(goal, diagnostics);
     validateMemory(goal, diagnostics);
     validateContextSources(goal, diagnostics);
 
@@ -868,6 +869,9 @@ function checkIntent(ast) {
     const capabilities = goal.capabilities.map((capability) => capability.family);
     for (const step of goal.steps) {
       for (const effect of step.effects) {
+        if (!isResolvedEffectContract(effect)) {
+          continue;
+        }
         if (!isEffectAuthorized(effect, goal.capabilities)) {
           diagnostics.push(error("INTENT_EFFECT_UNDECLARED", `effect '${effect.name}' is not authorized by goal capabilities.`, effect.span, {
             effect: effect.name,
@@ -920,6 +924,22 @@ function checkIntent(ast) {
   }
 
   return diagnostics;
+}
+
+function validateEffectContracts(goal, diagnostics) {
+  for (const step of goal.steps) {
+    for (const effect of step.effects) {
+      if (isResolvedEffectContract(effect)) {
+        continue;
+      }
+      diagnostics.push(error("INTENT_EFFECT_UNKNOWN", `effect '${effect.name}' does not resolve to a v0 effect adapter contract.`, effect.span, {
+        effect: effect.name,
+        family: effect.family,
+        action: effect.action,
+        step: step.name,
+      }));
+    }
+  }
 }
 
 function validateApprovalRequirements(goal, diagnostics) {
@@ -6253,6 +6273,10 @@ function effectContractForAccess(effect) {
   return EFFECT_CONTRACTS.find((contract) => {
     return effect.family === contract.family && effect.action === contract.action;
   }) ?? null;
+}
+
+function isResolvedEffectContract(effect) {
+  return Boolean(effectContractForAccess(effect));
 }
 
 function effectContractForGrant(grant) {
