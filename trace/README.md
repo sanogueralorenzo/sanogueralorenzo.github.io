@@ -71,6 +71,7 @@ trace record --validation "npm test"
 trace show HEAD
 trace review
 trace log
+trace log --json --limit 20
 trace index
 trace search "auth retry"
 trace search --field decisions "retry"
@@ -120,6 +121,7 @@ node trace/bin/trace.mjs record --validation "npm test"
 node trace/bin/trace.mjs show HEAD
 node trace/bin/trace.mjs review
 node trace/bin/trace.mjs log
+node trace/bin/trace.mjs log --json --limit 20
 node trace/bin/trace.mjs index
 node trace/bin/trace.mjs search "auth retry"
 node trace/bin/trace.mjs search --field decisions "retry"

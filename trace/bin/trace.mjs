@@ -1755,21 +1755,37 @@ function appendReviewSection(lines, name, value) {
 
 async function logMemories() {
   const root = await repoRoot();
-  const limit = Number.parseInt(args.limit ?? "20", 10);
+  const limit = parsePositiveInteger(args.limit ?? "20", "--limit");
   const files = await listMemoryFiles(root);
   const rows = [];
 
   for (const file of files) {
     const content = await readFile(file, "utf8");
-    const sha = content.match(/^Commit: `([^`]+)`/m)?.[1] ?? file.split("/").pop()?.replace(/\.md$/, "") ?? "";
-    const intent = content.match(/^## Intent\n\n([\s\S]*?)\n\n## /m)?.[1]?.trim() ?? "No intent recorded.";
-    rows.push({ sha, intent: firstLine(intent), mtime: (await stat(file)).mtimeMs });
+    rows.push(memoryLogRecord(root, file, content, (await stat(file)).mtimeMs));
   }
 
-  rows.sort((left, right) => right.mtime - left.mtime);
-  for (const row of rows.slice(0, limit)) {
-    process.stdout.write(`${row.sha.slice(0, 12)} ${row.intent}\n`);
+  rows.sort((left, right) => String(right.created).localeCompare(String(left.created)) || right.mtimeMs - left.mtimeMs);
+  const memories = rows.slice(0, limit).map(({ mtimeMs, ...row }) => row);
+
+  if (args.json) {
+    print({ ok: true, schema_version: "trace.memory_log.v1", limit, memories });
+    return;
   }
+
+  for (const row of memories) {
+    process.stdout.write(`${row.commit.slice(0, 12)} ${row.intent || "No intent recorded."}\n`);
+  }
+}
+
+function memoryLogRecord(root, file, content, mtimeMs) {
+  return {
+    ...memoryRecord(content),
+    memory: relativePath(root, file),
+    created: content.match(/^Created: `([^`]+)`/m)?.[1] ?? "",
+    checkpoint: content.match(/^Checkpoint: `([^`]+)`/m)?.[1] ?? "none",
+    session: content.match(/^Session: `([^`]+)`/m)?.[1] ?? "none",
+    mtimeMs,
+  };
 }
 
 async function searchMemories(query) {
@@ -2894,7 +2910,7 @@ Usage:
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."]
   trace show [commit]
   trace review [--all] [--json]
-  trace log [--limit 20]
+  trace log [--limit 20] [--json]
   trace index
   trace search [--field decisions|files|validation|risks|handoff] [--limit 20] [--json] <query>
   trace recall [query] [--files path[,path]] [--limit 5] [--json]

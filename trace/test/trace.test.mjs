@@ -90,6 +90,20 @@ test("record writes commit-scoped memory and supports show/search/summary", asyn
     assert.match(fileRecall.stdout, /Files: `app.txt`/);
     assert.match(fileRecall.stdout, /remember why app text exists/);
 
+    const memoryLog = await runTrace(repo, ["log"]);
+    assert.match(memoryLog.stdout, new RegExp(`${payload.commit.slice(0, 12)} remember why app text exists`));
+    const memoryLogJson = JSON.parse((await runTrace(repo, ["log", "--json", "--limit", "1"])).stdout);
+    assert.equal(memoryLogJson.schema_version, "trace.memory_log.v1");
+    assert.equal(memoryLogJson.limit, 1);
+    assert.equal(memoryLogJson.memories.length, 1);
+    assert.equal(memoryLogJson.memories[0].commit, payload.commit);
+    assert.equal(memoryLogJson.memories[0].memory, payload.memory);
+    assert.equal(memoryLogJson.memories[0].intent, "remember why app text exists");
+    assert.deepEqual(memoryLogJson.memories[0].decisions, ["Use committed Markdown for reviewable memory"]);
+    assert.deepEqual(memoryLogJson.memories[0].files, ["app.txt"]);
+    assert.match(memoryLogJson.memories[0].checkpoint, /^[0-9a-f]+$/);
+    assert.match(memoryLogJson.memories[0].session, /^[A-Za-z0-9-]+$/);
+
     const summary = await runTrace(repo, ["summary", "HEAD"]);
     assert.match(summary.stdout, /Trace Summary/);
     assert.match(summary.stdout, /remember why app text exists/);
