@@ -766,6 +766,11 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(withCheckpoints.checkpointIntegrity.checked, 1);
     assert.equal(withCheckpoints.checkpointIntegrity.linkedMemories, 1);
 
+    const coverageWithCheckpoints = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--checkpoints"])).stdout);
+    assert.equal(coverageWithCheckpoints.ok, true);
+    assert.equal(coverageWithCheckpoints.checkpointIntegrity.ok, true);
+    assert.equal(coverageWithCheckpoints.checkpointIntegrity.linkedMemories, 1);
+
     const missingAgents = await runTraceAllowFailure(repo, ["ci", "HEAD", "--agents"]);
     assert.equal(missingAgents.exitCode, 1);
     const missingAgentsPayload = JSON.parse(missingAgents.stdout);
@@ -774,6 +779,10 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.equal(missingAgentsPayload.agentContracts.ok, false);
     assert.ok(missingAgentsPayload.agentContracts.agents.some((agent) => agent.errors.some((error) => error.includes("missing adapter config"))));
 
+    const coverageWithMissingAgents = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--agents"])).stdout);
+    assert.equal(coverageWithMissingAgents.ok, false);
+    assert.equal(coverageWithMissingAgents.agentContracts.ok, false);
+
     await runTrace(repo, ["agent", "add", "all"]);
     const withAgents = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--agents"])).stdout);
     assert.equal(withAgents.ok, true);
@@ -781,12 +790,20 @@ test("ci checks memory coverage while skipping trace-only memory commits", async
     assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.agent), ["codex", "claude-code", "gemini", "generic"]);
     assert.deepEqual(withAgents.agentContracts.agents.map((agent) => agent.event), ["tool", "prompt", "response", "validation"]);
 
+    const coverageWithAgents = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--agents", "--checkpoints"])).stdout);
+    assert.equal(coverageWithAgents.ok, true);
+    assert.equal(coverageWithAgents.agentContracts.ok, true);
+    assert.equal(coverageWithAgents.checkpointIntegrity.ok, true);
+
     const fullCi = JSON.parse((await runTrace(repo, ["ci", "HEAD", "--agents", "--checkpoints"])).stdout);
     assert.equal(fullCi.ok, true);
     assert.equal(fullCi.agentContracts.ok, true);
     assert.equal(fullCi.checkpointIntegrity.ok, true);
 
     await runTrace(repo, ["checkpoint", "cleanup", "--keep", "0"]);
+    const coverageMissingCheckpointData = JSON.parse((await runTrace(repo, ["coverage", "HEAD", "--checkpoints"])).stdout);
+    assert.equal(coverageMissingCheckpointData.ok, false);
+    assert.equal(coverageMissingCheckpointData.checkpointIntegrity.ok, false);
     const missingCheckpointData = await runTraceAllowFailure(repo, ["ci", "HEAD", "--checkpoints"]);
     assert.equal(missingCheckpointData.exitCode, 1);
     const missingCheckpointPayloadReport = JSON.parse(missingCheckpointData.stdout);

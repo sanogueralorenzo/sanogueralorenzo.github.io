@@ -527,7 +527,7 @@ async function runCiCheck(range) {
 
 async function runCoverageReport(range) {
   const root = await repoRoot();
-  print(await buildCoverageReport(root, range, { strictMemory: args["strict-memory"] }));
+  print(await buildCoverageReport(root, range, { agents: args.agents, checkpoints: args.checkpoints, strictMemory: args["strict-memory"] }));
 }
 
 async function buildCoverageReport(root, range, options = {}) {
@@ -3542,7 +3542,7 @@ Usage:
   trace redact list
   trace redact audit
   trace redact remove <label>
-  trace coverage [range]
+  trace coverage [range] [--agents] [--checkpoints] [--strict-memory]
   trace ci [range] [--agents] [--checkpoints] [--strict-memory]
   trace record [--commit HEAD] [--intent "..."] [--validation "..."] [--risk "..."] [--check-session] [--strict] [--dry-run]
   trace show [commit] [--json]
