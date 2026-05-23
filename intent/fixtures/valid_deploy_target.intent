@@ -1,0 +1,37 @@
+package fixtures.valid_deploy_target
+
+type DeployContext = {
+  target: String
+}
+
+type DeployResult = {
+  target: String
+}
+
+goal "deploy granted target" {
+  context deploy("staging")
+
+  capability deploy {
+    deploy target: "staging"
+  }
+
+  memory session {
+    retain summaries until goal_complete
+    retain evidence until 30d
+  }
+
+  plan {
+    step inspect_deploy_target -> DeployContext
+    step deploy_release(input: DeployContext) -> DeployResult {
+      effect Deploy(target: "staging")
+    }
+  }
+
+  verify {
+    require no_policy_violations
+  }
+
+  invariant {
+    deny production_deploy
+  }
+}
