@@ -17,7 +17,6 @@ func TestInit(t *testing.T) {
 	}
 	assertExists(t, filepath.Join(repo, ".trace", "config.json"))
 	assertExists(t, filepath.Join(repo, ".trace", "sessions"))
-	assertExists(t, filepath.Join(repo, ".trace", "commits", ".gitkeep"))
 }
 
 func TestEnableInstallsGitAndAgentHooks(t *testing.T) {
@@ -115,10 +114,16 @@ func TestFallbackMemoryCheckpointSideRefAndRecall(t *testing.T) {
 	if len(record.Sessions) != 0 {
 		t.Fatalf("expected fallback record, got sessions: %#v", record.Sessions)
 	}
-	assertContainsFile(t, filepath.Join(repo, ".trace", "commits", record.Commit+".md"), "diff fallback")
 	out := git(t, repo, "show", checkpointRef+":"+record.ID+"/checkpoint.json")
 	if !strings.Contains(out, "Add fallback memory") {
 		t.Fatalf("checkpoint did not contain commit message: %s", out)
+	}
+	mem := git(t, repo, "show", memoryRef+":"+record.Commit+".md")
+	if !strings.Contains(mem, "diff fallback") {
+		t.Fatalf("memory ref did not contain fallback note: %s", mem)
+	}
+	if _, err := os.Stat(filepath.Join(repo, ".trace", "commits", record.Commit+".md")); !os.IsNotExist(err) {
+		t.Fatalf("memory note should not dirty the worktree; stat err = %v", err)
 	}
 
 	t.Chdir(repo)
@@ -126,7 +131,7 @@ func TestFallbackMemoryCheckpointSideRefAndRecall(t *testing.T) {
 	if err := recallMemory("fallback", &recall); err != nil {
 		t.Fatalf("recallMemory: %v", err)
 	}
-	if !strings.Contains(recall.String(), ".trace/commits/") {
+	if !strings.Contains(recall.String(), memoryRef+":"+record.Commit+".md") {
 		t.Fatalf("recall did not find memory: %s", recall.String())
 	}
 	var show bytes.Buffer
@@ -159,7 +164,7 @@ func TestAgentMemoryFileWriteAndCheckpoint(t *testing.T) {
 	if len(record.Sessions) != 1 {
 		t.Fatalf("expected one captured session, got %d", len(record.Sessions))
 	}
-	mem := readFile(t, filepath.Join(repo, ".trace", "commits", record.Commit+".md"))
+	mem := git(t, repo, "show", memoryRef+":"+record.Commit+".md")
 	if !strings.Contains(mem, "captured agent sessions") {
 		t.Fatalf("memory did not mention agent source: %s", mem)
 	}

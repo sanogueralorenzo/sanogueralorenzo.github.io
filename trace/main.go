@@ -21,6 +21,7 @@ import (
 const (
 	traceDir      = ".trace"
 	checkpointRef = "refs/trace/checkpoints/v1"
+	memoryRef     = "refs/trace/memory/v1"
 )
 
 type app struct {
@@ -155,7 +156,6 @@ func initTrace(root string) error {
 	dirs := []string{
 		filepath.Join(root, traceDir),
 		filepath.Join(root, traceDir, "sessions"),
-		filepath.Join(root, traceDir, "commits"),
 		filepath.Join(root, traceDir, "archive"),
 	}
 	for _, dir := range dirs {
@@ -165,7 +165,7 @@ func initTrace(root string) error {
 	}
 	configPath := filepath.Join(root, traceDir, "config.json")
 	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
-		cfg := []byte("{\n  \"version\": 1,\n  \"checkpoint_ref\": \"" + checkpointRef + "\"\n}\n")
+		cfg := []byte("{\n  \"version\": 1,\n  \"checkpoint_ref\": \"" + checkpointRef + "\",\n  \"memory_ref\": \"" + memoryRef + "\"\n}\n")
 		if err := os.WriteFile(configPath, cfg, 0o600); err != nil {
 			return fmt.Errorf("write %s: %w", configPath, err)
 		}
@@ -173,12 +173,6 @@ func initTrace(root string) error {
 	ignore := "sessions/\narchive/\n"
 	if err := os.WriteFile(filepath.Join(root, traceDir, ".gitignore"), []byte(ignore), 0o600); err != nil {
 		return fmt.Errorf("write .trace/.gitignore: %w", err)
-	}
-	gitkeep := filepath.Join(root, traceDir, "commits", ".gitkeep")
-	if _, err := os.Stat(gitkeep); errors.Is(err, os.ErrNotExist) {
-		if err := os.WriteFile(gitkeep, nil, 0o600); err != nil {
-			return fmt.Errorf("write .trace/commits/.gitkeep: %w", err)
-		}
 	}
 	return nil
 }
@@ -768,6 +762,10 @@ func writeCheckpoint(root string, record checkpointRecord) error {
 		return fmt.Errorf("marshal checkpoint: %w", err)
 	}
 	data = append(data, '\n')
+	return writeRefFile(root, checkpointRef, record.ID+"/checkpoint.json", data, "trace checkpoint "+record.ID)
+}
+
+func writeRefFile(root string, ref string, path string, data []byte, message string) error {
 	index, err := os.CreateTemp("", "trace-index-*")
 	if err != nil {
 		return fmt.Errorf("create temp index: %w", err)
@@ -777,45 +775,44 @@ func writeCheckpoint(root string, record checkpointRecord) error {
 	defer os.Remove(indexPath)
 	env := []string{"GIT_INDEX_FILE=" + indexPath}
 	if _, err := commandEnv(root, env, nil, "git", "read-tree", "--empty"); err != nil {
-		return fmt.Errorf("prepare checkpoint index: %w", err)
+		return fmt.Errorf("prepare trace index: %w", err)
 	}
-	parent, hasParent := currentCheckpointCommit(root)
+	parent, hasParent := currentRefCommit(root, ref)
 	if hasParent {
-		if _, err := commandEnv(root, env, nil, "git", "read-tree", checkpointRef); err != nil {
-			return fmt.Errorf("read checkpoint ref: %w", err)
+		if _, err := commandEnv(root, env, nil, "git", "read-tree", ref); err != nil {
+			return fmt.Errorf("read trace ref %s: %w", ref, err)
 		}
 	}
 	blob, err := commandEnv(root, env, data, "git", "hash-object", "-w", "--stdin")
 	if err != nil {
-		return fmt.Errorf("write checkpoint blob: %w", err)
+		return fmt.Errorf("write trace blob: %w", err)
 	}
 	blob = strings.TrimSpace(blob)
-	path := record.ID + "/checkpoint.json"
 	if _, err := commandEnv(root, env, nil, "git", "update-index", "--add", "--cacheinfo", "100644,"+blob+","+path); err != nil {
-		return fmt.Errorf("stage checkpoint blob: %w", err)
+		return fmt.Errorf("stage trace blob: %w", err)
 	}
 	tree, err := commandEnv(root, env, nil, "git", "write-tree")
 	if err != nil {
-		return fmt.Errorf("write checkpoint tree: %w", err)
+		return fmt.Errorf("write trace tree: %w", err)
 	}
 	tree = strings.TrimSpace(tree)
-	args := []string{"commit-tree", tree, "-m", "trace checkpoint " + record.ID}
+	args := []string{"commit-tree", tree, "-m", message}
 	if hasParent {
 		args = append(args, "-p", parent)
 	}
 	commit, err := commandEnv(root, env, nil, "git", args...)
 	if err != nil {
-		return fmt.Errorf("commit checkpoint tree: %w", err)
+		return fmt.Errorf("commit trace tree: %w", err)
 	}
 	commit = strings.TrimSpace(commit)
-	if _, err := command(root, "git", "update-ref", checkpointRef, commit); err != nil {
-		return fmt.Errorf("update checkpoint ref: %w", err)
+	if _, err := command(root, "git", "update-ref", ref, commit); err != nil {
+		return fmt.Errorf("update trace ref %s: %w", ref, err)
 	}
 	return nil
 }
 
-func currentCheckpointCommit(root string) (string, bool) {
-	out, err := command(root, "git", "rev-parse", "--verify", checkpointRef+"^{commit}")
+func currentRefCommit(root string, ref string) (string, bool) {
+	out, err := command(root, "git", "rev-parse", "--verify", ref+"^{commit}")
 	if err != nil {
 		return "", false
 	}
@@ -823,10 +820,11 @@ func currentCheckpointCommit(root string) (string, bool) {
 }
 
 func writeMemory(root string, record checkpointRecord) error {
-	path := filepath.Join(root, traceDir, "commits", record.Commit+".md")
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return fmt.Errorf("create commit memory dir: %w", err)
-	}
+	note := memoryNote(record)
+	return writeRefFile(root, memoryRef, record.Commit+".md", []byte(note), "trace memory "+shortSHA(record.Commit))
+}
+
+func memoryNote(record checkpointRecord) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", shortSHA(record.Commit))
 	fmt.Fprintf(&b, "Commit: `%s`\n\n", record.Commit)
@@ -851,7 +849,7 @@ func writeMemory(root string, record checkpointRecord) error {
 			fmt.Fprintf(&b, "- `%s`\n", file)
 		}
 	}
-	return os.WriteFile(path, []byte(b.String()), 0o600)
+	return b.String()
 }
 
 func archiveSessions(root string, commit string) error {
@@ -909,11 +907,11 @@ func showMemory(commit string, w io.Writer) error {
 		return fmt.Errorf("resolve commit %q: %w", commit, err)
 	}
 	sha = strings.TrimSpace(sha)
-	data, err := os.ReadFile(filepath.Join(root, traceDir, "commits", sha+".md"))
+	data, err := command(root, "git", "show", memoryRef+":"+sha+".md")
 	if err != nil {
 		return fmt.Errorf("memory not found for %s", commit)
 	}
-	_, err = w.Write(data)
+	_, err = io.WriteString(w, data)
 	return err
 }
 
@@ -926,25 +924,25 @@ func recallMemory(query string, w io.Writer) error {
 	if query == "" {
 		return errors.New("recall query cannot be empty")
 	}
-	dir := filepath.Join(root, traceDir, "commits")
-	var matches []string
-	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
-			return err
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		content := strings.ToLower(string(data))
-		if strings.Contains(content, query) {
-			rel, _ := filepath.Rel(root, path)
-			matches = append(matches, filepath.ToSlash(rel)+": "+firstLine(string(data)))
-		}
-		return nil
-	})
+	out, err := command(root, "git", "ls-tree", "-r", "--name-only", memoryRef)
 	if err != nil {
-		return fmt.Errorf("recall memory: %w", err)
+		fmt.Fprintln(w, "no matching memory")
+		return nil
+	}
+	var matches []string
+	for _, path := range strings.Split(out, "\n") {
+		path = strings.TrimSpace(path)
+		if path == "" || !strings.HasSuffix(path, ".md") {
+			continue
+		}
+		data, err := command(root, "git", "show", memoryRef+":"+path)
+		if err != nil {
+			return fmt.Errorf("read memory %s: %w", path, err)
+		}
+		content := strings.ToLower(data)
+		if strings.Contains(content, query) {
+			matches = append(matches, memoryRef+":"+path+": "+firstLine(data))
+		}
 	}
 	sort.Strings(matches)
 	if len(matches) == 0 {
