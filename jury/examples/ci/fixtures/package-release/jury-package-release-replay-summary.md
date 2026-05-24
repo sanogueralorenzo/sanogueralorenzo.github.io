@@ -1,8 +1,0 @@
-### Jury package release replay
-
-- failedPackageVersion: 0.1.0
-- failedTarballName: sanogueralorenzo-jury-0.1.0.tgz
-- replacementPackageVersion: 0.1.1
-- failedArchiveEvidence: downstream-failure-gate.json, failed-npm-view.json, rollback-audit.json
-- replacementArchiveEvidence: replacement-downstream-gate.json, replacement-npm-view.json, replacement-patch-audit.json
-- remediationApprovedBy: release-maintainer@example.com

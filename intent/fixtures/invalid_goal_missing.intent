@@ -1,7 +1,0 @@
-package fixtures.invalid_goal_missing
-
-import std.types
-
-type Finding = {
-  summary: String
-}

@@ -1,6 +1,0 @@
-{
-  "session_id": "example-session",
-  "type": "tool_call",
-  "tool_name": "shell",
-  "arguments": "npm --prefix trace test"
-}
