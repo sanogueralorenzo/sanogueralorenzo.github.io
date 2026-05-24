@@ -1,5 +1,7 @@
 # Trace
 
+![Trace intro flow](assets/trace_intro.png)
+
 Trace is a Go CLI prototype for repository memory. It records why a commit
 changed, not just what changed.
 
