@@ -266,17 +266,6 @@ stop_caffeinate_if_any() {
   rm -f "$CAFFEINATE_PID_FILE"
 }
 
-is_caffeinate_running_for_pid() {
-  local target_pid="$1"
-  local pid
-  pid="$(read_caffeinate_pid || true)"
-  [[ -n "$pid" ]] || return 1
-
-  local command
-  command="$(/bin/ps -p "$pid" -o command= 2>/dev/null || true)"
-  [[ "$command" == *"caffeinate"* && "$command" == *" -w $target_pid"* ]]
-}
-
 stop_launchd_if_any() {
   if ! is_macos; then
     return 0
@@ -299,14 +288,6 @@ start_caffeinate_for_pid() {
   local caffeinate_pid="$!"
   echo "$caffeinate_pid" > "$CAFFEINATE_PID_FILE"
   disown "$caffeinate_pid" 2>/dev/null || true
-}
-
-ensure_caffeinate_for_pid() {
-  local target_pid="$1"
-  if is_caffeinate_running_for_pid "$target_pid"; then
-    return 0
-  fi
-  start_caffeinate_for_pid "$target_pid"
 }
 
 wait_for_managed_process() {
@@ -334,7 +315,7 @@ output_status() {
   if is_running; then
     local pid
     pid="$(read_pid)"
-    ensure_caffeinate_for_pid "$pid"
+    start_caffeinate_for_pid "$pid"
     if [[ "$plain" == "true" ]]; then
       echo "running:$pid"
     else
