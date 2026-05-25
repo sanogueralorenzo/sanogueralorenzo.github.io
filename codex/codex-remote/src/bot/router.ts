@@ -5,6 +5,7 @@ export const HELP_COMMAND_ALIASES = ["help", "h"] as const;
 export const NEW_COMMAND_ALIASES = ["new", "n"] as const;
 export const RESUME_COMMAND_ALIASES = ["resume", "r"] as const;
 export const DELETE_COMMAND_ALIASES = ["delete", "d"] as const;
+export const GOAL_COMMAND_ALIASES = ["goal"] as const;
 
 const ACTION_BY_TEXT: Record<string, ActionName | "help" | "start"> = {
   new: "new",

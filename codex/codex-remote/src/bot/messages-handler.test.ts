@@ -51,9 +51,9 @@ describe("registerMessageHandlers", () => {
   it("passes unknown slash commands through as prompts", async () => {
     const { handlers, sendText } = registerHandlers();
 
-    await sendText("/goal ship the Telegram bridge");
+    await sendText("/unknown ship the Telegram bridge");
 
-    expect(handlers.onPrompt).toHaveBeenCalledWith(expect.anything(), "123", "/goal ship the Telegram bridge");
+    expect(handlers.onPrompt).toHaveBeenCalledWith(expect.anything(), "123", "/unknown ship the Telegram bridge");
   });
 
   it("still handles known text actions before prompts", async () => {

@@ -41,12 +41,15 @@ help     Print this help output.
   ```text
   Codex Remote
 
-  Commands: /new /resume /delete /help
+  Commands: /new /resume /delete /goal /help
   Tip: Voice notes work!
   ```
 - `/new` starts folder selection for a new thread.
 - `/resume` lists threads ordered by latest update first in the message body and shows numeric reply buttons to bind the chat.
 - `/delete` lists threads ordered by latest update first in the message body and shows numeric reply buttons to delete.
+- `/goal` shows the current goal for the bound thread.
+- `/goal <objective>` sets the bound thread goal and marks it active.
+- `/goal pause`, `/goal resume`, and `/goal clear` update or clear the bound thread goal.
 
 ### Required Config
 

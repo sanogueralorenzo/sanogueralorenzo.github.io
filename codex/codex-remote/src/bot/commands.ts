@@ -2,6 +2,7 @@ import { Bot } from "grammy";
 import { ReplyFn } from "./context.js";
 import {
   DELETE_COMMAND_ALIASES,
+  GOAL_COMMAND_ALIASES,
   HELP_COMMAND_ALIASES,
   NEW_COMMAND_ALIASES,
   RESUME_COMMAND_ALIASES,
@@ -14,6 +15,7 @@ type CommandHandlers = {
   onNew: (chatId: string, reply: ReplyFn) => Promise<void>;
   onResume: (chatId: string, reply: ReplyFn) => Promise<void>;
   onDelete: (chatId: string, reply: ReplyFn) => Promise<void>;
+  onGoal: (chatId: string, text: string, reply: ReplyFn) => Promise<void>;
 };
 
 export function registerCommandHandlers(bot: Bot, handlers: CommandHandlers): void {
@@ -42,4 +44,16 @@ export function registerCommandHandlers(bot: Bot, handlers: CommandHandlers): vo
       handlers.onDelete(String(ctx.chat.id), (text, options) => ctx.reply(text, options))
     );
   }
+
+  for (const command of GOAL_COMMAND_ALIASES) {
+    bot.command(command, (ctx) =>
+      handlers.onGoal(String(ctx.chat.id), parseCommandPayload(ctx.message?.text), (text, options) =>
+        ctx.reply(text, options)
+      )
+    );
+  }
+}
+
+function parseCommandPayload(text: string | undefined): string {
+  return text?.trim().replace(/^\/\S+\s*/, "").trim() ?? "";
 }

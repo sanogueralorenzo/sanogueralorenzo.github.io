@@ -11,6 +11,13 @@ export type {
 
 export { listThreads } from "./threads.js";
 export {
+  clearThreadGoal,
+  getThreadGoal,
+  setThreadGoalObjective,
+  setThreadGoalStatus,
+  type GoalStatusUpdate,
+} from "./goals.js";
+export {
   createAndSendFirstMessageWithTimeoutContinuation,
   sendMessageWithTimeoutContinuation,
   sendMessageWithoutResumeWithTimeoutContinuation,

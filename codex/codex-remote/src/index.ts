@@ -1,6 +1,12 @@
 import process from "node:process";
 import { Bot } from "grammy";
 import { BindingStore } from "./adapters/binding-store.js";
+import {
+  clearThreadGoal,
+  getThreadGoal,
+  setThreadGoalObjective,
+  setThreadGoalStatus
+} from "./adapters/app-server/client.js";
 import { registerBotHandlers } from "./bot/index.js";
 import { createApprovalService } from "./bot/approvals.js";
 import { PromptContext, ReplyFn } from "./bot/context.js";
@@ -11,6 +17,7 @@ import { getConversationOptionsFromEnv, loadRuntimeConfig } from "./config.js";
 import { ensureThreadTitleWatcherStarted } from "./adapters/codex-core-sessions.js";
 import { createPrecedentBridge } from "./services/precedent-bridge.js";
 import { createPromptRunner } from "./services/prompt-runner.js";
+import { createGoalActions } from "./services/goal-actions.js";
 import { ListedFolderChoice, ListedThread, createThreadActions } from "./services/thread-actions.js";
 import { createVoiceService } from "./services/voice.js";
 
@@ -48,6 +55,14 @@ const threadActions = createThreadActions({
   selectionStateByChat,
   resolveDefaultCwd: () => getConversationOptionsFromEnv(userHome).cwd,
   bindChatToThread
+});
+
+const goalActions = createGoalActions({
+  store,
+  getGoal: getThreadGoal,
+  setGoalObjective: setThreadGoalObjective,
+  setGoalStatus: setThreadGoalStatus,
+  clearGoal: clearThreadGoal,
 });
 
 const approvalService = createApprovalService({
@@ -96,6 +111,15 @@ registerBotHandlers(bot, {
           await threadActions.executeAction(chatId, action, reply);
         }),
       (message) => reply(formatFailure("Action failed.", message))
+    );
+  },
+  onGoal: async (chatId, text, reply) => {
+    await withActionErrorBoundary(
+      () =>
+        withChatLock(chatId, async () => {
+          await goalActions.executeGoalCommand(chatId, text, reply);
+        }),
+      (message) => reply(formatFailure("Goal failed.", message))
     );
   },
   onTryResumeText: async (chatId, text, reply) => {
