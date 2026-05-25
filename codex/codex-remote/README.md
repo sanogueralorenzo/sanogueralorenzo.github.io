@@ -47,7 +47,6 @@ help     Print this help output.
 - `/new` starts folder selection for a new thread.
 - `/resume` lists threads ordered by latest update first to bind the chat.
 - `/delete` lists threads ordered by latest update first to delete.
-- While a `/resume`, `/delete`, or `/new` selection is pending, unrecognized text is treated as an invalid selection and is not forwarded to the currently bound Codex thread.
 
 ### Required Config
 
