@@ -8,7 +8,15 @@ import type { PluginInterface } from "./PluginInterface.js";
 import type { PluginShareContext } from "./PluginShareContext.js";
 import type { PluginSource } from "./PluginSource.js";
 
-export type PluginSummary = { id: string, name: string,
+export type PluginSummary = { id: string,
+/**
+ * Backend remote plugin identifier when available.
+ */
+remotePluginId: string | null,
+/**
+ * Version of the locally materialized plugin package when available.
+ */
+localVersion: string | null, name: string,
 /**
  * Remote sharing context associated with this plugin when available.
  */

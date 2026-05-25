@@ -8,7 +8,6 @@ import type { ReasoningSummary } from "../ReasoningSummary.js";
 import type { JsonValue } from "../serde_json/JsonValue.js";
 import type { ApprovalsReviewer } from "./ApprovalsReviewer.js";
 import type { AskForApproval } from "./AskForApproval.js";
-import type { PermissionProfileSelectionParams } from "./PermissionProfileSelectionParams.js";
 import type { SandboxPolicy } from "./SandboxPolicy.js";
 import type { TurnEnvironmentParams } from "./TurnEnvironmentParams.js";
 import type { UserInput } from "./UserInput.js";
@@ -31,6 +30,12 @@ environments?: Array<TurnEnvironmentParams> | null,
  */
 cwd?: string | null,
 /**
+ * Replace the thread's runtime workspace roots for this turn and
+ * subsequent turns. Relative paths are resolved against the effective
+ * cwd for the turn.
+ */
+runtimeWorkspaceRoots?: Array<string> | null,
+/**
  * Override the approval policy for this turn and subsequent turns.
  */
 approvalPolicy?: AskForApproval | null,
@@ -44,12 +49,10 @@ approvalsReviewer?: ApprovalsReviewer | null,
  */
 sandboxPolicy?: SandboxPolicy | null,
 /**
- * Select a named permissions profile for this turn and subsequent turns.
- * Cannot be combined with `sandboxPolicy`. Use bounded `modifications`
- * for supported turn adjustments instead of replacing the full
- * permissions profile.
+ * Select a named permissions profile id for this turn and subsequent
+ * turns. Cannot be combined with `sandboxPolicy`.
  */
-permissions?: PermissionProfileSelectionParams | null,
+permissions?: string | null,
 /**
  * Override the model for this turn and subsequent turns.
  */

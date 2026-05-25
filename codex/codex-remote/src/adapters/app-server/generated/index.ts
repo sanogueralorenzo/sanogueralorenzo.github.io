@@ -5,6 +5,7 @@ export type { AgentPath } from "./AgentPath.js";
 export type { ApplyPatchApprovalParams } from "./ApplyPatchApprovalParams.js";
 export type { ApplyPatchApprovalResponse } from "./ApplyPatchApprovalResponse.js";
 export type { AuthMode } from "./AuthMode.js";
+export type { AutoCompactTokenLimitScope } from "./AutoCompactTokenLimitScope.js";
 export type { ClientInfo } from "./ClientInfo.js";
 export type { ClientNotification } from "./ClientNotification.js";
 export type { ClientRequest } from "./ClientRequest.js";

@@ -6,7 +6,6 @@ import type { ResponseItem } from "../ResponseItem.js";
 import type { JsonValue } from "../serde_json/JsonValue.js";
 import type { ApprovalsReviewer } from "./ApprovalsReviewer.js";
 import type { AskForApproval } from "./AskForApproval.js";
-import type { PermissionProfileSelectionParams } from "./PermissionProfileSelectionParams.js";
 import type { SandboxMode } from "./SandboxMode.js";
 
 /**
@@ -15,8 +14,13 @@ import type { SandboxMode } from "./SandboxMode.js";
  * 2. By history: instantiate the thread from memory and resume it.
  * 3. By path: load the thread from disk by path and resume it.
  *
- * The precedence is: history > path > thread_id.
- * If using history or path, the thread_id param will be ignored.
+ * For non-running threads, the precedence is: history > non-empty path > thread_id.
+ * If using history or a non-empty path for a non-running thread, the thread_id
+ * param will be ignored.
+ *
+ * If thread_id identifies a running thread, app-server rejoins that thread and
+ * treats a non-empty path as a consistency check against the active rollout path.
+ * Empty string path values are treated as absent.
  *
  * Prefer using thread_id whenever possible.
  */
@@ -29,24 +33,30 @@ export type ThreadResumeParams = { threadId: string,
 history?: Array<ResponseItem> | null,
 /**
  * [UNSTABLE] Specify the rollout path to resume from.
- * If specified, the thread_id param will be ignored.
+ * If specified for a non-running thread, the thread_id param will be ignored.
+ * If thread_id identifies a running thread, the path must match the active
+ * rollout path.
  */
 path?: string | null,
 /**
  * Configuration overrides for the resumed thread, if any.
  */
-model?: string | null, modelProvider?: string | null, serviceTier?: string | null | null, cwd?: string | null, approvalPolicy?: AskForApproval | null,
+model?: string | null, modelProvider?: string | null, serviceTier?: string | null | null, cwd?: string | null,
+/**
+ * Replace the thread's runtime workspace roots. Relative paths are
+ * resolved against the effective cwd for the thread.
+ */
+runtimeWorkspaceRoots?: Array<string> | null, approvalPolicy?: AskForApproval | null,
 /**
  * Override where approval requests are routed for review on this thread
  * and subsequent turns.
  */
 approvalsReviewer?: ApprovalsReviewer | null, sandbox?: SandboxMode | null,
 /**
- * Named profile selection for the resumed thread. Cannot be combined
- * with `sandbox`. Use bounded `modifications` for supported thread
- * adjustments instead of replacing the full permissions profile.
+ * Named profile id for the resumed thread. Cannot be combined with
+ * `sandbox`.
  */
-permissions?: PermissionProfileSelectionParams | null, config?: { [key in string]?: JsonValue } | null, baseInstructions?: string | null, developerInstructions?: string | null, personality?: Personality | null,
+permissions?: string | null, config?: { [key in string]?: JsonValue } | null, baseInstructions?: string | null, developerInstructions?: string | null, personality?: Personality | null,
 /**
  * When true, return only thread metadata and live-resume state without
  * populating `thread.turns`. This is useful when the client plans to call

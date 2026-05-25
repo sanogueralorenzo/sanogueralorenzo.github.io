@@ -59,6 +59,7 @@ export class AppServerConnection {
       },
       capabilities: {
         experimentalApi: true,
+        requestAttestation: false,
         optOutNotificationMethods: Array.from(DEFAULT_OPT_OUT_NOTIFICATION_METHODS),
       },
     });

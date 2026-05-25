@@ -4,7 +4,6 @@
 import type { JsonValue } from "../serde_json/JsonValue.js";
 import type { ApprovalsReviewer } from "./ApprovalsReviewer.js";
 import type { AskForApproval } from "./AskForApproval.js";
-import type { PermissionProfileSelectionParams } from "./PermissionProfileSelectionParams.js";
 import type { SandboxMode } from "./SandboxMode.js";
 import type { ThreadSource } from "./ThreadSource.js";
 
@@ -13,7 +12,8 @@ import type { ThreadSource } from "./ThreadSource.js";
  * 1. By thread_id: load the thread from disk by thread_id and fork it into a new thread.
  * 2. By path: load the thread from disk by path and fork it into a new thread.
  *
- * If using path, the thread_id param will be ignored.
+ * If using a non-empty path, the thread_id param will be ignored.
+ * Empty string path values are treated as absent.
  *
  * Prefer using thread_id whenever possible.
  */
@@ -26,18 +26,22 @@ path?: string | null,
 /**
  * Configuration overrides for the forked thread, if any.
  */
-model?: string | null, modelProvider?: string | null, serviceTier?: string | null | null, cwd?: string | null, approvalPolicy?: AskForApproval | null,
+model?: string | null, modelProvider?: string | null, serviceTier?: string | null | null, cwd?: string | null,
+/**
+ * Replace the thread's runtime workspace roots. Relative paths are
+ * resolved against the effective cwd for the thread.
+ */
+runtimeWorkspaceRoots?: Array<string> | null, approvalPolicy?: AskForApproval | null,
 /**
  * Override where approval requests are routed for review on this thread
  * and subsequent turns.
  */
 approvalsReviewer?: ApprovalsReviewer | null, sandbox?: SandboxMode | null,
 /**
- * Named profile selection for the forked thread. Cannot be combined with
- * `sandbox`. Use bounded `modifications` for supported thread
- * adjustments instead of replacing the full permissions profile.
+ * Named profile id for the forked thread. Cannot be combined with
+ * `sandbox`.
  */
-permissions?: PermissionProfileSelectionParams | null, config?: { [key in string]?: JsonValue } | null, baseInstructions?: string | null, developerInstructions?: string | null, ephemeral?: boolean,
+permissions?: string | null, config?: { [key in string]?: JsonValue } | null, baseInstructions?: string | null, developerInstructions?: string | null, ephemeral?: boolean,
 /**
  * Optional client-supplied analytics source classification for this forked thread.
  */

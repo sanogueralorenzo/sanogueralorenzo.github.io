@@ -26,6 +26,7 @@ describe("generated app-server protocol types", () => {
         },
         capabilities: {
           experimentalApi: true,
+          requestAttestation: false,
         },
       },
     } satisfies InitializeRequest;
