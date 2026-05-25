@@ -149,11 +149,11 @@ export function createThreadActions(deps: ThreadActionsDeps) {
 
     setSelectionState(chatId, { sessions, mode, folderChoices: [] });
 
-    const prompt = mode === "delete" ? "Choose thread to delete" : "Choose thread";
-    const threadLabels = sessions.map((session) => session.title);
-    await reply(prompt, {
+    const title = mode === "delete" ? "Choose thread to delete" : "Choose thread";
+    const threadTitles = sessions.map((session) => session.title);
+    await reply(formatSelectionMessage(title, threadTitles), {
       reply_markup: threadSelectionKeyboard(
-        threadLabels,
+        threadTitles,
         { includeNewButton: false }
       )
     });
@@ -167,7 +167,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     clearListedSelectionState(chatId);
     setSelectionState(chatId, { sessions: [], mode: "resume", folderChoices });
 
-    await reply("Choose folder", {
+    await reply(formatSelectionMessage("Choose folder", folderChoices.map((choice) => choice.label)), {
       reply_markup: newFolderSelectionKeyboard(folderChoices.map((choice) => choice.label))
     });
   }
@@ -257,6 +257,11 @@ function getSelectedByIndex<T>(items: T[] | undefined, index: number): T | null 
     return null;
   }
   return items[index - 1];
+}
+
+function formatSelectionMessage(title: string, labels: string[]): string {
+  const options = labels.map((label, idx) => `${idx + 1}. ${label}`).join("\n");
+  return `${title}\n\n${options}`;
 }
 
 function listFolderChoices(threads: ThreadSummary[], defaultCwd: string): ListedFolderChoice[] {

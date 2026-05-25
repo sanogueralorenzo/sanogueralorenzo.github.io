@@ -67,11 +67,11 @@ export function newFolderSelectionKeyboard(folderLabels: string[]): Keyboard {
 }
 
 export function buildThreadSelectionLabels(threadTitles: string[]): string[] {
-  return threadTitles.map((title, idx) => formatIndexedButtonLabel(idx + 1, title));
+  return threadTitles.map((_, idx) => formatSelectionIndex(idx + 1));
 }
 
 export function buildFolderSelectionLabels(folderLabels: string[]): string[] {
-  return folderLabels.map((label, idx) => formatIndexedButtonLabel(idx + 1, label));
+  return folderLabels.map((_, idx) => formatSelectionIndex(idx + 1));
 }
 
 export function parseSelectionFromOptions(text: string, optionLabels: string[]): number | null {
@@ -85,9 +85,8 @@ export function parseSelectionFromOptions(text: string, optionLabels: string[]):
     return explicitIndex;
   }
 
-  const normalized = normalizeForComparison(trimmed);
   for (let idx = 0; idx < optionLabels.length; idx += 1) {
-    if (normalized === normalizeForComparison(optionLabels[idx])) {
+    if (trimmed === optionLabels[idx]) {
       return idx + 1;
     }
   }
@@ -102,8 +101,8 @@ export function parseApprovalDecisionText(
   return APPROVAL_DECISION_BY_TEXT[normalized] ?? null;
 }
 
-function formatIndexedButtonLabel(index: number, label: string): string {
-  return `${index}. ${label}`;
+function formatSelectionIndex(index: number): string {
+  return String(index);
 }
 
 function parseStandaloneSelectionIndex(text: string): number | null {
@@ -118,8 +117,4 @@ function parseStandaloneSelectionIndex(text: string): number | null {
   }
 
   return parsed;
-}
-
-function normalizeForComparison(text: string): string {
-  return text.trim().replace(/\s+/g, " ");
 }

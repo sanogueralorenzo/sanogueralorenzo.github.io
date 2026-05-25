@@ -45,8 +45,8 @@ help     Print this help output.
   Tip: Voice notes work!
   ```
 - `/new` starts folder selection for a new thread.
-- `/resume` lists threads ordered by latest update first to bind the chat.
-- `/delete` lists threads ordered by latest update first to delete.
+- `/resume` lists threads ordered by latest update first in the message body and shows numeric reply buttons to bind the chat.
+- `/delete` lists threads ordered by latest update first in the message body and shows numeric reply buttons to delete.
 
 ### Required Config
 

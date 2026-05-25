@@ -6,16 +6,16 @@ import {
 } from "./keyboards.js";
 
 describe("buildThreadSelectionLabels", () => {
-  it("keeps the title unchanged", () => {
-    expect(buildThreadSelectionLabels(["", "Hello world"])).toEqual(["1. ", "2. Hello world"]);
+  it("uses stable numeric labels", () => {
+    expect(buildThreadSelectionLabels(["", "Hello world"])).toEqual(["1", "2"]);
   });
 });
 
 describe("parseSelectionFromOptions", () => {
-  it("accepts index and full label", () => {
-    const options = ["1. Alpha", "2. Beta"];
+  it("accepts numeric choices and rejects full labels", () => {
+    const options = ["1", "2"];
     expect(parseSelectionFromOptions("2", options)).toBe(2);
-    expect(parseSelectionFromOptions("1. Alpha", options)).toBe(1);
+    expect(parseSelectionFromOptions("1. Alpha", options)).toBeNull();
   });
 });
 
