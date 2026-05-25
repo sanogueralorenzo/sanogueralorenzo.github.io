@@ -8,6 +8,7 @@ import { quickActionsKeyboard } from "./bot/keyboards.js";
 import { HELP_TEXT, formatFailure } from "./bot/messages.js";
 import { withActionErrorBoundary, withChatLock } from "./bot/middleware.js";
 import { getConversationOptionsFromEnv, loadRuntimeConfig } from "./config.js";
+import { ensureThreadTitleWatcherStarted } from "./adapters/codex-core-sessions.js";
 import { createPrecedentBridge } from "./services/precedent-bridge.js";
 import { createPromptRunner } from "./services/prompt-runner.js";
 import { ListedFolderChoice, ListedThread, createThreadActions } from "./services/thread-actions.js";
@@ -131,6 +132,8 @@ registerBotHandlers(bot, {
 bot.catch(async (error) => {
   console.error("Telegram bot error:", error.error);
 });
+
+await ensureThreadTitleWatcherStarted(codexHome);
 
 console.log(`Telegram Codex bridge is running. Codex home: ${codexHome}.`);
 if (allowedChatIds) {

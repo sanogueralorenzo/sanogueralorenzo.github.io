@@ -131,6 +131,16 @@ export async function loadLatestAssistantMessageByThreadId(
   return null;
 }
 
+export async function ensureThreadTitleWatcherStarted(codexHome: string): Promise<void> {
+  await runCodexCoreSessions([
+    "watch",
+    "thread-titles",
+    "start",
+    "--home",
+    codexHome,
+  ]);
+}
+
 async function runCodexCoreSessionsJson<T>(args: string[]): Promise<T> {
   const stdout = await runCodexCoreSessions(args);
   try {

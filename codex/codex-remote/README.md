@@ -87,6 +87,7 @@ help     Print this help output.
 ### Output Behavior
 
 - The bot always sends a final Telegram message after each Codex turn.
+- Startup runs `codex-core sessions watch thread-titles start --home <CODEX_HOME>` so `/resume` and `/delete` can show generated thread titles when Codex initially stores the first prompt as the title.
 - If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
 - During a running turn, the bot does not emit intermediate turn transcript items.
 - At turn completion, it sends only the final assistant turn answer.

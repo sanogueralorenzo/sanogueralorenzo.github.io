@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 const TITLE_MIN_CHARS: usize = 18;
 const TITLE_MAX_CHARS: usize = 36;
 const TITLE_INPUT_MAX_CHARS: usize = 2000;
-const TITLE_MODEL: &str = "gpt-5.1-codex-mini";
+const TITLE_MODEL_ENV: &str = "CODEX_TITLE_MODEL";
 
 pub(crate) fn generate_session_title(
     target: &SessionMeta,
@@ -51,13 +51,13 @@ pub(crate) fn generate_session_title(
         .with_context(|| format!("failed writing {}", schema_file.display()))?;
 
     let mut command = Command::new("codex");
+    command.arg("-a").arg("never").arg("-s").arg("read-only");
+
+    if let Some(model) = title_model_override() {
+        command.arg("-m").arg(model);
+    }
+
     command
-        .arg("-a")
-        .arg("never")
-        .arg("-s")
-        .arg("read-only")
-        .arg("-m")
-        .arg(TITLE_MODEL)
         .arg("-c")
         .arg("model_reasoning_effort=\"low\"")
         .arg("-c")
@@ -106,6 +106,13 @@ pub(crate) fn generate_session_title(
 
     parse_generated_title(&raw)
         .ok_or_else(|| anyhow::anyhow!("title generation returned an invalid title"))
+}
+
+fn title_model_override() -> Option<String> {
+    std::env::var(TITLE_MODEL_ENV)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }
 
 fn build_title_generation_prompt(first_user_prompt: &str) -> String {

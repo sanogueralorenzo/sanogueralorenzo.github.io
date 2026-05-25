@@ -57,6 +57,7 @@ codex-core noninteractive run --help
   - `sessions ls` defaults to `--sort-by updated_at` (newest first).
   - `watch prune` runs scheduled prune passes.
   - Thread-title watcher rewrites titles when empty or when current title matches the first user message.
+  - Thread-title generation uses the configured Codex default model unless `CODEX_TITLE_MODEL` is set.
 - Noninteractive wrappers:
   - `codex-core noninteractive run` wraps `codex exec --json`.
   - `codex-core noninteractive resume` wraps `codex exec resume --json`.
