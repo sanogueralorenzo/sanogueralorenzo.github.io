@@ -181,7 +181,18 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     const optionLabels = buildThreadSelectionLabels(state.sessions.map((session) => session.title));
     const index = parseSelectionFromOptions(text, optionLabels);
     if (!index) {
-      return false;
+      await reply(
+        state.mode === "delete"
+          ? "Choose a thread to delete by number."
+          : "Choose a thread to resume by number.",
+        {
+          reply_markup: threadSelectionKeyboard(
+            state.sessions.map((session) => session.title),
+            { includeNewButton: false }
+          )
+        }
+      );
+      return true;
     }
 
     if (state.mode === "delete") {
@@ -202,7 +213,10 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     const optionLabels = buildFolderSelectionLabels(state.folderChoices.map((choice) => choice.label));
     const index = parseSelectionFromOptions(text, optionLabels);
     if (!index) {
-      return false;
+      await reply("Choose a folder by number.", {
+        reply_markup: newFolderSelectionKeyboard(state.folderChoices.map((choice) => choice.label))
+      });
+      return true;
     }
 
     await pickFolderChoiceByIndex(chatId, index, reply);
