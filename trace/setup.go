@@ -14,6 +14,7 @@ func initTrace(root string) error {
 	dirs := []string{
 		filepath.Join(root, traceDir),
 		filepath.Join(root, traceDir, "sessions"),
+		filepath.Join(root, traceDir, "tmp"),
 		filepath.Join(root, traceDir, "archive"),
 	}
 	for _, dir := range dirs {
@@ -28,7 +29,7 @@ func initTrace(root string) error {
 			return fmt.Errorf("write %s: %w", configPath, err)
 		}
 	}
-	ignore := "sessions/\narchive/\n"
+	ignore := "sessions/\ntmp/\narchive/\n"
 	if err := os.WriteFile(filepath.Join(root, traceDir, ".gitignore"), []byte(ignore), 0o600); err != nil {
 		return fmt.Errorf("write .trace/.gitignore: %w", err)
 	}

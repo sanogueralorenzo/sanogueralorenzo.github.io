@@ -38,6 +38,9 @@ OpenCode must already be installed for rich conversation capture. If one is
 missing, Trace reports the limitation and keeps the commit-message/diff fallback
 active.
 
+OpenCode transcript export uses the installed `opencode` CLI and caches the
+export under `.trace/tmp/opencode/` before the commit checkpoint is written.
+
 ## Usage
 
 1. Run `trace enable` once in a repository.
@@ -63,6 +66,7 @@ trace recall "why did we change auth"
 ## Layout
 
 - `.trace/sessions/<agent>/<session>.jsonl`: local raw agent hook events before commit.
+- `.trace/tmp/opencode/<session>.json`: temporary OpenCode transcript export cache.
 - `refs/trace/checkpoints/v1:<checkpoint>/checkpoint.json`: full redacted checkpoint record, including diff and captured sessions/transcripts.
 - `refs/trace/memory/v1:<sha>.md`: concise reviewable memory note for a commit.
 
@@ -71,6 +75,6 @@ trace recall "why did we change auth"
 Trace keeps the integration surface intentionally small:
 
 - Codex project hooks in `.codex/hooks.json` for `SessionStart`, `UserPromptSubmit`, `Stop`, and `PostToolUse`.
-- Claude Code project hooks in `.claude/settings.json` for `SessionStart`, `SessionEnd`, `UserPromptSubmit`, and `Stop`.
+- Claude Code project hooks in `.claude/settings.json` for `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Stop`, and Task `PreToolUse`/`PostToolUse`.
 - OpenCode plugin hook events in `.opencode/plugins/trace.ts`.
 - Git `post-commit` writes checkpoint data and memory notes.

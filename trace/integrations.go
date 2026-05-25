@@ -44,6 +44,7 @@ func installCodexHooks(root string) error {
 		{"PostToolUse", "post-tool-use"},
 	} {
 		cmd := "trace hooks codex " + item.name
+		hooks[item.event] = removeTraceHooks(hooks[item.event], "trace hooks codex ")
 		hooks[item.event] = addCommandHook(hooks[item.event], nil, cmd, 30)
 	}
 	rawHooks, err := json.Marshal(hooks)
@@ -102,7 +103,10 @@ func installClaudeHooks(root string) error {
 		{"SessionEnd", &empty, "session-end"},
 		{"UserPromptSubmit", &empty, "user-prompt-submit"},
 		{"Stop", &empty, "stop"},
+		{"PreToolUse", strPtr("Task"), "pre-task"},
+		{"PostToolUse", strPtr("Task"), "post-task"},
 	} {
+		hooks[item.event] = removeTraceHooks(hooks[item.event], "trace hooks claude-code ")
 		hooks[item.event] = addCommandHook(hooks[item.event], item.matcher, "trace hooks claude-code "+item.name, 0)
 	}
 	var permissions map[string][]string
@@ -151,6 +155,27 @@ func addCommandHook(groups []hookMatcher, matcher *string, command string, timeo
 		Matcher: matcher,
 		Hooks:   []hookCommand{{Type: "command", Command: command, Timeout: timeout}},
 	})
+}
+
+func removeTraceHooks(groups []hookMatcher, commandPrefix string) []hookMatcher {
+	var kept []hookMatcher
+	for _, group := range groups {
+		var hooks []hookCommand
+		for _, hook := range group.Hooks {
+			if !strings.HasPrefix(hook.Command, commandPrefix) {
+				hooks = append(hooks, hook)
+			}
+		}
+		if len(hooks) > 0 {
+			group.Hooks = hooks
+			kept = append(kept, group)
+		}
+	}
+	return kept
+}
+
+func strPtr(value string) *string {
+	return &value
 }
 
 func matcherEqual(a, b *string) bool {

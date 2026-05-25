@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFallbackMemoryCheckpointSideRefAndRecall(t *testing.T) {
@@ -59,7 +60,11 @@ func TestAgentMemoryFileWriteAndCheckpoint(t *testing.T) {
 		t.Fatalf("initTrace: %v", err)
 	}
 	transcript := filepath.Join(repo, "codex-rollout.jsonl")
-	writeFile(t, transcript, `{"token":"supersecret","message":"implemented trace"}`+"\n")
+	writeFile(t, transcript, strings.Join([]string{
+		`{"token":"supersecret","message":"implemented trace"}`,
+		`{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"please add parser"}]}}`,
+		`{"type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","input":"*** Begin Patch\n*** Add File: trace/parser.go\n+package main\n*** End Patch\n"}}`,
+	}, "\n")+"\n")
 	payload := []byte(`{"session_id":"codex-2","transcript_path":"` + transcript + `","prompt":"implement trace"}`)
 	if err := captureAgentHook(repo, "codex", "user-prompt-submit", payload); err != nil {
 		t.Fatalf("captureAgentHook: %v", err)
@@ -81,5 +86,20 @@ func TestAgentMemoryFileWriteAndCheckpoint(t *testing.T) {
 	raw := git(t, repo, "show", checkpointRef+":"+record.ID+"/checkpoint.json")
 	if strings.Contains(raw, "supersecret") || !strings.Contains(raw, "[REDACTED]") {
 		t.Fatalf("checkpoint redaction failed: %s", raw)
+	}
+	for _, want := range []string{`"messages"`, "please add parser", `"tool_calls"`, "trace/parser.go"} {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("checkpoint missing parsed Codex transcript %q: %s", want, raw)
+		}
+	}
+}
+
+func TestClaudeStopSentinelDetection(t *testing.T) {
+	repo := testRepo(t)
+	started := time.Now().UTC()
+	transcript := filepath.Join(repo, "claude.jsonl")
+	writeFile(t, transcript, `{"timestamp":"`+started.Format(time.RFC3339Nano)+`","tool_input":{"command":"trace hooks claude-code stop"}}`+"\n")
+	if !hasClaudeStopSentinel(transcript, started) {
+		t.Fatalf("expected Claude stop sentinel")
 	}
 }
