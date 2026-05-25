@@ -4,6 +4,7 @@ export type {
   ApprovalRequest,
   SandboxMode,
   ThreadSummary,
+  TurnCompletion,
   TimedCreateTurnResult,
   TimedTurnResult,
   TurnProgressEvent,

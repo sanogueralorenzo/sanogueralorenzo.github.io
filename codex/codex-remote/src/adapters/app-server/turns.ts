@@ -44,6 +44,7 @@ export async function createAndSendFirstMessageWithTimeoutContinuation(
         status: "completed",
         threadId,
         response: timed.response,
+        imagePaths: timed.imagePaths,
       };
     }
 

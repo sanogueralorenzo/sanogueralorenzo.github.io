@@ -1,6 +1,7 @@
 import {
   TURN_TIMEOUT_MS,
   TurnProgressEvent,
+  TurnCompletion,
 } from "./types.js";
 import { AppServerConnection } from "./connection.js";
 import { asObject } from "./json.js";
@@ -8,7 +9,7 @@ import type { Turn } from "./generated/v2/Turn.js";
 import {
   createRunTurnState,
   getTurnFailureMessage,
-  latestTurnResponse,
+  latestTurnCompletion,
 } from "./turn-state.js";
 import { handleTurnNotification } from "./turn-notifications.js";
 
@@ -19,21 +20,22 @@ export async function runTurnWithTimeout(
   resumeFirst: boolean,
   onTurnEvent?: (event: TurnProgressEvent) => void
 ): Promise<
-  | { status: "completed"; response: string }
-  | { status: "timed_out"; completion: Promise<{ response: string }> }
+  | { status: "completed"; response: string; imagePaths?: string[] }
+  | { status: "timed_out"; completion: Promise<TurnCompletion> }
 > {
   const completion = runTurn(client, threadId, text, resumeFirst, onTurnEvent);
   const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
   if (raced.status === "completed") {
     return {
       status: "completed",
-      response: raced.value,
+      response: raced.value.response,
+      imagePaths: raced.value.imagePaths,
     };
   }
 
   return {
     status: "timed_out",
-    completion: completion.then((response) => ({ response })),
+    completion,
   };
 }
 
@@ -43,7 +45,7 @@ async function runTurn(
   text: string,
   resumeFirst: boolean,
   onTurnEvent?: (event: TurnProgressEvent) => void
-): Promise<string> {
+): Promise<TurnCompletion> {
   if (resumeFirst) {
     await client.send("thread/resume", {
       threadId,
@@ -73,7 +75,7 @@ async function runTurn(
 
     switch (startedTurn.status) {
       case "completed":
-        return latestTurnResponse(state);
+        return latestTurnCompletion(state);
       case "failed":
         throw new Error(getTurnFailureMessage(startedTurn));
       case "interrupted":

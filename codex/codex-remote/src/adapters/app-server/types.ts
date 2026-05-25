@@ -87,12 +87,14 @@ export type ThreadSummary = {
 
 export type TurnCompletion = {
   response: string;
+  imagePaths?: string[];
 };
 
 export type TimedTurnResult =
   | {
       status: "completed";
       response: string;
+      imagePaths?: string[];
     }
   | {
       status: "timed_out";
@@ -104,6 +106,7 @@ export type TimedCreateTurnResult =
       status: "completed";
       threadId: string;
       response: string;
+      imagePaths?: string[];
     }
   | {
       status: "timed_out";

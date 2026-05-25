@@ -1,4 +1,4 @@
-import { TurnProgressEvent } from "./types.js";
+import { TurnCompletion, TurnProgressEvent } from "./types.js";
 import type { Turn } from "./generated/v2/Turn.js";
 
 export type RunTurnState = {
@@ -6,20 +6,21 @@ export type RunTurnState = {
   currentTurnId: string | null;
   lastAgentMessage: string;
   lastFinalAgentMessage: string;
+  imagePaths: string[];
   agentSnapshots: Map<string, string>;
   emitTurnEvent: (event: TurnProgressEvent) => void;
-  finalizeSuccess: (value: string) => void;
+  finalizeSuccess: (value: TurnCompletion) => void;
   finalizeFailure: (error: unknown) => void;
 };
 
 export function createRunTurnState(
   threadId: string,
   onTurnEvent?: (event: TurnProgressEvent) => void
-): { state: RunTurnState; turnDone: Promise<string> } {
+): { state: RunTurnState; turnDone: Promise<TurnCompletion> } {
   let finished = false;
-  let resolveTurn: (value: string) => void = () => {};
+  let resolveTurn: (value: TurnCompletion) => void = () => {};
   let rejectTurn: (reason: unknown) => void = () => {};
-  const turnDone = new Promise<string>((resolve, reject) => {
+  const turnDone = new Promise<TurnCompletion>((resolve, reject) => {
     resolveTurn = resolve;
     rejectTurn = reject;
   });
@@ -30,6 +31,7 @@ export function createRunTurnState(
       currentTurnId: null,
       lastAgentMessage: "",
       lastFinalAgentMessage: "",
+      imagePaths: [],
       agentSnapshots: new Map<string, string>(),
       emitTurnEvent: (event) => {
         if (!onTurnEvent) {
@@ -62,6 +64,13 @@ export function createRunTurnState(
 
 export function latestTurnResponse(state: RunTurnState): string {
   return (state.lastFinalAgentMessage || state.lastAgentMessage).trim();
+}
+
+export function latestTurnCompletion(state: RunTurnState): TurnCompletion {
+  return {
+    response: latestTurnResponse(state),
+    imagePaths: [...state.imagePaths],
+  };
 }
 
 export function getTurnFailureMessage(turn: Turn): string {

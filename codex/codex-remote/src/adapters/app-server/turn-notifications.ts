@@ -2,6 +2,7 @@ import type { JsonRpcNotification } from "./connection.js";
 import type { ThreadItem } from "./generated/v2/ThreadItem.js";
 import {
   getTurnFailureMessage,
+  latestTurnCompletion,
   latestTurnResponse,
   RunTurnState,
 } from "./turn-state.js";
@@ -90,12 +91,12 @@ export function handleTurnNotification(state: RunTurnState, notification: JsonRp
       }
       switch (params.turn.status) {
         case "completed":
-          state.finalizeSuccess(latestTurnResponse(state));
+          state.finalizeSuccess(latestTurnCompletion(state));
           return;
         case "interrupted": {
           const response = latestTurnResponse(state);
           if (response) {
-            state.finalizeSuccess(response);
+            state.finalizeSuccess(latestTurnCompletion(state));
           } else {
             state.finalizeFailure(new Error("Turn was interrupted before producing a response."));
           }
@@ -129,6 +130,9 @@ function handleCompletedItem(state: RunTurnState, turnId: string, item: ThreadIt
     if (item.phase === "final_answer") {
       state.lastFinalAgentMessage = item.text;
     }
+  }
+  if (item.type === "imageGeneration" && item.savedPath) {
+    state.imagePaths.push(item.savedPath);
   }
 
   state.emitTurnEvent({

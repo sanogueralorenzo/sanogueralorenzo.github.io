@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import {
   CODEX_BIN,
   DEFAULT_OPT_OUT_NOTIFICATION_METHODS,
+  TurnCompletion,
   TurnRuntimeOptions,
 } from "./types.js";
 import {
@@ -247,14 +248,14 @@ export async function withTurnClient<T>(
   runtimeOptions: TurnRuntimeOptions | undefined,
   work: (
     client: AppServerConnection,
-    handOffCompletion: (completion: Promise<{ response: string }>) => Promise<{ response: string }>
+    handOffCompletion: (completion: Promise<TurnCompletion>) => Promise<TurnCompletion>
   ) => Promise<T>
 ): Promise<T> {
   const client = new AppServerConnection(runtimeOptions);
   await client.initialize();
 
   let handedOff = false;
-  const handOffCompletion = (completion: Promise<{ response: string }>): Promise<{ response: string }> => {
+  const handOffCompletion = (completion: Promise<TurnCompletion>): Promise<TurnCompletion> => {
     handedOff = true;
     return completion.finally(async () => {
       await client.close();

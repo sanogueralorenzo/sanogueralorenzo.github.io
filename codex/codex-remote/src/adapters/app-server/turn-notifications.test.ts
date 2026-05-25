@@ -65,8 +65,75 @@ describe("handleTurnNotification", () => {
       },
     });
 
-    await expect(turnDone).resolves.toBe("Hello world");
+    await expect(turnDone).resolves.toEqual({ response: "Hello world", imagePaths: [] });
     expect(onTurnEvent).toHaveBeenCalled();
+  });
+
+  it("captures image generation saved paths in the turn completion", async () => {
+    const { state, turnDone } = createRunTurnState("thread-1");
+
+    handleTurnNotification(state, {
+      method: "turn/started",
+      params: {
+        threadId: "thread-1",
+        turn: {
+          id: "turn-1",
+          items: [],
+          itemsView: "notLoaded",
+          status: "inProgress",
+          error: null,
+          startedAt: null,
+          completedAt: null,
+          durationMs: null,
+        },
+      },
+    });
+    handleTurnNotification(state, {
+      method: "item/agentMessage/delta",
+      params: {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        itemId: "item-1",
+        delta: "Done",
+      },
+    });
+    handleTurnNotification(state, {
+      method: "item/completed",
+      params: {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        completedAtMs: 0,
+        item: {
+          id: "image-1",
+          type: "imageGeneration",
+          status: "completed",
+          revisedPrompt: null,
+          result: "",
+          savedPath: "/tmp/generated.png",
+        },
+      },
+    });
+    handleTurnNotification(state, {
+      method: "turn/completed",
+      params: {
+        threadId: "thread-1",
+        turn: {
+          id: "turn-1",
+          items: [],
+          itemsView: "notLoaded",
+          status: "completed",
+          error: null,
+          startedAt: null,
+          completedAt: null,
+          durationMs: null,
+        },
+      },
+    });
+
+    await expect(turnDone).resolves.toEqual({
+      response: "Done",
+      imagePaths: ["/tmp/generated.png"],
+    });
   });
 
   it("ignores notifications for a different thread", () => {
