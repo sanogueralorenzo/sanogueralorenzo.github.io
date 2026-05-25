@@ -49,6 +49,8 @@ type PromptRunnerDeps = {
 };
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
+  const threadTurnLocks = new Map<string, Promise<unknown>>();
+
   async function runPromptThroughCodex(ctx: PromptContext, chatId: string, text: string): Promise<void> {
     const threadId = await deps.store.get(chatId);
     const finalOutputRelay = createFinalOutputRelay(
@@ -128,34 +130,51 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         return;
       }
 
-      const precedent = await preparePrecedentTurn(threadId, text);
-      failurePrecedent = precedent;
-      const observer = createPrecedentTurnObserver();
-      try {
-        const turn = await sendMessageWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent, observer));
-        await finalizeTurn(turn, precedent, observer);
-        failurePrecedent = null;
-        return;
-      } catch (error) {
-        if (!isNoRolloutFoundError(error)) {
-          throw error;
+      await withThreadTurnLock(threadId, async () => {
+        const precedent = await preparePrecedentTurn(threadId, text);
+        failurePrecedent = precedent;
+        const observer = createPrecedentTurnObserver();
+        try {
+          const turn = await sendMessageWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent, observer));
+          await finalizeTurn(turn, precedent, observer);
+          failurePrecedent = null;
+          return;
+        } catch (error) {
+          if (!isNoRolloutFoundError(error)) {
+            throw error;
+          }
         }
-      }
 
-      try {
-        const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent, observer));
-        await finalizeTurn(firstTurn, precedent, observer);
-        failurePrecedent = null;
-        return;
-      } catch {
-        failurePrecedent = null;
-        await recoverFromUnavailableThread(chatId, text, runtimeOptions, finalOutputRelay);
-        return;
-      }
+        try {
+          const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent, observer));
+          await finalizeTurn(firstTurn, precedent, observer);
+          failurePrecedent = null;
+          return;
+        } catch {
+          failurePrecedent = null;
+          await recoverFromUnavailableThread(chatId, text, runtimeOptions, finalOutputRelay);
+          return;
+        }
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await recordFailedPrecedentTurn(failurePrecedent, text, message);
       await ctx.reply(formatFailure("Codex error.", message));
+    }
+  }
+
+  async function withThreadTurnLock<T>(threadId: string, work: () => Promise<T>): Promise<T> {
+    const previous = threadTurnLocks.get(threadId) ?? Promise.resolve();
+    const current = previous.then(async () => work());
+    const safeCurrent = current.catch(() => undefined);
+    threadTurnLocks.set(threadId, safeCurrent);
+
+    try {
+      return await current;
+    } finally {
+      if (threadTurnLocks.get(threadId) === safeCurrent) {
+        threadTurnLocks.delete(threadId);
+      }
     }
   }
 
@@ -288,14 +307,10 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     finalOutputRelay: FinalOutputRelay,
     prepareCompletion: (completion: TurnCompletion) => Promise<TurnCompletion>
   ): Promise<void> {
-    if (turn.status === "completed") {
-      await finalOutputRelay.send(await prepareCompletion(completionFromCompletedTurn(turn)));
-      return;
-    }
-
-    finalOutputRelay.queue(turn.completion.then(async (completion) => {
-      return prepareCompletion(completion);
-    }));
+    const completion = turn.status === "completed"
+      ? completionFromCompletedTurn(turn)
+      : await turn.completion;
+    await finalOutputRelay.send(await prepareCompletion(completion));
   }
 
   async function completionFromTimedTurn(turn: TimedTurnLike): Promise<TurnCompletion> {
@@ -320,7 +335,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       return;
     }
 
-    finalOutputRelay.queue(initialized.completion);
+    await finalOutputRelay.send(await initialized.completion);
   }
 
   return {
@@ -337,7 +352,6 @@ function isNoRolloutFoundError(error: unknown): boolean {
 
 type FinalOutputRelay = {
   send: (completion: TurnCompletion) => Promise<void>;
-  queue: (completion: Promise<TurnCompletion>) => void;
 };
 
 type PreparedPrecedentTurn = {
@@ -412,20 +426,7 @@ function createFinalOutputRelay(
     }
   };
 
-  const queue = (completion: Promise<TurnCompletion>): void => {
-    void completion
-      .then(async (result) => {
-        await send(result);
-      })
-      .catch(async (error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        await queueMessage(`Codex error: ${message}`);
-      })
-      .catch(() => undefined);
-  };
-
   return {
-    send,
-    queue
+    send
   };
 }

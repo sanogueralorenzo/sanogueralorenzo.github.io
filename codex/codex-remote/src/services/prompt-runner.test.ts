@@ -174,6 +174,83 @@ describe("createPromptRunner", () => {
     ]);
   });
 
+  it("serializes prompts that target the same Codex thread until completion", async () => {
+    const firstCompletion = deferred<{ response: string }>();
+    vi.mocked(sendMessageWithTimeoutContinuation).mockResolvedValueOnce({
+      status: "timed_out",
+      completion: firstCompletion.promise,
+    });
+    vi.mocked(sendMessageWithTimeoutContinuation).mockResolvedValueOnce({
+      status: "completed",
+      response: "second done",
+    });
+    const sentMessages: string[] = [];
+    const runner = createPromptRunner({
+      store: { get: async () => "thread-1" } as never,
+      pendingNewSessionChats: new Set(),
+      getPendingNewSessionCwd: () => null,
+      clearPendingNewSessionCwd: () => {},
+      onThreadNotBound: async () => {},
+      getConversationOptions: () => ({ cwd: "/repo" }),
+      bindChatToThread: async () => {},
+      requestApprovalFromTelegram: async () => "accept",
+    });
+
+    const firstRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "first");
+    await flushPromises();
+    const secondRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-2", "second");
+    await flushPromises();
+
+    expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledTimes(1);
+
+    firstCompletion.resolve({ response: "first done" });
+    await Promise.all([firstRun, secondRun]);
+
+    expect(sendMessageWithTimeoutContinuation).toHaveBeenNthCalledWith(
+      2,
+      "thread-1",
+      "second",
+      expect.any(Object)
+    );
+    expect(sentMessages).toEqual(["first done", "second done"]);
+  });
+
+  it("allows prompts for different Codex threads to run independently", async () => {
+    const firstCompletion = deferred<{ response: string }>();
+    vi.mocked(sendMessageWithTimeoutContinuation).mockImplementationOnce(async () => ({
+      status: "timed_out",
+      completion: firstCompletion.promise,
+    }));
+    vi.mocked(sendMessageWithTimeoutContinuation).mockImplementationOnce(async () => ({
+      status: "completed",
+      response: "second done",
+    }));
+    const sentMessages: string[] = [];
+    const runner = createPromptRunner({
+      store: { get: async (chatId: string) => chatId === "chat-1" ? "thread-1" : "thread-2" } as never,
+      pendingNewSessionChats: new Set(),
+      getPendingNewSessionCwd: () => null,
+      clearPendingNewSessionCwd: () => {},
+      onThreadNotBound: async () => {},
+      getConversationOptions: () => ({ cwd: "/repo" }),
+      bindChatToThread: async () => {},
+      requestApprovalFromTelegram: async () => "accept",
+    });
+
+    const firstRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "first");
+    await flushPromises();
+    const secondRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-2", "second");
+    await secondRun;
+
+    expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledTimes(2);
+    expect(sentMessages).toEqual(["second done"]);
+
+    firstCompletion.resolve({ response: "first done" });
+    await firstRun;
+
+    expect(sentMessages).toEqual(["second done", "first done"]);
+  });
+
   it("records failed outcomes when normal thread prompts fail", async () => {
     vi.mocked(sendMessageWithTimeoutContinuation).mockRejectedValueOnce(new Error("boom"));
     const sentMessages: string[] = [];
@@ -476,4 +553,21 @@ function fakeContext(sentMessages: string[], sentPhotos: string[] = [], failPhot
       sentMessages.push(message);
     },
   } as never;
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  let reject: (error: unknown) => void = () => {};
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+}
+
+async function flushPromises(): Promise<void> {
+  await new Promise((resolve) => {
+    setImmediate(resolve);
+  });
 }
