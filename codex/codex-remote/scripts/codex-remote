@@ -200,6 +200,10 @@ list_codex_remote_runtime_pids() {
       echo "$pid"
       continue
     fi
+    if [[ "$command" == *"node $PROJECT_ROOT/dist/index.js"* ]]; then
+      echo "$pid"
+      continue
+    fi
   done | sort -n | uniq
 }
 
@@ -332,7 +336,7 @@ cmd_start() {
 
   (
     cd "$PROJECT_ROOT"
-    nohup node dist/index.js > "$LOG_FILE" 2>&1 &
+    nohup node "$PROJECT_ROOT/dist/index.js" > "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
   )
   start_caffeinate_for_pid "$(read_pid)"
