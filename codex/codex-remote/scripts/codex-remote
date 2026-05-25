@@ -18,6 +18,7 @@ STATE_DIR="${CODEX_REMOTE_STATE_DIR:-$HOME/.codex/remote}"
 PID_FILE="$STATE_DIR/codex-remote.pid"
 LOG_FILE="$STATE_DIR/remote.log"
 CAFFEINATE_PID_FILE="$STATE_DIR/codex-remote-caffeinate.pid"
+LAUNCHD_LABEL="${CODEX_REMOTE_LAUNCHD_LABEL:-dev.codex.remote}"
 
 COMMAND_NAMES=()
 COMMAND_USAGES=()
@@ -265,6 +266,13 @@ stop_caffeinate_if_any() {
   rm -f "$CAFFEINATE_PID_FILE"
 }
 
+stop_launchd_if_any() {
+  if ! is_macos; then
+    return 0
+  fi
+  launchctl remove "$LAUNCHD_LABEL" >/dev/null 2>&1 || true
+}
+
 start_caffeinate_for_pid() {
   local target_pid="$1"
   stop_caffeinate_if_any
@@ -277,7 +285,21 @@ start_caffeinate_for_pid() {
   fi
 
   nohup caffeinate -dimsu -w "$target_pid" >/dev/null 2>&1 &
-  echo $! > "$CAFFEINATE_PID_FILE"
+  local caffeinate_pid="$!"
+  echo "$caffeinate_pid" > "$CAFFEINATE_PID_FILE"
+  disown "$caffeinate_pid" 2>/dev/null || true
+}
+
+wait_for_managed_process() {
+  local retries=20
+  while (( retries > 0 )); do
+    if is_running; then
+      return 0
+    fi
+    sleep 0.1
+    retries=$((retries - 1))
+  done
+  return 1
 }
 
 clear_pid_if_stale() {
@@ -334,12 +356,27 @@ cmd_start() {
     return 0
   fi
 
-  (
-    cd "$PROJECT_ROOT"
-    nohup node "$PROJECT_ROOT/dist/index.js" > "$LOG_FILE" 2>&1 &
-    echo $! > "$PID_FILE"
-  )
-  start_caffeinate_for_pid "$(read_pid)"
+  stop_launchd_if_any
+
+  if is_macos; then
+    local launch_command
+    launch_command="$(printf 'cd %q && echo "$$" > %q && exec node %q' "$PROJECT_ROOT" "$PID_FILE" "$PROJECT_ROOT/dist/index.js")"
+    launchctl submit -l "$LAUNCHD_LABEL" -o "$LOG_FILE" -e "$LOG_FILE" -- /bin/bash -lc "$launch_command"
+    wait_for_managed_process || true
+  else
+    (
+      cd "$PROJECT_ROOT"
+      nohup node "$PROJECT_ROOT/dist/index.js" > "$LOG_FILE" 2>&1 &
+      bot_pid="$!"
+      echo "$bot_pid" > "$PID_FILE"
+      disown "$bot_pid" 2>/dev/null || true
+    )
+  fi
+  local started_pid
+  started_pid="$(read_pid || true)"
+  if [[ -n "$started_pid" ]]; then
+    start_caffeinate_for_pid "$started_pid"
+  fi
   output_status "$plain"
 }
 
@@ -351,10 +388,13 @@ cmd_stop() {
   managed_pid="$(read_pid || true)"
   if ! is_running; then
     rm -f "$PID_FILE"
+    stop_launchd_if_any
     kill_codex_remote_runtime_pids_excluding ""
     print_stopped_status "$plain"
     return 0
   fi
+
+  stop_launchd_if_any
 
   if [[ -n "$managed_pid" ]]; then
     kill_pid_with_grace "$managed_pid"
