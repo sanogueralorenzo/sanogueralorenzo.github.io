@@ -18,7 +18,7 @@ import { PromptContext } from "../bot/context.js";
 import { sendTextChunks } from "../shared/telegram-text.js";
 import { PrecedentBridge } from "./precedent-bridge.js";
 
-const REMOTE_FINAL_INSTRUCTION = "Be concise. Include outcome, validation, and blockers only when relevant. No extended explanation unless asked.";
+const REMOTE_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
 
 type ConversationOptions = {
   cwd: string;

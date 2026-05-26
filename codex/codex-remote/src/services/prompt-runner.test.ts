@@ -6,7 +6,7 @@ import {
 import { createPromptRunner } from "./prompt-runner.js";
 import { PrecedentBridge } from "./precedent-bridge.js";
 
-const REMOTE_FINAL_INSTRUCTION = "Be concise. Include outcome, validation, and blockers only when relevant. No extended explanation unless asked.";
+const REMOTE_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
 
 vi.mock("../adapters/app-server/client.js", () => ({
   createAndSendFirstMessageWithTimeoutContinuation: vi.fn(),
