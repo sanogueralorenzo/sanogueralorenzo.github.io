@@ -94,6 +94,7 @@ help     Print this help output.
 - If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
 - During a running turn, the bot does not emit intermediate turn transcript items.
 - At turn completion, it sends only the final assistant turn answer.
+- Telegram prompts include a short final-response style instruction to keep remote replies concise.
 - Prompts are serialized per Codex thread; different Codex threads can run independently.
 - If a turn generates an image and app-server reports a saved local path, the bot sends that image after the final text.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.

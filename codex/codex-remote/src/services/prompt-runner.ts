@@ -18,6 +18,8 @@ import { PromptContext } from "../bot/context.js";
 import { sendTextChunks } from "../shared/telegram-text.js";
 import { PrecedentBridge } from "./precedent-bridge.js";
 
+const REMOTE_FINAL_INSTRUCTION = "Be concise. Include outcome, validation, and blockers only when relevant. No extended explanation unless asked.";
+
 type ConversationOptions = {
   cwd: string;
   model?: string;
@@ -118,7 +120,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           if (selectedCwd) {
             options.cwd = selectedCwd;
           }
-          const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
+          const initialized = await createAndSendFirstMessageWithTimeoutContinuation(
+            options,
+            withRemoteFinalInstruction(text),
+            runtimeOptions
+          );
           await deps.bindChatToThread(chatId, initialized.threadId);
           deps.pendingNewSessionChats.delete(chatId);
           deps.clearPendingNewSessionCwd(chatId);
@@ -135,7 +141,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         failurePrecedent = precedent;
         const observer = createPrecedentTurnObserver();
         try {
-          const turn = await sendMessageWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent, observer));
+          const turn = await sendMessageWithTimeoutContinuation(
+            threadId,
+            withRemoteFinalInstruction(precedent.text),
+            runtimeOptionsFor(precedent, observer)
+          );
           await finalizeTurn(turn, precedent, observer);
           failurePrecedent = null;
           return;
@@ -146,7 +156,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         }
 
         try {
-          const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(threadId, precedent.text, runtimeOptionsFor(precedent, observer));
+          const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(
+            threadId,
+            withRemoteFinalInstruction(precedent.text),
+            runtimeOptionsFor(precedent, observer)
+          );
           await finalizeTurn(firstTurn, precedent, observer);
           failurePrecedent = null;
           return;
@@ -216,7 +230,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     try {
       const repairedTurn = await sendMessageWithTimeoutContinuation(
         precedent.threadId,
-        beforeRetry.repairBlock,
+        withRemoteFinalInstruction(beforeRetry.repairBlock),
         runtimeOptionsForTurn(repairPrecedent, repairObserver)
       );
       const repairedCompletion = await completionFromTimedTurn(repairedTurn);
@@ -327,7 +341,11 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     finalOutputRelay: FinalOutputRelay
   ): Promise<void> {
     const options = deps.getConversationOptions();
-    const initialized = await createAndSendFirstMessageWithTimeoutContinuation(options, text, runtimeOptions);
+    const initialized = await createAndSendFirstMessageWithTimeoutContinuation(
+      options,
+      withRemoteFinalInstruction(text),
+      runtimeOptions
+    );
     await deps.bindChatToThread(chatId, initialized.threadId);
 
     if (initialized.status === "completed") {
@@ -348,6 +366,10 @@ function isNoRolloutFoundError(error: unknown): boolean {
     return false;
   }
   return error.message.includes("no rollout found for thread id");
+}
+
+function withRemoteFinalInstruction(text: string): string {
+  return `${text}\n\n${REMOTE_FINAL_INSTRUCTION}`;
 }
 
 type FinalOutputRelay = {

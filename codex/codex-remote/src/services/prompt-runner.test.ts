@@ -6,6 +6,8 @@ import {
 import { createPromptRunner } from "./prompt-runner.js";
 import { PrecedentBridge } from "./precedent-bridge.js";
 
+const REMOTE_FINAL_INSTRUCTION = "Be concise. Include outcome, validation, and blockers only when relevant. No extended explanation unless asked.";
+
 vi.mock("../adapters/app-server/client.js", () => ({
   createAndSendFirstMessageWithTimeoutContinuation: vi.fn(),
   sendMessageWithoutResumeWithTimeoutContinuation: vi.fn(),
@@ -59,7 +61,7 @@ describe("createPromptRunner", () => {
 
     expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledWith(
       "thread-1",
-      "Precedent:\n- Run focused validation.\n\nship it",
+      remotePrompt("Precedent:\n- Run focused validation.\n\nship it"),
       expect.any(Object)
     );
     const runtimeOptions = vi.mocked(sendMessageWithTimeoutContinuation).mock.calls[0][2] as {
@@ -88,18 +90,18 @@ describe("createPromptRunner", () => {
         exitCode: 0,
       }),
     });
-    expect(sentMessages).toEqual(["done:Precedent:\n- Run focused validation.\n\nship it"]);
+    expect(sentMessages).toEqual([`done:${remotePrompt("Precedent:\n- Run focused validation.\n\nship it")}`]);
     expect(afterTurns).toMatchObject([{
       cwd: "/repo",
       threadId: "thread-1",
       task: "ship it",
-      response: "done:Precedent:\n- Run focused validation.\n\nship it",
+      response: `done:${remotePrompt("Precedent:\n- Run focused validation.\n\nship it")}`,
       success: true,
       attributedPrecedents: ["prec_validation"],
     }]);
   });
 
-  it("leaves prompts unchanged without a Precedent bridge", async () => {
+  it("adds the remote final instruction without a Precedent bridge", async () => {
     const sentMessages: string[] = [];
     const runner = createPromptRunner({
       store: { get: async () => "thread-1" } as never,
@@ -116,7 +118,7 @@ describe("createPromptRunner", () => {
 
     expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledWith(
       "thread-1",
-      "ship it",
+      remotePrompt("ship it"),
       expect.any(Object)
     );
   });
@@ -209,7 +211,7 @@ describe("createPromptRunner", () => {
     expect(sendMessageWithTimeoutContinuation).toHaveBeenNthCalledWith(
       2,
       "thread-1",
-      "second",
+      remotePrompt("second"),
       expect.any(Object)
     );
     expect(sentMessages).toEqual(["first done", "second done"]);
@@ -332,7 +334,7 @@ describe("createPromptRunner", () => {
 
     expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledWith(
       "thread-1",
-      "Precedent repair:\n- Re-run the focused validation.\n\nPrecedent:\n- Run focused validation.\n\nship it",
+      remotePrompt("Precedent repair:\n- Re-run the focused validation.\n\nPrecedent:\n- Run focused validation.\n\nship it"),
       expect.any(Object)
     );
     expect(afterRetries).toMatchObject([{
@@ -383,7 +385,7 @@ describe("createPromptRunner", () => {
     expect(bridge.beforeRetry).toHaveBeenCalledTimes(1);
     expect(sendMessageWithoutResumeWithTimeoutContinuation).toHaveBeenCalledWith(
       "thread-1",
-      "Precedent repair:\n- Re-run the focused validation.\n\nPrecedent:\n- Run focused validation.\n\nship it",
+      remotePrompt("Precedent repair:\n- Re-run the focused validation.\n\nPrecedent:\n- Run focused validation.\n\nship it"),
       expect.any(Object)
     );
     expect(sentMessages).toEqual(["fallback done"]);
@@ -462,12 +464,12 @@ describe("createPromptRunner", () => {
     expect(sendMessageWithTimeoutContinuation).toHaveBeenNthCalledWith(
       2,
       "thread-1",
-      "Precedent repair:\n- Fix the failed validation.",
+      remotePrompt("Precedent repair:\n- Fix the failed validation."),
       expect.any(Object)
     );
-    expect(sentMessages).toEqual(["repaired:Precedent repair:\n- Fix the failed validation."]);
+    expect(sentMessages).toEqual([`repaired:${remotePrompt("Precedent repair:\n- Fix the failed validation.")}`]);
     expect(afterTurns).toMatchObject([{
-      response: "repaired:Precedent repair:\n- Fix the failed validation.",
+      response: `repaired:${remotePrompt("Precedent repair:\n- Fix the failed validation.")}`,
       success: true,
     }]);
     expect(afterRetries).toMatchObject([{
@@ -530,10 +532,14 @@ describe("createPromptRunner", () => {
 
     await runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "ship it");
 
-    expect(sentMessages).toEqual(["first:Precedent:\n- Run focused validation.\n\nship it"]);
+    expect(sentMessages).toEqual([`first:${remotePrompt("Precedent:\n- Run focused validation.\n\nship it")}`]);
     expect(bridge.afterRetry).not.toHaveBeenCalled();
   });
 });
+
+function remotePrompt(text: string): string {
+  return `${text}\n\n${REMOTE_FINAL_INSTRUCTION}`;
+}
 
 function fakeContext(sentMessages: string[], sentPhotos: string[] = [], failPhoto = false) {
   return {

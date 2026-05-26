@@ -290,6 +290,18 @@ start_caffeinate_for_pid() {
   disown "$caffeinate_pid" 2>/dev/null || true
 }
 
+start_restart_caffeinate_guard() {
+  if ! is_macos; then
+    return 0
+  fi
+  if ! command -v caffeinate >/dev/null 2>&1; then
+    return 0
+  fi
+
+  nohup caffeinate -disu -w "$$" >/dev/null 2>&1 &
+  disown "$!" 2>/dev/null || true
+}
+
 wait_for_managed_process() {
   local retries=20
   while (( retries > 0 )); do
@@ -409,6 +421,7 @@ cmd_stop() {
 
 cmd_restart() {
   local plain="$1"
+  start_restart_caffeinate_guard
   cmd_stop "true" >/dev/null
   cmd_start "$plain"
 }
