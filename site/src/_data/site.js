@@ -4,7 +4,7 @@ export default {
   description:
     "Personal site for Mario Sanoguera de Lorenzo: software, products, and independent work.",
   image: "/share-image.png",
-  imageAlt: "A black M monogram on a warm white background.",
+  imageAlt: "A minimal black portrait mark with a red accent line on a warm white background.",
   hero: {
     title: "Mario Sanoguera de Lorenzo",
   },

@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#fffefb"/>
-  <path d="M52 365 C122 372 157 304 181 231 C209 145 282 106 460 124" fill="none" stroke="#d9d1c5" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
-  <text x="256" y="350" text-anchor="middle" font-family="Avenir Next, sans-serif" font-size="360" font-weight="800" letter-spacing="-18" fill="#141310">M</text>
-</svg>
