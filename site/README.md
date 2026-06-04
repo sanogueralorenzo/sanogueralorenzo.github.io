@@ -4,7 +4,7 @@
 
 The website follows the visitor's system light or dark mode preference.
 The profile portrait keeps a black shirt in light mode and switches to a white shirt in dark mode.
-The favicon and social share thumbnail use a minimal portrait mark with the site's red accent rule.
+The favicon and social share thumbnail use a minimal full-frame portrait mark.
 
 ## Quickstart
 
