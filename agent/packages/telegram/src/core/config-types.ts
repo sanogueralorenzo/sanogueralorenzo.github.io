@@ -1,4 +1,4 @@
-export type ChatService = "telegram" | "discord";
+export type ChatService = "telegram";
 
 export type TriggerMode = "mention" | "message";
 
@@ -41,17 +41,7 @@ export interface TelegramAccountConfig extends BaseAccountConfig {
 	botUserId?: string;
 }
 
-export interface DiscordAccountConfig extends BaseAccountConfig {
-	service: "discord";
-	botToken: string;
-	applicationId: string;
-	serverId: string;
-	serverName: string;
-	botUserId?: string;
-	botUsername?: string;
-}
-
-export type ChatAccountConfig = TelegramAccountConfig | DiscordAccountConfig;
+export type ChatAccountConfig = TelegramAccountConfig;
 
 export interface ChatConfig {
 	botName?: string;

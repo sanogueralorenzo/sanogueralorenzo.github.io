@@ -1,11 +1,11 @@
 # pi-chat
 
-Pi extension bridging Discord and Telegram to a sandboxed pi session via Gondolin micro-VMs.
+Pi extension bridging Telegram to a sandboxed pi session via Gondolin micro-VMs.
 
 ## Architecture
 
 ```
-Discord/Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent
+Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent
                                         ↕
                                    Gondolin VM (Alpine + bash)
                                    /workspace  /shared
@@ -44,8 +44,7 @@ Discord/Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ p
 
 ### Live adapters
 - `src/live/types.ts` — `LiveConnection` and `LiveConnectionHandlers` interfaces.
-- `src/live/index.ts` — Adapter router (Discord vs Telegram).
-- `src/live/discord.ts` — Discord adapter: discord.js gateway, catch-up pagination, REST message sending with chunking and formatting, reply-to, auto-reconnect on disconnect.
+- `src/live/index.ts` — Telegram live adapter entrypoint.
 - `src/live/telegram.ts` — Telegram adapter: long-polling, media group debounce, initial catch-up, chunked sending with Markdown formatting.
 - `src/live/common.ts` — Shared: attachment download/storage, MIME detection, bot mention detection.
 
@@ -57,14 +56,12 @@ Discord/Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ p
 
 ### Services (setup/discovery)
 - `src/services/index.ts` — Account snapshot refresh, identity update.
-- `src/services/discord.ts` — Discord bot validation, server listing, channel/role/user discovery.
 - `src/services/telegram.ts` — Telegram bot validation, identity fetch.
 - `src/services/types.ts` — Shared service types.
 
 ### TUI
 - `src/tui/chat-config.ts` — `/chat-config` UI: account/channel management, access policy, secrets config.
 - `src/tui/dialogs.ts` — Shared dialog helpers: select, notice, loader, toggle.
-- `src/tui/discord-setup.ts` — Guided Discord account setup (token, server selection, invite flow).
 - `src/tui/telegram-setup.ts` — Guided Telegram account setup (token, DM/group observation).
 
 ## Storage layout

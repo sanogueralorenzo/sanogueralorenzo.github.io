@@ -1,6 +1,6 @@
 # pi-chat
 
-A pi extension that bridges Discord and Telegram channels to a sandboxed pi session. Each connected channel gets its own [Gondolin](https://github.com/earendil-works/gondolin) micro-VM with persistent workspace, shared storage, memory, and skills.
+A pi extension that bridges Telegram chats to a sandboxed pi session. Each connected channel gets its own [Gondolin](https://github.com/earendil-works/gondolin) micro-VM with persistent workspace, shared storage, memory, and skills.
 
 ## Quick Start
 
@@ -21,14 +21,14 @@ pi -e /path/to/pi-chat
 
 - [QEMU](https://www.qemu.org/) installed (`brew install qemu` on macOS)
 - Gondolin guest image (downloaded automatically on first connect)
-- A Discord bot token or Telegram bot token
+- A Telegram bot token
 - `tmux` for multi-channel worker orchestration
 
 ---
 
 ## Features
 
-- **Discord server channels** and **Telegram DMs/groups**
+- **Telegram DMs/groups**
 - **Gondolin VM sandbox** per connection — tools run inside an isolated Alpine Linux micro-VM
 - **Persistent workspace** and **shared storage** across sessions
 - **Streamed preview** responses with edit-in-place
@@ -44,19 +44,10 @@ pi -e /path/to/pi-chat
 
 ## Setup
 
-### Discord
-
-1. Create a bot at [Discord Developer Portal](https://discord.com/developers/applications)
-2. Enable **Message Content Intent** under Bot settings
-3. Run `/chat-config` → Create account → Discord
-4. Enter your bot token
-5. Invite the bot to a server (the setup flow provides the invite URL)
-6. Select a server and configure channels
-
 ### Telegram
 
 1. Create a bot via [@BotFather](https://t.me/BotFather)
-2. Run `/chat-config` → Create account → Telegram
+2. Run `/chat-config` → Create account
 3. Enter your bot token
 4. Add DMs or groups through the guided setup
 
