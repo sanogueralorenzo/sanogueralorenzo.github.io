@@ -4,7 +4,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { fileURLToPath } from "node:url";
 
 import { CHAT_HOME, ensureChatHome, listConfiguredConversations, loadChatConfig, saveChatConfig } from "./config.js";
 import type { AccessPolicy, ChatConfig, ConfiguredChannel, TelegramAccountConfig } from "./core/config-types.js";
@@ -54,7 +53,6 @@ interface ObservedTelegramTarget {
 	chatName: string;
 	userId?: string;
 	userName?: string;
-	dm: boolean;
 }
 
 const servicePath = join(homedir(), ".config", "systemd", "user", "agent-telegram.service");
@@ -115,14 +113,12 @@ async function getLatestUpdateId(botToken: string): Promise<number | undefined> 
 
 function matchObservedTarget(message: TelegramMessage | undefined): ObservedTelegramTarget | undefined {
 	if (!message) return undefined;
-	const dm = message.chat.type === "private";
-	if (!dm && message.chat.type !== "group" && message.chat.type !== "supergroup") return undefined;
+	if (message.chat.type !== "private") return undefined;
 	return {
 		chatId: String(message.chat.id),
 		chatName: chatDisplayName(message.chat),
 		userId: message.from ? String(message.from.id) : undefined,
 		userName: displayName(message.from),
-		dm,
 	};
 }
 
@@ -136,7 +132,7 @@ async function observeTelegramTarget(botToken: string, botUsername?: string): Pr
 	} else {
 		console.log("Open Telegram and send a message to your bot.");
 	}
-	console.log("Waiting for the next DM/group message... Press Ctrl+C to cancel.\n");
+	console.log("Waiting for the next DM message... Press Ctrl+C to cancel.\n");
 	while (true) {
 		const updates = await callTelegram<TelegramUpdate[]>(botToken, "getUpdates", {
 			offset: offset + 1,
@@ -171,18 +167,15 @@ async function commandLogin(): Promise<void> {
 	account = updateAccountIdentityFromSnapshot(account, snapshot) as TelegramAccountConfig;
 	const observed = await observeTelegramTarget(account.botToken, account.botUsername);
 	const access: AccessPolicy = {
-		trigger: observed.dm ? "message" : "mention",
+		trigger: "message",
 		ignoreBots: true,
 		allowedUserIds: observed.userId ? [observed.userId] : undefined,
 	};
-	const channelKey = makeChannelKey(
-		observed.dm ? `dm-${observed.userName || observed.chatName}` : observed.chatName,
-		observed.chatId,
-	);
+	const channelKey = makeChannelKey(`dm-${observed.userName || observed.chatName}`, observed.chatId);
 	const channel: ConfiguredChannel = {
 		id: observed.chatId,
 		name: observed.chatName,
-		dm: observed.dm,
+		dm: true,
 		access,
 	};
 	account.channels[channelKey] = channel;
@@ -206,8 +199,7 @@ async function resolveSingleConversationId(config: ChatConfig): Promise<string> 
 }
 
 function serviceContent(conversationId: string): string {
-	const cliPath = fileURLToPath(import.meta.url);
-	return `[Unit]\nDescription=Agent Telegram bridge\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nWorkingDirectory=${process.cwd()}\nExecStart=/usr/bin/env npx tsx ${cliPath} telegram run ${conversationId}\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n`;
+	return `[Unit]\nDescription=Agent Telegram bridge\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nWorkingDirectory=${process.cwd()}\nExecStart=/usr/bin/env agent telegram run ${conversationId}\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n`;
 }
 
 async function writeService(conversationId: string): Promise<void> {
@@ -264,7 +256,7 @@ async function commandServiceStatus(): Promise<void> {
 }
 
 function commandDoctor(): void {
-	for (const binary of ["pi", "systemctl", "npx"]) {
+	for (const binary of ["agent", "systemctl"]) {
 		const result = spawnSync(binary, ["--version"], { encoding: "utf8" });
 		console.log(`${result.error || result.status !== 0 ? "✗" : "✓"} ${binary}`);
 	}

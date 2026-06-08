@@ -9,9 +9,9 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ AgentSess
 ```
 
 - **Host access.** Remote Telegram turns run with the same local filesystem and process access as the local agent process.
-- **Single chat.** This package intentionally supports one configured Telegram DM/group at a time. Running `agent telegram login` replaces the previous chat config.
+- **Single DM.** This package intentionally supports one trusted Telegram DM at a time. Running `agent telegram login` replaces the previous chat config.
 - **One JSONL log.** Append-only event stream: inbound, outbound, job lifecycle.
-- **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
+- **Trigger-based dispatch.** Every allowed DM message triggers the agent. Messages that arrive while the agent is busy are coalesced into one next turn.
 - **Host tools.** Agent turns are executed through a regular `AgentSession`, so normal local coding tools such as `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths.
 - **Workers.** `agent telegram start` enables and starts the persistent Telegram user service; `agent telegram stop` stops and disables it.
 
@@ -91,7 +91,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ AgentSess
 
 ## Remote control commands
 
-Parsed by `ConversationRuntime.parseControlCommand()`: `stop`, `compact`, `status`. Handled before normal ingest in the `onMessage` path.
+Parsed by `ConversationRuntime.parseControlCommand()`: `abort`, `compact`, `status`. Handled before normal ingest in the `onMessage` path.
 
 ## Secret exchange flow
 

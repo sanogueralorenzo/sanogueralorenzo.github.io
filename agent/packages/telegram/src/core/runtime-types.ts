@@ -68,7 +68,7 @@ export interface CheckpointRecord extends ChatRecordBase {
 export interface JobQueuedRecord extends ChatRecordBase {
 	type: "job_queued";
 	jobId: string;
-	trigger: "mention" | "dm";
+	trigger: "dm";
 	triggerRecordId: number;
 }
 export interface JobCompletedRecord extends ChatRecordBase {
@@ -99,7 +99,7 @@ export type ChatLogRecord =
 
 export interface PendingJob {
 	jobId: string;
-	trigger: "mention" | "dm";
+	trigger: "dm";
 	triggerRecordId: number;
 	queuedRecordId: number;
 }

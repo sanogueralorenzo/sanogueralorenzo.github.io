@@ -36,7 +36,7 @@ export const telegramDiscoveryProvider: DiscoveryProvider = {
 				userName: user.username,
 			},
 			warnings: [
-				"Telegram bots cannot enumerate chats or users up front. Use the guided Add DM/Add group flow after account creation.",
+				"Telegram bots cannot enumerate chats or users up front. Use the guided DM login flow after account creation.",
 			],
 		};
 	},

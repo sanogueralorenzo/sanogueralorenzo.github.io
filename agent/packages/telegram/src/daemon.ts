@@ -17,7 +17,7 @@ export async function runTelegramDaemon(conversationId: string): Promise<void> {
 
 	const ownerId = `agent-telegram-${process.pid}-${Date.now()}`;
 	const runtime = await ConversationRuntime.connect(conversation, ownerId);
-	const agentSession = await TelegramAgentSession.create(conversation);
+	const agentSession = await TelegramAgentSession.create(conversation, runtime);
 	let liveConnection: LiveConnection | undefined;
 	let activeJob = false;
 	let running = false;
@@ -32,10 +32,12 @@ export async function runTelegramDaemon(conversationId: string): Promise<void> {
 		await liveConnection?.startTyping();
 		try {
 			const reply = await agentSession.prompt(next.prompt);
-			const remoteMessageId = reply
-				? await liveConnection?.send(reply, [], undefined, next.triggerMessageId)
+			const attachments = agentSession.drainAttachments();
+			const text = reply || (attachments.length > 0 ? "Attached files." : "");
+			const remoteMessageId = text
+				? await liveConnection?.send(text, attachments, undefined, next.triggerMessageId)
 				: undefined;
-			await runtime.completeActiveJob(reply, remoteMessageId);
+			await runtime.completeActiveJob(reply, remoteMessageId, attachments);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			await runtime.failActiveJob(message);
@@ -62,7 +64,7 @@ export async function runTelegramDaemon(conversationId: string): Promise<void> {
 					return;
 				}
 				const control = runtime.isArmed() ? runtime.parseControlCommand(input) : undefined;
-				if (control === "stop") {
+				if (control === "abort") {
 					if (activeJob) {
 						await agentSession.abort();
 						await liveConnection?.sendImmediate("Aborted current turn.");

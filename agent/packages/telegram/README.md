@@ -21,7 +21,7 @@ agent telegram start
 
 ## Features
 
-- One Telegram DM/group at a time
+- One trusted Telegram DM at a time
 - Direct host-machine access for coding tools
 - Persistent chat storage across sessions
 - Streamed preview responses with edit-in-place
@@ -29,8 +29,10 @@ agent telegram start
 - One simple durable memory file
 - Skills auto-discovered and injected into the prompt
 - Encrypted runtime secret exchange
-- Remote control: stop, compact, status
+- Remote control: abort, compact, status
 - Uses the regular agent session/harness so Telegram turns support session compaction
+- Busy-message coalescing: messages received while the agent is running become one next turn
+- Telegram-specific agent tools: `chat_history`, `chat_attach`, `chat_request_secret`
 - Chat history search
 - File attachments in both directions
 - Telegram voice/audio transcription through a local Whisper worker
@@ -59,14 +61,20 @@ Users in the connected chat can send these commands:
 
 | Command | Effect |
 |---------|--------|
-| `stop` | Abort the current turn |
+| `abort` | Abort the current turn |
 | `status` | Show model, usage, context stats |
 | `compact` | Compact the underlying agent session |
 
 
 ## Storage Layout
 
-Everything lives under `~/.pi/agent/chat/`:
+Telegram transport state lives under `~/.pi/agent/chat/`. The regular agent session is stored below the configured chat directory in `agent-sessions/`.
+
+```text
+~/.pi/agent/chat/accounts/<account>/channels/<chat>/agent-sessions/telegram-session.jsonl
+```
+
+Transport storage:
 
 ```text
 ~/.pi/agent/chat/
@@ -117,7 +125,7 @@ The agent runs with normal host coding tools such as `read`, `write`, `edit`, an
 
 This package is for trusted Telegram chats only.
 
-A connected chat can drive an agent with local host access. Configure the trusted Telegram chat carefully. Do not connect untrusted groups or users.
+The connected DM can drive an agent with local host access. Configure the trusted Telegram user carefully. Group chats are intentionally ignored.
 
 ## License
 

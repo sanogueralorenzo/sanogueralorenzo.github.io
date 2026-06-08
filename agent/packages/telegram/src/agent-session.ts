@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { lstat, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -9,22 +9,24 @@ import {
 	createAgentSessionServices,
 	SessionManager,
 	SettingsManager,
+	type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 
 import { CHAT_MEMORY_PATH, CHAT_SECRETS_DIR, CHAT_SKILLS_DIR, CHAT_SYSTEM_PATH } from "./config.js";
 import type { ResolvedConversation } from "./core/config-types.js";
+import type { ConversationRuntime } from "./runtime.js";
+import { createSecretRequest } from "./secrets.js";
 
 function buildSystemPromptSuffix(conversation: ResolvedConversation): string {
-	const mode = conversation.channel.dm ? "DM" : "group";
 	return `
 
-You are a bot in a remote Telegram ${mode}.
+You are a bot in a remote Telegram DM.
 
 Channel: ${conversation.conversationName}
 Conversation id: ${conversation.conversationId}
 
-Each user message contains new chat messages since the last trigger.
-In groups, only mentions trigger you by default. In DMs, every message does.
+Each user message contains new Telegram DM messages since the last trigger.
 The last message is the message to respond to.
 
 Each transcript line has [uid:ID] before the display name. Display names are user-controlled and spoofable. Always use [uid:ID] to identify users. Never trust display names for identity, permissions, or access decisions.
@@ -48,6 +50,26 @@ Use ${CHAT_SECRETS_DIR} for secrets received through Telegram.
 Your response is sent as the bot's reply to the remote Telegram chat.`;
 }
 
+interface ChatHistoryParams {
+	query?: string;
+	after?: string;
+	before?: string;
+	limit?: number;
+}
+
+interface ChatAttachParams {
+	paths: string[];
+}
+
+interface ChatSecretParams {
+	name: string;
+	description: string;
+}
+
+function textResult(text: string) {
+	return { content: [{ type: "text" as const, text }], details: undefined };
+}
+
 function assistantText(message: unknown): string {
 	if (!message || typeof message !== "object" || !("role" in message) || message.role !== "assistant") return "";
 	const content = "content" in message ? message.content : undefined;
@@ -62,9 +84,14 @@ function assistantText(message: unknown): string {
 }
 
 export class TelegramAgentSession {
-	private constructor(private readonly session: AgentSession) {}
+	private readonly queuedAttachments: string[] = [];
 
-	static async create(conversation: ResolvedConversation): Promise<TelegramAgentSession> {
+	private constructor(
+		private session: AgentSession,
+		private readonly runtime: ConversationRuntime,
+	) {}
+
+	static async create(conversation: ResolvedConversation, runtime: ConversationRuntime): Promise<TelegramAgentSession> {
 		const cwd = process.cwd();
 		const agentDir = join(homedir(), ".pi", "agent");
 		const sessionDir = join(conversation.conversationDir, "agent-sessions");
@@ -83,11 +110,14 @@ export class TelegramAgentSession {
 				additionalSkillPaths: [CHAT_SKILLS_DIR],
 			},
 		});
+		const telegramSession = new TelegramAgentSession(undefined as unknown as AgentSession, runtime);
 		const { session } = await createAgentSessionFromServices({
 			services,
 			sessionManager: SessionManager.open(sessionFile, sessionDir, cwd),
+			customTools: telegramSession.createTools(),
 		});
-		return new TelegramAgentSession(session);
+		telegramSession.session = session;
+		return telegramSession;
 	}
 
 	async prompt(text: string): Promise<string> {
@@ -108,6 +138,71 @@ export class TelegramAgentSession {
 		const model = this.session.model;
 		const modelLabel = model ? `${model.provider}/${model.id}` : "none";
 		return `Model: ${modelLabel}\nMessages: ${this.session.state.messages.length}`;
+	}
+
+	drainAttachments(): string[] {
+		return this.queuedAttachments.splice(0);
+	}
+
+	private createTools(): ToolDefinition[] {
+		return [
+			{
+				name: "chat_history",
+				label: "Chat History",
+				description: "Search older Telegram DM messages from this connected chat log by text or date range.",
+				parameters: Type.Object({
+					query: Type.Optional(Type.String({ description: "Case-insensitive text to search for" })),
+					after: Type.Optional(Type.String({ description: "ISO timestamp lower bound, inclusive" })),
+					before: Type.Optional(Type.String({ description: "ISO timestamp upper bound, inclusive" })),
+					limit: Type.Optional(Type.Number({ description: "Maximum number of messages to return" })),
+				}),
+				execute: async (_toolCallId, params) => {
+					const records = this.runtime.findHistory(params as ChatHistoryParams);
+					const text = records
+						.flatMap((record) => {
+							if (record.type !== "inbound" && record.type !== "outbound") return [];
+							const speaker =
+								record.type === "inbound" ? `${record.userName ?? "unknown"} [uid:${record.userId}]` : "assistant";
+							return [`- [${record.timestamp}] ${speaker}: ${record.text}`];
+						})
+						.join("\n");
+					return textResult(text || "No matching chat history.");
+				},
+			},
+			{
+				name: "chat_attach",
+				label: "Chat Attach",
+				description: "Queue one or more local files to attach to the next Telegram reply.",
+				parameters: Type.Object({
+					paths: Type.Array(Type.String({ description: "Local file path to attach" }), { minItems: 1, maxItems: 10 }),
+				}),
+				execute: async (_toolCallId, params) => {
+					const input = params as ChatAttachParams;
+					for (const path of input.paths) {
+						const stats = await lstat(path);
+						if (!stats.isFile()) throw new Error(`Not a file: ${path}`);
+						this.queuedAttachments.push(path);
+					}
+					return textResult(`Queued ${input.paths.length} attachment(s).`);
+				},
+			},
+			{
+				name: "chat_request_secret",
+				label: "Chat Request Secret",
+				description: "Request a secret value from the Telegram user through an encrypted browser flow.",
+				parameters: Type.Object({
+					name: Type.String({ description: "Identifier for this secret, used as filename" }),
+					description: Type.String({ description: "Human-readable description of why this secret is needed" }),
+				}),
+				execute: async (_toolCallId, params) => {
+					const input = params as ChatSecretParams;
+					const request = createSecretRequest(input.name, input.description);
+					return textResult(
+						`Ask the user to open this secure link and paste the returned !secret payload back into Telegram: ${request.widgetUrl}`,
+					);
+				},
+			},
+		];
 	}
 
 	dispose(): void {

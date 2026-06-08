@@ -109,6 +109,7 @@ async function messageToInput(
 	account: TelegramAccountConfig,
 	message: TelegramMessage,
 ) {
+	if (message.chat.type !== "private") return undefined;
 	if (String(message.chat.id) !== conversation.channel.id) return undefined;
 	if (account.botUserId && String(message.from?.id ?? "") === account.botUserId) return undefined;
 	const text = (message.text || message.caption || "").trim();

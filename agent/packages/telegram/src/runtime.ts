@@ -24,10 +24,6 @@ import {
 } from "./log.js";
 import { transcribeInboundAudio } from "./stt.js";
 
-function isDMConversation(conversation: ResolvedConversation): boolean {
-	return conversation.channel.dm ?? false;
-}
-
 function toHostDisplayPath(_conversation: ResolvedConversation, localPath: string): string {
 	return localPath;
 }
@@ -134,7 +130,7 @@ export class ConversationRuntime {
 		return this.isAllowedInput(message);
 	}
 
-	parseControlCommand(input: InboundMessageInput): "stop" | "compact" | "status" | undefined {
+	parseControlCommand(input: InboundMessageInput): "abort" | "compact" | "status" | undefined {
 		const normalized = normalizeInboundMessage(input, this.conversation.botName);
 		if (!this.isAllowedInput(normalized)) return undefined;
 		const account = this.conversation.account;
@@ -146,21 +142,19 @@ export class ConversationRuntime {
 		);
 		for (const alias of aliases) text = text.replace(new RegExp(`@${escapeRegExp(alias || "")}\\b`, "ig"), " ");
 		const command = text.replace(/\s+/g, " ").trim().toLowerCase();
-		if (command === "stop" || command === "/stop") return "stop";
+		if (command === "abort" || command === "/abort") return "abort";
 		if (command === "compact" || command === "/compact") return "compact";
 		if (command === "status" || command === "/status") return "status";
 		return undefined;
 	}
 
-	matchesStopCommand(input: InboundMessageInput): boolean {
-		return this.parseControlCommand(input) === "stop";
+	matchesAbortCommand(input: InboundMessageInput): boolean {
+		return this.parseControlCommand(input) === "abort";
 	}
 
-	private shouldTriggerJob(message: InboundMessageRecord): false | "mention" | "dm" {
+	private shouldTriggerJob(message: InboundMessageRecord): false | "dm" {
 		if (!this.isAllowedMessage(message)) return false;
-		if (isDMConversation(this.conversation)) return "dm";
-		if ((this.conversation.access.trigger ?? "mention") === "message") return "mention";
-		return message.mentionedBot ? "mention" : false;
+		return "dm";
 	}
 
 	private shouldQueueTrigger(recordId: number): boolean {
@@ -231,7 +225,8 @@ export class ConversationRuntime {
 
 	beginNextJob(): DispatchableJob | undefined {
 		if (this.activeJob || this.pendingJobs.length === 0) return undefined;
-		const job = this.pendingJobs.shift();
+		const job = this.pendingJobs.at(-1);
+		this.pendingJobs = [];
 		if (!job) return undefined;
 		this.activeJob = job;
 		const triggerRecord = getLatestTriggerRecord(this.records, job);
