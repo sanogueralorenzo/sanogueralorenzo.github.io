@@ -117,6 +117,9 @@ The runtime loop follows Pi's agent-session shape while keeping the harness sync
 - state also exposes Pi-style streaming role, pending tool-call IDs, and the latest runtime error message
 - separate steering and follow-up queues mirror Pi's interrupt-vs-after-current-run behavior: the direct prompt is persisted first, steering is injected before the next assistant response, and follow-up messages run only after the agent would otherwise stop
 - queue modes support Pi's `one-at-a-time` default and `all` draining behavior
+- queued message snapshots are available separately for steering and follow-up, and `clear_queue` is the explicit queue-removal operation
+- `abort` requests cancellation of an active run and is a no-op when idle; it does not clear queued messages
+- starting a new prompt while a run is active is rejected; callers should queue steering or follow-up messages instead
 - lifecycle events cover agent start/end, queue updates, turn start/end, message start/end/update, tool execution start/update/end, retry start/end, cancellation, and compaction hook checks
 - retry policy uses bounded attempts and exponential backoff for transient provider/network errors
 - continuation can resume from an existing user/tool-result context without appending a new prompt

@@ -148,6 +148,12 @@ pub struct RuntimeTurnSnapshot {
     pub tool_results: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueueSnapshot {
+    pub steering: Vec<String>,
+    pub follow_up: Vec<String>,
+}
+
 pub struct Runtime<M: ModelClient> {
     log: SessionLog,
     tools: ToolRegistry,
@@ -226,11 +232,33 @@ impl<M: ModelClient> Runtime<M> {
         self.emit_queue_update();
     }
 
-    pub fn clear_queue(&mut self) -> (Vec<String>, Vec<String>) {
+    pub fn queued_messages(&self) -> QueueSnapshot {
+        QueueSnapshot {
+            steering: self.steering_queue.iter().cloned().collect(),
+            follow_up: self.follow_up_queue.iter().cloned().collect(),
+        }
+    }
+
+    pub fn steering_messages(&self) -> Vec<String> {
+        self.steering_queue.iter().cloned().collect()
+    }
+
+    pub fn follow_up_messages(&self) -> Vec<String> {
+        self.follow_up_queue.iter().cloned().collect()
+    }
+
+    pub fn has_queued_messages(&self) -> bool {
+        !self.steering_queue.is_empty() || !self.follow_up_queue.is_empty()
+    }
+
+    pub fn clear_queue(&mut self) -> QueueSnapshot {
         let steering = self.steering_queue.drain(..).collect::<Vec<_>>();
         let follow_up = self.follow_up_queue.drain(..).collect::<Vec<_>>();
         self.emit_queue_update();
-        (steering, follow_up)
+        QueueSnapshot {
+            steering,
+            follow_up,
+        }
     }
 
     pub fn pending_message_count(&self) -> usize {
@@ -238,11 +266,8 @@ impl<M: ModelClient> Runtime<M> {
     }
 
     pub fn abort(&mut self) {
-        self.clear_queue();
         if self.state.is_running {
             self.state.cancel_requested = true;
-        } else {
-            self.emit(RuntimeEvent::Cancelled);
         }
     }
 
@@ -281,6 +306,11 @@ impl<M: ModelClient> Runtime<M> {
     }
 
     fn run_prompt_messages(&mut self, messages: Vec<String>) -> Result<String> {
+        if self.state.is_running {
+            bail!(
+                "agent is already processing a prompt; queue steering or follow-up messages instead"
+            );
+        }
         self.state.is_running = true;
         self.state.cancel_requested = false;
         self.state.error_message = None;
@@ -1241,7 +1271,7 @@ mod tests {
     }
 
     #[test]
-    fn abort_when_idle_clears_queues() {
+    fn abort_when_idle_preserves_queues_like_pi() {
         let log = SessionLog::memory();
         let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
 
@@ -1249,13 +1279,83 @@ mod tests {
         runtime.queue_follow_up("follow".to_owned());
         runtime.abort();
 
+        assert_eq!(runtime.pending_message_count(), 2);
+        assert_eq!(
+            runtime.queued_messages(),
+            QueueSnapshot {
+                steering: vec!["steer".to_owned()],
+                follow_up: vec!["follow".to_owned()],
+            }
+        );
+        assert!(
+            !runtime
+                .runtime_events()
+                .iter()
+                .any(|event| matches!(event, RuntimeEvent::Cancelled))
+        );
+    }
+
+    #[test]
+    fn clear_queue_returns_and_removes_pending_messages() {
+        let log = SessionLog::memory();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
+
+        runtime.queue_steer("steer".to_owned());
+        runtime.queue_follow_up("follow".to_owned());
+        assert!(runtime.has_queued_messages());
+        assert_eq!(runtime.steering_messages(), vec!["steer".to_owned()]);
+        assert_eq!(runtime.follow_up_messages(), vec!["follow".to_owned()]);
+
+        let cleared = runtime.clear_queue();
+
+        assert_eq!(
+            cleared,
+            QueueSnapshot {
+                steering: vec!["steer".to_owned()],
+                follow_up: vec!["follow".to_owned()],
+            }
+        );
+        assert!(!runtime.has_queued_messages());
         assert_eq!(runtime.pending_message_count(), 0);
+    }
+
+    #[test]
+    fn abort_when_running_requests_cancel_without_clearing_queues() {
+        let log = SessionLog::memory();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
+
+        runtime.queue_steer("steer".to_owned());
+        runtime.state.is_running = true;
+        runtime.abort();
+
+        assert!(runtime.state().cancel_requested);
+        assert_eq!(runtime.pending_message_count(), 1);
+        assert!(
+            !runtime
+                .runtime_events()
+                .iter()
+                .any(|event| matches!(event, RuntimeEvent::Cancelled))
+        );
+
+        let error = runtime.ensure_not_cancelled().unwrap_err();
+        assert_eq!(error.to_string(), "agent run cancelled");
         assert!(
             runtime
                 .runtime_events()
                 .iter()
                 .any(|event| matches!(event, RuntimeEvent::Cancelled))
         );
+    }
+
+    #[test]
+    fn run_message_rejects_prompt_when_already_running() {
+        let log = SessionLog::memory();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
+
+        runtime.state.is_running = true;
+        let error = runtime.run_message("hello".to_owned()).unwrap_err();
+
+        assert!(error.to_string().contains("already processing"));
     }
 
     #[test]
