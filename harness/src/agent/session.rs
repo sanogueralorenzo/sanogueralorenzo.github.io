@@ -256,12 +256,27 @@ pub struct SessionStats {
     pub total_messages: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionInfo {
+    pub path: PathBuf,
+    pub id: String,
+    pub cwd: String,
+    pub name: Option<String>,
+    pub parent_session_path: Option<String>,
+    pub created: String,
+    pub modified: String,
+    pub message_count: usize,
+    pub first_message: Option<String>,
+    pub all_messages_text: String,
+}
+
 pub struct SessionLog {
     header: SessionHeader,
     entries: Vec<FileEntry>,
     events: Vec<Event>,
     file: Option<File>,
     file_path: Option<PathBuf>,
+    flushed: bool,
     by_id: HashMap<String, FileEntry>,
     labels_by_id: HashMap<String, String>,
     label_timestamps_by_id: HashMap<String, String>,
@@ -272,6 +287,7 @@ pub struct SessionLog {
 impl SessionLog {
     pub fn open(path: PathBuf) -> Result<Self> {
         ensure_parent_dir(&path)?;
+        let path_existed = path.exists();
         let cwd = std::env::current_dir()
             .context("resolve current working directory")?
             .display()
@@ -280,13 +296,82 @@ impl SessionLog {
         if needs_rewrite {
             rewrite_file(&path, &header, &entries)?;
         }
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .with_context(|| format!("open session log {}", path.display()))?;
+        let (file, flushed) = if path_existed || needs_rewrite {
+            let file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+                .with_context(|| format!("open session log {}", path.display()))?;
+            (Some(file), true)
+        } else {
+            (None, false)
+        };
 
-        Ok(Self::from_parts(header, entries, Some(file), Some(path)))
+        Ok(Self::from_parts(header, entries, file, Some(path), flushed))
+    }
+
+    pub fn create(cwd: PathBuf, session_dir: Option<PathBuf>) -> Result<Self> {
+        let cwd = resolved_display_path(&cwd)?;
+        let session_dir = match session_dir {
+            Some(path) => path,
+            None => default_session_dir(Path::new(&cwd))?,
+        };
+        std::fs::create_dir_all(&session_dir)
+            .with_context(|| format!("create session directory {}", session_dir.display()))?;
+        let path = timestamped_session_path(&session_dir, &cwd);
+        ensure_parent_dir(&path)?;
+        let header = new_header(&path, cwd, None);
+        Ok(Self::from_parts(
+            header,
+            Vec::new(),
+            None,
+            Some(path),
+            false,
+        ))
+    }
+
+    pub fn continue_recent(cwd: PathBuf, session_dir: Option<PathBuf>) -> Result<Self> {
+        let cwd = resolved_display_path(&cwd)?;
+        let session_dir = match session_dir {
+            Some(path) => path,
+            None => default_session_dir(Path::new(&cwd))?,
+        };
+        let sessions = list_sessions_in_dir(&session_dir, Some(&cwd))?;
+        if let Some(info) = sessions.first() {
+            return Self::open(info.path.clone());
+        }
+        Self::create(PathBuf::from(cwd), Some(session_dir))
+    }
+
+    pub fn default_session_dir(cwd: &Path) -> Result<PathBuf> {
+        default_session_dir(cwd)
+    }
+
+    pub fn list(cwd: PathBuf, session_dir: Option<PathBuf>) -> Result<Vec<SessionInfo>> {
+        let cwd = resolved_display_path(&cwd)?;
+        let session_dir = match session_dir {
+            Some(path) => path,
+            None => default_session_dir(Path::new(&cwd))?,
+        };
+        list_sessions_in_dir(&session_dir, Some(&cwd))
+    }
+
+    pub fn list_all(agent_dir: Option<PathBuf>) -> Result<Vec<SessionInfo>> {
+        let sessions_root = agent_dir.unwrap_or_else(harness_agent_dir).join("sessions");
+        if !sessions_root.exists() {
+            return Ok(Vec::new());
+        }
+        let mut sessions = Vec::new();
+        for entry in std::fs::read_dir(&sessions_root)
+            .with_context(|| format!("read sessions directory {}", sessions_root.display()))?
+        {
+            let path = entry?.path();
+            if path.is_dir() {
+                sessions.extend(list_sessions_in_dir(&path, None)?);
+            }
+        }
+        sessions.sort_by(|a, b| b.modified.cmp(&a.modified));
+        Ok(sessions)
     }
 
     pub fn fork_from(source_path: &Path, target_path: PathBuf) -> Result<Self> {
@@ -307,6 +392,7 @@ impl SessionLog {
             source_entries,
             Some(file),
             Some(target_path),
+            true,
         ))
     }
 
@@ -317,7 +403,7 @@ impl SessionLog {
             std::env::current_dir().unwrap().display().to_string(),
             None,
         );
-        Self::from_parts(header, Vec::new(), None, None)
+        Self::from_parts(header, Vec::new(), None, None, false)
     }
 
     pub fn events(&self) -> &[Event] {
@@ -478,6 +564,16 @@ impl SessionLog {
         self.labels_by_id.get(id).map(String::as_str)
     }
 
+    pub fn get_children(&self, parent: Option<&str>) -> Vec<&FileEntry> {
+        let mut children = self
+            .entries
+            .iter()
+            .filter(|entry| parent_id(entry).as_deref() == parent)
+            .collect::<Vec<_>>();
+        children.sort_by_key(|entry| entry_timestamp(entry));
+        children
+    }
+
     pub fn get_session_name(&self) -> Option<&str> {
         self.entries.iter().rev().find_map(|entry| match entry {
             FileEntry::SessionInfo { name, .. } => name.as_deref(),
@@ -488,7 +584,11 @@ impl SessionLog {
     pub fn get_branch(&self, from_id: Option<&str>) -> Vec<FileEntry> {
         let mut branch = Vec::new();
         let mut current_id = from_id.map(str::to_owned).or_else(|| self.leaf_id.clone());
+        let mut visited = HashSet::new();
         while let Some(id) = current_id {
+            if !visited.insert(id.clone()) {
+                break;
+            }
             let Some(entry) = self.by_id.get(&id).cloned() else {
                 break;
             };
@@ -501,9 +601,19 @@ impl SessionLog {
 
     pub fn get_tree(&self) -> Vec<SessionTreeNode> {
         let mut children_by_parent: HashMap<Option<String>, Vec<FileEntry>> = HashMap::new();
+        let entry_ids = self
+            .entries
+            .iter()
+            .filter_map(entry_id)
+            .collect::<HashSet<_>>();
         for entry in &self.entries {
+            let parent = match (entry_id(entry), parent_id(entry)) {
+                (Some(id), Some(parent)) if id == parent => None,
+                (_, Some(parent)) if !entry_ids.contains(&parent) => None,
+                (_, parent) => parent,
+            };
             children_by_parent
-                .entry(parent_id(entry))
+                .entry(parent)
                 .or_default()
                 .push(entry.clone());
         }
@@ -561,16 +671,23 @@ impl SessionLog {
                 .as_ref()
                 .map(|path| path.display().to_string()),
         );
-        rewrite_file(&target_path, &header, &copied)?;
-        let file = OpenOptions::new()
-            .append(true)
-            .open(&target_path)
-            .with_context(|| format!("open branched session log {}", target_path.display()))?;
+        let has_assistant = copied.iter().any(is_assistant_message_entry);
+        let (file, flushed) = if has_assistant {
+            rewrite_file(&target_path, &header, &copied)?;
+            let file = OpenOptions::new()
+                .append(true)
+                .open(&target_path)
+                .with_context(|| format!("open branched session log {}", target_path.display()))?;
+            (Some(file), true)
+        } else {
+            (None, false)
+        };
         Ok(Self::from_parts(
             header,
             copied,
-            Some(file),
+            file,
             Some(target_path),
+            flushed,
         ))
     }
 
@@ -618,6 +735,7 @@ impl SessionLog {
         entries: Vec<FileEntry>,
         file: Option<File>,
         file_path: Option<PathBuf>,
+        flushed: bool,
     ) -> Self {
         let mut log = Self {
             header,
@@ -625,6 +743,7 @@ impl SessionLog {
             events: Vec::new(),
             file,
             file_path,
+            flushed,
             by_id: HashMap::new(),
             labels_by_id: HashMap::new(),
             label_timestamps_by_id: HashMap::new(),
@@ -637,15 +756,38 @@ impl SessionLog {
 
     fn append_entry(&mut self, entry: FileEntry) -> Result<String> {
         let id = entry_id(&entry).context("session entries must have ids")?;
-        if let Some(file) = self.file.as_mut() {
-            let line = serde_json::to_string(&entry)?;
-            writeln!(file, "{line}")?;
-            file.flush()?;
-        }
-        self.entries.push(entry);
+        self.entries.push(entry.clone());
+        self.persist_entry(&entry)?;
         self.rebuild_index();
         self.rebuild_events();
         Ok(id)
+    }
+
+    fn persist_entry(&mut self, entry: &FileEntry) -> Result<()> {
+        let Some(path) = self.file_path.as_ref() else {
+            return Ok(());
+        };
+
+        let has_assistant = self.entries.iter().any(is_assistant_message_entry);
+        if !has_assistant {
+            if self.flushed {
+                append_entry_line(self.file.as_mut(), path, entry)?;
+            }
+            return Ok(());
+        }
+
+        if !self.flushed {
+            rewrite_file(path, &self.header, &self.entries)?;
+            let file = OpenOptions::new()
+                .append(true)
+                .open(path)
+                .with_context(|| format!("open session log {}", path.display()))?;
+            self.file = Some(file);
+            self.flushed = true;
+        } else {
+            append_entry_line(self.file.as_mut(), path, entry)?;
+        }
+        Ok(())
     }
 
     fn entry_from_event(&self, event: Event) -> Result<FileEntry> {
@@ -776,7 +918,7 @@ fn load_or_create_file_entries(
     parent_session: Option<String>,
 ) -> Result<(SessionHeader, Vec<FileEntry>, bool)> {
     if !path.exists() {
-        return Ok((new_header(path, cwd, parent_session), Vec::new(), true));
+        return Ok((new_header(path, cwd, parent_session), Vec::new(), false));
     }
 
     match load_existing_session(path) {
@@ -825,6 +967,89 @@ fn load_existing_session(path: &Path) -> Result<(SessionHeader, Vec<FileEntry>)>
     ))
 }
 
+fn list_sessions_in_dir(session_dir: &Path, cwd: Option<&str>) -> Result<Vec<SessionInfo>> {
+    if !session_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut sessions = Vec::new();
+    for entry in std::fs::read_dir(session_dir)
+        .with_context(|| format!("read session directory {}", session_dir.display()))?
+    {
+        let path = entry?.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("jsonl") {
+            continue;
+        }
+        let Ok((header, entries)) = load_existing_session(&path) else {
+            continue;
+        };
+        if let Some(cwd) = cwd
+            && header.cwd != cwd
+        {
+            continue;
+        }
+        sessions.push(build_session_info(path, header, &entries));
+    }
+    sessions.sort_by(|a, b| b.modified.cmp(&a.modified));
+    Ok(sessions)
+}
+
+fn build_session_info(path: PathBuf, header: SessionHeader, entries: &[FileEntry]) -> SessionInfo {
+    let mut name = None;
+    let mut message_count = 0;
+    let mut first_message = None;
+    let mut all_messages = Vec::new();
+    let mut modified = header.timestamp.clone();
+
+    for entry in entries {
+        match entry {
+            FileEntry::SessionInfo {
+                name: entry_name, ..
+            } => {
+                name = entry_name.clone();
+            }
+            FileEntry::Message {
+                timestamp, message, ..
+            } => {
+                modified = timestamp.clone();
+                message_count += 1;
+                match message {
+                    AgentMessage::User { content, .. } => {
+                        let text = text_from_message_content(content);
+                        if first_message.is_none() {
+                            first_message = Some(text.clone());
+                        }
+                        all_messages.push(text);
+                    }
+                    AgentMessage::Assistant { content, .. } => {
+                        let text = text_from_assistant_content(content);
+                        if !text.is_empty() {
+                            all_messages.push(text);
+                        }
+                    }
+                    AgentMessage::ToolResult { .. } => {}
+                }
+            }
+            _ => {
+                modified = entry_timestamp(entry);
+            }
+        }
+    }
+
+    SessionInfo {
+        path,
+        id: header.id,
+        cwd: header.cwd,
+        name,
+        parent_session_path: header.parent_session,
+        created: header.timestamp,
+        modified,
+        message_count,
+        first_message,
+        all_messages_text: all_messages.join("\n"),
+    }
+}
+
 fn rewrite_file(path: &Path, header: &SessionHeader, entries: &[FileEntry]) -> Result<()> {
     ensure_parent_dir(path)?;
     let mut file = OpenOptions::new()
@@ -851,6 +1076,25 @@ fn rewrite_file(path: &Path, header: &SessionHeader, entries: &[FileEntry]) -> R
     Ok(())
 }
 
+fn append_entry_line(file: Option<&mut File>, path: &Path, entry: &FileEntry) -> Result<()> {
+    match file {
+        Some(file) => {
+            writeln!(file, "{}", serde_json::to_string(entry)?)?;
+            file.flush()?;
+        }
+        None => {
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .with_context(|| format!("open session log {}", path.display()))?;
+            writeln!(file, "{}", serde_json::to_string(entry)?)?;
+            file.flush()?;
+        }
+    }
+    Ok(())
+}
+
 fn new_header(path: &Path, cwd: String, parent_session: Option<String>) -> SessionHeader {
     SessionHeader {
         version: CURRENT_SESSION_VERSION,
@@ -859,6 +1103,68 @@ fn new_header(path: &Path, cwd: String, parent_session: Option<String>) -> Sessi
         cwd,
         parent_session,
     }
+}
+
+fn default_session_dir(cwd: &Path) -> Result<PathBuf> {
+    let resolved = resolved_display_path(cwd)?;
+    let encoded = encode_cwd_for_session_dir(&resolved);
+    let session_dir = harness_agent_dir().join("sessions").join(encoded);
+    std::fs::create_dir_all(&session_dir)
+        .with_context(|| format!("create session directory {}", session_dir.display()))?;
+    Ok(session_dir)
+}
+
+fn harness_agent_dir() -> PathBuf {
+    std::env::var_os("HARNESS_CODING_AGENT_DIR")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .map(|home| home.join(".harness").join("agent"))
+        })
+        .unwrap_or_else(|| PathBuf::from(".harness/agent"))
+}
+
+fn encode_cwd_for_session_dir(cwd: &str) -> String {
+    let trimmed = cwd
+        .trim_start_matches('/')
+        .trim_start_matches('\\')
+        .replace(['/', '\\', ':'], "-");
+    if trimmed.is_empty() {
+        "--root--".to_owned()
+    } else {
+        format!("--{trimmed}--")
+    }
+}
+
+fn resolved_display_path(path: &Path) -> Result<String> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .context("resolve current working directory")?
+            .join(path)
+    };
+    Ok(std::fs::canonicalize(&absolute)
+        .unwrap_or(absolute)
+        .display()
+        .to_string())
+}
+
+fn timestamped_session_path(session_dir: &Path, cwd: &str) -> PathBuf {
+    let file_timestamp = timestamp().replace([':', '.'], "-");
+    for attempt in 0..100 {
+        let seed = format!("{}:{cwd}:{file_timestamp}:{attempt}", session_dir.display());
+        let suffix = format!("{:08x}", fnv1a64(&seed) as u32);
+        let path = session_dir.join(format!("{file_timestamp}_{suffix}.jsonl"));
+        if !path.exists() {
+            return path;
+        }
+    }
+    session_dir.join(format!(
+        "{file_timestamp}_{:016x}.jsonl",
+        fnv1a64(&format!("{cwd}:{}", unix_millis()))
+    ))
 }
 
 fn session_id(path: &Path) -> String {
@@ -1092,11 +1398,32 @@ fn is_context_entry(entry: &FileEntry) -> bool {
     )
 }
 
+fn is_assistant_message_entry(entry: &FileEntry) -> bool {
+    matches!(
+        entry,
+        FileEntry::Message {
+            message: AgentMessage::Assistant { .. },
+            ..
+        }
+    )
+}
+
 fn text_from_message_content(content: &MessageContent) -> String {
     match content {
         MessageContent::Text(text) => text.clone(),
         MessageContent::Parts(parts) => text_from_parts(parts),
     }
+}
+
+fn text_from_assistant_content(content: &[AssistantContent]) -> String {
+    content
+        .iter()
+        .filter_map(|part| match part {
+            AssistantContent::Text { text } => Some(text.as_str()),
+            AssistantContent::ToolCall { .. } => None,
+        })
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 fn text_from_parts(parts: &[MessagePart]) -> String {
@@ -1199,6 +1526,10 @@ mod tests {
                 content: "hello".to_owned(),
             })
             .unwrap();
+            log.append(Event::AssistantMessage {
+                content: "hi".to_owned(),
+            })
+            .unwrap();
         }
 
         let log = SessionLog::open(path.clone()).unwrap();
@@ -1213,7 +1544,7 @@ mod tests {
                 .unwrap()
                 .contains("sanogueralorenzo")
         );
-        assert_eq!(log.events().len(), 1);
+        assert_eq!(log.events().len(), 2);
         assert_eq!(log.session_id(), first_line["id"].as_str());
     }
 
@@ -1371,6 +1702,10 @@ mod tests {
                 content: "hello".to_owned(),
             })
             .unwrap();
+            log.append(Event::AssistantMessage {
+                content: "hi".to_owned(),
+            })
+            .unwrap();
         }
 
         let fork = SessionLog::fork_from(&source, target).unwrap();
@@ -1379,7 +1714,7 @@ mod tests {
             fork.header().parent_session.as_deref(),
             Some(source.display().to_string().as_str())
         );
-        assert_eq!(fork.events().len(), 1);
+        assert_eq!(fork.events().len(), 2);
     }
 
     #[test]
@@ -1409,6 +1744,143 @@ mod tests {
     }
 
     #[test]
+    fn creates_continues_and_lists_session_summaries() {
+        let session_dir = temp_session_dir("manager");
+        let cwd = std::env::current_dir().unwrap();
+        let session_path;
+        {
+            let mut log = SessionLog::create(cwd.clone(), Some(session_dir.clone())).unwrap();
+            session_path = log.session_file().unwrap().to_path_buf();
+            log.append_session_info(Some("Work".to_owned())).unwrap();
+            log.append(Event::UserMessage {
+                content: "first request".to_owned(),
+            })
+            .unwrap();
+            log.append(Event::AssistantMessage {
+                content: "first reply".to_owned(),
+            })
+            .unwrap();
+        }
+
+        let listed = SessionLog::list(cwd.clone(), Some(session_dir.clone())).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].path, session_path);
+        assert_eq!(listed[0].name.as_deref(), Some("Work"));
+        assert_eq!(listed[0].message_count, 2);
+        assert_eq!(listed[0].first_message.as_deref(), Some("first request"));
+        assert!(listed[0].all_messages_text.contains("first reply"));
+
+        let continued = SessionLog::continue_recent(cwd, Some(session_dir)).unwrap();
+        assert_eq!(continued.session_file(), Some(session_path.as_path()));
+        assert_eq!(continued.events().len(), 2);
+    }
+
+    #[test]
+    fn defers_new_session_file_until_assistant_message_like_pi() {
+        let session_dir = temp_session_dir("deferred");
+        let cwd = std::env::current_dir().unwrap();
+        let mut log = SessionLog::create(cwd, Some(session_dir)).unwrap();
+        let session_path = log.session_file().unwrap().to_path_buf();
+
+        assert!(!session_path.exists());
+
+        log.append(Event::UserMessage {
+            content: "prompt only".to_owned(),
+        })
+        .unwrap();
+        assert!(!session_path.exists());
+
+        log.append(Event::AssistantMessage {
+            content: "reply".to_owned(),
+        })
+        .unwrap();
+
+        let content = std::fs::read_to_string(session_path).unwrap();
+        assert_eq!(content.lines().count(), 3);
+        assert_eq!(
+            serde_json::from_str::<Value>(content.lines().next().unwrap()).unwrap()["type"],
+            "session"
+        );
+    }
+
+    #[test]
+    fn defers_prompt_only_branched_session_until_assistant_message_like_pi() {
+        let target = temp_session_path("deferred-branch");
+        let mut log = SessionLog::memory();
+        let first = log
+            .append(Event::UserMessage {
+                content: "first".to_owned(),
+            })
+            .unwrap();
+
+        let mut branched = log.create_branched_session(&first, target.clone()).unwrap();
+
+        assert!(!target.exists());
+        branched
+            .append(Event::AssistantMessage {
+                content: "reply".to_owned(),
+            })
+            .unwrap();
+        assert!(target.exists());
+    }
+
+    #[test]
+    fn lists_all_sessions_under_agent_sessions_root() {
+        let agent_dir = temp_session_dir("agent-dir");
+        let cwd = std::env::current_dir().unwrap();
+        let session_dir = agent_dir.join("sessions").join(encode_cwd_for_session_dir(
+            &resolved_display_path(&cwd).unwrap(),
+        ));
+        let mut log = SessionLog::create(cwd, Some(session_dir)).unwrap();
+        log.append(Event::UserMessage {
+            content: "hello".to_owned(),
+        })
+        .unwrap();
+        log.append(Event::AssistantMessage {
+            content: "hi".to_owned(),
+        })
+        .unwrap();
+
+        let listed = SessionLog::list_all(Some(agent_dir)).unwrap();
+
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].message_count, 2);
+        assert_eq!(listed[0].first_message.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn tree_keeps_orphan_and_self_parent_entries_as_roots() {
+        let header = new_header(
+            Path::new("memory"),
+            std::env::current_dir().unwrap().display().to_string(),
+            None,
+        );
+        let entries = vec![
+            FileEntry::Custom {
+                id: "orphan".to_owned(),
+                parent_id: Some("missing".to_owned()),
+                timestamp: "2026-01-01T00:00:00.000Z".to_owned(),
+                custom_type: "test".to_owned(),
+                data: None,
+            },
+            FileEntry::Custom {
+                id: "self".to_owned(),
+                parent_id: Some("self".to_owned()),
+                timestamp: "2026-01-01T00:00:01.000Z".to_owned(),
+                custom_type: "test".to_owned(),
+                data: None,
+            },
+        ];
+        let log = SessionLog::from_parts(header, entries, None, None, false);
+
+        let tree = log.get_tree();
+
+        assert_eq!(tree.len(), 2);
+        assert_eq!(entry_id(&tree[0].entry).as_deref(), Some("orphan"));
+        assert_eq!(entry_id(&tree[1].entry).as_deref(), Some("self"));
+    }
+
+    #[test]
     fn builds_stable_bounded_session_ids() {
         let first = session_id(Path::new("/tmp/harness/session.jsonl"));
         let second = session_id(Path::new("/tmp/harness/session.jsonl"));
@@ -1425,6 +1897,16 @@ mod tests {
             unix_millis()
         ));
         let _ = std::fs::remove_file(&path);
+        path
+    }
+
+    fn temp_session_dir(name: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "harness-session-dir-{name}-{}-{}",
+            std::process::id(),
+            unix_millis()
+        ));
+        let _ = std::fs::remove_dir_all(&path);
         path
     }
 }

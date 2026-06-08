@@ -60,6 +60,17 @@ Session files start with a versioned `session` header, then append typed entries
 
 The runtime sends Pi-style session context to the model, not the raw append log. If a compaction entry exists, the model context starts with the summary, keeps messages from `firstKeptEntryId`, then continues with later messages. Branch summaries are included as user-context messages. The raw append view remains available for diagnostics and tests.
 
+The session manager surface mirrors Pi's runtime-relevant behavior:
+
+- `SessionLog::create(cwd, session_dir)` creates a timestamped JSONL session.
+- `SessionLog::continue_recent(cwd, session_dir)` resumes the most recently active session for that cwd, or creates one when none exists.
+- `SessionLog::list(cwd, session_dir)` and `SessionLog::list_all(agent_dir)` return session summaries with path, id, cwd, name, parent session, created/modified timestamps, message counts, first user message, and searchable user/assistant text.
+- `SessionLog::fork_from` and `create_branched_session` preserve parent-session metadata for fork/tree workflows.
+
+When no session directory is supplied, sessions use `~/.harness/agent/sessions/--encoded-cwd--`, or `HARNESS_CODING_AGENT_DIR/sessions/--encoded-cwd--` when `HARNESS_CODING_AGENT_DIR` is set. Tree building keeps Pi's recovery behavior for orphaned or self-parented entries by showing them as roots instead of dropping them.
+
+New timestamped sessions and prompt-only branched sessions defer file creation until the first assistant message. This matches Pi's session manager behavior and keeps abandoned prompt-only sessions out of session lists. Explicit existing `--session` files continue appending immediately.
+
 The default provider is `dry-run`, which is deterministic and does not call a network API. To run the real provider-backed loop, use the OpenAI provider:
 
 ```shell
