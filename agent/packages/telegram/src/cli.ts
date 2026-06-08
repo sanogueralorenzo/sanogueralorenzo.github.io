@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { CHAT_HOME, ensureChatHome, listConfiguredConversations, loadChatConfig, saveChatConfig } from "./config.js";
 import type { AccessPolicy, ChatConfig, ConfiguredChannel, TelegramAccountConfig } from "./core/config-types.js";
 import { makeAccountKey, makeChannelKey } from "./core/keys.js";
+import { runTelegramDaemon } from "./daemon.js";
 import { refreshAccountSnapshot, updateAccountIdentityFromSnapshot, validateAccountDraft } from "./services/index.js";
 
 interface TelegramApiResponse<T> {
@@ -56,7 +57,6 @@ interface ObservedTelegramTarget {
 	dm: boolean;
 }
 
-const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const servicePath = join(homedir(), ".config", "systemd", "user", "agent-telegram.service");
 
 function usage(): string {
@@ -246,14 +246,7 @@ async function commandStart(requested?: string): Promise<void> {
 }
 
 async function runPiForeground(conversationId: string): Promise<void> {
-	await new Promise<void>((resolve, reject) => {
-		const child = spawn("pi", ["-e", packageDir, "--chat-conversation", conversationId], { stdio: "inherit" });
-		child.on("error", reject);
-		child.on("exit", (code, signal) => {
-			if (code === 0) resolve();
-			else reject(new Error(`pi exited with ${code ?? signal ?? "unknown"}`));
-		});
-	});
+	await runTelegramDaemon(conversationId);
 }
 
 async function commandStop(): Promise<void> {

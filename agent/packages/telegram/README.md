@@ -80,7 +80,7 @@ Everything lives under `~/.pi/agent/chat/`:
 ├── memory.md                             # Simple durable memory
 ├── SYSTEM.md                             # Host environment modification log
 ├── skills/                               # Reusable skills
-├── secrets/                              # Runtime secrets from chat_request_secret
+├── secrets/                              # Runtime secrets received from Telegram
 └── accounts/<account>/
     └── channels/<channel>/
         ├── channel.jsonl
@@ -108,17 +108,15 @@ PI_CHAT_STT_COMPUTE_TYPE default: int8
 
 The worker expects `faster-whisper` to be importable from the selected Python environment.
 
-## Tools
+## Agent Execution
 
-| Tool | Description |
-|------|-------------|
-| `read` | Read local host files |
-| `write` | Create/overwrite local host files |
-| `edit` | Precise in-place edits on local host files |
-| `bash` | Execute host shell commands |
-| `chat_history` | Search older messages from the chat log |
-| `chat_attach` | Queue local files to send with the next reply |
-| `chat_request_secret` | Request a secret from the user via encrypted exchange; stores files under `~/.pi/agent/chat/secrets/` |
+The standalone daemon calls the local coding agent in print mode for each queued Telegram turn:
+
+```text
+Telegram message -> local queue/log -> pi --print -> Telegram reply
+```
+
+The agent runs with normal host coding tools such as `read`, `write`, `edit`, and `bash`.
 
 ## Security Model
 

@@ -11,12 +11,14 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 - **Host access.** Remote Telegram turns run with the same local filesystem and process access as the pi session where this extension is installed.
 - **One JSONL log per channel.** Append-only event stream: inbound, outbound, job lifecycle.
 - **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
-- **Host tools.** `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths. `chat_history`, `chat_attach`, and `chat_request_secret` are available during chat turns.
+- **Host tools.** Agent turns are executed through `pi --print`, so normal local coding tools such as `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths.
 - **Workers.** `agent telegram start` launches the Telegram worker as a user service. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
 
 ## Entry point
 
-`index.ts` — Runtime adapter loaded by the foreground/service worker. Registers tools, event handlers, and Telegram connection lifecycle.
+`src/daemon.ts` — Standalone Telegram daemon used by `agent telegram run/start`. Polls Telegram, queues chat jobs, and calls `pi --print` for agent turns.
+
+`index.ts` — Legacy pi extension adapter kept temporarily for reference/compatibility.
 
 ## Key files
 
@@ -93,7 +95,7 @@ Parsed by `ConversationRuntime.parseControlCommand()`: `stop`, `compact`, `statu
 
 ## Secret exchange flow
 
-1. Agent calls `chat_request_secret` tool → RSA keypair generated, widget URL sent to chat.
+1. A secret request generates an RSA keypair and sends a widget URL to chat.
 2. User opens `pi.dev/secret#<base64>`, pastes secret, gets encrypted blob.
 3. User pastes `!secret:<id>:<payload>` back into chat.
 4. agent-telegram intercepts, decrypts, writes to `~/.pi/agent/chat/secrets/<name>`, and notifies the agent.
