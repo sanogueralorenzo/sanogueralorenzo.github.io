@@ -102,7 +102,7 @@ Harness exposes the Pi coding tool set through a single cwd-bound Rust registry:
 
 Relative paths resolve against the cwd where the harness process starts. Absolute paths are allowed, `~` is expanded, and a leading `@` is stripped for pasted file paths, matching Pi's local-machine tool behavior. Tool result details are stored in the JSONL session log, while model adapters send the plain text output back to the model.
 
-`grep` requires `rg` on `PATH`; `find` resolves `fd` or `fdfind` on `PATH`. `HARNESS_RG_PATH`, `HARNESS_FD_PATH`, and `HARNESS_FDFIND_PATH` can point to explicit executables. Other tools use the Rust standard library and `/bin/sh`.
+`grep` resolves `rg`; `find` resolves `fd` or `fdfind`. Resolution order is explicit env path, harness-managed cache, then `PATH`. If a tool is still missing, harness downloads the matching GitHub release archive into `harness/.state/tools`, extracts the binary, and reuses it on later runs. `HARNESS_RG_PATH`, `HARNESS_FD_PATH`, and `HARNESS_FDFIND_PATH` can point to explicit executables. `HARNESS_TOOLS_DIR` changes the cache directory. Set `HARNESS_OFFLINE=1` or `PI_OFFLINE=1` to disable downloads and return a clear missing-tool error. Other tools use the Rust standard library and `/bin/sh`.
 
 ## Validate
 
