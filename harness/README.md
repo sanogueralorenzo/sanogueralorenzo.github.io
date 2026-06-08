@@ -79,6 +79,8 @@ The OpenAI provider supports two API adapters:
 
 For `openai-responses`, the harness derives a stable opaque session ID from the session log path. With cache retention `short`, it sends that ID as `prompt_cache_key` and as `session_id` / `x-client-request-id` headers. With `long`, it also sends `prompt_cache_retention: 24h`. With `none`, it omits all prompt cache fields and session affinity headers. If `HARNESS_CACHE_RETENTION` is unset, `PI_CACHE_RETENTION=long` is also honored.
 
+Tool call IDs follow Pi's OpenAI Responses replay shape. Responses tool calls are persisted as `call_id|item_id` when the provider returns both fields. When replaying into Responses, unsafe or long foreign item IDs are normalized into bounded `fc_<hash>` IDs; when replaying into chat completions, only the normalized `call_id` is sent.
+
 This follows Pi's split between provider and API:
 
 - provider: the vendor or account surface, for example `openai`

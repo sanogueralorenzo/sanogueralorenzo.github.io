@@ -3,6 +3,9 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::agent::apis::tool_call_ids::{
+    combine_responses_tool_call_id, normalize_responses_tool_call_id,
+};
 use crate::agent::model::{ModelClient, ModelStep};
 use crate::agent::session::Event;
 use crate::agent::tools::ToolSpec;
@@ -128,6 +131,7 @@ fn step_from_response(response: ResponsesResponse) -> Result<ModelStep> {
         match item {
             ResponsesOutputItem::FunctionCall {
                 call_id,
+                id,
                 name,
                 arguments,
                 ..
@@ -135,7 +139,7 @@ fn step_from_response(response: ResponsesResponse) -> Result<ModelStep> {
                 let arguments = serde_json::from_str(&arguments)
                     .with_context(|| format!("parse arguments for tool {name}"))?;
                 return Ok(ModelStep::ToolCall {
-                    id: call_id,
+                    id: combine_responses_tool_call_id(call_id, id),
                     name,
                     arguments,
                 });
@@ -218,6 +222,8 @@ enum ResponseInputItem {
     },
     #[serde(rename = "function_call")]
     FunctionCall {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
         call_id: String,
         name: String,
         arguments: String,
@@ -242,16 +248,19 @@ impl ResponseInputItem {
     }
 
     fn function_call(call_id: &str, name: &str, arguments: &Value) -> Self {
+        let id = normalize_responses_tool_call_id(call_id);
         Self::FunctionCall {
-            call_id: call_id.to_owned(),
+            call_id: id.call_id,
+            id: id.item_id,
             name: name.to_owned(),
             arguments: arguments.to_string(),
         }
     }
 
     fn function_call_output(call_id: &str, output: &str) -> Self {
+        let id = normalize_responses_tool_call_id(call_id);
         Self::FunctionCallOutput {
-            call_id: call_id.to_owned(),
+            call_id: id.call_id,
             output: output.to_owned(),
         }
     }
@@ -318,6 +327,8 @@ enum ResponsesOutputItem {
     Message { content: Vec<OutputContent> },
     #[serde(rename = "function_call")]
     FunctionCall {
+        #[serde(default)]
+        id: Option<String>,
         call_id: String,
         name: String,
         arguments: String,
@@ -389,6 +400,49 @@ mod tests {
     }
 
     #[test]
+    fn converts_pipe_separated_tool_call_ids() {
+        let input = to_response_input(&[
+            Event::ToolCall {
+                id: "call_pwd|fc_pwd".to_owned(),
+                name: "pwd".to_owned(),
+                arguments: json!({}),
+            },
+            Event::ToolResult {
+                tool_call_id: "call_pwd|fc_pwd".to_owned(),
+                name: "pwd".to_owned(),
+                output: "/tmp/project".to_owned(),
+            },
+        ]);
+        let value = serde_json::to_value(input).unwrap();
+
+        assert_eq!(value[1]["type"], "function_call");
+        assert_eq!(value[1]["call_id"], "call_pwd");
+        assert_eq!(value[1]["id"], "fc_pwd");
+        assert_eq!(value[2]["type"], "function_call_output");
+        assert_eq!(value[2]["call_id"], "call_pwd");
+    }
+
+    #[test]
+    fn hashes_foreign_pipe_separated_tool_item_ids() {
+        let input = to_response_input(&[Event::ToolCall {
+            id: "call_pwd|unsafe/item+id==".to_owned(),
+            name: "pwd".to_owned(),
+            arguments: json!({}),
+        }]);
+        let value = serde_json::to_value(input).unwrap();
+        let item_id = value[1]["id"].as_str().unwrap();
+
+        assert_eq!(value[1]["call_id"], "call_pwd");
+        assert!(item_id.starts_with("fc_"));
+        assert!(item_id.len() <= 64);
+        assert!(
+            item_id
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        );
+    }
+
+    #[test]
     fn parses_response_function_call() {
         let response: ResponsesResponse = serde_json::from_value(json!({
             "output": [{
@@ -406,7 +460,7 @@ mod tests {
         assert_eq!(
             step,
             ModelStep::ToolCall {
-                id: "call_pwd".to_owned(),
+                id: "call_pwd|fc_pwd".to_owned(),
                 name: "pwd".to_owned(),
                 arguments: json!({}),
             }

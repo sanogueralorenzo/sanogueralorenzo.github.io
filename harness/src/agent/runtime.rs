@@ -235,6 +235,7 @@ mod tests {
         assert_eq!(requests[0]["tools"][0]["name"], "pwd");
         assert_eq!(requests[1]["input"][2]["type"], "function_call");
         assert_eq!(requests[1]["input"][2]["call_id"], "call_pwd");
+        assert_eq!(requests[1]["input"][2]["id"], "fc_pwd");
         assert_eq!(requests[1]["input"][3]["type"], "function_call_output");
         assert_eq!(requests[1]["input"][3]["call_id"], "call_pwd");
     }

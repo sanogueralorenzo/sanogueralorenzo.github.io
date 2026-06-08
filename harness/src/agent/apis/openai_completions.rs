@@ -3,6 +3,7 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::agent::apis::tool_call_ids::normalize_chat_tool_call_id;
 use crate::agent::model::{ModelClient, ModelStep};
 use crate::agent::session::Event;
 use crate::agent::tools::ToolSpec;
@@ -178,11 +179,12 @@ impl ChatMessage {
     }
 
     fn assistant_tool_call(id: &str, name: &str, arguments: &Value) -> Self {
+        let id = normalize_chat_tool_call_id(id);
         Self {
             role: "assistant",
             content: None,
             tool_calls: Some(vec![OutboundToolCall {
-                id: id.to_owned(),
+                id,
                 kind: "function",
                 function: OutboundToolFunction {
                     name: name.to_owned(),
@@ -194,11 +196,12 @@ impl ChatMessage {
     }
 
     fn tool(tool_call_id: &str, content: &str) -> Self {
+        let tool_call_id = normalize_chat_tool_call_id(tool_call_id);
         Self {
             role: "tool",
             content: Some(content.to_owned()),
             tool_calls: None,
-            tool_call_id: Some(tool_call_id.to_owned()),
+            tool_call_id: Some(tool_call_id),
         }
     }
 }
@@ -308,5 +311,25 @@ mod tests {
                 arguments: json!({ "text": "hello" }),
             }
         );
+    }
+
+    #[test]
+    fn normalizes_responses_tool_ids_for_chat_continuation() {
+        let messages = to_chat_messages(&[
+            Event::ToolCall {
+                id: "call_1|fc_item".to_owned(),
+                name: "pwd".to_owned(),
+                arguments: json!({}),
+            },
+            Event::ToolResult {
+                tool_call_id: "call_1|fc_item".to_owned(),
+                name: "pwd".to_owned(),
+                output: "/tmp/project".to_owned(),
+            },
+        ]);
+        let value = serde_json::to_value(messages).unwrap();
+
+        assert_eq!(value[1]["tool_calls"][0]["id"], "call_1");
+        assert_eq!(value[2]["tool_call_id"], "call_1");
     }
 }
