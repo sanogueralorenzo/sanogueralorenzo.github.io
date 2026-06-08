@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -14,6 +16,7 @@ const GREP_MAX_LINE_LENGTH: usize = 500;
 const DEFAULT_FIND_LIMIT: usize = 1000;
 const DEFAULT_GREP_LIMIT: usize = 100;
 const DEFAULT_LS_LIMIT: usize = 500;
+const IMAGE_INLINE_LIMIT_BYTES: u64 = 20 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct ToolSpec {
@@ -76,7 +79,7 @@ impl ToolRegistry {
                     spec: ToolSpec {
                         name: "read".to_owned(),
                         description: format!(
-                            "Read a text file. Output is truncated to {DEFAULT_MAX_LINES} lines or {}KB. Use offset/limit for large files.",
+                            "Read a text file or supported image file. Text output is truncated to {DEFAULT_MAX_LINES} lines or {}KB. Use offset/limit for large files.",
                             DEFAULT_MAX_BYTES / 1024
                         ),
                         parameters: json!({
@@ -245,6 +248,27 @@ fn read_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     let offset = optional_usize_arg(arguments, "offset")?.unwrap_or(1).max(1);
     let requested_limit = optional_usize_arg(arguments, "limit")?;
     let absolute_path = resolve_read_path(path, &ctx.cwd);
+    if let Some(mime_type) = detect_image_mime_type(&absolute_path)? {
+        let metadata = fs::metadata(&absolute_path)
+            .with_context(|| format!("stat {}", absolute_path.display()))?;
+        let mut content = format!("Read image file [{mime_type}]");
+        if metadata.len() > IMAGE_INLINE_LIMIT_BYTES {
+            content.push_str("\n[Image omitted: file exceeds inline image size limit.]");
+        } else {
+            content.push_str("\n[Image data recorded in tool details; current harness adapters return text tool results.]");
+        }
+        return Ok(ToolOutput {
+            content,
+            details: Some(json!({
+                "image": {
+                    "path": absolute_path.display().to_string(),
+                    "mimeType": mime_type,
+                    "bytes": metadata.len(),
+                    "omitted": metadata.len() > IMAGE_INLINE_LIMIT_BYTES
+                }
+            })),
+        });
+    }
     let content = fs::read_to_string(&absolute_path)
         .with_context(|| format!("read {}", absolute_path.display()))?;
     let selected = select_line_window(&content, offset, requested_limit);
@@ -268,68 +292,72 @@ fn write_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     let path = string_arg(arguments, "path")?;
     let content = string_arg(arguments, "content")?;
     let absolute_path = resolve_to_cwd(path, &ctx.cwd);
-    if let Some(parent) = absolute_path.parent() {
-        fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
-    }
-    fs::write(&absolute_path, content)
-        .with_context(|| format!("write {}", absolute_path.display()))?;
-    Ok(ToolOutput {
-        content: format!("Successfully wrote {} bytes to {path}", content.len()),
-        details: None,
+    with_file_mutation_lock(&absolute_path, || {
+        if let Some(parent) = absolute_path.parent() {
+            fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+        }
+        fs::write(&absolute_path, content)
+            .with_context(|| format!("write {}", absolute_path.display()))?;
+        Ok(ToolOutput {
+            content: format!("Successfully wrote {} bytes to {path}", content.len()),
+            details: None,
+        })
     })
 }
 
 fn edit_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     let path = string_arg(arguments, "path")?;
-    let edits = parse_edits(arguments.get("edits"))?;
+    let edits = parse_edits(arguments)?;
     let absolute_path = resolve_to_cwd(path, &ctx.cwd);
-    let raw_content = fs::read_to_string(&absolute_path)
-        .with_context(|| format!("read {}", absolute_path.display()))?;
-    let (bom, content) = strip_bom(&raw_content);
-    let line_ending = detect_line_ending(content);
-    let normalized = normalize_to_lf(content);
-    let replacements = plan_replacements(&normalized, &edits, path)?;
-    let mut new_content = String::with_capacity(normalized.len());
-    let mut cursor = 0;
-    for replacement in &replacements {
-        new_content.push_str(&normalized[cursor..replacement.start]);
-        new_content.push_str(&replacement.new_text);
-        cursor = replacement.end;
-    }
-    new_content.push_str(&normalized[cursor..]);
-    let final_content = format!("{bom}{}", restore_line_endings(&new_content, line_ending));
-    fs::write(&absolute_path, final_content)
-        .with_context(|| format!("write {}", absolute_path.display()))?;
+    with_file_mutation_lock(&absolute_path, || {
+        let raw_content = fs::read_to_string(&absolute_path)
+            .with_context(|| format!("read {}", absolute_path.display()))?;
+        let (bom, content) = strip_bom(&raw_content);
+        let line_ending = detect_line_ending(content);
+        let normalized = normalize_to_lf(content);
+        let AppliedEdits {
+            base_content,
+            new_content,
+            replacements,
+            used_fuzzy_match,
+        } = apply_edits_to_normalized_content(&normalized, &edits, path)?;
+        let final_content = format!("{bom}{}", restore_line_endings(&new_content, line_ending));
+        fs::write(&absolute_path, final_content)
+            .with_context(|| format!("write {}", absolute_path.display()))?;
 
-    let diff = simple_diff(&normalized, &new_content);
-    let patch = simple_patch(path, &normalized, &new_content);
-    Ok(ToolOutput {
-        content: format!(
-            "Successfully replaced {} block(s) in {path}.",
-            replacements.len()
-        ),
-        details: Some(json!({
-            "diff": diff,
-            "patch": patch,
-            "firstChangedLine": first_changed_line(&normalized, &new_content)
-        })),
+        let diff = display_diff(&base_content, &new_content, 4);
+        let patch = unified_patch(path, &base_content, &new_content, 4);
+        Ok(ToolOutput {
+            content: format!("Successfully replaced {} block(s) in {path}.", replacements),
+            details: Some(json!({
+                "diff": diff.content,
+                "patch": patch,
+                "firstChangedLine": diff.first_changed_line,
+                "usedFuzzyMatch": used_fuzzy_match
+            })),
+        })
     })
 }
 
 fn bash_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     let command = string_arg(arguments, "command")?;
     let timeout = optional_u64_arg(arguments, "timeout")?;
-    let mut child = Command::new("/bin/sh")
+    let mut shell = Command::new("/bin/sh");
+    shell
         .arg("-lc")
         .arg(command)
         .current_dir(&ctx.cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    configure_process_group(&mut shell);
+    let mut child = shell
         .spawn()
         .with_context(|| format!("spawn shell command: {command}"))?;
+    let child_id = child.id();
 
     let started = Instant::now();
+    let mut timed_out = false;
     loop {
         if let Some(_status) = child.try_wait()? {
             break;
@@ -337,9 +365,10 @@ fn bash_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
         if let Some(seconds) = timeout
             && started.elapsed() >= Duration::from_secs(seconds)
         {
+            timed_out = true;
+            kill_process_tree(child_id);
             let _ = child.kill();
-            let _ = child.wait();
-            bail!("command timed out after {seconds}s");
+            break;
         }
         std::thread::sleep(Duration::from_millis(25));
     }
@@ -358,6 +387,12 @@ fn bash_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     };
 
     let mut content = truncated.content;
+    if timed_out {
+        append_notice(
+            &mut content,
+            &format!("timeout: command exceeded {}s", timeout.unwrap_or_default()),
+        );
+    }
     if !output.status.success() {
         let code = output
             .status
@@ -374,6 +409,7 @@ fn bash_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
 
     let details = json!({
         "exitCode": output.status.code(),
+        "timedOut": timed_out,
         "truncation": if truncated.truncation.truncated { json!(truncated.truncation) } else { Value::Null },
         "fullOutputPath": full_output_path.map(|path| path.display().to_string())
     });
@@ -701,6 +737,7 @@ fn bool_arg(arguments: &Value, name: &str) -> bool {
 }
 
 fn resolve_to_cwd(path: &str, cwd: &Path) -> PathBuf {
+    let path = normalize_input_path(path);
     let expanded = path.strip_prefix("~/").map_or_else(
         || PathBuf::from(path),
         |rest| home_dir().map_or_else(|| PathBuf::from(path), |home| home.join(rest)),
@@ -717,6 +754,14 @@ fn resolve_read_path(path: &str, cwd: &Path) -> PathBuf {
     if resolved.exists() {
         return resolved;
     }
+    let am_pm = resolved
+        .to_string_lossy()
+        .replace(" AM.", "\u{202f}AM.")
+        .replace(" PM.", "\u{202f}PM.");
+    let am_pm_path = PathBuf::from(am_pm);
+    if am_pm_path.exists() {
+        return am_pm_path;
+    }
     let nfd = resolved.to_string_lossy().replace('\'', "\u{2019}");
     let nfd_path = PathBuf::from(nfd);
     if nfd_path.exists() {
@@ -727,6 +772,13 @@ fn resolve_read_path(path: &str, cwd: &Path) -> PathBuf {
 
 fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
+}
+
+fn normalize_input_path(path: &str) -> &str {
+    path.trim()
+        .strip_prefix('@')
+        .unwrap_or(path.trim())
+        .trim_matches('\u{feff}')
 }
 
 fn select_line_window(content: &str, offset: usize, limit: Option<usize>) -> String {
@@ -915,15 +967,49 @@ struct Edit {
 }
 
 #[derive(Debug)]
-struct Replacement {
+struct AppliedEdits {
+    base_content: String,
+    new_content: String,
+    replacements: usize,
+    used_fuzzy_match: bool,
+}
+
+#[derive(Debug)]
+struct MatchedEdit {
+    index: usize,
     start: usize,
     end: usize,
     new_text: String,
 }
 
-fn parse_edits(value: Option<&Value>) -> Result<Vec<Edit>> {
-    let Some(Value::Array(raw_edits)) = value else {
-        bail!("edits must be a non-empty array");
+struct DisplayDiff {
+    content: String,
+    first_changed_line: Option<usize>,
+}
+
+fn parse_edits(arguments: &Value) -> Result<Vec<Edit>> {
+    if let (Some(old_text), Some(new_text)) = (
+        arguments.get("oldText").and_then(Value::as_str),
+        arguments.get("newText").and_then(Value::as_str),
+    ) {
+        let mut edits = parse_edits_value(arguments.get("edits"))?;
+        edits.push(Edit {
+            old_text: old_text.to_owned(),
+            new_text: new_text.to_owned(),
+        });
+        return Ok(edits);
+    }
+    parse_edits_value(arguments.get("edits"))
+}
+
+fn parse_edits_value(value: Option<&Value>) -> Result<Vec<Edit>> {
+    let raw_edits = match value {
+        Some(Value::String(text)) => serde_json::from_str::<Value>(text)
+            .ok()
+            .and_then(|value| value.as_array().cloned())
+            .ok_or_else(|| anyhow!("edits string must contain a JSON array"))?,
+        Some(Value::Array(raw_edits)) => raw_edits.clone(),
+        _ => bail!("edits must be a non-empty array"),
     };
     if raw_edits.is_empty() {
         bail!("edits must be a non-empty array");
@@ -939,33 +1025,87 @@ fn parse_edits(value: Option<&Value>) -> Result<Vec<Edit>> {
         .collect()
 }
 
-fn plan_replacements(content: &str, edits: &[Edit], path: &str) -> Result<Vec<Replacement>> {
-    let mut replacements = Vec::new();
-    for edit in edits {
+fn apply_edits_to_normalized_content(
+    normalized_content: &str,
+    edits: &[Edit],
+    path: &str,
+) -> Result<AppliedEdits> {
+    let normalized_edits = edits
+        .iter()
+        .map(|edit| Edit {
+            old_text: normalize_to_lf(&edit.old_text),
+            new_text: normalize_to_lf(&edit.new_text),
+        })
+        .collect::<Vec<_>>();
+    for (index, edit) in normalized_edits.iter().enumerate() {
         if edit.old_text.is_empty() {
-            bail!("Could not edit file: {path}. oldText cannot be empty.");
-        }
-        let mut matches = content.match_indices(&edit.old_text).collect::<Vec<_>>();
-        if matches.len() != 1 {
             bail!(
-                "Could not edit file: {path}. oldText must match exactly once; found {} matches.",
-                matches.len()
+                "{}",
+                empty_old_text_error(path, index, normalized_edits.len())
             );
         }
-        let (start, _) = matches.remove(0);
-        replacements.push(Replacement {
+    }
+
+    let exact_base = normalized_content.to_owned();
+    let fuzzy_base = normalize_for_fuzzy_match(normalized_content);
+    let used_fuzzy_match = normalized_edits.iter().any(|edit| {
+        !exact_base.contains(&edit.old_text)
+            && fuzzy_base.contains(&normalize_for_fuzzy_match(&edit.old_text))
+    });
+    let base_content = if used_fuzzy_match {
+        fuzzy_base
+    } else {
+        exact_base
+    };
+
+    let mut matches = Vec::new();
+    for (index, edit) in normalized_edits.iter().enumerate() {
+        let old_text = if used_fuzzy_match {
+            normalize_for_fuzzy_match(&edit.old_text)
+        } else {
+            edit.old_text.clone()
+        };
+        let occurrences = count_occurrences(&base_content, &old_text);
+        if occurrences == 0 {
+            bail!("{}", not_found_error(path, index, normalized_edits.len()));
+        }
+        if occurrences > 1 {
+            bail!(
+                "{}",
+                duplicate_error(path, index, normalized_edits.len(), occurrences)
+            );
+        }
+        let start = base_content.find(&old_text).expect("occurrence checked");
+        matches.push(MatchedEdit {
+            index,
             start,
-            end: start + edit.old_text.len(),
+            end: start + old_text.len(),
             new_text: edit.new_text.clone(),
         });
     }
-    replacements.sort_by_key(|replacement| replacement.start);
-    for pair in replacements.windows(2) {
+    matches.sort_by_key(|replacement| replacement.start);
+    for pair in matches.windows(2) {
         if pair[0].end > pair[1].start {
-            bail!("Could not edit file: {path}. edits must not overlap.");
+            bail!(
+                "edits[{}] and edits[{}] overlap in {path}. Merge them into one edit or target disjoint regions.",
+                pair[0].index,
+                pair[1].index
+            );
         }
     }
-    Ok(replacements)
+    let mut new_content = base_content.clone();
+    for matched in matches.iter().rev() {
+        new_content.replace_range(matched.start..matched.end, &matched.new_text);
+    }
+    if base_content == new_content {
+        bail!("{}", no_change_error(path, normalized_edits.len()));
+    }
+    Ok(AppliedEdits {
+        base_content,
+        new_content,
+        replacements: matches.len(),
+        used_fuzzy_match,
+    })
 }
 
 fn strip_bom(content: &str) -> (&str, &str) {
@@ -996,21 +1136,90 @@ fn restore_line_endings(content: &str, line_ending: &str) -> String {
     }
 }
 
-fn simple_diff(old: &str, new: &str) -> String {
+fn display_diff(old: &str, new: &str, context_lines: usize) -> DisplayDiff {
     let old_lines = split_lines_for_counting(old);
     let new_lines = split_lines_for_counting(new);
+    let first_changed = first_changed_line(old, new);
+    let Some(first_changed_line) = first_changed else {
+        return DisplayDiff {
+            content: String::new(),
+            first_changed_line: None,
+        };
+    };
+    let last_changed = last_changed_line(&old_lines, &new_lines);
+    let start = first_changed_line.saturating_sub(context_lines + 1);
+    let end = (last_changed + context_lines).min(old_lines.len().max(new_lines.len()));
+    let width = old_lines.len().max(new_lines.len()).to_string().len();
     let mut lines = Vec::new();
-    for line in old_lines.iter().filter(|line| !new_lines.contains(line)) {
-        lines.push(format!("-{line}"));
+    if start > 0 {
+        lines.push(format!(" {} ...", " ".repeat(width)));
     }
-    for line in new_lines.iter().filter(|line| !old_lines.contains(line)) {
-        lines.push(format!("+{line}"));
+    for index in start..end {
+        match (old_lines.get(index), new_lines.get(index)) {
+            (Some(old), Some(new)) if old == new => {
+                lines.push(format!(" {:>width$} {old}", index + 1, width = width));
+            }
+            (Some(old), Some(new)) => {
+                lines.push(format!("-{:>width$} {old}", index + 1, width = width));
+                lines.push(format!("+{:>width$} {new}", index + 1, width = width));
+            }
+            (Some(old), None) => {
+                lines.push(format!("-{:>width$} {old}", index + 1, width = width));
+            }
+            (None, Some(new)) => {
+                lines.push(format!("+{:>width$} {new}", index + 1, width = width));
+            }
+            (None, None) => {}
+        }
     }
-    lines.join("\n")
+    if end < old_lines.len().max(new_lines.len()) {
+        lines.push(format!(" {} ...", " ".repeat(width)));
+    }
+    DisplayDiff {
+        content: lines.join("\n"),
+        first_changed_line: first_changed,
+    }
 }
 
-fn simple_patch(path: &str, old: &str, new: &str) -> String {
-    format!("--- {path}\n+++ {path}\n@@\n{}", simple_diff(old, new))
+fn unified_patch(path: &str, old: &str, new: &str, context_lines: usize) -> String {
+    let old_lines = split_lines_for_counting(old);
+    let new_lines = split_lines_for_counting(new);
+    let Some(first_changed) = first_changed_line(old, new) else {
+        return format!("--- {path}\n+++ {path}\n");
+    };
+    let last_changed = last_changed_line(&old_lines, &new_lines);
+    let start = first_changed.saturating_sub(context_lines + 1);
+    let end = (last_changed + context_lines).min(old_lines.len().max(new_lines.len()));
+    let old_count = end
+        .saturating_sub(start)
+        .min(old_lines.len().saturating_sub(start));
+    let new_count = end
+        .saturating_sub(start)
+        .min(new_lines.len().saturating_sub(start));
+    let mut lines = vec![
+        format!("--- {path}"),
+        format!("+++ {path}"),
+        format!(
+            "@@ -{},{} +{},{} @@",
+            start + 1,
+            old_count,
+            start + 1,
+            new_count
+        ),
+    ];
+    for index in start..end {
+        match (old_lines.get(index), new_lines.get(index)) {
+            (Some(old), Some(new)) if old == new => lines.push(format!(" {old}")),
+            (Some(old), Some(new)) => {
+                lines.push(format!("-{old}"));
+                lines.push(format!("+{new}"));
+            }
+            (Some(old), None) => lines.push(format!("-{old}")),
+            (None, Some(new)) => lines.push(format!("+{new}")),
+            (None, None) => {}
+        }
+    }
+    lines.join("\n")
 }
 
 fn first_changed_line(old: &str, new: &str) -> Option<usize> {
@@ -1030,16 +1239,190 @@ fn first_changed_line(old: &str, new: &str) -> Option<usize> {
         })
 }
 
+fn last_changed_line(old_lines: &[&str], new_lines: &[&str]) -> usize {
+    let mut old_index = old_lines.len();
+    let mut new_index = new_lines.len();
+    while old_index > 0 && new_index > 0 && old_lines[old_index - 1] == new_lines[new_index - 1] {
+        old_index -= 1;
+        new_index -= 1;
+    }
+    old_index.max(new_index)
+}
+
+fn normalize_for_fuzzy_match(text: &str) -> String {
+    text.split('\n')
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .chars()
+        .map(normalize_fuzzy_char)
+        .collect()
+}
+
+fn normalize_fuzzy_char(ch: char) -> char {
+    match ch {
+        '\u{2018}' | '\u{2019}' | '\u{201a}' | '\u{201b}' => '\'',
+        '\u{201c}' | '\u{201d}' | '\u{201e}' | '\u{201f}' => '"',
+        '\u{2010}' | '\u{2011}' | '\u{2012}' | '\u{2013}' | '\u{2014}' | '\u{2015}'
+        | '\u{2212}' => '-',
+        '\u{00a0}' | '\u{2002}'..='\u{200a}' | '\u{202f}' | '\u{205f}' | '\u{3000}' => ' ',
+        _ => ch,
+    }
+}
+
+fn count_occurrences(content: &str, needle: &str) -> usize {
+    if needle.is_empty() {
+        return 0;
+    }
+    content.match_indices(needle).count()
+}
+
+fn not_found_error(path: &str, index: usize, total: usize) -> String {
+    if total == 1 {
+        format!(
+            "Could not find the exact text in {path}. The old text must match exactly including all whitespace and newlines."
+        )
+    } else {
+        format!(
+            "Could not find edits[{index}] in {path}. The oldText must match exactly including all whitespace and newlines."
+        )
+    }
+}
+
+fn duplicate_error(path: &str, index: usize, total: usize, occurrences: usize) -> String {
+    if total == 1 {
+        format!(
+            "Found {occurrences} occurrences of the text in {path}. The text must be unique. Please provide more context to make it unique."
+        )
+    } else {
+        format!(
+            "Found {occurrences} occurrences of edits[{index}] in {path}. Each oldText must be unique. Please provide more context to make it unique."
+        )
+    }
+}
+
+fn empty_old_text_error(path: &str, index: usize, total: usize) -> String {
+    if total == 1 {
+        format!("oldText must not be empty in {path}.")
+    } else {
+        format!("edits[{index}].oldText must not be empty in {path}.")
+    }
+}
+
+fn no_change_error(path: &str, total: usize) -> String {
+    if total == 1 {
+        format!(
+            "No changes made to {path}. The replacement produced identical content. This might indicate an issue with special characters or the text not existing as expected."
+        )
+    } else {
+        format!("No changes made to {path}. The replacements produced identical content.")
+    }
+}
+
 fn executable(name: &str) -> Result<String> {
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join(name);
+    let env_key = format!("HARNESS_{}_PATH", name.to_ascii_uppercase());
+    if let Some(path) = std::env::var_os(&env_key) {
+        let candidate = PathBuf::from(path);
         if candidate.is_file() {
             return Ok(candidate.display().to_string());
         }
     }
+    if name == "fd"
+        && let Some(path) = std::env::var_os("HARNESS_FDFIND_PATH")
+    {
+        let candidate = PathBuf::from(path);
+        if candidate.is_file() {
+            return Ok(candidate.display().to_string());
+        }
+    }
+    let aliases = if name == "fd" {
+        ["fd", "fdfind"].as_slice()
+    } else {
+        std::slice::from_ref(&name)
+    };
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    for dir in std::env::split_paths(&path) {
+        for alias in aliases {
+            let candidate = dir.join(alias);
+            if candidate.is_file() {
+                return Ok(candidate.display().to_string());
+            }
+        }
+    }
     bail!("{name} is not available on PATH")
 }
+
+fn detect_image_mime_type(path: &Path) -> Result<Option<&'static str>> {
+    let bytes = fs::read(path).with_context(|| format!("read {}", path.display()))?;
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Ok(Some("image/png"));
+    }
+    if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+        return Ok(Some("image/jpeg"));
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Ok(Some("image/gif"));
+    }
+    if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && bytes[8..12] == *b"WEBP" {
+        return Ok(Some("image/webp"));
+    }
+    Ok(None)
+}
+
+fn with_file_mutation_lock<T>(path: &Path, operation: impl FnOnce() -> Result<T>) -> Result<T> {
+    static LOCKS: OnceLock<Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>> = OnceLock::new();
+    let stable_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let lock = {
+        let locks = LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
+        let mut locks = locks.lock().expect("mutation lock registry poisoned");
+        locks
+            .entry(stable_path)
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone()
+    };
+    let _guard = lock.lock().expect("file mutation lock poisoned");
+    operation()
+}
+
+#[cfg(unix)]
+fn configure_process_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    unsafe {
+        command.pre_exec(|| {
+            unsafe extern "C" {
+                fn setpgid(pid: i32, pgid: i32) -> i32;
+            }
+            if setpgid(0, 0) == 0 {
+                Ok(())
+            } else {
+                Err(std::io::Error::last_os_error())
+            }
+        });
+    }
+}
+
+#[cfg(not(unix))]
+fn configure_process_group(_command: &mut Command) {}
+
+#[cfg(unix)]
+fn kill_process_tree(process_id: u32) {
+    unsafe extern "C" {
+        fn kill(pid: i32, sig: i32) -> i32;
+    }
+    const SIGTERM: i32 = 15;
+    const SIGKILL: i32 = 9;
+    let process_group = -(process_id as i32);
+    unsafe {
+        kill(process_group, SIGTERM);
+    }
+    std::thread::sleep(Duration::from_millis(100));
+    unsafe {
+        kill(process_group, SIGKILL);
+    }
+}
+
+#[cfg(not(unix))]
+fn kill_process_tree(_process_id: u32) {}
 
 fn format_search_path(root: &Path, file_path: &Path, is_dir: bool) -> String {
     if is_dir {
@@ -1203,7 +1586,90 @@ mod tests {
             .unwrap_err()
             .to_string();
 
-        assert!(error.contains("exactly once"));
+        assert!(error.contains("must be unique"));
+    }
+
+    #[test]
+    fn edit_accepts_legacy_and_json_string_inputs() {
+        let dir = temp_dir("tools-edit-compat");
+        fs::write(dir.join("file.txt"), "one\ntwo\nthree\n").unwrap();
+        let tools = ToolRegistry::coding(dir.clone());
+
+        tools
+            .run(
+                "edit",
+                &json!({
+                    "path": "file.txt",
+                    "oldText": "one",
+                    "newText": "ONE",
+                    "edits": "[{\"oldText\":\"three\",\"newText\":\"THREE\"}]"
+                }),
+            )
+            .unwrap();
+
+        assert_eq!(
+            fs::read_to_string(dir.join("file.txt")).unwrap(),
+            "ONE\ntwo\nTHREE\n"
+        );
+    }
+
+    #[test]
+    fn edit_uses_fuzzy_matching_like_pi() {
+        let dir = temp_dir("tools-edit-fuzzy");
+        fs::write(dir.join("file.txt"), "quote: \u{201c}hello\u{201d}\n").unwrap();
+        let tools = ToolRegistry::coding(dir.clone());
+
+        let output = tools
+            .run(
+                "edit",
+                &json!({
+                    "path": "file.txt",
+                    "edits": [{ "oldText": "quote: \"hello\"", "newText": "quote: \"bye\"" }]
+                }),
+            )
+            .unwrap();
+
+        assert_eq!(
+            fs::read_to_string(dir.join("file.txt")).unwrap(),
+            "quote: \"bye\"\n"
+        );
+        assert_eq!(output.details.unwrap()["usedFuzzyMatch"], true);
+    }
+
+    #[test]
+    fn read_detects_supported_images() {
+        let dir = temp_dir("tools-read-image");
+        fs::write(dir.join("image.png"), b"\x89PNG\r\n\x1a\nrest").unwrap();
+        let tools = ToolRegistry::coding(dir);
+
+        let output = tools.run("read", &json!({ "path": "image.png" })).unwrap();
+
+        assert!(output.content.contains("Read image file [image/png]"));
+        assert_eq!(output.details.unwrap()["image"]["mimeType"], "image/png");
+    }
+
+    #[test]
+    fn resolves_at_prefixed_paths() {
+        let dir = temp_dir("tools-at-path");
+        fs::write(dir.join("file.txt"), "hello").unwrap();
+        let tools = ToolRegistry::coding(dir);
+
+        let output = tools.run("read", &json!({ "path": "@file.txt" })).unwrap();
+
+        assert_eq!(output.content, "hello");
+    }
+
+    #[test]
+    fn bash_timeout_records_timeout_details() {
+        let dir = temp_dir("tools-bash-timeout");
+        let tools = ToolRegistry::coding(dir);
+
+        let output = tools
+            .run("bash", &json!({ "command": "sleep 2", "timeout": 1 }))
+            .unwrap();
+
+        assert!(output.content.contains("timeout"));
+        assert_eq!(output.details.unwrap()["timedOut"], true);
     }
 
     #[test]

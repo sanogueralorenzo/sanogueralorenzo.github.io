@@ -92,17 +92,17 @@ The runtime persists the assistant tool call, runs the local Rust tool, persists
 
 Harness exposes the Pi coding tool set through a single cwd-bound Rust registry:
 
-- `read`: read text files with `offset` / `limit`, head truncation, and truncation details
-- `bash`: execute `/bin/sh -lc` commands in the process cwd with optional timeout, tail truncation, exit code details, and temp-file persistence for truncated full output
-- `edit`: apply exact text replacements to one file; each `oldText` must match exactly once and edits must not overlap
-- `write`: create parent directories and write/overwrite a file
+- `read`: read text files with `offset` / `limit`, head truncation, and truncation details; supported image files are detected and recorded in tool details
+- `bash`: execute `/bin/sh -lc` commands in the process cwd with optional timeout, Unix process-group cleanup, tail truncation, exit code details, and temp-file persistence for truncated full output
+- `edit`: apply exact text replacements to one file; each `oldText` must match exactly once and edits must not overlap. Like Pi, it accepts legacy `oldText` / `newText`, JSON-string `edits`, BOM/line-ending preservation, and fuzzy matching for common quote/dash/space differences.
+- `write`: create parent directories and write/overwrite a file; file mutations are serialized per path
 - `grep`: search file contents through `rg`, respecting `.gitignore`, with match limits and long-line truncation
 - `find`: search file paths through `fd`, respecting `.gitignore`, with result limits
 - `ls`: list directory entries alphabetically, including dotfiles, with `/` suffixes for directories
 
-Relative paths resolve against the cwd where the harness process starts. Absolute paths are allowed, matching Pi's local-machine tool behavior. Tool result details are stored in the JSONL session log, while model adapters send the plain text output back to the model.
+Relative paths resolve against the cwd where the harness process starts. Absolute paths are allowed, `~` is expanded, and a leading `@` is stripped for pasted file paths, matching Pi's local-machine tool behavior. Tool result details are stored in the JSONL session log, while model adapters send the plain text output back to the model.
 
-`grep` requires `rg` on `PATH`; `find` requires `fd` on `PATH`. Other tools use the Rust standard library and `/bin/sh`.
+`grep` requires `rg` on `PATH`; `find` resolves `fd` or `fdfind` on `PATH`. `HARNESS_RG_PATH`, `HARNESS_FD_PATH`, and `HARNESS_FDFIND_PATH` can point to explicit executables. Other tools use the Rust standard library and `/bin/sh`.
 
 ## Validate
 
