@@ -38,6 +38,7 @@ pub enum Event {
 pub struct SessionLog {
     events: Vec<Event>,
     file: Option<File>,
+    session_id: Option<String>,
 }
 
 impl SessionLog {
@@ -53,6 +54,7 @@ impl SessionLog {
         Ok(Self {
             events,
             file: Some(file),
+            session_id: Some(session_id(&path)),
         })
     }
 
@@ -61,11 +63,16 @@ impl SessionLog {
         Self {
             events: Vec::new(),
             file: None,
+            session_id: None,
         }
     }
 
     pub fn events(&self) -> &[Event] {
         &self.events
+    }
+
+    pub fn session_id(&self) -> Option<&str> {
+        self.session_id.as_deref()
     }
 
     pub fn append(&mut self, event: Event) -> Result<()> {
@@ -77,6 +84,26 @@ impl SessionLog {
         self.events.push(event);
         Ok(())
     }
+}
+
+fn session_id(path: &Path) -> String {
+    let stable_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    format!(
+        "harness_{:016x}",
+        fnv1a64(&stable_path.display().to_string())
+    )
+}
+
+fn fnv1a64(value: &str) -> u64 {
+    const OFFSET: u64 = 0xcbf29ce484222325;
+    const PRIME: u64 = 0x100000001b3;
+
+    let mut hash = OFFSET;
+    for byte in value.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(PRIME);
+    }
+    hash
 }
 
 fn ensure_parent_dir(path: &Path) -> Result<()> {
@@ -121,5 +148,15 @@ mod tests {
         .unwrap();
 
         assert_eq!(log.events().len(), 2);
+    }
+
+    #[test]
+    fn builds_stable_bounded_session_ids() {
+        let first = session_id(Path::new("/tmp/harness/session.jsonl"));
+        let second = session_id(Path::new("/tmp/harness/session.jsonl"));
+
+        assert_eq!(first, second);
+        assert!(first.starts_with("harness_"));
+        assert!(first.len() <= 64);
     }
 }

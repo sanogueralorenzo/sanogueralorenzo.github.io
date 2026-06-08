@@ -69,12 +69,15 @@ Optional environment:
 HARNESS_MODEL       default: gpt-4o-mini
 HARNESS_OPENAI_API  default: openai-completions
 HARNESS_BASE_URL    default: https://api.openai.com/v1
+HARNESS_CACHE_RETENTION default: short; values: short, long, none
 ```
 
 The OpenAI provider supports two API adapters:
 
 - `openai-completions`: chat completions with JSON-schema function tools
 - `openai-responses`: Responses API input items, function tools, and function-call output continuation
+
+For `openai-responses`, the harness derives a stable opaque session ID from the session log path. With cache retention `short`, it sends that ID as `prompt_cache_key` and as `session_id` / `x-client-request-id` headers. With `long`, it also sends `prompt_cache_retention: 24h`. With `none`, it omits all prompt cache fields and session affinity headers. If `HARNESS_CACHE_RETENTION` is unset, `PI_CACHE_RETENTION=long` is also honored.
 
 This follows Pi's split between provider and API:
 

@@ -54,8 +54,9 @@ fn run_command(args: &[String]) -> Result<()> {
     }
 
     let log = SessionLog::open(session_path)?;
+    let session_id = log.session_id().map(str::to_owned);
     let tools = ToolRegistry::minimal();
-    let model = build_provider(&provider)?;
+    let model = build_provider(&provider, session_id)?;
     let mut runtime = Runtime::new(log, tools, model);
     let reply = runtime.run_message(message)?;
 
@@ -74,4 +75,5 @@ fn print_help() {
     println!("  HARNESS_MODEL       default: gpt-4o-mini");
     println!("  HARNESS_OPENAI_API  default: openai-completions");
     println!("  HARNESS_BASE_URL    default: https://api.openai.com/v1");
+    println!("  HARNESS_CACHE_RETENTION default: short; values: short|long|none");
 }
