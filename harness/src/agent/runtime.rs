@@ -81,9 +81,9 @@ impl<M: ModelClient> Runtime<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::model::{DemoModel, OpenAiCompatibleModel};
     use crate::agent::session::SessionLog;
     use crate::agent::tools::ToolRegistry;
+    use crate::agent::{DemoModel, OpenAiCompatibleModel};
     use serde_json::{Value, json};
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};

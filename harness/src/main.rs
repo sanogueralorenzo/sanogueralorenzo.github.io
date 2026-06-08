@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 
-use agent::{DemoModel, OpenAiCompatibleModel, Runtime, SessionLog, ToolRegistry};
+use agent::{Runtime, SessionLog, ToolRegistry, build_provider};
 
 fn main() -> Result<()> {
     let args = env::args().skip(1).collect::<Vec<_>>();
@@ -55,22 +55,9 @@ fn run_command(args: &[String]) -> Result<()> {
 
     let log = SessionLog::open(session_path)?;
     let tools = ToolRegistry::minimal();
-    let reply = match provider.as_str() {
-        "demo" => {
-            let mut runtime = Runtime::new(log, tools, DemoModel);
-            runtime.run_message(message)?
-        }
-        "openai" => {
-            let api_key = env::var("OPENAI_API_KEY").context("OPENAI_API_KEY is required")?;
-            let model = env::var("HARNESS_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_owned());
-            let base_url = env::var("HARNESS_BASE_URL")
-                .unwrap_or_else(|_| "https://api.openai.com/v1".to_owned());
-            let model = OpenAiCompatibleModel::new(base_url, api_key, model);
-            let mut runtime = Runtime::new(log, tools, model);
-            runtime.run_message(message)?
-        }
-        other => bail!("unknown provider: {other}"),
-    };
+    let model = build_provider(&provider)?;
+    let mut runtime = Runtime::new(log, tools, model);
+    let reply = runtime.run_message(message)?;
 
     println!("{reply}");
     Ok(())

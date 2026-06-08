@@ -27,6 +27,10 @@ harness/
       runtime.rs
       session.rs
       model.rs
+      providers/
+        mod.rs
+        demo.rs
+        openai_compatible.rs
       tools.rs
 ```
 
@@ -71,9 +75,18 @@ The OpenAI-compatible provider uses chat completions with JSON-schema function t
 cargo test --manifest-path harness/Cargo.toml
 ```
 
+## Provider Direction
+
+Providers live behind the `ModelClient` contract and are constructed through the provider factory in `agent/providers/mod.rs`. Keep each provider in its own module, add one at a time, and verify tool-call continuation before exposing it through the CLI.
+
+The intended order is:
+
+- OpenAI-compatible chat completions
+- OpenAI Responses
+- Anthropic Messages
+- Google Gemini
+
 ## Next Pieces
 
-- Replace the demo model with a real provider client.
-- Add a Telegram adapter that submits jobs and streams final replies.
 - Add control commands: `stop`, `status`, `new`, `compact`.
-- Add a tiny TUI only after the runtime contract is stable.
+- Add a Telegram adapter that submits jobs and streams final replies after the runtime contract is stable.
