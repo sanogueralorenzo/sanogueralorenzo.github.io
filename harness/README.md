@@ -44,7 +44,7 @@ cargo run --manifest-path harness/Cargo.toml -- run "hello"
 cargo run --manifest-path harness/Cargo.toml -- run "please run pwd"
 ```
 
-By default, runs append JSONL events to:
+By default, runs append a Pi-shaped JSONL session to:
 
 ```text
 harness/.state/default.jsonl
@@ -55,6 +55,10 @@ Use a different session log with:
 ```shell
 cargo run --manifest-path harness/Cargo.toml -- run --session /tmp/harness.jsonl "hello"
 ```
+
+Session files start with a versioned `session` header, then append typed entries with stable entry IDs, parent IDs, and timestamps. Message entries use Pi-style user, assistant, and tool-result shapes; runtime markers are preserved as custom entries. Opening an existing `--session` path resumes its header, IDs, branch leaf, metadata, labels, stats, compaction entries, and branch summaries. Opening a missing path creates a new session.
+
+The runtime sends Pi-style session context to the model, not the raw append log. If a compaction entry exists, the model context starts with the summary, keeps messages from `firstKeptEntryId`, then continues with later messages. Branch summaries are included as user-context messages. The raw append view remains available for diagnostics and tests.
 
 The default provider is `dry-run`, which is deterministic and does not call a network API. To run the real provider-backed loop, use the OpenAI provider:
 
@@ -100,7 +104,7 @@ The runtime loop follows Pi's agent-session shape while keeping the harness sync
 - separate steering and follow-up queues mirror Pi's interrupt-vs-after-current-run behavior
 - lifecycle events cover agent start/end, queue updates, turn start/end, message start/end, tool execution start/end, retry start/end, cancellation, and compaction hook checks
 - retry policy uses bounded attempts and exponential backoff for transient provider/network errors
-- an auto-compaction hook check exists, but full compaction is intentionally deferred until the session log has Pi-style compaction entries
+- an auto-compaction hook check exists; Pi-style compaction entries and branch summaries are supported by the session log, while automatic summary generation is still intentionally deferred
 
 The current model contract returns complete model steps instead of streamed token deltas, so streaming parity is represented by lifecycle events and queue semantics. Token-level streaming can be added behind the same runtime event surface without changing the core loop.
 

@@ -228,7 +228,7 @@ impl<M: ModelClient> Runtime<M> {
             self.log.append(Event::TurnStarted { index: turn_index })?;
 
             self.append_queued_steering_messages()?;
-            let events = self.log.events().to_vec();
+            let events = self.log.context_events();
             let tool_specs = self.tools.specs();
 
             match self.next_step_with_retry(&events, &tool_specs)? {
