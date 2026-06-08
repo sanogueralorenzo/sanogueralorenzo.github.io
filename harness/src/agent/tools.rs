@@ -1332,12 +1332,26 @@ fn ensure_executable(name: &str) -> Result<String> {
         return Ok(path);
     }
     if offline_mode() {
-        bail!("{name} is not available and HARNESS_OFFLINE is enabled");
+        bail!("{name} is not available and offline mode is enabled");
+    }
+    if std::env::consts::OS == "android" {
+        let package = match name {
+            "rg" => "ripgrep",
+            "fd" => "fd",
+            _ => name,
+        };
+        bail!("{name} is not available. On Android/Termux, install it with: pkg install {package}");
     }
     provision_tool(name).with_context(|| format!("provision {name}"))
 }
 
 fn find_executable(name: &str) -> Option<String> {
+    if let Some(candidate) = cached_tool_path(name)
+        && candidate.is_file()
+    {
+        return Some(candidate.display().to_string());
+    }
+
     let env_key = format!("HARNESS_{}_PATH", name.to_ascii_uppercase());
     if let Some(path) = std::env::var_os(&env_key) {
         let candidate = PathBuf::from(path);
@@ -1353,26 +1367,27 @@ fn find_executable(name: &str) -> Option<String> {
             return Some(candidate.display().to_string());
         }
     }
-    if let Some(candidate) = cached_tool_path(name)
-        && candidate.is_file()
-    {
-        return Some(candidate.display().to_string());
-    }
+
     let aliases = if name == "fd" {
-        ["fd", "fdfind"].as_slice()
+        vec!["fd", "fdfind"]
     } else {
-        std::slice::from_ref(&name)
+        vec![name]
     };
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    for dir in std::env::split_paths(&path) {
-        for alias in aliases {
-            let candidate = dir.join(alias);
-            if candidate.is_file() {
-                return Some(candidate.display().to_string());
-            }
+    for alias in &aliases {
+        if command_exists(alias) {
+            return Some((*alias).to_owned());
         }
     }
     None
+}
+
+fn command_exists(command: &str) -> bool {
+    Command::new(command)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok()
 }
 
 fn provision_tool(name: &str) -> Result<String> {
@@ -1384,7 +1399,13 @@ fn provision_tool(name: &str) -> Result<String> {
         return Ok(binary_path.display().to_string());
     }
 
-    let version = latest_github_release(config.repo, config.tag_prefix)?;
+    let mut version = latest_github_release(config.repo, config.tag_prefix)?;
+    if config.binary_name == "fd"
+        && std::env::consts::OS == "macos"
+        && std::env::consts::ARCH == "x86_64"
+    {
+        version = "10.3.0".to_owned();
+    }
     let asset_name = config.asset_name(&version)?;
     let archive_path = cache_dir.join(&asset_name);
     let extract_dir = cache_dir.join(format!(
@@ -1453,8 +1474,10 @@ impl ToolDownload {
     }
 
     fn asset_name(&self, version: &str) -> Result<String> {
-        let os = std::env::consts::OS;
-        let arch = std::env::consts::ARCH;
+        self.asset_name_for(version, std::env::consts::OS, std::env::consts::ARCH)
+    }
+
+    fn asset_name_for(&self, version: &str, os: &str, arch: &str) -> Result<String> {
         let cpu = match arch {
             "aarch64" => "aarch64",
             "x86_64" => "x86_64",
@@ -1548,14 +1571,58 @@ fn extract_archive(archive_path: &Path, extract_dir: &Path, asset_name: &str) ->
             &["-q", path_str(archive_path)?, "-d", path_str(extract_dir)?],
         )
         .or_else(|_| {
+            #[cfg(windows)]
+            if let Some(system_tar) = windows_system_tar() {
+                if run_extraction(
+                    &system_tar,
+                    &["xf", path_str(archive_path)?, "-C", path_str(extract_dir)?],
+                )
+                .is_ok()
+                {
+                    return Ok(());
+                }
+            }
             run_extraction(
                 "tar",
                 &["xf", path_str(archive_path)?, "-C", path_str(extract_dir)?],
             )
+            .or_else(|_| {
+                #[cfg(windows)]
+                {
+                    let script =
+                        "& { param($archive, $destination) $ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath $archive -DestinationPath $destination -Force }";
+                    return run_extraction(
+                        "powershell.exe",
+                        &[
+                            "-NoLogo",
+                            "-NoProfile",
+                            "-NonInteractive",
+                            "-ExecutionPolicy",
+                            "Bypass",
+                            "-Command",
+                            script,
+                            path_str(archive_path)?,
+                            path_str(extract_dir)?,
+                        ],
+                    );
+                }
+                #[cfg(not(windows))]
+                bail!("failed to extract zip archive with unzip or tar")
+            })
         })
     } else {
         bail!("unsupported archive format: {asset_name}")
     }
+}
+
+#[cfg(windows)]
+fn windows_system_tar() -> Option<String> {
+    std::env::var_os("SystemRoot")
+        .or_else(|| std::env::var_os("WINDIR"))
+        .map(PathBuf::from)
+        .map(|root| root.join("System32").join("tar.exe"))
+        .filter(|path| path.is_file())
+        .map(|path| path.display().to_string())
 }
 
 fn run_extraction(command: &str, args: &[&str]) -> Result<()> {
@@ -1614,14 +1681,24 @@ fn cached_tool_path(name: &str) -> Option<PathBuf> {
 fn tools_cache_dir() -> PathBuf {
     std::env::var_os("HARNESS_TOOLS_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("harness/.state/tools"))
+        .unwrap_or_else(|| harness_agent_dir().join("bin"))
+}
+
+fn harness_agent_dir() -> PathBuf {
+    std::env::var_os("HARNESS_CODING_AGENT_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            home_dir()
+                .map(|home| home.join(".harness").join("agent"))
+                .unwrap_or_else(|| PathBuf::from("harness/.state/agent"))
+        })
 }
 
 fn offline_mode() -> bool {
     let value = std::env::var("HARNESS_OFFLINE")
         .or_else(|_| std::env::var("PI_OFFLINE"))
         .unwrap_or_default();
-    matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")
+    matches!(value.to_ascii_lowercase().as_str(), "1" | "true" | "yes")
 }
 
 fn current_millis() -> u128 {
@@ -2034,21 +2111,64 @@ mod tests {
     }
 
     #[test]
-    fn finds_cached_tool_before_path_lookup() {
+    fn finds_cached_tool_before_env_and_path_lookup() {
         let _guard = test_env_lock();
         let dir = temp_dir("tools-cache");
+        let env_dir = temp_dir("tools-env");
         let previous_tools_dir = std::env::var_os("HARNESS_TOOLS_DIR");
+        let previous_fd_path = std::env::var_os("HARNESS_FD_PATH");
         let tool_name = if cfg!(windows) { "fd.exe" } else { "fd" };
         let tool_path = dir.join(tool_name);
+        let env_path = env_dir.join(tool_name);
         fs::write(&tool_path, "#!/bin/sh\n").unwrap();
+        fs::write(&env_path, "#!/bin/sh\n").unwrap();
         unsafe {
             std::env::set_var("HARNESS_TOOLS_DIR", &dir);
+            std::env::set_var("HARNESS_FD_PATH", &env_path);
         }
 
         let found = find_executable("fd").unwrap();
 
         restore_env_var("HARNESS_TOOLS_DIR", previous_tools_dir);
+        restore_env_var("HARNESS_FD_PATH", previous_fd_path);
         assert_eq!(found, tool_path.display().to_string());
+    }
+
+    #[test]
+    fn tools_cache_dir_uses_product_agent_bin_like_pi() {
+        let _guard = test_env_lock();
+        let agent_dir = temp_dir("tools-agent-dir");
+        let previous_tools_dir = std::env::var_os("HARNESS_TOOLS_DIR");
+        let previous_agent_dir = std::env::var_os("HARNESS_CODING_AGENT_DIR");
+        unsafe {
+            std::env::remove_var("HARNESS_TOOLS_DIR");
+            std::env::set_var("HARNESS_CODING_AGENT_DIR", &agent_dir);
+        }
+
+        let dir = tools_cache_dir();
+
+        restore_env_var("HARNESS_TOOLS_DIR", previous_tools_dir);
+        restore_env_var("HARNESS_CODING_AGENT_DIR", previous_agent_dir);
+        assert_eq!(dir, agent_dir.join("bin"));
+    }
+
+    #[test]
+    fn tools_dir_override_wins_over_agent_dir() {
+        let _guard = test_env_lock();
+        let tools_dir = temp_dir("tools-dir-override");
+        let agent_dir = temp_dir("tools-agent-ignored");
+        let previous_tools_dir = std::env::var_os("HARNESS_TOOLS_DIR");
+        let previous_agent_dir = std::env::var_os("HARNESS_CODING_AGENT_DIR");
+        unsafe {
+            std::env::set_var("HARNESS_TOOLS_DIR", &tools_dir);
+            std::env::set_var("HARNESS_CODING_AGENT_DIR", &agent_dir);
+        }
+
+        let dir = tools_cache_dir();
+
+        restore_env_var("HARNESS_TOOLS_DIR", previous_tools_dir);
+        restore_env_var("HARNESS_CODING_AGENT_DIR", previous_agent_dir);
+        assert_eq!(dir, tools_dir);
     }
 
     #[test]
@@ -2057,9 +2177,11 @@ mod tests {
         let dir = temp_dir("tools-offline");
         let previous_tools_dir = std::env::var_os("HARNESS_TOOLS_DIR");
         let previous_offline = std::env::var_os("HARNESS_OFFLINE");
+        let previous_pi_offline = std::env::var_os("PI_OFFLINE");
         unsafe {
             std::env::set_var("HARNESS_TOOLS_DIR", &dir);
-            std::env::set_var("HARNESS_OFFLINE", "1");
+            std::env::remove_var("HARNESS_OFFLINE");
+            std::env::set_var("PI_OFFLINE", "yes");
         }
 
         let error = ensure_executable("definitely-missing-harness-tool")
@@ -2068,7 +2190,31 @@ mod tests {
 
         restore_env_var("HARNESS_TOOLS_DIR", previous_tools_dir);
         restore_env_var("HARNESS_OFFLINE", previous_offline);
-        assert!(error.contains("HARNESS_OFFLINE"));
+        restore_env_var("PI_OFFLINE", previous_pi_offline);
+        assert!(error.contains("offline mode"));
+    }
+
+    #[test]
+    fn tool_asset_names_match_pi_manager() {
+        let fd = ToolDownload::for_name("fd").unwrap();
+        let rg = ToolDownload::for_name("rg").unwrap();
+
+        assert_eq!(
+            fd.asset_name_for("10.3.0", "macos", "x86_64").unwrap(),
+            "fd-v10.3.0-x86_64-apple-darwin.tar.gz"
+        );
+        assert_eq!(
+            fd.asset_name_for("10.3.0", "windows", "aarch64").unwrap(),
+            "fd-v10.3.0-aarch64-pc-windows-msvc.zip"
+        );
+        assert_eq!(
+            rg.asset_name_for("14.1.1", "linux", "x86_64").unwrap(),
+            "ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz"
+        );
+        assert_eq!(
+            rg.asset_name_for("14.1.1", "linux", "aarch64").unwrap(),
+            "ripgrep-14.1.1-aarch64-unknown-linux-gnu.tar.gz"
+        );
     }
 
     fn test_env_lock() -> std::sync::MutexGuard<'static, ()> {
