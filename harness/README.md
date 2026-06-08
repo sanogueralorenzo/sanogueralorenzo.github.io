@@ -77,7 +77,7 @@ The OpenAI provider supports two API adapters:
 - `openai-completions`: chat completions with JSON-schema function tools
 - `openai-responses`: Responses API input items, function tools, and function-call output continuation
 
-For `openai-responses`, the harness derives a stable opaque session ID from the session log path. With cache retention `short`, it sends that ID as `prompt_cache_key` and as `session_id` / `x-client-request-id` headers. With `long`, it also sends `prompt_cache_retention: 24h`. With `none`, it omits all prompt cache fields and session affinity headers. If `HARNESS_CACHE_RETENTION` is unset, `PI_CACHE_RETENTION=long` is also honored.
+For OpenAI adapters, the harness derives a stable opaque session ID from the session log path. With cache retention `short`, it sends that ID as `prompt_cache_key` and as `session_id` / `x-client-request-id` headers. With `long`, it also sends `prompt_cache_retention: 24h`. With `none`, it omits all prompt cache fields and session affinity headers. If `HARNESS_CACHE_RETENTION` is unset, `PI_CACHE_RETENTION=long` is also honored.
 
 Tool call IDs follow Pi's OpenAI Responses replay shape. Responses tool calls are persisted as `call_id|item_id` when the provider returns both fields. When replaying into Responses, unsafe or long foreign item IDs are normalized into bounded `fc_<hash>` IDs; when replaying into chat completions, only the normalized `call_id` is sent.
 
@@ -92,7 +92,7 @@ The runtime persists the assistant tool call, runs the local Rust tool, persists
 
 Harness exposes the Pi coding tool set through a single cwd-bound Rust registry:
 
-- `read`: read text files with `offset` / `limit`, head truncation, and truncation details; supported image files are detected and recorded in tool details
+- `read`: read text files with `offset` / `limit`, head truncation, and truncation details; supported image files are detected and recorded in tool details for image-capable adapter replay
 - `bash`: execute `/bin/sh -lc` commands in the process cwd with optional timeout, Unix process-group cleanup, tail truncation, exit code details, and temp-file persistence for truncated full output
 - `edit`: apply exact text replacements to one file; each `oldText` must match exactly once and edits must not overlap. Like Pi, it accepts legacy `oldText` / `newText`, JSON-string `edits`, BOM/line-ending preservation, and fuzzy matching for common quote/dash/space differences.
 - `write`: create parent directories and write/overwrite a file; file mutations are serialized per path

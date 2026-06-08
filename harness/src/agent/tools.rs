@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow, bail};
+use base64::Engine;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -249,6 +250,8 @@ fn read_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     let requested_limit = optional_usize_arg(arguments, "limit")?;
     let absolute_path = resolve_read_path(path, &ctx.cwd);
     if let Some(mime_type) = detect_image_mime_type(&absolute_path)? {
+        let bytes = fs::read(&absolute_path)
+            .with_context(|| format!("read {}", absolute_path.display()))?;
         let metadata = fs::metadata(&absolute_path)
             .with_context(|| format!("stat {}", absolute_path.display()))?;
         let mut content = format!("Read image file [{mime_type}]");
@@ -264,7 +267,12 @@ fn read_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
                     "path": absolute_path.display().to_string(),
                     "mimeType": mime_type,
                     "bytes": metadata.len(),
-                    "omitted": metadata.len() > IMAGE_INLINE_LIMIT_BYTES
+                    "omitted": metadata.len() > IMAGE_INLINE_LIMIT_BYTES,
+                    "data": if metadata.len() <= IMAGE_INLINE_LIMIT_BYTES {
+                        json!(base64::engine::general_purpose::STANDARD.encode(bytes))
+                    } else {
+                        Value::Null
+                    }
                 }
             })),
         });
@@ -1930,7 +1938,14 @@ mod tests {
         let output = tools.run("read", &json!({ "path": "image.png" })).unwrap();
 
         assert!(output.content.contains("Read image file [image/png]"));
-        assert_eq!(output.details.unwrap()["image"]["mimeType"], "image/png");
+        let details = output.details.unwrap();
+        assert_eq!(details["image"]["mimeType"], "image/png");
+        assert!(
+            details["image"]["data"]
+                .as_str()
+                .unwrap()
+                .starts_with("iVBOR")
+        );
     }
 
     #[test]

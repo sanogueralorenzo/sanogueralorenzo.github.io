@@ -77,7 +77,7 @@ impl ModelClient for OpenAiResponsesModel {
         let body = ResponsesRequest {
             model: self.model.clone(),
             input: to_response_input(events),
-            tools: tools.iter().map(ResponsesTool::from).collect(),
+            tools: non_empty_tools(tools),
             prompt_cache_key: self.prompt_cache_key(),
             prompt_cache_retention: self.prompt_cache_retention(),
             store: false,
@@ -181,10 +181,12 @@ fn to_response_input(events: &[Event]) -> Vec<ResponseInputItem> {
             Event::ToolResult {
                 tool_call_id,
                 output,
+                details,
                 ..
             } => input.push(ResponseInputItem::function_call_output(
                 tool_call_id,
                 output,
+                details.as_ref(),
             )),
             Event::JobStarted
             | Event::TurnStarted { .. }
@@ -200,12 +202,21 @@ fn to_response_input(events: &[Event]) -> Vec<ResponseInputItem> {
 struct ResponsesRequest {
     model: String,
     input: Vec<ResponseInputItem>,
-    tools: Vec<ResponsesTool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<ResponsesTool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     prompt_cache_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     prompt_cache_retention: Option<&'static str>,
     store: bool,
+}
+
+fn non_empty_tools(tools: &[ToolSpec]) -> Option<Vec<ResponsesTool>> {
+    if tools.is_empty() {
+        None
+    } else {
+        Some(tools.iter().map(ResponsesTool::from).collect())
+    }
 }
 
 fn clamp_prompt_cache_key(key: &str) -> String {
@@ -229,7 +240,10 @@ enum ResponseInputItem {
         arguments: String,
     },
     #[serde(rename = "function_call_output")]
-    FunctionCallOutput { call_id: String, output: String },
+    FunctionCallOutput {
+        call_id: String,
+        output: FunctionCallOutputContent,
+    },
 }
 
 impl ResponseInputItem {
@@ -257,13 +271,20 @@ impl ResponseInputItem {
         }
     }
 
-    fn function_call_output(call_id: &str, output: &str) -> Self {
+    fn function_call_output(call_id: &str, output: &str, details: Option<&Value>) -> Self {
         let id = normalize_responses_tool_call_id(call_id);
         Self::FunctionCallOutput {
             call_id: id.call_id,
-            output: output.to_owned(),
+            output: function_call_output_content(output, details),
         }
     }
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum FunctionCallOutputContent {
+    Text(String),
+    Parts(Vec<InputContent>),
 }
 
 #[derive(Serialize)]
@@ -271,6 +292,11 @@ impl ResponseInputItem {
 enum InputContent {
     #[serde(rename = "input_text")]
     InputText { text: String },
+    #[serde(rename = "input_image")]
+    InputImage {
+        detail: &'static str,
+        image_url: String,
+    },
     #[serde(rename = "output_text")]
     OutputText {
         text: String,
@@ -285,12 +311,54 @@ impl InputContent {
         }
     }
 
+    fn input_image(mime_type: &str, data: &str) -> Self {
+        Self::InputImage {
+            detail: "auto",
+            image_url: format!("data:{mime_type};base64,{data}"),
+        }
+    }
+
     fn output_text(text: &str) -> Self {
         Self::OutputText {
             text: text.to_owned(),
             annotations: Vec::new(),
         }
     }
+}
+
+fn function_call_output_content(
+    output: &str,
+    details: Option<&Value>,
+) -> FunctionCallOutputContent {
+    let Some(image) = image_tool_detail(details) else {
+        return FunctionCallOutputContent::Text(output.to_owned());
+    };
+    let mut parts = Vec::new();
+    if !output.is_empty() {
+        parts.push(InputContent::input_text(output));
+    }
+    parts.push(InputContent::input_image(image.mime_type, image.data));
+    FunctionCallOutputContent::Parts(parts)
+}
+
+struct ImageToolDetail<'a> {
+    mime_type: &'a str,
+    data: &'a str,
+}
+
+fn image_tool_detail(details: Option<&Value>) -> Option<ImageToolDetail<'_>> {
+    let image = details?.get("image")?;
+    let omitted = image
+        .get("omitted")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if omitted {
+        return None;
+    }
+    Some(ImageToolDetail {
+        mime_type: image.get("mimeType")?.as_str()?,
+        data: image.get("data")?.as_str()?,
+    })
 }
 
 #[derive(Serialize)]
@@ -422,6 +490,31 @@ mod tests {
         assert_eq!(value[1]["id"], "fc_pwd");
         assert_eq!(value[2]["type"], "function_call_output");
         assert_eq!(value[2]["call_id"], "call_pwd");
+    }
+
+    #[test]
+    fn converts_image_tool_results_to_response_content_parts() {
+        let input = to_response_input(&[Event::ToolResult {
+            tool_call_id: "call_image".to_owned(),
+            name: "read".to_owned(),
+            output: "Read image file [image/png]".to_owned(),
+            details: Some(json!({
+                "image": {
+                    "mimeType": "image/png",
+                    "data": "abc123",
+                    "omitted": false
+                }
+            })),
+        }]);
+        let value = serde_json::to_value(input).unwrap();
+
+        assert_eq!(value[1]["type"], "function_call_output");
+        assert_eq!(value[1]["output"][0]["type"], "input_text");
+        assert_eq!(value[1]["output"][1]["type"], "input_image");
+        assert_eq!(
+            value[1]["output"][1]["image_url"],
+            "data:image/png;base64,abc123"
+        );
     }
 
     #[test]
@@ -568,6 +661,7 @@ mod tests {
         assert_eq!(step, ModelStep::Final("ok".to_owned()));
         assert_eq!(request.body["prompt_cache_key"], "session-123");
         assert_eq!(request.body["prompt_cache_retention"], "24h");
+        assert!(!request.body.as_object().unwrap().contains_key("tools"));
         assert_eq!(request.headers.get("session_id").unwrap(), "session-123");
         assert_eq!(
             request.headers.get("x-client-request-id").unwrap(),

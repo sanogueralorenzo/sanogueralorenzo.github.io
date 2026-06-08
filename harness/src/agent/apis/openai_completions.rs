@@ -3,6 +3,7 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::agent::apis::CacheRetention;
 use crate::agent::apis::tool_call_ids::normalize_chat_tool_call_id;
 use crate::agent::model::{ModelClient, ModelStep};
 use crate::agent::session::Event;
@@ -13,15 +14,30 @@ pub struct OpenAiCompletionsModel {
     base_url: String,
     api_key: String,
     model: String,
+    session_id: Option<String>,
+    cache_retention: CacheRetention,
 }
 
 impl OpenAiCompletionsModel {
+    #[cfg(test)]
     pub fn new(base_url: String, api_key: String, model: String) -> Self {
+        Self::with_cache(base_url, api_key, model, None, CacheRetention::Short)
+    }
+
+    pub fn with_cache(
+        base_url: String,
+        api_key: String,
+        model: String,
+        session_id: Option<String>,
+        cache_retention: CacheRetention,
+    ) -> Self {
         Self {
             client: Client::new(),
             base_url,
             api_key,
             model,
+            session_id,
+            cache_retention,
         }
     }
 }
@@ -32,17 +48,22 @@ impl ModelClient for OpenAiCompletionsModel {
         let body = ChatRequest {
             model: self.model.clone(),
             messages: to_chat_messages(events),
-            tools: tools.iter().map(ToolRequest::from).collect(),
-            tool_choice: "auto",
+            tools: chat_tools(events, tools),
+            tool_choice: if tools.is_empty() { None } else { Some("auto") },
+            prompt_cache_key: self.prompt_cache_key(),
+            prompt_cache_retention: self.prompt_cache_retention(),
+            store: false,
         };
 
-        let response = self
-            .client
-            .post(url)
-            .bearer_auth(&self.api_key)
-            .json(&body)
-            .send()
-            .context("send chat completion request")?;
+        let mut request = self.client.post(url).bearer_auth(&self.api_key).json(&body);
+
+        if let Some(session_id) = self.cache_session_id() {
+            request = request
+                .header("session_id", session_id)
+                .header("x-client-request-id", session_id);
+        }
+
+        let response = request.send().context("send chat completion request")?;
 
         let status = response.status();
         if !status.is_success() {
@@ -54,6 +75,30 @@ impl ModelClient for OpenAiCompletionsModel {
             response.json().context("decode chat completion response")?;
         step_from_chat_response(completion)
     }
+}
+
+impl OpenAiCompletionsModel {
+    fn cache_session_id(&self) -> Option<&str> {
+        if self.cache_retention == CacheRetention::None {
+            return None;
+        }
+        self.session_id.as_deref()
+    }
+
+    fn prompt_cache_key(&self) -> Option<String> {
+        self.cache_session_id().map(clamp_prompt_cache_key)
+    }
+
+    fn prompt_cache_retention(&self) -> Option<&'static str> {
+        match self.cache_retention {
+            CacheRetention::Long => Some("24h"),
+            CacheRetention::Short | CacheRetention::None => None,
+        }
+    }
+}
+
+fn clamp_prompt_cache_key(key: &str) -> String {
+    key.chars().take(64).collect()
 }
 
 fn step_from_chat_response(completion: ChatResponse) -> Result<ModelStep> {
@@ -93,8 +138,17 @@ fn to_chat_messages(events: &[Event]) -> Vec<ChatMessage> {
             Event::ToolResult {
                 tool_call_id,
                 output,
+                details,
                 ..
-            } => messages.push(ChatMessage::tool(tool_call_id, output)),
+            } => {
+                messages.push(ChatMessage::tool(tool_call_id, output));
+                if let Some(image) = image_tool_detail(details.as_ref()) {
+                    messages.push(ChatMessage::user_image_tool_result(
+                        image.mime_type,
+                        image.data,
+                    ));
+                }
+            }
             Event::JobStarted
             | Event::TurnStarted { .. }
             | Event::TurnFinished { .. }
@@ -104,12 +158,35 @@ fn to_chat_messages(events: &[Event]) -> Vec<ChatMessage> {
     messages
 }
 
+fn chat_tools(events: &[Event], tools: &[ToolSpec]) -> Option<Vec<ToolRequest>> {
+    if !tools.is_empty() {
+        return Some(tools.iter().map(ToolRequest::from).collect());
+    }
+    if has_tool_history(events) {
+        return Some(Vec::new());
+    }
+    None
+}
+
+fn has_tool_history(events: &[Event]) -> bool {
+    events
+        .iter()
+        .any(|event| matches!(event, Event::ToolCall { .. } | Event::ToolResult { .. }))
+}
+
 #[derive(Serialize)]
 struct ChatRequest {
     model: String,
     messages: Vec<ChatMessage>,
-    tools: Vec<ToolRequest>,
-    tool_choice: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<ToolRequest>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_choice: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt_cache_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prompt_cache_retention: Option<&'static str>,
+    store: bool,
 }
 
 #[derive(Serialize)]
@@ -143,7 +220,7 @@ struct ToolFunctionRequest {
 struct ChatMessage {
     role: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    content: Option<String>,
+    content: Option<ChatContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_calls: Option<Vec<OutboundToolCall>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -154,7 +231,7 @@ impl ChatMessage {
     fn system(content: &str) -> Self {
         Self {
             role: "system",
-            content: Some(content.to_owned()),
+            content: Some(ChatContent::text(content)),
             tool_calls: None,
             tool_call_id: None,
         }
@@ -163,7 +240,7 @@ impl ChatMessage {
     fn user(content: &str) -> Self {
         Self {
             role: "user",
-            content: Some(content.to_owned()),
+            content: Some(ChatContent::text(content)),
             tool_calls: None,
             tool_call_id: None,
         }
@@ -172,7 +249,7 @@ impl ChatMessage {
     fn assistant(content: &str) -> Self {
         Self {
             role: "assistant",
-            content: Some(content.to_owned()),
+            content: Some(ChatContent::text(content)),
             tool_calls: None,
             tool_call_id: None,
         }
@@ -199,11 +276,76 @@ impl ChatMessage {
         let tool_call_id = normalize_chat_tool_call_id(tool_call_id);
         Self {
             role: "tool",
-            content: Some(content.to_owned()),
+            content: Some(ChatContent::text(content)),
             tool_calls: None,
             tool_call_id: Some(tool_call_id),
         }
     }
+
+    fn user_image_tool_result(mime_type: &str, data: &str) -> Self {
+        Self {
+            role: "user",
+            content: Some(ChatContent::Parts(vec![
+                ChatContentPart::Text {
+                    text: "Attached image(s) from tool result:".to_owned(),
+                },
+                ChatContentPart::ImageUrl {
+                    image_url: ImageUrl {
+                        url: format!("data:{mime_type};base64,{data}"),
+                    },
+                },
+            ])),
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum ChatContent {
+    Text(String),
+    Parts(Vec<ChatContentPart>),
+}
+
+impl ChatContent {
+    fn text(content: &str) -> Self {
+        Self::Text(content.to_owned())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+enum ChatContentPart {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image_url")]
+    ImageUrl { image_url: ImageUrl },
+}
+
+#[derive(Serialize)]
+struct ImageUrl {
+    url: String,
+}
+
+struct ImageToolDetail<'a> {
+    mime_type: &'a str,
+    data: &'a str,
+}
+
+fn image_tool_detail(details: Option<&Value>) -> Option<ImageToolDetail<'_>> {
+    let image = details?.get("image")?;
+    let omitted = image
+        .get("omitted")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if omitted {
+        return None;
+    }
+    Some(ImageToolDetail {
+        mime_type: image.get("mimeType")?.as_str()?,
+        data: image.get("data")?.as_str()?,
+    })
 }
 
 #[derive(Serialize)]
@@ -333,5 +475,90 @@ mod tests {
 
         assert_eq!(value[1]["tool_calls"][0]["id"], "call_1");
         assert_eq!(value[2]["tool_call_id"], "call_1");
+    }
+
+    #[test]
+    fn converts_image_tool_results_to_follow_up_user_image_message() {
+        let messages = to_chat_messages(&[Event::ToolResult {
+            tool_call_id: "call_image".to_owned(),
+            name: "read".to_owned(),
+            output: "Read image file [image/png]".to_owned(),
+            details: Some(json!({
+                "image": {
+                    "mimeType": "image/png",
+                    "data": "abc123",
+                    "omitted": false
+                }
+            })),
+        }]);
+        let value = serde_json::to_value(messages).unwrap();
+
+        assert_eq!(value[1]["role"], "tool");
+        assert_eq!(value[2]["role"], "user");
+        assert_eq!(value[2]["content"][0]["type"], "text");
+        assert_eq!(value[2]["content"][1]["type"], "image_url");
+        assert_eq!(
+            value[2]["content"][1]["image_url"]["url"],
+            "data:image/png;base64,abc123"
+        );
+    }
+
+    #[test]
+    fn omits_empty_tools_without_tool_history() {
+        let body = ChatRequest {
+            model: "test-model".to_owned(),
+            messages: to_chat_messages(&[Event::UserMessage {
+                content: "hello".to_owned(),
+            }]),
+            tools: chat_tools(
+                &[Event::UserMessage {
+                    content: "hello".to_owned(),
+                }],
+                &[],
+            ),
+            tool_choice: None,
+            prompt_cache_key: None,
+            prompt_cache_retention: None,
+            store: false,
+        };
+        let value = serde_json::to_value(body).unwrap();
+
+        assert!(!value.as_object().unwrap().contains_key("tools"));
+        assert!(!value.as_object().unwrap().contains_key("tool_choice"));
+    }
+
+    #[test]
+    fn builds_prompt_cache_fields_from_session_id() {
+        let model = OpenAiCompletionsModel::with_cache(
+            "http://localhost".to_owned(),
+            "key".to_owned(),
+            "model".to_owned(),
+            Some("x".repeat(80)),
+            CacheRetention::Long,
+        );
+
+        assert_eq!(model.prompt_cache_key(), Some("x".repeat(64)));
+        assert_eq!(model.prompt_cache_retention(), Some("24h"));
+        assert_eq!(
+            model.cache_session_id(),
+            Some(
+                "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            )
+        );
+    }
+
+    #[test]
+    fn disables_prompt_cache_fields_when_retention_is_none() {
+        let model = OpenAiCompletionsModel::with_cache(
+            "http://localhost".to_owned(),
+            "key".to_owned(),
+            "model".to_owned(),
+            Some("session-1".to_owned()),
+            CacheRetention::None,
+        );
+
+        assert_eq!(model.prompt_cache_key(), None);
+        assert_eq!(model.prompt_cache_retention(), None);
+        assert_eq!(model.cache_session_id(), None);
     }
 }
