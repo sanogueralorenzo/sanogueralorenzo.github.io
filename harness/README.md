@@ -42,6 +42,7 @@ harness/
 ```shell
 cargo run --manifest-path harness/Cargo.toml -- run "hello"
 cargo run --manifest-path harness/Cargo.toml -- run "please run pwd"
+cargo run --manifest-path harness/Cargo.toml -- compact "focus on current task state"
 ```
 
 By default, runs append a Pi-shaped JSONL session to:
@@ -54,11 +55,14 @@ Use a different session log with:
 
 ```shell
 cargo run --manifest-path harness/Cargo.toml -- run --session /tmp/harness.jsonl "hello"
+cargo run --manifest-path harness/Cargo.toml -- compact --session /tmp/harness.jsonl
 ```
 
 Session files start with a versioned `session` header, then append typed entries with stable entry IDs, parent IDs, and timestamps. Message entries use Pi-style user, assistant, and tool-result shapes; runtime markers are preserved as custom entries. Opening an existing `--session` path resumes its header, IDs, branch leaf, metadata, labels, stats, compaction entries, and branch summaries. Opening a missing path creates a new session.
 
 The runtime sends Pi-style session context to the model, not the raw append log. If a compaction entry exists, the model context starts with the summary, keeps messages from `firstKeptEntryId`, then continues with later messages. Branch summaries are included as user-context messages. The raw append view remains available for diagnostics and tests.
+
+Manual compaction is available through `compact`. It appends a Pi-shaped `compaction` entry with `summary`, `firstKeptEntryId`, `tokensBefore`, details, and `fromHook`, then future model context uses that summary plus the retained latest messages. The harness summary is deterministic and bounded instead of LLM-generated: it folds the previous continuity summary plus recent crucial messages into one capped continuity checkpoint.
 
 The session manager surface mirrors Pi's runtime-relevant behavior:
 
@@ -122,11 +126,13 @@ The runtime loop follows Pi's agent-session shape while keeping the harness sync
 - starting a new prompt while a run is active is rejected; callers should queue steering or follow-up messages instead
 - lifecycle events cover agent start/end, queue updates, turn start/end, message start/end/update, tool execution start/update/end, retry start/end, cancellation, and compaction hook checks
 - retry policy uses bounded attempts and exponential backoff for transient provider/network errors
+- context-overflow provider errors are handled by one compact-and-retry attempt, not by generic transient retries
 - continuation can resume from an existing user/tool-result context without appending a new prompt
 - a single assistant response can contain multiple tool calls; the harness persists them as one assistant message and emits one tool-result message per call
 - before-tool, after-tool, and stop-after-turn hooks mirror Pi's extension points for blocking, overriding, terminating, or gracefully stopping a turn
 - tool results support Pi's `terminate` hint; the loop stops when every result in the current batch requests termination
-- an auto-compaction hook check exists; Pi-style compaction entries and branch summaries are supported by the session log, while automatic summary generation is still intentionally deferred
+- compaction events cover manual, threshold, and overflow reasons with `will_retry` on overflow recovery
+- threshold compaction runs after a completed turn and does not auto-retry; it updates the latest active continuity summary and keeps the latest messages exact, so model context contains only one active compaction summary regardless of raw log length
 - tool batches execute in source order in the synchronous harness loop; Pi can run allowed tool calls concurrently
 
 The model contract supports optional streaming update callbacks for assistant text and tool-call deltas. The current OpenAI adapters still return complete model steps, but token-level streaming can be added behind the same runtime event surface without changing the core loop.

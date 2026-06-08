@@ -2,19 +2,27 @@ use std::collections::VecDeque;
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Error, Result, bail};
+use anyhow::{Context, Error, Result, bail};
 
 use crate::agent::model::{ModelClient, ModelStep, ModelUpdate, ToolCallRequest};
-use crate::agent::session::{Event, SessionLog, ToolCallEvent};
+use crate::agent::session::{
+    AgentMessage, AssistantContent, Event, FileEntry, MessageContent, MessagePart, SessionLog,
+    ToolCallEvent,
+};
 use crate::agent::tools::{ToolOutput, ToolRegistry};
 
 const MAX_TURNS_PER_JOB: usize = 16;
+const DEFAULT_COMPACTION_KEEP_RECENT_MESSAGES: usize = 4;
+const DEFAULT_COMPACTION_SUMMARY_MAX_CHARS: usize = 4_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeOptions {
     pub max_turns_per_job: usize,
     pub retry_policy: RetryPolicy,
     pub auto_compact_after_events: Option<usize>,
+    pub compaction_keep_recent_messages: usize,
+    pub compaction_summary_max_chars: usize,
+    pub overflow_compaction_retry: bool,
     pub steering_mode: QueueMode,
     pub follow_up_mode: QueueMode,
 }
@@ -25,6 +33,9 @@ impl Default for RuntimeOptions {
             max_turns_per_job: MAX_TURNS_PER_JOB,
             retry_policy: RetryPolicy::default(),
             auto_compact_after_events: None,
+            compaction_keep_recent_messages: DEFAULT_COMPACTION_KEEP_RECENT_MESSAGES,
+            compaction_summary_max_chars: DEFAULT_COMPACTION_SUMMARY_MAX_CHARS,
+            overflow_compaction_retry: true,
             steering_mode: QueueMode::OneAtATime,
             follow_up_mode: QueueMode::OneAtATime,
         }
@@ -126,6 +137,13 @@ pub enum RuntimeEvent {
         error_message: Option<String>,
     },
     Cancelled,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompactionOutcome {
+    pub summary: String,
+    pub first_kept_entry_id: String,
+    pub tokens_before: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -331,6 +349,16 @@ impl<M: ModelClient> Runtime<M> {
         result
     }
 
+    pub fn compact_manual(
+        &mut self,
+        custom_instructions: Option<String>,
+    ) -> Result<CompactionOutcome> {
+        if self.state.is_running {
+            bail!("manual compaction requires idle runtime");
+        }
+        self.run_compaction("manual", false, custom_instructions)
+    }
+
     fn run_continuation(&mut self) -> Result<String> {
         self.state.is_running = true;
         self.state.cancel_requested = false;
@@ -391,10 +419,9 @@ impl<M: ModelClient> Runtime<M> {
             self.log.append(Event::TurnStarted { index: turn_index })?;
 
             self.append_queued_steering_messages()?;
-            let events = self.log.context_events();
             let tool_specs = self.tools.specs();
 
-            match self.next_step_with_retry(&events, &tool_specs)? {
+            match self.next_step_with_retry(&tool_specs)? {
                 ModelStep::Final(content) => {
                     self.emit(RuntimeEvent::MessageStarted { role: "assistant" });
                     self.log.append(Event::AssistantMessage {
@@ -606,16 +633,17 @@ impl<M: ModelClient> Runtime<M> {
 
     fn next_step_with_retry(
         &mut self,
-        events: &[Event],
         tool_specs: &[crate::agent::tools::ToolSpec],
     ) -> Result<ModelStep> {
         let mut retry_attempt = 0;
+        let mut overflow_recovery_attempted = false;
         loop {
             self.ensure_not_cancelled()?;
             let mut emitted_updates = Vec::new();
+            let events = self.log.context_events();
             let result = self
                 .model
-                .next_step_with_updates(events, tool_specs, &mut |update| {
+                .next_step_with_updates(&events, tool_specs, &mut |update| {
                     emitted_updates.push(update)
                 });
             for update in emitted_updates {
@@ -650,6 +678,17 @@ impl<M: ModelClient> Runtime<M> {
                         thread::sleep(Duration::from_millis(delay_ms));
                     }
                 }
+                Err(error)
+                    if self.options.overflow_compaction_retry
+                        && !overflow_recovery_attempted
+                        && is_context_overflow_error(&error) =>
+                {
+                    overflow_recovery_attempted = true;
+                    let outcome = self.run_compaction("overflow", true, None);
+                    if outcome.is_err() {
+                        return Err(error);
+                    }
+                }
                 Err(error) => {
                     if retry_attempt > 0 {
                         self.emit(RuntimeEvent::AutoRetryFinished {
@@ -673,19 +712,118 @@ impl<M: ModelClient> Runtime<M> {
             return Ok(());
         }
 
-        self.emit(RuntimeEvent::CompactionCheckStarted {
-            reason: "threshold",
-        });
-        self.emit(RuntimeEvent::CompactionCheckFinished {
-            reason: "threshold",
-            ran: false,
-            will_retry,
-            error_message: Some(
-                "session compaction is not implemented until session-log compaction entries exist"
-                    .to_owned(),
-            ),
-        });
+        let _ = self.run_compaction("threshold", will_retry, None);
         Ok(())
+    }
+
+    fn run_compaction(
+        &mut self,
+        reason: &'static str,
+        will_retry: bool,
+        custom_instructions: Option<String>,
+    ) -> Result<CompactionOutcome> {
+        self.emit(RuntimeEvent::CompactionCheckStarted { reason });
+        let outcome = self.compact_session(custom_instructions);
+        match outcome {
+            Ok(outcome) => {
+                self.emit(RuntimeEvent::CompactionCheckFinished {
+                    reason,
+                    ran: true,
+                    will_retry,
+                    error_message: None,
+                });
+                Ok(outcome)
+            }
+            Err(error) => {
+                let error_message = error.to_string();
+                self.emit(RuntimeEvent::CompactionCheckFinished {
+                    reason,
+                    ran: false,
+                    will_retry: false,
+                    error_message: Some(error_message),
+                });
+                Err(error)
+            }
+        }
+    }
+
+    fn compact_session(
+        &mut self,
+        custom_instructions: Option<String>,
+    ) -> Result<CompactionOutcome> {
+        let plan = self
+            .log
+            .prepare_compaction(self.options.compaction_keep_recent_messages)
+            .context("nothing to compact")?;
+        let summary = self.build_compaction_summary(
+            plan.previous_summary.as_deref(),
+            custom_instructions.as_deref(),
+        );
+        self.log.append_compaction(
+            summary.clone(),
+            plan.first_kept_entry_id.clone(),
+            plan.tokens_before,
+            Some(serde_json::json!({
+                "compactedEntryCount": plan.compacted_entry_count,
+                "summaryMaxChars": self.options.compaction_summary_max_chars,
+                "keepRecentMessages": self.options.compaction_keep_recent_messages,
+                "strategy": "bounded-continuity-summary"
+            })),
+            Some(false),
+        )?;
+        Ok(CompactionOutcome {
+            summary,
+            first_kept_entry_id: plan.first_kept_entry_id,
+            tokens_before: plan.tokens_before,
+        })
+    }
+
+    fn build_compaction_summary(
+        &self,
+        previous_summary: Option<&str>,
+        custom_instructions: Option<&str>,
+    ) -> String {
+        let mut lines = Vec::new();
+        lines.push("## Goal".to_owned());
+        lines.push("- Continue the current harness session from the compacted context.".to_owned());
+        if let Some(instructions) = custom_instructions
+            && !instructions.trim().is_empty()
+        {
+            lines.push(format!("- Manual focus: {}", one_line(instructions, 280)));
+        }
+        if let Some(previous) = previous_summary {
+            lines.push("".to_owned());
+            lines.push("## Previous Continuity".to_owned());
+            lines.push(one_line(previous, 1_200));
+        }
+
+        lines.push("".to_owned());
+        lines.push("## Recent Crucial Context".to_owned());
+        let branch = self.log.get_branch(None);
+        let latest_compaction_position = branch
+            .iter()
+            .rposition(|entry| matches!(entry, FileEntry::Compaction { .. }));
+        let start = latest_compaction_position.map_or(0, |index| index + 1);
+        let recent = branch
+            .iter()
+            .skip(start)
+            .filter_map(summary_line_from_entry)
+            .rev()
+            .take(16)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>();
+        if recent.is_empty() {
+            lines.push("- No new conversation messages since the previous compaction.".to_owned());
+        } else {
+            lines.extend(recent.into_iter().map(|line| format!("- {line}")));
+        }
+
+        lines.push("".to_owned());
+        lines.push("## Next Steps".to_owned());
+        lines.push("- Use the retained latest messages after this compaction entry for exact turn completion.".to_owned());
+        truncate_summary(lines.join("\n"), self.options.compaction_summary_max_chars)
     }
 
     fn ensure_not_cancelled(&mut self) -> Result<()> {
@@ -802,6 +940,91 @@ fn should_terminate_tool_batch(results: &[ExecutedToolCall]) -> bool {
     !results.is_empty() && results.iter().all(|result| result.output.terminate)
 }
 
+fn summary_line_from_entry(entry: &FileEntry) -> Option<String> {
+    match entry {
+        FileEntry::Message { message, .. } => summary_line_from_message(message),
+        FileEntry::BranchSummary { summary, .. } => {
+            Some(format!("Branch summary: {}", one_line(summary, 420)))
+        }
+        FileEntry::CustomMessage {
+            custom_type,
+            content,
+            ..
+        } => Some(format!(
+            "Custom message ({custom_type}): {}",
+            one_line(&text_from_message_content(content), 420)
+        )),
+        _ => None,
+    }
+}
+
+fn summary_line_from_message(message: &AgentMessage) -> Option<String> {
+    match message {
+        AgentMessage::User { content, .. } => Some(format!(
+            "User: {}",
+            one_line(&text_from_message_content(content), 420)
+        )),
+        AgentMessage::Assistant { content, .. } => Some(format!(
+            "Assistant: {}",
+            one_line(&assistant_content_text(content), 420)
+        )),
+        AgentMessage::ToolResult {
+            tool_name, content, ..
+        } => Some(format!(
+            "Tool result ({tool_name}): {}",
+            one_line(&message_parts_text(content), 420)
+        )),
+    }
+}
+
+fn assistant_content_text(content: &[AssistantContent]) -> String {
+    content
+        .iter()
+        .map(|part| match part {
+            AssistantContent::Text { text } => text.clone(),
+            AssistantContent::ToolCall {
+                id,
+                name,
+                arguments,
+            } => format!("Tool call {name} id={id} args={arguments}"),
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn text_from_message_content(content: &MessageContent) -> String {
+    match content {
+        MessageContent::Text(text) => text.clone(),
+        MessageContent::Parts(parts) => message_parts_text(parts),
+    }
+}
+
+fn message_parts_text(parts: &[MessagePart]) -> String {
+    parts
+        .iter()
+        .map(|part| match part {
+            MessagePart::Text { text } => text.clone(),
+            MessagePart::Image { mime_type, .. } => format!("[image:{mime_type}]"),
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn one_line(value: &str, max_chars: usize) -> String {
+    let compact = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    truncate_summary(compact, max_chars)
+}
+
+fn truncate_summary(mut value: String, max_chars: usize) -> String {
+    if max_chars == 0 || value.chars().count() <= max_chars {
+        return value;
+    }
+    let keep = max_chars.saturating_sub("...".len());
+    value = value.chars().take(keep).collect::<String>();
+    value.push_str("...");
+    value
+}
+
 fn drain_queue(queue: &mut VecDeque<String>, mode: QueueMode) -> Vec<String> {
     match mode {
         QueueMode::All => queue.drain(..).collect(),
@@ -835,6 +1058,20 @@ fn is_retryable_error(error: &Error) -> bool {
         "timed out",
         "fetch failed",
         "terminated",
+    ]
+    .iter()
+    .any(|needle| message.contains(needle))
+}
+
+fn is_context_overflow_error(error: &Error) -> bool {
+    let message = error.to_string().to_ascii_lowercase();
+    [
+        "context length",
+        "context window",
+        "maximum context",
+        "too many tokens",
+        "token limit",
+        "input too large",
     ]
     .iter()
     .any(|needle| message.contains(needle))
@@ -1241,16 +1478,77 @@ mod tests {
     }
 
     #[test]
-    fn emits_auto_compaction_hook_events_without_session_compaction() {
-        let log = SessionLog::memory();
+    fn manual_compaction_appends_bounded_summary_and_keeps_recent_context() {
+        let mut log = SessionLog::memory();
+        log.append(Event::UserMessage {
+            content: "original request".to_owned(),
+        })
+        .unwrap();
+        log.append(Event::AssistantMessage {
+            content: "first progress".to_owned(),
+        })
+        .unwrap();
+        log.append(Event::UserMessage {
+            content: "latest request must remain exact".to_owned(),
+        })
+        .unwrap();
         let options = RuntimeOptions {
-            auto_compact_after_events: Some(1),
+            compaction_keep_recent_messages: 1,
+            compaction_summary_max_chars: 260,
             ..RuntimeOptions::default()
         };
         let mut runtime = Runtime::with_options(log, ToolRegistry::minimal(), DryRunModel, options);
 
-        runtime.run_message("hello".to_owned()).unwrap();
+        let outcome = runtime
+            .compact_manual(Some("focus on runtime continuity".to_owned()))
+            .unwrap();
 
+        assert!(outcome.summary.len() <= 260);
+        assert!(outcome.summary.contains("runtime continuity"));
+        let context = runtime.log.context_events();
+        assert_eq!(context.len(), 2);
+        assert!(matches!(&context[0], Event::UserMessage { content }
+                    if content.contains("compacted into the following summary")));
+        assert!(matches!(&context[1], Event::UserMessage { content }
+                    if content == "latest request must remain exact"));
+    }
+
+    #[test]
+    fn threshold_compaction_updates_single_active_summary() {
+        let log = SessionLog::memory();
+        let options = RuntimeOptions {
+            auto_compact_after_events: Some(1),
+            compaction_keep_recent_messages: 1,
+            compaction_summary_max_chars: 1_200,
+            ..RuntimeOptions::default()
+        };
+        let mut runtime = Runtime::with_options(log, ToolRegistry::minimal(), DryRunModel, options);
+
+        runtime
+            .run_message("first threshold message".to_owned())
+            .unwrap();
+        runtime
+            .run_message("second threshold message".to_owned())
+            .unwrap();
+
+        let raw_compactions = runtime
+            .log
+            .entries()
+            .iter()
+            .filter(|entry| matches!(entry, FileEntry::Compaction { .. }))
+            .count();
+        let active_compactions = runtime
+            .log
+            .context_events()
+            .iter()
+            .filter(|event| {
+                matches!(event, Event::UserMessage { content }
+                    if content.contains("compacted into the following summary"))
+            })
+            .count();
+
+        assert_eq!(raw_compactions, 2);
+        assert_eq!(active_compactions, 1);
         assert!(runtime.runtime_events().iter().any(|event| matches!(
             event,
             RuntimeEvent::CompactionCheckStarted {
@@ -1262,12 +1560,54 @@ mod tests {
                 event,
                 RuntimeEvent::CompactionCheckFinished {
                     reason: "threshold",
-                    ran: false,
+                    ran: true,
                     will_retry: false,
-                    error_message: Some(_)
+                    error_message: None
                 }
             )
         }));
+    }
+
+    #[test]
+    fn overflow_compaction_retries_with_latest_message_retained() {
+        let mut log = SessionLog::memory();
+        log.append(Event::UserMessage {
+            content: "older request".to_owned(),
+        })
+        .unwrap();
+        log.append(Event::AssistantMessage {
+            content: "older answer".to_owned(),
+        })
+        .unwrap();
+        let options = RuntimeOptions {
+            compaction_keep_recent_messages: 1,
+            compaction_summary_max_chars: 1_200,
+            ..RuntimeOptions::default()
+        };
+        let mut runtime = Runtime::with_options(
+            log,
+            ToolRegistry::minimal(),
+            OverflowOnceModel::default(),
+            options,
+        );
+
+        let reply = runtime.run_message("latest message".to_owned()).unwrap();
+
+        assert_eq!(reply, "recovered after compaction");
+        assert_eq!(runtime.model.calls, 2);
+        assert!(matches!(
+            runtime.model.retry_events.last().and_then(|events| events.last()),
+            Some(Event::UserMessage { content }) if content == "latest message"
+        ));
+        assert!(runtime.runtime_events().iter().any(|event| matches!(
+            event,
+            RuntimeEvent::CompactionCheckFinished {
+                reason: "overflow",
+                ran: true,
+                will_retry: true,
+                error_message: None
+            }
+        )));
     }
 
     #[test]
@@ -1471,6 +1811,27 @@ mod tests {
                 return Err(anyhow!("provider returned 503: service unavailable"));
             }
             Ok(ModelStep::Final("recovered".to_owned()))
+        }
+    }
+
+    #[derive(Default)]
+    struct OverflowOnceModel {
+        calls: usize,
+        retry_events: Vec<Vec<Event>>,
+    }
+
+    impl ModelClient for OverflowOnceModel {
+        fn next_step(
+            &mut self,
+            events: &[Event],
+            _tools: &[crate::agent::tools::ToolSpec],
+        ) -> Result<ModelStep> {
+            self.calls += 1;
+            if self.calls == 1 {
+                return Err(anyhow!("context length exceeded for model"));
+            }
+            self.retry_events.push(events.to_vec());
+            Ok(ModelStep::Final("recovered after compaction".to_owned()))
         }
     }
 

@@ -280,6 +280,14 @@ pub struct SessionInfo {
     pub all_messages_text: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompactionPlan {
+    pub first_kept_entry_id: String,
+    pub tokens_before: usize,
+    pub compacted_entry_count: usize,
+    pub previous_summary: Option<String>,
+}
+
 pub struct SessionLog {
     header: SessionHeader,
     entries: Vec<FileEntry>,
@@ -525,6 +533,50 @@ impl SessionLog {
             from_hook,
         };
         self.append_entry(entry)
+    }
+
+    pub fn prepare_compaction(&self, keep_recent_messages: usize) -> Option<CompactionPlan> {
+        let branch = self.get_branch(self.leaf_id.as_deref());
+        if branch.is_empty() || matches!(branch.last(), Some(FileEntry::Compaction { .. })) {
+            return None;
+        }
+
+        let latest_compaction_index = branch
+            .iter()
+            .rposition(|entry| matches!(entry, FileEntry::Compaction { .. }));
+        let boundary_start = latest_compaction_index.map_or(0, |index| index + 1);
+        let previous_summary = latest_compaction_index.and_then(|index| match &branch[index] {
+            FileEntry::Compaction { summary, .. } => Some(summary.clone()),
+            _ => None,
+        });
+        let context_indices = branch
+            .iter()
+            .enumerate()
+            .skip(boundary_start)
+            .filter_map(|(index, entry)| is_compaction_cut_entry(entry).then_some(index))
+            .collect::<Vec<_>>();
+
+        let keep_recent_messages = keep_recent_messages.max(1);
+        if context_indices.len() <= keep_recent_messages {
+            return None;
+        }
+
+        let first_kept_index = context_indices[context_indices.len() - keep_recent_messages];
+        let first_kept_entry_id = entry_id(&branch[first_kept_index])?;
+        let compacted_entry_count = context_indices
+            .iter()
+            .filter(|index| **index < first_kept_index)
+            .count();
+        if compacted_entry_count == 0 {
+            return None;
+        }
+
+        Some(CompactionPlan {
+            first_kept_entry_id,
+            tokens_before: estimate_context_tokens(&branch),
+            compacted_entry_count,
+            previous_summary,
+        })
     }
 
     pub fn branch_with_summary(
@@ -1321,6 +1373,57 @@ fn event_from_entry(entry: &FileEntry) -> Option<Event> {
             content: text_from_message_content(content),
         }),
         _ => None,
+    }
+}
+
+fn is_compaction_cut_entry(entry: &FileEntry) -> bool {
+    matches!(
+        entry,
+        FileEntry::Message { .. }
+            | FileEntry::BranchSummary { .. }
+            | FileEntry::CustomMessage { .. }
+    )
+}
+
+fn estimate_context_tokens(entries: &[FileEntry]) -> usize {
+    let chars = entries
+        .iter()
+        .filter_map(event_from_entry)
+        .map(|event| estimate_event_chars(&event))
+        .sum::<usize>();
+    chars.div_ceil(4)
+}
+
+fn estimate_event_chars(event: &Event) -> usize {
+    match event {
+        Event::UserMessage { content } | Event::AssistantMessage { content } => content.len(),
+        Event::ToolCall {
+            id,
+            name,
+            arguments,
+        } => id.len() + name.len() + arguments.to_string().len(),
+        Event::ToolCalls { calls } => calls
+            .iter()
+            .map(|call| call.id.len() + call.name.len() + call.arguments.to_string().len())
+            .sum(),
+        Event::ToolResult {
+            tool_call_id,
+            name,
+            output,
+            details,
+        } => {
+            tool_call_id.len()
+                + name.len()
+                + output.len()
+                + details
+                    .as_ref()
+                    .map(|value| value.to_string().len())
+                    .unwrap_or(0)
+        }
+        Event::JobStarted
+        | Event::TurnStarted { .. }
+        | Event::TurnFinished { .. }
+        | Event::JobFinished => 0,
     }
 }
 
