@@ -29,7 +29,7 @@ harness/
       model.rs
       providers/
         mod.rs
-        demo.rs
+        dry_run.rs
         openai_compatible.rs
       tools.rs
 ```
@@ -53,7 +53,7 @@ Use a different session log with:
 cargo run --manifest-path harness/Cargo.toml -- run --session /tmp/harness.jsonl "hello"
 ```
 
-The default provider is `demo`, which is deterministic and does not call a network API. To run the real provider-backed loop, use the OpenAI-compatible provider:
+The default provider is `dry-run`, which is deterministic and does not call a network API. To run the real provider-backed loop, use the OpenAI-compatible provider:
 
 ```shell
 OPENAI_API_KEY=... \

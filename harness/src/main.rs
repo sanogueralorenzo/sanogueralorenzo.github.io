@@ -23,7 +23,7 @@ fn main() -> Result<()> {
 
 fn run_command(args: &[String]) -> Result<()> {
     let mut session_path = PathBuf::from("harness/.state/default.jsonl");
-    let mut provider = "demo".to_owned();
+    let mut provider = "dry-run".to_owned();
     let mut message_parts = Vec::new();
     let mut index = 0;
 
@@ -37,7 +37,7 @@ fn run_command(args: &[String]) -> Result<()> {
             "--provider" => {
                 provider = args
                     .get(index + 1)
-                    .context("--provider requires demo or openai")?
+                    .context("--provider requires dry-run or openai")?
                     .to_owned();
                 index += 2;
             }
@@ -67,7 +67,7 @@ fn print_help() {
     println!("harness - minimal Rust agent runtime loop");
     println!();
     println!("USAGE:");
-    println!("  harness run [--provider demo|openai] [--session <path>] <message>");
+    println!("  harness run [--provider dry-run|openai] [--session <path>] <message>");
     println!();
     println!("OPENAI PROVIDER ENV:");
     println!("  OPENAI_API_KEY      required");

@@ -6,9 +6,9 @@ use crate::agent::session::Event;
 use crate::agent::tools::ToolSpec;
 
 #[derive(Default)]
-pub struct DemoModel;
+pub struct DryRunModel;
 
-impl ModelClient for DemoModel {
+impl ModelClient for DryRunModel {
     fn next_step(&mut self, events: &[Event], _tools: &[ToolSpec]) -> Result<ModelStep> {
         if let Some(result) = latest_tool_result(events) {
             return Ok(ModelStep::Final(format!("tool result: {}", result.trim())));
@@ -17,7 +17,7 @@ impl ModelClient for DemoModel {
         let message = latest_user_message(events).unwrap_or_default();
         if message.to_ascii_lowercase().contains("pwd") {
             return Ok(ModelStep::ToolCall {
-                id: "demo-tool-call-1".to_owned(),
+                id: "dry-run-tool-call-1".to_owned(),
                 name: "pwd".to_owned(),
                 arguments: json!({}),
             });

@@ -83,7 +83,7 @@ mod tests {
     use super::*;
     use crate::agent::session::SessionLog;
     use crate::agent::tools::ToolRegistry;
-    use crate::agent::{DemoModel, OpenAiCompatibleModel};
+    use crate::agent::{DryRunModel, OpenAiCompatibleModel};
     use serde_json::{Value, json};
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn finishes_simple_message() {
         let log = SessionLog::memory();
-        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DemoModel);
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
 
         let reply = runtime.run_message("hello".to_owned()).unwrap();
 
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn runs_tool_before_final_reply() {
         let log = SessionLog::memory();
-        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DemoModel);
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
 
         let reply = runtime.run_message("what is pwd".to_owned()).unwrap();
 
@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn does_not_reuse_previous_tool_result() {
         let log = SessionLog::memory();
-        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DemoModel);
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
 
         runtime.run_message("what is pwd".to_owned()).unwrap();
         let reply = runtime.run_message("hello".to_owned()).unwrap();
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn persists_turn_boundaries_and_tool_call_ids() {
         let log = SessionLog::memory();
-        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DemoModel);
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
 
         runtime.run_message("what is pwd".to_owned()).unwrap();
 
@@ -134,12 +134,12 @@ mod tests {
         assert!(
             events
                 .iter()
-                .any(|event| matches!(event, Event::ToolCall { id, name, .. } if id == "demo-tool-call-1" && name == "pwd"))
+                .any(|event| matches!(event, Event::ToolCall { id, name, .. } if id == "dry-run-tool-call-1" && name == "pwd"))
         );
         assert!(
             events
                 .iter()
-                .any(|event| matches!(event, Event::ToolResult { tool_call_id, name, .. } if tool_call_id == "demo-tool-call-1" && name == "pwd"))
+                .any(|event| matches!(event, Event::ToolResult { tool_call_id, name, .. } if tool_call_id == "dry-run-tool-call-1" && name == "pwd"))
         );
     }
 

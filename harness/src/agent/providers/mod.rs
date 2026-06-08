@@ -1,4 +1,4 @@
-mod demo;
+mod dry_run;
 mod openai_compatible;
 
 use std::env;
@@ -7,12 +7,12 @@ use anyhow::{Context, Result, bail};
 
 use crate::agent::model::ModelClient;
 
-pub use demo::DemoModel;
+pub use dry_run::DryRunModel;
 pub use openai_compatible::OpenAiCompatibleModel;
 
 pub fn build_provider(name: &str) -> Result<Box<dyn ModelClient>> {
     match name {
-        "demo" => Ok(Box::new(DemoModel)),
+        "dry-run" => Ok(Box::new(DryRunModel)),
         "openai" => {
             let api_key = env::var("OPENAI_API_KEY").context("OPENAI_API_KEY is required")?;
             let model = env::var("HARNESS_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_owned());
