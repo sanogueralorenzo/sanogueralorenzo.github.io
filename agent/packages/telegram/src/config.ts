@@ -13,6 +13,7 @@ import type {
 export const CHAT_HOME = join(homedir(), ".pi", "agent", "chat");
 export const CHAT_CONFIG_PATH = join(CHAT_HOME, "config.json");
 export const CHAT_CACHE_DIR = join(CHAT_HOME, "cache");
+export const CHAT_SECRETS_DIR = join(CHAT_HOME, "secrets");
 
 function sanitizePathSegment(value: string): string {
 	return value.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -74,6 +75,7 @@ function buildResolvedConversation(
 export async function ensureChatHome(): Promise<void> {
 	await mkdir(CHAT_HOME, { recursive: true });
 	await mkdir(CHAT_CACHE_DIR, { recursive: true });
+	await mkdir(CHAT_SECRETS_DIR, { recursive: true });
 }
 
 export async function removeAccountStorage(accountId: string, _cwd: string): Promise<void> {

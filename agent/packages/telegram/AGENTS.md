@@ -65,6 +65,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 ~/.pi/agent/chat/
 ├── config.json
 ├── cache/
+├── secrets/
 └── accounts/<account>/
     ├── account/
     │   ├── memory.md
@@ -76,7 +77,6 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
             ├── memory.md
             ├── skills/
             ├── incoming/
-            ├── .secrets/
             └── SYSTEM.md
 ```
 
@@ -100,7 +100,7 @@ Parsed by `ConversationRuntime.parseControlCommand()`: `stop`, `new`, `compact`,
 1. Agent calls `chat_request_secret` tool → RSA keypair generated, widget URL sent to chat.
 2. User opens `pi.dev/secret#<base64>`, pastes secret, gets encrypted blob.
 3. User pastes `!secret:<id>:<payload>` back into chat.
-4. pi-chat intercepts, decrypts, writes to the channel data `.secrets/<name>`, and notifies the agent.
+4. pi-chat intercepts, decrypts, writes to `~/.pi/agent/chat/secrets/<name>`, and notifies the agent.
 
 ## Conventions
 

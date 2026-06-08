@@ -20,6 +20,7 @@ import { Type } from "@sinclair/typebox";
 import {
 	CHAT_CONFIG_PATH,
 	CHAT_HOME,
+	CHAT_SECRETS_DIR,
 	ensureChatHome,
 	listConfiguredConversations,
 	loadChatConfig,
@@ -598,9 +599,9 @@ export default function (pi: ExtensionAPI) {
 						if (!runtime) return;
 						const secretResult = tryDecryptSecret(input.text);
 						if (secretResult) {
-							const secretsDir = join(runtime.conversation.channelDataDir, ".secrets");
-							await mkdir(secretsDir, { recursive: true });
-							const secretPath = join(secretsDir, secretResult.name);
+							await mkdir(CHAT_SECRETS_DIR, { recursive: true });
+							const secretName = basename(secretResult.name).replace(/[^a-zA-Z0-9._-]+/g, "_");
+							const secretPath = join(CHAT_SECRETS_DIR, secretName);
 							await writeFile(secretPath, secretResult.decrypted);
 							await liveConnection?.sendImmediate(`\u2705 Secret received and stored as ${secretPath}`);
 							if (checkpoint) await runtime.noteCheckpoint(checkpoint);
@@ -949,7 +950,7 @@ export default function (pi: ExtensionAPI) {
 		promptSnippet: "Request a secret from the remote chat user via encrypted input.",
 		promptGuidelines: [
 			"Use chat_request_secret when a skill or setup process needs credentials, API keys, or other sensitive values.",
-			"The secret will be stored under the channel data .secrets directory after the user provides it.",
+			`The secret will be stored under ${CHAT_SECRETS_DIR} after the user provides it.`,
 		],
 		parameters: Type.Object({
 			name: Type.String({ description: "Identifier for this secret (used as filename, e.g. gmail-oauth-credentials)" }),
@@ -972,7 +973,7 @@ export default function (pi: ExtensionAPI) {
 				content: [
 					{
 						type: "text",
-						text: `Secret request sent to chat (id: ${requestId}). The user will paste the encrypted secret back into chat. It will be stored under the channel data .secrets directory as ${params.name}. Wait for the user to respond.`,
+						text: `Secret request sent to chat (id: ${requestId}). The user will paste the encrypted secret back into chat. It will be stored under ${CHAT_SECRETS_DIR} as ${params.name}. Wait for the user to respond.`,
 					},
 				],
 				details: { requestId, name: params.name },

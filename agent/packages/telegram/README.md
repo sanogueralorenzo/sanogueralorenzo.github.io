@@ -82,6 +82,7 @@ Everything lives under `~/.pi/agent/chat/`:
 ~/.pi/agent/chat/
 ├── config.json
 ├── cache/
+├── secrets/                              # Runtime secrets from chat_request_secret
 └── accounts/<account>/
     ├── account/
     │   ├── memory.md
@@ -93,7 +94,6 @@ Everything lives under `~/.pi/agent/chat/`:
             ├── memory.md
             ├── skills/
             ├── incoming/
-            ├── .secrets/
             └── SYSTEM.md
 ```
 
@@ -126,7 +126,7 @@ The worker expects `faster-whisper` to be importable from the selected Python en
 | `bash` | Execute host shell commands |
 | `chat_history` | Search older messages from the chat log |
 | `chat_attach` | Queue local files to send with the next reply |
-| `chat_request_secret` | Request a secret from the user via encrypted exchange |
+| `chat_request_secret` | Request a secret from the user via encrypted exchange; stores files under `~/.pi/agent/chat/secrets/` |
 
 ## Security Model
 
