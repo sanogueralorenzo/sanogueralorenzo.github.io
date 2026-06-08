@@ -30,6 +30,7 @@ agent telegram start
 - Skills auto-discovered and injected into the prompt
 - Encrypted runtime secret exchange
 - Remote control: stop, compact, status
+- Uses the regular agent session/harness so Telegram turns support session compaction
 - Chat history search
 - File attachments in both directions
 - Telegram voice/audio transcription through a local Whisper worker
@@ -60,7 +61,7 @@ Users in the connected chat can send these commands:
 |---------|--------|
 | `stop` | Abort the current turn |
 | `status` | Show model, usage, context stats |
-| `compact` | Trigger context compaction |
+| `compact` | Compact the underlying agent session |
 
 
 ## Storage Layout
@@ -104,13 +105,13 @@ The worker expects `faster-whisper` to be importable from the selected Python en
 
 ## Agent Execution
 
-The standalone daemon calls the local coding agent in print mode for each queued Telegram turn:
+The standalone daemon keeps one regular agent session alive for the configured Telegram chat:
 
 ```text
-Telegram message -> local queue/log -> pi --print -> Telegram reply
+Telegram message -> local queue/log -> AgentSession.prompt() -> Telegram reply
 ```
 
-The agent runs with normal host coding tools such as `read`, `write`, `edit`, and `bash`.
+The agent runs with normal host coding tools such as `read`, `write`, `edit`, and `bash`. The Telegram `compact` remote command calls the same session compaction path as the regular agent harness.
 
 ## Security Model
 

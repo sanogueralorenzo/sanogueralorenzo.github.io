@@ -5,19 +5,21 @@ Telegram bridge for local agent sessions with direct host access.
 ## Architecture
 
 ```text
-Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi --print ←→ host tools
+Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ AgentSession ←→ host tools
 ```
 
 - **Host access.** Remote Telegram turns run with the same local filesystem and process access as the local agent process.
 - **Single chat.** This package intentionally supports one configured Telegram DM/group at a time. Running `agent telegram login` replaces the previous chat config.
 - **One JSONL log.** Append-only event stream: inbound, outbound, job lifecycle.
 - **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
-- **Host tools.** Agent turns are executed through `pi --print`, so normal local coding tools such as `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths.
+- **Host tools.** Agent turns are executed through a regular `AgentSession`, so normal local coding tools such as `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths.
 - **Workers.** `agent telegram start` enables and starts the persistent Telegram user service; `agent telegram stop` stops and disables it.
 
 ## Entry point
 
-`src/daemon.ts` — Standalone Telegram daemon used by `agent telegram run/start`. Polls Telegram, queues chat jobs, and calls `pi --print` for agent turns.
+`src/daemon.ts` — Standalone Telegram daemon used by `agent telegram run/start`. Polls Telegram, queues chat jobs, and dispatches turns into a persistent `AgentSession`.
+
+`src/agent-session.ts` — Telegram-specific `AgentSession` wrapper. Builds the Telegram system prompt, stores the persistent agent session under the chat directory, dispatches prompts, and exposes compaction/status/abort.
 
 ## Key files
 

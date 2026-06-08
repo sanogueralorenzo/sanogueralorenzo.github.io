@@ -17,6 +17,7 @@
 		"agent": "./src/cli.ts"
 	},
 	"dependencies": {
+		"@earendil-works/pi-coding-agent": "^0.78.1",
 		"remend": "^1.3.0",
 		"ws": "^8.18.3"
 	},
