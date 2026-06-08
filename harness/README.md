@@ -92,6 +92,18 @@ OpenAI construction resolves into one Pi-shaped provider/model config before the
 
 The runtime persists the assistant tool call, runs the local Rust tool, persists the matching tool result, then continues the model loop.
 
+## Runtime Loop
+
+The runtime loop follows Pi's agent-session shape while keeping the harness synchronous and small:
+
+- runtime state tracks whether the agent is running, cancellation, current turn index, and retry attempt
+- separate steering and follow-up queues mirror Pi's interrupt-vs-after-current-run behavior
+- lifecycle events cover agent start/end, queue updates, turn start/end, message start/end, tool execution start/end, retry start/end, cancellation, and compaction hook checks
+- retry policy uses bounded attempts and exponential backoff for transient provider/network errors
+- an auto-compaction hook check exists, but full compaction is intentionally deferred until the session log has Pi-style compaction entries
+
+The current model contract returns complete model steps instead of streamed token deltas, so streaming parity is represented by lifecycle events and queue semantics. Token-level streaming can be added behind the same runtime event surface without changing the core loop.
+
 ## Coding Tools
 
 Harness exposes the Pi coding tool set through a single cwd-bound Rust registry:
