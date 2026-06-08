@@ -83,7 +83,7 @@ mod tests {
     use super::*;
     use crate::agent::session::SessionLog;
     use crate::agent::tools::ToolRegistry;
-    use crate::agent::{DryRunModel, OpenAiCompatibleModel};
+    use crate::agent::{DryRunModel, OpenAiCompletionsModel};
     use serde_json::{Value, json};
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
@@ -144,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn openai_compatible_provider_continues_after_tool_result() {
+    fn openai_completions_adapter_continues_after_tool_result() {
         let server = TestProvider::start(vec![
             json!({
                 "choices": [{
@@ -170,7 +170,7 @@ mod tests {
             }),
         ]);
         let log = SessionLog::memory();
-        let model = OpenAiCompatibleModel::new(
+        let model = OpenAiCompletionsModel::new(
             server.base_url(),
             "test-key".to_owned(),
             "test-model".to_owned(),

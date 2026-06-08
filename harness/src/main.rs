@@ -72,5 +72,6 @@ fn print_help() {
     println!("OPENAI PROVIDER ENV:");
     println!("  OPENAI_API_KEY      required");
     println!("  HARNESS_MODEL       default: gpt-4o-mini");
+    println!("  HARNESS_OPENAI_API  default: openai-completions");
     println!("  HARNESS_BASE_URL    default: https://api.openai.com/v1");
 }

@@ -27,10 +27,13 @@ harness/
       runtime.rs
       session.rs
       model.rs
+      apis/
+        mod.rs
+        openai_completions.rs
+        openai_responses.rs
       providers/
         mod.rs
         dry_run.rs
-        openai_compatible.rs
       tools.rs
 ```
 
@@ -53,7 +56,7 @@ Use a different session log with:
 cargo run --manifest-path harness/Cargo.toml -- run --session /tmp/harness.jsonl "hello"
 ```
 
-The default provider is `dry-run`, which is deterministic and does not call a network API. To run the real provider-backed loop, use the OpenAI-compatible provider:
+The default provider is `dry-run`, which is deterministic and does not call a network API. To run the real provider-backed loop, use the OpenAI provider:
 
 ```shell
 OPENAI_API_KEY=... \
@@ -64,10 +67,18 @@ Optional environment:
 
 ```text
 HARNESS_MODEL       default: gpt-4o-mini
+HARNESS_OPENAI_API  default: openai-completions
 HARNESS_BASE_URL    default: https://api.openai.com/v1
 ```
 
-The OpenAI-compatible provider uses chat completions with JSON-schema function tools. The runtime persists the assistant tool call, runs the local Rust tool, persists the matching tool result, then continues the model loop.
+The OpenAI provider currently supports the `openai-completions` API adapter, which uses chat completions with JSON-schema function tools. The `openai-responses` adapter exists as a module boundary and returns an explicit not-implemented error until it is ported.
+
+This follows Pi's split between provider and API:
+
+- provider: the vendor or account surface, for example `openai`
+- API adapter: the wire protocol, for example `openai-completions` or `openai-responses`
+
+The runtime persists the assistant tool call, runs the local Rust tool, persists the matching tool result, then continues the model loop.
 
 ## Validate
 
@@ -77,12 +88,12 @@ cargo test --manifest-path harness/Cargo.toml
 
 ## Provider Direction
 
-Providers live behind the `ModelClient` contract and are constructed through the provider factory in `agent/providers/mod.rs`. Keep each provider in its own module, add one at a time, and verify tool-call continuation before exposing it through the CLI.
+Providers and API adapters live behind the `ModelClient` contract. Providers choose an API adapter, and adapters own protocol-specific request/response conversion. Keep each API adapter in its own module, add one at a time, and verify tool-call continuation before exposing it through the CLI.
 
 The intended order is:
 
-- OpenAI-compatible chat completions
-- OpenAI Responses
+- OpenAI completions
+- OpenAI responses
 - Anthropic Messages
 - Google Gemini
 

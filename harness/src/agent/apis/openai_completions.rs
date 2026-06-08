@@ -7,14 +7,14 @@ use crate::agent::model::{ModelClient, ModelStep};
 use crate::agent::session::Event;
 use crate::agent::tools::ToolSpec;
 
-pub struct OpenAiCompatibleModel {
+pub struct OpenAiCompletionsModel {
     client: Client,
     base_url: String,
     api_key: String,
     model: String,
 }
 
-impl OpenAiCompatibleModel {
+impl OpenAiCompletionsModel {
     pub fn new(base_url: String, api_key: String, model: String) -> Self {
         Self {
             client: Client::new(),
@@ -25,7 +25,7 @@ impl OpenAiCompatibleModel {
     }
 }
 
-impl ModelClient for OpenAiCompatibleModel {
+impl ModelClient for OpenAiCompletionsModel {
     fn next_step(&mut self, events: &[Event], tools: &[ToolSpec]) -> Result<ModelStep> {
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let body = ChatRequest {
@@ -280,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_provider_tool_call() {
+    fn parses_chat_completion_tool_call() {
         let response: ChatResponse = serde_json::from_value(json!({
             "choices": [{
                 "message": {
