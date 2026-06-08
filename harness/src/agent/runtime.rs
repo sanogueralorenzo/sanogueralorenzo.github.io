@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use anyhow::{Error, Result, bail};
 
-use crate::agent::model::{ModelClient, ModelStep, ModelUpdate};
-use crate::agent::session::{Event, SessionLog};
-use crate::agent::tools::ToolRegistry;
+use crate::agent::model::{ModelClient, ModelStep, ModelUpdate, ToolCallRequest};
+use crate::agent::session::{Event, SessionLog, ToolCallEvent};
+use crate::agent::tools::{ToolOutput, ToolRegistry};
 
 const MAX_TURNS_PER_JOB: usize = 16;
 
@@ -59,6 +59,10 @@ pub struct RuntimeState {
     pub cancel_requested: bool,
     pub retry_attempt: usize,
     pub turn_index: usize,
+    pub is_streaming: bool,
+    pub streaming_role: Option<&'static str>,
+    pub pending_tool_calls: Vec<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,6 +128,26 @@ pub enum RuntimeEvent {
     Cancelled,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BeforeToolCallResult {
+    pub block: bool,
+    pub reason: Option<String>,
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct RuntimeHooks {
+    pub before_tool_call: Option<fn(&ToolCallRequest) -> BeforeToolCallResult>,
+    pub after_tool_call: Option<fn(&ToolCallRequest, ToolOutput, bool) -> (ToolOutput, bool)>,
+    pub should_stop_after_turn: Option<fn(&RuntimeTurnSnapshot) -> bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeTurnSnapshot {
+    pub index: usize,
+    pub assistant_message: Option<String>,
+    pub tool_results: Vec<String>,
+}
+
 pub struct Runtime<M: ModelClient> {
     log: SessionLog,
     tools: ToolRegistry,
@@ -133,6 +157,9 @@ pub struct Runtime<M: ModelClient> {
     state: RuntimeState,
     events: Vec<RuntimeEvent>,
     options: RuntimeOptions,
+    hooks: RuntimeHooks,
+    stop_after_turn_requested: bool,
+    skip_next_steering_poll: bool,
 }
 
 #[allow(dead_code)]
@@ -147,6 +174,16 @@ impl<M: ModelClient> Runtime<M> {
         model: M,
         options: RuntimeOptions,
     ) -> Self {
+        Self::with_options_and_hooks(log, tools, model, options, RuntimeHooks::default())
+    }
+
+    pub fn with_options_and_hooks(
+        log: SessionLog,
+        tools: ToolRegistry,
+        model: M,
+        options: RuntimeOptions,
+        hooks: RuntimeHooks,
+    ) -> Self {
         Self {
             log,
             tools,
@@ -158,9 +195,16 @@ impl<M: ModelClient> Runtime<M> {
                 cancel_requested: false,
                 retry_attempt: 0,
                 turn_index: 0,
+                is_streaming: false,
+                streaming_role: None,
+                pending_tool_calls: Vec::new(),
+                error_message: None,
             },
             events: Vec::new(),
             options,
+            hooks,
+            stop_after_turn_requested: false,
+            skip_next_steering_poll: false,
         }
     }
 
@@ -206,40 +250,110 @@ impl<M: ModelClient> Runtime<M> {
         self.run_prompt(message)
     }
 
+    pub fn continue_run(&mut self) -> Result<String> {
+        if self.state.is_running {
+            bail!("agent is already running");
+        }
+        let events = self.log.context_events();
+        let Some(last) = events.last() else {
+            bail!("no messages to continue from");
+        };
+        if matches!(
+            last,
+            Event::AssistantMessage { .. } | Event::ToolCall { .. } | Event::ToolCalls { .. }
+        ) {
+            if !self.steering_queue.is_empty() {
+                let messages = self.drain_steering_messages();
+                self.skip_next_steering_poll = true;
+                return self.run_prompt_messages(messages);
+            }
+            if !self.follow_up_queue.is_empty() {
+                let messages = self.drain_follow_up_messages();
+                return self.run_prompt_messages(messages);
+            }
+            bail!("cannot continue from assistant message");
+        }
+        self.run_continuation()
+    }
+
     fn run_prompt(&mut self, message: String) -> Result<String> {
+        self.run_prompt_messages(vec![message])
+    }
+
+    fn run_prompt_messages(&mut self, messages: Vec<String>) -> Result<String> {
         self.state.is_running = true;
         self.state.cancel_requested = false;
+        self.state.error_message = None;
+        self.stop_after_turn_requested = false;
         self.emit(RuntimeEvent::AgentStarted);
 
-        let result = self.run_prompt_inner(message);
+        let result = self.run_prompt_inner(messages);
 
         self.state.is_running = false;
         self.state.turn_index = 0;
-        if result.is_ok() {
-            self.emit(RuntimeEvent::AgentFinished { will_retry: false });
+        match &result {
+            Ok(_) => self.emit(RuntimeEvent::AgentFinished { will_retry: false }),
+            Err(error) => {
+                self.state.error_message = Some(error.to_string());
+                self.emit(RuntimeEvent::AgentFinished { will_retry: false });
+            }
         }
         result
     }
 
-    fn run_prompt_inner(&mut self, message: String) -> Result<String> {
-        let mut latest_reply = self.run_single_message(message)?;
+    fn run_continuation(&mut self) -> Result<String> {
+        self.state.is_running = true;
+        self.state.cancel_requested = false;
+        self.state.error_message = None;
+        self.stop_after_turn_requested = false;
+        self.emit(RuntimeEvent::AgentStarted);
+
+        let result = self.run_from_context();
+
+        self.state.is_running = false;
+        self.state.turn_index = 0;
+        match &result {
+            Ok(_) => self.emit(RuntimeEvent::AgentFinished { will_retry: false }),
+            Err(error) => {
+                self.state.error_message = Some(error.to_string());
+                self.emit(RuntimeEvent::AgentFinished { will_retry: false });
+            }
+        }
+        result
+    }
+
+    fn run_prompt_inner(&mut self, messages: Vec<String>) -> Result<String> {
+        let mut latest_reply = self.run_single_messages(messages)?;
+        if self.stop_after_turn_requested {
+            self.stop_after_turn_requested = false;
+            return Ok(latest_reply);
+        }
 
         while !self.follow_up_queue.is_empty() {
-            for message in self.drain_follow_up_messages() {
-                latest_reply = self.run_single_message(message)?;
+            let messages = self.drain_follow_up_messages();
+            latest_reply = self.run_single_messages(messages)?;
+            if self.stop_after_turn_requested {
+                self.stop_after_turn_requested = false;
+                return Ok(latest_reply);
             }
         }
 
         Ok(latest_reply)
     }
 
-    fn run_single_message(&mut self, message: String) -> Result<String> {
+    fn run_single_messages(&mut self, messages: Vec<String>) -> Result<String> {
         self.ensure_not_cancelled()?;
         self.log.append(Event::JobStarted)?;
-        self.emit(RuntimeEvent::MessageStarted { role: "user" });
-        self.log.append(Event::UserMessage { content: message })?;
-        self.emit(RuntimeEvent::MessageFinished { role: "user" });
+        for message in messages {
+            self.emit(RuntimeEvent::MessageStarted { role: "user" });
+            self.log.append(Event::UserMessage { content: message })?;
+            self.emit(RuntimeEvent::MessageFinished { role: "user" });
+        }
 
+        self.run_from_context()
+    }
+
+    fn run_from_context(&mut self) -> Result<String> {
         for turn_index in 1..=self.options.max_turns_per_job {
             self.ensure_not_cancelled()?;
             self.state.turn_index = turn_index;
@@ -259,7 +373,12 @@ impl<M: ModelClient> Runtime<M> {
                     self.emit(RuntimeEvent::MessageFinished { role: "assistant" });
                     self.log.append(Event::TurnFinished { index: turn_index })?;
                     self.emit(RuntimeEvent::TurnFinished { index: turn_index });
-                    if self.steering_queue.is_empty() {
+                    let should_stop =
+                        self.should_stop_after_turn(turn_index, Some(content.clone()), Vec::new());
+                    if should_stop || self.steering_queue.is_empty() {
+                        if should_stop {
+                            self.stop_after_turn_requested = true;
+                        }
                         self.log.append(Event::JobFinished)?;
                         self.check_auto_compaction_hook(false)?;
                         return Ok(content);
@@ -270,38 +389,58 @@ impl<M: ModelClient> Runtime<M> {
                     name,
                     arguments,
                 } => {
-                    self.emit(RuntimeEvent::MessageStarted { role: "assistant" });
-                    self.log.append(Event::ToolCall {
-                        id: id.clone(),
-                        name: name.clone(),
-                        arguments: arguments.clone(),
-                    })?;
-                    self.emit(RuntimeEvent::MessageFinished { role: "assistant" });
-                    self.emit(RuntimeEvent::ToolExecutionStarted {
-                        id: id.clone(),
-                        name: name.clone(),
-                    });
-                    let output = self.tools.run(&name, &arguments)?;
-                    self.emit(RuntimeEvent::ToolExecutionUpdated {
-                        id: id.clone(),
-                        name: name.clone(),
-                        partial_output: output.content.clone(),
-                    });
-                    self.emit(RuntimeEvent::ToolExecutionFinished {
-                        id: id.clone(),
-                        name: name.clone(),
-                        is_error: false,
-                    });
-                    self.emit(RuntimeEvent::MessageStarted { role: "toolResult" });
-                    self.log.append(Event::ToolResult {
-                        tool_call_id: id,
+                    let results = self.execute_tool_batch(vec![ToolCallRequest {
+                        id,
                         name,
-                        output: output.content,
-                        details: output.details,
-                    })?;
-                    self.emit(RuntimeEvent::MessageFinished { role: "toolResult" });
+                        arguments,
+                    }])?;
+                    let latest_reply = results
+                        .last()
+                        .map(|result| result.output.content.clone())
+                        .unwrap_or_default();
                     self.log.append(Event::TurnFinished { index: turn_index })?;
                     self.emit(RuntimeEvent::TurnFinished { index: turn_index });
+                    let should_stop = self.should_stop_after_turn(
+                        turn_index,
+                        None,
+                        results
+                            .iter()
+                            .map(|result| result.output.content.clone())
+                            .collect(),
+                    );
+                    if should_stop || should_terminate_tool_batch(&results) {
+                        if should_stop {
+                            self.stop_after_turn_requested = true;
+                        }
+                        self.log.append(Event::JobFinished)?;
+                        self.check_auto_compaction_hook(false)?;
+                        return Ok(latest_reply);
+                    }
+                }
+                ModelStep::ToolCalls(calls) => {
+                    let results = self.execute_tool_batch(calls)?;
+                    let latest_reply = results
+                        .last()
+                        .map(|result| result.output.content.clone())
+                        .unwrap_or_default();
+                    self.log.append(Event::TurnFinished { index: turn_index })?;
+                    self.emit(RuntimeEvent::TurnFinished { index: turn_index });
+                    let should_stop = self.should_stop_after_turn(
+                        turn_index,
+                        None,
+                        results
+                            .iter()
+                            .map(|result| result.output.content.clone())
+                            .collect(),
+                    );
+                    if should_stop || should_terminate_tool_batch(&results) {
+                        if should_stop {
+                            self.stop_after_turn_requested = true;
+                        }
+                        self.log.append(Event::JobFinished)?;
+                        self.check_auto_compaction_hook(false)?;
+                        return Ok(latest_reply);
+                    }
                 }
             }
         }
@@ -312,7 +451,121 @@ impl<M: ModelClient> Runtime<M> {
         )
     }
 
+    fn execute_tool_batch(&mut self, calls: Vec<ToolCallRequest>) -> Result<Vec<ExecutedToolCall>> {
+        self.emit(RuntimeEvent::MessageStarted { role: "assistant" });
+        if let [call] = calls.as_slice() {
+            self.log.append(Event::ToolCall {
+                id: call.id.clone(),
+                name: call.name.clone(),
+                arguments: call.arguments.clone(),
+            })?;
+        } else {
+            self.log.append(Event::ToolCalls {
+                calls: calls
+                    .iter()
+                    .map(|call| ToolCallEvent {
+                        id: call.id.clone(),
+                        name: call.name.clone(),
+                        arguments: call.arguments.clone(),
+                    })
+                    .collect(),
+            })?;
+        }
+        self.emit(RuntimeEvent::MessageFinished { role: "assistant" });
+
+        let mut results = Vec::new();
+        for call in calls {
+            let executed = self.execute_tool_call(call)?;
+            self.emit(RuntimeEvent::MessageStarted { role: "toolResult" });
+            self.log.append(Event::ToolResult {
+                tool_call_id: executed.call.id.clone(),
+                name: executed.call.name.clone(),
+                output: executed.output.content.clone(),
+                details: executed.output.details.clone(),
+            })?;
+            self.emit(RuntimeEvent::MessageFinished { role: "toolResult" });
+            results.push(executed);
+            self.ensure_not_cancelled()?;
+        }
+        Ok(results)
+    }
+
+    fn execute_tool_call(&mut self, call: ToolCallRequest) -> Result<ExecutedToolCall> {
+        self.emit(RuntimeEvent::ToolExecutionStarted {
+            id: call.id.clone(),
+            name: call.name.clone(),
+        });
+
+        let mut output;
+        let mut is_error = false;
+        if let Some(before_tool_call) = self.hooks.before_tool_call
+            && let BeforeToolCallResult {
+                block: true,
+                reason,
+            } = before_tool_call(&call)
+        {
+            output = ToolOutput {
+                content: reason.unwrap_or_else(|| "Tool execution was blocked".to_owned()),
+                details: None,
+                terminate: false,
+            };
+            is_error = true;
+        } else {
+            match self.tools.run(&call.name, &call.arguments) {
+                Ok(result) => {
+                    output = result;
+                }
+                Err(error) => {
+                    output = ToolOutput {
+                        content: error.to_string(),
+                        details: None,
+                        terminate: false,
+                    };
+                    is_error = true;
+                }
+            }
+        }
+
+        if let Some(after_tool_call) = self.hooks.after_tool_call {
+            (output, is_error) = after_tool_call(&call, output, is_error);
+        }
+
+        self.emit(RuntimeEvent::ToolExecutionUpdated {
+            id: call.id.clone(),
+            name: call.name.clone(),
+            partial_output: output.content.clone(),
+        });
+        self.emit(RuntimeEvent::ToolExecutionFinished {
+            id: call.id.clone(),
+            name: call.name.clone(),
+            is_error,
+        });
+        Ok(ExecutedToolCall { call, output })
+    }
+
+    fn should_stop_after_turn(
+        &self,
+        index: usize,
+        assistant_message: Option<String>,
+        tool_results: Vec<String>,
+    ) -> bool {
+        self.hooks
+            .should_stop_after_turn
+            .map(|hook| {
+                hook(&RuntimeTurnSnapshot {
+                    index,
+                    assistant_message,
+                    tool_results,
+                })
+            })
+            .unwrap_or(false)
+    }
+
     fn append_queued_steering_messages(&mut self) -> Result<()> {
+        if self.skip_next_steering_poll {
+            self.skip_next_steering_poll = false;
+            return Ok(());
+        }
         for message in self.drain_steering_messages() {
             self.emit(RuntimeEvent::MessageStarted { role: "user" });
             self.log.append(Event::UserMessage { content: message })?;
@@ -460,8 +713,63 @@ impl<M: ModelClient> Runtime<M> {
     }
 
     fn emit(&mut self, event: RuntimeEvent) {
+        match &event {
+            RuntimeEvent::MessageStarted { role } => {
+                self.state.is_streaming = true;
+                self.state.streaming_role = Some(role);
+            }
+            RuntimeEvent::MessageUpdated { role, .. } => {
+                self.state.is_streaming = true;
+                self.state.streaming_role = Some(role);
+            }
+            RuntimeEvent::MessageFinished { .. } => {
+                self.state.is_streaming = false;
+                self.state.streaming_role = None;
+            }
+            RuntimeEvent::ToolExecutionStarted { id, .. } => {
+                if !self
+                    .state
+                    .pending_tool_calls
+                    .iter()
+                    .any(|pending| pending == id)
+                {
+                    self.state.pending_tool_calls.push(id.clone());
+                }
+            }
+            RuntimeEvent::ToolExecutionFinished { id, .. } => {
+                self.state
+                    .pending_tool_calls
+                    .retain(|pending| pending != id);
+            }
+            RuntimeEvent::Cancelled => {
+                self.state.cancel_requested = true;
+            }
+            RuntimeEvent::AgentFinished { .. } => {
+                self.state.is_streaming = false;
+                self.state.streaming_role = None;
+                self.state.pending_tool_calls.clear();
+            }
+            RuntimeEvent::QueueUpdated { .. }
+            | RuntimeEvent::AgentStarted
+            | RuntimeEvent::TurnStarted { .. }
+            | RuntimeEvent::TurnFinished { .. }
+            | RuntimeEvent::AutoRetryStarted { .. }
+            | RuntimeEvent::AutoRetryFinished { .. }
+            | RuntimeEvent::ToolExecutionUpdated { .. }
+            | RuntimeEvent::CompactionCheckStarted { .. }
+            | RuntimeEvent::CompactionCheckFinished { .. } => {}
+        }
         self.events.push(event);
     }
+}
+
+struct ExecutedToolCall {
+    call: ToolCallRequest,
+    output: ToolOutput,
+}
+
+fn should_terminate_tool_batch(results: &[ExecutedToolCall]) -> bool {
+    !results.is_empty() && results.iter().all(|result| result.output.terminate)
 }
 
 fn drain_queue(queue: &mut VecDeque<String>, mode: QueueMode) -> Vec<String> {
@@ -706,6 +1014,161 @@ mod tests {
     }
 
     #[test]
+    fn executes_multiple_tool_calls_from_one_assistant_message() {
+        let log = SessionLog::memory();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), BatchToolModel);
+
+        let reply = runtime.run_message("run both".to_owned()).unwrap();
+
+        assert_eq!(reply, "saw 2 tool results");
+        assert!(
+            runtime
+                .log
+                .events()
+                .iter()
+                .any(|event| { matches!(event, Event::ToolCalls { calls } if calls.len() == 2) })
+        );
+        assert_eq!(
+            runtime
+                .log
+                .events()
+                .iter()
+                .filter(|event| matches!(event, Event::ToolResult { .. }))
+                .count(),
+            2
+        );
+        assert!(runtime.state().pending_tool_calls.is_empty());
+        assert!(!runtime.state().is_streaming);
+    }
+
+    #[test]
+    fn continues_from_existing_tool_result_context() {
+        let mut log = SessionLog::memory();
+        log.append(Event::UserMessage {
+            content: "continue".to_owned(),
+        })
+        .unwrap();
+        log.append(Event::ToolResult {
+            tool_call_id: "call_1".to_owned(),
+            name: "bash".to_owned(),
+            output: "done".to_owned(),
+            details: None,
+        })
+        .unwrap();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
+
+        let reply = runtime.continue_run().unwrap();
+
+        assert_eq!(reply, "tool result: done");
+    }
+
+    #[test]
+    fn continue_from_assistant_uses_queued_steering_without_draining_next_item() {
+        let mut log = SessionLog::memory();
+        log.append(Event::UserMessage {
+            content: "first".to_owned(),
+        })
+        .unwrap();
+        log.append(Event::AssistantMessage {
+            content: "done".to_owned(),
+        })
+        .unwrap();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DryRunModel);
+
+        runtime.queue_steer("steer one".to_owned());
+        runtime.queue_steer("steer two".to_owned());
+        let reply = runtime.continue_run().unwrap();
+
+        assert_eq!(reply, "echo: steer two");
+        assert_eq!(runtime.pending_message_count(), 0);
+        assert_eq!(
+            runtime
+                .runtime_events()
+                .iter()
+                .filter(|event| matches!(event, RuntimeEvent::TurnStarted { .. }))
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn before_tool_call_hook_blocks_execution_as_error_tool_result() {
+        let log = SessionLog::memory();
+        let hooks = RuntimeHooks {
+            before_tool_call: Some(block_bash_tool),
+            ..RuntimeHooks::default()
+        };
+        let mut runtime = Runtime::with_options_and_hooks(
+            log,
+            ToolRegistry::minimal(),
+            DryRunModel,
+            RuntimeOptions::default(),
+            hooks,
+        );
+
+        let reply = runtime.run_message("what is pwd".to_owned()).unwrap();
+
+        assert_eq!(reply, "tool result: blocked by test hook");
+        assert!(runtime.runtime_events().iter().any(|event| {
+            matches!(
+                event,
+                RuntimeEvent::ToolExecutionFinished { is_error: true, .. }
+            )
+        }));
+    }
+
+    #[test]
+    fn after_tool_call_hook_can_override_and_terminate_batch() {
+        let log = SessionLog::memory();
+        let hooks = RuntimeHooks {
+            after_tool_call: Some(terminate_after_tool_call),
+            ..RuntimeHooks::default()
+        };
+        let mut runtime = Runtime::with_options_and_hooks(
+            log,
+            ToolRegistry::minimal(),
+            AlwaysToolModel,
+            RuntimeOptions::default(),
+            hooks,
+        );
+
+        let reply = runtime.run_message("stop after tool".to_owned()).unwrap();
+
+        assert_eq!(reply, "stop now");
+        assert_eq!(
+            runtime
+                .log
+                .events()
+                .iter()
+                .filter(|event| matches!(event, Event::ToolCall { .. }))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn should_stop_after_turn_hook_prevents_follow_up_polling() {
+        let log = SessionLog::memory();
+        let hooks = RuntimeHooks {
+            should_stop_after_turn: Some(stop_after_first_turn),
+            ..RuntimeHooks::default()
+        };
+        let mut runtime = Runtime::with_options_and_hooks(
+            log,
+            ToolRegistry::minimal(),
+            DryRunModel,
+            RuntimeOptions::default(),
+            hooks,
+        );
+
+        runtime.queue_follow_up("follow up".to_owned());
+        let reply = runtime.run_message("first".to_owned()).unwrap();
+
+        assert_eq!(reply, "echo: first");
+        assert_eq!(runtime.pending_message_count(), 1);
+    }
+
+    #[test]
     fn retries_retryable_model_errors_with_events() {
         let log = SessionLog::memory();
         let options = RuntimeOptions {
@@ -941,6 +1404,73 @@ mod tests {
             });
             self.next_step(events, tools)
         }
+    }
+
+    struct BatchToolModel;
+
+    impl ModelClient for BatchToolModel {
+        fn next_step(
+            &mut self,
+            events: &[Event],
+            _tools: &[crate::agent::tools::ToolSpec],
+        ) -> Result<ModelStep> {
+            let tool_results = events
+                .iter()
+                .filter(|event| matches!(event, Event::ToolResult { .. }))
+                .count();
+            if tool_results > 0 {
+                return Ok(ModelStep::Final(format!("saw {tool_results} tool results")));
+            }
+            Ok(ModelStep::ToolCalls(vec![
+                ToolCallRequest {
+                    id: "call_one".to_owned(),
+                    name: "bash".to_owned(),
+                    arguments: json!({ "command": "printf one" }),
+                },
+                ToolCallRequest {
+                    id: "call_two".to_owned(),
+                    name: "bash".to_owned(),
+                    arguments: json!({ "command": "printf two" }),
+                },
+            ]))
+        }
+    }
+
+    struct AlwaysToolModel;
+
+    impl ModelClient for AlwaysToolModel {
+        fn next_step(
+            &mut self,
+            _events: &[Event],
+            _tools: &[crate::agent::tools::ToolSpec],
+        ) -> Result<ModelStep> {
+            Ok(ModelStep::ToolCall {
+                id: "call_stop".to_owned(),
+                name: "bash".to_owned(),
+                arguments: json!({ "command": "printf ignored" }),
+            })
+        }
+    }
+
+    fn block_bash_tool(call: &ToolCallRequest) -> BeforeToolCallResult {
+        BeforeToolCallResult {
+            block: call.name == "bash",
+            reason: Some("blocked by test hook".to_owned()),
+        }
+    }
+
+    fn terminate_after_tool_call(
+        _call: &ToolCallRequest,
+        mut output: ToolOutput,
+        is_error: bool,
+    ) -> (ToolOutput, bool) {
+        output.content = "stop now".to_owned();
+        output.terminate = true;
+        (output, is_error)
+    }
+
+    fn stop_after_first_turn(snapshot: &RuntimeTurnSnapshot) -> bool {
+        snapshot.index == 1
     }
 
     struct TestProvider {

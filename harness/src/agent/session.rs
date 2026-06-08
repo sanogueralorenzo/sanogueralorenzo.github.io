@@ -17,7 +17,7 @@ const BRANCH_SUMMARY_PREFIX: &str =
     "The following is a summary of a branch that this conversation came back from:\n\n<summary>\n";
 const BRANCH_SUMMARY_SUFFIX: &str = "</summary>";
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum Event {
     JobStarted,
@@ -35,6 +35,9 @@ pub enum Event {
         name: String,
         arguments: Value,
     },
+    ToolCalls {
+        calls: Vec<ToolCallEvent>,
+    },
     ToolResult {
         tool_call_id: String,
         name: String,
@@ -46,6 +49,13 @@ pub enum Event {
         index: usize,
     },
     JobFinished,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolCallEvent {
+    pub id: String,
+    pub name: String,
+    pub arguments: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -841,6 +851,27 @@ impl SessionLog {
                     timestamp: message_timestamp,
                 },
             },
+            Event::ToolCalls { calls } => FileEntry::Message {
+                id,
+                parent_id,
+                timestamp,
+                message: AgentMessage::Assistant {
+                    content: calls
+                        .into_iter()
+                        .map(|call| AssistantContent::ToolCall {
+                            id: call.id,
+                            name: call.name,
+                            arguments: call.arguments,
+                        })
+                        .collect(),
+                    api: "harness".to_owned(),
+                    provider: "harness".to_owned(),
+                    model: "unknown".to_owned(),
+                    usage: Usage::default(),
+                    stop_reason: "toolUse".to_owned(),
+                    timestamp: message_timestamp,
+                },
+            },
             Event::ToolResult {
                 tool_call_id,
                 name,
@@ -1299,6 +1330,24 @@ fn event_from_message(message: &AgentMessage) -> Option<Event> {
             content: text_from_message_content(content),
         }),
         AgentMessage::Assistant { content, .. } => {
+            let tool_calls = content
+                .iter()
+                .filter_map(|part| match part {
+                    AssistantContent::ToolCall {
+                        id,
+                        name,
+                        arguments,
+                    } => Some(ToolCallEvent {
+                        id: id.clone(),
+                        name: name.clone(),
+                        arguments: arguments.clone(),
+                    }),
+                    AssistantContent::Text { .. } => None,
+                })
+                .collect::<Vec<_>>();
+            if tool_calls.len() > 1 {
+                return Some(Event::ToolCalls { calls: tool_calls });
+            }
             for part in content {
                 if let AssistantContent::ToolCall {
                     id,

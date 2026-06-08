@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::agent::apis::tool_call_ids::{
     combine_responses_tool_call_id, normalize_responses_tool_call_id,
 };
-use crate::agent::model::{ModelClient, ModelStep};
+use crate::agent::model::{ModelClient, ModelStep, ToolCallRequest};
 use crate::agent::session::Event;
 use crate::agent::tools::ToolSpec;
 
@@ -140,6 +140,7 @@ impl OpenAiResponsesModel {
 
 fn step_from_response(response: ResponsesResponse) -> Result<ModelStep> {
     let mut text = String::new();
+    let mut calls = Vec::new();
 
     for item in response.output {
         match item {
@@ -152,7 +153,7 @@ fn step_from_response(response: ResponsesResponse) -> Result<ModelStep> {
             } => {
                 let arguments = serde_json::from_str(&arguments)
                     .with_context(|| format!("parse arguments for tool {name}"))?;
-                return Ok(ModelStep::ToolCall {
+                calls.push(ToolCallRequest {
                     id: combine_responses_tool_call_id(call_id, id),
                     name,
                     arguments,
@@ -168,6 +169,10 @@ fn step_from_response(response: ResponsesResponse) -> Result<ModelStep> {
                 bail!("unsupported openai-responses output item");
             }
         }
+    }
+
+    if !calls.is_empty() {
+        return Ok(single_or_batch_tool_step(calls));
     }
 
     Ok(ModelStep::Final(text))
@@ -197,6 +202,15 @@ fn to_response_input(
                 name,
                 arguments,
             } => input.push(ResponseInputItem::function_call(id, name, arguments)),
+            Event::ToolCalls { calls } => {
+                for call in calls {
+                    input.push(ResponseInputItem::function_call(
+                        &call.id,
+                        &call.name,
+                        &call.arguments,
+                    ));
+                }
+            }
             Event::ToolResult {
                 tool_call_id,
                 output,
@@ -216,6 +230,17 @@ fn to_response_input(
     }
 
     input
+}
+
+fn single_or_batch_tool_step(calls: Vec<ToolCallRequest>) -> ModelStep {
+    match calls.as_slice() {
+        [call] => ModelStep::ToolCall {
+            id: call.id.clone(),
+            name: call.name.clone(),
+            arguments: call.arguments.clone(),
+        },
+        _ => ModelStep::ToolCalls(calls),
+    }
 }
 
 #[derive(Serialize)]
@@ -510,6 +535,36 @@ mod tests {
     }
 
     #[test]
+    fn converts_multiple_tool_call_continuation_items() {
+        let input = to_response_input(
+            &[Event::ToolCalls {
+                calls: vec![
+                    crate::agent::session::ToolCallEvent {
+                        id: "call_pwd|fc_pwd".to_owned(),
+                        name: "pwd".to_owned(),
+                        arguments: json!({}),
+                    },
+                    crate::agent::session::ToolCallEvent {
+                        id: "call_ls|fc_ls".to_owned(),
+                        name: "ls".to_owned(),
+                        arguments: json!({ "path": "." }),
+                    },
+                ],
+            }],
+            true,
+            false,
+        );
+        let value = serde_json::to_value(input).unwrap();
+
+        assert_eq!(value[1]["type"], "function_call");
+        assert_eq!(value[1]["call_id"], "call_pwd");
+        assert_eq!(value[1]["id"], "fc_pwd");
+        assert_eq!(value[2]["type"], "function_call");
+        assert_eq!(value[2]["call_id"], "call_ls");
+        assert_eq!(value[2]["id"], "fc_ls");
+    }
+
+    #[test]
     fn converts_pipe_separated_tool_call_ids() {
         let input = to_response_input(
             &[
@@ -647,6 +702,47 @@ mod tests {
                 name: "pwd".to_owned(),
                 arguments: json!({}),
             }
+        );
+    }
+
+    #[test]
+    fn parses_response_multiple_function_calls() {
+        let response: ResponsesResponse = serde_json::from_value(json!({
+            "output": [
+                {
+                    "type": "function_call",
+                    "id": "fc_pwd",
+                    "call_id": "call_pwd",
+                    "name": "pwd",
+                    "arguments": "{}"
+                },
+                {
+                    "type": "function_call",
+                    "id": "fc_ls",
+                    "call_id": "call_ls",
+                    "name": "ls",
+                    "arguments": "{\"path\":\".\"}"
+                }
+            ]
+        }))
+        .unwrap();
+
+        let step = step_from_response(response).unwrap();
+
+        assert_eq!(
+            step,
+            ModelStep::ToolCalls(vec![
+                ToolCallRequest {
+                    id: "call_pwd|fc_pwd".to_owned(),
+                    name: "pwd".to_owned(),
+                    arguments: json!({}),
+                },
+                ToolCallRequest {
+                    id: "call_ls|fc_ls".to_owned(),
+                    name: "ls".to_owned(),
+                    arguments: json!({ "path": "." }),
+                },
+            ])
         );
     }
 

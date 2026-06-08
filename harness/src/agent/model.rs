@@ -5,6 +5,13 @@ use crate::agent::session::Event;
 use crate::agent::tools::ToolSpec;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ToolCallRequest {
+    pub id: String,
+    pub name: String,
+    pub arguments: Value,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum ModelStep {
     Final(String),
     ToolCall {
@@ -12,6 +19,7 @@ pub enum ModelStep {
         name: String,
         arguments: Value,
     },
+    ToolCalls(Vec<ToolCallRequest>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -5,8 +5,8 @@ use serde_json::Value;
 
 use crate::agent::apis::CacheRetention;
 use crate::agent::apis::tool_call_ids::normalize_chat_tool_call_id;
-use crate::agent::model::{ModelClient, ModelStep};
-use crate::agent::session::Event;
+use crate::agent::model::{ModelClient, ModelStep, ToolCallRequest};
+use crate::agent::session::{Event, ToolCallEvent};
 use crate::agent::tools::ToolSpec;
 
 pub struct OpenAiCompletionsModel {
@@ -128,14 +128,18 @@ fn step_from_chat_response(completion: ChatResponse) -> Result<ModelStep> {
         .context("provider response had no choices")?
         .message;
 
-    if let Some(tool_call) = message.tool_calls.into_iter().next() {
-        let arguments = serde_json::from_str(&tool_call.function.arguments)
-            .with_context(|| format!("parse arguments for tool {}", tool_call.function.name))?;
-        return Ok(ModelStep::ToolCall {
-            id: tool_call.id,
-            name: tool_call.function.name,
-            arguments,
-        });
+    if !message.tool_calls.is_empty() {
+        let mut calls = Vec::new();
+        for tool_call in message.tool_calls {
+            let arguments = serde_json::from_str(&tool_call.function.arguments)
+                .with_context(|| format!("parse arguments for tool {}", tool_call.function.name))?;
+            calls.push(ToolCallRequest {
+                id: tool_call.id,
+                name: tool_call.function.name,
+                arguments,
+            });
+        }
+        return Ok(single_or_batch_tool_step(calls));
     }
 
     Ok(ModelStep::Final(message.content.unwrap_or_default()))
@@ -160,6 +164,7 @@ fn to_chat_messages(
                 name,
                 arguments,
             } => messages.push(ChatMessage::assistant_tool_call(id, name, arguments)),
+            Event::ToolCalls { calls } => messages.push(ChatMessage::assistant_tool_calls(calls)),
             Event::ToolResult {
                 tool_call_id,
                 output,
@@ -200,9 +205,12 @@ fn chat_tools(events: &[Event], tools: &[ToolSpec]) -> Option<Vec<ToolRequest>> 
 }
 
 fn has_tool_history(events: &[Event]) -> bool {
-    events
-        .iter()
-        .any(|event| matches!(event, Event::ToolCall { .. } | Event::ToolResult { .. }))
+    events.iter().any(|event| {
+        matches!(
+            event,
+            Event::ToolCall { .. } | Event::ToolCalls { .. } | Event::ToolResult { .. }
+        )
+    })
 }
 
 #[derive(Serialize)]
@@ -287,18 +295,30 @@ impl ChatMessage {
     }
 
     fn assistant_tool_call(id: &str, name: &str, arguments: &Value) -> Self {
-        let id = normalize_chat_tool_call_id(id);
+        Self::assistant_tool_calls(&[ToolCallEvent {
+            id: id.to_owned(),
+            name: name.to_owned(),
+            arguments: arguments.clone(),
+        }])
+    }
+
+    fn assistant_tool_calls(calls: &[ToolCallEvent]) -> Self {
         Self {
             role: "assistant",
             content: None,
-            tool_calls: Some(vec![OutboundToolCall {
-                id,
-                kind: "function",
-                function: OutboundToolFunction {
-                    name: name.to_owned(),
-                    arguments: arguments.to_string(),
-                },
-            }]),
+            tool_calls: Some(
+                calls
+                    .iter()
+                    .map(|call| OutboundToolCall {
+                        id: normalize_chat_tool_call_id(&call.id),
+                        kind: "function",
+                        function: OutboundToolFunction {
+                            name: call.name.clone(),
+                            arguments: call.arguments.to_string(),
+                        },
+                    })
+                    .collect(),
+            ),
             tool_call_id: None,
         }
     }
@@ -329,6 +349,17 @@ impl ChatMessage {
             tool_calls: None,
             tool_call_id: None,
         }
+    }
+}
+
+fn single_or_batch_tool_step(calls: Vec<ToolCallRequest>) -> ModelStep {
+    match calls.as_slice() {
+        [call] => ModelStep::ToolCall {
+            id: call.id.clone(),
+            name: call.name.clone(),
+            arguments: call.arguments.clone(),
+        },
+        _ => ModelStep::ToolCalls(calls),
     }
 }
 
@@ -475,6 +506,34 @@ mod tests {
     }
 
     #[test]
+    fn converts_multiple_tool_call_continuation_messages() {
+        let messages = to_chat_messages(
+            &[Event::ToolCalls {
+                calls: vec![
+                    ToolCallEvent {
+                        id: "call_1".to_owned(),
+                        name: "pwd".to_owned(),
+                        arguments: json!({}),
+                    },
+                    ToolCallEvent {
+                        id: "call_2".to_owned(),
+                        name: "ls".to_owned(),
+                        arguments: json!({ "path": "." }),
+                    },
+                ],
+            }],
+            true,
+            false,
+        );
+        let value = serde_json::to_value(messages).unwrap();
+
+        assert_eq!(value[1]["role"], "assistant");
+        assert_eq!(value[1]["tool_calls"].as_array().unwrap().len(), 2);
+        assert_eq!(value[1]["tool_calls"][0]["function"]["name"], "pwd");
+        assert_eq!(value[1]["tool_calls"][1]["function"]["name"], "ls");
+    }
+
+    #[test]
     fn parses_chat_completion_tool_call() {
         let response: ChatResponse = serde_json::from_value(json!({
             "choices": [{
@@ -502,6 +561,54 @@ mod tests {
                 name: "echo".to_owned(),
                 arguments: json!({ "text": "hello" }),
             }
+        );
+    }
+
+    #[test]
+    fn parses_chat_completion_multiple_tool_calls() {
+        let response: ChatResponse = serde_json::from_value(json!({
+            "choices": [{
+                "message": {
+                    "content": null,
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                                "name": "pwd",
+                                "arguments": "{}"
+                            }
+                        },
+                        {
+                            "id": "call_2",
+                            "type": "function",
+                            "function": {
+                                "name": "ls",
+                                "arguments": "{\"path\":\".\"}"
+                            }
+                        }
+                    ]
+                }
+            }]
+        }))
+        .unwrap();
+
+        let step = step_from_chat_response(response).unwrap();
+
+        assert_eq!(
+            step,
+            ModelStep::ToolCalls(vec![
+                ToolCallRequest {
+                    id: "call_1".to_owned(),
+                    name: "pwd".to_owned(),
+                    arguments: json!({}),
+                },
+                ToolCallRequest {
+                    id: "call_2".to_owned(),
+                    name: "ls".to_owned(),
+                    arguments: json!({ "path": "." }),
+                },
+            ])
         );
     }
 

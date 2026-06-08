@@ -30,6 +30,7 @@ pub struct ToolSpec {
 pub struct ToolOutput {
     pub content: String,
     pub details: Option<Value>,
+    pub terminate: bool,
 }
 
 pub struct ToolRegistry {
@@ -275,6 +276,7 @@ fn read_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
                     }
                 }
             })),
+            terminate: false,
         });
     }
     let content = fs::read_to_string(&absolute_path)
@@ -293,6 +295,7 @@ fn read_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     Ok(ToolOutput {
         content: output,
         details: non_null(details),
+        terminate: false,
     })
 }
 
@@ -309,6 +312,7 @@ fn write_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
         Ok(ToolOutput {
             content: format!("Successfully wrote {} bytes to {path}", content.len()),
             details: None,
+            terminate: false,
         })
     })
 }
@@ -343,6 +347,7 @@ fn edit_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
                 "firstChangedLine": diff.first_changed_line,
                 "usedFuzzyMatch": used_fuzzy_match
             })),
+            terminate: false,
         })
     })
 }
@@ -424,6 +429,7 @@ fn bash_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
     Ok(ToolOutput {
         content,
         details: Some(details),
+        terminate: false,
     })
 }
 
@@ -553,6 +559,7 @@ fn grep_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
             "linesTruncated": lines_truncated,
             "truncation": if truncated.truncation.truncated { json!(truncated.truncation) } else { Value::Null }
         })),
+        terminate: false,
     })
 }
 
@@ -632,6 +639,7 @@ fn find_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
             "resultLimitReached": if limit_reached { json!(limit) } else { Value::Null },
             "truncation": if truncated.truncation.truncated { json!(truncated.truncation) } else { Value::Null }
         })),
+        terminate: false,
     })
 }
 
@@ -696,6 +704,7 @@ fn ls_tool(ctx: &ToolContext, arguments: &Value) -> Result<ToolOutput> {
             "entryLimitReached": if entry_limit_reached { json!(limit) } else { Value::Null },
             "truncation": if truncated.truncation.truncated { json!(truncated.truncation) } else { Value::Null }
         })),
+        terminate: false,
     })
 }
 
@@ -1878,6 +1887,7 @@ fn text_output(content: &str) -> ToolOutput {
     ToolOutput {
         content: content.to_owned(),
         details: None,
+        terminate: false,
     }
 }
 
