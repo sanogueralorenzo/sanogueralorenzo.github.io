@@ -1,136 +1,99 @@
-# Agent
+<p align="center">
+  <a href="https://pi.dev">
+    <img alt="pi logo" src="https://pi.dev/logo-auto.svg" width="128">
+  </a>
+</p>
+<p align="center">
+  <a href="https://discord.com/invite/3cU7Bz4UPx"><img alt="Discord" src="https://img.shields.io/badge/discord-community-5865F2?style=flat-square&logo=discord&logoColor=white" /></a>
+</p>
+<p align="center">
+  <a href="https://pi.dev">pi.dev</a> domain graciously donated by
+  <br /><br />
+  <a href="https://exe.dev"><img src="packages/coding-agent/docs/images/exy.png" alt="Exy mascot" width="48" /><br />exe.dev</a>
+</p>
 
-Agent is a small local AI coding agent for real machines.
+> New issues and PRs from new contributors are auto-closed by default. Maintainers review auto-closed issues daily. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-It keeps the useful Pi-shaped core, but makes it easier to understand, install, run, and extend.
+---
 
-## Goal
+# Pi Agent Harness Mono Repo
 
-Build the fastest useful local coding agent:
+This is the home of the pi agent harness project including our self extensible coding agent.
 
-```text
-user input -> durable session -> model step -> tool calls -> tool results -> final reply
+* **[@earendil-works/pi-coding-agent](packages/coding-agent)**: Interactive coding agent CLI
+* **[@earendil-works/pi-agent-core](packages/agent)**: Agent runtime with tool calling and state management
+* **[@earendil-works/pi-ai](packages/ai)**: Unified multi-provider LLM API (OpenAI, Anthropic, Google, …)
+
+To learn more about pi:
+
+* [Visit pi.dev](https://pi.dev), the project website with demos
+* [Read the documentation](https://pi.dev/docs/latest), but you can also ask the agent to explain itself
+
+## Share your OSS coding agent sessions
+
+If you use pi or other coding agents for open source work, please share your sessions.
+
+Public OSS session data helps improve coding agents with real-world tasks, tool use, failures, and fixes instead of toy benchmarks.
+
+For the full explanation, see [this post on X](https://x.com/badlogicgames/status/2037811643774652911).
+
+To publish sessions, use [`badlogic/pi-share-hf`](https://github.com/badlogic/pi-share-hf). Read its README.md for setup instructions. All you need is a Hugging Face account, the Hugging Face CLI, and `pi-share-hf`.
+
+You can also watch [this video](https://x.com/badlogicgames/status/2041151967695634619), where I show how I publish my `pi-mono` sessions.
+
+I regularly publish my own `pi-mono` work sessions here:
+
+- [badlogicgames/pi-mono on Hugging Face](https://huggingface.co/datasets/badlogicgames/pi-mono)
+
+## All Packages
+
+| Package | Description |
+|---------|-------------|
+| **[@earendil-works/pi-ai](packages/ai)** | Unified multi-provider LLM API (OpenAI, Anthropic, Google, etc.) |
+| **[@earendil-works/pi-agent-core](packages/agent)** | Agent runtime with tool calling and state management |
+| **[@earendil-works/pi-coding-agent](packages/coding-agent)** | Interactive coding agent CLI |
+| **[@earendil-works/pi-tui](packages/tui)** | Terminal UI library with differential rendering |
+
+For Slack/chat automation and workflows see [earendil-works/pi-chat](https://github.com/earendil-works/pi-chat).
+
+## Permissions & Containerization
+
+Pi does not include a built-in permission system for restricting filesystem, process, network, or credential access. By default, it runs with the permissions of the user and process that launched it.
+
+If you need stronger boundaries, containerize or sandbox Pi. See [packages/coding-agent/docs/containerization.md](packages/coding-agent/docs/containerization.md) for three patterns:
+
+- **OpenShell**: run the whole `pi` process in a policy-controlled sandbox.
+- **Gondolin extension**: keep `pi` and provider auth on the host while routing built-in tools and `!` commands into a local Linux micro-VM.
+- **Plain Docker**: run the whole `pi` process in a local container for simple isolation.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [AGENTS.md](AGENTS.md) for project-specific rules (for both humans and agents).
+
+## Development
+
+```bash
+npm install --ignore-scripts  # Install all dependencies without running lifecycle scripts
+npm run build        # Build all packages
+npm run check        # Lint, format, and type check
+./test.sh            # Run tests (skips LLM-dependent tests without API keys)
+./pi-test.sh         # Run pi from sources (can be run from any directory)
 ```
 
-The agent should be able to read files, edit code, run shell commands, call model providers, save every step to disk, and resume cleanly after a reboot.
+## Supply-chain hardening
 
-## Product Shape
+We treat npm dependency changes as reviewed code changes.
 
-The project should become a single practical binary:
+- Direct external dependencies are pinned to exact versions. Internal workspace packages remain version-ranged.
+- `.npmrc` sets `save-exact=true` and `min-release-age=2` to avoid same-day dependency releases during npm resolution.
+- `package-lock.json` is the dependency ground truth. Pre-commit blocks accidental lockfile commits unless `PI_ALLOW_LOCKFILE_CHANGE=1` is set.
+- `npm run check` verifies pinned direct deps, native TypeScript import compatibility, and the generated coding-agent shrinkwrap.
+- The published CLI package includes `packages/coding-agent/npm-shrinkwrap.json`, generated from the root lockfile, to pin transitive deps for npm users.
+- Release smoke tests use `npm run release:local` to build, pack, and create isolated npm and Bun installs outside the repo before tagging a release.
+- Local release installs, documented npm installs, and `pi update --self` use `--ignore-scripts` where supported.
+- CI installs with `npm ci --ignore-scripts`, and a scheduled GitHub workflow runs `npm audit --omit=dev` plus `npm audit signatures --omit=dev`.
+- Shrinkwrap generation has an explicit allowlist for dependency lifecycle scripts; new lifecycle-script deps fail checks until reviewed.
 
-```shell
-agent run "fix this bug"
-agent status
-agent stop
-agent login
-agent chat telegram
-agent install-service
-agent doctor
-```
+## License
 
-The long-term Raspberry Pi story is:
-
-1. install one binary
-2. log in once to the model account/subscription
-3. enable chat/remote access
-4. give the agent full local-machine access
-5. reboot safely without losing state
-
-## Core Runtime
-
-The core runtime is intentionally small:
-
-```text
-queue
-session log
-context builder
-model client interface
-tool registry
-runtime loop
-event stream
-control commands
-```
-
-The runtime owns:
-
-- accepting user jobs/messages
-- loading and resuming sessions
-- building model context from session history
-- calling a model through an abstract provider interface
-- executing requested tools through an abstract tool registry
-- appending every important step to durable JSONL state
-- cancellation, retry, status, and continuation
-- emitting lifecycle events for UIs and chat adapters
-
-The runtime does **not** own:
-
-- Telegram-specific logic
-- TUI/web UI rendering
-- OpenAI/Anthropic/Gemini HTTP details
-- browser automation implementation
-- install/bootstrap logic
-- account login UX
-- plugin marketplaces
-
-Those pieces attach around the runtime.
-
-## Minimal Agent Loop
-
-The heart of the agent should stay understandable:
-
-```text
-while not done:
-  context = session.to_model_context()
-  step = model.step(context, tool_schemas)
-
-  append assistant output
-
-  for each tool call:
-    append tool call
-    result = tools.call(tool call)
-    append tool result
-
-  if no tool calls:
-    finish with final reply
-```
-
-If the process dies in the middle, the append-only session log should explain what happened and allow recovery.
-
-## Boundaries
-
-Agent should be split into separable layers:
-
-```text
-agent/
-  runtime/      durable model/tool execution loop
-  providers/    OpenAI, Anthropic, Gemini, local models
-  tools/        read, write, edit, bash, grep, find, web, browser
-  adapters/     CLI, Telegram, TUI, HTTP, daemon
-  install/      service setup, bootstrap, doctor, backup/restore
-```
-
-Adapters depend on the runtime. The runtime should not depend on adapters.
-
-Providers depend on the model interface. The runtime should not know provider wire protocols.
-
-Tools expose schemas and callable functions. The runtime should not care whether a tool is native Rust, shell-based, MCP, browser automation, or remote.
-
-## First Milestones
-
-1. Implement the small durable runtime loop.
-2. Support local coding tools: `read`, `write`, `edit`, `bash`, `grep`, `find`, `ls`.
-3. Support OpenAI through a provider adapter.
-4. Add control commands: `status`, `stop`, `new`, `compact`.
-5. Add a daemon/queue mode.
-6. Add Telegram as an adapter, not as part of the core.
-7. Add installer/service commands for Raspberry Pi reboot recovery.
-
-## Design Principles
-
-- Be obvious to users: this is an AI coding agent, not an abstract framework.
-- Keep the runtime boring, durable, and inspectable.
-- Prefer one binary and plain files over servers and hidden state.
-- Append state before and after irreversible work.
-- Make tools reusable outside this agent when possible.
-- Keep web/chat/UI/login as adapters around the core, not inside it.
-- Optimize for fast local iteration and safe reboot recovery.
+MIT
