@@ -71,7 +71,10 @@ HARNESS_OPENAI_API  default: openai-completions
 HARNESS_BASE_URL    default: https://api.openai.com/v1
 ```
 
-The OpenAI provider currently supports the `openai-completions` API adapter, which uses chat completions with JSON-schema function tools. The `openai-responses` adapter exists as a module boundary and returns an explicit not-implemented error until it is ported.
+The OpenAI provider supports two API adapters:
+
+- `openai-completions`: chat completions with JSON-schema function tools
+- `openai-responses`: Responses API input items, function tools, and function-call output continuation
 
 This follows Pi's split between provider and API:
 

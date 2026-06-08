@@ -83,7 +83,7 @@ mod tests {
     use super::*;
     use crate::agent::session::SessionLog;
     use crate::agent::tools::ToolRegistry;
-    use crate::agent::{DryRunModel, OpenAiCompletionsModel};
+    use crate::agent::{DryRunModel, OpenAiCompletionsModel, OpenAiResponsesModel};
     use serde_json::{Value, json};
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
@@ -190,6 +190,53 @@ mod tests {
         );
         assert_eq!(requests[1]["messages"][3]["role"], "tool");
         assert_eq!(requests[1]["messages"][3]["tool_call_id"], "call_pwd");
+    }
+
+    #[test]
+    fn openai_responses_adapter_continues_after_tool_result() {
+        let server = TestProvider::start(vec![
+            json!({
+                "output": [{
+                    "type": "function_call",
+                    "id": "fc_pwd",
+                    "call_id": "call_pwd",
+                    "name": "pwd",
+                    "arguments": "{}"
+                }]
+            }),
+            json!({
+                "output": [{
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{
+                        "type": "output_text",
+                        "text": "I checked the current directory.",
+                        "annotations": []
+                    }]
+                }]
+            }),
+        ]);
+        let log = SessionLog::memory();
+        let model = OpenAiResponsesModel::new(
+            server.base_url(),
+            "test-key".to_owned(),
+            "test-model".to_owned(),
+        );
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), model);
+
+        let reply = runtime.run_message("use pwd".to_owned()).unwrap();
+        let requests = server.requests();
+
+        assert_eq!(reply, "I checked the current directory.");
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[0]["model"], "test-model");
+        assert_eq!(requests[0]["store"], false);
+        assert_eq!(requests[0]["tools"][0]["type"], "function");
+        assert_eq!(requests[0]["tools"][0]["name"], "pwd");
+        assert_eq!(requests[1]["input"][2]["type"], "function_call");
+        assert_eq!(requests[1]["input"][2]["call_id"], "call_pwd");
+        assert_eq!(requests[1]["input"][3]["type"], "function_call_output");
+        assert_eq!(requests[1]["input"][3]["call_id"], "call_pwd");
     }
 
     struct TestProvider {

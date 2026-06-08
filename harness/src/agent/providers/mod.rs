@@ -30,7 +30,12 @@ fn build_openai_provider() -> Result<Box<dyn ModelClient>> {
         }
         "openai-responses" => {
             let api_key = env::var("OPENAI_API_KEY").context("OPENAI_API_KEY is required")?;
-            Ok(Box::new(OpenAiResponsesModel::new(api_key)))
+            let model = env::var("HARNESS_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_owned());
+            let base_url = env::var("HARNESS_BASE_URL")
+                .unwrap_or_else(|_| "https://api.openai.com/v1".to_owned());
+            Ok(Box::new(OpenAiResponsesModel::new(
+                base_url, api_key, model,
+            )))
         }
         other => bail!("unknown OpenAI API adapter: {other}"),
     }

@@ -6,7 +6,7 @@ mod session;
 mod tools;
 
 #[cfg(test)]
-pub use apis::OpenAiCompletionsModel;
+pub use apis::{OpenAiCompletionsModel, OpenAiResponsesModel};
 #[cfg(test)]
 pub use providers::DryRunModel;
 pub use providers::build_provider;
