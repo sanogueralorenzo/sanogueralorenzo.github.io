@@ -14,6 +14,9 @@ export const CHAT_HOME = join(homedir(), ".pi", "agent", "chat");
 export const CHAT_CONFIG_PATH = join(CHAT_HOME, "config.json");
 export const CHAT_CACHE_DIR = join(CHAT_HOME, "cache");
 export const CHAT_SECRETS_DIR = join(CHAT_HOME, "secrets");
+export const CHAT_MEMORY_PATH = join(CHAT_HOME, "memory.md");
+export const CHAT_SYSTEM_PATH = join(CHAT_HOME, "SYSTEM.md");
+export const CHAT_SKILLS_DIR = join(CHAT_HOME, "skills");
 
 function sanitizePathSegment(value: string): string {
 	return value.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -61,21 +64,29 @@ function buildResolvedConversation(
 		conversationName: `${account.name ?? accountId} / ${channel.name ?? channelKey}`,
 		access: mergeAccess(account.access, channel.access),
 		accountDir,
-		accountDataDir: join(accountDir, "account"),
 		conversationDir,
 		channelDataDir,
-		accountMemoryPath: join(accountDir, "account", "memory.md"),
-		channelMemoryPath: join(conversationDir, "channel", "memory.md"),
 		logPath: join(conversationDir, "channel.jsonl"),
 		filesDir: join(channelDataDir, "incoming"),
 		lockPath: join(conversationDir, ".lock"),
 	};
 }
 
+async function ensureRegularFile(path: string): Promise<void> {
+	try {
+		await writeFile(path, "", { flag: "wx" });
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+	}
+}
+
 export async function ensureChatHome(): Promise<void> {
 	await mkdir(CHAT_HOME, { recursive: true });
 	await mkdir(CHAT_CACHE_DIR, { recursive: true });
 	await mkdir(CHAT_SECRETS_DIR, { recursive: true });
+	await mkdir(CHAT_SKILLS_DIR, { recursive: true });
+	await ensureRegularFile(CHAT_MEMORY_PATH);
+	await ensureRegularFile(CHAT_SYSTEM_PATH);
 }
 
 export async function removeAccountStorage(accountId: string, _cwd: string): Promise<void> {

@@ -65,19 +65,16 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 ~/.pi/agent/chat/
 ├── config.json
 ├── cache/
+├── memory.md
+├── SYSTEM.md
+├── skills/
 ├── secrets/
 └── accounts/<account>/
-    ├── account/
-    │   ├── memory.md
-    │   └── skills/
     └── channels/<channel>/
         ├── channel.jsonl
         ├── .lock
         └── channel/
-            ├── memory.md
-            ├── skills/
-            ├── incoming/
-            └── SYSTEM.md
+            └── incoming/
 ```
 
 ## Log record types

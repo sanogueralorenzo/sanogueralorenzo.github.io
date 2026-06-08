@@ -1,4 +1,4 @@
-import { appendFile, copyFile, lstat, mkdir, open, readFile, unlink, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, lstat, mkdir, open, readFile, unlink } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 
 import type {
@@ -38,17 +38,6 @@ function sanitizeFileName(value: string): string {
 	return value.replace(/[^a-zA-Z0-9._-]+/g, "_");
 }
 
-async function ensureRegularFile(path: string): Promise<void> {
-	try {
-		const info = await lstat(path);
-		if (!info.isSymbolicLink()) return;
-		await unlink(path);
-		await writeFile(path, "", "utf8");
-	} catch {
-		await writeFile(path, "", { flag: "a" });
-	}
-}
-
 function isInside(root: string, value: string): boolean {
 	const rel = relative(resolve(root), resolve(value));
 	return rel === "" || (!rel.startsWith("..") && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`));
@@ -56,14 +45,11 @@ function isInside(root: string, value: string): boolean {
 
 export async function ensureConversationDirs(conversation: ResolvedConversation): Promise<void> {
 	await mkdir(conversation.accountDir, { recursive: true });
-	await mkdir(conversation.accountDataDir, { recursive: true });
 	await mkdir(conversation.conversationDir, { recursive: true });
 	await mkdir(dirname(conversation.logPath), { recursive: true });
 	await mkdir(dirname(conversation.lockPath), { recursive: true });
 	await mkdir(conversation.channelDataDir, { recursive: true });
 	await mkdir(conversation.filesDir, { recursive: true });
-	await ensureRegularFile(conversation.accountMemoryPath);
-	await ensureRegularFile(conversation.channelMemoryPath);
 }
 
 export async function readConversationLog(conversation: ResolvedConversation): Promise<ChatLogRecord[]> {

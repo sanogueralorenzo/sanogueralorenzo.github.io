@@ -48,11 +48,8 @@ export interface ResolvedConversation {
 	conversationName: string;
 	access: AccessPolicy;
 	accountDir: string;
-	accountDataDir: string;
 	conversationDir: string;
 	channelDataDir: string;
-	accountMemoryPath: string;
-	channelMemoryPath: string;
 	logPath: string;
 	filesDir: string;
 	lockPath: string;

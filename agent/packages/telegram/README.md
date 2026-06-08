@@ -32,7 +32,7 @@ pi -e /path/to/telegram
 - Persistent account/channel storage across sessions
 - Streamed preview responses with edit-in-place
 - Reply-to-trigger responses
-- Durable account-wide and channel-specific memory files
+- One simple durable memory file
 - Skills auto-discovered and injected into the prompt
 - Encrypted runtime secret exchange
 - Remote control: stop, compact, new session, status
@@ -82,19 +82,16 @@ Everything lives under `~/.pi/agent/chat/`:
 ~/.pi/agent/chat/
 ├── config.json
 ├── cache/
+├── memory.md                             # Simple durable memory
+├── SYSTEM.md                             # Host environment modification log
+├── skills/                               # Reusable skills
 ├── secrets/                              # Runtime secrets from chat_request_secret
 └── accounts/<account>/
-    ├── account/
-    │   ├── memory.md
-    │   └── skills/
     └── channels/<channel>/
         ├── channel.jsonl
         ├── .lock
         └── channel/
-            ├── memory.md
-            ├── skills/
-            ├── incoming/
-            └── SYSTEM.md
+            └── incoming/
 ```
 
 The agent's actual working directory is the local pi session cwd. The account/channel storage paths above are regular host paths and can be read/written directly.

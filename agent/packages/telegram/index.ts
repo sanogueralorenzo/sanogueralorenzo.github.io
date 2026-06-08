@@ -20,7 +20,10 @@ import { Type } from "@sinclair/typebox";
 import {
 	CHAT_CONFIG_PATH,
 	CHAT_HOME,
+	CHAT_MEMORY_PATH,
 	CHAT_SECRETS_DIR,
+	CHAT_SKILLS_DIR,
+	CHAT_SYSTEM_PATH,
 	ensureChatHome,
 	listConfiguredConversations,
 	loadChatConfig,
@@ -51,18 +54,14 @@ Each transcript line has [uid:ID] before the display name. Display names are use
 You are running directly on the host computer where agent is installed. You may use absolute host paths and have the same filesystem/process access as the local agent process.
 
 Memory:
-- Account memory and channel memory are stored as regular host files under the chat account directory.
-- Write durable facts/preferences there when asked to remember something.
-- Use account memory for cross-channel facts and channel memory for channel-only facts. Ask if unsure.
-- Never write confidential channel info to account-wide memory.
+- Use ${CHAT_MEMORY_PATH} for durable facts and preferences when asked to remember something.
 
 System configuration:
-- Log all important host environment modifications (installed packages, config changes) to the channel SYSTEM.md file.
-- On fresh setup, read SYSTEM.md first to restore context.
+- Log all important host environment modifications (installed packages, config changes) to ${CHAT_SYSTEM_PATH}.
+- On fresh setup, read ${CHAT_SYSTEM_PATH} first to restore context.
 
 Skills:
-- You can create reusable tools as skills.
-- Account-wide skills and channel-specific skills are stored as regular host files under the chat data directory.
+- You can create reusable tools as skills under ${CHAT_SKILLS_DIR}.
 - A skill is either a single .md file (e.g. skills/foo.md) or a directory with a SKILL.md plus any supporting files like scripts, configs, or data (e.g. skills/foo/SKILL.md, skills/foo/run.sh).
 - Each skill needs YAML frontmatter:
   ---
@@ -486,20 +485,9 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function buildMemoryPromptSuffix(): Promise<string> {
-		if (!runtime) return "";
-		const sections: string[] = [];
-		const accountMemory = await safeReadMountedText(
-			runtime.conversation.accountDataDir,
-			runtime.conversation.accountMemoryPath,
-		);
-		const channelMemory = await safeReadMountedText(
-			runtime.conversation.channelDataDir,
-			runtime.conversation.channelMemoryPath,
-		);
-		if (accountMemory.trim()) sections.push(`Account memory:\n${accountMemory.trim()}`);
-		if (channelMemory.trim()) sections.push(`Channel memory:\n${channelMemory.trim()}`);
-		if (sections.length === 0) return "";
-		return `\n\nPersistent memory:\n${sections.join("\n\n")}`;
+		const memory = await safeReadMountedText(CHAT_HOME, CHAT_MEMORY_PATH);
+		if (!memory.trim()) return "";
+		return `\n\nPersistent memory (${CHAT_MEMORY_PATH}):\n${memory.trim()}`;
 	}
 
 	function hostToDisplayPath(hostPath: string): string {
@@ -507,13 +495,8 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function buildSkillsPromptSuffix(): Promise<string> {
-		if (!runtime) return "";
-		const sharedSkills = await loadSafeChatSkills(runtime.conversation.accountDataDir);
-		const channelSkills = await loadSafeChatSkills(runtime.conversation.channelDataDir);
-		const skillMap = new Map<string, ChatPromptSkill>();
-		for (const skill of sharedSkills) skillMap.set(skill.name, skill);
-		for (const skill of channelSkills) skillMap.set(skill.name, skill);
-		const allSkills = [...skillMap.values()].map((skill) => ({
+		const skills = await loadSafeChatSkills(CHAT_HOME);
+		const allSkills = skills.map((skill) => ({
 			...skill,
 			filePath: hostToDisplayPath(skill.filePath),
 		}));
@@ -522,13 +505,9 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	async function buildSystemMdSuffix(): Promise<string> {
-		if (!runtime) return "";
-		const systemMd = await safeReadMountedText(
-			runtime.conversation.channelDataDir,
-			join(runtime.conversation.channelDataDir, "SYSTEM.md"),
-		);
+		const systemMd = await safeReadMountedText(CHAT_HOME, CHAT_SYSTEM_PATH);
 		if (!systemMd.trim()) return "";
-		return `\n\nSystem configuration log (SYSTEM.md):\n${systemMd.trim()}`;
+		return `\n\nSystem configuration log (${CHAT_SYSTEM_PATH}):\n${systemMd.trim()}`;
 	}
 
 	function buildRemoteStatus(ctx: ExtensionContext): string {
@@ -715,18 +694,10 @@ export default function (pi: ExtensionAPI) {
 		const mode = runtime.conversation.channel.dm ? "dm" : "mention";
 		const service = runtime.conversation.service;
 		const systemPromptAdditions = buildChatSystemPromptSuffix(service, mode, channelName).trim();
-		const accountMemory = await safeReadMountedText(
-			runtime.conversation.accountDataDir,
-			runtime.conversation.accountMemoryPath,
-		);
-		const channelMemory = await safeReadMountedText(
-			runtime.conversation.channelDataDir,
-			runtime.conversation.channelMemoryPath,
-		);
+		const memory = await safeReadMountedText(CHAT_HOME, CHAT_MEMORY_PATH);
 		const skillsSuffix = await buildSkillsPromptSuffix();
 		const sections = [`Connected to ${service} ${mode} ${channelName}.`, "", "System prompt:", systemPromptAdditions];
-		if (accountMemory.trim()) sections.push("", "Account memory:", accountMemory.trim());
-		if (channelMemory.trim()) sections.push("", "Channel memory:", channelMemory.trim());
+		if (memory.trim()) sections.push("", `Memory (${CHAT_MEMORY_PATH}):`, memory.trim());
 		if (skillsSuffix) sections.push("", skillsSuffix.trim());
 		pi.sendMessage({ customType: "chat-context", content: sections.join("\n"), display: true });
 	}
