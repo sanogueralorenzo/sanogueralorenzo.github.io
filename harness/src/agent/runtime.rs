@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use anyhow::{Error, Result, bail};
 
-use crate::agent::model::{ModelClient, ModelStep};
+use crate::agent::model::{ModelClient, ModelStep, ModelUpdate};
 use crate::agent::session::{Event, SessionLog};
 use crate::agent::tools::ToolRegistry;
 
@@ -15,6 +15,8 @@ pub struct RuntimeOptions {
     pub max_turns_per_job: usize,
     pub retry_policy: RetryPolicy,
     pub auto_compact_after_events: Option<usize>,
+    pub steering_mode: QueueMode,
+    pub follow_up_mode: QueueMode,
 }
 
 impl Default for RuntimeOptions {
@@ -23,8 +25,17 @@ impl Default for RuntimeOptions {
             max_turns_per_job: MAX_TURNS_PER_JOB,
             retry_policy: RetryPolicy::default(),
             auto_compact_after_events: None,
+            steering_mode: QueueMode::OneAtATime,
+            follow_up_mode: QueueMode::OneAtATime,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum QueueMode {
+    All,
+    OneAtATime,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,9 +83,18 @@ pub enum RuntimeEvent {
     MessageFinished {
         role: &'static str,
     },
+    MessageUpdated {
+        role: &'static str,
+        delta: String,
+    },
     ToolExecutionStarted {
         id: String,
         name: String,
+    },
+    ToolExecutionUpdated {
+        id: String,
+        name: String,
+        partial_output: String,
     },
     ToolExecutionFinished {
         id: String,
@@ -174,26 +194,24 @@ impl<M: ModelClient> Runtime<M> {
     }
 
     pub fn abort(&mut self) {
+        self.clear_queue();
         if self.state.is_running {
             self.state.cancel_requested = true;
         } else {
-            self.clear_queue();
             self.emit(RuntimeEvent::Cancelled);
         }
     }
 
     pub fn run_message(&mut self, message: String) -> Result<String> {
-        self.follow_up_queue.push_front(message);
-        self.emit_queue_update();
-        self.drain_queued()
+        self.run_prompt(message)
     }
 
-    fn drain_queued(&mut self) -> Result<String> {
+    fn run_prompt(&mut self, message: String) -> Result<String> {
         self.state.is_running = true;
         self.state.cancel_requested = false;
         self.emit(RuntimeEvent::AgentStarted);
 
-        let result = self.drain_queued_inner();
+        let result = self.run_prompt_inner(message);
 
         self.state.is_running = false;
         self.state.turn_index = 0;
@@ -203,15 +221,16 @@ impl<M: ModelClient> Runtime<M> {
         result
     }
 
-    fn drain_queued_inner(&mut self) -> Result<String> {
-        let mut latest_reply = None;
+    fn run_prompt_inner(&mut self, message: String) -> Result<String> {
+        let mut latest_reply = self.run_single_message(message)?;
 
-        while let Some(message) = self.next_queued_message() {
-            self.emit_queue_update();
-            latest_reply = Some(self.run_single_message(message)?);
+        while !self.follow_up_queue.is_empty() {
+            for message in self.drain_follow_up_messages() {
+                latest_reply = self.run_single_message(message)?;
+            }
         }
 
-        latest_reply.ok_or_else(|| anyhow::anyhow!("no queued job"))
+        Ok(latest_reply)
     }
 
     fn run_single_message(&mut self, message: String) -> Result<String> {
@@ -240,9 +259,11 @@ impl<M: ModelClient> Runtime<M> {
                     self.emit(RuntimeEvent::MessageFinished { role: "assistant" });
                     self.log.append(Event::TurnFinished { index: turn_index })?;
                     self.emit(RuntimeEvent::TurnFinished { index: turn_index });
-                    self.log.append(Event::JobFinished)?;
-                    self.check_auto_compaction_hook(false)?;
-                    return Ok(content);
+                    if self.steering_queue.is_empty() {
+                        self.log.append(Event::JobFinished)?;
+                        self.check_auto_compaction_hook(false)?;
+                        return Ok(content);
+                    }
                 }
                 ModelStep::ToolCall {
                     id,
@@ -261,6 +282,11 @@ impl<M: ModelClient> Runtime<M> {
                         name: name.clone(),
                     });
                     let output = self.tools.run(&name, &arguments)?;
+                    self.emit(RuntimeEvent::ToolExecutionUpdated {
+                        id: id.clone(),
+                        name: name.clone(),
+                        partial_output: output.content.clone(),
+                    });
                     self.emit(RuntimeEvent::ToolExecutionFinished {
                         id: id.clone(),
                         name: name.clone(),
@@ -286,15 +312,8 @@ impl<M: ModelClient> Runtime<M> {
         )
     }
 
-    fn next_queued_message(&mut self) -> Option<String> {
-        self.steering_queue
-            .pop_front()
-            .or_else(|| self.follow_up_queue.pop_front())
-    }
-
     fn append_queued_steering_messages(&mut self) -> Result<()> {
-        while let Some(message) = self.steering_queue.pop_front() {
-            self.emit_queue_update();
+        for message in self.drain_steering_messages() {
             self.emit(RuntimeEvent::MessageStarted { role: "user" });
             self.log.append(Event::UserMessage { content: message })?;
             self.emit(RuntimeEvent::MessageFinished { role: "user" });
@@ -310,7 +329,16 @@ impl<M: ModelClient> Runtime<M> {
         let mut retry_attempt = 0;
         loop {
             self.ensure_not_cancelled()?;
-            match self.model.next_step(events, tool_specs) {
+            let mut emitted_updates = Vec::new();
+            let result = self
+                .model
+                .next_step_with_updates(events, tool_specs, &mut |update| {
+                    emitted_updates.push(update)
+                });
+            for update in emitted_updates {
+                self.emit_model_update(update);
+            }
+            match result {
                 Ok(step) => {
                     if retry_attempt > 0 {
                         self.emit(RuntimeEvent::AutoRetryFinished {
@@ -392,8 +420,54 @@ impl<M: ModelClient> Runtime<M> {
         });
     }
 
+    fn drain_steering_messages(&mut self) -> Vec<String> {
+        let messages = drain_queue(&mut self.steering_queue, self.options.steering_mode);
+        if !messages.is_empty() {
+            self.emit_queue_update();
+        }
+        messages
+    }
+
+    fn drain_follow_up_messages(&mut self) -> Vec<String> {
+        let messages = drain_queue(&mut self.follow_up_queue, self.options.follow_up_mode);
+        if !messages.is_empty() {
+            self.emit_queue_update();
+        }
+        messages
+    }
+
+    fn emit_model_update(&mut self, update: ModelUpdate) {
+        match update {
+            ModelUpdate::MessageDelta { role, delta } => {
+                self.emit(RuntimeEvent::MessageUpdated { role, delta });
+            }
+            ModelUpdate::ToolCallDelta {
+                id,
+                name,
+                arguments_delta,
+            } => {
+                self.emit(RuntimeEvent::MessageUpdated {
+                    role: "assistant",
+                    delta: arguments_delta.clone(),
+                });
+                self.emit(RuntimeEvent::ToolExecutionUpdated {
+                    id,
+                    name,
+                    partial_output: arguments_delta,
+                });
+            }
+        }
+    }
+
     fn emit(&mut self, event: RuntimeEvent) {
         self.events.push(event);
+    }
+}
+
+fn drain_queue(queue: &mut VecDeque<String>, mode: QueueMode) -> Vec<String> {
+    match mode {
+        QueueMode::All => queue.drain(..).collect(),
+        QueueMode::OneAtATime => queue.pop_front().into_iter().collect(),
     }
 }
 
@@ -431,7 +505,7 @@ fn is_retryable_error(error: &Error) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::model::{ModelClient, ModelStep};
+    use crate::agent::model::{ModelClient, ModelStep, ModelUpdate};
     use crate::agent::session::SessionLog;
     use crate::agent::tools::ToolRegistry;
     use crate::agent::{DryRunModel, OpenAiCompletionsModel, OpenAiResponsesModel};
@@ -571,7 +645,64 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(reply, "echo: follow up");
-        assert_eq!(user_messages, vec!["steer now", "first", "follow up"]);
+        assert_eq!(user_messages, vec!["first", "steer now", "follow up"]);
+    }
+
+    #[test]
+    fn drains_all_steering_messages_when_configured_like_pi() {
+        let log = SessionLog::memory();
+        let options = RuntimeOptions {
+            steering_mode: QueueMode::All,
+            ..RuntimeOptions::default()
+        };
+        let mut runtime = Runtime::with_options(log, ToolRegistry::minimal(), DryRunModel, options);
+
+        runtime.queue_steer("steer one".to_owned());
+        runtime.queue_steer("steer two".to_owned());
+        let reply = runtime.run_message("first".to_owned()).unwrap();
+
+        let user_messages = runtime
+            .log
+            .events()
+            .iter()
+            .filter_map(|event| match event {
+                Event::UserMessage { content } => Some(content.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(reply, "echo: steer two");
+        assert_eq!(user_messages, vec!["first", "steer one", "steer two"]);
+        assert_eq!(runtime.pending_message_count(), 0);
+    }
+
+    #[test]
+    fn emits_streaming_model_updates_before_message_end() {
+        let log = SessionLog::memory();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), StreamingModel);
+
+        let reply = runtime.run_message("hello".to_owned()).unwrap();
+
+        assert_eq!(reply, "streamed");
+        assert!(runtime.runtime_events().iter().any(|event| {
+            matches!(
+                event,
+                RuntimeEvent::MessageUpdated {
+                    role: "assistant",
+                    delta
+                } if delta == "stream"
+            )
+        }));
+        assert!(runtime.runtime_events().iter().any(|event| {
+            matches!(
+                event,
+                RuntimeEvent::ToolExecutionUpdated {
+                    id,
+                    name,
+                    partial_output
+                } if id == "call_stream" && name == "bash" && partial_output == "{}"
+            )
+        }));
     }
 
     #[test]
@@ -777,6 +908,38 @@ mod tests {
                 return Err(anyhow!("provider returned 503: service unavailable"));
             }
             Ok(ModelStep::Final("recovered".to_owned()))
+        }
+    }
+
+    struct StreamingModel;
+
+    impl ModelClient for StreamingModel {
+        fn next_step(
+            &mut self,
+            _events: &[Event],
+            _tools: &[crate::agent::tools::ToolSpec],
+        ) -> Result<ModelStep> {
+            Ok(ModelStep::Final("streamed".to_owned()))
+        }
+
+        fn next_step_with_updates(
+            &mut self,
+            events: &[Event],
+            tools: &[crate::agent::tools::ToolSpec],
+            updates: &mut dyn FnMut(ModelUpdate),
+        ) -> Result<ModelStep> {
+            let _ = events;
+            let _ = tools;
+            updates(ModelUpdate::MessageDelta {
+                role: "assistant",
+                delta: "stream".to_owned(),
+            });
+            updates(ModelUpdate::ToolCallDelta {
+                id: "call_stream".to_owned(),
+                name: "bash".to_owned(),
+                arguments_delta: "{}".to_owned(),
+            });
+            self.next_step(events, tools)
         }
     }
 
