@@ -27,15 +27,7 @@ function isDMConversation(conversation: ResolvedConversation): boolean {
 	return conversation.channel.dm ?? false;
 }
 
-function toGuestDisplayPath(conversation: ResolvedConversation, localPath: string): string {
-	if (localPath === conversation.workspaceDir || localPath.startsWith(`${conversation.workspaceDir}/`)) {
-		const suffix = localPath.slice(conversation.workspaceDir.length).replace(/^\//, "");
-		return suffix ? `/workspace/${suffix}` : "/workspace";
-	}
-	if (localPath === conversation.sharedDir || localPath.startsWith(`${conversation.sharedDir}/`)) {
-		const suffix = localPath.slice(conversation.sharedDir.length).replace(/^\//, "");
-		return suffix ? `/shared/${suffix}` : "/shared";
-	}
+function toHostDisplayPath(_conversation: ResolvedConversation, localPath: string): string {
 	return localPath;
 }
 
@@ -48,7 +40,7 @@ function formatTranscriptRecord(conversation: ResolvedConversation, record: Chat
 		lines.push("  attachments:");
 		for (const attachment of record.attachments)
 			lines.push(
-				`  - ${toGuestDisplayPath(conversation, attachment.localPath)}${attachment.mimeType ? ` (${attachment.mimeType})` : ""}`,
+				`  - ${toHostDisplayPath(conversation, attachment.localPath)}${attachment.mimeType ? ` (${attachment.mimeType})` : ""}`,
 			);
 	}
 	return lines;

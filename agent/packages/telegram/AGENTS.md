@@ -1,20 +1,18 @@
-# pi-chat
+# pi-chat Telegram
 
-Pi extension bridging Telegram to a sandboxed pi session via Gondolin micro-VMs.
+Pi extension bridging Telegram DMs/groups to a local pi session with direct host access.
 
 ## Architecture
 
-```
-Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent
-                                        ↕
-                                   Gondolin VM (Alpine + bash)
-                                   /workspace  /shared
+```text
+Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent ←→ host tools
 ```
 
-- **One VM per connection.** Started on `/chat-connect`, closed on `/chat-disconnect`. `/chat-spawn-all` launches one detached tmux/pi worker per configured channel using the `--chat-conversation <account/channel>` extension flag. `/chat-workers`, `/chat-open-all`, and `/chat-kill-all` manage those workers through tmux. Workers write status JSON to `~/.pi/agent/chat/worker-status/`; the `chat_workers` tool reads it.
+- **No sandbox.** Remote Telegram turns run with the same local filesystem and process access as the pi session where this extension is installed.
 - **One JSONL log per channel.** Append-only event stream: inbound, outbound, job lifecycle.
-- **Trigger-based dispatch.** Mentions in channels, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
-- **Tools run inside the VM.** `read`, `write`, `edit`, `bash` are routed through Gondolin. `chat_history` and `chat_attach` run on the host.
+- **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
+- **Host tools.** `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths. `chat_history`, `chat_attach`, and `chat_request_secret` are available during chat turns.
+- **Workers.** `/chat-spawn-all` launches one detached tmux/pi worker per configured channel using the `--chat-conversation <account/channel>` extension flag. `/chat-workers`, `/chat-open-all`, and `/chat-kill-all` manage those workers through tmux. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
 
 ## Entry point
 
@@ -23,21 +21,18 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent
 ## Key files
 
 ### Core types
-- `src/core/config-types.ts` — Config, account, channel, secret, and resolved conversation types.
+- `src/core/config-types.ts` — Config, account, channel, and resolved conversation types.
 - `src/core/runtime-types.ts` — Log record types, job types, dispatch types.
 - `src/core/discovery-types.ts` — Discovery snapshot types (channels, users, roles).
 - `src/core/keys.ts` — Channel key derivation.
 
 ### Config & storage
 - `src/config.ts` — Load/save config, resolve conversations, storage paths. Everything under `~/.pi/agent/chat/`.
-- `src/discovery-store.ts` — Read/write discovery snapshots (cached channel/user/role lists).
+- `src/discovery-store.ts` — Read/write discovery snapshots.
 - `src/log.ts` — JSONL log read/write, locking, attachment materialization, directory setup.
 
 ### Runtime
 - `src/runtime.ts` — `ConversationRuntime`: log state machine, job queue, slice construction, prompt building, checkpoint management. Owns trigger logic, access policy, control command parsing.
-
-### Gondolin sandbox
-- `src/gondolin.ts` — `ConversationSandbox`: VM lifecycle, secret environment setup, tool operation factories (read/write/edit/ls/find/grep/bash), guest/host path translation.
 
 ### Secrets
 - `src/secrets.ts` — Encrypted secret exchange: RSA keypair generation, widget URL construction, hybrid RSA-OAEP + AES-256-GCM decryption.
@@ -49,42 +44,40 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent
 - `src/live/common.ts` — Shared: attachment download/storage, MIME detection, bot mention detection.
 
 ### Rendering
-- `src/render/format.ts` — Service-specific markdown normalization and message length limits.
-- `src/render/chunking.ts` — Text chunking for service message limits.
-- `src/render/streaming.ts` — `StreamingPreview`: chunked preview transport (currently unused, kept for potential future streaming).
-- `src/render/streaming-markdown.ts` — Streaming markdown renderer (currently unused).
+- `src/render/format.ts` — Telegram markdown normalization and message length limit.
+- `src/render/chunking.ts` — Text chunking for Telegram message limits.
+- `src/render/streaming.ts` — `StreamingPreview`: chunked preview transport.
+- `src/render/streaming-markdown.ts` — Streaming markdown renderer.
 
-### Services (setup/discovery)
+### Services/setup
 - `src/services/index.ts` — Account snapshot refresh, identity update.
 - `src/services/telegram.ts` — Telegram bot validation, identity fetch.
 - `src/services/types.ts` — Shared service types.
 
 ### TUI
-- `src/tui/chat-config.ts` — `/chat-config` UI: account/channel management, access policy, secrets config.
+- `src/tui/chat-config.ts` — `/chat-config` UI: account/channel management and access policy.
 - `src/tui/dialogs.ts` — Shared dialog helpers: select, notice, loader, toggle.
-- `src/tui/telegram-setup.ts` — Guided Telegram account setup (token, DM/group observation).
+- `src/tui/telegram-setup.ts` — Guided Telegram account setup.
 
 ## Storage layout
 
-```
+```text
 ~/.pi/agent/chat/
 ├── config.json
 ├── cache/
 └── accounts/<account>/
-    ├── shared/                    → /shared in VM
+    ├── shared/
     │   ├── memory.md
     │   └── skills/
     └── channels/<channel>/
         ├── channel.jsonl
         ├── .lock
-        ├── workspace/             → /workspace in VM
-        │   ├── memory.md
-        │   ├── skills/
-        │   ├── incoming/
-        │   ├── .secrets/
-        │   └── SYSTEM.md
-        └── gondolin/
-            └── session.json
+        └── workspace/
+            ├── memory.md
+            ├── skills/
+            ├── incoming/
+            ├── .secrets/
+            └── SYSTEM.md
 ```
 
 ## Log record types
@@ -107,11 +100,11 @@ Parsed by `ConversationRuntime.parseControlCommand()`: `stop`, `new`, `compact`,
 1. Agent calls `chat_request_secret` tool → RSA keypair generated, widget URL sent to chat.
 2. User opens `pi.dev/secret#<base64>`, pastes secret, gets encrypted blob.
 3. User pastes `!secret:<id>:<payload>` back into chat.
-4. pi-chat intercepts (before trigger check), decrypts, writes to `/workspace/.secrets/<name>`, notifies agent.
+4. pi-chat intercepts, decrypts, writes to the channel workspace `.secrets/<name>`, and notifies the agent.
 
 ## Conventions
 
 - `npm run check` = biome + tsc.
-- No ambient host env leaks into VM.
-- All paths shown to the model use guest-relative paths (`/workspace/...`, `/shared/...`).
+- Remote chat access is trusted host access. Do not connect untrusted chats.
+- Paths shown to the model are real host paths.
 - Transcript lines include `[uid:ID]` for tamper-resistant user identification.

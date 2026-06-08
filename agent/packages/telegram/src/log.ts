@@ -61,7 +61,6 @@ export async function ensureConversationDirs(conversation: ResolvedConversation)
 	await mkdir(dirname(conversation.logPath), { recursive: true });
 	await mkdir(dirname(conversation.lockPath), { recursive: true });
 	await mkdir(conversation.workspaceDir, { recursive: true });
-	await mkdir(conversation.gondolinDir, { recursive: true });
 	await mkdir(conversation.filesDir, { recursive: true });
 	await ensureRegularFile(conversation.accountMemoryPath);
 	await ensureRegularFile(conversation.channelMemoryPath);

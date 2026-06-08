@@ -7,8 +7,6 @@ import type {
 	ChatAccountConfig,
 	ChatConfig,
 	ConfiguredChannel,
-	GondolinConfig,
-	GondolinSecretConfig,
 	ResolvedConversation,
 } from "./core/config-types.js";
 
@@ -40,16 +38,6 @@ function mergeAccess(...policies: Array<AccessPolicy | undefined>): AccessPolicy
 	return merged;
 }
 
-function mergeGondolinSecrets(...configs: Array<GondolinConfig | undefined>): Record<string, GondolinSecretConfig> {
-	const merged: Record<string, GondolinSecretConfig> = {};
-	for (const config of configs) {
-		for (const [name, secret] of Object.entries(config?.secrets ?? {})) {
-			merged[name] = { value: secret.value, hosts: [...secret.hosts] };
-		}
-	}
-	return merged;
-}
-
 function buildResolvedConversation(
 	config: ChatConfig,
 	accountId: string,
@@ -71,12 +59,10 @@ function buildResolvedConversation(
 		conversationId: `${accountId}/${channelKey}`,
 		conversationName: `${account.name ?? accountId} / ${channel.name ?? channelKey}`,
 		access: mergeAccess(account.access, channel.access),
-		gondolinSecrets: mergeGondolinSecrets(config.gondolin, account.gondolin, channel.gondolin),
 		accountDir,
 		sharedDir: join(accountDir, "shared"),
 		conversationDir,
 		workspaceDir,
-		gondolinDir: join(conversationDir, "gondolin"),
 		accountMemoryPath: join(accountDir, "shared", "memory.md"),
 		channelMemoryPath: join(conversationDir, "workspace", "memory.md"),
 		logPath: join(conversationDir, "channel.jsonl"),
@@ -111,7 +97,6 @@ export async function loadChatConfig(): Promise<ChatConfig> {
 		const parsed = JSON.parse(content) as ChatConfig;
 		return {
 			botName: parsed.botName?.trim() || "pi",
-			gondolin: parsed.gondolin,
 			accounts: (parsed.accounts ?? {}) as Record<string, ChatAccountConfig>,
 		};
 	} catch {
