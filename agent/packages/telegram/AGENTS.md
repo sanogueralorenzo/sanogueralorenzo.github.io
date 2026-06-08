@@ -8,7 +8,7 @@ Pi extension bridging Telegram DMs/groups to a local pi session with direct host
 Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent ←→ host tools
 ```
 
-- **No sandbox.** Remote Telegram turns run with the same local filesystem and process access as the pi session where this extension is installed.
+- **Host access.** Remote Telegram turns run with the same local filesystem and process access as the pi session where this extension is installed.
 - **One JSONL log per channel.** Append-only event stream: inbound, outbound, job lifecycle.
 - **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
 - **Host tools.** `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths. `chat_history`, `chat_attach`, and `chat_request_secret` are available during chat turns.
@@ -66,13 +66,13 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 ├── config.json
 ├── cache/
 └── accounts/<account>/
-    ├── shared/
+    ├── account/
     │   ├── memory.md
     │   └── skills/
     └── channels/<channel>/
         ├── channel.jsonl
         ├── .lock
-        └── workspace/
+        └── channel/
             ├── memory.md
             ├── skills/
             ├── incoming/
@@ -100,7 +100,7 @@ Parsed by `ConversationRuntime.parseControlCommand()`: `stop`, `new`, `compact`,
 1. Agent calls `chat_request_secret` tool → RSA keypair generated, widget URL sent to chat.
 2. User opens `pi.dev/secret#<base64>`, pastes secret, gets encrypted blob.
 3. User pastes `!secret:<id>:<payload>` back into chat.
-4. pi-chat intercepts, decrypts, writes to the channel workspace `.secrets/<name>`, and notifies the agent.
+4. pi-chat intercepts, decrypts, writes to the channel data `.secrets/<name>`, and notifies the agent.
 
 ## Conventions
 

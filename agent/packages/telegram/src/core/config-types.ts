@@ -48,9 +48,9 @@ export interface ResolvedConversation {
 	conversationName: string;
 	access: AccessPolicy;
 	accountDir: string;
-	sharedDir: string;
+	accountDataDir: string;
 	conversationDir: string;
-	workspaceDir: string;
+	channelDataDir: string;
 	accountMemoryPath: string;
 	channelMemoryPath: string;
 	logPath: string;

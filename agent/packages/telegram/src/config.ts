@@ -48,7 +48,7 @@ function buildResolvedConversation(
 	if (!account) throw new Error(`Unknown account: ${accountId}`);
 	const accountDir = getAccountStorageDir(accountId);
 	const conversationDir = getChannelStorageDir(accountId, channelKey);
-	const workspaceDir = join(conversationDir, "workspace");
+	const channelDataDir = join(conversationDir, "channel");
 	return {
 		service: account.service,
 		botName: config.botName?.trim() || "pi",
@@ -60,13 +60,13 @@ function buildResolvedConversation(
 		conversationName: `${account.name ?? accountId} / ${channel.name ?? channelKey}`,
 		access: mergeAccess(account.access, channel.access),
 		accountDir,
-		sharedDir: join(accountDir, "shared"),
+		accountDataDir: join(accountDir, "account"),
 		conversationDir,
-		workspaceDir,
-		accountMemoryPath: join(accountDir, "shared", "memory.md"),
-		channelMemoryPath: join(conversationDir, "workspace", "memory.md"),
+		channelDataDir,
+		accountMemoryPath: join(accountDir, "account", "memory.md"),
+		channelMemoryPath: join(conversationDir, "channel", "memory.md"),
 		logPath: join(conversationDir, "channel.jsonl"),
-		filesDir: join(workspaceDir, "incoming"),
+		filesDir: join(channelDataDir, "incoming"),
 		lockPath: join(conversationDir, ".lock"),
 	};
 }

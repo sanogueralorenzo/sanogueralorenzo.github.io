@@ -2,7 +2,7 @@
 
 A pi extension that bridges Telegram DMs/groups to a local pi session.
 
-This package intentionally runs with **host access by default**. There is no Gondolin VM, no sandbox boundary, and no per-tool sandbox restriction: remote Telegram turns use the same local filesystem and process access as the pi session where the extension is installed.
+This package intentionally runs with **host access by default**: remote Telegram turns use the same local filesystem and process access as the pi session where the extension is installed.
 
 ## Quick Start
 
@@ -83,13 +83,13 @@ Everything lives under `~/.pi/agent/chat/`:
 ├── config.json
 ├── cache/
 └── accounts/<account>/
-    ├── shared/
+    ├── account/
     │   ├── memory.md
     │   └── skills/
     └── channels/<channel>/
         ├── channel.jsonl
         ├── .lock
-        └── workspace/
+        └── channel/
             ├── memory.md
             ├── skills/
             ├── incoming/

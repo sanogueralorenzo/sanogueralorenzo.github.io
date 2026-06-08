@@ -56,11 +56,11 @@ function isInside(root: string, value: string): boolean {
 
 export async function ensureConversationDirs(conversation: ResolvedConversation): Promise<void> {
 	await mkdir(conversation.accountDir, { recursive: true });
-	await mkdir(conversation.sharedDir, { recursive: true });
+	await mkdir(conversation.accountDataDir, { recursive: true });
 	await mkdir(conversation.conversationDir, { recursive: true });
 	await mkdir(dirname(conversation.logPath), { recursive: true });
 	await mkdir(dirname(conversation.lockPath), { recursive: true });
-	await mkdir(conversation.workspaceDir, { recursive: true });
+	await mkdir(conversation.channelDataDir, { recursive: true });
 	await mkdir(conversation.filesDir, { recursive: true });
 	await ensureRegularFile(conversation.accountMemoryPath);
 	await ensureRegularFile(conversation.channelMemoryPath);
