@@ -1,6 +1,6 @@
-# pi-chat Telegram
+# Agent Telegram
 
-Pi extension bridging Telegram DMs/groups to a local pi session with direct host access.
+Telegram bridge for local agent sessions with direct host access.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 - **One JSONL log per channel.** Append-only event stream: inbound, outbound, job lifecycle.
 - **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
 - **Host tools.** `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths. `chat_history`, `chat_attach`, and `chat_request_secret` are available during chat turns.
-- **Workers.** `/chat-spawn-all` launches one detached tmux/pi worker per configured channel using the `--chat-conversation <account/channel>` extension flag. `/chat-workers`, `/chat-open-all`, and `/chat-kill-all` manage those workers through tmux. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
+- **Workers.** `agent telegram start` launches a detached tmux worker for a configured channel. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
 
 ## Entry point
 
@@ -54,10 +54,9 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 - `src/services/telegram.ts` — Telegram bot validation, identity fetch.
 - `src/services/types.ts` — Shared service types.
 
-### TUI
-- `src/tui/chat-config.ts` — `/chat-config` UI: account/channel management and access policy.
-- `src/tui/dialogs.ts` — Shared dialog helpers: select, notice, loader, toggle.
-- `src/tui/telegram-setup.ts` — Guided Telegram account setup.
+### CLI/setup
+- `src/cli.ts` — `agent telegram ...` commands for login, start/stop, status, autostart, and doctor.
+- `src/tui/dialogs.ts` — Remaining pi UI helpers used by the runtime extension for notices/loaders/selectors.
 
 ## Storage layout
 

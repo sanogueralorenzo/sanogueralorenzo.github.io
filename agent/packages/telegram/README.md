@@ -1,22 +1,20 @@
-# pi-chat Telegram
+# Agent Telegram
 
-A pi extension that bridges Telegram DMs/groups to a local pi session.
+A Telegram bridge for a local agent session.
 
-This package intentionally runs with **host access by default**: remote Telegram turns use the same local filesystem and process access as the pi session where the extension is installed.
+This package intentionally runs with **host access by default**: remote Telegram turns use the same local filesystem and process access as the local agent process.
 
 ## Quick Start
 
 ```bash
-# Install
-pi install /path/to/telegram
-# or
-pi -e /path/to/telegram
+# Configure Telegram account and trusted chat
+agent telegram login
 
-# Configure Telegram accounts and channels
-/chat-config
+# Start the bridge
+agent telegram start
 
-# Connect
-/chat-connect
+# Optional: keep it running after reboot/login
+agent telegram autostart enable
 ```
 
 ### Requirements
@@ -43,25 +41,22 @@ pi -e /path/to/telegram
 ## Setup
 
 1. Create a bot via [@BotFather](https://t.me/BotFather)
-2. Run `/chat-config` → Create account
+2. Run `agent telegram login`
 3. Enter your bot token
-4. Add DMs or groups through the guided setup
+4. Send a message to the bot when prompted
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/chat-config` | Configure Telegram accounts and channels |
-| `/chat-connect` | Connect to a configured channel |
-| `/chat-disconnect` | Disconnect the current channel |
-| `/chat-status` | Show connection status, model, usage, context |
-| `/chat-list` | List configured channels |
-| `/chat-spawn-all` | Spawn every configured channel in detached tmux/pi sessions |
-| `/chat-spawn-all --restart` | Restart those tmux/pi sessions |
-| `/chat-workers` | Show managed tmux/pi worker status |
-| `/chat-open-all` | Open running workers in a tiled tmux dashboard |
-| `/chat-kill-all` | Kill all managed tmux/pi workers |
-| `/chat-new` | Start a new pi session, keeping the chat connection |
+| `agent telegram login` | Configure Telegram bot and trusted chat |
+| `agent telegram start [chat]` | Start the Telegram worker in tmux |
+| `agent telegram start --foreground [chat]` | Run the Telegram worker in the foreground |
+| `agent telegram stop [chat]` | Stop one or all Telegram workers |
+| `agent telegram status` | Show config, workers, and autostart state |
+| `agent telegram autostart enable [chat]` | Enable boot/login persistence |
+| `agent telegram autostart disable` | Disable boot/login persistence |
+| `agent telegram doctor` | Check local requirements |
 
 ## Remote Control
 

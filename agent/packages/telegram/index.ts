@@ -35,7 +35,6 @@ import { connectLive } from "./src/live/index.js";
 import type { LiveConnection } from "./src/live/types.js";
 import { ConversationRuntime } from "./src/runtime.js";
 import { createSecretRequest, tryDecryptSecret } from "./src/secrets.js";
-import { runChatConfigUI } from "./src/tui/chat-config.js";
 import { runWithLoader, selectItem, showNotice } from "./src/tui/dialogs.js";
 
 function buildChatSystemPromptSuffix(service: string, mode: "dm" | "mention", channelName: string): string {
@@ -997,19 +996,6 @@ export default function (pi: ExtensionAPI) {
 		updateStatus(ctx);
 	}
 
-	pi.registerCommand("chat-config", {
-		description: "Configure pi-chat Telegram accounts and channels",
-		handler: async (_args, ctx) => {
-			await loadConfigOnce();
-			const conversationId = runtime?.conversation.conversationId;
-			await runChatConfigUI(ctx);
-			if (!conversationId || !runtime) return;
-			const updatedConfig = await loadChatConfig();
-			const updatedConversation = resolveConversation(updatedConfig, conversationId);
-			if (updatedConversation) Object.assign(runtime.conversation, updatedConversation);
-		},
-	});
-
 	pi.registerCommand("chat-list", {
 		description: "List configured channels",
 		handler: async (_args, ctx) => {
@@ -1017,7 +1003,7 @@ export default function (pi: ExtensionAPI) {
 			const config = await loadChatConfig();
 			const configured = listConfiguredConversations(config);
 			if (configured.length === 0) {
-				ctx.ui.notify(`No configured channels. Run /chat-config. (${CHAT_CONFIG_PATH})`, "warning");
+				ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
 				return;
 			}
 			ctx.ui.notify(configured.map((item) => item.conversationName).join("\n"), "info");
@@ -1033,7 +1019,7 @@ export default function (pi: ExtensionAPI) {
 			const config = await loadChatConfig();
 			const configured = listConfiguredConversations(config);
 			if (configured.length === 0) {
-				ctx.ui.notify(`No configured channels. Run /chat-config. (${CHAT_CONFIG_PATH})`, "warning");
+				ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
 				return;
 			}
 			const lines = configured.map((conversation) => spawnConversationTmux(ctx, conversation, restart));
@@ -1049,7 +1035,7 @@ export default function (pi: ExtensionAPI) {
 			const config = await loadChatConfig();
 			const configured = listConfiguredConversations(config);
 			if (configured.length === 0) {
-				ctx.ui.notify(`No configured channels. Run /chat-config. (${CHAT_CONFIG_PATH})`, "warning");
+				ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
 				return;
 			}
 			ctx.ui.notify(await formatWorkerStatus(configured), "info");
@@ -1097,7 +1083,7 @@ export default function (pi: ExtensionAPI) {
 			if (!spec) {
 				const configured = listConfiguredConversations(config);
 				if (configured.length === 0) {
-					ctx.ui.notify(`No configured channels. Run /chat-config. (${CHAT_CONFIG_PATH})`, "warning");
+					ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
 					return;
 				}
 				if (!ctx.hasUI) {
