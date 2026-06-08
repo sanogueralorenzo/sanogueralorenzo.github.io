@@ -70,6 +70,8 @@ HARNESS_MODEL       default: gpt-4o-mini
 HARNESS_OPENAI_API  default: openai-completions
 HARNESS_BASE_URL    default: https://api.openai.com/v1
 HARNESS_CACHE_RETENTION default: short; values: short, long, none
+HARNESS_MODEL_INPUTS optional comma list: text or text,image
+HARNESS_MODEL_REASONING optional boolean override for model reasoning metadata
 ```
 
 The OpenAI provider supports two API adapters:
@@ -85,6 +87,8 @@ This follows Pi's split between provider and API:
 
 - provider: the vendor or account surface, for example `openai`
 - API adapter: the wire protocol, for example `openai-completions` or `openai-responses`
+
+OpenAI construction resolves into one Pi-shaped provider/model config before the adapter is built. The config keeps the provider id, API adapter, base URL, model id, input capabilities, reasoning metadata, API key, and cache retention together. The harness still only exposes `dry-run` and `openai`; it does not import Pi's broader provider registry, custom `models.json`, fuzzy resolver, or OAuth flow yet.
 
 The runtime persists the assistant tool call, runs the local Rust tool, persists the matching tool result, then continues the model loop.
 
@@ -112,7 +116,7 @@ cargo test --manifest-path harness/Cargo.toml
 
 ## Provider Direction
 
-Providers and API adapters live behind the `ModelClient` contract. Providers choose an API adapter, and adapters own protocol-specific request/response conversion. Keep each API adapter in its own module, add one at a time, and verify tool-call continuation before exposing it through the CLI.
+Providers and API adapters live behind the `ModelClient` contract. Providers resolve a model config, choose an API adapter, and adapters own protocol-specific request/response conversion. Keep each API adapter in its own module, add one at a time, and verify tool-call continuation before exposing it through the CLI.
 
 The intended order is:
 
