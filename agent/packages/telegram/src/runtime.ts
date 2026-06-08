@@ -22,6 +22,7 @@ import {
 	readConversationLog,
 	releaseConversationLock,
 } from "./log.js";
+import { transcribeInboundAudio } from "./stt.js";
 
 function isDMConversation(conversation: ResolvedConversation): boolean {
 	return conversation.channel.dm ?? false;
@@ -195,6 +196,7 @@ export class ConversationRuntime {
 		const normalized = normalizeInboundMessage(input, this.conversation.botName);
 		const messageId = normalized.messageId || nextMessageId(this.conversation.service);
 		const attachments = await materializeAttachments(this.conversation, messageId, normalized.attachments);
+		const text = await transcribeInboundAudio(normalized.text, attachments);
 		const record: InboundMessageRecord = {
 			type: "inbound",
 			...buildBaseRecordFields(this.conversation, this.nextRecordId),
@@ -202,7 +204,7 @@ export class ConversationRuntime {
 			userId: normalized.userId,
 			userName: normalized.userName,
 			roleIds: normalized.roleIds,
-			text: normalized.text,
+			text,
 			mentionedBot: normalized.mentionedBot ?? false,
 			isBot: normalized.isBot ?? false,
 			attachments,

@@ -23,6 +23,7 @@ pi -e /path/to/telegram
 
 - A Telegram bot token
 - `tmux` for multi-channel worker orchestration
+- Optional for voice transcription: Python with `faster-whisper` available to the worker
 
 ## Features
 
@@ -37,6 +38,7 @@ pi -e /path/to/telegram
 - Remote control: stop, compact, new session, status
 - Chat history search
 - File attachments in both directions
+- Telegram voice/audio transcription through a local Whisper worker
 
 ## Setup
 
@@ -96,6 +98,23 @@ Everything lives under `~/.pi/agent/chat/`:
 ```
 
 The agent's actual working directory is the local pi session cwd. The account/channel storage paths above are regular host paths and can be read/written directly.
+
+## Voice Messages
+
+Telegram `voice` and `audio` messages are downloaded as audio attachments and transcribed before the message is added to the chat transcript.
+
+Environment knobs:
+
+```text
+PI_CHAT_STT_ENABLED   default: 1; set 0/false/no to disable
+PI_CHAT_STT_PYTHON    Python executable for the worker
+PI_CHAT_STT_MODEL     default: base
+PI_CHAT_STT_LANGUAGE  default: en
+PI_CHAT_STT_DEVICE    default: cpu
+PI_CHAT_STT_COMPUTE_TYPE default: int8
+```
+
+The worker expects `faster-whisper` to be importable from the selected Python environment.
 
 ## Tools
 
