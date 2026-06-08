@@ -55,13 +55,7 @@ impl ModelClient for OpenAiCompletionsModel {
             store: false,
         };
 
-        let mut request = self.client.post(url).bearer_auth(&self.api_key).json(&body);
-
-        if let Some(session_id) = self.cache_session_id() {
-            request = request
-                .header("session_id", session_id)
-                .header("x-client-request-id", session_id);
-        }
+        let request = self.client.post(url).bearer_auth(&self.api_key).json(&body);
 
         let response = request.send().context("send chat completion request")?;
 
@@ -86,6 +80,9 @@ impl OpenAiCompletionsModel {
     }
 
     fn prompt_cache_key(&self) -> Option<String> {
+        if !self.should_send_prompt_cache_key() {
+            return None;
+        }
         self.cache_session_id().map(clamp_prompt_cache_key)
     }
 
@@ -93,6 +90,14 @@ impl OpenAiCompletionsModel {
         match self.cache_retention {
             CacheRetention::Long => Some("24h"),
             CacheRetention::Short | CacheRetention::None => None,
+        }
+    }
+
+    fn should_send_prompt_cache_key(&self) -> bool {
+        match self.cache_retention {
+            CacheRetention::None => false,
+            CacheRetention::Short => self.base_url.contains("api.openai.com"),
+            CacheRetention::Long => true,
         }
     }
 }
@@ -394,6 +399,12 @@ struct InboundToolFunction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::sync::mpsc;
+    use std::thread;
+
     use serde_json::json;
 
     #[test]
@@ -548,6 +559,66 @@ mod tests {
     }
 
     #[test]
+    fn sends_short_prompt_cache_key_only_to_openai_base_url_like_pi() {
+        let openai_model = OpenAiCompletionsModel::with_cache(
+            "https://api.openai.com/v1".to_owned(),
+            "key".to_owned(),
+            "model".to_owned(),
+            Some("session-1".to_owned()),
+            CacheRetention::Short,
+        );
+        let custom_model = OpenAiCompletionsModel::with_cache(
+            "http://localhost".to_owned(),
+            "key".to_owned(),
+            "model".to_owned(),
+            Some("session-1".to_owned()),
+            CacheRetention::Short,
+        );
+
+        assert_eq!(
+            openai_model.prompt_cache_key(),
+            Some("session-1".to_owned())
+        );
+        assert_eq!(custom_model.prompt_cache_key(), None);
+    }
+
+    #[test]
+    fn sends_prompt_cache_body_but_no_affinity_headers_for_completions() {
+        let server = TestServer::start(json!({
+            "choices": [{
+                "message": {
+                    "content": "ok",
+                    "tool_calls": []
+                }
+            }]
+        }));
+        let mut model = OpenAiCompletionsModel::with_cache(
+            server.base_url(),
+            "test-key".to_owned(),
+            "test-model".to_owned(),
+            Some("session-123".to_owned()),
+            CacheRetention::Long,
+        );
+
+        let step = model
+            .next_step(
+                &[Event::UserMessage {
+                    content: "hello".to_owned(),
+                }],
+                &[],
+            )
+            .unwrap();
+        let request = server.request();
+
+        assert_eq!(step, ModelStep::Final("ok".to_owned()));
+        assert_eq!(request.body["prompt_cache_key"], "session-123");
+        assert_eq!(request.body["prompt_cache_retention"], "24h");
+        assert!(!request.headers.contains_key("session_id"));
+        assert!(!request.headers.contains_key("x-client-request-id"));
+        assert!(!request.headers.contains_key("x-session-affinity"));
+    }
+
+    #[test]
     fn disables_prompt_cache_fields_when_retention_is_none() {
         let model = OpenAiCompletionsModel::with_cache(
             "http://localhost".to_owned(),
@@ -560,5 +631,113 @@ mod tests {
         assert_eq!(model.prompt_cache_key(), None);
         assert_eq!(model.prompt_cache_retention(), None);
         assert_eq!(model.cache_session_id(), None);
+    }
+
+    struct RecordedRequest {
+        headers: HashMap<String, String>,
+        body: Value,
+    }
+
+    struct TestServer {
+        base_url: String,
+        request: mpsc::Receiver<RecordedRequest>,
+        handle: thread::JoinHandle<()>,
+    }
+
+    impl TestServer {
+        fn start(response: Value) -> Self {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let base_url = format!("http://{}", listener.local_addr().unwrap());
+            let (tx, rx) = mpsc::channel();
+            let handle = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let request = read_http_request(&mut stream);
+                tx.send(request).unwrap();
+                write_http_json(&mut stream, &response);
+            });
+
+            Self {
+                base_url,
+                request: rx,
+                handle,
+            }
+        }
+
+        fn base_url(&self) -> String {
+            self.base_url.clone()
+        }
+
+        fn request(self) -> RecordedRequest {
+            let _ = self.handle.join();
+            self.request.recv().unwrap()
+        }
+    }
+
+    fn read_http_request(stream: &mut TcpStream) -> RecordedRequest {
+        let mut buffer = Vec::new();
+        let mut chunk = [0; 4096];
+        loop {
+            let count = stream.read(&mut chunk).unwrap();
+            assert!(count > 0);
+            buffer.extend_from_slice(&chunk[..count]);
+            if let Some(length) = content_length(&buffer) {
+                let header_end = find_header_end(&buffer).unwrap();
+                let body_len = buffer.len() - header_end;
+                if body_len >= length {
+                    let headers = parse_headers(&buffer[..header_end]);
+                    let body = String::from_utf8(buffer[header_end..header_end + length].to_vec())
+                        .unwrap();
+                    return RecordedRequest {
+                        headers,
+                        body: serde_json::from_str(&body).unwrap(),
+                    };
+                }
+            }
+        }
+    }
+
+    fn content_length(buffer: &[u8]) -> Option<usize> {
+        let headers = String::from_utf8_lossy(buffer);
+        let header_text = headers.split("\r\n\r\n").next()?;
+        for line in header_text.lines() {
+            let Some((name, value)) = line.split_once(':') else {
+                continue;
+            };
+            if name.eq_ignore_ascii_case("content-length") {
+                return value.trim().parse().ok();
+            }
+        }
+        None
+    }
+
+    fn parse_headers(bytes: &[u8]) -> HashMap<String, String> {
+        let text = String::from_utf8_lossy(bytes);
+        let mut headers = HashMap::new();
+        for line in text.lines().skip(1) {
+            let Some((name, value)) = line.split_once(':') else {
+                continue;
+            };
+            headers.insert(name.to_ascii_lowercase(), value.trim().to_owned());
+        }
+        headers
+    }
+
+    fn find_header_end(buffer: &[u8]) -> Option<usize> {
+        buffer
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .map(|index| index + 4)
+    }
+
+    fn write_http_json(stream: &mut TcpStream, value: &Value) {
+        let body = value.to_string();
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        )
+        .unwrap();
+        stream.flush().unwrap();
     }
 }
