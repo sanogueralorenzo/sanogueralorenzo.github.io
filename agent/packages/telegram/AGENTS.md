@@ -5,11 +5,12 @@ Telegram bridge for local agent sessions with direct host access.
 ## Architecture
 
 ```text
-Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent ←→ host tools
+Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi --print ←→ host tools
 ```
 
-- **Host access.** Remote Telegram turns run with the same local filesystem and process access as the pi session where this extension is installed.
-- **One JSONL log per channel.** Append-only event stream: inbound, outbound, job lifecycle.
+- **Host access.** Remote Telegram turns run with the same local filesystem and process access as the local agent process.
+- **Single chat.** This package intentionally supports one configured Telegram DM/group at a time. Running `agent telegram login` replaces the previous chat config.
+- **One JSONL log.** Append-only event stream: inbound, outbound, job lifecycle.
 - **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
 - **Host tools.** Agent turns are executed through `pi --print`, so normal local coding tools such as `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths.
 - **Workers.** `agent telegram start` launches the Telegram worker as a user service. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
@@ -18,14 +19,12 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 
 `src/daemon.ts` — Standalone Telegram daemon used by `agent telegram run/start`. Polls Telegram, queues chat jobs, and calls `pi --print` for agent turns.
 
-`index.ts` — Legacy pi extension adapter kept temporarily for reference/compatibility.
-
 ## Key files
 
 ### Core types
-- `src/core/config-types.ts` — Config, account, channel, and resolved conversation types.
+- `src/core/config-types.ts` — Config, account, chat, and resolved conversation types.
 - `src/core/runtime-types.ts` — Log record types, job types, dispatch types.
-- `src/core/discovery-types.ts` — Discovery snapshot types (channels, users, roles).
+- `src/core/discovery-types.ts` — Discovery snapshot types.
 - `src/core/keys.ts` — Channel key derivation.
 
 ### Config & storage
@@ -58,7 +57,6 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 
 ### CLI/setup
 - `src/cli.ts` — `agent telegram ...` commands for login, run, start/stop, restart, enable/disable, status, and doctor.
-- `src/tui/dialogs.ts` — Remaining pi UI helpers used by the runtime extension for notices/loaders/selectors.
 
 ## Storage layout
 
@@ -71,7 +69,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 ├── skills/
 ├── secrets/
 └── accounts/<account>/
-    └── channels/<channel>/
+    └── channels/<chat>/
         ├── channel.jsonl
         ├── .lock
         └── channel/

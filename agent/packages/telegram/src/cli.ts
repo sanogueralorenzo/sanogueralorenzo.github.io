@@ -63,13 +63,13 @@ function usage(): string {
 	return `agent telegram <command>
 
 Commands:
-  login                         Configure a Telegram bot and trusted DM/group
-  run [conversation]            Run Telegram worker in the foreground
-  start [conversation]          Start Telegram worker as a user service
+  login                         Configure the single Telegram bot/chat
+  run                           Run Telegram worker in the foreground
+  start                         Start Telegram worker as a user service
   stop                          Stop Telegram worker service
-  restart [conversation]        Restart Telegram worker service
+  restart                       Restart Telegram worker service
   status                        Show Telegram config and service state
-  enable [conversation]         Enable Telegram worker on boot/login
+  enable                        Enable Telegram worker on boot/login
   disable                       Disable Telegram worker on boot/login
   doctor                        Check required local tools
 `;
@@ -77,13 +77,6 @@ Commands:
 
 function normalizeArgs(argv: string[]): string[] {
 	return argv[0] === "telegram" ? argv.slice(1) : argv;
-}
-
-function ensureUniqueKey(existing: Record<string, unknown>, base: string): string {
-	if (!existing[base]) return base;
-	let index = 2;
-	while (existing[`${base}-${index}`]) index += 1;
-	return `${base}-${index}`;
 }
 
 function displayName(user: TelegramUser | undefined): string | undefined {
@@ -169,7 +162,7 @@ async function commandLogin(): Promise<void> {
 	const validation = await validateAccountDraft({ service: "telegram", botToken: token });
 	const defaultLabel = validation.identity.userName || validation.identity.name || "telegram";
 	const label = await prompt("Account label", defaultLabel);
-	const accountKey = ensureUniqueKey(config.accounts, makeAccountKey("telegram", label));
+	const accountKey = makeAccountKey("telegram", label);
 	let account: TelegramAccountConfig = {
 		service: "telegram",
 		name: label,
@@ -185,9 +178,9 @@ async function commandLogin(): Promise<void> {
 		ignoreBots: true,
 		allowedUserIds: observed.userId ? [observed.userId] : undefined,
 	};
-	const channelKey = ensureUniqueKey(
-		account.channels,
-		makeChannelKey(observed.dm ? `dm-${observed.userName || observed.chatName}` : observed.chatName, observed.chatId),
+	const channelKey = makeChannelKey(
+		observed.dm ? `dm-${observed.userName || observed.chatName}` : observed.chatName,
+		observed.chatId,
 	);
 	const channel: ConfiguredChannel = {
 		id: observed.chatId,
@@ -196,28 +189,23 @@ async function commandLogin(): Promise<void> {
 		access,
 	};
 	account.channels[channelKey] = channel;
-	config.accounts[accountKey] = account;
-	await saveChatConfig(config);
+	await saveChatConfig({ botName: config.botName, accounts: { [accountKey]: account } });
 	console.log("\nTelegram ready.");
 	console.log(`  account: ${accountKey}`);
 	console.log(`  chat: ${channelKey}`);
 	console.log(`  conversation: ${accountKey}/${channelKey}`);
 	console.log("\nStart it with:");
-	console.log(`  agent telegram start ${accountKey}/${channelKey}`);
+	console.log("  agent telegram start");
 }
 
-async function resolveConversationId(config: ChatConfig, requested?: string): Promise<string> {
+async function resolveSingleConversationId(config: ChatConfig): Promise<string> {
 	const conversations = listConfiguredConversations(config);
-	if (requested) {
-		if (!conversations.some((item) => item.conversationId === requested))
-			throw new Error(`Unknown conversation: ${requested}`);
-		return requested;
-	}
-	if (conversations.length === 0) throw new Error("No Telegram chats configured. Run: agent telegram login");
-	if (conversations.length === 1) return conversations[0].conversationId;
-	throw new Error(
-		`Multiple Telegram chats configured. Specify one:\n${conversations.map((item) => `  ${item.conversationId}`).join("\n")}`,
-	);
+	if (conversations.length === 0) throw new Error("No Telegram chat configured. Run: agent telegram login");
+	if (conversations.length > 1)
+		throw new Error(
+			"Multiple Telegram chats found. This agent supports one chat only. Run agent telegram login again to replace the config.",
+		);
+	return conversations[0].conversationId;
 }
 
 function serviceContent(conversationId: string): string {
@@ -231,15 +219,15 @@ async function writeService(conversationId: string): Promise<void> {
 	spawnSync("systemctl", ["--user", "daemon-reload"], { stdio: "inherit" });
 }
 
-async function commandRun(requested?: string): Promise<void> {
+async function commandRun(): Promise<void> {
 	const config = await loadChatConfig();
-	const conversationId = await resolveConversationId(config, requested);
+	const conversationId = await resolveSingleConversationId(config);
 	await runPiForeground(conversationId);
 }
 
-async function commandStart(requested?: string): Promise<void> {
+async function commandStart(): Promise<void> {
 	const config = await loadChatConfig();
-	const conversationId = await resolveConversationId(config, requested);
+	const conversationId = await resolveSingleConversationId(config);
 	await writeService(conversationId);
 	spawnSync("systemctl", ["--user", "start", "agent-telegram.service"], { stdio: "inherit" });
 	console.log(`Started Telegram service for ${conversationId}`);
@@ -254,8 +242,8 @@ async function commandStop(): Promise<void> {
 	console.log("Stopped Telegram service.");
 }
 
-async function commandRestart(requested?: string): Promise<void> {
-	await commandStart(requested);
+async function commandRestart(): Promise<void> {
+	await commandStart();
 	spawnSync("systemctl", ["--user", "restart", "agent-telegram.service"], { stdio: "inherit" });
 }
 
@@ -263,15 +251,15 @@ async function commandStatus(): Promise<void> {
 	const config = await loadChatConfig();
 	const conversations = listConfiguredConversations(config);
 	console.log(`Config: ${CHAT_HOME}`);
-	console.log(`Chats: ${conversations.length}`);
-	for (const conversation of conversations)
-		console.log(`- ${conversation.conversationId} — ${conversation.conversationName}`);
+	console.log(`Chat: ${conversations.length === 0 ? "not configured" : conversations[0].conversationId}`);
+	if (conversations.length > 1)
+		console.log(`Warning: ${conversations.length} chats configured; only one is supported.`);
 	await commandServiceStatus();
 }
 
-async function commandEnable(requested?: string): Promise<void> {
+async function commandEnable(): Promise<void> {
 	const config = await loadChatConfig();
-	const conversationId = await resolveConversationId(config, requested);
+	const conversationId = await resolveSingleConversationId(config);
 	await writeService(conversationId);
 	spawnSync("systemctl", ["--user", "enable", "--now", "agent-telegram.service"], { stdio: "inherit" });
 	spawnSync("loginctl", ["enable-linger", process.env.USER || ""], { stdio: "ignore" });
@@ -312,12 +300,12 @@ async function main(): Promise<void> {
 			return;
 		}
 		if (command === "login") return await commandLogin();
-		if (command === "run") return await commandRun(args[0]);
-		if (command === "start") return await commandStart(args[0]);
+		if (command === "run") return await commandRun();
+		if (command === "start") return await commandStart();
 		if (command === "stop") return await commandStop();
-		if (command === "restart") return await commandRestart(args[0]);
+		if (command === "restart") return await commandRestart();
 		if (command === "status") return await commandStatus();
-		if (command === "enable") return await commandEnable(args[0]);
+		if (command === "enable") return await commandEnable();
 		if (command === "disable") return await commandDisable();
 		if (command === "doctor") return commandDoctor();
 		throw new Error(`Unknown command: ${command}`);

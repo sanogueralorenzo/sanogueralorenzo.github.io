@@ -25,11 +25,6 @@
 		"check": "biome check . && tsc --noEmit",
 		"format": "biome check --write ."
 	},
-	"peerDependencies": {
-		"@mariozechner/pi-coding-agent": "*",
-		"@mariozechner/pi-tui": "*",
-		"@sinclair/typebox": "*"
-	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.5",
 		"@types/node": "^24.5.2",

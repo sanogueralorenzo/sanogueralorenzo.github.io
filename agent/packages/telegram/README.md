@@ -24,9 +24,9 @@ agent telegram enable
 
 ## Features
 
-- Telegram DMs/groups
+- One Telegram DM/group at a time
 - Direct host-machine access for coding tools
-- Persistent account/channel storage across sessions
+- Persistent chat storage across sessions
 - Streamed preview responses with edit-in-place
 - Reply-to-trigger responses
 - One simple durable memory file
@@ -48,13 +48,13 @@ agent telegram enable
 
 | Command | Description |
 |---------|-------------|
-| `agent telegram login` | Configure Telegram bot and trusted chat |
-| `agent telegram run [chat]` | Run the Telegram worker in the foreground |
-| `agent telegram start [chat]` | Start the Telegram worker as a user service |
+| `agent telegram login` | Configure the Telegram bot and trusted chat |
+| `agent telegram run` | Run the Telegram worker in the foreground |
+| `agent telegram start` | Start the Telegram worker as a user service |
 | `agent telegram stop` | Stop the Telegram worker service |
-| `agent telegram restart [chat]` | Restart the Telegram worker service |
+| `agent telegram restart` | Restart the Telegram worker service |
 | `agent telegram status` | Show config and service state |
-| `agent telegram enable [chat]` | Enable boot/login persistence |
+| `agent telegram enable` | Enable boot/login persistence |
 | `agent telegram disable` | Disable boot/login persistence |
 | `agent telegram doctor` | Check local requirements |
 
@@ -82,14 +82,14 @@ Everything lives under `~/.pi/agent/chat/`:
 ├── skills/                               # Reusable skills
 ├── secrets/                              # Runtime secrets received from Telegram
 └── accounts/<account>/
-    └── channels/<channel>/
+    └── channels/<chat>/
         ├── channel.jsonl
         ├── .lock
         └── channel/
             └── incoming/
 ```
 
-The agent's actual working directory is the local pi session cwd. The account/channel storage paths above are regular host paths and can be read/written directly.
+The agent's actual working directory is the local process cwd. The chat storage paths above are regular host paths and can be read/written directly.
 
 ## Voice Messages
 
@@ -122,7 +122,7 @@ The agent runs with normal host coding tools such as `read`, `write`, `edit`, an
 
 This package is for trusted Telegram chats only.
 
-A connected chat can drive an agent with local host access. Configure Telegram channels and allowed users carefully. Do not connect untrusted groups or users.
+A connected chat can drive an agent with local host access. Configure the trusted Telegram chat carefully. Do not connect untrusted groups or users.
 
 ## License
 
