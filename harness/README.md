@@ -49,6 +49,22 @@ Use a different session log with:
 cargo run --manifest-path harness/Cargo.toml -- run --session /tmp/harness.jsonl "hello"
 ```
 
+The default provider is `demo`, which is deterministic and does not call a network API. To run the real provider-backed loop, use the OpenAI-compatible provider:
+
+```shell
+OPENAI_API_KEY=... \
+cargo run --manifest-path harness/Cargo.toml -- run --provider openai "what directory are you in?"
+```
+
+Optional environment:
+
+```text
+HARNESS_MODEL       default: gpt-4o-mini
+HARNESS_BASE_URL    default: https://api.openai.com/v1
+```
+
+The OpenAI-compatible provider uses chat completions with JSON-schema function tools. The runtime persists the assistant tool call, runs the local Rust tool, persists the matching tool result, then continues the model loop.
+
 ## Validate
 
 ```shell

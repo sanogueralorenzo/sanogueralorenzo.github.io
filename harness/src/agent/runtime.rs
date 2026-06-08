@@ -2,20 +2,20 @@ use std::collections::VecDeque;
 
 use anyhow::{Result, bail};
 
-use crate::agent::model::{Model, ModelStep};
+use crate::agent::model::{ModelClient, ModelStep};
 use crate::agent::session::{Event, SessionLog};
 use crate::agent::tools::ToolRegistry;
 
-const MAX_MODEL_STEPS: usize = 16;
+const MAX_TURNS_PER_JOB: usize = 16;
 
-pub struct Runtime<M: Model> {
+pub struct Runtime<M: ModelClient> {
     log: SessionLog,
     tools: ToolRegistry,
     model: M,
     queue: VecDeque<String>,
 }
 
-impl<M: Model> Runtime<M> {
+impl<M: ModelClient> Runtime<M> {
     pub fn new(log: SessionLog, tools: ToolRegistry, model: M) -> Self {
         Self {
             log,
@@ -39,28 +39,42 @@ impl<M: Model> Runtime<M> {
         self.log.append(Event::JobStarted)?;
         self.log.append(Event::UserMessage { content: message })?;
 
-        for _ in 0..MAX_MODEL_STEPS {
+        for turn_index in 1..=MAX_TURNS_PER_JOB {
+            self.log.append(Event::TurnStarted { index: turn_index })?;
             let events = self.log.events().to_vec();
-            match self.model.next_step(&events) {
+            let tool_specs = self.tools.specs();
+
+            match self.model.next_step(&events, &tool_specs)? {
                 ModelStep::Final(content) => {
                     self.log.append(Event::AssistantMessage {
                         content: content.clone(),
                     })?;
+                    self.log.append(Event::TurnFinished { index: turn_index })?;
                     self.log.append(Event::JobFinished)?;
                     return Ok(content);
                 }
-                ModelStep::ToolCall { name, input } => {
+                ModelStep::ToolCall {
+                    id,
+                    name,
+                    arguments,
+                } => {
                     self.log.append(Event::ToolCall {
+                        id: id.clone(),
                         name: name.clone(),
-                        input: input.clone(),
+                        arguments: arguments.clone(),
                     })?;
-                    let output = self.tools.run(&name, &input)?;
-                    self.log.append(Event::ToolResult { name, output })?;
+                    let output = self.tools.run(&name, &arguments)?;
+                    self.log.append(Event::ToolResult {
+                        tool_call_id: id,
+                        name,
+                        output,
+                    })?;
+                    self.log.append(Event::TurnFinished { index: turn_index })?;
                 }
             }
         }
 
-        bail!("agent loop exceeded {MAX_MODEL_STEPS} model steps")
+        bail!("agent loop exceeded {MAX_TURNS_PER_JOB} turns")
     }
 }
 
@@ -101,5 +115,26 @@ mod tests {
         let reply = runtime.run_message("hello".to_owned()).unwrap();
 
         assert_eq!(reply, "echo: hello");
+    }
+
+    #[test]
+    fn persists_turn_boundaries_and_tool_call_ids() {
+        let log = SessionLog::memory();
+        let mut runtime = Runtime::new(log, ToolRegistry::minimal(), DemoModel);
+
+        runtime.run_message("what is pwd".to_owned()).unwrap();
+
+        let events = runtime.log.events();
+        assert!(matches!(events[2], Event::TurnStarted { index: 1 }));
+        assert!(
+            events
+                .iter()
+                .any(|event| matches!(event, Event::ToolCall { id, name, .. } if id == "demo-tool-call-1" && name == "pwd"))
+        );
+        assert!(
+            events
+                .iter()
+                .any(|event| matches!(event, Event::ToolResult { tool_call_id, name, .. } if tool_call_id == "demo-tool-call-1" && name == "pwd"))
+        );
     }
 }

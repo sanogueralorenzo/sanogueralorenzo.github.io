@@ -4,15 +4,34 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type")]
 pub enum Event {
     JobStarted,
-    UserMessage { content: String },
-    AssistantMessage { content: String },
-    ToolCall { name: String, input: String },
-    ToolResult { name: String, output: String },
+    TurnStarted {
+        index: usize,
+    },
+    UserMessage {
+        content: String,
+    },
+    AssistantMessage {
+        content: String,
+    },
+    ToolCall {
+        id: String,
+        name: String,
+        arguments: Value,
+    },
+    ToolResult {
+        tool_call_id: String,
+        name: String,
+        output: String,
+    },
+    TurnFinished {
+        index: usize,
+    },
     JobFinished,
 }
 
