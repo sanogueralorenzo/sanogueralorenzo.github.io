@@ -134,7 +134,7 @@ export class ConversationRuntime {
 		return this.isAllowedInput(message);
 	}
 
-	parseControlCommand(input: InboundMessageInput): "stop" | "new" | "compact" | "status" | undefined {
+	parseControlCommand(input: InboundMessageInput): "stop" | "compact" | "status" | undefined {
 		const normalized = normalizeInboundMessage(input, this.conversation.botName);
 		if (!this.isAllowedInput(normalized)) return undefined;
 		const account = this.conversation.account;
@@ -147,7 +147,6 @@ export class ConversationRuntime {
 		for (const alias of aliases) text = text.replace(new RegExp(`@${escapeRegExp(alias || "")}\\b`, "ig"), " ");
 		const command = text.replace(/\s+/g, " ").trim().toLowerCase();
 		if (command === "stop" || command === "/stop") return "stop";
-		if (command === "new" || command === "/new") return "new";
 		if (command === "compact" || command === "/compact") return "compact";
 		if (command === "status" || command === "/status") return "status";
 		return undefined;

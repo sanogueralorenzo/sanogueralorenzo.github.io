@@ -12,11 +12,11 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 - **One JSONL log per channel.** Append-only event stream: inbound, outbound, job lifecycle.
 - **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
 - **Host tools.** `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths. `chat_history`, `chat_attach`, and `chat_request_secret` are available during chat turns.
-- **Workers.** `agent telegram start` launches a detached tmux worker for a configured channel. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
+- **Workers.** `agent telegram start` launches the Telegram worker as a user service. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
 
 ## Entry point
 
-`index.ts` — Extension factory. Registers tools, commands, event handlers, connection lifecycle, and tmux spawning.
+`index.ts` — Runtime adapter loaded by the foreground/service worker. Registers tools, event handlers, and Telegram connection lifecycle.
 
 ## Key files
 
@@ -55,7 +55,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 - `src/services/types.ts` — Shared service types.
 
 ### CLI/setup
-- `src/cli.ts` — `agent telegram ...` commands for login, start/stop, status, autostart, and doctor.
+- `src/cli.ts` — `agent telegram ...` commands for login, run, start/stop, restart, enable/disable, status, and doctor.
 - `src/tui/dialogs.ts` — Remaining pi UI helpers used by the runtime extension for notices/loaders/selectors.
 
 ## Storage layout
@@ -89,14 +89,14 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi agent 
 
 ## Remote control commands
 
-Parsed by `ConversationRuntime.parseControlCommand()`: `stop`, `new`, `compact`, `status`. Handled before normal ingest in the `onMessage` path.
+Parsed by `ConversationRuntime.parseControlCommand()`: `stop`, `compact`, `status`. Handled before normal ingest in the `onMessage` path.
 
 ## Secret exchange flow
 
 1. Agent calls `chat_request_secret` tool → RSA keypair generated, widget URL sent to chat.
 2. User opens `pi.dev/secret#<base64>`, pastes secret, gets encrypted blob.
 3. User pastes `!secret:<id>:<payload>` back into chat.
-4. pi-chat intercepts, decrypts, writes to `~/.pi/agent/chat/secrets/<name>`, and notifies the agent.
+4. agent-telegram intercepts, decrypts, writes to `~/.pi/agent/chat/secrets/<name>`, and notifies the agent.
 
 ## Conventions
 

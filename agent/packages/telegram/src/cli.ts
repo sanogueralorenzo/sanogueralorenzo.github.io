@@ -58,43 +58,25 @@ interface ObservedTelegramTarget {
 
 const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const servicePath = join(homedir(), ".config", "systemd", "user", "agent-telegram.service");
-const workerPrefix = "agent-telegram-";
 
 function usage(): string {
 	return `agent telegram <command>
 
 Commands:
   login                         Configure a Telegram bot and trusted DM/group
-  start [conversation]          Start Telegram agent worker in tmux
-  start --foreground [conv]     Run Telegram agent worker in the foreground
-  stop [conversation]           Stop Telegram agent worker(s)
-  status                        Show Telegram config and worker state
-  autostart enable [conv]       Enable Telegram worker on boot/login
-  autostart disable             Disable Telegram worker autostart
-  autostart status              Show autostart state
+  run [conversation]            Run Telegram worker in the foreground
+  start [conversation]          Start Telegram worker as a user service
+  stop                          Stop Telegram worker service
+  restart [conversation]        Restart Telegram worker service
+  status                        Show Telegram config and service state
+  enable [conversation]         Enable Telegram worker on boot/login
+  disable                       Disable Telegram worker on boot/login
   doctor                        Check required local tools
 `;
 }
 
 function normalizeArgs(argv: string[]): string[] {
 	return argv[0] === "telegram" ? argv.slice(1) : argv;
-}
-
-function shellQuote(value: string): string {
-	return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
-function safeName(value: string): string {
-	return (
-		value
-			.replace(/[^a-zA-Z0-9_.-]+/g, "-")
-			.replace(/^-+|-+$/g, "")
-			.slice(0, 80) || "default"
-	);
-}
-
-function tmuxName(conversationId: string): string {
-	return `${workerPrefix}${safeName(conversationId)}`;
 }
 
 function ensureUniqueKey(existing: Record<string, unknown>, base: string): string {
@@ -224,21 +206,6 @@ async function commandLogin(): Promise<void> {
 	console.log(`  agent telegram start ${accountKey}/${channelKey}`);
 }
 
-function requireTmux(): void {
-	const result = spawnSync("tmux", ["-V"], { encoding: "utf8" });
-	if (result.error || result.status !== 0) throw new Error("tmux not found. Install tmux and try again.");
-}
-
-function tmuxSessionExists(name: string): boolean {
-	return spawnSync("tmux", ["has-session", "-t", name], { stdio: "ignore" }).status === 0;
-}
-
-function listTmuxSessions(): Set<string> {
-	const result = spawnSync("tmux", ["list-sessions", "-F", "#S"], { encoding: "utf8" });
-	if (result.error || result.status !== 0) return new Set();
-	return new Set(result.stdout.split(/\r?\n/).filter(Boolean));
-}
-
 async function resolveConversationId(config: ChatConfig, requested?: string): Promise<string> {
 	const conversations = listConfiguredConversations(config);
 	if (requested) {
@@ -253,28 +220,29 @@ async function resolveConversationId(config: ChatConfig, requested?: string): Pr
 	);
 }
 
-async function commandStart(args: string[]): Promise<void> {
-	const foreground = args.includes("--foreground");
-	const requested = args.find((arg) => arg !== "--foreground");
+function serviceContent(conversationId: string): string {
+	const cliPath = fileURLToPath(import.meta.url);
+	return `[Unit]\nDescription=Agent Telegram bridge\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nWorkingDirectory=${process.cwd()}\nExecStart=/usr/bin/env npx tsx ${cliPath} telegram run ${conversationId}\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n`;
+}
+
+async function writeService(conversationId: string): Promise<void> {
+	await mkdir(dirname(servicePath), { recursive: true });
+	await writeFile(servicePath, serviceContent(conversationId), "utf8");
+	spawnSync("systemctl", ["--user", "daemon-reload"], { stdio: "inherit" });
+}
+
+async function commandRun(requested?: string): Promise<void> {
 	const config = await loadChatConfig();
 	const conversationId = await resolveConversationId(config, requested);
-	if (foreground) {
-		await runPiForeground(conversationId);
-		return;
-	}
-	requireTmux();
-	const name = tmuxName(conversationId);
-	if (tmuxSessionExists(name)) {
-		console.log(`Already running: ${name}`);
-		return;
-	}
-	const command = `exec pi -e ${shellQuote(packageDir)} --chat-conversation ${shellQuote(conversationId)}`;
-	const result = spawnSync("tmux", ["new-session", "-d", "-s", name, "-c", process.cwd(), command], {
-		encoding: "utf8",
-	});
-	if (result.error || result.status !== 0)
-		throw new Error(result.stderr.trim() || result.error?.message || "tmux failed");
-	console.log(`Started ${conversationId} (${name})`);
+	await runPiForeground(conversationId);
+}
+
+async function commandStart(requested?: string): Promise<void> {
+	const config = await loadChatConfig();
+	const conversationId = await resolveConversationId(config, requested);
+	await writeService(conversationId);
+	spawnSync("systemctl", ["--user", "start", "agent-telegram.service"], { stdio: "inherit" });
+	console.log(`Started Telegram service for ${conversationId}`);
 }
 
 async function runPiForeground(conversationId: string): Promise<void> {
@@ -288,51 +256,41 @@ async function runPiForeground(conversationId: string): Promise<void> {
 	});
 }
 
-async function commandStop(requested?: string): Promise<void> {
-	requireTmux();
-	if (requested) {
-		const name = tmuxName(requested);
-		spawnSync("tmux", ["kill-session", "-t", name], { stdio: "ignore" });
-		console.log(`Stopped ${name}`);
-		return;
-	}
-	const sessions = [...listTmuxSessions()].filter((name) => name.startsWith(workerPrefix));
-	for (const session of sessions) spawnSync("tmux", ["kill-session", "-t", session], { stdio: "ignore" });
-	console.log(sessions.length ? `Stopped ${sessions.length} worker(s).` : "No Telegram workers running.");
+async function commandStop(): Promise<void> {
+	spawnSync("systemctl", ["--user", "stop", "agent-telegram.service"], { stdio: "inherit" });
+	console.log("Stopped Telegram service.");
+}
+
+async function commandRestart(requested?: string): Promise<void> {
+	await commandStart(requested);
+	spawnSync("systemctl", ["--user", "restart", "agent-telegram.service"], { stdio: "inherit" });
 }
 
 async function commandStatus(): Promise<void> {
 	const config = await loadChatConfig();
 	const conversations = listConfiguredConversations(config);
-	const sessions = listTmuxSessions();
 	console.log(`Config: ${CHAT_HOME}`);
 	console.log(`Chats: ${conversations.length}`);
-	for (const conversation of conversations) {
-		const name = tmuxName(conversation.conversationId);
-		console.log(`${sessions.has(name) ? "●" : "○"} ${conversation.conversationId} — ${conversation.conversationName}`);
-	}
-	await commandAutostartStatus();
+	for (const conversation of conversations)
+		console.log(`- ${conversation.conversationId} — ${conversation.conversationName}`);
+	await commandServiceStatus();
 }
 
-async function commandAutostartEnable(requested?: string): Promise<void> {
+async function commandEnable(requested?: string): Promise<void> {
 	const config = await loadChatConfig();
 	const conversationId = await resolveConversationId(config, requested);
-	await mkdir(dirname(servicePath), { recursive: true });
-	const cliPath = fileURLToPath(import.meta.url);
-	const content = `[Unit]\nDescription=Agent Telegram bridge\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nWorkingDirectory=${process.cwd()}\nExecStart=/usr/bin/env npx tsx ${cliPath} telegram start --foreground ${conversationId}\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n`;
-	await writeFile(servicePath, content, "utf8");
-	spawnSync("systemctl", ["--user", "daemon-reload"], { stdio: "inherit" });
+	await writeService(conversationId);
 	spawnSync("systemctl", ["--user", "enable", "--now", "agent-telegram.service"], { stdio: "inherit" });
 	spawnSync("loginctl", ["enable-linger", process.env.USER || ""], { stdio: "ignore" });
-	console.log(`Autostart enabled for ${conversationId}`);
+	console.log(`Enabled Telegram service for ${conversationId}`);
 }
 
-async function commandAutostartDisable(): Promise<void> {
+async function commandDisable(): Promise<void> {
 	spawnSync("systemctl", ["--user", "disable", "--now", "agent-telegram.service"], { stdio: "inherit" });
-	console.log("Autostart disabled.");
+	console.log("Disabled Telegram service on boot/login.");
 }
 
-async function commandAutostartStatus(): Promise<void> {
+async function commandServiceStatus(): Promise<void> {
 	let service = "not installed";
 	try {
 		await readFile(servicePath, "utf8");
@@ -342,12 +300,12 @@ async function commandAutostartStatus(): Promise<void> {
 	} catch {
 		// keep default
 	}
-	console.log(`Autostart: ${service}`);
+	console.log(`Service: ${service}`);
 }
 
 function commandDoctor(): void {
-	for (const binary of ["pi", "tmux", "systemctl", "npx"]) {
-		const result = spawnSync(binary, [binary === "tmux" ? "-V" : "--version"], { encoding: "utf8" });
+	for (const binary of ["pi", "systemctl", "npx"]) {
+		const result = spawnSync(binary, ["--version"], { encoding: "utf8" });
 		console.log(`${result.error || result.status !== 0 ? "✗" : "✓"} ${binary}`);
 	}
 }
@@ -361,16 +319,14 @@ async function main(): Promise<void> {
 			return;
 		}
 		if (command === "login") return await commandLogin();
-		if (command === "start") return await commandStart(args);
-		if (command === "stop") return await commandStop(args[0]);
+		if (command === "run") return await commandRun(args[0]);
+		if (command === "start") return await commandStart(args[0]);
+		if (command === "stop") return await commandStop();
+		if (command === "restart") return await commandRestart(args[0]);
 		if (command === "status") return await commandStatus();
+		if (command === "enable") return await commandEnable(args[0]);
+		if (command === "disable") return await commandDisable();
 		if (command === "doctor") return commandDoctor();
-		if (command === "autostart") {
-			const sub = args.shift();
-			if (sub === "enable") return await commandAutostartEnable(args[0]);
-			if (sub === "disable") return await commandAutostartDisable();
-			if (sub === "status") return await commandAutostartStatus();
-		}
 		throw new Error(`Unknown command: ${command}`);
 	} catch (error) {
 		console.error(error instanceof Error ? error.message : String(error));

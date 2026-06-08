@@ -14,13 +14,12 @@ agent telegram login
 agent telegram start
 
 # Optional: keep it running after reboot/login
-agent telegram autostart enable
+agent telegram enable
 ```
 
 ### Requirements
 
 - A Telegram bot token
-- `tmux` for multi-channel worker orchestration
 - Optional for voice transcription: Python with `faster-whisper` available to the worker
 
 ## Features
@@ -33,7 +32,7 @@ agent telegram autostart enable
 - One simple durable memory file
 - Skills auto-discovered and injected into the prompt
 - Encrypted runtime secret exchange
-- Remote control: stop, compact, new session, status
+- Remote control: stop, compact, status
 - Chat history search
 - File attachments in both directions
 - Telegram voice/audio transcription through a local Whisper worker
@@ -50,12 +49,13 @@ agent telegram autostart enable
 | Command | Description |
 |---------|-------------|
 | `agent telegram login` | Configure Telegram bot and trusted chat |
-| `agent telegram start [chat]` | Start the Telegram worker in tmux |
-| `agent telegram start --foreground [chat]` | Run the Telegram worker in the foreground |
-| `agent telegram stop [chat]` | Stop one or all Telegram workers |
-| `agent telegram status` | Show config, workers, and autostart state |
-| `agent telegram autostart enable [chat]` | Enable boot/login persistence |
-| `agent telegram autostart disable` | Disable boot/login persistence |
+| `agent telegram run [chat]` | Run the Telegram worker in the foreground |
+| `agent telegram start [chat]` | Start the Telegram worker as a user service |
+| `agent telegram stop` | Stop the Telegram worker service |
+| `agent telegram restart [chat]` | Restart the Telegram worker service |
+| `agent telegram status` | Show config and service state |
+| `agent telegram enable [chat]` | Enable boot/login persistence |
+| `agent telegram disable` | Disable boot/login persistence |
 | `agent telegram doctor` | Check local requirements |
 
 ## Remote Control
@@ -67,7 +67,7 @@ Users in the connected chat can send these commands:
 | `stop` | Abort the current turn |
 | `status` | Show model, usage, context stats |
 | `compact` | Trigger context compaction |
-| `new` | Start a new pi session |
+
 
 ## Storage Layout
 

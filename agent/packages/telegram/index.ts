@@ -1,7 +1,6 @@
-import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { type Dirent, constants as fsConstants } from "node:fs";
-import { lstat, mkdir, open, readdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, readdir, realpath, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, join, relative } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import {
@@ -13,29 +12,25 @@ import {
 	createReadToolDefinition,
 	createWriteTool,
 	createWriteToolDefinition,
-	SessionManager,
 } from "@mariozechner/pi-coding-agent";
 import { Box, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import {
-	CHAT_CONFIG_PATH,
 	CHAT_HOME,
 	CHAT_MEMORY_PATH,
 	CHAT_SECRETS_DIR,
 	CHAT_SKILLS_DIR,
 	CHAT_SYSTEM_PATH,
 	ensureChatHome,
-	listConfiguredConversations,
 	loadChatConfig,
 	resolveConversation,
 } from "./src/config.js";
 
-import type { ResolvedConversation } from "./src/core/config-types.js";
 import { connectLive } from "./src/live/index.js";
 import type { LiveConnection } from "./src/live/types.js";
 import { ConversationRuntime } from "./src/runtime.js";
 import { createSecretRequest, tryDecryptSecret } from "./src/secrets.js";
-import { runWithLoader, selectItem, showNotice } from "./src/tui/dialogs.js";
+import { runWithLoader, showNotice } from "./src/tui/dialogs.js";
 
 function buildChatSystemPromptSuffix(service: string, mode: "dm" | "mention", channelName: string): string {
 	return `
@@ -86,10 +81,8 @@ type PersistedChatState = {
 	conversationId?: string;
 };
 
-const SESSION_STATE_CUSTOM_TYPE = "pi-chat-state";
+const SESSION_STATE_CUSTOM_TYPE = "agent-telegram-state";
 const CHAT_CONVERSATION_FLAG = "chat-conversation";
-const WORKER_TMUX_PREFIX = "pi-chat-worker-";
-const DASHBOARD_TMUX_SESSION = "pi-chat-dashboard";
 const WORKER_STATUS_DIR = join(CHAT_HOME, "worker-status");
 
 interface WorkerStatusSnapshot {
@@ -99,7 +92,6 @@ interface WorkerStatusSnapshot {
 	pid: number;
 	cwd: string;
 	sessionFile?: string;
-	tmuxSession: string;
 	state: "connected" | "error";
 	updatedAt: string;
 	model?: string;
@@ -232,150 +224,9 @@ function formatChatSkillsForPrompt(skills: ChatPromptSkill[]): string {
 	return lines.join("\n");
 }
 
-function tmuxSafeName(value: string): string {
-	const safe = value.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "channel";
-	return `${WORKER_TMUX_PREFIX}${safe}`.slice(0, 100);
-}
-
-function shellQuote(value: string): string {
-	return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
-function explicitExtensionCommandParts(): string[] {
-	const parts: string[] = [];
-	for (let i = 0; i < process.argv.length; i++) {
-		const arg = process.argv[i];
-		if ((arg === "-e" || arg === "--extension") && process.argv[i + 1]) {
-			parts.push(arg, shellQuote(process.argv[++i]));
-		} else if (arg.startsWith("--extension=")) {
-			parts.push("--extension", shellQuote(arg.slice("--extension=".length)));
-		}
-	}
-	return parts;
-}
-
-function ensureTmux(): void {
-	const result = spawnSync("tmux", ["-V"], { encoding: "utf8" });
-	if (result.error || result.status !== 0) throw new Error("tmux not found. Install tmux and try again.");
-}
-
-function tmuxSessionExists(name: string): boolean {
-	return spawnSync("tmux", ["has-session", "-t", name], { stdio: "ignore" }).status === 0;
-}
-
-function listTmuxSessions(): Set<string> {
-	const result = spawnSync("tmux", ["list-sessions", "-F", "#S"], { encoding: "utf8" });
-	if (result.error || result.status !== 0) return new Set();
-	return new Set(result.stdout.split(/\r?\n/).filter(Boolean));
-}
-
-function managedWorkerSessions(): string[] {
-	return [...listTmuxSessions()].filter((name) => name.startsWith(WORKER_TMUX_PREFIX)).sort();
-}
-
-function killManagedTmuxSessions(): string[] {
-	const killed: string[] = [];
-	for (const name of managedWorkerSessions()) {
-		spawnSync("tmux", ["kill-session", "-t", name], { stdio: "ignore" });
-		killed.push(name);
-	}
-	return killed;
-}
-
 function workerStatusPath(conversationId: string): string {
-	return join(WORKER_STATUS_DIR, `${tmuxSafeName(conversationId)}.json`);
-}
-
-async function readWorkerStatus(conversationId: string): Promise<WorkerStatusSnapshot | undefined> {
-	try {
-		return JSON.parse(await readFile(workerStatusPath(conversationId), "utf8")) as WorkerStatusSnapshot;
-	} catch {
-		return undefined;
-	}
-}
-
-function formatStatusAge(updatedAt?: string): string {
-	if (!updatedAt) return "no status";
-	const ageMs = Date.now() - Date.parse(updatedAt);
-	if (!Number.isFinite(ageMs) || ageMs < 0) return updatedAt;
-	const seconds = Math.round(ageMs / 1000);
-	if (seconds < 60) return `${seconds}s ago`;
-	const minutes = Math.round(seconds / 60);
-	if (minutes < 60) return `${minutes}m ago`;
-	const hours = Math.round(minutes / 60);
-	return `${hours}h ago`;
-}
-
-async function formatWorkerStatus(conversations: ResolvedConversation[]): Promise<string> {
-	const sessions = listTmuxSessions();
-	const lines: string[] = [];
-	for (const conversation of conversations) {
-		const tmuxName = tmuxSafeName(conversation.conversationId);
-		const snapshot = await readWorkerStatus(conversation.conversationId);
-		const running = sessions.has(tmuxName);
-		const state = snapshot?.lastError ? `error: ${snapshot.lastError}` : (snapshot?.state ?? "unknown");
-		const queue = snapshot ? `q:${snapshot.queueLength}${snapshot.chatTurnInFlight ? " active" : ""}` : "q:?";
-		const model = snapshot?.model ? ` ${snapshot.model}` : "";
-		lines.push(
-			`${running ? "●" : "○"} ${conversation.conversationName} — ${state}, ${queue}, ${formatStatusAge(snapshot?.updatedAt)}${model}\n  ${tmuxName}`,
-		);
-	}
-	return lines.join("\n");
-}
-
-function runTmux(args: string[]): void {
-	const result = spawnSync("tmux", args, { encoding: "utf8" });
-	if (result.error || result.status !== 0)
-		throw new Error(result.stderr.trim() || result.error?.message || "tmux failed");
-}
-
-function createDashboardTmux(): string {
-	const workers = managedWorkerSessions();
-	if (workers.length === 0) throw new Error("No managed pi-chat workers are running.");
-	if (tmuxSessionExists(DASHBOARD_TMUX_SESSION)) {
-		spawnSync("tmux", ["kill-session", "-t", DASHBOARD_TMUX_SESSION], { stdio: "ignore" });
-	}
-	const attachCommand = (name: string) => `exec env -u TMUX tmux attach-session -t ${shellQuote(name)}`;
-	runTmux(["new-session", "-d", "-s", DASHBOARD_TMUX_SESSION, "-n", "chats", attachCommand(workers[0])]);
-	for (const worker of workers.slice(1)) {
-		runTmux(["split-window", "-t", `${DASHBOARD_TMUX_SESSION}:chats`, attachCommand(worker)]);
-	}
-	runTmux(["select-layout", "-t", `${DASHBOARD_TMUX_SESSION}:chats`, "tiled"]);
-	if (process.env.TMUX) runTmux(["switch-client", "-t", DASHBOARD_TMUX_SESSION]);
-	return DASHBOARD_TMUX_SESSION;
-}
-
-function spawnConversationTmux(ctx: ExtensionContext, conversation: ResolvedConversation, restart: boolean): string {
-	const tmuxName = tmuxSafeName(conversation.conversationId);
-	if (restart && tmuxSessionExists(tmuxName)) spawnSync("tmux", ["kill-session", "-t", tmuxName], { stdio: "ignore" });
-	if (tmuxSessionExists(tmuxName)) return `${conversation.conversationName}: already running (${tmuxName})`;
-
-	const sessionDir = join(CHAT_HOME, "tmux-sessions", tmuxName);
-	const session = SessionManager.continueRecent(ctx.cwd, sessionDir);
-	session.appendCustomEntry(SESSION_STATE_CUSTOM_TYPE, { conversationId: conversation.conversationId });
-	session.appendSessionInfo(`pi-chat ${conversation.conversationName}`);
-	const sessionFile = session.getSessionFile();
-	if (!sessionFile) throw new Error(`Could not create pi session for ${conversation.conversationName}`);
-
-	const command = [
-		"exec pi",
-		"--session",
-		shellQuote(sessionFile),
-		"--session-dir",
-		shellQuote(sessionDir),
-		...explicitExtensionCommandParts(),
-		`--${CHAT_CONVERSATION_FLAG}`,
-		shellQuote(conversation.conversationId),
-	].join(" ");
-	const result = spawnSync("tmux", ["new-session", "-d", "-s", tmuxName, "-c", ctx.cwd, command], {
-		encoding: "utf8",
-	});
-	if (result.error || result.status !== 0) {
-		throw new Error(
-			result.stderr.trim() || result.error?.message || `tmux failed for ${conversation.conversationName}`,
-		);
-	}
-	return `${conversation.conversationName}: started (${tmuxName})`;
+	const safe = conversationId.replace(/[^a-zA-Z0-9_.-]+/g, "-").replace(/^-+|-+$/g, "") || "default";
+	return join(WORKER_STATUS_DIR, `${safe}.json`);
 }
 
 function abortError(): Error {
@@ -425,13 +276,13 @@ function extractAssistantSummary(messages: unknown[]): AssistantSummary {
 
 export default function (pi: ExtensionAPI) {
 	pi.registerFlag(CHAT_CONVERSATION_FLAG, {
-		description: "Auto-connect pi-chat to a configured account/channel",
+		description: "Auto-connect agent-telegram to a configured account/channel",
 		type: "string",
 	});
 
 	let runtime: ConversationRuntime | undefined;
 	let liveConnection: LiveConnection | undefined;
-	let ownerId = `pi-chat-${process.pid}-${randomUUID()}`;
+	let ownerId = `agent-telegram-${process.pid}-${randomUUID()}`;
 	let chatTurnInFlight = false;
 	let configLoadedAtLeastOnce = false;
 	let typingInterval: ReturnType<typeof setInterval> | undefined;
@@ -623,20 +474,6 @@ export default function (pi: ExtensionAPI) {
 							await liveConnection?.sendImmediate(buildRemoteStatus(ctx));
 							return;
 						}
-						if (control === "new") {
-							const queueNewSession = async () => {
-								pi.sendUserMessage("/chat-new", { deliverAs: "followUp" });
-								await liveConnection?.sendImmediate("Starting a new pi session.");
-							};
-							if (chatTurnInFlight || !ctx.isIdle()) {
-								pendingControlAction = queueNewSession;
-								ctx.abort();
-								await liveConnection?.sendImmediate("Aborting current turn, then starting a new pi session.");
-								return;
-							}
-							await queueNewSession();
-							return;
-						}
 						await runtime.ingestInbound(input, checkpoint);
 						await tryDispatch(ctx);
 					},
@@ -683,7 +520,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerMessageRenderer("chat-context", (message, _options, theme) => {
 		const box = new Box(1, 1, (text) => theme.bg("customMessageBg", text));
-		box.addChild(new Text(`${theme.fg("accent", theme.bold("[pi-chat]"))} ${String(message.content)}`, 0, 0));
+		box.addChild(new Text(`${theme.fg("accent", theme.bold("[agent-telegram]"))} ${String(message.content)}`, 0, 0));
 		return box;
 	});
 
@@ -712,7 +549,6 @@ export default function (pi: ExtensionAPI) {
 			pid: process.pid,
 			cwd: ctx.cwd,
 			sessionFile: ctx.sessionManager.getSessionFile(),
-			tmuxSession: tmuxSafeName(status.conversationId),
 			state: error ? "error" : "connected",
 			updatedAt: new Date().toISOString(),
 			model: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
@@ -777,22 +613,6 @@ export default function (pi: ExtensionAPI) {
 		}
 		void liveConnection?.stopTyping();
 	}
-
-	pi.registerTool({
-		name: "chat_workers",
-		label: "Chat Workers",
-		description: "Show configured pi-chat worker status from tmux and worker status snapshots.",
-		parameters: Type.Object({}),
-		renderCall(_args, theme) {
-			return new Text(theme.fg("toolTitle", theme.bold("chat_workers")), 0, 0);
-		},
-		async execute() {
-			const config = await loadChatConfig();
-			const configured = listConfiguredConversations(config);
-			const body = configured.length > 0 ? await formatWorkerStatus(configured) : "No configured channels.";
-			return { content: [{ type: "text", text: body }], details: { count: configured.length } };
-		},
-	});
 
 	pi.registerTool({
 		name: "chat_history",
@@ -871,7 +691,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "chat_attach",
 		label: "Chat Attach",
-		description: "Queue one or more local files to be sent with the next pi-chat reply.",
+		description: "Queue one or more local files to be sent with the next Telegram reply.",
 		promptSnippet: "Queue local files to be sent with the next remote chat reply.",
 		promptGuidelines: [
 			"When a remote chat user asked for a file or generated artifact, use chat_attach with local file paths.",
@@ -996,143 +816,9 @@ export default function (pi: ExtensionAPI) {
 		updateStatus(ctx);
 	}
 
-	pi.registerCommand("chat-list", {
-		description: "List configured channels",
-		handler: async (_args, ctx) => {
-			await loadConfigOnce();
-			const config = await loadChatConfig();
-			const configured = listConfiguredConversations(config);
-			if (configured.length === 0) {
-				ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
-				return;
-			}
-			ctx.ui.notify(configured.map((item) => item.conversationName).join("\n"), "info");
-		},
-	});
-
-	pi.registerCommand("chat-spawn-all", {
-		description: "Spawn all configured pi-chat channels in detached tmux sessions",
-		handler: async (args, ctx) => {
-			await loadConfigOnce();
-			ensureTmux();
-			const restart = args.split(/\s+/).includes("--restart");
-			const config = await loadChatConfig();
-			const configured = listConfiguredConversations(config);
-			if (configured.length === 0) {
-				ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
-				return;
-			}
-			const lines = configured.map((conversation) => spawnConversationTmux(ctx, conversation, restart));
-			ctx.ui.notify(`${lines.join("\n")}\n\nAttach with: tmux attach -t <session>`, "info");
-		},
-	});
-
-	pi.registerCommand("chat-workers", {
-		description: "Show managed pi-chat tmux sessions",
-		handler: async (_args, ctx) => {
-			await loadConfigOnce();
-			ensureTmux();
-			const config = await loadChatConfig();
-			const configured = listConfiguredConversations(config);
-			if (configured.length === 0) {
-				ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
-				return;
-			}
-			ctx.ui.notify(await formatWorkerStatus(configured), "info");
-		},
-	});
-
-	pi.registerCommand("chat-open-all", {
-		description: "Open all running pi-chat workers in a tiled tmux dashboard",
-		handler: async (_args, ctx) => {
-			await loadConfigOnce();
-			ensureTmux();
-			try {
-				const dashboard = createDashboardTmux();
-				ctx.ui.notify(
-					process.env.TMUX
-						? `Switched to ${dashboard}.`
-						: `Created ${dashboard}. Attach with: tmux attach -t ${dashboard}`,
-					"info",
-				);
-			} catch (error) {
-				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
-			}
-		},
-	});
-
-	pi.registerCommand("chat-kill-all", {
-		description: "Kill all managed pi-chat tmux sessions",
-		handler: async (_args, ctx) => {
-			await loadConfigOnce();
-			ensureTmux();
-			const killed = killManagedTmuxSessions();
-			ctx.ui.notify(
-				killed.length > 0 ? `Killed:\n${killed.join("\n")}` : "No managed pi-chat tmux sessions running.",
-				"info",
-			);
-		},
-	});
-
-	pi.registerCommand("chat-connect", {
-		description: "Connect this pi session to account/channel",
-		handler: async (args, ctx) => {
-			await loadConfigOnce();
-			const config = await loadChatConfig();
-			let spec = args.trim();
-			if (!spec) {
-				const configured = listConfiguredConversations(config);
-				if (configured.length === 0) {
-					ctx.ui.notify(`No configured channels. Run agent telegram login. (${CHAT_CONFIG_PATH})`, "warning");
-					return;
-				}
-				if (!ctx.hasUI) {
-					ctx.ui.notify("Usage: /chat-connect <account/channel>", "warning");
-					return;
-				}
-				const items = configured.map((item) => ({
-					value: item.conversationId,
-					label: item.conversationName,
-					description: item.conversationId,
-				}));
-				spec = (await selectItem(ctx, "Connect pi-chat channel", items)) || "";
-				if (!spec) return;
-			}
-			await connectConversation(ctx, spec, true);
-		},
-	});
-
-	pi.registerCommand("chat-new", {
-		description: "Start a new pi session and keep the current pi-chat connection",
-		handler: async (_args, ctx) => {
-			const conversationId = runtime?.conversation.conversationId;
-			const result = await ctx.newSession({
-				parentSession: ctx.sessionManager.getSessionFile(),
-				setup: async (sm) => {
-					if (conversationId) sm.appendCustomEntry(SESSION_STATE_CUSTOM_TYPE, { conversationId });
-				},
-			});
-			if (!result.cancelled) return;
-		},
-	});
-
-	pi.registerCommand("chat-disconnect", {
-		description: "Disconnect the current pi-chat channel",
-		handler: async (_args, ctx) => {
-			await disconnectRuntime(ctx);
-		},
-	});
-
-	pi.registerCommand("chat-status", {
-		description: "Show pi-chat connection status",
-		handler: async (_args, ctx) => {
-			ctx.ui.notify(buildRemoteStatus(ctx), "info");
-		},
-	});
-
 	pi.on("session_start", async (_event, ctx) => {
 		await loadConfigOnce();
-		ownerId = `pi-chat-${process.pid}-${randomUUID()}`;
+		ownerId = `agent-telegram-${process.pid}-${randomUUID()}`;
 		const readDefinition = createReadToolDefinition(ctx.cwd);
 		const writeDefinition = createWriteToolDefinition(ctx.cwd);
 		const editDefinition = createEditToolDefinition(ctx.cwd);
@@ -1240,7 +926,7 @@ export default function (pi: ExtensionAPI) {
 			await runtime.failActiveJob(errorMessage);
 			if (liveConnection) {
 				try {
-					await liveConnection.sendImmediate(`pi-chat error: ${errorMessage}`);
+					await liveConnection.sendImmediate(`agent-telegram error: ${errorMessage}`);
 				} catch {
 					// ignore secondary send failure
 				}
