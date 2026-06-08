@@ -67,7 +67,8 @@ impl<M: ModelClient> Runtime<M> {
                     self.log.append(Event::ToolResult {
                         tool_call_id: id,
                         name,
-                        output,
+                        output: output.content,
+                        details: output.details,
                     })?;
                     self.log.append(Event::TurnFinished { index: turn_index })?;
                 }
@@ -134,12 +135,12 @@ mod tests {
         assert!(
             events
                 .iter()
-                .any(|event| matches!(event, Event::ToolCall { id, name, .. } if id == "dry-run-tool-call-1" && name == "pwd"))
+                .any(|event| matches!(event, Event::ToolCall { id, name, .. } if id == "dry-run-tool-call-1" && name == "bash"))
         );
         assert!(
             events
                 .iter()
-                .any(|event| matches!(event, Event::ToolResult { tool_call_id, name, .. } if tool_call_id == "dry-run-tool-call-1" && name == "pwd"))
+                .any(|event| matches!(event, Event::ToolResult { tool_call_id, name, .. } if tool_call_id == "dry-run-tool-call-1" && name == "bash"))
         );
     }
 
@@ -154,8 +155,8 @@ mod tests {
                             "id": "call_pwd",
                             "type": "function",
                             "function": {
-                                "name": "pwd",
-                                "arguments": "{}"
+                                "name": "bash",
+                                "arguments": "{\"command\":\"pwd\"}"
                             }
                         }]
                     }
@@ -183,7 +184,7 @@ mod tests {
         assert_eq!(reply, "I checked the current directory.");
         assert_eq!(requests.len(), 2);
         assert_eq!(requests[0]["model"], "test-model");
-        assert_eq!(requests[0]["tools"][0]["function"]["name"], "pwd");
+        assert_eq!(requests[0]["tools"][1]["function"]["name"], "bash");
         assert_eq!(
             requests[1]["messages"][2]["tool_calls"][0]["id"],
             "call_pwd"
@@ -200,8 +201,8 @@ mod tests {
                     "type": "function_call",
                     "id": "fc_pwd",
                     "call_id": "call_pwd",
-                    "name": "pwd",
-                    "arguments": "{}"
+                    "name": "bash",
+                    "arguments": "{\"command\":\"pwd\"}"
                 }]
             }),
             json!({
@@ -232,7 +233,7 @@ mod tests {
         assert_eq!(requests[0]["model"], "test-model");
         assert_eq!(requests[0]["store"], false);
         assert_eq!(requests[0]["tools"][0]["type"], "function");
-        assert_eq!(requests[0]["tools"][0]["name"], "pwd");
+        assert_eq!(requests[0]["tools"][1]["name"], "bash");
         assert_eq!(requests[1]["input"][2]["type"], "function_call");
         assert_eq!(requests[1]["input"][2]["call_id"], "call_pwd");
         assert_eq!(requests[1]["input"][2]["id"], "fc_pwd");

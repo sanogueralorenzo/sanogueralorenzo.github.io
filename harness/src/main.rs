@@ -55,7 +55,8 @@ fn run_command(args: &[String]) -> Result<()> {
 
     let log = SessionLog::open(session_path)?;
     let session_id = log.session_id().map(str::to_owned);
-    let tools = ToolRegistry::minimal();
+    let tools =
+        ToolRegistry::coding(env::current_dir().context("resolve current working directory")?);
     let model = build_provider(&provider, session_id)?;
     let mut runtime = Runtime::new(log, tools, model);
     let reply = runtime.run_message(message)?;

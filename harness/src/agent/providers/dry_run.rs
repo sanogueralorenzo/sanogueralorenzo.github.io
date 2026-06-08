@@ -18,8 +18,8 @@ impl ModelClient for DryRunModel {
         if message.to_ascii_lowercase().contains("pwd") {
             return Ok(ModelStep::ToolCall {
                 id: "dry-run-tool-call-1".to_owned(),
-                name: "pwd".to_owned(),
-                arguments: json!({}),
+                name: "bash".to_owned(),
+                arguments: json!({ "command": "pwd" }),
             });
         }
 

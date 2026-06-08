@@ -269,6 +269,7 @@ mod tests {
                 tool_call_id: "call_1".to_owned(),
                 name: "pwd".to_owned(),
                 output: "/tmp/project".to_owned(),
+                details: None,
             },
         ]);
         let value = serde_json::to_value(messages).unwrap();
@@ -325,6 +326,7 @@ mod tests {
                 tool_call_id: "call_1|fc_item".to_owned(),
                 name: "pwd".to_owned(),
                 output: "/tmp/project".to_owned(),
+                details: None,
             },
         ]);
         let value = serde_json::to_value(messages).unwrap();

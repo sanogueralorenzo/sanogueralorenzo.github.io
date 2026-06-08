@@ -28,6 +28,8 @@ pub enum Event {
         tool_call_id: String,
         name: String,
         output: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        details: Option<Value>,
     },
     TurnFinished {
         index: usize,
