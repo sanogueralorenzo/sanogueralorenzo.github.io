@@ -13,7 +13,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi --prin
 - **One JSONL log.** Append-only event stream: inbound, outbound, job lifecycle.
 - **Trigger-based dispatch.** Mentions in groups, every message in DMs. Triggers queue jobs; jobs produce slices of inbound records for the agent.
 - **Host tools.** Agent turns are executed through `pi --print`, so normal local coding tools such as `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths.
-- **Workers.** `agent telegram start` launches the Telegram worker as a user service. Workers write status JSON to `~/.pi/agent/chat/worker-status/`.
+- **Workers.** `agent telegram start` enables and starts the persistent Telegram user service; `agent telegram stop` stops and disables it.
 
 ## Entry point
 
@@ -56,7 +56,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ pi --prin
 - `src/services/types.ts` — Shared service types.
 
 ### CLI/setup
-- `src/cli.ts` — `agent telegram ...` commands for login, run, start/stop, restart, enable/disable, status, and doctor.
+- `src/cli.ts` — `agent telegram ...` commands for login, run, start, stop, status, and doctor.
 
 ## Storage layout
 

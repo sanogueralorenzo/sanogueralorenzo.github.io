@@ -65,12 +65,9 @@ function usage(): string {
 Commands:
   login                         Configure the single Telegram bot/chat
   run                           Run Telegram worker in the foreground
-  start                         Start Telegram worker as a user service
-  stop                          Stop Telegram worker service
-  restart                       Restart Telegram worker service
+  start                         Enable and start the persistent Telegram service
+  stop                          Stop and disable the Telegram service
   status                        Show Telegram config and service state
-  enable                        Enable Telegram worker on boot/login
-  disable                       Disable Telegram worker on boot/login
   doctor                        Check required local tools
 `;
 }
@@ -229,8 +226,9 @@ async function commandStart(): Promise<void> {
 	const config = await loadChatConfig();
 	const conversationId = await resolveSingleConversationId(config);
 	await writeService(conversationId);
-	spawnSync("systemctl", ["--user", "start", "agent-telegram.service"], { stdio: "inherit" });
-	console.log(`Started Telegram service for ${conversationId}`);
+	spawnSync("systemctl", ["--user", "enable", "--now", "agent-telegram.service"], { stdio: "inherit" });
+	spawnSync("loginctl", ["enable-linger", process.env.USER || ""], { stdio: "ignore" });
+	console.log(`Started persistent Telegram service for ${conversationId}`);
 }
 
 async function runPiForeground(conversationId: string): Promise<void> {
@@ -238,13 +236,8 @@ async function runPiForeground(conversationId: string): Promise<void> {
 }
 
 async function commandStop(): Promise<void> {
-	spawnSync("systemctl", ["--user", "stop", "agent-telegram.service"], { stdio: "inherit" });
-	console.log("Stopped Telegram service.");
-}
-
-async function commandRestart(): Promise<void> {
-	await commandStart();
-	spawnSync("systemctl", ["--user", "restart", "agent-telegram.service"], { stdio: "inherit" });
+	spawnSync("systemctl", ["--user", "disable", "--now", "agent-telegram.service"], { stdio: "inherit" });
+	console.log("Stopped and disabled Telegram service.");
 }
 
 async function commandStatus(): Promise<void> {
@@ -255,20 +248,6 @@ async function commandStatus(): Promise<void> {
 	if (conversations.length > 1)
 		console.log(`Warning: ${conversations.length} chats configured; only one is supported.`);
 	await commandServiceStatus();
-}
-
-async function commandEnable(): Promise<void> {
-	const config = await loadChatConfig();
-	const conversationId = await resolveSingleConversationId(config);
-	await writeService(conversationId);
-	spawnSync("systemctl", ["--user", "enable", "--now", "agent-telegram.service"], { stdio: "inherit" });
-	spawnSync("loginctl", ["enable-linger", process.env.USER || ""], { stdio: "ignore" });
-	console.log(`Enabled Telegram service for ${conversationId}`);
-}
-
-async function commandDisable(): Promise<void> {
-	spawnSync("systemctl", ["--user", "disable", "--now", "agent-telegram.service"], { stdio: "inherit" });
-	console.log("Disabled Telegram service on boot/login.");
 }
 
 async function commandServiceStatus(): Promise<void> {
@@ -303,10 +282,7 @@ async function main(): Promise<void> {
 		if (command === "run") return await commandRun();
 		if (command === "start") return await commandStart();
 		if (command === "stop") return await commandStop();
-		if (command === "restart") return await commandRestart();
 		if (command === "status") return await commandStatus();
-		if (command === "enable") return await commandEnable();
-		if (command === "disable") return await commandDisable();
 		if (command === "doctor") return commandDoctor();
 		throw new Error(`Unknown command: ${command}`);
 	} catch (error) {

@@ -10,11 +10,8 @@ This package intentionally runs with **host access by default**: remote Telegram
 # Configure Telegram account and trusted chat
 agent telegram login
 
-# Start the bridge
+# Start the persistent bridge
 agent telegram start
-
-# Optional: keep it running after reboot/login
-agent telegram enable
 ```
 
 ### Requirements
@@ -50,12 +47,9 @@ agent telegram enable
 |---------|-------------|
 | `agent telegram login` | Configure the Telegram bot and trusted chat |
 | `agent telegram run` | Run the Telegram worker in the foreground |
-| `agent telegram start` | Start the Telegram worker as a user service |
-| `agent telegram stop` | Stop the Telegram worker service |
-| `agent telegram restart` | Restart the Telegram worker service |
+| `agent telegram start` | Enable and start the persistent Telegram service |
+| `agent telegram stop` | Stop and disable the Telegram service |
 | `agent telegram status` | Show config and service state |
-| `agent telegram enable` | Enable boot/login persistence |
-| `agent telegram disable` | Disable boot/login persistence |
 | `agent telegram doctor` | Check local requirements |
 
 ## Remote Control
