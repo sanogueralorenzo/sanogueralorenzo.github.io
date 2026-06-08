@@ -2,7 +2,7 @@
 
 Agent is a small local AI coding agent for real machines.
 
-It is the direction for the current `harness/` experiment: keep the useful Pi-shaped core, but make it easier to understand, install, run, and extend.
+It keeps the useful Pi-shaped core, but makes it easier to understand, install, run, and extend.
 
 ## Goal
 
@@ -117,14 +117,13 @@ Tools expose schemas and callable functions. The runtime should not care whether
 
 ## First Milestones
 
-1. Keep `harness/` working as the prototype for the runtime loop.
-2. Rename or reshape the useful parts into `agent/` once the boundary is clear.
-3. Support local coding tools: `read`, `write`, `edit`, `bash`, `grep`, `find`, `ls`.
-4. Support OpenAI through a provider adapter.
-5. Add control commands: `status`, `stop`, `new`, `compact`.
-6. Add a daemon/queue mode.
-7. Add Telegram as an adapter, not as part of the core.
-8. Add installer/service commands for Raspberry Pi reboot recovery.
+1. Implement the small durable runtime loop.
+2. Support local coding tools: `read`, `write`, `edit`, `bash`, `grep`, `find`, `ls`.
+3. Support OpenAI through a provider adapter.
+4. Add control commands: `status`, `stop`, `new`, `compact`.
+5. Add a daemon/queue mode.
+6. Add Telegram as an adapter, not as part of the core.
+7. Add installer/service commands for Raspberry Pi reboot recovery.
 
 ## Design Principles
 
@@ -135,9 +134,3 @@ Tools expose schemas and callable functions. The runtime should not care whether
 - Make tools reusable outside this agent when possible.
 - Keep web/chat/UI/login as adapters around the core, not inside it.
 - Optimize for fast local iteration and safe reboot recovery.
-
-## Relationship To Harness
-
-`harness/` is the current experimental extraction of the Pi agent loop.
-
-`agent/` is the product direction: the same core idea, named and shaped for people who want a local AI coding agent they can install, run, and trust.
