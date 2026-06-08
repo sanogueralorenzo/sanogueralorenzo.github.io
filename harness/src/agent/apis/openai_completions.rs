@@ -16,12 +16,22 @@ pub struct OpenAiCompletionsModel {
     model: String,
     session_id: Option<String>,
     cache_retention: CacheRetention,
+    supports_image_input: bool,
+    reasoning: bool,
 }
 
 impl OpenAiCompletionsModel {
     #[cfg(test)]
     pub fn new(base_url: String, api_key: String, model: String) -> Self {
-        Self::with_cache(base_url, api_key, model, None, CacheRetention::Short)
+        Self::with_cache(
+            base_url,
+            api_key,
+            model,
+            None,
+            CacheRetention::Short,
+            true,
+            false,
+        )
     }
 
     pub fn with_cache(
@@ -30,6 +40,8 @@ impl OpenAiCompletionsModel {
         model: String,
         session_id: Option<String>,
         cache_retention: CacheRetention,
+        supports_image_input: bool,
+        reasoning: bool,
     ) -> Self {
         Self {
             client: Client::new(),
@@ -38,6 +50,8 @@ impl OpenAiCompletionsModel {
             model,
             session_id,
             cache_retention,
+            supports_image_input,
+            reasoning,
         }
     }
 }
@@ -47,7 +61,7 @@ impl ModelClient for OpenAiCompletionsModel {
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let body = ChatRequest {
             model: self.model.clone(),
-            messages: to_chat_messages(events),
+            messages: to_chat_messages(events, self.supports_image_input, self.reasoning),
             tools: chat_tools(events, tools),
             tool_choice: if tools.is_empty() { None } else { Some("auto") },
             prompt_cache_key: self.prompt_cache_key(),
@@ -127,8 +141,14 @@ fn step_from_chat_response(completion: ChatResponse) -> Result<ModelStep> {
     Ok(ModelStep::Final(message.content.unwrap_or_default()))
 }
 
-fn to_chat_messages(events: &[Event]) -> Vec<ChatMessage> {
-    let mut messages = vec![ChatMessage::system(
+fn to_chat_messages(
+    events: &[Event],
+    supports_image_input: bool,
+    reasoning: bool,
+) -> Vec<ChatMessage> {
+    let instruction_role = if reasoning { "developer" } else { "system" };
+    let mut messages = vec![ChatMessage::instruction(
+        instruction_role,
         "You are a minimal coding agent. Use tools when they are useful, then answer concisely.",
     )];
     for event in events {
@@ -146,8 +166,14 @@ fn to_chat_messages(events: &[Event]) -> Vec<ChatMessage> {
                 details,
                 ..
             } => {
-                messages.push(ChatMessage::tool(tool_call_id, output));
-                if let Some(image) = image_tool_detail(details.as_ref()) {
+                let tool_output =
+                    if !supports_image_input && image_tool_detail(details.as_ref()).is_some() {
+                        non_vision_tool_output(output)
+                    } else {
+                        output.to_owned()
+                    };
+                messages.push(ChatMessage::tool(tool_call_id, &tool_output));
+                if supports_image_input && let Some(image) = image_tool_detail(details.as_ref()) {
                     messages.push(ChatMessage::user_image_tool_result(
                         image.mime_type,
                         image.data,
@@ -233,9 +259,9 @@ struct ChatMessage {
 }
 
 impl ChatMessage {
-    fn system(content: &str) -> Self {
+    fn instruction(role: &'static str, content: &str) -> Self {
         Self {
-            role: "system",
+            role,
             content: Some(ChatContent::text(content)),
             tool_calls: None,
             tool_call_id: None,
@@ -303,6 +329,14 @@ impl ChatMessage {
             tool_calls: None,
             tool_call_id: None,
         }
+    }
+}
+
+fn non_vision_tool_output(output: &str) -> String {
+    if output.is_empty() {
+        "(tool image omitted: model does not support images)".to_owned()
+    } else {
+        format!("{output}\n(tool image omitted: model does not support images)")
     }
 }
 
@@ -409,22 +443,26 @@ mod tests {
 
     #[test]
     fn converts_tool_call_continuation_messages() {
-        let messages = to_chat_messages(&[
-            Event::UserMessage {
-                content: "where am I?".to_owned(),
-            },
-            Event::ToolCall {
-                id: "call_1".to_owned(),
-                name: "pwd".to_owned(),
-                arguments: json!({}),
-            },
-            Event::ToolResult {
-                tool_call_id: "call_1".to_owned(),
-                name: "pwd".to_owned(),
-                output: "/tmp/project".to_owned(),
-                details: None,
-            },
-        ]);
+        let messages = to_chat_messages(
+            &[
+                Event::UserMessage {
+                    content: "where am I?".to_owned(),
+                },
+                Event::ToolCall {
+                    id: "call_1".to_owned(),
+                    name: "pwd".to_owned(),
+                    arguments: json!({}),
+                },
+                Event::ToolResult {
+                    tool_call_id: "call_1".to_owned(),
+                    name: "pwd".to_owned(),
+                    output: "/tmp/project".to_owned(),
+                    details: None,
+                },
+            ],
+            true,
+            false,
+        );
         let value = serde_json::to_value(messages).unwrap();
 
         assert_eq!(value[0]["role"], "system");
@@ -469,19 +507,23 @@ mod tests {
 
     #[test]
     fn normalizes_responses_tool_ids_for_chat_continuation() {
-        let messages = to_chat_messages(&[
-            Event::ToolCall {
-                id: "call_1|fc_item".to_owned(),
-                name: "pwd".to_owned(),
-                arguments: json!({}),
-            },
-            Event::ToolResult {
-                tool_call_id: "call_1|fc_item".to_owned(),
-                name: "pwd".to_owned(),
-                output: "/tmp/project".to_owned(),
-                details: None,
-            },
-        ]);
+        let messages = to_chat_messages(
+            &[
+                Event::ToolCall {
+                    id: "call_1|fc_item".to_owned(),
+                    name: "pwd".to_owned(),
+                    arguments: json!({}),
+                },
+                Event::ToolResult {
+                    tool_call_id: "call_1|fc_item".to_owned(),
+                    name: "pwd".to_owned(),
+                    output: "/tmp/project".to_owned(),
+                    details: None,
+                },
+            ],
+            true,
+            false,
+        );
         let value = serde_json::to_value(messages).unwrap();
 
         assert_eq!(value[1]["tool_calls"][0]["id"], "call_1");
@@ -490,18 +532,22 @@ mod tests {
 
     #[test]
     fn converts_image_tool_results_to_follow_up_user_image_message() {
-        let messages = to_chat_messages(&[Event::ToolResult {
-            tool_call_id: "call_image".to_owned(),
-            name: "read".to_owned(),
-            output: "Read image file [image/png]".to_owned(),
-            details: Some(json!({
-                "image": {
-                    "mimeType": "image/png",
-                    "data": "abc123",
-                    "omitted": false
-                }
-            })),
-        }]);
+        let messages = to_chat_messages(
+            &[Event::ToolResult {
+                tool_call_id: "call_image".to_owned(),
+                name: "read".to_owned(),
+                output: "Read image file [image/png]".to_owned(),
+                details: Some(json!({
+                    "image": {
+                        "mimeType": "image/png",
+                        "data": "abc123",
+                        "omitted": false
+                    }
+                })),
+            }],
+            true,
+            false,
+        );
         let value = serde_json::to_value(messages).unwrap();
 
         assert_eq!(value[1]["role"], "tool");
@@ -515,12 +561,52 @@ mod tests {
     }
 
     #[test]
+    fn downgrades_image_tool_results_when_model_is_text_only() {
+        let messages = to_chat_messages(
+            &[Event::ToolResult {
+                tool_call_id: "call_image".to_owned(),
+                name: "read".to_owned(),
+                output: "Read image file [image/png]".to_owned(),
+                details: Some(json!({
+                    "image": {
+                        "mimeType": "image/png",
+                        "data": "abc123",
+                        "omitted": false
+                    }
+                })),
+            }],
+            false,
+            false,
+        );
+        let value = serde_json::to_value(messages).unwrap();
+
+        assert_eq!(value[1]["role"], "tool");
+        assert_eq!(
+            value[1]["content"],
+            "Read image file [image/png]\n(tool image omitted: model does not support images)"
+        );
+        assert!(value.get(2).is_none());
+    }
+
+    #[test]
+    fn uses_developer_instruction_role_for_reasoning_models() {
+        let messages = to_chat_messages(&[], true, true);
+        let value = serde_json::to_value(messages).unwrap();
+
+        assert_eq!(value[0]["role"], "developer");
+    }
+
+    #[test]
     fn omits_empty_tools_without_tool_history() {
         let body = ChatRequest {
             model: "test-model".to_owned(),
-            messages: to_chat_messages(&[Event::UserMessage {
-                content: "hello".to_owned(),
-            }]),
+            messages: to_chat_messages(
+                &[Event::UserMessage {
+                    content: "hello".to_owned(),
+                }],
+                true,
+                false,
+            ),
             tools: chat_tools(
                 &[Event::UserMessage {
                     content: "hello".to_owned(),
@@ -546,6 +632,8 @@ mod tests {
             "model".to_owned(),
             Some("x".repeat(80)),
             CacheRetention::Long,
+            true,
+            false,
         );
 
         assert_eq!(model.prompt_cache_key(), Some("x".repeat(64)));
@@ -566,6 +654,8 @@ mod tests {
             "model".to_owned(),
             Some("session-1".to_owned()),
             CacheRetention::Short,
+            true,
+            false,
         );
         let custom_model = OpenAiCompletionsModel::with_cache(
             "http://localhost".to_owned(),
@@ -573,6 +663,8 @@ mod tests {
             "model".to_owned(),
             Some("session-1".to_owned()),
             CacheRetention::Short,
+            true,
+            false,
         );
 
         assert_eq!(
@@ -598,6 +690,8 @@ mod tests {
             "test-model".to_owned(),
             Some("session-123".to_owned()),
             CacheRetention::Long,
+            true,
+            false,
         );
 
         let step = model
@@ -626,6 +720,8 @@ mod tests {
             "model".to_owned(),
             Some("session-1".to_owned()),
             CacheRetention::None,
+            true,
+            false,
         );
 
         assert_eq!(model.prompt_cache_key(), None);

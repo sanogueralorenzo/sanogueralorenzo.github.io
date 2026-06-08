@@ -94,6 +94,8 @@ This follows Pi's split between provider and API:
 
 OpenAI construction resolves into one Pi-shaped provider/model config before the adapter is built. The config keeps the provider id, API adapter, base URL, model id, input capabilities, reasoning metadata, API key, and cache retention together. The harness still only exposes `dry-run` and `openai`; it does not import Pi's broader provider registry, custom `models.json`, fuzzy resolver, or OAuth flow yet.
 
+OpenAI adapters use that model metadata during request conversion. For reasoning models, the fixed harness instruction is sent with Pi's `developer` role instead of `system`. Image tool results are replayed as image content only when `HARNESS_MODEL_INPUTS` includes `image`; text-only models receive a Pi-style omitted-image placeholder so the request remains valid.
+
 The runtime persists the assistant tool call, runs the local Rust tool, persists the matching tool result, then continues the model loop.
 
 ## Runtime Loop

@@ -114,7 +114,6 @@ impl OpenAiModelConfig {
         })
     }
 
-    #[cfg(test)]
     fn supports_image_input(&self) -> bool {
         self.input.contains(&ModelInput::Image)
     }
@@ -141,6 +140,9 @@ impl OpenAiProviderConfig {
             bail!("unsupported OpenAI model provider: {}", self.model.provider);
         }
 
+        let supports_image_input = self.model.supports_image_input();
+        let reasoning = self.model.reasoning;
+
         match self.model.api {
             OpenAiApi::Completions => Ok(Box::new(OpenAiCompletionsModel::with_cache(
                 self.model.base_url,
@@ -148,6 +150,8 @@ impl OpenAiProviderConfig {
                 self.model.id,
                 session_id,
                 self.cache_retention,
+                supports_image_input,
+                reasoning,
             ))),
             OpenAiApi::Responses => Ok(Box::new(OpenAiResponsesModel::with_cache(
                 self.model.base_url,
@@ -155,6 +159,8 @@ impl OpenAiProviderConfig {
                 self.model.id,
                 session_id,
                 self.cache_retention,
+                supports_image_input,
+                reasoning,
             ))),
         }
     }

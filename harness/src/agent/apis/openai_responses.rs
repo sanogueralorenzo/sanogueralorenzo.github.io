@@ -45,12 +45,22 @@ pub struct OpenAiResponsesModel {
     model: String,
     session_id: Option<String>,
     cache_retention: CacheRetention,
+    supports_image_input: bool,
+    reasoning: bool,
 }
 
 impl OpenAiResponsesModel {
     #[cfg(test)]
     pub fn new(base_url: String, api_key: String, model: String) -> Self {
-        Self::with_cache(base_url, api_key, model, None, CacheRetention::Short)
+        Self::with_cache(
+            base_url,
+            api_key,
+            model,
+            None,
+            CacheRetention::Short,
+            true,
+            false,
+        )
     }
 
     pub fn with_cache(
@@ -59,6 +69,8 @@ impl OpenAiResponsesModel {
         model: String,
         session_id: Option<String>,
         cache_retention: CacheRetention,
+        supports_image_input: bool,
+        reasoning: bool,
     ) -> Self {
         Self {
             client: Client::new(),
@@ -67,6 +79,8 @@ impl OpenAiResponsesModel {
             model,
             session_id,
             cache_retention,
+            supports_image_input,
+            reasoning,
         }
     }
 }
@@ -76,7 +90,7 @@ impl ModelClient for OpenAiResponsesModel {
         let url = format!("{}/responses", self.base_url.trim_end_matches('/'));
         let body = ResponsesRequest {
             model: self.model.clone(),
-            input: to_response_input(events),
+            input: to_response_input(events, self.supports_image_input, self.reasoning),
             tools: non_empty_tools(tools),
             prompt_cache_key: self.prompt_cache_key(),
             prompt_cache_retention: self.prompt_cache_retention(),
@@ -159,9 +173,14 @@ fn step_from_response(response: ResponsesResponse) -> Result<ModelStep> {
     Ok(ModelStep::Final(text))
 }
 
-fn to_response_input(events: &[Event]) -> Vec<ResponseInputItem> {
+fn to_response_input(
+    events: &[Event],
+    supports_image_input: bool,
+    reasoning: bool,
+) -> Vec<ResponseInputItem> {
+    let instruction_role = if reasoning { "developer" } else { "system" };
     let mut input = vec![ResponseInputItem::message(
-        "system",
+        instruction_role,
         "You are a minimal coding agent. Use tools when they are useful, then answer concisely.",
     )];
 
@@ -187,6 +206,7 @@ fn to_response_input(events: &[Event]) -> Vec<ResponseInputItem> {
                 tool_call_id,
                 output,
                 details.as_ref(),
+                supports_image_input,
             )),
             Event::JobStarted
             | Event::TurnStarted { .. }
@@ -271,11 +291,16 @@ impl ResponseInputItem {
         }
     }
 
-    fn function_call_output(call_id: &str, output: &str, details: Option<&Value>) -> Self {
+    fn function_call_output(
+        call_id: &str,
+        output: &str,
+        details: Option<&Value>,
+        supports_image_input: bool,
+    ) -> Self {
         let id = normalize_responses_tool_call_id(call_id);
         Self::FunctionCallOutput {
             call_id: id.call_id,
-            output: function_call_output_content(output, details),
+            output: function_call_output_content(output, details, supports_image_input),
         }
     }
 }
@@ -329,7 +354,11 @@ impl InputContent {
 fn function_call_output_content(
     output: &str,
     details: Option<&Value>,
+    supports_image_input: bool,
 ) -> FunctionCallOutputContent {
+    if !supports_image_input && image_tool_detail(details).is_some() {
+        return FunctionCallOutputContent::Text(non_vision_tool_output(output));
+    }
     let Some(image) = image_tool_detail(details) else {
         return FunctionCallOutputContent::Text(output.to_owned());
     };
@@ -339,6 +368,14 @@ fn function_call_output_content(
     }
     parts.push(InputContent::input_image(image.mime_type, image.data));
     FunctionCallOutputContent::Parts(parts)
+}
+
+fn non_vision_tool_output(output: &str) -> String {
+    if output.is_empty() {
+        "(tool image omitted: model does not support images)".to_owned()
+    } else {
+        format!("{output}\n(tool image omitted: model does not support images)")
+    }
 }
 
 struct ImageToolDetail<'a> {
@@ -438,22 +475,26 @@ mod tests {
 
     #[test]
     fn converts_tool_call_continuation_items() {
-        let input = to_response_input(&[
-            Event::UserMessage {
-                content: "where am I?".to_owned(),
-            },
-            Event::ToolCall {
-                id: "call_pwd".to_owned(),
-                name: "pwd".to_owned(),
-                arguments: json!({}),
-            },
-            Event::ToolResult {
-                tool_call_id: "call_pwd".to_owned(),
-                name: "pwd".to_owned(),
-                output: "/tmp/project".to_owned(),
-                details: None,
-            },
-        ]);
+        let input = to_response_input(
+            &[
+                Event::UserMessage {
+                    content: "where am I?".to_owned(),
+                },
+                Event::ToolCall {
+                    id: "call_pwd".to_owned(),
+                    name: "pwd".to_owned(),
+                    arguments: json!({}),
+                },
+                Event::ToolResult {
+                    tool_call_id: "call_pwd".to_owned(),
+                    name: "pwd".to_owned(),
+                    output: "/tmp/project".to_owned(),
+                    details: None,
+                },
+            ],
+            true,
+            false,
+        );
         let value = serde_json::to_value(input).unwrap();
 
         assert_eq!(value[0]["type"], "message");
@@ -470,19 +511,23 @@ mod tests {
 
     #[test]
     fn converts_pipe_separated_tool_call_ids() {
-        let input = to_response_input(&[
-            Event::ToolCall {
-                id: "call_pwd|fc_pwd".to_owned(),
-                name: "pwd".to_owned(),
-                arguments: json!({}),
-            },
-            Event::ToolResult {
-                tool_call_id: "call_pwd|fc_pwd".to_owned(),
-                name: "pwd".to_owned(),
-                output: "/tmp/project".to_owned(),
-                details: None,
-            },
-        ]);
+        let input = to_response_input(
+            &[
+                Event::ToolCall {
+                    id: "call_pwd|fc_pwd".to_owned(),
+                    name: "pwd".to_owned(),
+                    arguments: json!({}),
+                },
+                Event::ToolResult {
+                    tool_call_id: "call_pwd|fc_pwd".to_owned(),
+                    name: "pwd".to_owned(),
+                    output: "/tmp/project".to_owned(),
+                    details: None,
+                },
+            ],
+            true,
+            false,
+        );
         let value = serde_json::to_value(input).unwrap();
 
         assert_eq!(value[1]["type"], "function_call");
@@ -494,18 +539,22 @@ mod tests {
 
     #[test]
     fn converts_image_tool_results_to_response_content_parts() {
-        let input = to_response_input(&[Event::ToolResult {
-            tool_call_id: "call_image".to_owned(),
-            name: "read".to_owned(),
-            output: "Read image file [image/png]".to_owned(),
-            details: Some(json!({
-                "image": {
-                    "mimeType": "image/png",
-                    "data": "abc123",
-                    "omitted": false
-                }
-            })),
-        }]);
+        let input = to_response_input(
+            &[Event::ToolResult {
+                tool_call_id: "call_image".to_owned(),
+                name: "read".to_owned(),
+                output: "Read image file [image/png]".to_owned(),
+                details: Some(json!({
+                    "image": {
+                        "mimeType": "image/png",
+                        "data": "abc123",
+                        "omitted": false
+                    }
+                })),
+            }],
+            true,
+            false,
+        );
         let value = serde_json::to_value(input).unwrap();
 
         assert_eq!(value[1]["type"], "function_call_output");
@@ -518,12 +567,51 @@ mod tests {
     }
 
     #[test]
+    fn downgrades_image_tool_results_when_model_is_text_only() {
+        let input = to_response_input(
+            &[Event::ToolResult {
+                tool_call_id: "call_image".to_owned(),
+                name: "read".to_owned(),
+                output: "Read image file [image/png]".to_owned(),
+                details: Some(json!({
+                    "image": {
+                        "mimeType": "image/png",
+                        "data": "abc123",
+                        "omitted": false
+                    }
+                })),
+            }],
+            false,
+            false,
+        );
+        let value = serde_json::to_value(input).unwrap();
+
+        assert_eq!(value[1]["type"], "function_call_output");
+        assert_eq!(
+            value[1]["output"],
+            "Read image file [image/png]\n(tool image omitted: model does not support images)"
+        );
+    }
+
+    #[test]
+    fn uses_developer_instruction_role_for_reasoning_models() {
+        let input = to_response_input(&[], true, true);
+        let value = serde_json::to_value(input).unwrap();
+
+        assert_eq!(value[0]["role"], "developer");
+    }
+
+    #[test]
     fn hashes_foreign_pipe_separated_tool_item_ids() {
-        let input = to_response_input(&[Event::ToolCall {
-            id: "call_pwd|unsafe/item+id==".to_owned(),
-            name: "pwd".to_owned(),
-            arguments: json!({}),
-        }]);
+        let input = to_response_input(
+            &[Event::ToolCall {
+                id: "call_pwd|unsafe/item+id==".to_owned(),
+                name: "pwd".to_owned(),
+                arguments: json!({}),
+            }],
+            true,
+            false,
+        );
         let value = serde_json::to_value(input).unwrap();
         let item_id = value[1]["id"].as_str().unwrap();
 
@@ -604,6 +692,8 @@ mod tests {
             "model".to_owned(),
             Some("x".repeat(80)),
             CacheRetention::Long,
+            true,
+            false,
         );
 
         assert_eq!(model.prompt_cache_key(), Some("x".repeat(64)));
@@ -624,6 +714,8 @@ mod tests {
             "model".to_owned(),
             Some("session-1".to_owned()),
             CacheRetention::None,
+            true,
+            false,
         );
 
         assert_eq!(model.prompt_cache_key(), None);
@@ -646,6 +738,8 @@ mod tests {
             "test-model".to_owned(),
             Some("session-123".to_owned()),
             CacheRetention::Long,
+            true,
+            false,
         );
 
         let step = model
@@ -684,6 +778,8 @@ mod tests {
             "test-model".to_owned(),
             Some("session-123".to_owned()),
             CacheRetention::None,
+            true,
+            false,
         );
 
         model
