@@ -31,7 +31,7 @@ agent telegram start
 - Encrypted runtime secret exchange
 - Remote control: abort, compact, status
 - Uses the regular agent session/harness so Telegram turns support session compaction
-- Busy-message coalescing: messages received while the agent is running become one next turn
+- FIFO queueing: messages received while the agent is running are processed oldest-first
 - Telegram-specific agent tools: `chat_history`, `chat_attach`, `chat_request_secret`
 - Chat history search
 - File attachments in both directions

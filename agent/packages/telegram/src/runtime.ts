@@ -225,8 +225,7 @@ export class ConversationRuntime {
 
 	beginNextJob(): DispatchableJob | undefined {
 		if (this.activeJob || this.pendingJobs.length === 0) return undefined;
-		const job = this.pendingJobs.at(-1);
-		this.pendingJobs = [];
+		const job = this.pendingJobs.shift();
 		if (!job) return undefined;
 		this.activeJob = job;
 		const triggerRecord = getLatestTriggerRecord(this.records, job);

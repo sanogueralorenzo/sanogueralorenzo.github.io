@@ -11,7 +11,7 @@ Telegram ←→ Live Adapter ←→ Runtime (log, jobs, slices) ←→ AgentSess
 - **Host access.** Remote Telegram turns run with the same local filesystem and process access as the local agent process.
 - **Single DM.** This package intentionally supports one trusted Telegram DM at a time. Running `agent telegram login` replaces the previous chat config.
 - **One JSONL log.** Append-only event stream: inbound, outbound, job lifecycle.
-- **Trigger-based dispatch.** Every allowed DM message triggers the agent. Messages that arrive while the agent is busy are coalesced into one next turn.
+- **Trigger-based dispatch.** Every allowed DM message triggers the agent. Messages that arrive while the agent is busy are queued FIFO and processed oldest-first.
 - **Host tools.** Agent turns are executed through a regular `AgentSession`, so normal local coding tools such as `read`, `write`, `edit`, and `bash` run directly on the host cwd and can use absolute host paths.
 - **Workers.** `agent telegram start` enables and starts the persistent Telegram user service; `agent telegram stop` stops and disables it.
 
