@@ -6,13 +6,9 @@ extension AppDelegate {
     let data = menuDataStore.data
     menu.removeAllItems()
 
-    menu.addItem(actionItem(title: "Open", action: #selector(openCodexApp(_:))))
-    menu.addItem(.separator())
-    addRemoteSection(to: menu, data: data)
-    menu.addItem(.separator())
     addProfilesSection(to: menu, data: data)
     menu.addItem(.separator())
-    menu.addItem(actionItem(title: "Help", action: #selector(openHelp(_:))))
+    addRemoteSection(to: menu, data: data)
     menu.addItem(.separator())
     let quit = actionItem(title: "Quit", action: #selector(quit(_:)), keyEquivalent: "q")
     menu.addItem(quit)

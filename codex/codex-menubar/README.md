@@ -21,9 +21,8 @@
 - Launch starts `codex-remote start --plain` only when remote auto-start has been enabled by a prior successful `Remote -> Start`.
 - Launch agent executable path is fixed to `/Applications/Codex Menu Bar.app`.
 - Install stops the loaded LaunchAgent first, replaces the app bundle, then bootstraps the LaunchAgent again so relaunch stays single-instance and auto-start remains configured.
-- Menu includes `Open` as the first action; it launches Codex if needed or brings it to focus when already running.
 - Status bar item uses the text `CA`.
-- Menu section labels are `Remote` and `Profiles`.
+- Menu section labels are `Profiles` and `Remote`, in that order.
 - `Remote -> Start` enables remote auto-start for future app launches.
 - `Remote -> Stop` disables remote auto-start for future app launches.
 - Quit stops managed background processes, then terminates the Codex macOS app before app termination.

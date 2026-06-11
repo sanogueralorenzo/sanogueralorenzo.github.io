@@ -2,18 +2,6 @@ import AppKit
 import Foundation
 
 extension AppDelegate {
-  @objc func openCodexApp(_ sender: Any?) {
-    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      do {
-        try launchCodexApp()
-      } catch {
-        DispatchQueue.main.async {
-          self?.showError(error)
-        }
-      }
-    }
-  }
-
   @objc func noopHeader(_ sender: Any?) {
     // Intentionally empty: keeps the title row clickable without side effects.
   }
@@ -111,18 +99,6 @@ extension AppDelegate {
         }
       }
     }
-  }
-
-  @objc func openHelp(_ sender: Any?) {
-    guard
-      let url = URL(
-        string:
-          "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/tree/main/codex/codex-menubar"
-      )
-    else {
-      return
-    }
-    NSWorkspace.shared.open(url)
   }
 
   @objc func installCodexRemote(_ sender: Any?) {
@@ -226,32 +202,6 @@ extension AppDelegate {
   }
 }
 
-private func launchCodexApp() throws {
-  let process = Process()
-  process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-  process.arguments = ["-a", "Codex"]
-
-  let stderr = Pipe()
-  process.standardError = stderr
-
-  try process.run()
-  process.waitUntilExit()
-
-  guard process.terminationStatus == 0 else {
-    let errorOutput =
-      String(
-        data: stderr.fileHandleForReading.readDataToEndOfFile(),
-        encoding: .utf8
-      )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-    if errorOutput.isEmpty {
-      throw CodexAppLaunchError(message: "Failed to open Codex app.")
-    }
-
-    throw CodexAppLaunchError(message: errorOutput)
-  }
-}
-
 private func terminateCodexAppIfRunning() throws {
   let process = Process()
   process.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
@@ -276,11 +226,6 @@ private func terminateCodexAppIfRunning() throws {
 
     throw CodexAppTerminationError(message: errorOutput)
   }
-}
-
-private struct CodexAppLaunchError: LocalizedError {
-  let message: String
-  var errorDescription: String? { message }
 }
 
 private struct CodexAppTerminationError: LocalizedError {
