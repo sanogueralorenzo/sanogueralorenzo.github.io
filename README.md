@@ -24,7 +24,6 @@ It does not install `overlay`, `voice`, or `site`.
 - [Overlay](./overlay/README.md)
 - [Voice](./voice/README.md)
 - [Site](./site/README.md)
-- [Harness](./harness/README.md)
 
 ## Model
 
