@@ -12,6 +12,10 @@ The overlay positioning screen keeps the bubble visible while a non-Voice keyboa
 
 The Android app depends on the shared Rust engine in `../engine` for deterministic pre/post processing. Gradle builds the JNI library during Android packaging, so local builds need Rust, the Android SDK, and an installed Android NDK.
 
+## Runtime Assets
+
+The rewrite prompt is downloaded from `voice/android/scripts/prompt_a.json` in this repository and cached on device at `filesDir/prompts/prompt_a.json`.
+
 ## Reference
 
 - Package: `com.sanogueralorenzo.voice`
